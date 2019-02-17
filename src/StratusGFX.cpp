@@ -1,10 +1,13 @@
 #include "GL/gl3w.h"
 #include "GL/gl.h"
-#include "SDL2/SDL.h"
 #include "glm/glm.hpp"
 #include <iostream>
+#include <includes/Shader.h>
+
+#include "SDL2/SDL.h"
 
 int main(int argc, char * args[]) {
+    std::cout << args[0] << std::endl;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cout << "Unable to initialize sdl2" << std::endl;
@@ -45,6 +48,10 @@ int main(int argc, char * args[]) {
         std::cout << "OpenGL 3.2 not supported" << std::endl;
         return -1;
     }
+
+    Shader shader("../resources/shaders/shader.vs", "../resources/shaders/shader.fs");
+    std::cout << std::boolalpha;
+    std::cout << shader.isValid() << std::endl;
 
     bool running = true;
     while (running) {

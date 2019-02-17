@@ -1,6 +1,7 @@
 #include <fstream>
 #include <sstream>
 #include <includes/Filesystem.h>
+#include <iostream>
 
 #include "includes/Filesystem.h"
 
@@ -9,7 +10,10 @@
  */
 std::vector <char> Filesystem::readBinary(const std::string &file) {
     std::ifstream binaryFile(file, std::ios::in | std::ios::binary);
-    if (!binaryFile.is_open()) return std::vector<char>();
+    if (!binaryFile.is_open()) {
+        std::cerr << "[error] Unable to open " << file << std::endl;
+        return std::vector<char>();
+    }
 
     // First we need to get the size
     int64_t fileSize;
@@ -31,7 +35,10 @@ std::vector <char> Filesystem::readBinary(const std::string &file) {
  */
 std::string Filesystem::readAscii(const std::string &file) {
     std::ifstream asciiFile(file, std::ios::in);
-    if (!asciiFile.is_open()) return std::string();
+    if (!asciiFile.is_open()) {
+        std::cerr << "[error] Unable to open " << file << std::endl;
+        return std::string();
+    }
     auto s = std::string((std::istreambuf_iterator<char>(asciiFile)),
             std::istreambuf_iterator<char>());
     asciiFile.close();

@@ -3,7 +3,7 @@
 #define STRATUSGFX_SHADER_H
 
 #include <string>
-#include "GL/gl.h"
+#include "GL/gl3w.h"
 
 class Shader {
     /**

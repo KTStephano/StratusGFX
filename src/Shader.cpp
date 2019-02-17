@@ -1,15 +1,12 @@
-
-#include <includes/Shader.h>
-#include <includes/Filesystem.h>
-#include <GL/gl3w.h>
-#include <iostream>
-
 #include "includes/Shader.h"
+#include <includes/Filesystem.h>
+#include <iostream>
 
 Shader::Shader(const std::string &vertexShader,
         const std::string &fragShader)
         : _vsFile(vertexShader),
         _fsFile(fragShader) {
+    _compile();
 }
 
 Shader::~Shader() {
@@ -31,11 +28,11 @@ static bool checkShaderError(GLuint shader) {
         std::cerr << "[error] Unable to compile shader" << std::endl;
 
         // Now we're going to get the error log and print it out
-        GLuint logLength;
+        GLint logLength;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         if (logLength > 0) {
             std::string errorLog;
-            errorLog.resize(logLength);
+            errorLog.resize(static_cast<uint32_t>(logLength));
 
             glGetShaderInfoLog(shader, logLength, nullptr, &errorLog[0]);
             std::cout << errorLog << std::endl;
@@ -57,12 +54,12 @@ static bool checkProgramError(GLuint program) {
     if (!linkStatus) {
         std::cerr << "[error] Program failed during linking" << std::endl;
 
-        GLuint logLength;
+        GLint logLength;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
 
         if (logLength > 0) {
             std::string errorLog;
-            errorLog.resize(logLength);
+            errorLog.resize(static_cast<uint32_t>(logLength));
             glGetProgramInfoLog(program, logLength, nullptr, &errorLog[0]);
             std::cout << errorLog << std::endl;
         }
@@ -82,7 +79,8 @@ void Shader::_compile() {
 
     // Compile the vertex shader
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vsBuffer[0], nullptr);
+    const char * bufferPtr = vsBuffer.c_str();
+    glShaderSource(vs, 1, &bufferPtr, nullptr);
     glCompileShader(vs);
 
     if (!checkShaderError(vs)) {
@@ -92,7 +90,8 @@ void Shader::_compile() {
 
     // Compile the fragment shader
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fsBuffer[0], nullptr);
+    bufferPtr = fsBuffer.c_str();
+    glShaderSource(fs, 1, &bufferPtr, nullptr);
     glCompileShader(fs);
 
     if (!checkShaderError(fs)) {
