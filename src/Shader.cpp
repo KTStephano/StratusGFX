@@ -117,6 +117,18 @@ void Shader::_compile() {
     }
 }
 
+void Shader::recompile() {
+    _compile();
+}
+
+void Shader::bind() {
+    glUseProgram(_program);
+}
+
+void Shader::unbind() {
+    glUseProgram(0);
+}
+
 void Shader::setBool(const std::string &uniform, bool b) const {
     setInt(uniform, b ? 1 : 0);
 }
@@ -160,4 +172,3 @@ GLint Shader::getUniformLocation(const std::string &uniform) const {
 GLint Shader::getAttribLocation(const std::string &attrib) const {
     return glGetAttribLocation(_program, &attrib[0]);
 }
-
