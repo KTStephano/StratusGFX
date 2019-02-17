@@ -1,6 +1,7 @@
 #include "GL/gl3w.h"
 #include "GL/gl.h"
 #include "SDL2/SDL.h"
+#include "glm/glm.hpp"
 #include <iostream>
 
 int main(int argc, char * args[]) {
