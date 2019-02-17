@@ -9,7 +9,7 @@ class Shader {
     /**
      * Filename for the vertex shader
      */
-    std::string _vtFile;
+    std::string _vsFile;
 
     /**
      * Filename for the fragment shader
@@ -17,9 +17,9 @@ class Shader {
     std::string _fsFile;
 
     /**
-     * Shader handle returned from OpenGL
+     * Program handle returned from OpenGL
      */
-    GLuint _shader;
+    GLuint _program;
 
     /**
      * Used to determine whether or not this shader
@@ -57,8 +57,31 @@ public:
      */
     void unbind();
 
+    /**
+     * Takes a uniform name (such as "viewMatrix") and returns its
+     * location within the shader.
+     * @param uniform name of the uniform
+     * @return integer representing the uniform location
+     */
+    GLint getUniformLocation(const std::string & uniform) const;
+    GLint getAttribLocation(const std::string & attrib) const;
+
+    /**
+     * Various setters to make it easy to set various uniforms
+     * such as bool, int, float, vector, matrix.
+     */
+     void setBool(const std::string & uniform, bool b) const;
+     void setInt(const std::string & uniform, int i) const;
+     void setFloat(const std::string & uniform, float f) const;
+     void setVec2(const std::string & uniform, const float * vec) const;
+     void setVec3(const std::string & uniform, const float * vec) const;
+     void setVec4(const std::string & uniform, const float * vec) const;
+     void setMat2(const std::string & uniform, const float * mat) const;
+     void setMat3(const std::string & uniform, const float * mat) const;
+     void setMat4(const std::string & uniform, const float * mat) const;
+
 private:
-    bool _compile();
+    void _compile();
 };
 
 #endif //STRATUSGFX_SHADER_H

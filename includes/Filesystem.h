@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-class Filesystem {
+struct Filesystem {
     /**
      * Reads a binary file and returns an array of bytes.
      */
