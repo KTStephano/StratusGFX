@@ -1,3 +1,4 @@
+#include "GL/gl3w.h"
 #include "SDL2/SDL.h"
 #include <iostream>
 
@@ -25,7 +26,29 @@ int main(int argc, char * args[]) {
         return -1;
     }
 
-    while (true) {
+    // Init gl core profile using gl3w
+    if (gl3wInit()) {
+        std::cout << "Failed to initialize core OpenGL profile" << std::endl;
+        return -1;
+    }
+
+    if (!gl3wIsSupported(3, 2)) {
+        std::cout << "OpenGL 3.2 not supported" << std::endl;
+        return -1;
+    }
+
+    bool running = true;
+    while (running) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            switch (e.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+                default: break;
+            }
+        }
+
         SDL_RenderClear(renderer);
         SDL_RenderPresent(renderer);
     }
