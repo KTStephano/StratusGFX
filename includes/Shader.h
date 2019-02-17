@@ -1,6 +1,3 @@
-//
-// Created by stephano on 2/17/19.
-//
 
 #ifndef STRATUSGFX_SHADER_H
 #define STRATUSGFX_SHADER_H
