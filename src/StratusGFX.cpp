@@ -1,10 +1,8 @@
-#include "GL/gl3w.h"
-#include "GL/gl.h"
+#include "includes/Common.h"
 #include "glm/glm.hpp"
 #include <iostream>
 #include <includes/Shader.h>
-
-#include "SDL2/SDL.h"
+#include <includes/Renderer.h>
 
 int main(int argc, char * args[]) {
     std::cout << args[0] << std::endl;
@@ -24,30 +22,15 @@ int main(int argc, char * args[]) {
         return -1;
     }
 
-    SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK,
-        SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-    SDL_GLContext context = SDL_GL_CreateContext(window);
-    if (context == nullptr) {
-        std::cout << "Unable to create a valid OpenGL context" << std::endl;
+    Renderer renderer(window);
+    if (!renderer.valid()) {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
     }
 
-    // Init gl core profile using gl3w
-    if (gl3wInit()) {
-        std::cout << "Failed to initialize core OpenGL profile" << std::endl;
-        return -1;
-    }
-
-    if (!gl3wIsSupported(3, 2)) {
-        std::cout << "OpenGL 3.2 not supported" << std::endl;
-        return -1;
-    }
+    std::cout << "Renderer: " << renderer.config().renderer << std::endl;
+    std::cout << "GL version: " << renderer.config().version << std::endl;
 
     Shader shader("../resources/shaders/shader.vs", "../resources/shaders/shader.fs");
     std::cout << std::boolalpha;

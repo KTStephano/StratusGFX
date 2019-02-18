@@ -1,9 +1,12 @@
-//
-// Created by stephano on 2/17/19.
-//
+
 
 #ifndef STRATUSGFX_COMMON_H
 #define STRATUSGFX_COMMON_H
+
+#include "GL/gl3w.h"
+#include "SDL2/SDL.h"
+
+typedef int TextureHandle;
 
 /**
  * This class includes all of the most common functions
@@ -11,7 +14,7 @@
  * things like print/error print or logging messages to
  * the log file.
  */
-class Common {
+struct Common {
 
 };
 
