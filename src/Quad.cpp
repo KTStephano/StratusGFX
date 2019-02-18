@@ -33,7 +33,6 @@ Quad::Quad(RenderMode mode) :
             nullptr);          // initial offset
 
     // normals
-    /*
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1,
             3,
@@ -49,7 +48,6 @@ Quad::Quad(RenderMode mode) :
             GL_FLOAT, GL_FALSE,
             sizeof(float) * 8,
             (void *)(sizeof(float) * 6));
-    */
     //glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }

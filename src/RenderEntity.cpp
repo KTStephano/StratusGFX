@@ -7,21 +7,11 @@
 RenderEntity::RenderEntity(RenderMode mode,
         RenderProperties properties)
         : _mode(mode) {
-    setRenderProperties(properties);
+    _setProperties(properties);
 }
 
 RenderEntity::~RenderEntity() {
 
-}
-
-void RenderEntity::setRenderProperties(RenderProperties properties) {
-    _properties = properties;
-}
-
-void RenderEntity::appentRenderProperties(RenderProperties properties) {
-    auto p = uint32_t(properties);
-    auto current = uint32_t(_properties);
-    _properties = (RenderProperties)(current | p);
 }
 
 RenderMode RenderEntity::getRenderMode() const {
@@ -30,4 +20,43 @@ RenderMode RenderEntity::getRenderMode() const {
 
 RenderProperties RenderEntity::getRenderProperties() const {
     return _properties;
+}
+
+void RenderEntity::_setProperties(uint32_t properties) {
+    _properties = (RenderProperties)properties;
+}
+
+void RenderEntity::_enableProperties(uint32_t properties) {
+    auto p = (uint32_t)_properties;
+    p = p | properties;
+    _properties = (RenderProperties)p;
+}
+
+void RenderEntity::_disableProperties(uint32_t properties) {
+    auto p = (uint32_t)_properties;
+    p = p & (~properties);
+    _properties = (RenderProperties)p;
+}
+
+void RenderEntity::enableInvisibility(bool invisible) {
+    if (invisible) _disableProperties(INVISIBLE);
+    else _enableProperties(INVISIBLE);
+}
+
+void RenderEntity::enableLightInteraction(bool enabled) {
+    if (enabled) {
+        _disableProperties(FLAT);
+        _enableProperties(DYNAMIC);
+    } else {
+        _disableProperties(DYNAMIC);
+        _enableProperties(FLAT);
+    }
+}
+
+void RenderEntity::setMaterial(const RenderMaterial &material) {
+    _material = material;
+}
+
+const RenderMaterial &RenderEntity::getMaterial() const {
+    return _material;
 }
