@@ -72,3 +72,7 @@ const GFXConfig & Renderer::config() const {
 bool Renderer::valid() const {
     return _isValid;
 }
+
+void Renderer::setClearColor(const Color &c) {
+    _state.clearColor = c;
+}

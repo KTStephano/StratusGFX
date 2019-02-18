@@ -5,6 +5,7 @@
 
 #include "GL/gl3w.h"
 #include "SDL2/SDL.h"
+#include "glm/glm.hpp"
 
 typedef int TextureHandle;
 

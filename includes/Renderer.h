@@ -28,7 +28,22 @@ struct GFXConfig {
     int32_t maxViewportDims[2];
 };
 
+/**
+ * Contains rgba information.
+ */
+struct Color {
+    float r, g, b, a;
+
+    explicit Color(float r = 1.0f, float g = 1.0f,
+            float b = 1.0f, float a = 1.0f)
+            : r(r), g(g), b(b), a(a) {}
+};
+
 class Renderer {
+    struct RenderState {
+        Color clearColor;
+    };
+
     /**
      * This is needed to create the gl context and to
      * perform a gl context switch. This pointer is
@@ -44,6 +59,12 @@ class Renderer {
      * that multiple render objects are being used at once.
      */
     SDL_GLContext _context;
+
+    /**
+     * Contains information about various different settings
+     * which will affect final rendering.
+     */
+    RenderState _state;
 
     /**
      * All the fields in this struct are set during initialization
@@ -72,6 +93,12 @@ public:
      *      and false if any errors occurred
      */
      bool valid() const;
+
+     /**
+      * Sets the clear color for screen refreshes.
+      * @param c clear color
+      */
+     void setClearColor(const Color & c);
 };
 
 #endif //STRATUSGFX_RENDERER_H
