@@ -5,6 +5,8 @@
 #include <string>
 #include "Common.h"
 
+class Shader;
+
 /**
  * This contains information about a lot of the
  * OpenGL configuration params after initialization
@@ -99,6 +101,8 @@ public:
       * @param c clear color
       */
      void setClearColor(const Color & c);
+
+     const Shader * getCurrentShader() const;
 };
 
 #endif //STRATUSGFX_RENDERER_H

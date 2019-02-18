@@ -76,3 +76,7 @@ bool Renderer::valid() const {
 void Renderer::setClearColor(const Color &c) {
     _state.clearColor = c;
 }
+
+const Shader *Renderer::getCurrentShader() const {
+    return nullptr;
+}

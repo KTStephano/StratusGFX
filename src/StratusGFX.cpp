@@ -3,6 +3,7 @@
 #include <iostream>
 #include <includes/Shader.h>
 #include <includes/Renderer.h>
+#include <includes/Quad.h>
 
 int main(int argc, char * args[]) {
     std::cout << args[0] << std::endl;
@@ -33,8 +34,9 @@ int main(int argc, char * args[]) {
     std::cout << "GL version: " << renderer.config().version << std::endl;
 
     Shader shader("../resources/shaders/shader.vs", "../resources/shaders/shader.fs");
-    std::cout << std::boolalpha;
-    std::cout << shader.isValid() << std::endl;
+    if (!shader.isValid()) return -1;
+
+    Quad quad(RenderMode::PERSPECTIVE);
 
     bool running = true;
     while (running) {
@@ -50,6 +52,11 @@ int main(int argc, char * args[]) {
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        //glViewport(0, 0, 230, 230);
+        shader.bind();
+        quad.render();
+        shader.unbind();
 
         // Swap front and back buffer
         SDL_GL_SwapWindow(window);
