@@ -4,6 +4,7 @@
 #include <includes/Shader.h>
 #include <includes/Renderer.h>
 #include <includes/Quad.h>
+#include <includes/Camera.h>
 
 int main(int argc, char * args[]) {
     std::cout << args[0] << std::endl;
@@ -38,6 +39,8 @@ int main(int argc, char * args[]) {
 
     Quad quad(RenderMode::PERSPECTIVE);
 
+    Camera camera;
+
     bool running = true;
     while (running) {
         SDL_Event e;
@@ -46,6 +49,17 @@ int main(int argc, char * args[]) {
                 case SDL_QUIT:
                     running = false;
                     break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP: {
+                    bool released = e.type == SDL_KEYUP;
+                    SDL_Scancode key = e.key.keysym.scancode;
+                    switch (key) {
+                        case SDL_SCANCODE_ESCAPE:
+                            if (released) running = false;
+                            break;
+                    }
+                    break;
+                }
                 default: break;
             }
         }
