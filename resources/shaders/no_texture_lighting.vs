@@ -2,7 +2,7 @@
 
 in vec3 position;
 in vec3 normal;
-in vec2 texCoords;
+//in vec2 texCoords;
 
 uniform mat4 projection;
 // We need to do lighting calculations in either
@@ -10,8 +10,9 @@ uniform mat4 projection;
 // are going to choose eye space
 uniform mat4 modelView;
 
+out vec3 fsPosition;
 out vec3 fsNormal;
-out vec2 fsTexCoords;
+//out vec2 fsTexCoords;
 
 // See https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
 // for information about inverse-transpose
@@ -20,5 +21,7 @@ void main() {
     vec3 tempNormal = modelViewNoTranslate * normal;
     fsNormal = normalize(tempNormal);
     fsTexCoords = texCoords;
-    gl_Position = projection * modelView * vec4(position, 1.0);
+    vec4 pos = modelView * vec4(position, 1.0);
+    fsPosition = pos.xyz;
+    gl_Position = projection * pos;
 }

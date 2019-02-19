@@ -3,7 +3,12 @@
 #define STRATUSGFX_RENDERER_H
 
 #include <string>
+#include <vector>
+#include <memory>
+#include <unordered_map>
 #include "Common.h"
+#include "RenderEntity.h"
+#include "Camera.h"
 
 class Shader;
 
@@ -75,6 +80,17 @@ class Renderer {
     GFXConfig _config;
 
     /**
+     * Contains all of the shaders that are used by the renderer.
+     */
+    std::vector<Shader *> _shaders;
+
+    /**
+     * This maps a set of properties to a shader. This should be
+     * a valid combination, such as FLAT | TEXTURED.
+     */
+    std::unordered_map<uint32_t, Shader *> _propertyShaderMap;
+
+    /**
      * If the renderer was setup properly then this will be marked
      * true.
      */
@@ -103,6 +119,28 @@ public:
      void setClearColor(const Color & c);
 
      const Shader * getCurrentShader() const;
+
+     /**
+      * IMPORTANT! This sets up the renderer for a new frame.
+      */
+     void begin();
+
+     /**
+      * For the current scene, this will add a render entity
+      * that is means to be drawn.
+      */
+     void addDrawable(std::shared_ptr<RenderEntity> e);
+
+     /**
+      * Sets the camera for the current scene which will be
+      * the camera whose perspective we render from.
+      */
+     void setCamera(std::shared_ptr<Camera> c);
+
+     /**
+      * Finalizes the current scene and draws it.
+      */
+     void end();
 };
 
 #endif //STRATUSGFX_RENDERER_H

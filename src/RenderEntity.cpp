@@ -55,6 +55,9 @@ void RenderEntity::enableLightInteraction(bool enabled) {
 
 void RenderEntity::setMaterial(const RenderMaterial &material) {
     _material = material;
+    if (material.texture == -1) {
+        _disableProperties(TEXTURED);
+    }
 }
 
 const RenderMaterial &RenderEntity::getMaterial() const {

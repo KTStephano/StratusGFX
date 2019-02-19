@@ -1,7 +1,7 @@
 
 #include <includes/Renderer.h>
 #include <iostream>
-
+#include "includes/Shader.h"
 #include "includes/Renderer.h"
 
 Renderer::Renderer(SDL_Window * window) {
@@ -56,6 +56,13 @@ Renderer::Renderer(SDL_Window * window) {
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
 
     _isValid = true;
+
+    // Initialize the shaders
+    Shader * noLightNoTexture = new Shader("../includes/no_texture_no_lighting.vs",
+            "../includes/no_texture_no_lighting.fs");
+    _shaders.push_back(noLightNoTexture);
+    _propertyShaderMap.insert(std::make_pair(FLAT, noLightNoTexture));
+    _isValid = _isValid && noLightNoTexture->isValid();
 }
 
 Renderer::~Renderer() {
@@ -63,6 +70,8 @@ Renderer::~Renderer() {
         SDL_GL_DeleteContext(_context);
         _context = nullptr;
     }
+    for (Shader * shader : _shaders) delete shader;
+    _shaders.clear();
 }
 
 const GFXConfig & Renderer::config() const {

@@ -96,7 +96,7 @@ int main(int argc, char * args[]) {
 
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
-        
+
         //glViewport(0, 0, 230, 230);
         shader.bind();
         quad.render();
