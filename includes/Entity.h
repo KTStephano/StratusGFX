@@ -18,6 +18,18 @@ struct Entity {
 
     virtual ~Entity() = default;
 
+    void setPosition(float x, float y, float z) {
+        position.x = x;
+        position.y = y;
+        position.z = z;
+    }
+
+    void setSpeed(float x, float y, float z) {
+        speed.x = x;
+        speed.y = y;
+        speed.z = z;
+    }
+
     virtual void update(double deltaSeconds) = 0;
 };
 
