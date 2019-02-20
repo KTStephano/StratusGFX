@@ -9,7 +9,7 @@
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
     const int32_t maxGLVersion = 3;
-    const int32_t minGLVersion = 3;
+    const int32_t minGLVersion = 2;
 
     // Set the profile to core as opposed to immediate mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK,
