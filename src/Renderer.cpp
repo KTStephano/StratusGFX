@@ -9,7 +9,7 @@
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
     const int32_t maxGLVersion = 3;
-    const int32_t minGLVersion = 2;
+    const int32_t minGLVersion = 3;
 
     // Set the profile to core as opposed to immediate mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK,
@@ -295,6 +295,7 @@ void Renderer::end(const Camera & c) {
                 GLuint texture = _lookupTexture(e->getMaterial().texture);
                 glBindTexture(GL_TEXTURE_2D, texture);
             }
+            glFrontFace(GL_CW);
             e->render();
             glBindTexture(GL_TEXTURE_2D, 0);
         }

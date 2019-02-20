@@ -11,6 +11,10 @@ class Quad : public RenderEntity {
 
 public:
     Quad();
+    Quad(const Quad & other) = delete;
+    Quad(Quad && other) = delete;
+    Quad & operator=(const Quad & other) = delete;
+    Quad & operator=(Quad && other) = delete;
     ~Quad() override;
     void render() override;
 };

@@ -58,6 +58,10 @@ public:
      *      shader to use
      */
     RenderEntity(RenderProperties properties = FLAT);
+    RenderEntity(const RenderEntity & other) = delete;
+    RenderEntity(RenderEntity && other) = delete;
+    RenderEntity & operator=(const RenderEntity & other) = delete;
+    RenderEntity & operator=(RenderEntity && other) = delete;
     virtual ~RenderEntity();
 
     /**

@@ -207,6 +207,8 @@ public:
 private:
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
+
+public:
     GLuint _lookupTexture(TextureHandle handle) const;
 };
 

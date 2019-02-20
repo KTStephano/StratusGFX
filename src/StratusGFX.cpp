@@ -6,6 +6,70 @@
 #include <includes/Quad.h>
 #include <includes/Camera.h>
 #include <chrono>
+#include <includes/Cube.h>
+
+static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
+    float angleX = glm::radians(angles.x);
+    float angleY = glm::radians(angles.y);
+    float angleZ = glm::radians(angles.z);
+
+    float cx = std::cos(angleX);
+    float cy = std::cos(angleY);
+    float cz = std::cos(angleZ);
+
+    float sx = std::sin(angleX);
+    float sy = std::sin(angleY);
+    float sz = std::sin(angleZ);
+
+    out[0] = glm::vec4(cy * cz,
+                       sx * sy * cz + cx * sz,
+                       -cx * sy * cz + sx * sz,
+                       out[0].w);
+
+    out[1] = glm::vec4(-cy * sz,
+                       -sx * sy * sz + cx * cz,
+                       cx * sy * sz + sx * cz,
+                       out[1].w);
+
+    out[2] = glm::vec4(sy,
+                       -sx * cy,
+                       cx * cy, out[2].w);
+}
+
+// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
+static void inset(glm::mat4 & out, const glm::mat3 & in) {
+    out[0].x = in[0].x;
+    out[0].y = in[0].y;
+    out[0].z = in[0].z;
+
+    out[1].x = in[1].x;
+    out[1].y = in[1].y;
+    out[1].z = in[1].z;
+
+    out[2].x = in[2].x;
+    out[2].y = in[2].y;
+    out[2].z = in[2].z;
+}
+
+static void scale(glm::mat4 & out, const glm::vec3 & scale) {
+    out[0].x = out[0].x * scale.x;
+    out[0].y = out[0].y * scale.y;
+    out[0].z = out[0].z * scale.z;
+
+    out[1].x = out[1].x * scale.x;
+    out[1].y = out[1].y * scale.y;
+    out[1].z = out[1].z * scale.z;
+
+    out[2].x = out[2].x * scale.x;
+    out[2].y = out[2].y * scale.y;
+    out[2].z = out[2].z * scale.z;
+}
+
+static void translate(glm::mat4 & out, const glm::vec3 & translate) {
+    out[3].x = translate.x;
+    out[3].y = translate.y;
+    out[3].z = translate.z;
+}
 
 int main(int argc, char * args[]) {
     std::cout << args[0] << std::endl;
@@ -37,25 +101,37 @@ int main(int argc, char * args[]) {
     std::cout << "Renderer: " << renderer.config().renderer << std::endl;
     std::cout << "GL version: " << renderer.config().version << std::endl;
 
-    Shader shader("../resources/shaders/no_texture_no_lighting.vs",
-            "../resources/shaders/no_texture_no_lighting.fs");
+    Shader shader("../resources/shaders/texture_no_lighting.vs",
+            "../resources/shaders/texture_no_lighting.fs");
     Shader shader2("../resources/shaders/shader.vs",
             "../resources/shaders/shader.fs");
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
-    std::vector<Quad> quads;
+    std::vector<std::unique_ptr<RenderEntity>> entities;
     RenderMaterial quadMat;
     quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
     std::cout << quadMat.texture << std::endl;
     srand(time(nullptr));
     for (int i = 0; i < 100; ++i) {
-        Quad q;
-        q.setMaterial(quadMat);
-        q.position.x = rand() % 50;
-        q.position.y = rand() % 50;
-        q.position.z = rand() % 50;
-        q.scale = glm::vec3(float(rand() % 5));
-        quads.push_back(q);
+        std::unique_ptr<Quad> q = std::make_unique<Quad>();
+        q->setMaterial(quadMat);
+        q->position.x = rand() % 50;
+        q->position.y = rand() % 50;
+        q->position.z = rand() % 50;
+        q->scale = glm::vec3(float(rand() % 5));
+        entities.push_back(std::move(q));
+    }
+    //std::vector<std::unique_ptr<Cube>> cubes;
+    RenderMaterial cubeMat;
+    cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
+    for (int i = 0; i < 100; ++i) {
+        std::unique_ptr<Cube> c = std::make_unique<Cube>();
+        c->setMaterial(cubeMat);
+        c->position.x = rand() % 100;
+        c->position.y = rand() % 100;
+        c->position.z = rand() % 100;
+        c->scale = glm::vec3(float(rand() % 10));
+        entities.push_back(std::move(c));
     }
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
@@ -111,6 +187,15 @@ int main(int argc, char * args[]) {
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
 
+        renderer.begin(true);
+        for (auto & entity : entities) {
+            renderer.addDrawable(entity.get());
+        }
+        renderer.end(camera);
+
+        // Swap front and back buffer
+        SDL_GL_SwapWindow(window);
+
         /*
         glEnable(GL_BLEND);
         glEnable(GL_CULL_FACE);
@@ -137,12 +222,12 @@ int main(int argc, char * args[]) {
         shader.unbind();
          */
 
-        renderer.begin(true);
+        //renderer.begin(true);
         //quad->position.x = 15.0f;
         //quad->position.z = 2.5f;
         //quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
         //renderer.addDrawable(quad);
-        Quad q;
+        //Cube q;
         //Quad g;
         /*
         Quad q;
@@ -150,13 +235,25 @@ int main(int argc, char * args[]) {
         q.position.z = 2.5f;
         renderer.addDrawable(&q);
          */
-        for (int i = 0; i < quads.size(); ++i) {
-            renderer.addDrawable(&quads[i]);
+        /*
+        shader.bind();
+        for (Cube & c : cubes) {
+            auto & view = camera.getViewTransform();
+            glm::mat4 model(1.0f);
+            rotate(model, c.rotation);
+            scale(model, c.scale);
+            translate(model, c.position);
+            glm::mat4 modelView = view * model;
+            shader.setMat4("projection", &persp[0][0]);
+            shader.setMat4("modelView", &modelView[0][0]);
+            glActiveTexture(GL_TEXTURE0);
+            shader.setInt("diffuseTexture", 0);
+            glBindTexture(GL_TEXTURE_2D, renderer._lookupTexture(c.getMaterial().texture));
+            c.render();
+            //glBindTexture(GL_TEXTURE_2D, 0);
         }
-        renderer.end(camera);
-
-        // Swap front and back buffer
-        SDL_GL_SwapWindow(window);
+         */
+        //renderer.end(camera);
     }
 
     SDL_DestroyWindow(window);

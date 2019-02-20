@@ -4,7 +4,7 @@
 #include <vector>
 #include <iostream>
 
-static const std::vector<GLfloat> data = std::vector<GLfloat>{
+static const std::vector<GLfloat> quadData = std::vector<GLfloat>{
     // positions            normals                 texture coordinates
     -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
      1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
@@ -13,6 +13,17 @@ static const std::vector<GLfloat> data = std::vector<GLfloat>{
      1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
     -1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
 };
+/*
+static const std::vector<GLfloat> quadData = std::vector<GLfloat>{
+        // positions            normals                 texture coordinates
+        -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
+        -1.0f, -1.0f, -1.0f,     0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
+        1.0f,  -1.0f, -1.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,      0.0f, 0.0f,
+        1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
+};
+ */
 
 Quad::Quad() :
     RenderEntity(RenderProperties::FLAT) {
@@ -22,7 +33,7 @@ Quad::Quad() :
     glBindVertexArray(_vao);
     glBindBuffer(GL_ARRAY_BUFFER, _buffer);
 
-    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, quadData.size() * sizeof(float), &quadData[0], GL_STATIC_DRAW);
 
     // positions
     glEnableVertexAttribArray(0);
@@ -51,6 +62,7 @@ Quad::Quad() :
             sizeof(float) * 8,
             (void *)(sizeof(float) * 3));
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
