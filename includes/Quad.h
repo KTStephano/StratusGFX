@@ -11,7 +11,7 @@ class Quad : public RenderEntity {
 
 public:
     Quad();
-    virtual ~Quad();
+    ~Quad() override;
     void render() override;
 };
 

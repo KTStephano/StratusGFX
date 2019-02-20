@@ -3,6 +3,8 @@
 #include <iostream>
 #include "includes/Shader.h"
 #include "includes/Renderer.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "includes/STBImage.h"
 
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
@@ -62,10 +64,22 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * noLightNoTexture = new Shader("../resources/shaders/no_texture_no_lighting.vs",
             "../resources/shaders/no_texture_no_lighting.fs");
     _shaders.push_back(noLightNoTexture);
+    Shader * noLightTexture = new Shader("../resources/shaders/texture_no_lighting.vs",
+            "../resources/shaders/texture_no_lighting.fs");
+    _shaders.push_back(noLightTexture);
     using namespace std;
+    // Now we need to insert the shaders into the property map - this allows
+    // the renderer to perform quick lookup to determine the shader that matches
+    // all of a RenderEntities rendering requirements
     _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
+    _propertyShaderMap.insert(make_pair(FLAT | TEXTURED, noLightTexture));
+    // Now we need to establish a mapping between all of the possible render
+    // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
-    _isValid = _isValid && noLightNoTexture->isValid();
+    _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
+
+    // Use the shader isValid() method to determine if everything succeeded
+    _isValid = _isValid && noLightNoTexture->isValid() && noLightTexture->isValid();
 }
 
 Renderer::~Renderer() {
@@ -75,6 +89,7 @@ Renderer::~Renderer() {
     }
     for (Shader * shader : _shaders) delete shader;
     _shaders.clear();
+    invalidateAllTextures();
 }
 
 const GFXConfig & Renderer::config() const {
@@ -166,7 +181,7 @@ void Renderer::addDrawable(RenderEntity * e) {
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to
         // invisible, we won't bother adding them
-        //std::cerr << "[error] Unable to add entity" << std::endl;
+        std::cerr << "[error] Unable to add entity" << std::endl;
         return;
     }
     it->second.push_back(e);
@@ -200,6 +215,7 @@ static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
                        cx * cy, out[2].w);
 }
 
+// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
 static void inset(glm::mat4 & out, const glm::mat3 & in) {
     out[0].x = in[0].x;
     out[0].y = in[0].y;
@@ -241,6 +257,7 @@ void Renderer::end(const Camera & c) {
             _state.currentShader->unbind();
         }
         uint32_t properties = p.first;
+        std::cout << properties << std::endl;
         auto it = _propertyShaderMap.find(properties);
         Shader * s = it->second;
         _state.currentShader = s;
@@ -263,7 +280,7 @@ void Renderer::end(const Camera & c) {
             //s->setMat4("projection", &(*projection)[0][0]);
             glm::mat4 model(1.0f);
             rotate(model, e->rotation);
-            //scale(model, e->scale);
+            scale(model, e->scale);
             translate(model, e->position);
             glm::mat4 modelView = (*view) * model;
             s->setMat4("modelView", &modelView[0][0]);
@@ -272,9 +289,93 @@ void Renderer::end(const Camera & c) {
             if (properties & FLAT) {
                 s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
             }
+            if (properties & TEXTURED) {
+                glActiveTexture(GL_TEXTURE0);
+                s->setInt("diffuseTexture", 0);
+                glBindTexture(GL_TEXTURE_2D, _lookupTexture(e->getMaterial().texture));
+            }
             e->render();
+            glBindTexture(GL_TEXTURE_2D, 0);
         }
 
         s->unbind();
     }
+}
+
+TextureHandle Renderer::loadTexture(const std::string &file) {
+    auto it = _textures.find(file);
+    if (it != _textures.end()) return it->second.handle;
+
+    Texture2D tex;
+    int width, height, numChannels;
+    // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
+    uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+    if (data) {
+        glGenTextures(1, &tex.texture);
+        tex.handle = _textures.size() + 1;
+        GLenum internalFormat;
+        GLenum dataFormat;
+        // This loads the textures with sRGB in mind so that they get converted back
+        // to linear color space. Warning: if the texture was not actually specified as an
+        // sRGB texture (common for normal/specular maps), this will cause problems.
+        switch (numChannels) {
+            case 1:
+                internalFormat = GL_RED;
+                dataFormat = GL_RED;
+                break;
+            case 3:
+                internalFormat = GL_SRGB;
+                dataFormat = GL_RGB;
+                break;
+            case 4:
+                internalFormat = GL_SRGB_ALPHA;
+                dataFormat = GL_RGBA;
+                break;
+            default:
+                std::cerr << "[error] Unknown texture loading error -"
+                    << " format may be invalid" << std::endl;
+                glDeleteTextures(1, &tex.texture);
+                return -1;
+        }
+
+        glBindTexture(GL_TEXTURE_2D, tex.texture);
+        glTexImage2D(GL_TEXTURE_2D,
+                0,
+                internalFormat,
+                width, height,
+                0,
+                dataFormat,
+                GL_UNSIGNED_BYTE,
+                data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        // Do not use MIPMAP_LINEAR here as it does not make sense with magnification
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    } else {
+        std::cerr << "[error] Could now load texture: " << file << std::endl;
+        return -1;
+    }
+    _textures.insert(std::make_pair(file, tex));
+    _textureHandles.insert(std::make_pair(tex.handle, tex));
+    return tex.handle;
+}
+
+void Renderer::invalidateAllTextures() {
+    for (auto & texture : _textures) {
+        glDeleteTextures(1, &texture.second.texture);
+        // Make sure we mark it as unloaded just in case someone tries
+        // to use it in the future
+        texture.second.loaded = false;
+    }
+}
+
+GLuint Renderer::_lookupTexture(TextureHandle handle) const {
+    auto it = _textureHandles.find(handle);
+    // TODO: Make sure that 0 actually signifies an invalid texture in OpenGL
+    if (it == _textureHandles.end()) return 0;
+    return it->second.texture;
 }

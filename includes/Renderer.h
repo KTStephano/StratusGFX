@@ -60,6 +60,18 @@ class Renderer {
         Shader * currentShader;
     };
 
+    struct Texture2D {
+        std::string file;
+        TextureHandle handle = -1;
+        GLuint texture;
+        /**
+         * If true then the file is currently loaded into memory.
+         * If false then it has been unloaded, so if anyone tries
+         * to use it then it needs to first be re-loaded.
+         */
+        bool loaded = true;
+    };
+
     /**
      * This is needed to create the gl context and to
      * perform a gl context switch. This pointer is
@@ -100,13 +112,25 @@ class Renderer {
     std::unordered_map<uint32_t, Shader *> _propertyShaderMap;
 
     /**
+     * Contains a list of textures that have been loaded into memory.
+     */
+    std::unordered_map<std::string, Texture2D> _textures;
+
+    /**
+     * This encodes the same information as the _textures map, except
+     * that it can be indexed by a TextureHandle for fast lookup of
+     * texture handles attached to Material objects.
+     */
+    std::unordered_map<TextureHandle, Texture2D> _textureHandles;
+
+    /**
      * If the renderer was setup properly then this will be marked
      * true.
      */
     bool _isValid = false;
 
 public:
-    Renderer(SDL_Window * window);
+    explicit Renderer(SDL_Window * window);
     ~Renderer();
 
     /**
@@ -128,6 +152,17 @@ public:
      void setClearColor(const Color & c);
 
      const Shader * getCurrentShader() const;
+
+     void invalidateAllTextures();
+
+     /**
+      * Attempts to load a texture if it hasn't already been loaded.
+      * In the event that it was previously loaded previously, it will
+      * return an existing handle rather than re-loading the data.
+      * @param texture
+      * @return texture handle of valid or -1 if invalid
+      */
+     TextureHandle loadTexture(const std::string & file);
 
      /**
       * Sets up the arguments for the perspective projection,
@@ -172,6 +207,7 @@ public:
 private:
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
+    GLuint _lookupTexture(TextureHandle handle) const;
 };
 
 #endif //STRATUSGFX_RENDERER_H

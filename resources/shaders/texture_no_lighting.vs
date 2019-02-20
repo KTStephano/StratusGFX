@@ -3,11 +3,12 @@
 in vec3 position;
 in vec2 texCoords;
 
-uniform in mat4 modelViewProjection;
+uniform mat4 projection;
+uniform mat4 modelView;
 
 out vec2 fsTexCoords;
 
 void main() {
-    gl_Position = modelViewProjection * vec4(position, 1.0);
+    gl_Position = projection * modelView * vec4(position, 1.0);
     fsTexCoords = texCoords;
 }

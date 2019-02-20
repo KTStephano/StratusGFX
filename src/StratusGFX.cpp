@@ -44,13 +44,18 @@ int main(int argc, char * args[]) {
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
     std::vector<Quad> quads;
+    RenderMaterial quadMat;
+    quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
+    std::cout << quadMat.texture << std::endl;
     srand(time(nullptr));
     for (int i = 0; i < 100; ++i) {
         Quad q;
+        q.setMaterial(quadMat);
         q.position.x = rand() % 50;
         q.position.y = rand() % 50;
         q.position.z = rand() % 50;
-        quads.push_back(std::move(q));
+        q.scale = glm::vec3(float(rand() % 5));
+        quads.push_back(q);
     }
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
@@ -65,6 +70,7 @@ int main(int argc, char * args[]) {
         //std::cout << deltaSeconds << std::endl;
         start = curr;
         SDL_Event e;
+        const float camSpeed = 50.0f;
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -81,7 +87,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_W:
                         case SDL_SCANCODE_S:
                             if (!released) {
-                                cameraSpeed.x = key == SDL_SCANCODE_W ? 5.0f : -5.0f;
+                                cameraSpeed.x = key == SDL_SCANCODE_W ? camSpeed : -camSpeed;
                             } else {
                                 cameraSpeed.x = 0.0f;
                             }
@@ -89,7 +95,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_A:
                         case SDL_SCANCODE_D:
                             if (!released) {
-                                cameraSpeed.y = key == SDL_SCANCODE_D ? -5.0f : 5.0f;
+                                cameraSpeed.y = key == SDL_SCANCODE_D ? -camSpeed : camSpeed;
                             } else {
                                 cameraSpeed.y = 0.0f;
                             }
@@ -137,6 +143,7 @@ int main(int argc, char * args[]) {
         //quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
         //renderer.addDrawable(quad);
         Quad q;
+        //Quad g;
         /*
         Quad q;
         q.position.x = 15.0f;
