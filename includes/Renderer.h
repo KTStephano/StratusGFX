@@ -49,6 +49,16 @@ struct Color {
 class Renderer {
     struct RenderState {
         Color clearColor;
+        RenderMode mode;
+        std::unordered_map<uint32_t,
+                std::vector<std::shared_ptr<RenderEntity>>> entities;
+        int windowWidth = 0;
+        int windowHeight = 0;
+        float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
+        glm::mat4 orthographic;
+        glm::mat4 perspective;
+        std::shared_ptr<Camera> camera;
+        Shader * currentShader;
     };
 
     /**
@@ -121,9 +131,27 @@ public:
      const Shader * getCurrentShader() const;
 
      /**
-      * IMPORTANT! This sets up the renderer for a new frame.
+      * Sets up the arguments for the perspective projection,
+      * if/when the render mode is set to PERSPECTIVE.
+      * @param fov field of view in degrees
+      * @param near near clipping plane (ex: 0.25f)
+      * @param far far clipping plane (ex: 1000.0f)
       */
-     void begin();
+     void setPerspectiveData(float fov, float near, float far);
+
+     /**
+      * Sets the render mode to be either ORTHOGRAPHIC (2d)
+      * or PERSPECTIVE (3d).
+      */
+     void setRenderMode(RenderMode mode);
+
+     /**
+      * IMPORTANT! This sets up the renderer for a new frame.
+      *
+      * @param clearScreen if false then renderer will begin
+      * drawing without clearing the screen
+      */
+     void begin(bool clearScreen);
 
      /**
       * For the current scene, this will add a render entity
@@ -135,12 +163,16 @@ public:
       * Sets the camera for the current scene which will be
       * the camera whose perspective we render from.
       */
-     void setCamera(std::shared_ptr<Camera> c);
+     //void setCamera(std::shared_ptr<Camera> c);
 
      /**
       * Finalizes the current scene and draws it.
       */
-     void end();
+     void end(std::shared_ptr<Camera> c);
+
+private:
+    void _setWindowDimensions(int w, int h);
+    void _recalculateProjMatrices();
 };
 
 #endif //STRATUSGFX_RENDERER_H
