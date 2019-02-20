@@ -152,6 +152,9 @@ int main(int argc, char * args[]) {
                 case SDL_QUIT:
                     running = false;
                     break;
+                case SDL_MOUSEMOTION:
+                    camera.modifyAngle(e.motion.xrel, 0);
+                    break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
                     bool released = e.type == SDL_KEYUP;
