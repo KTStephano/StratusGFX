@@ -64,7 +64,7 @@ Renderer::Renderer(SDL_Window * window) {
     _shaders.push_back(noLightNoTexture);
     using namespace std;
     _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
-    _state.entities.insert(make_pair(FLAT, vector<shared_ptr<RenderEntity>>()));
+    _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
     _isValid = _isValid && noLightNoTexture->isValid();
 }
 
@@ -161,7 +161,7 @@ void Renderer::begin(bool clearScreen) {
     glEnable(GL_POLYGON_SMOOTH);
 }
 
-void Renderer::addDrawable(std::shared_ptr<RenderEntity> e) {
+void Renderer::addDrawable(RenderEntity * e) {
     auto it = _state.entities.find(e->getRenderProperties());
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to

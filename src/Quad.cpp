@@ -59,7 +59,9 @@ Quad::~Quad() {
 }
 
 void Quad::render() {
+    glDisable(GL_CULL_FACE);
     glBindVertexArray(_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
+    glEnable(GL_CULL_FACE);
 }

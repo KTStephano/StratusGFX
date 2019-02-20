@@ -43,9 +43,16 @@ int main(int argc, char * args[]) {
             "../resources/shaders/shader.fs");
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
-    std::shared_ptr<Quad> quad = std::make_shared<Quad>();
+    std::vector<Quad> quads;
+    srand(time(nullptr));
+    for (int i = 0; i < 100; ++i) {
+        Quad q;
+        q.position.x = rand() % 50;
+        q.position.y = rand() % 50;
+        q.position.z = rand() % 50;
+        quads.push_back(std::move(q));
+    }
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
-    quad->position = glm::vec3(0.0f, 0.0f, -10.0f);
 
     Camera camera;
     glm::vec3 cameraSpeed(0.0f);
@@ -125,10 +132,20 @@ int main(int argc, char * args[]) {
          */
 
         renderer.begin(true);
-        quad->position.x = 15.0f;
-        quad->position.z = 2.5f;
-        quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
-        renderer.addDrawable(quad);
+        //quad->position.x = 15.0f;
+        //quad->position.z = 2.5f;
+        //quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
+        //renderer.addDrawable(quad);
+        Quad q;
+        /*
+        Quad q;
+        q.position.x = 15.0f;
+        q.position.z = 2.5f;
+        renderer.addDrawable(&q);
+         */
+        for (int i = 0; i < quads.size(); ++i) {
+            renderer.addDrawable(&quads[i]);
+        }
         renderer.end(camera);
 
         // Swap front and back buffer

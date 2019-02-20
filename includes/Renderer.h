@@ -50,8 +50,7 @@ class Renderer {
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
-        std::unordered_map<uint32_t,
-                std::vector<std::shared_ptr<RenderEntity>>> entities;
+        std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
@@ -157,7 +156,7 @@ public:
       * For the current scene, this will add a render entity
       * that is means to be drawn.
       */
-     void addDrawable(std::shared_ptr<RenderEntity> e);
+     void addDrawable(RenderEntity * e);
 
      /**
       * Sets the camera for the current scene which will be
