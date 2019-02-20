@@ -10,7 +10,7 @@
  */
 class Camera : private Entity {
     glm::vec3 _worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 _dir = glm::vec3(0.0f, 0.0f, 1.0f);
+    glm::vec3 _dir = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 _up = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::vec3 _side;// = glm::cross(_up, _dir);
     glm::mat4 _viewTransform;

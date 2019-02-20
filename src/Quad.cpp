@@ -2,19 +2,20 @@
 #include "includes/Quad.h"
 #include "includes/Engine.h"
 #include <vector>
+#include <iostream>
 
 static const std::vector<GLfloat> data = std::vector<GLfloat>{
     // positions            normals                 texture coordinates
-    -0.5f, -0.5f, -0.5f,    0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,    0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,    0.0f, 0.0f, -1.0f,      0.0f, 0.0f,
+    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
+     1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+     1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+    -1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,      0.0f, 0.0f,
 };
 
-Quad::Quad(RenderMode mode) :
-    RenderEntity(mode, RenderProperties::FLAT) {
+Quad::Quad() :
+    RenderEntity(RenderProperties::FLAT) {
     glGenVertexArrays(1, &_vao);
     glGenBuffers(1, &_buffer);
 

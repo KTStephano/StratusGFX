@@ -37,11 +37,15 @@ int main(int argc, char * args[]) {
     std::cout << "Renderer: " << renderer.config().renderer << std::endl;
     std::cout << "GL version: " << renderer.config().version << std::endl;
 
-    Shader shader("../resources/shaders/texture_no_lighting.vs",
-            "../resources/shaders/texture_no_lighting.fs");
-    if (!shader.isValid()) return -1;
+    Shader shader("../resources/shaders/no_texture_no_lighting.vs",
+            "../resources/shaders/no_texture_no_lighting.fs");
+    Shader shader2("../resources/shaders/shader.vs",
+            "../resources/shaders/shader.fs");
+    if (!shader.isValid() || !shader2.isValid()) return -1;
 
-    Quad quad(RenderMode::PERSPECTIVE);
+    std::shared_ptr<Quad> quad = std::make_shared<Quad>();
+    glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
+    quad->position = glm::vec3(0.0f, 0.0f, -10.0f);
 
     Camera camera;
     glm::vec3 cameraSpeed(0.0f);
@@ -78,7 +82,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_A:
                         case SDL_SCANCODE_D:
                             if (!released) {
-                                cameraSpeed.y = key == SDL_SCANCODE_D ? 5.0f : -5.0f;
+                                cameraSpeed.y = key == SDL_SCANCODE_D ? -5.0f : 5.0f;
                             } else {
                                 cameraSpeed.y = 0.0f;
                             }
@@ -91,16 +95,41 @@ int main(int argc, char * args[]) {
             }
         }
 
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
 
-        //glViewport(0, 0, 230, 230);
+        /*
+        glEnable(GL_BLEND);
+        glEnable(GL_CULL_FACE);
+        glFrontFace(GL_CW);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_POLYGON_SMOOTH);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        auto & view = camera.getViewTransform();
+        glm::mat4 model(1.0f);
+        quad->position.x = 15.0f;
+        quad->position.z = 2.5f;
+        quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
+        rotate(model, quad->rotation);
+        translate(model, quad->position);
+        glm::mat4 modelView = view * model;
+
         shader.bind();
-        quad.render();
+        shader.setMat4("projection", &persp[0][0]);
+        shader.setMat4("modelView", &modelView[0][0]);
+        shader.setVec3("diffuseColor", &quad->getMaterial().diffuseColor[0]);
+        quad->render();
         shader.unbind();
+         */
+
+        renderer.begin(true);
+        quad->position.x = 15.0f;
+        quad->position.z = 2.5f;
+        quad->rotation.y = quad->rotation.y + (float)deltaSeconds * 10.0f;
+        renderer.addDrawable(quad);
+        renderer.end(camera);
 
         // Swap front and back buffer
         SDL_GL_SwapWindow(window);

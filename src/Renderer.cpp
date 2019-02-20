@@ -5,6 +5,7 @@
 #include "includes/Renderer.h"
 
 Renderer::Renderer(SDL_Window * window) {
+    _window = window;
     const int32_t maxGLVersion = 3;
     const int32_t minGLVersion = 2;
 
@@ -58,8 +59,8 @@ Renderer::Renderer(SDL_Window * window) {
     _isValid = true;
 
     // Initialize the shaders
-    Shader * noLightNoTexture = new Shader("../includes/no_texture_no_lighting.vs",
-            "../includes/no_texture_no_lighting.fs");
+    Shader * noLightNoTexture = new Shader("../resources/shaders/no_texture_no_lighting.vs",
+            "../resources/shaders/no_texture_no_lighting.fs");
     _shaders.push_back(noLightNoTexture);
     using namespace std;
     _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
@@ -93,6 +94,11 @@ const Shader *Renderer::getCurrentShader() const {
 }
 
 void Renderer::_recalculateProjMatrices() {
+    std::cout << _state.fov
+        << " " << _state.znear
+        << " " << _state.zfar
+        << " " << _state.windowWidth
+        << " " << _state.windowHeight << std::endl;
     _state.perspective = glm::perspective(glm::radians(_state.fov),
             float(_state.windowWidth) / float(_state.windowHeight),
             _state.znear,
@@ -146,6 +152,13 @@ void Renderer::begin(bool clearScreen) {
     for (auto & e : _state.entities) {
         e.second.clear();
     }
+
+    glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CW);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_POLYGON_SMOOTH);
 }
 
 void Renderer::addDrawable(std::shared_ptr<RenderEntity> e) {
@@ -157,6 +170,34 @@ void Renderer::addDrawable(std::shared_ptr<RenderEntity> e) {
         return;
     }
     it->second.push_back(e);
+}
+
+static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
+    float angleX = glm::radians(angles.x);
+    float angleY = glm::radians(angles.y);
+    float angleZ = glm::radians(angles.z);
+
+    float cx = std::cos(angleX);
+    float cy = std::cos(angleY);
+    float cz = std::cos(angleZ);
+
+    float sx = std::sin(angleX);
+    float sy = std::sin(angleY);
+    float sz = std::sin(angleZ);
+
+    out[0] = glm::vec4(cy * cz,
+                       sx * sy * cz + cx * sz,
+                       -cx * sy * cz + sx * sz,
+                       out[0].w);
+
+    out[1] = glm::vec4(-cy * sz,
+                       -sx * sy * sz + cx * cz,
+                       cx * sy * sz + sx * cz,
+                       out[1].w);
+
+    out[2] = glm::vec4(sy,
+                       -sx * cy,
+                       cx * cy, out[2].w);
 }
 
 static void inset(glm::mat4 & out, const glm::mat3 & in) {
@@ -173,7 +214,7 @@ static void inset(glm::mat4 & out, const glm::mat3 & in) {
     out[2].z = in[2].z;
 }
 
-static void setScale(glm::mat4 & out, const glm::vec3 & scale) {
+static void scale(glm::mat4 & out, const glm::vec3 & scale) {
     out[0].x = out[0].x * scale.x;
     out[0].y = out[0].y * scale.y;
     out[0].z = out[0].z * scale.z;
@@ -187,17 +228,13 @@ static void setScale(glm::mat4 & out, const glm::vec3 & scale) {
     out[2].z = out[2].z * scale.z;
 }
 
-static void setTranslate(glm::mat4 & out, const glm::vec3 & translate) {
+static void translate(glm::mat4 & out, const glm::vec3 & translate) {
     out[3].x = translate.x;
     out[3].y = translate.y;
     out[3].z = translate.z;
 }
 
-void Renderer::end(std::shared_ptr<Camera> c) {
-    if (c == nullptr) {
-        std::cerr << "[error] begin() called with null camera" << std::endl;
-        return;
-    }
+void Renderer::end(const Camera & c) {
     for (auto & p : _state.entities) {
         // Set up the shader we will use for this batch of entities
         if (_state.currentShader != nullptr) {
@@ -207,25 +244,27 @@ void Renderer::end(std::shared_ptr<Camera> c) {
         auto it = _propertyShaderMap.find(properties);
         Shader * s = it->second;
         _state.currentShader = s;
-        it->second->bind();
+        s->bind();
 
         // Pull the view transform/projection matrices
-        const glm::mat4 * projection;
-        const glm::mat4 * view = &c->getViewTransform();
-        glm::mat4 model(1.0f);
+        const glm::mat4 * projection = &_state.perspective;
+        const glm::mat4 * view = &c.getViewTransform();
+        /*
         if (_state.mode == RenderMode::ORTHOGRAPHIC) {
             projection = &_state.orthographic;
         } else {
             projection = &_state.perspective;
         }
+         */
         s->setMat4("projection", &(*projection)[0][0]);
 
         // Iterate through all entities and draw them
         for (auto & e : p.second) {
             //s->setMat4("projection", &(*projection)[0][0]);
-            inset(model, e->rotation);
-            setScale(model, e->scale);
-            setTranslate(model, e->position);
+            glm::mat4 model(1.0f);
+            rotate(model, e->rotation);
+            //scale(model, e->scale);
+            translate(model, e->position);
             glm::mat4 modelView = (*view) * model;
             s->setMat4("modelView", &modelView[0][0]);
 
@@ -235,5 +274,7 @@ void Renderer::end(std::shared_ptr<Camera> c) {
             }
             e->render();
         }
+
+        s->unbind();
     }
 }

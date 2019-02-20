@@ -49,7 +49,7 @@ struct Color {
 class Renderer {
     struct RenderState {
         Color clearColor;
-        RenderMode mode;
+        RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t,
                 std::vector<std::shared_ptr<RenderEntity>>> entities;
         int windowWidth = 0;
@@ -57,7 +57,7 @@ class Renderer {
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
         glm::mat4 orthographic;
         glm::mat4 perspective;
-        std::shared_ptr<Camera> camera;
+        //std::shared_ptr<Camera> camera;
         Shader * currentShader;
     };
 
@@ -168,7 +168,7 @@ public:
      /**
       * Finalizes the current scene and draws it.
       */
-     void end(std::shared_ptr<Camera> c);
+     void end(const Camera & c);
 
 private:
     void _setWindowDimensions(int w, int h);

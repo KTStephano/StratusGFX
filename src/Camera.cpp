@@ -44,9 +44,8 @@ void Camera::update(double deltaSeconds) {
 
     // Update the view transform
     _viewTransform = glm::lookAt(position, position + _dir, _up);
-
-    std::cout << "[cam pos] x: " << position.x <<
-        ", y: " << position.y << ", z: " << position.z << std::endl;
+    //std::cout << "[cam pos] x: " << position.x <<
+    //    ", y: " << position.y << ", z: " << position.z << std::endl;
 }
 
 float Camera::getYaw() const {
@@ -54,7 +53,7 @@ float Camera::getYaw() const {
 }
 
 float Camera::getPitch() const {
-    return rotation.z;
+    return rotation.y;
 }
 
 const glm::mat4 &Camera::getViewTransform() const {

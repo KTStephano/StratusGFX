@@ -36,12 +36,6 @@ struct RenderMaterial {
 
 class RenderEntity {
     /**
-     * The render mode specifies whether we should
-     * be dealing with 2d or 3d.
-     */
-    RenderMode _mode;
-
-    /**
      * This is used by the renderer to decide which shader
      * program to use.
      */
@@ -55,16 +49,15 @@ class RenderEntity {
     RenderMaterial _material;
 
 public:
-    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    glm::mat3 rotation = glm::mat3(1.0f);
+    glm::vec3 position = glm::vec3(0.0f);
+    glm::vec3 scale = glm::vec3(1.0f);
+    glm::vec3 rotation = glm::vec3(0.0f);
 
     /**
-     * @param mode determines whether 2d/3d is necessary
      * @param properties render properties which decides which
      *      shader to use
      */
-    RenderEntity(RenderMode mode, RenderProperties properties = FLAT);
+    RenderEntity(RenderProperties properties = FLAT);
     virtual ~RenderEntity();
 
     /**
@@ -91,7 +84,6 @@ public:
     void setMaterial(const RenderMaterial & material);
     const RenderMaterial & getMaterial() const;
 
-    RenderMode getRenderMode() const;
     RenderProperties getRenderProperties() const;
 
     /**

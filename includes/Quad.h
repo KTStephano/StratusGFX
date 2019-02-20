@@ -10,7 +10,7 @@ class Quad : public RenderEntity {
     GLuint _buffer;
 
 public:
-    Quad(RenderMode);
+    Quad();
     virtual ~Quad();
     void render() override;
 };

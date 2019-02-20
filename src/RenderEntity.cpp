@@ -4,18 +4,12 @@
 #include "includes/RenderEntity.h"
 #include "includes/Common.h"
 
-RenderEntity::RenderEntity(RenderMode mode,
-        RenderProperties properties)
-        : _mode(mode) {
+RenderEntity::RenderEntity(RenderProperties properties) {
     _setProperties(properties);
 }
 
 RenderEntity::~RenderEntity() {
 
-}
-
-RenderMode RenderEntity::getRenderMode() const {
-    return _mode;
 }
 
 RenderProperties RenderEntity::getRenderProperties() const {
