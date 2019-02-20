@@ -9,9 +9,9 @@ static const std::vector<GLfloat> data = std::vector<GLfloat>{
     -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
      1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
      1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,      0.0f, 0.0f,
      1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
     -1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
-    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,      0.0f, 0.0f,
 };
 
 Quad::Quad() :
@@ -33,23 +33,24 @@ Quad::Quad() :
             8 * sizeof(float), // stride
             nullptr);          // initial offset
 
-    // normals
+    // tex coords
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1,
+                          2,
+                          GL_FLOAT, GL_FALSE,
+                          sizeof(float) * 8,
+                          (void *)(sizeof(float) * 6));
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // normals
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2,
             3,
             GL_FLOAT,
             GL_FALSE,
             sizeof(float) * 8,
             (void *)(sizeof(float) * 3));
 
-    // tex coords
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2,
-            2,
-            GL_FLOAT, GL_FALSE,
-            sizeof(float) * 8,
-            (void *)(sizeof(float) * 6));
-    //glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 

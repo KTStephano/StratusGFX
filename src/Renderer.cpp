@@ -169,6 +169,7 @@ void Renderer::begin(bool clearScreen) {
     }
 
     glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW);
     glEnable(GL_DEPTH_TEST);
@@ -257,7 +258,6 @@ void Renderer::end(const Camera & c) {
             _state.currentShader->unbind();
         }
         uint32_t properties = p.first;
-        std::cout << properties << std::endl;
         auto it = _propertyShaderMap.find(properties);
         Shader * s = it->second;
         _state.currentShader = s;
@@ -292,7 +292,8 @@ void Renderer::end(const Camera & c) {
             if (properties & TEXTURED) {
                 glActiveTexture(GL_TEXTURE0);
                 s->setInt("diffuseTexture", 0);
-                glBindTexture(GL_TEXTURE_2D, _lookupTexture(e->getMaterial().texture));
+                GLuint texture = _lookupTexture(e->getMaterial().texture);
+                glBindTexture(GL_TEXTURE_2D, texture);
             }
             e->render();
             glBindTexture(GL_TEXTURE_2D, 0);
@@ -335,6 +336,7 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
                 std::cerr << "[error] Unknown texture loading error -"
                     << " format may be invalid" << std::endl;
                 glDeleteTextures(1, &tex.texture);
+                stbi_image_free(data);
                 return -1;
         }
 
@@ -356,11 +358,12 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, 0);
     } else {
-        std::cerr << "[error] Could now load texture: " << file << std::endl;
+        std::cerr << "[error] Could not load texture: " << file << std::endl;
         return -1;
     }
     _textures.insert(std::make_pair(file, tex));
     _textureHandles.insert(std::make_pair(tex.handle, tex));
+    stbi_image_free(data);
     return tex.handle;
 }
 
