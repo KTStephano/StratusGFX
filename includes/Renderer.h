@@ -11,6 +11,7 @@
 #include "Camera.h"
 
 class Shader;
+class Light;
 
 /**
  * This contains information about a lot of the
@@ -51,6 +52,9 @@ class Renderer {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
+        // These are either point or spotlights and will attenuate with
+        // distance
+        std::vector<Light *> lights;
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
@@ -192,6 +196,13 @@ public:
       * that is means to be drawn.
       */
      void addDrawable(RenderEntity * e);
+
+     /**
+      * Adds a light to the scene. These lights are considered
+      * to be finite in power and so their contribution to the
+      * scene will decrease with distance.
+      */
+     void addPointLight(Light * light);
 
      /**
       * Sets the camera for the current scene which will be

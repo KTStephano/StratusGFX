@@ -2,7 +2,7 @@
 
 #define MAX_LIGHTS 128
 #define SPECULAR_MULTIPLIER 128.0
-#define AMBIENT_INTENSITY 0.005
+#define AMBIENT_INTENSITY 0.0005
 
 uniform sampler2D diffuseTexture;
 uniform float shininess = 0.0;
@@ -42,7 +42,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal,
     float lightDist = length(lightDir);
     lightDir = normalize(lightDir);
     // Linear attenuation
-    float attenuationFactor = 1 / (lightDist);
+    float attenuationFactor = 1 / (lightDist * lightDist);
 
     float lightNormalDot = max(dot(lightDir, normal), 0.0);
     vec3 ambient = AMBIENT_INTENSITY * lightColor * baseColor;
@@ -61,8 +61,14 @@ void main() {
     vec3 baseColor = texture(diffuseTexture, fsTexCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fsPosition);
     vec3 normal = normalize(fsNormal);
-    vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
+    vec3 color = vec3(0.0);
+    for (int i = 0; i < MAX_LIGHTS; ++i) {
+        if (i >= numLights) break;
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i);
+    }
     color = color + baseColor * AMBIENT_INTENSITY;
+    //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
+    //color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction
     color = pow(color, vec3(1.0 / gamma));
     fsColor = vec4(color, 1.0);

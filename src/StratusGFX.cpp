@@ -7,6 +7,7 @@
 #include <includes/Camera.h>
 #include <chrono>
 #include <includes/Cube.h>
+#include <includes/Light.h>
 
 static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
     float angleX = glm::radians(angles.x);
@@ -125,16 +126,32 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
     cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 1000; ++i) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 100;
-        c->position.y = rand() % 100;
-        c->position.z = rand() % 100;
+        c->position.x = rand() % 200;
+        c->position.y = rand() % 200;
+        c->position.z = rand() % 200;
         c->scale = glm::vec3(float(rand() % 10));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
     }
+
+    // Create the lights
+    std::vector<std::unique_ptr<Light>> lights;
+    std::vector<std::unique_ptr<Cube>> lightObjects;
+    std::unique_ptr<Light> light = std::unique_ptr<Light>(new PointLight());
+    light->position = glm::vec3(0.0f);
+    light->setIntensity(10.0f);
+    std::unique_ptr<Cube> cube = std::make_unique<Cube>();
+    cube->position = light->position;
+    cubeMat.texture = -1;
+    cubeMat.diffuseColor = light->getColor() * light->getIntensity();
+    cube->setMaterial(cubeMat);
+
+    lights.push_back(std::move(light));
+    lightObjects.push_back(std::move(cube));
+
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
     Camera camera;
@@ -191,10 +208,17 @@ int main(int argc, char * args[]) {
 
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
+        renderer.setClearColor(Color(0.0f, 0.0f, 0.0f, 1.0f));
 
         renderer.begin(true);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
+        }
+        for (auto & _light : lights) {
+            renderer.addPointLight(_light.get());
+        }
+        for (auto & _lightObj : lightObjects) {
+            renderer.addDrawable(_lightObj.get());
         }
         renderer.end(camera);
 

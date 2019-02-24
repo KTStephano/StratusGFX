@@ -1,6 +1,7 @@
 
 #include <includes/Renderer.h>
 #include <iostream>
+#include <includes/Light.h>
 #include "includes/Shader.h"
 #include "includes/Renderer.h"
 #define STB_IMAGE_IMPLEMENTATION
@@ -176,6 +177,9 @@ void Renderer::begin(bool clearScreen) {
         e.second.clear();
     }
 
+    // Clear all lights
+    _state.lights.clear();
+
     glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
@@ -265,8 +269,8 @@ void Renderer::end(const Camera & c) {
     const glm::mat4 * view = &c.getViewTransform();
 
     // TEMP: Set up the light source
-    glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
-    glm::vec3 lightColor(10.0f);
+    //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
+    //glm::vec3 lightColor(10.0f);
 
     for (auto & p : _state.entities) {
         // Set up the shader we will use for this batch of entities
@@ -278,6 +282,22 @@ void Renderer::end(const Camera & c) {
         Shader * s = it->second;
         _state.currentShader = s;
         s->bind();
+
+        // Set up uniforms specific to this type of shader
+        if (properties == (DYNAMIC | TEXTURED)) {
+            glm::vec3 lightColor;
+            for (int i = 0; i < _state.lights.size(); ++i) {
+                Light * light = _state.lights[i];
+                lightColor = light->getColor() * light->getIntensity();
+                s->setVec3("lightPositions[" + std::to_string(i) + "]",
+                        &light->position[0]);
+                s->setVec3("lightColors[" + std::to_string(i) + "]",
+                        &lightColor[0]);
+            }
+            s->setInt("numLights", (int)_state.lights.size());
+            s->setVec3("viewPosition", &c.getPosition()[0]);
+            s->setMat4("view", &(*view)[0][0]);
+        }
 
         /*
         if (_state.mode == RenderMode::ORTHOGRAPHIC) {
@@ -302,12 +322,8 @@ void Renderer::end(const Camera & c) {
                 glm::mat4 modelView = (*view) * model;
                 s->setMat4("modelView", &modelView[0][0]);
             } else if (properties & DYNAMIC) {
-                s->setVec3("lightPositions[0]", &lightPos[0]);
-                s->setVec3("lightColors[0]", &lightColor[0]);
-                s->setVec3("viewPosition", &c.getPosition()[0]);
                 s->setFloat("shininess", e->getMaterial().specularShininess);
                 s->setMat4("model", &model[0][0]);
-                s->setMat4("view", &(*view)[0][0]);
             }
 
             if (properties & TEXTURED) {
@@ -403,4 +419,8 @@ GLuint Renderer::_lookupTexture(TextureHandle handle) const {
     // TODO: Make sure that 0 actually signifies an invalid texture in OpenGL
     if (it == _textureHandles.end()) return 0;
     return it->second.texture;
+}
+
+void Renderer::addPointLight(Light *light) {
+    _state.lights.push_back(light);
 }
