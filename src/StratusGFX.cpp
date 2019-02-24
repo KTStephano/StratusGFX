@@ -151,6 +151,12 @@ int main(int argc, char * args[]) {
             "../resources/shaders/shader.fs");
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
+
+    std::vector<TextureHandle> textures;
+    textures.resize(4);
+    textures[0] = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
+    textures[1] = renderer.loadTexture("../resources/textures/wood_texture.jpg");
+
     std::vector<std::unique_ptr<RenderEntity>> entities;
     RenderMaterial quadMat;
     quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
