@@ -33,7 +33,8 @@ uniform float gamma = 2.2;
 
 out vec4 fsColor;
 
-vec3 calculatePointLighting(vec3 baseColor, vec3 viewDir, int lightIndex) {
+vec3 calculatePointLighting(vec3 baseColor, vec3 normal, 
+        vec3 viewDir, int lightIndex) {
     vec3 lightPos = lightPositions[lightIndex];
     vec3 lightColor = lightColors[lightIndex];
 
@@ -43,13 +44,13 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 viewDir, int lightIndex) {
     // Linear attenuation
     float attenuationFactor = 1 / (lightDist);
 
-    float lightNormalDot = dot(lightDir, fsNormal);
+    float lightNormalDot = dot(lightDir, normal);
     vec3 ambient = AMBIENT_INTENSITY * lightColor * baseColor;
     vec3 diffuse = max(lightNormalDot, 0.0) * lightColor * baseColor;
 
     vec3 halfAngleDir = normalize(lightDir + viewDir);
     vec3 specular = pow(
-        max(dot(fsNormal, halfAngleDir), 0.0),
+        max(dot(normal, halfAngleDir), 0.0),
         shininess * SPECULAR_MULTIPLIER) * lightColor * baseColor;
     
     return (ambient + diffuse + specular) * attenuationFactor;
@@ -58,7 +59,8 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 viewDir, int lightIndex) {
 void main() {
     vec3 baseColor = texture(diffuseTexture, fsTexCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fsPosition);
-    vec3 color = calculatePointLighting(baseColor, viewDir, 0);
+    vec3 normal = normalize(fsNormal);
+    vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
     color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction
     color = pow(color, vec3(1.0 / gamma));
