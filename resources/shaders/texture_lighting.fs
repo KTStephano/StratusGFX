@@ -1,7 +1,7 @@
 #version 150 core
 
 #define MAX_LIGHTS 128
-#define SPECULAR_MULTIPLIER 64.0
+#define SPECULAR_MULTIPLIER 128.0
 #define AMBIENT_INTENSITY 0.005
 
 uniform sampler2D diffuseTexture;
@@ -44,14 +44,15 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal,
     // Linear attenuation
     float attenuationFactor = 1 / (lightDist);
 
-    float lightNormalDot = dot(lightDir, normal);
+    float lightNormalDot = max(dot(lightDir, normal), 0.0);
     vec3 ambient = AMBIENT_INTENSITY * lightColor * baseColor;
-    vec3 diffuse = max(lightNormalDot, 0.0) * lightColor * baseColor;
+    vec3 diffuse = lightNormalDot * lightColor * baseColor;
 
     vec3 halfAngleDir = normalize(lightDir + viewDir);
+    float exponent = max(shininess * SPECULAR_MULTIPLIER, 8);
     vec3 specular = pow(
         max(dot(normal, halfAngleDir), 0.0),
-        shininess * SPECULAR_MULTIPLIER) * lightColor * baseColor;
+        exponent) * lightColor * baseColor;
     
     return (ambient + diffuse + specular) * attenuationFactor;
 }
