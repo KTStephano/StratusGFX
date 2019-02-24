@@ -216,12 +216,12 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::setPerspectiveData(float fov, float near, float far) {
+void Renderer::setPerspectiveData(float fov, float fnear, float ffar) {
     // TODO: Find the best lower bound for fov instead of arbitrary 25.0f
     if (fov < 25.0f) return;
     _state.fov = fov;
-    _state.znear = near;
-    _state.zfar = far;
+    _state.znear = fnear;
+    _state.zfar = ffar;
     _recalculateProjMatrices();
 }
 
@@ -449,7 +449,7 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
     uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
     if (data) {
         glGenTextures(1, &tex.texture);
-        tex.handle = _textures.size() + 1;
+        tex.handle = int(_textures.size() + 1);
         GLenum internalFormat;
         GLenum dataFormat;
         // This loads the textures with sRGB in mind so that they get converted back
