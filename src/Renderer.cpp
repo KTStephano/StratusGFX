@@ -67,19 +67,27 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * noLightTexture = new Shader("../resources/shaders/texture_no_lighting.vs",
             "../resources/shaders/texture_no_lighting.fs");
     _shaders.push_back(noLightTexture);
+    Shader * lightTexture = new Shader("../resources/shaders/texture_lighting.vs",
+            "../resources/shaders/texture_lighting.fs");
+    _shaders.push_back(lightTexture);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
     // all of a RenderEntities rendering requirements
     _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
     _propertyShaderMap.insert(make_pair(FLAT | TEXTURED, noLightTexture));
+    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED, lightTexture));
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
 
     // Use the shader isValid() method to determine if everything succeeded
-    _isValid = _isValid && noLightNoTexture->isValid() && noLightTexture->isValid();
+    _isValid = _isValid &&
+            noLightNoTexture->isValid() &&
+            noLightTexture->isValid() &&
+            lightTexture->isValid();
 }
 
 Renderer::~Renderer() {
@@ -252,6 +260,14 @@ static void translate(glm::mat4 & out, const glm::vec3 & translate) {
 }
 
 void Renderer::end(const Camera & c) {
+    // Pull the view transform/projection matrices
+    const glm::mat4 * projection = &_state.perspective;
+    const glm::mat4 * view = &c.getViewTransform();
+
+    // TEMP: Set up the light source
+    glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
+    glm::vec3 lightColor(10.0f);
+
     for (auto & p : _state.entities) {
         // Set up the shader we will use for this batch of entities
         if (_state.currentShader != nullptr) {
@@ -263,9 +279,6 @@ void Renderer::end(const Camera & c) {
         _state.currentShader = s;
         s->bind();
 
-        // Pull the view transform/projection matrices
-        const glm::mat4 * projection = &_state.perspective;
-        const glm::mat4 * view = &c.getViewTransform();
         /*
         if (_state.mode == RenderMode::ORTHOGRAPHIC) {
             projection = &_state.orthographic;
@@ -282,13 +295,21 @@ void Renderer::end(const Camera & c) {
             rotate(model, e->rotation);
             scale(model, e->scale);
             translate(model, e->position);
-            glm::mat4 modelView = (*view) * model;
-            s->setMat4("modelView", &modelView[0][0]);
 
             // Determine which uniforms we should set
             if (properties & FLAT) {
                 s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
+                glm::mat4 modelView = (*view) * model;
+                s->setMat4("modelView", &modelView[0][0]);
+            } else if (properties & DYNAMIC) {
+                s->setVec3("lightPositions[0]", &lightPos[0]);
+                s->setVec3("lightColors[0]", &lightColor[0]);
+                s->setVec3("viewPosition", &c.getPosition()[0]);
+                s->setFloat("shininess", e->getMaterial().specularShininess);
+                s->setMat4("model", &model[0][0]);
+                s->setMat4("view", &(*view)[0][0]);
             }
+
             if (properties & TEXTURED) {
                 glActiveTexture(GL_TEXTURE0);
                 s->setInt("diffuseTexture", 0);

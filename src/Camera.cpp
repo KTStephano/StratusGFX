@@ -59,3 +59,11 @@ float Camera::getPitch() const {
 const glm::mat4 &Camera::getViewTransform() const {
     return _viewTransform;
 }
+
+void Camera::setPosition(float x, float y, float z) {
+    Entity::setPosition(x, y, z);
+}
+
+const glm::vec3 &Camera::getPosition() const {
+    return position;
+}

@@ -119,6 +119,7 @@ int main(int argc, char * args[]) {
         q->position.y = rand() % 50;
         q->position.z = rand() % 50;
         q->scale = glm::vec3(float(rand() % 5));
+        q->enableLightInteraction(true);
         entities.push_back(std::move(q));
     }
     //std::vector<std::unique_ptr<Cube>> cubes;
@@ -131,6 +132,7 @@ int main(int argc, char * args[]) {
         c->position.y = rand() % 100;
         c->position.z = rand() % 100;
         c->scale = glm::vec3(float(rand() % 10));
+        c->enableLightInteraction(true);
         entities.push_back(std::move(c));
     }
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);

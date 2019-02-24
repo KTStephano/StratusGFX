@@ -27,6 +27,9 @@ public:
      */
     void modifyAngle(double deltaYaw, double deltaPitch);
 
+    void setPosition(float x, float y, float z);
+    const glm::vec3 & getPosition() const;
+
     /**
      * Sets the speed x/y/z of the camera.
      *
