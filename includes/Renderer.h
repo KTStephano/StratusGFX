@@ -12,6 +12,7 @@
 
 class Shader;
 class Light;
+class Quad;
 
 /**
  * This contains information about a lot of the
@@ -62,6 +63,16 @@ class Renderer {
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
         Shader * currentShader;
+        // Buffer where all color data is written
+        GLuint frameBuffer = 0;
+        GLuint colorBuffer = 0;
+        GLuint depthBuffer = 0;
+        // Preprocessing shader which allows for application
+        // of hdr and gamma correction
+        std::unique_ptr<Shader> hdrGamma;
+        // Generic screen quad so we can render the screen
+        // from a separate frame buffer
+        std::unique_ptr<Quad> screenQuad;
     };
 
     struct Texture2D {

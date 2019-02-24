@@ -29,7 +29,7 @@ uniform vec3 lightColors[MAX_LIGHTS];
 // Since max lights is an upper bound, this can
 // tell us how many lights are actually present
 uniform int numLights = 0;
-uniform float gamma = 2.2;
+//uniform float gamma = 2.2;
 
 out vec4 fsColor;
 
@@ -70,6 +70,6 @@ void main() {
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
     //color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction
-    color = pow(color, vec3(1.0 / gamma));
+    //color = pow(color, vec3(1.0 / gamma));
     fsColor = vec4(color, 1.0);
 }

@@ -9,6 +9,49 @@
 #include <includes/Cube.h>
 #include <includes/Light.h>
 
+class RandomLightMover : public Entity {
+    glm::vec3 _direction = glm::vec3(0.0f);
+
+    void _changeDirection() {
+        float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
+        float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
+        float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
+        _direction.x = (rand() % 100) > 50 ? 1.0f : 0.0f;
+        _direction.y = (rand() % 100) > 50 ? 1.0f : 0.0f;
+        _direction.z = (rand() % 100) > 50 ? 1.0f : 0.0f;
+
+        _direction = _direction * glm::vec3(xModifier, yModifier, zModifier);
+    }
+
+    double _elapsedSec = 0.0;
+
+public:
+    std::unique_ptr<Cube> cube;
+    std::unique_ptr<Light> light;
+
+    RandomLightMover() {
+        cube = std::make_unique<Cube>();
+        light = std::make_unique<PointLight>();
+        speed = glm::vec3(float(rand() % 10 + 5));
+        _changeDirection();
+    }
+
+    void update(double deltaSeconds) override {
+        position = position + speed * _direction * float(deltaSeconds);
+        cube->position = position;
+        light->position = position;
+        RenderMaterial m = cube->getMaterial();
+        m.diffuseColor = light->getColor() * light->getIntensity();
+        cube->setMaterial(m);
+
+        _elapsedSec += deltaSeconds;
+        if (_elapsedSec > 5.0) {
+            _elapsedSec = 0.0;
+            _changeDirection();
+        }
+    }
+};
+
 static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
     float angleX = glm::radians(angles.x);
     float angleY = glm::radians(angles.y);
@@ -84,7 +127,7 @@ int main(int argc, char * args[]) {
 
     SDL_Window * window = SDL_CreateWindow("StratusGFX",
             100, 100, // location x/y on screen
-            640, 480, // width/height of window
+            1280, 720, // width/height of window
             SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
     if (window == nullptr) {
         std::cout << "Failed to create sdl window" << std::endl;
@@ -126,31 +169,28 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
     cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 2000; ++i) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 200;
-        c->position.y = rand() % 200;
-        c->position.z = rand() % 200;
+        c->position.x = rand() % 350;
+        c->position.y = rand() % 350;
+        c->position.z = rand() % 350;
         c->scale = glm::vec3(float(rand() % 10));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
     }
 
-    // Create the lights
-    std::vector<std::unique_ptr<Light>> lights;
-    std::vector<std::unique_ptr<Cube>> lightObjects;
-    std::unique_ptr<Light> light = std::unique_ptr<Light>(new PointLight());
-    light->position = glm::vec3(0.0f);
-    light->setIntensity(10.0f);
-    std::unique_ptr<Cube> cube = std::make_unique<Cube>();
-    cube->position = light->position;
-    cubeMat.texture = -1;
-    cubeMat.diffuseColor = light->getColor() * light->getIntensity();
-    cube->setMaterial(cubeMat);
-
-    lights.push_back(std::move(light));
-    lightObjects.push_back(std::move(cube));
+    // Create the light movers
+    std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
+    for (int i = 0; i < 3; ++i) {
+        std::unique_ptr<RandomLightMover> mover =
+                std::make_unique<RandomLightMover>();
+        mover->light->setIntensity(10.0f);
+        mover->position = glm::vec3(float(rand() % 200),
+                                    0.0f, //float(rand() % 200),
+                                    float(rand() % 200));
+        lightMovers.push_back(std::move(mover));
+    }
 
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
@@ -214,11 +254,10 @@ int main(int argc, char * args[]) {
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }
-        for (auto & _light : lights) {
-            renderer.addPointLight(_light.get());
-        }
-        for (auto & _lightObj : lightObjects) {
-            renderer.addDrawable(_lightObj.get());
+        for (auto & mover : lightMovers) {
+            mover->update(deltaSeconds);
+            renderer.addPointLight(mover->light.get());
+            renderer.addDrawable(mover->cube.get());
         }
         renderer.end(camera);
 

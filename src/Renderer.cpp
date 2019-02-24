@@ -4,6 +4,7 @@
 #include <includes/Light.h>
 #include "includes/Shader.h"
 #include "includes/Renderer.h"
+#include "includes/Quad.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "includes/STBImage.h"
 
@@ -84,11 +85,19 @@ Renderer::Renderer(SDL_Window * window) {
     _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
 
+    // Set up the hdr/gamma preprocessing shader
+    _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
+            "../resources/shaders/hdr.fs");
+
+    // Create the screen quad
+    _state.screenQuad = std::make_unique<Quad>();
+
     // Use the shader isValid() method to determine if everything succeeded
     _isValid = _isValid &&
             noLightNoTexture->isValid() &&
             noLightTexture->isValid() &&
-            lightTexture->isValid();
+            lightTexture->isValid() &&
+            _state.hdrGamma->isValid();
 }
 
 Renderer::~Renderer() {
@@ -99,6 +108,11 @@ Renderer::~Renderer() {
     for (Shader * shader : _shaders) delete shader;
     _shaders.clear();
     invalidateAllTextures();
+
+    // Delete the main frame buffer
+    glDeleteFramebuffers(1, &_state.frameBuffer);
+    glDeleteTextures(1, &_state.colorBuffer);
+    glDeleteTextures(1, &_state.depthBuffer);
 }
 
 const GFXConfig & Renderer::config() const {
@@ -140,6 +154,66 @@ void Renderer::_setWindowDimensions(int w, int h) {
     _state.windowHeight = h;
     _recalculateProjMatrices();
     glViewport(0, 0, w, h);
+
+    // Regenerate the main frame buffer
+    glDeleteFramebuffers(1, &_state.frameBuffer);
+    glDeleteTextures(1, &_state.colorBuffer);
+    glDeleteTextures(1, &_state.depthBuffer);
+
+    glGenFramebuffers(1, &_state.frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+
+    // Create the color buffer - notice that is uses higher
+    // than normal precision. This allows us to write color values
+    // greater than 1.0 to support things like HDR.
+    glGenTextures(1, &_state.colorBuffer);
+    glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, // target
+            0, // level
+            GL_RGB16F, // internal format
+            _state.windowWidth, // width
+            _state.windowHeight, // height
+            0, // border
+            GL_RGBA, // format
+            GL_FLOAT, // type
+            nullptr); // data
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the color buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            _state.colorBuffer,
+            0);
+
+    // Create the depth buffer
+    glGenTextures(1, &_state.depthBuffer);
+    glBindTexture(GL_TEXTURE_2D, _state.depthBuffer);
+    glTexImage2D(GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT,
+            _state.windowWidth,
+            _state.windowHeight,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_FLOAT,
+            nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the depth buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            _state.depthBuffer,
+            0);
+
+    // Check the status to make sure it's complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "[error] Generating frame buffer failed" << std::endl;
+        _isValid = false;
+        return;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::setPerspectiveData(float fov, float near, float far) {
@@ -159,18 +233,26 @@ void Renderer::begin(bool clearScreen) {
     // Make sure we set our context as the active one
     SDL_GL_MakeCurrent(_window, _context);
 
-    if (clearScreen) {
-        glClearColor(_state.clearColor.r, _state.clearColor.g,
-                _state.clearColor.b, _state.clearColor.a);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
-
     // Check for changes in the window size
     int w, h;
     SDL_GetWindowSize(_window, &w, &h);
     // This won't resize anything if the width/height
     // didn't change
     _setWindowDimensions(w, h);
+
+    // Always clear the main screen buffer, but only
+    // conditionally clean the custom frame buffer
+    glClearColor(_state.clearColor.r, _state.clearColor.g,
+                 _state.clearColor.b, _state.clearColor.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (clearScreen) {
+        glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+        glClearColor(_state.clearColor.r, _state.clearColor.g,
+                     _state.clearColor.b, _state.clearColor.a);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 
     // Clear all entities from the previous frame
     for (auto & e : _state.entities) {
@@ -187,6 +269,9 @@ void Renderer::begin(bool clearScreen) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
+
+    // This is important! It prevents z-fighting if you do multiple passes.
+    glDepthFunc(GL_LEQUAL);
 }
 
 void Renderer::addDrawable(RenderEntity * e) {
@@ -272,6 +357,9 @@ void Renderer::end(const Camera & c) {
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
     //glm::vec3 lightColor(10.0f);
 
+    // Make sure to bind our own frame buffer for rendering
+    glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+
     for (auto & p : _state.entities) {
         // Set up the shader we will use for this batch of entities
         if (_state.currentShader != nullptr) {
@@ -339,6 +427,16 @@ void Renderer::end(const Camera & c) {
 
         s->unbind();
     }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Now render the screen
+    _state.hdrGamma->bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
+    _state.hdrGamma->setInt("screen", 0);
+    _state.screenQuad->render();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    _state.hdrGamma->unbind();
 }
 
 TextureHandle Renderer::loadTexture(const std::string &file) {
