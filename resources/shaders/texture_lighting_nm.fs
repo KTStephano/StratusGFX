@@ -5,6 +5,7 @@
 #define AMBIENT_INTENSITY 0.0005
 
 uniform sampler2D diffuseTexture;
+uniform sampler2D normalMap;
 uniform float shininess = 0.0;
 
 /**
@@ -19,6 +20,7 @@ uniform float shininess = 0.0;
  in vec3 fsPosition;
  in vec3 fsNormal;
  in vec2 fsTexCoords;
+ in mat3 fsTbnMatrix;
 
 /**
  * Lighting information. All values related
@@ -60,7 +62,12 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal,
 void main() {
     vec3 baseColor = texture(diffuseTexture, fsTexCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fsPosition);
-    vec3 normal = normalize(fsNormal);
+    vec3 normal = texture(normalMap, fsTexCoords).rgb;
+    // Normals generally have values from [-1, 1], but inside
+    // an OpenGL texture they are transformed to [0, 1]. To convert
+    // them back, we multiply by 2 and subtract 1.
+    normal = normalize(normal * 2.0 - 1.0);
+    normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= numLights) break;
