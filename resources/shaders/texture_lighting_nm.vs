@@ -32,13 +32,14 @@ void main() {
     vec3 b = normalize(vec3(model * vec4(bitangent, 0.0)));
     vec3 n = normalize(vec3(model * vec4(normal, 0.0)));
     */
-    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    mat3 normalMatrix = mat3(model); //transpose(inverse(mat3(model)));
     vec3 t = normalize(normalMatrix * tangent);
     //b = normalize(vec3(model * vec4(b, 0.0)));
+    vec3 b = normalize(normalMatrix * bitangent);
     vec3 n = normalize(normalMatrix * normal);
     // Gram-Schmidt
-    t = normalize(t - dot(t, n) * n);
-    vec3 b = cross(n, t);
+    //t = normalize(t - dot(t, n) * n);
+    //vec3 b = cross(n, t);
 
     //t = normalize(t - dot(t, n) * n);
     //vec3 b = cross(n, t);

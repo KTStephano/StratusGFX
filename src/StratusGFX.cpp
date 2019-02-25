@@ -219,6 +219,7 @@ int main(int argc, char * args[]) {
     normalMaps[5] = renderer.loadTexture("../copyrighted/ruined-wall-nm-big-talos.png");
 
     std::vector<std::unique_ptr<RenderEntity>> entities;
+    std::vector<size_t> textureIndices;
     RenderMaterial quadMat;
     //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
     std::cout << quadMat.texture << std::endl;
@@ -235,6 +236,7 @@ int main(int argc, char * args[]) {
         q->scale = glm::vec3(float(rand() % 5));
         q->enableLightInteraction(true);
         entities.push_back(std::move(q));
+        textureIndices.push_back(texIndex);
     }
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
@@ -251,6 +253,7 @@ int main(int argc, char * args[]) {
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
+        textureIndices.push_back(texIndex);
     }
 
     // Create the light movers
@@ -313,6 +316,17 @@ int main(int argc, char * args[]) {
                                 cameraSpeed.y = 0.0f;
                             }
                             break;
+                        case SDL_SCANCODE_N: {
+                            if (released) {
+                                RenderMaterial m;
+                                for (size_t i = 0; i < entities.size(); ++i) {
+                                    m = entities[i]->getMaterial();
+                                    m.normalMap = m.normalMap == -1 ? normalMaps[textureIndices[i]] : -1;
+                                    entities[i]->setMaterial(m);
+                                }
+                            }
+                            break;
+                        }
                         default: break;
                     }
                     break;
@@ -328,7 +342,7 @@ int main(int argc, char * args[]) {
 
         renderer.begin(true);
         // Add the camera's light
-        renderer.addPointLight(&cameraLight);
+        //renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }
