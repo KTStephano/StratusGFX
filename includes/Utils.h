@@ -28,24 +28,26 @@ inline tan_bitan_t calculateTangentAndBitangent(
     glm::vec2 deltaUV2 = uv3 - uv1;
 
     // Compute the determinant
-    float uvDet = 1 / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+    double uvDet = 1.0 / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
 
     // Calculate all values of the inverse of the UV matrix
-    float uvA = uvDet * deltaUV2.y;
-    float uvB = -uvDet * deltaUV1.y;
-    float uvC = -uvDet * deltaUV2.x;
-    float uvD = uvDet * deltaUV1.x;
+    double uvA = uvDet * deltaUV2.y;
+    double uvB = -uvDet * deltaUV1.y;
+    double uvC = -uvDet * deltaUV2.x;
+    double uvD = uvDet * deltaUV1.x;
 
     // Calculate the tangent/bitangent
     glm::vec3 tangent;
-    tangent.x = uvA * e1.x + uvB * e2.x;
-    tangent.y = uvA * e1.y + uvB * e2.y;
-    tangent.z = uvA * e1.z + uvB * e2.z;
+    tangent.x = float(uvA * e1.x + uvB * e2.x);
+    tangent.y = float(uvA * e1.y + uvB * e2.y);
+    tangent.z = float(uvA * e1.z + uvB * e2.z);
+    tangent = glm::normalize(tangent);
 
     glm::vec3 bitangent;
-    bitangent.x = uvC * e1.x + uvD * e2.x;
-    bitangent.y = uvC * e1.y + uvD * e2.y;
-    bitangent.z = uvC * e1.z + uvD * e2.z;
+    bitangent.x = float(uvC * e1.x + uvD * e2.x);
+    bitangent.y = float(uvC * e1.y + uvD * e2.y);
+    bitangent.z = float(uvC * e1.z + uvD * e2.z);
+    bitangent = glm::normalize(bitangent);
 
     return std::make_pair(std::move(tangent), std::move(bitangent));
 }

@@ -76,16 +76,21 @@ static std::vector<glm::vec2> genCubeTexCoords() {
 static void calcTangents() {
     auto positions = genCubePositions();
     auto coords = genCubeTexCoords();
-    for (size_t i = 0, int j = 0; i < positions.size(); i += 3, ++j) {
+    for (size_t i = 0; i < positions.size(); i += 3) {
         glm::vec3 p1 = positions[i];
         glm::vec3 p2 = positions[i + 1];
-        glm::vec3 p2 = positions[i + 2];
+        glm::vec3 p3 = positions[i + 2];
 
         glm::vec2 uv1 = coords[i];
         glm::vec2 uv2 = coords[i + 1];
         glm::vec2 uv3 = coords[i + 2];
 
-
+        auto tanBitan = calculateTangentAndBitangent(p1, p2, p3,
+                                                     uv1, uv2, uv3);
+        auto tangent = tanBitan.first;
+        auto bitangent = tanBitan.second;
+        std::cout << tangent.x << ", " << tangent.y << ", " << tangent.z << ", "
+            << bitangent.x << ", " << bitangent.y << ", " << bitangent.z << ", " << std::endl;
     }
 }
 
@@ -196,7 +201,7 @@ static void translate(glm::mat4 & out, const glm::vec3 & translate) {
 }
 
 int main(int argc, char * args[]) {
-    std::cout << args[0] << std::endl;
+    calcTangents();
 
     auto start = std::chrono::system_clock::now();
 
