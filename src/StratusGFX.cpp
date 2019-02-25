@@ -32,7 +32,7 @@ public:
     RandomLightMover() {
         cube = std::make_unique<Cube>();
         light = std::make_unique<PointLight>();
-        speed = glm::vec3(float(rand() % 10 + 5));
+        speed = glm::vec3(float(rand() % 15 + 10));
         _changeDirection();
     }
 
@@ -153,16 +153,24 @@ int main(int argc, char * args[]) {
 
 
     std::vector<TextureHandle> textures;
-    textures.resize(4);
+    textures.resize(8);
     textures[0] = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
     textures[1] = renderer.loadTexture("../resources/textures/wood_texture.jpg");
+    textures[2] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
+    textures[3] = renderer.loadTexture("../copyrighted/brick-plaster-03-cm-big-talos.png");
+    textures[4] = renderer.loadTexture("../copyrighted/cliff-01-cm-big-talos.png");
+    textures[5] = renderer.loadTexture("../copyrighted/concretebare-04-cm-big-talos.png");
+    textures[6] = renderer.loadTexture("../copyrighted/concreteceiling-02-cm-big-talos.png");
+    textures[7] = renderer.loadTexture("../copyrighted/ruined-wall-big-talos.png");
 
     std::vector<std::unique_ptr<RenderEntity>> entities;
     RenderMaterial quadMat;
-    quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
+    //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
     std::cout << quadMat.texture << std::endl;
     srand(time(nullptr));
     for (int i = 0; i < 100; ++i) {
+        size_t texIndex = rand() % textures.size();
+        quadMat.texture = textures[texIndex];
         std::unique_ptr<Quad> q = std::make_unique<Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
@@ -174,27 +182,29 @@ int main(int argc, char * args[]) {
     }
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
-    cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
+    //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
     for (int i = 0; i < 2000; ++i) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
+        size_t texIndex = rand() % textures.size();
+        cubeMat.texture = textures[texIndex];
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 350;
-        c->position.y = rand() % 350;
-        c->position.z = rand() % 350;
-        c->scale = glm::vec3(float(rand() % 10));
+        c->position.x = rand() % 750;
+        c->position.y = rand() % 750;
+        c->position.z = rand() % 750;
+        c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
     }
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
-        mover->light->setIntensity(10.0f);
-        mover->position = glm::vec3(float(rand() % 200),
-                                    0.0f, //float(rand() % 200),
-                                    float(rand() % 200));
+        mover->light->setIntensity(200.0f);
+        mover->position = glm::vec3(float(rand() % 500 + 100),
+                                    0.0f, // float(rand() % 200),
+                                    float(rand() % 500 + 100));
         lightMovers.push_back(std::move(mover));
     }
 
@@ -211,7 +221,7 @@ int main(int argc, char * args[]) {
         //std::cout << deltaSeconds << std::endl;
         start = curr;
         SDL_Event e;
-        const float camSpeed = 50.0f;
+        const float camSpeed = 100.0f;
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_QUIT:
