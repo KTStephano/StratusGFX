@@ -27,9 +27,21 @@ void main() {
     fsTexCoords = texCoords;
     fsNormal = normalize(mat3(model) * normal);
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+    /*
     vec3 t = normalize(vec3(model * vec4(tangent, 0.0)));
     vec3 b = normalize(vec3(model * vec4(bitangent, 0.0)));
     vec3 n = normalize(vec3(model * vec4(normal, 0.0)));
+    */
+    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    vec3 t = normalize(normalMatrix * tangent);
+    //b = normalize(vec3(model * vec4(b, 0.0)));
+    vec3 n = normalize(normalMatrix * normal);
+    // Gram-Schmidt
+    t = normalize(t - dot(t, n) * n);
+    vec3 b = cross(n, t);
+
+    //t = normalize(t - dot(t, n) * n);
+    //vec3 b = cross(n, t);
     fsTbnMatrix = mat3(t, b, n);
     gl_Position = projection * view * pos;
 }

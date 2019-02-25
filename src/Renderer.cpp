@@ -410,6 +410,16 @@ void Renderer::end(const Camera & c) {
             scale(model, e->scale);
             translate(model, e->position);
 
+            if (properties & TEXTURED) {
+                /*
+                glActiveTexture(GL_TEXTURE0);
+                s->setInt("diffuseTexture", 0);
+                GLuint texture = _lookupTexture(e->getMaterial().texture);
+                glBindTexture(GL_TEXTURE_2D + 0, texture);
+                */
+                _bindTexture(s, "diffuseTexture", e->getMaterial().texture);
+            }
+
             // Determine which uniforms we should set
             if (properties & FLAT) {
                 s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
@@ -419,23 +429,20 @@ void Renderer::end(const Camera & c) {
                 s->setFloat("shininess", e->getMaterial().specularShininess);
                 s->setMat4("model", &model[0][0]);
                 if (properties & NORMAL_MAPPED) {
-                    //std::cout << "Setting up normal map" << std::endl;
-                    s->setInt("normalMap", 1);
-                    glActiveTexture(GL_TEXTURE1);
+                    /*
+                    s->setInt("normalMap", 0);
+                    glActiveTexture(GL_TEXTURE0 + 0);
                     GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
-                    glBindTexture(GL_TEXTURE_2D + 1, normalMap);
+                    glBindTexture(GL_TEXTURE_2D + 0, normalMap);
+                    */
+                    _bindTexture(s, "normalMap", e->getMaterial().normalMap);
                 }
             }
 
-            if (properties & TEXTURED) {
-                glActiveTexture(GL_TEXTURE0);
-                s->setInt("diffuseTexture", 0);
-                GLuint texture = _lookupTexture(e->getMaterial().texture);
-                glBindTexture(GL_TEXTURE_2D + 0, texture);
-            }
             glFrontFace(GL_CW);
             e->render();
-            glBindTexture(GL_TEXTURE_2D, 0);
+            _unbindAllTextures();
+            //glBindTexture(GL_TEXTURE_2D, 0);
         }
 
         s->unbind();
@@ -534,4 +541,23 @@ GLuint Renderer::_lookupTexture(TextureHandle handle) const {
 
 void Renderer::addPointLight(Light *light) {
     _state.lights.push_back(light);
+}
+
+void Renderer::_bindTexture(Shader * s, const std::string & textureName,
+                            TextureHandle handle) {
+    GLuint texture = _lookupTexture(handle);
+    int textureIndex = (int)_state.boundTextures.size();
+    glActiveTexture(GL_TEXTURE0 + textureIndex);
+    s->setInt(textureName, textureIndex);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    _state.boundTextures.insert(texture);
+}
+
+void Renderer::_unbindAllTextures() {
+    for (size_t i = 0; i < _state.boundTextures.size(); ++i) {
+        int textureIndex = (int)i;
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    _state.boundTextures.clear();
 }

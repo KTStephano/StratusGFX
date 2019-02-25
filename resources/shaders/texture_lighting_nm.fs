@@ -2,6 +2,7 @@
 
 #define MAX_LIGHTS 128
 #define SPECULAR_MULTIPLIER 128.0
+#define POINT_LIGHT_AMBIENT_INTENSITY 0.05
 #define AMBIENT_INTENSITY 0.0005
 
 uniform sampler2D diffuseTexture;
@@ -41,13 +42,13 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal,
     vec3 lightColor = lightColors[lightIndex];
 
     vec3 lightDir = lightPos - fsPosition;
-    float lightDist = max(length(lightDir), 1);
+    float lightDist = length(lightDir);
     lightDir = normalize(lightDir);
     // Linear attenuation
     float attenuationFactor = 1 / (lightDist * lightDist);
 
     float lightNormalDot = max(dot(lightDir, normal), 0.0);
-    vec3 ambient = AMBIENT_INTENSITY * lightColor * baseColor;
+    vec3 ambient = POINT_LIGHT_AMBIENT_INTENSITY * lightColor * baseColor;
     vec3 diffuse = lightNormalDot * lightColor * baseColor;
 
     vec3 halfAngleDir = normalize(lightDir + viewDir);

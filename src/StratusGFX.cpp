@@ -226,6 +226,7 @@ int main(int argc, char * args[]) {
     for (int i = 0; i < 100; ++i) {
         size_t texIndex = rand() % textures.size();
         quadMat.texture = textures[texIndex];
+        quadMat.normalMap = normalMaps[texIndex];
         std::unique_ptr<Quad> q = std::make_unique<Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
@@ -327,7 +328,7 @@ int main(int argc, char * args[]) {
 
         renderer.begin(true);
         // Add the camera's light
-        //renderer.addPointLight(&cameraLight);
+        renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }

@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include "Common.h"
 #include "RenderEntity.h"
 #include "Camera.h"
@@ -73,6 +74,8 @@ class Renderer {
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
+        // Bound textures
+        std::unordered_set<GLuint> boundTextures;
     };
 
     struct Texture2D {
@@ -229,6 +232,9 @@ public:
 private:
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
+    void _bindTexture(Shader * s, const std::string & textureName,
+                      TextureHandle handle);
+    void _unbindAllTextures();
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;
