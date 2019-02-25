@@ -3,6 +3,7 @@
 #define STRATUSGFX_LIGHT_H
 
 #include "Common.h"
+#include <algorithm>
 
 enum class LightType {
     POINTLIGHT,

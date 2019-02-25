@@ -6,7 +6,30 @@ set(CMAKE_CXX_STANDARD 17)
 # Support both 32 and 64 bit builds
 
 include_directories(gl3w/ .)
-add_executable(StratusGFX src/StratusGFX.cpp src/gl3w.c includes/Shader.h src/Shader.cpp includes/Filesystem.h src/Filesystem.cpp includes/Common.h includes/Renderer.h src/Renderer.cpp includes/Vertex.h includes/Quad.h includes/RenderEntity.h src/RenderEntity.cpp src/Quad.cpp includes/Engine.h includes/Entity.h includes/Camera.h src/Camera.cpp includes/STBImage.h includes/Cube.h src/Cube.cpp includes/Light.h)
+add_executable(StratusGFX 
+    src/StratusGFX.cpp 
+    src/gl3w.c 
+    includes/Shader.h 
+    src/Shader.cpp 
+    includes/Filesystem.h 
+    src/Filesystem.cpp 
+    includes/Common.h 
+    includes/Renderer.h 
+    src/Renderer.cpp 
+    includes/Vertex.h 
+    includes/Quad.h 
+    includes/RenderEntity.h 
+    src/RenderEntity.cpp 
+    src/Quad.cpp 
+    includes/Engine.h 
+    includes/Entity.h 
+    includes/Camera.h 
+    src/Camera.cpp 
+    includes/STBImage.h 
+    includes/Cube.h 
+    src/Cube.cpp 
+    includes/Light.h 
+    includes/Utils.h)
 
 set_target_properties(StratusGFX PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin/)
 if (WIN32)

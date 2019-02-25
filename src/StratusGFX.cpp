@@ -8,6 +8,86 @@
 #include <chrono>
 #include <includes/Cube.h>
 #include <includes/Light.h>
+#include <includes/Utils.h>
+
+static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
+        // back face
+        // positions          // normals          // tex coords
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+        -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+        // front face
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+        1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+        -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+        // left face
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        // right face
+        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+        1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
+        // bottom face
+        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+        // top face
+        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+        1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
+        1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+        -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
+};
+
+static std::vector<glm::vec3> genCubePositions() {
+    std::vector<glm::vec3> pos;
+    for (size_t index = 0; index < cubeData.size(); index += 8) {
+        glm::vec3 p(cubeData[index], cubeData[index + 1], cubeData[index + 2]);
+        pos.push_back(p);
+    }
+    return pos;
+}
+
+static std::vector<glm::vec2> genCubeTexCoords() {
+    std::vector<glm::vec2> coords;
+    for (size_t index = 6; index < cubeData.size(); index += 8) {
+        coords.push_back(glm::vec2(cubeData[index], cubeData[index + 1]));
+    }
+    return coords;
+}
+
+static void calcTangents() {
+    auto positions = genCubePositions();
+    auto coords = genCubeTexCoords();
+    for (size_t i = 0, int j = 0; i < positions.size(); i += 3, ++j) {
+        glm::vec3 p1 = positions[i];
+        glm::vec3 p2 = positions[i + 1];
+        glm::vec3 p2 = positions[i + 2];
+
+        glm::vec2 uv1 = coords[i];
+        glm::vec2 uv2 = coords[i + 1];
+        glm::vec2 uv3 = coords[i + 2];
+
+
+    }
+}
 
 class RandomLightMover : public Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -198,7 +278,7 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 3; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(200.0f);
@@ -214,6 +294,8 @@ int main(int argc, char * args[]) {
     glm::vec3 cameraSpeed(0.0f);
 
     bool running = true;
+    PointLight cameraLight;
+    cameraLight.setIntensity(200.0f);
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
@@ -264,9 +346,12 @@ int main(int argc, char * args[]) {
 
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
+        cameraLight.position = camera.getPosition();
         renderer.setClearColor(Color(0.0f, 0.0f, 0.0f, 1.0f));
 
         renderer.begin(true);
+        // Add the camera's light
+        //renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }
