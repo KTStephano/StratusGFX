@@ -72,6 +72,9 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * lightTexture = new Shader("../resources/shaders/texture_lighting.vs",
             "../resources/shaders/texture_lighting.fs");
     _shaders.push_back(lightTexture);
+    Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_lighting_nm.vs",
+                                                "../resources/shaders/texture_lighting_nm.fs");
+    _shaders.push_back(lightTextureNormalMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
@@ -79,11 +82,13 @@ Renderer::Renderer(SDL_Window * window) {
     _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
     _propertyShaderMap.insert(make_pair(FLAT | TEXTURED, noLightTexture));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED, lightTexture));
+    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma preprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
@@ -97,6 +102,7 @@ Renderer::Renderer(SDL_Window * window) {
             noLightNoTexture->isValid() &&
             noLightTexture->isValid() &&
             lightTexture->isValid() &&
+            lightTextureNormalMap->isValid() &&
             _state.hdrGamma->isValid();
 }
 
@@ -372,7 +378,7 @@ void Renderer::end(const Camera & c) {
         s->bind();
 
         // Set up uniforms specific to this type of shader
-        if (properties == (DYNAMIC | TEXTURED)) {
+        if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
             glm::vec3 lightColor;
             for (int i = 0; i < _state.lights.size(); ++i) {
                 Light * light = _state.lights[i];
@@ -412,13 +418,20 @@ void Renderer::end(const Camera & c) {
             } else if (properties & DYNAMIC) {
                 s->setFloat("shininess", e->getMaterial().specularShininess);
                 s->setMat4("model", &model[0][0]);
+                if (properties & NORMAL_MAPPED) {
+                    //std::cout << "Setting up normal map" << std::endl;
+                    s->setInt("normalMap", 1);
+                    glActiveTexture(GL_TEXTURE1);
+                    GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
+                    glBindTexture(GL_TEXTURE_2D + 1, normalMap);
+                }
             }
 
             if (properties & TEXTURED) {
                 glActiveTexture(GL_TEXTURE0);
                 s->setInt("diffuseTexture", 0);
                 GLuint texture = _lookupTexture(e->getMaterial().texture);
-                glBindTexture(GL_TEXTURE_2D, texture);
+                glBindTexture(GL_TEXTURE_2D + 0, texture);
             }
             glFrontFace(GL_CW);
             e->render();

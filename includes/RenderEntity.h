@@ -17,7 +17,8 @@ enum RenderProperties {
     FLAT = 4,           // material will not interact with light
     DYNAMIC = 8,        // material fully interacts with all lights
     TEXTURED = 16,       // material has one or more textures
-    REFLECTIVE = 32      // material reflects world around it
+    REFLECTIVE = 32,      // material reflects world around it
+    NORMAL_MAPPED = 64      // material has an associated normal map
 };
 
 /**
@@ -32,6 +33,8 @@ struct RenderMaterial {
     float specularShininess = 0.0f;
     // Not required to have a texture
     TextureHandle texture = -1;
+    // Not required to have a normal map
+    TextureHandle normalMap = -1;
 };
 
 class RenderEntity {

@@ -11,49 +11,12 @@
 #include <includes/Utils.h>
 
 static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
-        // back face
-        // positions          // normals          // tex coords
-        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-        1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
-        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-        -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-        // front face
-        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-        1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-        -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-        // left face
-        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-        -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-        -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-        // right face
-        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-        1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
-        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-        1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-        // bottom face
-        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-        1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-        -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-        // top face
-        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-        1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-        1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
-        1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-        -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
+    -1.0f, 1.0f, 0.0f,  0, 0, 0,    0.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f, 0, 0, 0,    0.0f, 0.0f,
+    1.0f, -1.0f, 0.0f,  0, 0, 0,    1.0f, 0.0f,
+    -1.0f, 1.0f, 0.0f,  0, 0, 0,    0.0f, 1.0f,
+    1.0f, -1.0f, 0.0f,  0, 0, 0,    1.0f, 0.0f,
+    1.0f, 1.0f, 0.0f,   0, 0, 0,    1.0f, 1.0f
 };
 
 static std::vector<glm::vec3> genCubePositions() {
@@ -238,15 +201,22 @@ int main(int argc, char * args[]) {
 
 
     std::vector<TextureHandle> textures;
-    textures.resize(8);
-    textures[0] = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
-    textures[1] = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    textures[2] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
-    textures[3] = renderer.loadTexture("../copyrighted/brick-plaster-03-cm-big-talos.png");
-    textures[4] = renderer.loadTexture("../copyrighted/cliff-01-cm-big-talos.png");
-    textures[5] = renderer.loadTexture("../copyrighted/concretebare-04-cm-big-talos.png");
-    textures[6] = renderer.loadTexture("../copyrighted/concreteceiling-02-cm-big-talos.png");
-    textures[7] = renderer.loadTexture("../copyrighted/ruined-wall-big-talos.png");
+    textures.resize(6);
+    textures[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
+    textures[1] = renderer.loadTexture("../copyrighted/brick-plaster-02-cm-big-talos.png");
+    textures[2] = renderer.loadTexture("../copyrighted/cliff-01-cm-big-talos.png");
+    textures[3] = renderer.loadTexture("../copyrighted/concretebare-04-cm-big-talos.png");
+    textures[4] = renderer.loadTexture("../copyrighted/concreteceiling-02-cm-big-talos.png");
+    textures[5] = renderer.loadTexture("../copyrighted/ruined-wall-big-talos.png");
+
+    std::vector<TextureHandle> normalMaps;
+    normalMaps.resize(6);
+    normalMaps[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-nm-big-talos.png");
+    normalMaps[1] = renderer.loadTexture("../copyrighted/brick-plaster-02-nm-big-talos.png");
+    normalMaps[2] = renderer.loadTexture("../copyrighted/cliff-01-nm-big-talos.png");
+    normalMaps[3] = renderer.loadTexture("../copyrighted/concretebare-04-nm-big-talos.png");
+    normalMaps[4] = renderer.loadTexture("../copyrighted/concreteceiling-02-nm-big-talos.png");
+    normalMaps[5] = renderer.loadTexture("../copyrighted/ruined-wall-nm-big-talos.png");
 
     std::vector<std::unique_ptr<RenderEntity>> entities;
     RenderMaterial quadMat;
@@ -272,6 +242,7 @@ int main(int argc, char * args[]) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
+        cubeMat.normalMap = normalMaps[texIndex];
         c->setMaterial(cubeMat);
         c->position.x = rand() % 750;
         c->position.y = rand() % 750;

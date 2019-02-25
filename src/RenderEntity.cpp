@@ -54,6 +54,12 @@ void RenderEntity::setMaterial(const RenderMaterial &material) {
     } else {
         _enableProperties(TEXTURED);
     }
+    if (material.normalMap == -1) {
+        _disableProperties(NORMAL_MAPPED);
+    }
+    else {
+        _enableProperties(NORMAL_MAPPED);
+    }
 }
 
 const RenderMaterial &RenderEntity::getMaterial() const {
