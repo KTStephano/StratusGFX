@@ -1,0 +1,3 @@
+[submodule "gl3w"]
+	path = gl3w
+	url = https://github.com/skaslev/gl3w

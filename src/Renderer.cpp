@@ -1,12 +1,12 @@
 
-#include <includes/Renderer.h>
+#include <Renderer.h>
 #include <iostream>
-#include <includes/Light.h>
-#include "includes/Shader.h"
-#include "includes/Renderer.h"
-#include "includes/Quad.h"
+#include <Light.h>
+#include "Shader.h"
+#include "Renderer.h"
+#include "Quad.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include "includes/STBImage.h"
+#include "STBImage.h"
 
 Renderer::Renderer(SDL_Window * window) {
     _window = window;

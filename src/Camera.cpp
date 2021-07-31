@@ -1,8 +1,8 @@
 
-#include <includes/Camera.h>
+#include <Camera.h>
 #include <iostream>
 
-#include "includes/Camera.h"
+#include "Camera.h"
 
 Camera::Camera() {
     _side = glm::cross(_up, _dir);

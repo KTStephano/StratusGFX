@@ -1,5 +1,5 @@
-#include "includes/Shader.h"
-#include <includes/Filesystem.h>
+#include "Shader.h"
+#include <Filesystem.h>
 #include <iostream>
 
 Shader::Shader(const std::string &vertexShader,

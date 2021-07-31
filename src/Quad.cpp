@@ -1,6 +1,6 @@
 
-#include "includes/Quad.h"
-#include "includes/Engine.h"
+#include "Quad.h"
+#include "Engine.h"
 #include <vector>
 #include <iostream>
 

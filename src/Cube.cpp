@@ -1,7 +1,7 @@
 
 #include <vector>
 #include <iostream>
-#include "includes/Cube.h"
+#include "Cube.h"
 
 static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
         // back face

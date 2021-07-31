@@ -1,8 +1,8 @@
 
-#include <includes/RenderEntity.h>
+#include <RenderEntity.h>
 
-#include "includes/RenderEntity.h"
-#include "includes/Common.h"
+#include "RenderEntity.h"
+#include "Common.h"
 
 RenderEntity::RenderEntity(RenderProperties properties) {
     _setProperties(properties);

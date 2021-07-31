@@ -1,14 +1,14 @@
-#include "includes/Common.h"
+#include "Common.h"
 #include "glm/glm.hpp"
 #include <iostream>
-#include <includes/Shader.h>
-#include <includes/Renderer.h>
-#include <includes/Quad.h>
-#include <includes/Camera.h>
+#include <Shader.h>
+#include <Renderer.h>
+#include <Quad.h>
+#include <Camera.h>
 #include <chrono>
-#include <includes/Cube.h>
-#include <includes/Light.h>
-#include <includes/Utils.h>
+#include <Cube.h>
+#include <Light.h>
+#include <Utils.h>
 
 static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
     -1.0f, 1.0f, 0.0f,  0, 0, 0,    0.0f, 1.0f,
