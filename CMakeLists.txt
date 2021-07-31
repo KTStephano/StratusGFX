@@ -5,10 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 #set(SDL2_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/SDL2")
 # Support both 32 and 64 bit builds
 
-include_directories(gl3w/ .)
+find_package(SDL2 REQUIRED)
+find_package(OpenGL REQUIRED)
+
+#add_subdirectory(gl3w)
+
+include_directories(gl3w/include includes ${SDL2_INCLUDE_DIRS} . ${OPENGL_INCLUDE_DIRS})
 add_executable(StratusGFX 
     src/StratusGFX.cpp 
-    src/gl3w.c 
+    gl3w/src/gl3w.c 
     includes/Shader.h 
     src/Shader.cpp 
     includes/Filesystem.h 
@@ -40,5 +45,6 @@ if (WIN32)
     endif ()
     target_link_libraries(StratusGFX ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32)
 else ()
-    target_link_libraries(StratusGFX SDL2 GL GLU X11 Xxf86vm Xrandr pthread Xi dl)
+    #target_link_libraries(StratusGFX ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} GLU X11 Xxf86vm Xrandr pthread Xi dl)
+    target_link_libraries(StratusGFX ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl)
 endif ()
