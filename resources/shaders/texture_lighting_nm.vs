@@ -15,11 +15,19 @@ uniform mat4 model;
 uniform mat4 view;
 //uniform mat4 modelView;
 
+/**
+ * Information about the camera
+ */
+uniform vec3 viewPosition;
+
 smooth out vec3 fsPosition;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
+
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
+out vec3 fsTanViewPosition;
+out vec3 fsTanFragPosition;
 
 void main() {
     vec4 pos = model * vec4(position, 1.0);
@@ -43,6 +51,8 @@ void main() {
 
     //t = normalize(t - dot(t, n) * n);
     //vec3 b = cross(n, t);
-    fsTbnMatrix = mat3(t, b, n);
+    fsTbnMatrix = transpose(mat3(t, b, n));
+    fsTanViewPosition = fsTbnMatrix * viewPosition;
+    fsTanFragPosition = fsTbnMatrix * fsPosition;
     gl_Position = projection * view * pos;
 }

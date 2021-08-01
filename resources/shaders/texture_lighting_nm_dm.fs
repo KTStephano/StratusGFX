@@ -15,16 +15,22 @@ uniform float heightScale = 0.1;
 /**
  * Information about the camera
  */
- uniform vec3 viewPosition;
+uniform vec3 viewPosition;
 
 /**
  * Fragment information. All values should be
  * in world space.
  */
- in vec3 fsPosition;
- in vec3 fsNormal;
- in vec2 fsTexCoords;
- in mat3 fsTbnMatrix;
+in vec3 fsPosition;
+in vec3 fsNormal;
+in vec2 fsTexCoords;
+
+/**
+ * Tangent space
+ */
+in mat3 fsTbnMatrix;
+in vec3 fsTanViewPosition;
+in vec3 fsTanFragPosition;
 
 /**
  * Lighting information. All values related
@@ -43,7 +49,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 lightPos = lightPositions[lightIndex];
     vec3 lightColor = lightColors[lightIndex];
 
-    vec3 lightDir = lightPos - fsPosition;
+    vec3 lightDir = (fsTbnMatrix * lightPos) - fsTanFragPosition;
     float lightDist = length(lightDir);
     lightDir = normalize(lightDir);
     // Linear attenuation
@@ -65,17 +71,17 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy * (height * heightScale);
+    vec2 p = viewDir.xy * (height * 0.1);
     return texCoords - p;
 }
 
 void main() {
-    vec3 viewDir = normalize(viewPosition - fsPosition);
+    vec3 viewDir = normalize(fsTanViewPosition - fsTanFragPosition);
     vec2 texCoords = fsTexCoords;
     texCoords = calculateDepthCoords(texCoords, viewDir);
-    //if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-    //    discard;
-    //}
+    if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+        discard;
+    }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = texture(normalMap, texCoords).rgb;
@@ -83,7 +89,7 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     normal = normalize(normal * 2.0 - 1.0);
-    normal = normalize(fsTbnMatrix * normal);
+    //normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= numLights) break;

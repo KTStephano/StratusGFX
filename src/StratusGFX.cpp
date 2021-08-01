@@ -202,6 +202,8 @@ int main(int argc, char * args[]) {
 
     std::vector<TextureHandle> textures;
     textures.push_back(renderer.loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
+    textures.push_back(renderer.loadTexture("../resources/textures/Bark_06_basecolor.jpg"));
+    textures.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
     /**
     textures.resize(6);
     textures[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
@@ -214,6 +216,8 @@ int main(int argc, char * args[]) {
 
     std::vector<TextureHandle> normalMaps;
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Normal.jpg"));
+    normalMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_normal.jpg"));
+    normalMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
     /**
     normalMaps.resize(6);
     normalMaps[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-nm-big-talos.png");
@@ -226,6 +230,8 @@ int main(int argc, char * args[]) {
 
     std::vector<TextureHandle> depthMaps;
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Height.png"));
+    depthMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_height.png"));
+    depthMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_height.png"));
 
     std::vector<std::unique_ptr<RenderEntity>> entities;
     std::vector<size_t> textureIndices;
