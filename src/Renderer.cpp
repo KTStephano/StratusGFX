@@ -75,6 +75,9 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_lighting_nm.vs",
                                                 "../resources/shaders/texture_lighting_nm.fs");
     _shaders.push_back(lightTextureNormalMap);
+    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_lighting_nm_dm.vs",
+                                                    "../resources/shaders/texture_lighting_nm_dm.fs");
+    _shaders.push_back(lightTextureNormalDepthMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
@@ -83,12 +86,14 @@ Renderer::Renderer(SDL_Window * window) {
     _propertyShaderMap.insert(make_pair(FLAT | TEXTURED, noLightTexture));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED, lightTexture));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
+    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma preprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
@@ -285,7 +290,7 @@ void Renderer::addDrawable(RenderEntity * e) {
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to
         // invisible, we won't bother adding them
-        std::cerr << "[error] Unable to add entity" << std::endl;
+        //std::cerr << "[error] Unable to add entity" << std::endl;
         return;
     }
     it->second.push_back(e);
@@ -378,7 +383,10 @@ void Renderer::end(const Camera & c) {
         s->bind();
 
         // Set up uniforms specific to this type of shader
-        if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
+        //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
+        const float dynTextured = properties & (DYNAMIC | TEXTURED);
+        const float normOrHeight = (properties & NORMAL_MAPPED) || (properties & NORMAL_HEIGHT_MAPPED);
+        if (dynTextured || (dynTextured && normOrHeight)) {
             glm::vec3 lightColor;
             for (int i = 0; i < _state.lights.size(); ++i) {
                 Light * light = _state.lights[i];
@@ -428,7 +436,7 @@ void Renderer::end(const Camera & c) {
             } else if (properties & DYNAMIC) {
                 s->setFloat("shininess", e->getMaterial().specularShininess);
                 s->setMat4("model", &model[0][0]);
-                if (properties & NORMAL_MAPPED) {
+                if (properties & NORMAL_MAPPED || properties & NORMAL_HEIGHT_MAPPED) {
                     /*
                     s->setInt("normalMap", 0);
                     glActiveTexture(GL_TEXTURE0 + 0);
@@ -437,6 +445,11 @@ void Renderer::end(const Camera & c) {
                     */
                     _bindTexture(s, "normalMap", e->getMaterial().normalMap);
                 }
+
+                //if (properties & NORMAL_HEIGHT_MAPPED) {
+                //    _bindTexture(s, "depthMap", e->getMaterial().depthMap);
+                //    s->setFloat("heightScale", e->getMaterial().heightScale);
+                //}
             }
 
             glFrontFace(GL_CW);

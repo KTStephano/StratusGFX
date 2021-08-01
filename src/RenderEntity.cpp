@@ -56,9 +56,17 @@ void RenderEntity::setMaterial(const RenderMaterial &material) {
     }
     if (material.normalMap == -1) {
         _disableProperties(NORMAL_MAPPED);
+        _disableProperties(NORMAL_HEIGHT_MAPPED);
     }
     else {
-        _enableProperties(NORMAL_MAPPED);
+        if (material.depthMap == -1) {
+            _disableProperties(NORMAL_HEIGHT_MAPPED);
+            _enableProperties(NORMAL_MAPPED);
+        }
+        else {
+            _disableProperties(NORMAL_MAPPED);
+            _enableProperties(NORMAL_HEIGHT_MAPPED);
+        }
     }
 }
 

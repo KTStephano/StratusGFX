@@ -13,12 +13,13 @@ enum class RenderMode {
 };
 
 enum RenderProperties {
-    INVISIBLE = 2,      // material will not be rendered
-    FLAT = 4,           // material will not interact with light
-    DYNAMIC = 8,        // material fully interacts with all lights
-    TEXTURED = 16,       // material has one or more textures
-    REFLECTIVE = 32,      // material reflects world around it
-    NORMAL_MAPPED = 64      // material has an associated normal map
+    INVISIBLE            = 2,      // material will not be rendered
+    FLAT                 = 4,      // material will not interact with light
+    DYNAMIC              = 8,      // material fully interacts with all lights
+    TEXTURED             = 16,     // material has one or more textures
+    REFLECTIVE           = 32,     // material reflects world around it
+    NORMAL_MAPPED        = 64,     // material has an associated normal map
+    NORMAL_HEIGHT_MAPPED = 128     // material has an associated normal & depth map
 };
 
 /**
@@ -35,6 +36,9 @@ struct RenderMaterial {
     TextureHandle texture = -1;
     // Not required to have a normal map
     TextureHandle normalMap = -1;
+    // Not required to have a depth map
+    TextureHandle depthMap = -1;
+    float heightScale = 0.1;
 };
 
 class RenderEntity {

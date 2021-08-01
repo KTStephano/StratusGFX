@@ -80,7 +80,7 @@ public:
     RandomLightMover() {
         cube = std::make_unique<Cube>();
         light = std::make_unique<PointLight>();
-        speed = glm::vec3(float(rand() % 15 + 10));
+        speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
     }
 
@@ -201,6 +201,8 @@ int main(int argc, char * args[]) {
 
 
     std::vector<TextureHandle> textures;
+    textures.push_back(renderer.loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
+    /**
     textures.resize(6);
     textures[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
     textures[1] = renderer.loadTexture("../copyrighted/brick-plaster-02-cm-big-talos.png");
@@ -208,8 +210,11 @@ int main(int argc, char * args[]) {
     textures[3] = renderer.loadTexture("../copyrighted/concretebare-04-cm-big-talos.png");
     textures[4] = renderer.loadTexture("../copyrighted/concreteceiling-02-cm-big-talos.png");
     textures[5] = renderer.loadTexture("../copyrighted/ruined-wall-big-talos.png");
+    */
 
     std::vector<TextureHandle> normalMaps;
+    normalMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Normal.jpg"));
+    /**
     normalMaps.resize(6);
     normalMaps[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-nm-big-talos.png");
     normalMaps[1] = renderer.loadTexture("../copyrighted/brick-plaster-02-nm-big-talos.png");
@@ -217,6 +222,10 @@ int main(int argc, char * args[]) {
     normalMaps[3] = renderer.loadTexture("../copyrighted/concretebare-04-nm-big-talos.png");
     normalMaps[4] = renderer.loadTexture("../copyrighted/concreteceiling-02-nm-big-talos.png");
     normalMaps[5] = renderer.loadTexture("../copyrighted/ruined-wall-nm-big-talos.png");
+    */
+
+    std::vector<TextureHandle> depthMaps;
+    depthMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Height.png"));
 
     std::vector<std::unique_ptr<RenderEntity>> entities;
     std::vector<size_t> textureIndices;
@@ -228,6 +237,7 @@ int main(int argc, char * args[]) {
         size_t texIndex = rand() % textures.size();
         quadMat.texture = textures[texIndex];
         quadMat.normalMap = normalMaps[texIndex];
+        quadMat.depthMap = depthMaps[texIndex];
         std::unique_ptr<Quad> q = std::make_unique<Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
@@ -246,6 +256,7 @@ int main(int argc, char * args[]) {
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
+        cubeMat.depthMap = depthMaps[texIndex];
         c->setMaterial(cubeMat);
         c->position.x = rand() % 750;
         c->position.y = rand() % 750;
@@ -258,10 +269,10 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 10; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
-        mover->light->setIntensity(200.0f);
+        mover->light->setIntensity(500.0f);
         mover->position = glm::vec3(float(rand() % 500 + 100),
                                     0.0f, // float(rand() % 200),
                                     float(rand() % 500 + 100));
@@ -322,6 +333,17 @@ int main(int argc, char * args[]) {
                                 for (size_t i = 0; i < entities.size(); ++i) {
                                     m = entities[i]->getMaterial();
                                     m.normalMap = m.normalMap == -1 ? normalMaps[textureIndices[i]] : -1;
+                                    entities[i]->setMaterial(m);
+                                }
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_H: {
+                            if (released) {
+                                RenderMaterial m;
+                                for (size_t i = 0; i < entities.size(); ++i) {
+                                    m = entities[i]->getMaterial();
+                                    m.depthMap = m.depthMap == -1 ? depthMaps[textureIndices[i]] : -1;
                                     entities[i]->setMaterial(m);
                                 }
                             }
