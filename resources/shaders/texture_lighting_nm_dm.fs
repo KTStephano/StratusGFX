@@ -71,7 +71,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy * (height * 0.1);
+    vec2 p = viewDir.xy * (height * heightScale);
     return texCoords - p;
 }
 
