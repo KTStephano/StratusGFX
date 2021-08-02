@@ -257,16 +257,16 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 2000; ++i) {
+    for (int i = 0; i < 100; ++i) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
         cubeMat.depthMap = depthMaps[texIndex];
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 750;
-        c->position.y = rand() % 750;
-        c->position.z = rand() % 750;
+        c->position.x = rand() % 500;
+        c->position.y = rand() % 100;
+        c->position.z = rand() % 500;
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
@@ -275,13 +275,13 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 3; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
-        mover->light->setIntensity(500.0f);
-        mover->position = glm::vec3(float(rand() % 500 + 100),
+        mover->light->setIntensity(1000.0f);
+        mover->position = glm::vec3(float(rand() % 300 + 100),
                                     0.0f, // float(rand() % 200),
-                                    float(rand() % 500 + 100));
+                                    float(rand() % 300 + 100));
         lightMovers.push_back(std::move(mover));
     }
 
@@ -292,7 +292,7 @@ int main(int argc, char * args[]) {
 
     bool running = true;
     PointLight cameraLight;
-    cameraLight.setIntensity(200.0f);
+    cameraLight.setIntensity(500.0f);
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();

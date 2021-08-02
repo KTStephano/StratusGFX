@@ -49,13 +49,15 @@ static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
         -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f,       1, 0, 0,     0, 0, -1// bottom-left
 };
 
-Cube::Cube() {
-    glGenVertexArrays(1, &_vao);
-    glGenBuffers(1, &_buffer);
+static GLuint vao = 0;
+static GLuint buffer = 0;
+static void createCubeVAO() {
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &buffer);
 
-    glBindVertexArray(_vao);
+    glBindVertexArray(vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, _buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     //std::cout << cubeData.size() << std::endl;
     glBufferData(GL_ARRAY_BUFFER, cubeData.size() * sizeof(float), &cubeData[0], GL_STATIC_DRAW);
 
@@ -107,9 +109,17 @@ Cube::Cube() {
     glBindVertexArray(0);
 }
 
+Cube::Cube() {
+    if (vao == 0 || buffer == 0) {
+            createCubeVAO();
+    }
+    _vao = vao;
+    _buffer = buffer;
+}
+
 Cube::~Cube() {
-    glDeleteVertexArrays(1, &_vao);
-    glDeleteBuffers(1, &_buffer);
+    //glDeleteVertexArrays(1, &_vao);
+    //glDeleteBuffers(1, &_buffer);
 }
 
 void Cube::render() {

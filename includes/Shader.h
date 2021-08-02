@@ -12,6 +12,11 @@ class Shader {
     std::string _vsFile;
 
     /**
+     * Filename for the geometry shader (optional - may be empty)
+     */
+    std::string _gsFile;
+
+    /**
      * Filename for the fragment shader
      */
     std::string _fsFile;
@@ -30,10 +35,11 @@ class Shader {
 public:
     /**
      * @param vertexShader file for the vertex shader
+     * @param geomShader file for the geometry shader (optional)
      * @param fragShader file for the fragment shader
      */
-    Shader(const std::string & vertexShader,
-            const std::string & fragShader);
+    Shader(const std::string & vertexShader, const std::string & geomShader, const std::string & fragShader);
+    Shader(const std::string & vertexShader, const std::string & fragShader);
     ~Shader();
 
     /**

@@ -68,9 +68,14 @@ class Renderer {
         GLuint frameBuffer = 0;
         GLuint colorBuffer = 0;
         GLuint depthBuffer = 0;
-        // Preprocessing shader which allows for application
+        // Used for a call to glBlendFunc
+        GLenum blendSFactor = GL_ONE;
+        GLenum blendDFactor = GL_ZERO;
+        // Postprocessing shader which allows for application
         // of hdr and gamma correction
         std::unique_ptr<Shader> hdrGamma;
+        // Preprocessing shader which sets up the scene to allow for dynamic shadows
+        std::unique_ptr<Shader> shadows;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
@@ -88,6 +93,15 @@ class Renderer {
          * to use it then it needs to first be re-loaded.
          */
         bool loaded = true;
+    };
+
+    struct ShadowMap3D {
+        // Each shadow map is rendered to a frame buffer backed by a 3D texture
+        GLuint frameBuffer;
+        GLuint shadowCubeMap;
+        // How large the cube map texture is along the width/height axes
+        int width;
+        int height;
     };
 
     /**
@@ -142,6 +156,11 @@ class Renderer {
     std::unordered_map<TextureHandle, Texture2D> _textureHandles;
 
     /**
+     * Maps all shadow maps to a handle.
+     */
+    std::unordered_map<ShadowMapHandle, ShadowMap3D> _shadowMap3DHandles;
+
+    /**
      * If the renderer was setup properly then this will be marked
      * true.
      */
@@ -181,6 +200,8 @@ public:
       * @return texture handle of valid or -1 if invalid
       */
      TextureHandle loadTexture(const std::string & file);
+
+     ShadowMapHandle createShadowMap3D(int resolutionX, int resolutionY);
 
      /**
       * Sets up the arguments for the perspective projection,

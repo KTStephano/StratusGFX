@@ -1,6 +1,7 @@
 #version 150 core
 
-#define MAX_LIGHTS 128
+// Apple limits us to 16 total samplers active in the pipeline :(
+#define MAX_LIGHTS 12
 #define SPECULAR_MULTIPLIER 128.0
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.05
 #define AMBIENT_INTENSITY 0.0005
@@ -38,6 +39,8 @@ in vec3 fsTanFragPosition;
  */
 uniform vec3 lightPositions[MAX_LIGHTS];
 uniform vec3 lightColors[MAX_LIGHTS];
+uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
+uniform float lightFarPlanes[MAX_LIGHTS];
 // Since max lights is an upper bound, this can
 // tell us how many lights are actually present
 uniform int numLights = 0;
@@ -45,11 +48,55 @@ uniform int numLights = 0;
 
 out vec4 fsColor;
 
+float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float lightNormalDotProduct) {
+    // Not required for fragDir to be normalized
+    vec3 fragDir = fragPos - lightPos;
+    float currentDepth = length(fragDir);
+    // It's very important to multiply by lightFarPlane. The recorded depth
+    // is on the range [0, 1] so we need to convert it back to what it was originally
+    // or else our depth comparison will fail.
+    float calculatedDepth = texture(shadowCubeMaps[lightIndex], fragDir).r * lightFarPlanes[lightIndex];
+    // This bias was found through trial and error... it was originally
+    // 0.05 * (1.0 - max...)
+    // Part of this came from GPU Gems
+    // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
+    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    //float bias = max(0.75 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05);
+    //float bias = max(0.85 * (1.0 - lightNormalDotProduct), 0.05);
+    //bias = bias < 0.0 ? bias * -1.0 : bias;
+    // Now we use a sampling-based method to look around the current pixel
+    // and blend the values for softer shadows (introduces some blur). This falls
+    // under the category of Percentage-Closer Filtering (PCF) algorithms.
+    float shadow = 0.0;
+    float samples = 4.0;
+    float totalSamples = samples * samples * samples; // 64 if samples is set to 4.0
+    float offset = 0.1;
+    float increment = offset / (samples * 0.5);
+    for (float x = -offset; x < offset; x += increment) {
+        for (float y = -offset; y < offset; y += increment) {
+            for (float z = -offset; z < offset; z += increment) {
+                float depth = texture(shadowCubeMaps[lightIndex], fragDir + vec3(x, y, z)).r;
+                // Perform this operation to go from [0, 1] to
+                // the original value
+                depth = depth * lightFarPlanes[lightIndex];
+                if ((currentDepth - bias) > depth) {
+                    shadow = shadow + 1.0;
+                }
+            }
+        }
+    }
+
+    //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
+    //bias = clamp(bias, 0, 0.01);
+    //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
+    return shadow / totalSamples;
+}
+
 vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex) {
-    vec3 lightPos = lightPositions[lightIndex];
+    vec3 lightPos = fsTbnMatrix * lightPositions[lightIndex];
     vec3 lightColor = lightColors[lightIndex];
 
-    vec3 lightDir = (fsTbnMatrix * lightPos) - fsTanFragPosition;
+    vec3 lightDir = lightPos - fsTanFragPosition;
     float lightDist = length(lightDir);
     lightDir = normalize(lightDir);
     // Linear attenuation
@@ -64,7 +111,9 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 specular = pow(
         max(dot(normal, halfAngleDir), 0.0),
         exponent) * lightColor * baseColor;
-    
+    //float shadowFactor = calculateShadowValue(fsTanFragPosition, lightPos,
+    //    lightIndex, lightNormalDot);
+
     return (ambient + diffuse + specular) * attenuationFactor;
 }
 

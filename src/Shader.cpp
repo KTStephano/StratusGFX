@@ -2,12 +2,15 @@
 #include <Filesystem.h>
 #include <iostream>
 
-Shader::Shader(const std::string &vertexShader,
-        const std::string &fragShader)
-        : _vsFile(vertexShader),
-        _fsFile(fragShader) {
-    _compile();
+Shader::Shader(const std::string & vertexShader, const std::string & geomShader, const std::string & fragShader)
+    : _vsFile(vertexShader),
+    _gsFile(geomShader),
+    _fsFile(fragShader) {
+    this->_compile();
 }
+
+Shader::Shader(const std::string &vertexShader, const std::string &fragShader)
+    : Shader(vertexShader, std::string(), fragShader) {}
 
 Shader::~Shader() {
     glDeleteProgram(_program);
@@ -21,11 +24,11 @@ Shader::~Shader() {
  * @return true if no errors occurred and false if anything
  *      went wrong
  */
-static bool checkShaderError(GLuint shader) {
+static bool checkShaderError(GLuint shader, const std::string & filename) {
     GLint result;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if (!result) {
-        std::cerr << "[error] Unable to compile shader" << std::endl;
+        std::cerr << "[error] Unable to compile shader: " << filename << std::endl;
 
         // Now we're going to get the error log and print it out
         GLint logLength;
@@ -77,15 +80,40 @@ void Shader::_compile() {
         return;
     }
 
+    std::string gsBuffer;
+    bool geomShaderPresent = false;
+    if (_gsFile.size() > 0) {
+        gsBuffer = Filesystem::readAscii(_gsFile);
+        if (gsBuffer.empty()) {
+            _isValid = false;
+            return;
+        }
+        geomShaderPresent = true;
+    }
+
     // Compile the vertex shader
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     const char * bufferPtr = vsBuffer.c_str();
     glShaderSource(vs, 1, &bufferPtr, nullptr);
     glCompileShader(vs);
 
-    if (!checkShaderError(vs)) {
+    if (!checkShaderError(vs, _vsFile)) {
         _isValid = false;
         return;
+    }
+
+    // Compile the geometry shader if there is one
+    GLuint gs;
+    if (geomShaderPresent) {
+        gs = glCreateShader(GL_GEOMETRY_SHADER);
+        const char * bufferPtr = gsBuffer.c_str();
+        glShaderSource(gs, 1, &bufferPtr, nullptr);
+        glCompileShader(gs);
+
+        if (!checkShaderError(gs, _gsFile)) {
+            _isValid = false;
+            return;
+        }
     }
 
     // Compile the fragment shader
@@ -94,7 +122,7 @@ void Shader::_compile() {
     glShaderSource(fs, 1, &bufferPtr, nullptr);
     glCompileShader(fs);
 
-    if (!checkShaderError(fs)) {
+    if (!checkShaderError(fs, _fsFile)) {
         // Make sure to delete vs since it succeeded
         glDeleteShader(vs);
         _isValid = false;
@@ -103,12 +131,14 @@ void Shader::_compile() {
 
     _program = glCreateProgram();
     glAttachShader(_program, vs);
+    if (geomShaderPresent) glAttachShader(_program, gs);
     glAttachShader(_program, fs);
     // Compile program
     glLinkProgram(_program);
 
     // We can safely delete the shaders now
     glDeleteShader(vs);
+    if (geomShaderPresent) glDeleteShader(gs);
     glDeleteShader(fs);
     if (!checkProgramError(_program)) {
         _isValid = false;

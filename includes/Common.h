@@ -9,6 +9,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 typedef int TextureHandle;
+typedef int ShadowMapHandle;
 
 /**
  * This class includes all of the most common functions

@@ -8,6 +8,69 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
+static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
+    float angleX = glm::radians(angles.x);
+    float angleY = glm::radians(angles.y);
+    float angleZ = glm::radians(angles.z);
+
+    float cx = std::cos(angleX);
+    float cy = std::cos(angleY);
+    float cz = std::cos(angleZ);
+
+    float sx = std::sin(angleX);
+    float sy = std::sin(angleY);
+    float sz = std::sin(angleZ);
+
+    out[0] = glm::vec4(cy * cz,
+                       sx * sy * cz + cx * sz,
+                       -cx * sy * cz + sx * sz,
+                       out[0].w);
+
+    out[1] = glm::vec4(-cy * sz,
+                       -sx * sy * sz + cx * cz,
+                       cx * sy * sz + sx * cz,
+                       out[1].w);
+
+    out[2] = glm::vec4(sy,
+                       -sx * cy,
+                       cx * cy, out[2].w);
+}
+
+// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
+static void inset(glm::mat4 & out, const glm::mat3 & in) {
+    out[0].x = in[0].x;
+    out[0].y = in[0].y;
+    out[0].z = in[0].z;
+
+    out[1].x = in[1].x;
+    out[1].y = in[1].y;
+    out[1].z = in[1].z;
+
+    out[2].x = in[2].x;
+    out[2].y = in[2].y;
+    out[2].z = in[2].z;
+}
+
+static void scale(glm::mat4 & out, const glm::vec3 & scale) {
+    out[0].x = out[0].x * scale.x;
+    out[0].y = out[0].y * scale.y;
+    out[0].z = out[0].z * scale.z;
+
+    out[1].x = out[1].x * scale.x;
+    out[1].y = out[1].y * scale.y;
+    out[1].z = out[1].z * scale.z;
+
+    out[2].x = out[2].x * scale.x;
+    out[2].y = out[2].y * scale.y;
+    out[2].z = out[2].z * scale.z;
+}
+
+static void translate(glm::mat4 & out, const glm::vec3 & translate) {
+    out[3].x = translate.x;
+    out[3].y = translate.y;
+    out[3].z = translate.z;
+}
+
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
     const int32_t maxGLVersion = 3;
@@ -95,9 +158,14 @@ Renderer::Renderer(SDL_Window * window) {
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, vector<RenderEntity *>()));
 
-    // Set up the hdr/gamma preprocessing shader
+    // Set up the hdr/gamma postprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
             "../resources/shaders/hdr.fs");
+
+    // Set up the shadow preprocessing shader
+    _state.shadows = std::make_unique<Shader>("../resources/shaders/shadow.vs",
+       "../resources/shaders/shadow.gs",
+       "../resources/shaders/shadow.fs");
 
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
@@ -108,7 +176,9 @@ Renderer::Renderer(SDL_Window * window) {
             noLightTexture->isValid() &&
             lightTexture->isValid() &&
             lightTextureNormalMap->isValid() &&
-            _state.hdrGamma->isValid();
+            lightTextureNormalDepthMap->isValid() &&
+            _state.hdrGamma->isValid() &&
+            _state.shadows->isValid();
 }
 
 Renderer::~Renderer() {
@@ -293,70 +363,27 @@ void Renderer::addDrawable(RenderEntity * e) {
         //std::cerr << "[error] Unable to add entity" << std::endl;
         return;
     }
+    e->model = glm::mat4(1.0f);
+    rotate(e->model, e->rotation);
+    scale(e->model, e->scale);
+    translate(e->model, e->position);
     it->second.push_back(e);
 }
 
-static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
-    float angleX = glm::radians(angles.x);
-    float angleY = glm::radians(angles.y);
-    float angleZ = glm::radians(angles.z);
-
-    float cx = std::cos(angleX);
-    float cy = std::cos(angleY);
-    float cz = std::cos(angleZ);
-
-    float sx = std::sin(angleX);
-    float sy = std::sin(angleY);
-    float sz = std::sin(angleZ);
-
-    out[0] = glm::vec4(cy * cz,
-                       sx * sy * cz + cx * sz,
-                       -cx * sy * cz + sx * sz,
-                       out[0].w);
-
-    out[1] = glm::vec4(-cy * sz,
-                       -sx * sy * sz + cx * cz,
-                       cx * sy * sz + sx * cz,
-                       out[1].w);
-
-    out[2] = glm::vec4(sy,
-                       -sx * cy,
-                       cx * cy, out[2].w);
-}
-
-// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
-static void inset(glm::mat4 & out, const glm::mat3 & in) {
-    out[0].x = in[0].x;
-    out[0].y = in[0].y;
-    out[0].z = in[0].z;
-
-    out[1].x = in[1].x;
-    out[1].y = in[1].y;
-    out[1].z = in[1].z;
-
-    out[2].x = in[2].x;
-    out[2].y = in[2].y;
-    out[2].z = in[2].z;
-}
-
-static void scale(glm::mat4 & out, const glm::vec3 & scale) {
-    out[0].x = out[0].x * scale.x;
-    out[0].y = out[0].y * scale.y;
-    out[0].z = out[0].z * scale.z;
-
-    out[1].x = out[1].x * scale.x;
-    out[1].y = out[1].y * scale.y;
-    out[1].z = out[1].z * scale.z;
-
-    out[2].x = out[2].x * scale.x;
-    out[2].y = out[2].y * scale.y;
-    out[2].z = out[2].z * scale.z;
-}
-
-static void translate(glm::mat4 & out, const glm::vec3 & translate) {
-    out[3].x = translate.x;
-    out[3].y = translate.y;
-    out[3].z = translate.z;
+/**
+ * During the lighting phase, we need each of the 6 faces of the shadow map to have its own view transform matrix.
+ * This enables us to convert vertices to be in various different light coordinate spaces.
+ */
+static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & projection, const glm::vec3 & lightPos) {
+    return std::vector<glm::mat4>{
+        //                       pos       pos + dir                               up
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))
+    };
 }
 
 void Renderer::end(const Camera & c) {
@@ -364,12 +391,54 @@ void Renderer::end(const Camera & c) {
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
 
+    // Perform the shadow volume pre-pass
+    _state.shadows->bind();
+    // Set blend func just for shadow pass
+    glBlendFunc(GL_ONE, GL_ONE);
+    for (Light * light : _state.lights) {
+        // TODO: Make this work with spotlights
+        PointLight * point = (PointLight *)light;
+        const ShadowMap3D & smap = this->_shadowMap3DHandles.find(point->getShadowMapHandle())->second;
+
+        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), smap.width / smap.height, point->getNearPlane(), point->getFarPlane());
+
+        glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
+        glViewport(0, 0, smap.width, smap.height);
+        // Current pass only cares about depth buffer
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        auto transforms = generateLightViewTransforms(lightPerspective, point->position);
+        for (int i = 0; i < transforms.size(); ++i) {
+            const std::string index = "[" + std::to_string(i) + "]";
+            _state.shadows->setMat4("shadowMatrices" + index, &transforms[i][0][0]);
+        }
+        _state.shadows->setVec3("lightPos", &light->position[0]);
+        _state.shadows->setFloat("farPlane", point->getFarPlane());
+
+        for (auto & p : _state.entities) {
+            uint32_t properties = p.first;
+            if ( !(properties & DYNAMIC) ) continue;
+            for (auto & e : p.second) {
+                _state.shadows->setMat4("model", &e->model[0][0]);
+                e->render();
+            }
+        }
+
+        // Unbind
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    _state.shadows->unbind();
+
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
-    //glm::vec3 lightColor(10.0f);
+    //glm::vec3 lightColor(10.0f); 
 
     // Make sure to bind our own frame buffer for rendering
     glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+    
+    // Make sure some of our global GL states are set properly for primary rendering below
+    glBlendFunc(_state.blendSFactor, _state.blendDFactor);
+    glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
     for (auto & p : _state.entities) {
         // Set up the shader we will use for this batch of entities
@@ -413,10 +482,7 @@ void Renderer::end(const Camera & c) {
         // Iterate through all entities and draw them
         for (auto & e : p.second) {
             //s->setMat4("projection", &(*projection)[0][0]);
-            glm::mat4 model(1.0f);
-            rotate(model, e->rotation);
-            scale(model, e->scale);
-            translate(model, e->position);
+            const glm::mat4 & model = e->model;
 
             if (properties & TEXTURED) {
                 /*
@@ -536,6 +602,36 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
     return tex.handle;
 }
 
+ShadowMapHandle Renderer::createShadowMap3D(int resolutionX, int resolutionY) {
+    ShadowMap3D smap;
+    smap.width = resolutionX;
+    smap.height = resolutionY;
+    glGenFramebuffers(1, &smap.frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
+    // Generate the 3D depth buffer
+    glGenTextures(1, &smap.shadowCubeMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
+    for (int face = 0; face < 6; ++face) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT, resolutionX,
+                     resolutionY, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Notice the third dimension
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, smap.shadowCubeMap, 0);
+    // Tell OpenGL we won't be using a color buffer
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    // Unbind framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    TextureHandle handle = (int)(this->_shadowMap3DHandles.size() + 1);
+    this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
+    return handle;
+}
+
 void Renderer::invalidateAllTextures() {
     for (auto & texture : _textures) {
         glDeleteTextures(1, &texture.second.texture);
@@ -552,8 +648,17 @@ GLuint Renderer::_lookupTexture(TextureHandle handle) const {
     return it->second.texture;
 }
 
+// TODO: Need a way to clean up point light resources
 void Renderer::addPointLight(Light *light) {
+    assert(light->getType() == LightType::POINTLIGHT || light->getType() == LightType::SPOTLIGHT);
     _state.lights.push_back(light);
+
+    if (light->getType() == LightType::POINTLIGHT) {
+        PointLight * point = (PointLight *)light;
+        if (point->getShadowMapHandle() == -1) {
+            point->_setShadowMapHandle(this->createShadowMap3D(1024, 1024));
+        }
+    }
 }
 
 void Renderer::_bindTexture(Shader * s, const std::string & textureName,
