@@ -23,6 +23,15 @@ enum RenderProperties {
 };
 
 /**
+ * Each entity should have a set of data that it needs for rendering (vertics, texture coordinates, normals, etc.).
+ * In order for instanced rendering to work, the rendering system needs to know which entities have the same
+ * A) materials and B) render data.
+ */
+struct RenderData {
+    void * data;
+};
+
+/**
  * @see http://devernay.free.fr/cours/opengl/materials.html
  *
  * A material specifies how light will interact with a surface.
@@ -54,6 +63,11 @@ class RenderEntity {
      * shininess factor.
      */
     RenderMaterial _material;
+
+    /**
+     * Holds a pointer to unique rendering data.
+     */
+    RenderData _data;
 
 public:
     glm::vec3 position = glm::vec3(0.0f);
@@ -103,6 +117,13 @@ public:
      * for the object to be drawn.
      */
     virtual void render() = 0;
+
+    /**
+     * If the rendering system has determined that multiple similar entities can be grouped
+     * together, this will be called instead of render(). This call should be nearly identical
+     * except it will call the graphics library instanced version of the draw function.
+     */
+    //virtual void renderInstanced(const int numInstances) = 0;
 
 private:
     void _setProperties(uint32_t properties);

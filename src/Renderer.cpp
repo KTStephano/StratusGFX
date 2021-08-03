@@ -71,6 +71,25 @@ static void translate(glm::mat4 & out, const glm::vec3 & translate) {
     out[3].z = translate.z;
 }
 
+static void printGLInfo(const GFXConfig & config) {
+    std::cout << "==================== OpenGL Information ====================" << std::endl;
+    std::cout << "\tRenderer: "                         << config.renderer << std::endl;
+    std::cout << "\tVersion: "                          << config.version << std::endl;
+    std::cout << "\tMax draw buffers: "                 << config.maxDrawBuffers << std::endl;
+    std::cout << "\tMax combined textures: "            << config.maxCombinedTextures << std::endl;
+    std::cout << "\tMax cube map texture size: "        << config.maxCubeMapTextureSize << std::endl;
+    std::cout << "\tMax fragment uniform vectors: "     << config.maxFragmentUniformVectors << std::endl;
+    std::cout << "\tMax fragment uniform components: "  << config.maxFragmentUniformComponents << std::endl;
+    std::cout << "\tMax varying floats: "               << config.maxVaryingFloats << std::endl;
+    std::cout << "\tMax render buffer size: "           << config.maxRenderbufferSize << std::endl;
+    std::cout << "\tMax texture image units: "          << config.maxTextureImageUnits << std::endl;
+    std::cout << "\tMax texture size: "                 << config.maxTextureSize << std::endl;
+    std::cout << "\tMax vertex attribs: "               << config.maxVertexAttribs << std::endl;
+    std::cout << "\tMax vertex uniform vectors: "       << config.maxVertexUniformVectors << std::endl;
+    std::cout << "\tMax vertex uniform components: "    << config.maxVertexUniformComponents << std::endl;
+    std::cout << "\tMax viewport dims: "                << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+}
+
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
     const int32_t maxGLVersion = 3;
@@ -122,7 +141,8 @@ Renderer::Renderer(SDL_Window * window) {
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
-
+    
+    printGLInfo(_config);
     _isValid = true;
 
     // Initialize the shaders
