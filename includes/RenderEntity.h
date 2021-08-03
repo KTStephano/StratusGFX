@@ -110,7 +110,8 @@ public:
     void setMaterial(const RenderMaterial & material);
     const RenderMaterial & getMaterial() const;
 
-    RenderProperties getRenderProperties() const;
+    const RenderProperties & getRenderProperties() const;
+    const RenderData & getRenderData() const;
 
     /**
      * This gets called by the renderer when it is time

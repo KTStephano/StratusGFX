@@ -8,6 +8,22 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
+bool __RenderEntityObserver::operator==(const __RenderEntityObserver & c) const {
+    return e->getRenderData().data == c.e->getRenderData().data &&
+        e->getRenderProperties() == c.e->getRenderProperties() &&
+        e->getMaterial().texture == c.e->getMaterial().texture &&
+        e->getMaterial().normalMap == c.e->getMaterial().normalMap &&
+        e->getMaterial().depthMap == c.e->getMaterial().depthMap;
+}
+
+size_t __RenderEntityObserver::hashCode() const {
+    return std::hash<void *>{}(e->getRenderData().data) +
+        std::hash<int>{}(int(e->getRenderProperties())) +
+        std::hash<int>{}(e->getMaterial().texture) +
+        std::hash<int>{}(e->getMaterial().normalMap) +
+        std::hash<int>{}(e->getMaterial().depthMap);
+}
+
 static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
     float angleX = glm::radians(angles.x);
     float angleY = glm::radians(angles.y);
@@ -141,7 +157,7 @@ Renderer::Renderer(SDL_Window * window) {
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
-    
+
     printGLInfo(_config);
     _isValid = true;
 
@@ -388,6 +404,15 @@ void Renderer::addDrawable(RenderEntity * e) {
     scale(e->model, e->scale);
     translate(e->model, e->position);
     it->second.push_back(e);
+
+    __RenderEntityObserver c(e);
+    if (_state.instancedEntities.find(c) == _state.instancedEntities.end()) {
+        _state.instancedEntities.insert(std::make_pair(c, __RenderEntityContainer(e)));
+    }
+    __RenderEntityContainer & existing = _state.instancedEntities.find(c)->second;
+    existing.modelMatrices.push_back(e->model);
+    existing.diffuseColors.push_back(e->getMaterial().diffuseColor);
+    existing.specularExponents.push_back(e->getMaterial().specularShininess);
 }
 
 /**

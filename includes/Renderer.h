@@ -49,6 +49,33 @@ struct Color {
             : r(r), g(g), b(b), a(a) {}
 };
 
+struct __RenderEntityObserver {
+    RenderEntity * e;
+
+    __RenderEntityObserver(RenderEntity * e) : e(e) {}
+
+    bool operator==(const __RenderEntityObserver & c) const;
+    size_t hashCode() const;
+};
+
+struct __RenderEntityContainer {
+    RenderEntity * e;
+    std::vector<glm::mat4> modelMatrices;
+    std::vector<glm::vec3> diffuseColors;
+    std::vector<float> specularExponents;
+
+    __RenderEntityContainer(RenderEntity * e) : e(e) {}
+};
+
+namespace std {
+    template<>
+    struct hash<__RenderEntityObserver> {
+        size_t operator()(const __RenderEntityObserver & c) const {
+            return c.hashCode();
+        }
+    };
+}
+
 class Renderer {
     enum TextureType {
         TEXTURE_2D,
@@ -59,6 +86,7 @@ class Renderer {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
+        std::unordered_map<__RenderEntityObserver, __RenderEntityContainer> instancedEntities;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;

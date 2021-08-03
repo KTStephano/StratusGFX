@@ -12,10 +12,6 @@ RenderEntity::~RenderEntity() {
 
 }
 
-RenderProperties RenderEntity::getRenderProperties() const {
-    return _properties;
-}
-
 void RenderEntity::_setProperties(uint32_t properties) {
     _properties = (RenderProperties)properties;
 }
@@ -72,4 +68,12 @@ void RenderEntity::setMaterial(const RenderMaterial &material) {
 
 const RenderMaterial &RenderEntity::getMaterial() const {
     return _material;
+}
+
+const RenderProperties &RenderEntity::getRenderProperties() const {
+    return _properties;
+}
+
+const RenderData &RenderEntity::getRenderData() const {
+    return _data;
 }
