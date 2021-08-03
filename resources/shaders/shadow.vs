@@ -1,9 +1,13 @@
 #version 330 core
 
-layout (location = 0) in vec3 position;
+#define MAX_INSTANCES 250
 
-uniform mat4 model;
+layout (location = 0) in vec3 position;
+//layout (location = 12) in mat4 model;
+
+uniform mat4 modelMats[MAX_INSTANCES];
 
 void main() {
+    mat4 model = modelMats[gl_InstanceID];
     gl_Position = model * vec4(position, 1.0);
 }

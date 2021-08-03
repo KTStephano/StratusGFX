@@ -1,4 +1,7 @@
 #version 150 core
+
+#define MAX_INSTANCES 100
+
 // If we don't enable explicit_attrib/uniform_location
 // then we can't do things like "layout (location = 0)"
 #extension GL_ARB_explicit_attrib_location : enable
@@ -12,8 +15,10 @@ layout (location = 4) in vec3 bitangent;
 
 uniform mat4 projection;
 uniform mat4 model;
+//uniform mat4 modelMats[MAX_INSTANCES];
 uniform mat4 view;
 //uniform mat4 modelView;
+//uniform float shininessVals[MAX_INSTANCES];
 
 /**
  * Information about the camera
@@ -28,8 +33,10 @@ smooth out vec2 fsTexCoords;
 out mat3 fsTbnMatrix;
 out vec3 fsTanViewPosition;
 out vec3 fsTanFragPosition;
+//out float fsShininess;
 
 void main() {
+    //mat4 model = modelMats[gl_InstanceID];
     vec4 pos = model * vec4(position, 1.0);
     fsPosition = pos.xyz;
     fsTexCoords = texCoords;
@@ -54,5 +61,6 @@ void main() {
     fsTbnMatrix = transpose(mat3(t, b, n));
     fsTanViewPosition = fsTbnMatrix * viewPosition;
     fsTanFragPosition = fsTbnMatrix * fsPosition;
+    //fsShininess = shininessVals[gl_InstanceID];
     gl_Position = projection * view * pos;
 }

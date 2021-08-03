@@ -12,6 +12,7 @@ public:
     Cube();
     ~Cube() override;
     void render() override;
+    void renderInstanced(const int) override;
 };
 
 #endif //STRATUSGFX_CUBE_H

@@ -10,6 +10,7 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
 uniform sampler2D depthMap;
 
+//uniform float shininessVals[MAX_INSTANCES];
 uniform float shininess = 0.0;
 uniform float heightScale = 0.1;
 
@@ -25,6 +26,7 @@ uniform vec3 viewPosition;
 in vec3 fsPosition;
 in vec3 fsNormal;
 in vec2 fsTexCoords;
+//in float fsShininess;
 
 /**
  * Tangent space

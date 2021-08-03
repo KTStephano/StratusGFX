@@ -168,3 +168,10 @@ void Cube::render() {
     glBindVertexArray(0);
      */
 }
+
+void Cube::renderInstanced(const int numInstances) {
+    glFrontFace(GL_CCW);
+    glBindVertexArray(_vao);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 36, numInstances);
+    glBindVertexArray(0);
+}

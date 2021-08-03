@@ -80,6 +80,7 @@ public:
     RandomLightMover() {
         cube = std::make_unique<Cube>();
         cube->enableLightInteraction(false);
+        cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         light = std::make_unique<PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
@@ -258,16 +259,16 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 2000; ++i) {
         std::unique_ptr<Cube> c = std::make_unique<Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
         cubeMat.depthMap = depthMaps[texIndex];
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 500;
+        c->position.x = rand() % 1500;
         c->position.y = rand() % 100;
-        c->position.z = rand() % 500;
+        c->position.z = rand() % 1500;
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
@@ -276,7 +277,7 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 3; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(1000.0f);

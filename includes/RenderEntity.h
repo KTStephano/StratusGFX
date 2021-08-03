@@ -124,7 +124,7 @@ public:
      * together, this will be called instead of render(). This call should be nearly identical
      * except it will call the graphics library instanced version of the draw function.
      */
-    //virtual void renderInstanced(const int numInstances) = 0;
+    virtual void renderInstanced(const int numInstances) = 0;
 
 private:
     void _setProperties(uint32_t properties);

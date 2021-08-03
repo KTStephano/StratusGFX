@@ -108,3 +108,11 @@ void Quad::render() {
     glBindVertexArray(0);
     glEnable(GL_CULL_FACE);
 }
+
+void Quad::renderInstanced(const int numInstances) {
+    glDisable(GL_CULL_FACE);
+    glBindVertexArray(_vao);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, numInstances);
+    glBindVertexArray(0);
+    glEnable(GL_CULL_FACE);
+}

@@ -79,12 +79,12 @@ public:
      void setBool(const std::string & uniform, bool b) const;
      void setInt(const std::string & uniform, int i) const;
      void setFloat(const std::string & uniform, float f) const;
-     void setVec2(const std::string & uniform, const float * vec) const;
-     void setVec3(const std::string & uniform, const float * vec) const;
-     void setVec4(const std::string & uniform, const float * vec) const;
-     void setMat2(const std::string & uniform, const float * mat) const;
-     void setMat3(const std::string & uniform, const float * mat) const;
-     void setMat4(const std::string & uniform, const float * mat) const;
+     void setVec2(const std::string & uniform, const float * vec, int num = 1) const;
+     void setVec3(const std::string & uniform, const float * vec, int num = 1) const;
+     void setVec4(const std::string & uniform, const float * vec, int num = 1) const;
+     void setMat2(const std::string & uniform, const float * mat, int num = 1) const;
+     void setMat3(const std::string & uniform, const float * mat, int num = 1) const;
+     void setMat4(const std::string & uniform, const float * mat, int num = 1) const;
 
 private:
     void _compile();

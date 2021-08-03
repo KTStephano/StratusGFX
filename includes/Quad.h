@@ -17,6 +17,7 @@ public:
     Quad & operator=(Quad && other) = delete;
     ~Quad() override;
     void render() override;
+    void renderInstanced(const int) override;
 };
 
 #endif //STRATUSGFX_QUAD_H

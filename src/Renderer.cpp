@@ -376,6 +376,9 @@ void Renderer::begin(bool clearScreen) {
         e.second.clear();
     }
 
+    // Clear all instanced entities
+    _state.instancedEntities.clear();
+
     // Clear all lights
     _state.lights.clear();
 
@@ -435,6 +438,7 @@ void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
+    const int maxInstances = 250;
 
     // Perform the shadow volume pre-pass
     _state.shadows->bind();
@@ -460,6 +464,7 @@ void Renderer::end(const Camera & c) {
         _state.shadows->setVec3("lightPos", &light->position[0]);
         _state.shadows->setFloat("farPlane", point->getFarPlane());
 
+        /*
         for (auto & p : _state.entities) {
             uint32_t properties = p.first;
             if ( !(properties & DYNAMIC) ) continue;
@@ -468,6 +473,18 @@ void Renderer::end(const Camera & c) {
                 e->render();
             }
         }
+        */
+
+       for (auto & e : _state.instancedEntities) {
+           auto & modelMats = e.second.modelMatrices;
+           auto & specularExponents = e.second.specularExponents;
+           const size_t size = modelMats.size();
+           for (int i = 0; i < size; i += maxInstances) {
+               const size_t instances = std::min<size_t>(maxInstances, size - i);
+               _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
+               e.second.e->renderInstanced(instances);
+           }
+       }
 
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
