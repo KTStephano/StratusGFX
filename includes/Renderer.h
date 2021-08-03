@@ -50,6 +50,11 @@ struct Color {
 };
 
 class Renderer {
+    enum TextureType {
+        TEXTURE_2D,
+        TEXTURE_CUBE_MAP
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
@@ -80,7 +85,7 @@ class Renderer {
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
         // Bound textures
-        std::unordered_set<GLuint> boundTextures;
+        std::unordered_map<int, std::pair<GLuint, TextureType>> boundTextures;
     };
 
     struct Texture2D {
@@ -253,9 +258,10 @@ public:
 private:
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
-    void _bindTexture(Shader * s, const std::string & textureName,
-                      TextureHandle handle);
+    void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);
+    void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
+    void _initLights(Shader * s, const glm::mat4 & view, const Camera & c);
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

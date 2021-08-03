@@ -65,7 +65,7 @@ class PointLight : public Light {
 
     // These are used to set up the light view matrix
     float lightNearPlane = 0.25f;
-    float lightFarPlane = 200.0f;
+    float lightFarPlane = 500.0f;
 
 public:
     ~PointLight() override = default;

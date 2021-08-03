@@ -111,16 +111,20 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 specular = pow(
         max(dot(normal, halfAngleDir), 0.0),
         exponent) * lightColor * baseColor;
+    // We need to perform shadow calculations in world space
+    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex],
+        lightIndex, dot(lightPositions[lightIndex] - fsPosition, fsNormal));
     //float shadowFactor = calculateShadowValue(fsTanFragPosition, lightPos,
-    //    lightIndex, lightNormalDot);
+    //   lightIndex, lightNormalDot);
+    //float shadowFactor = calculateShadowValue(fsPosition, lightIndex);
 
-    return (ambient + diffuse + specular) * attenuationFactor;
+    return (ambient + (1.0 - shadowFactor) * (diffuse + specular)) * attenuationFactor;
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy * (height * heightScale);
+    vec2 p = viewDir.xy * (height * 0.05);
     return texCoords - p;
 }
 
@@ -129,7 +133,7 @@ void main() {
     vec2 texCoords = fsTexCoords;
     texCoords = calculateDepthCoords(texCoords, viewDir);
     if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-        discard;
+       discard;
     }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
@@ -138,6 +142,7 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     normal = normalize(normal * 2.0 - 1.0);
+    //vec3 tbnNormal = normalize(fsTbnMatrix * normal);
     //normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {

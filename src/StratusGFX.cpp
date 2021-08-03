@@ -79,6 +79,7 @@ public:
 
     RandomLightMover() {
         cube = std::make_unique<Cube>();
+        cube->enableLightInteraction(false);
         light = std::make_unique<PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
@@ -275,7 +276,7 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 5; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(1000.0f);

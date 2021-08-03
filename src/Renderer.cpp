@@ -455,6 +455,8 @@ void Renderer::end(const Camera & c) {
         //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
         const float dynTextured = properties & (DYNAMIC | TEXTURED);
         const float normOrHeight = (properties & NORMAL_MAPPED) || (properties & NORMAL_HEIGHT_MAPPED);
+        const bool lightingEnabled = dynTextured || (dynTextured && normOrHeight);
+        /**
         if (dynTextured || (dynTextured && normOrHeight)) {
             glm::vec3 lightColor;
             for (int i = 0; i < _state.lights.size(); ++i) {
@@ -469,6 +471,7 @@ void Renderer::end(const Camera & c) {
             s->setVec3("viewPosition", &c.getPosition()[0]);
             s->setMat4("view", &(*view)[0][0]);
         }
+        */
 
         /*
         if (_state.mode == RenderMode::ORTHOGRAPHIC) {
@@ -483,6 +486,8 @@ void Renderer::end(const Camera & c) {
         for (auto & e : p.second) {
             //s->setMat4("projection", &(*projection)[0][0]);
             const glm::mat4 & model = e->model;
+
+            if (lightingEnabled) _initLights(s, *view, c);
 
             if (properties & TEXTURED) {
                 /*
@@ -512,10 +517,10 @@ void Renderer::end(const Camera & c) {
                     _bindTexture(s, "normalMap", e->getMaterial().normalMap);
                 }
 
-                //if (properties & NORMAL_HEIGHT_MAPPED) {
-                //    _bindTexture(s, "depthMap", e->getMaterial().depthMap);
-                //    s->setFloat("heightScale", e->getMaterial().heightScale);
-                //}
+                if (properties & NORMAL_HEIGHT_MAPPED) {
+                   _bindTexture(s, "depthMap", e->getMaterial().depthMap);
+                   s->setFloat("heightScale", e->getMaterial().heightScale);
+                }
             }
 
             glFrontFace(GL_CW);
@@ -668,14 +673,52 @@ void Renderer::_bindTexture(Shader * s, const std::string & textureName,
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
     glBindTexture(GL_TEXTURE_2D, texture);
-    _state.boundTextures.insert(texture);
+    _state.boundTextures.insert(std::make_pair(textureIndex, std::make_pair(texture, TextureType::TEXTURE_2D)));
+}
+
+void Renderer::_bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle) {
+    const ShadowMap3D & smap = _shadowMap3DHandles.find(handle)->second;
+    int textureIndex = (int)_state.boundTextures.size();
+    glActiveTexture(GL_TEXTURE0 + textureIndex);
+    s->setInt(textureName, textureIndex);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
+    _state.boundTextures.insert(std::make_pair(textureIndex, std::make_pair(smap.shadowCubeMap, TextureType::TEXTURE_CUBE_MAP)));
 }
 
 void Renderer::_unbindAllTextures() {
+    /**
     for (size_t i = 0; i < _state.boundTextures.size(); ++i) {
         int textureIndex = (int)i;
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
+    */
+   for (auto & e : _state.boundTextures) {
+       int textureIndex = e.first;
+       GLuint texture = e.second.first;
+       TextureType type = e.second.second;
+       glActiveTexture(GL_TEXTURE0 + textureIndex);
+       if (type == TextureType::TEXTURE_2D) {
+           glBindTexture(GL_TEXTURE_2D, 0);
+       }
+       else {
+           glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+       }
+   }
     _state.boundTextures.clear();
+}
+
+void Renderer::_initLights(Shader * s, const glm::mat4 & view, const Camera & c) {
+    glm::vec3 lightColor;
+    for (int i = 0; i < _state.lights.size(); ++i) {
+        PointLight * light = (PointLight *)_state.lights[i];
+        lightColor = light->getColor() * light->getIntensity();
+        s->setVec3("lightPositions[" + std::to_string(i) + "]", &light->position[0]);
+        s->setVec3("lightColors[" + std::to_string(i) + "]", &lightColor[0]);
+        s->setFloat("lightFarPlanes[" + std::to_string(i) + "]", light->getFarPlane());
+        _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(i) + "]", light->getShadowMapHandle());
+    }
+    s->setInt("numLights", (int)_state.lights.size());
+    s->setVec3("viewPosition", &c.getPosition()[0]);
+    s->setMat4("view", &view[0][0]);
 }
