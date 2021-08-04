@@ -12,6 +12,8 @@ public:
     Cube();
     ~Cube() override;
     void render() override;
+    void bindVertexAttribArray() override;
+    void unbindVertexAttribArray() override;
     void renderInstanced(const int) override;
 };
 

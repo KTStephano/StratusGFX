@@ -430,7 +430,8 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
         projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
         projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)),
         projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))
+        projection * glm::lookAt(lightPos, 
+        lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))
     };
 }
 
@@ -475,16 +476,50 @@ void Renderer::end(const Camera & c) {
         }
         */
 
-       for (auto & e : _state.instancedEntities) {
-           auto & modelMats = e.second.modelMatrices;
-           auto & specularExponents = e.second.specularExponents;
-           const size_t size = modelMats.size();
-           for (int i = 0; i < size; i += maxInstances) {
-               const size_t instances = std::min<size_t>(maxInstances, size - i);
-               _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
-               e.second.e->renderInstanced(instances);
-           }
-       }
+        for (auto & e : _state.instancedEntities) {
+            auto & modelMats = e.second.modelMatrices;
+            auto & specularExponents = e.second.specularExponents;
+
+            const int pos = _state.shadows->getAttribLocation("model");
+            const int pos1 = pos + 0;
+            const int pos2 = pos + 1;
+            const int pos3 = pos + 2;
+            const int pos4 = pos + 3;
+
+            GLuint buffer;
+            glGenBuffers(1, &buffer);
+            glBindBuffer(GL_ARRAY_BUFFER, buffer);
+            glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
+
+            e.second.e->bindVertexAttribArray();
+
+            glEnableVertexAttribArray(pos1);
+            glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
+            glEnableVertexAttribArray(pos2);
+            glVertexAttribPointer(pos2, 4, GL_FLOAT, GL_FALSE, 64, (void *)16);
+            glEnableVertexAttribArray(pos3);
+            glVertexAttribPointer(pos3, 4, GL_FLOAT, GL_FALSE, 64, (void *)32);
+            glEnableVertexAttribArray(pos4);
+            glVertexAttribPointer(pos4, 4, GL_FLOAT, GL_FALSE, 64, (void *)48);
+            glVertexAttribDivisor(pos1, 1);
+            glVertexAttribDivisor(pos2, 1);
+            glVertexAttribDivisor(pos3, 1);
+            glVertexAttribDivisor(pos4, 1);
+
+            e.second.e->unbindVertexAttribArray();
+            e.second.e->renderInstanced(modelMats.size());
+
+            glDeleteBuffers(1, &buffer);
+
+            /**
+            const size_t size = modelMats.size();
+            for (int i = 0; i < size; i += maxInstances) {
+                const size_t instances = std::min<size_t>(maxInstances, size - i);
+                _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
+                e.second.e->renderInstanced(instances);
+            }
+            */
+        }
 
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);

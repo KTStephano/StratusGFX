@@ -16,6 +16,8 @@ public:
     Quad & operator=(const Quad & other) = delete;
     Quad & operator=(Quad && other) = delete;
     ~Quad() override;
+    void bindVertexAttribArray() override;
+    void unbindVertexAttribArray() override;
     void render() override;
     void renderInstanced(const int) override;
 };

@@ -114,6 +114,12 @@ public:
     const RenderData & getRenderData() const;
 
     /**
+     * Useful to allow the renderer to embed additional data during the render call.
+     */
+    virtual void bindVertexAttribArray() = 0;
+    virtual void unbindVertexAttribArray() = 0;
+
+    /**
      * This gets called by the renderer when it is time
      * for the object to be drawn.
      */

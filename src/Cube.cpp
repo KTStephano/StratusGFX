@@ -49,9 +49,7 @@ static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
         -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f,       1, 0, 0,     0, 0, -1// bottom-left
 };
 
-static GLuint vao = 0;
-static GLuint buffer = 0;
-static void createCubeVAO() {
+static void createCubeVAO(GLuint & vao, GLuint & buffer) {
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &buffer);
 
@@ -110,11 +108,7 @@ static void createCubeVAO() {
 }
 
 Cube::Cube() {
-    if (vao == 0 || buffer == 0) {
-            createCubeVAO();
-    }
-    _vao = vao;
-    _buffer = buffer;
+    createCubeVAO(_vao, _buffer);
 }
 
 Cube::~Cube() {
@@ -124,9 +118,9 @@ Cube::~Cube() {
 
 void Cube::render() {
     glFrontFace(GL_CCW);
-    glBindVertexArray(_vao);
+    bindVertexAttribArray();
     glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
+    unbindVertexAttribArray();
     /*
     glGenVertexArrays(1, &_vao);
     glGenBuffers(1, &_buffer);
@@ -171,7 +165,15 @@ void Cube::render() {
 
 void Cube::renderInstanced(const int numInstances) {
     glFrontFace(GL_CCW);
-    glBindVertexArray(_vao);
+    bindVertexAttribArray();
     glDrawArraysInstanced(GL_TRIANGLES, 0, 36, numInstances);
+    unbindVertexAttribArray();
+}
+
+void Cube::bindVertexAttribArray() {
+    glBindVertexArray(_vao);
+}
+
+void Cube::unbindVertexAttribArray() {
     glBindVertexArray(0);
 }
