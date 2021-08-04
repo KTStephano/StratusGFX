@@ -277,7 +277,7 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 5; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(1000.0f);
