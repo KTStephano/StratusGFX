@@ -8,6 +8,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
+namespace stratus {
 bool __RenderEntityObserver::operator==(const __RenderEntityObserver & c) const {
     return e->getRenderData().data == c.e->getRenderData().data &&
         e->getRenderProperties() == c.e->getRenderProperties() &&
@@ -846,4 +847,5 @@ void Renderer::_initLights(Shader * s, const Camera & c) {
     }
     s->setInt("numLights", (int)_state.lights.size());
     s->setVec3("viewPosition", &c.getPosition()[0]);
+}
 }

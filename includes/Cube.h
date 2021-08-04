@@ -4,6 +4,7 @@
 
 #include "RenderEntity.h"
 
+namespace stratus {
 class Cube : public RenderEntity {
     GLuint _vao;
     GLuint _buffer;
@@ -16,5 +17,6 @@ public:
     void unbindVertexAttribArray() override;
     void renderInstanced(const int) override;
 };
+}
 
 #endif //STRATUSGFX_CUBE_H

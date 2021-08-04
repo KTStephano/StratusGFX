@@ -7,6 +7,7 @@
 
 #include "Common.h"
 
+namespace stratus {
 enum class RenderMode {
     ORTHOGRAPHIC,   // 2d - good for menus
     PERSPECTIVE     // 3d
@@ -139,5 +140,6 @@ private:
     void _enableProperties(uint32_t properties);
     void _disableProperties(uint32_t properties);
 };
+}
 
 #endif //STRATUSGFX_RENDERENTITY_H

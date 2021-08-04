@@ -5,6 +5,7 @@
 
 #include "RenderEntity.h"
 
+namespace stratus {
 class Quad : public RenderEntity {
     GLuint _vao;
     GLuint _buffer;
@@ -21,5 +22,6 @@ public:
     void render() override;
     void renderInstanced(const int) override;
 };
+}
 
 #endif //STRATUSGFX_QUAD_H

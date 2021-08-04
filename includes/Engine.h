@@ -8,11 +8,13 @@
 #include "Common.h"
 //#include "Renderer.h"
 
+namespace stratus {
 class Renderer;
 
 class Engine {
 public:
     Renderer * renderer;
 };
+}
 
 #endif //STRATUSGFX_ENGINE_H

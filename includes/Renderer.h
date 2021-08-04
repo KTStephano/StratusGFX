@@ -11,6 +11,7 @@
 #include "RenderEntity.h"
 #include "Camera.h"
 
+namespace stratus {
 class Shader;
 class Light;
 class Quad;
@@ -67,16 +68,18 @@ struct __RenderEntityContainer {
 
     __RenderEntityContainer(RenderEntity * e) : e(e) {}
 };
+}
 
 namespace std {
     template<>
-    struct hash<__RenderEntityObserver> {
-        size_t operator()(const __RenderEntityObserver & c) const {
+    struct hash<stratus::__RenderEntityObserver> {
+        size_t operator()(const stratus::__RenderEntityObserver & c) const {
             return c.hashCode();
         }
     };
 }
 
+namespace stratus {
 class Renderer {
     enum TextureType {
         TEXTURE_2D,
@@ -297,5 +300,6 @@ private:
 public:
     GLuint _lookupTexture(TextureHandle handle) const;
 };
+}
 
 #endif //STRATUSGFX_RENDERER_H

@@ -3,6 +3,7 @@
 #include <utility>
 #include "glm/glm.hpp"
 
+namespace stratus {
 // first: tangent, second: bitangent
 typedef std::pair<glm::vec3, glm::vec3> tan_bitan_t;
 
@@ -64,4 +65,5 @@ inline tan_bitan_t calculateTangentAndBitangent(
     */
 
     return std::make_pair(std::move(tangent), std::move(bitangent));
+}
 }

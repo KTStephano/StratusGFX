@@ -5,6 +5,7 @@
 #include <string>
 #include "GL/gl3w.h"
 
+namespace stratus {
 class Shader {
     /**
      * Filename for the vertex shader
@@ -89,5 +90,6 @@ public:
 private:
     void _compile();
 };
+}
 
 #endif //STRATUSGFX_SHADER_H

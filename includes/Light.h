@@ -5,6 +5,7 @@
 #include "Common.h"
 #include <algorithm>
 
+namespace stratus {
 enum class LightType {
     POINTLIGHT,
     SPOTLIGHT,
@@ -96,5 +97,6 @@ private:
         this->_shadowHap = handle;
     }
 };
+}
 
 #endif //STRATUSGFX_LIGHT_H

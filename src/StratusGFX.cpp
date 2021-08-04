@@ -48,7 +48,7 @@ static void calcTangents() {
         glm::vec2 uv2 = coords[i + 1];
         glm::vec2 uv3 = coords[i + 2];
 
-        auto tanBitan = calculateTangentAndBitangent(p1, p2, p3,
+        auto tanBitan = stratus::calculateTangentAndBitangent(p1, p2, p3,
                                                      uv1, uv2, uv3);
         auto tangent = tanBitan.first;
         auto bitangent = tanBitan.second;
@@ -57,7 +57,7 @@ static void calcTangents() {
     }
 }
 
-class RandomLightMover : public Entity {
+class RandomLightMover : public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
 
     void _changeDirection() {
@@ -74,14 +74,14 @@ class RandomLightMover : public Entity {
     double _elapsedSec = 0.0;
 
 public:
-    std::unique_ptr<Cube> cube;
-    std::unique_ptr<Light> light;
+    std::unique_ptr<stratus::Cube> cube;
+    std::unique_ptr<stratus::Light> light;
 
     RandomLightMover() {
-        cube = std::make_unique<Cube>();
+        cube = std::make_unique<stratus::Cube>();
         cube->enableLightInteraction(false);
         cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
-        light = std::make_unique<PointLight>();
+        light = std::make_unique<stratus::PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
     }
@@ -90,7 +90,7 @@ public:
         position = position + speed * _direction * float(deltaSeconds);
         cube->position = position;
         light->position = position;
-        RenderMaterial m = cube->getMaterial();
+        stratus::RenderMaterial m = cube->getMaterial();
         m.diffuseColor = light->getColor() * light->getIntensity();
         cube->setMaterial(m);
 
@@ -185,7 +185,7 @@ int main(int argc, char * args[]) {
         return -1;
     }
 
-    Renderer renderer(window);
+    stratus::Renderer renderer(window);
     if (!renderer.valid()) {
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -195,14 +195,14 @@ int main(int argc, char * args[]) {
     std::cout << "Renderer: " << renderer.config().renderer << std::endl;
     std::cout << "GL version: " << renderer.config().version << std::endl;
 
-    Shader shader("../resources/shaders/texture_no_lighting.vs",
+    stratus::Shader shader("../resources/shaders/texture_no_lighting.vs",
             "../resources/shaders/texture_no_lighting.fs");
-    Shader shader2("../resources/shaders/shader.vs",
+    stratus::Shader shader2("../resources/shaders/shader.vs",
             "../resources/shaders/shader.fs");
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
 
-    std::vector<TextureHandle> textures;
+    std::vector<stratus::TextureHandle> textures;
     textures.push_back(renderer.loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
     textures.push_back(renderer.loadTexture("../resources/textures/Bark_06_basecolor.jpg"));
     textures.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
@@ -216,7 +216,7 @@ int main(int argc, char * args[]) {
     textures[5] = renderer.loadTexture("../copyrighted/ruined-wall-big-talos.png");
     */
 
-    std::vector<TextureHandle> normalMaps;
+    std::vector<stratus::TextureHandle> normalMaps;
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Normal.jpg"));
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_normal.jpg"));
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
@@ -230,14 +230,14 @@ int main(int argc, char * args[]) {
     normalMaps[5] = renderer.loadTexture("../copyrighted/ruined-wall-nm-big-talos.png");
     */
 
-    std::vector<TextureHandle> depthMaps;
+    std::vector<stratus::TextureHandle> depthMaps;
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Height.png"));
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_height.png"));
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_height.png"));
 
-    std::vector<std::unique_ptr<RenderEntity>> entities;
+    std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
     std::vector<size_t> textureIndices;
-    RenderMaterial quadMat;
+    stratus::RenderMaterial quadMat;
     //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
     std::cout << quadMat.texture << std::endl;
     srand(time(nullptr));
@@ -246,7 +246,7 @@ int main(int argc, char * args[]) {
         quadMat.texture = textures[texIndex];
         quadMat.normalMap = normalMaps[texIndex];
         quadMat.depthMap = depthMaps[texIndex];
-        std::unique_ptr<Quad> q = std::make_unique<Quad>();
+        std::unique_ptr<stratus::Quad> q = std::make_unique<stratus::Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
         q->position.y = rand() % 50;
@@ -257,10 +257,10 @@ int main(int argc, char * args[]) {
         textureIndices.push_back(texIndex);
     }
     //std::vector<std::unique_ptr<Cube>> cubes;
-    RenderMaterial cubeMat;
+    stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
     for (int i = 0; i < 5000; ++i) {
-        std::unique_ptr<Cube> c = std::make_unique<Cube>();
+        std::unique_ptr<stratus::Cube> c = std::make_unique<stratus::Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
@@ -290,11 +290,11 @@ int main(int argc, char * args[]) {
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
     //std::unique_ptr<Light> cameraLight(new PointLight());
-    Camera camera;
+    stratus::Camera camera;
     glm::vec3 cameraSpeed(0.0f);
 
     bool running = true;
-    PointLight cameraLight;
+    stratus::PointLight cameraLight;
     cameraLight.setIntensity(500.0f);
     while (running) {
         auto curr = std::chrono::system_clock::now();
@@ -338,7 +338,7 @@ int main(int argc, char * args[]) {
                             break;
                         case SDL_SCANCODE_N: {
                             if (released) {
-                                RenderMaterial m;
+                                stratus::RenderMaterial m;
                                 for (size_t i = 0; i < entities.size(); ++i) {
                                     m = entities[i]->getMaterial();
                                     m.normalMap = m.normalMap == -1 ? normalMaps[textureIndices[i]] : -1;
@@ -349,7 +349,7 @@ int main(int argc, char * args[]) {
                         }
                         case SDL_SCANCODE_H: {
                             if (released) {
-                                RenderMaterial m;
+                                stratus::RenderMaterial m;
                                 for (size_t i = 0; i < entities.size(); ++i) {
                                     m = entities[i]->getMaterial();
                                     m.depthMap = m.depthMap == -1 ? depthMaps[textureIndices[i]] : -1;
@@ -369,7 +369,7 @@ int main(int argc, char * args[]) {
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
-        renderer.setClearColor(Color(0.0f, 0.0f, 0.0f, 1.0f));
+        renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
 
         renderer.begin(true);
         // Add the camera's light

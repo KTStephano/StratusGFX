@@ -2,6 +2,7 @@
 #ifndef STRATUSGFX_VERTEX_H
 #define STRATUSGFX_VERTEX_H
 
+namespace stratus {
 struct TriangleVertex {
     // These are the vertex locations
     float x, y, z;
@@ -10,5 +11,6 @@ struct TriangleVertex {
     // These are the normal values
     float nx, ny, nz;
 };
+}
 
 #endif //STRATUSGFX_VERTEX_H

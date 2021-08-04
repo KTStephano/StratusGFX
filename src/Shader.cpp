@@ -2,6 +2,7 @@
 #include <Filesystem.h>
 #include <iostream>
 
+namespace stratus {
 Shader::Shader(const std::string & vertexShader, const std::string & geomShader, const std::string & fragShader)
     : _vsFile(vertexShader),
     _gsFile(geomShader),
@@ -200,4 +201,5 @@ GLint Shader::getUniformLocation(const std::string &uniform) const {
 
 GLint Shader::getAttribLocation(const std::string &attrib) const {
     return glGetAttribLocation(_program, &attrib[0]);
+}
 }

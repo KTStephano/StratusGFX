@@ -4,6 +4,7 @@
 
 #include "Camera.h"
 
+namespace stratus {
 Camera::Camera() {
     _side = glm::cross(_up, _dir);
     _viewTransform = glm::lookAt(position, position + _dir, _up);
@@ -66,4 +67,5 @@ void Camera::setPosition(float x, float y, float z) {
 
 const glm::vec3 &Camera::getPosition() const {
     return position;
+}
 }

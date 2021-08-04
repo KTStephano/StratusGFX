@@ -5,6 +5,7 @@
 
 #include "Filesystem.h"
 
+namespace stratus {
 /**
  * @see http://insanecoding.blogspot.com/2011/11/how-to-read-in-file-in-c.html
  */
@@ -43,4 +44,5 @@ std::string Filesystem::readAscii(const std::string &file) {
             std::istreambuf_iterator<char>());
     asciiFile.close();
     return s;
+}
 }

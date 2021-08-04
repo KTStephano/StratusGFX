@@ -4,6 +4,7 @@
 
 #include "Common.h"
 
+namespace stratus {
 /**
  * This represents an object (separate from a render entity)
  * that can be moved around the world. It does not contain any
@@ -32,5 +33,6 @@ struct Entity {
 
     virtual void update(double deltaSeconds) = 0;
 };
+}
 
 #endif //STRATUSGFX_ENTITY_H

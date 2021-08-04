@@ -3,6 +3,7 @@
 #include <iostream>
 #include "Cube.h"
 
+namespace stratus {
 static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
         // back face
         // positions          // normals          // tex coords     // tangent   // bitangent
@@ -187,4 +188,5 @@ void Cube::bindVertexAttribArray() {
 
 void Cube::unbindVertexAttribArray() {
     glBindVertexArray(0);
+}
 }

@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 
+namespace stratus {
 static const std::vector<GLfloat> quadData = std::vector<GLfloat>{
     // positions            normals                 texture coordinates
     -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, -1.0f,		0.0f, 0.0f,             1, 0, 0,     0, 1, 0,
@@ -138,4 +139,5 @@ void Quad::bindVertexAttribArray() {
 
 void Quad::unbindVertexAttribArray() {
     glBindVertexArray(0);
+}
 }

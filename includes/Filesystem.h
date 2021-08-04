@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 
+namespace stratus {
 struct Filesystem {
     /**
      * Reads a binary file and returns an array of bytes.
@@ -18,5 +19,6 @@ struct Filesystem {
      */
     static std::string readAscii(const std::string & file);
 };
+}
 
 #endif //STRATUSGFX_FILESYSTEM_H

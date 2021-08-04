@@ -4,6 +4,7 @@
 #include "RenderEntity.h"
 #include "Common.h"
 
+namespace stratus {
 RenderEntity::RenderEntity(RenderProperties properties) {
     _setProperties(properties);
 }
@@ -76,4 +77,5 @@ const RenderProperties &RenderEntity::getRenderProperties() const {
 
 const RenderData &RenderEntity::getRenderData() const {
     return _data;
+}
 }

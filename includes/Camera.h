@@ -4,6 +4,7 @@
 
 #include "Entity.h"
 
+namespace stratus {
 /**
  * A camera is an object that can view the world
  * from a certain perspective.
@@ -56,5 +57,6 @@ public:
      */
     const glm::mat4 & getViewTransform() const;
 };
+}
 
 #endif //STRATUSGFX_CAMERA_H

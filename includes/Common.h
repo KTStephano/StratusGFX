@@ -8,6 +8,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+namespace stratus {
 typedef int TextureHandle;
 typedef int ShadowMapHandle;
 typedef void * RenderDataHandle;
@@ -21,5 +22,6 @@ typedef void * RenderDataHandle;
 struct Common {
 
 };
+}
 
 #endif //STRATUSGFX_COMMON_H
