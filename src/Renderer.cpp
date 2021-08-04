@@ -416,6 +416,7 @@ void Renderer::addDrawable(RenderEntity * e) {
     existing.modelMatrices.push_back(e->model);
     existing.diffuseColors.push_back(e->getMaterial().diffuseColor);
     existing.specularExponents.push_back(e->getMaterial().specularShininess);
+    ++existing.size;
 }
 
 /**
@@ -435,17 +436,72 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
+void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers) {
+    auto & modelMats = c.modelMatrices;
+    auto & specularExponents = c.specularExponents;
+
+    // All shaders should use the same location for model, so this should work
+    int pos = _state.shadows->getAttribLocation("model");
+    const int pos1 = pos + 0;
+    const int pos2 = pos + 1;
+    const int pos3 = pos + 2;
+    const int pos4 = pos + 3;
+
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
+
+    c.e->bindVertexAttribArray();
+
+    glEnableVertexAttribArray(pos1);
+    glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
+    glEnableVertexAttribArray(pos2);
+    glVertexAttribPointer(pos2, 4, GL_FLOAT, GL_FALSE, 64, (void *)16);
+    glEnableVertexAttribArray(pos3);
+    glVertexAttribPointer(pos3, 4, GL_FLOAT, GL_FALSE, 64, (void *)32);
+    glEnableVertexAttribArray(pos4);
+    glVertexAttribPointer(pos4, 4, GL_FLOAT, GL_FALSE, 64, (void *)48);
+    glVertexAttribDivisor(pos1, 1);
+    glVertexAttribDivisor(pos2, 1);
+    glVertexAttribDivisor(pos3, 1);
+    glVertexAttribDivisor(pos4, 1);
+
+    buffers.push_back(buffer);
+
+    buffer = 0;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, specularExponents.size() * sizeof(float), &specularExponents[0], GL_STATIC_DRAW);
+    // All shaders should use the same location for shininess, so this should work
+    pos = _state.shadows->getAttribLocation("shininess");
+    glEnableVertexAttribArray(pos);
+    glVertexAttribPointer(pos, 1, GL_FLOAT, GL_FALSE, 0, (void *)0);
+    glVertexAttribDivisor(pos, 1);
+
+    buffers.push_back(buffer);
+    c.e->unbindVertexAttribArray();
+}
+
+void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
+    glDeleteBuffers(buffers.size(), &buffers[0]);
+}
+
 void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
+    // Need to delete these at the end of the frame
+    std::vector<GLuint> buffers;
 
     // Perform the shadow volume pre-pass
     _state.shadows->bind();
     // Set blend func just for shadow pass
     glBlendFunc(GL_ONE, GL_ONE);
     for (Light * light : _state.lights) {
+        const double distance = glm::distance(c.getPosition(), light->position);
+        if (distance > 250.0) continue;
         // TODO: Make this work with spotlights
         PointLight * point = (PointLight *)light;
         const ShadowMap3D & smap = this->_shadowMap3DHandles.find(point->getShadowMapHandle())->second;
@@ -477,40 +533,10 @@ void Renderer::end(const Camera & c) {
         */
 
         for (auto & e : _state.instancedEntities) {
-            auto & modelMats = e.second.modelMatrices;
-            auto & specularExponents = e.second.specularExponents;
-
-            const int pos = _state.shadows->getAttribLocation("model");
-            const int pos1 = pos + 0;
-            const int pos2 = pos + 1;
-            const int pos3 = pos + 2;
-            const int pos4 = pos + 3;
-
-            GLuint buffer;
-            glGenBuffers(1, &buffer);
-            glBindBuffer(GL_ARRAY_BUFFER, buffer);
-            glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
-
-            e.second.e->bindVertexAttribArray();
-
-            glEnableVertexAttribArray(pos1);
-            glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
-            glEnableVertexAttribArray(pos2);
-            glVertexAttribPointer(pos2, 4, GL_FLOAT, GL_FALSE, 64, (void *)16);
-            glEnableVertexAttribArray(pos3);
-            glVertexAttribPointer(pos3, 4, GL_FLOAT, GL_FALSE, 64, (void *)32);
-            glEnableVertexAttribArray(pos4);
-            glVertexAttribPointer(pos4, 4, GL_FLOAT, GL_FALSE, 64, (void *)48);
-            glVertexAttribDivisor(pos1, 1);
-            glVertexAttribDivisor(pos2, 1);
-            glVertexAttribDivisor(pos3, 1);
-            glVertexAttribDivisor(pos4, 1);
-
-            e.second.e->unbindVertexAttribArray();
-            e.second.e->renderInstanced(modelMats.size());
-
-            glDeleteBuffers(1, &buffer);
-
+            // Set up temporary instancing buffers
+            _initInstancedData(e.second, buffers);
+            e.second.e->renderInstanced(e.second.size);
+            _clearInstancedData(buffers);
             /**
             const size_t size = modelMats.size();
             for (int i = 0; i < size; i += maxInstances) {
@@ -537,12 +563,15 @@ void Renderer::end(const Camera & c) {
     glBlendFunc(_state.blendSFactor, _state.blendDFactor);
     glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
-    for (auto & p : _state.entities) {
+//    for (auto & p : _state.entities) {
+    for (auto & entity : _state.instancedEntities) {
+        _initInstancedData(entity.second, buffers);
+        RenderEntity * e = entity.second.e;
         // Set up the shader we will use for this batch of entities
         if (_state.currentShader != nullptr) {
             _state.currentShader->unbind();
         }
-        uint32_t properties = p.first;
+        uint32_t properties = e->getRenderProperties();
         auto it = _propertyShaderMap.find(properties);
         Shader * s = it->second;
         _state.currentShader = s;
@@ -578,55 +607,55 @@ void Renderer::end(const Camera & c) {
         }
          */
         s->setMat4("projection", &(*projection)[0][0]);
+        s->setMat4("view", &(*view)[0][0]);
 
         // Iterate through all entities and draw them
-        for (auto & e : p.second) {
-            //s->setMat4("projection", &(*projection)[0][0]);
-            const glm::mat4 & model = e->model;
+        //s->setMat4("projection", &(*projection)[0][0]);
+        const glm::mat4 & model = e->model;
 
-            if (lightingEnabled) _initLights(s, *view, c);
+        if (lightingEnabled) _initLights(s, c);
 
-            if (properties & TEXTURED) {
-                /*
-                glActiveTexture(GL_TEXTURE0);
-                s->setInt("diffuseTexture", 0);
-                GLuint texture = _lookupTexture(e->getMaterial().texture);
-                glBindTexture(GL_TEXTURE_2D + 0, texture);
-                */
-                _bindTexture(s, "diffuseTexture", e->getMaterial().texture);
-            }
-
-            // Determine which uniforms we should set
-            if (properties & FLAT) {
-                s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
-                glm::mat4 modelView = (*view) * model;
-                s->setMat4("modelView", &modelView[0][0]);
-            } else if (properties & DYNAMIC) {
-                s->setFloat("shininess", e->getMaterial().specularShininess);
-                s->setMat4("model", &model[0][0]);
-                if (properties & NORMAL_MAPPED || properties & NORMAL_HEIGHT_MAPPED) {
-                    /*
-                    s->setInt("normalMap", 0);
-                    glActiveTexture(GL_TEXTURE0 + 0);
-                    GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
-                    glBindTexture(GL_TEXTURE_2D + 0, normalMap);
-                    */
-                    _bindTexture(s, "normalMap", e->getMaterial().normalMap);
-                }
-
-                if (properties & NORMAL_HEIGHT_MAPPED) {
-                   _bindTexture(s, "depthMap", e->getMaterial().depthMap);
-                   s->setFloat("heightScale", e->getMaterial().heightScale);
-                }
-            }
-
-            glFrontFace(GL_CW);
-            e->render();
-            _unbindAllTextures();
-            //glBindTexture(GL_TEXTURE_2D, 0);
+        if (properties & TEXTURED) {
+            /*
+            glActiveTexture(GL_TEXTURE0);
+            s->setInt("diffuseTexture", 0);
+            GLuint texture = _lookupTexture(e->getMaterial().texture);
+            glBindTexture(GL_TEXTURE_2D + 0, texture);
+            */
+            _bindTexture(s, "diffuseTexture", e->getMaterial().texture);
         }
 
+        // Determine which uniforms we should set
+        if (properties & FLAT) {
+            s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
+            //glm::mat4 modelView = (*view) * model;
+            //s->setMat4("modelView", &modelView[0][0]);
+        } else if (properties & DYNAMIC) {
+            //s->setFloat("shininess", e->getMaterial().specularShininess);
+            //s->setMat4("model", &model[0][0]);
+            if (properties & NORMAL_MAPPED || properties & NORMAL_HEIGHT_MAPPED) {
+                /*
+                s->setInt("normalMap", 0);
+                glActiveTexture(GL_TEXTURE0 + 0);
+                GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
+                glBindTexture(GL_TEXTURE_2D + 0, normalMap);
+                */
+                _bindTexture(s, "normalMap", e->getMaterial().normalMap);
+            }
+
+            if (properties & NORMAL_HEIGHT_MAPPED) {
+                _bindTexture(s, "depthMap", e->getMaterial().depthMap);
+                s->setFloat("heightScale", e->getMaterial().heightScale);
+            }
+        }
+
+        glFrontFace(GL_CW);
+        e->renderInstanced(entity.second.size);
+        _unbindAllTextures();
+        //glBindTexture(GL_TEXTURE_2D, 0);
+
         s->unbind();
+        _clearInstancedData(buffers);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -805,7 +834,7 @@ void Renderer::_unbindAllTextures() {
     _state.boundTextures.clear();
 }
 
-void Renderer::_initLights(Shader * s, const glm::mat4 & view, const Camera & c) {
+void Renderer::_initLights(Shader * s, const Camera & c) {
     glm::vec3 lightColor;
     for (int i = 0; i < _state.lights.size(); ++i) {
         PointLight * light = (PointLight *)_state.lights[i];
@@ -817,5 +846,4 @@ void Renderer::_initLights(Shader * s, const glm::mat4 & view, const Camera & c)
     }
     s->setInt("numLights", (int)_state.lights.size());
     s->setVec3("viewPosition", &c.getPosition()[0]);
-    s->setMat4("view", &view[0][0]);
 }

@@ -10,8 +10,9 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
 uniform sampler2D depthMap;
 
-//uniform float shininessVals[MAX_INSTANCES];
-uniform float shininess = 0.0;
+//uniform float fsShininessVals[MAX_INSTANCES];
+//uniform float fsShininess = 0.0;
+in float fsShininess;
 uniform float heightScale = 0.1;
 
 /**
@@ -26,7 +27,7 @@ uniform vec3 viewPosition;
 in vec3 fsPosition;
 in vec3 fsNormal;
 in vec2 fsTexCoords;
-//in float fsShininess;
+//in float fsfsShininess;
 
 /**
  * Tangent space
@@ -109,7 +110,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 diffuse = lightNormalDot * lightColor * baseColor;
 
     vec3 halfAngleDir = normalize(lightDir + viewDir);
-    float exponent = max(shininess * SPECULAR_MULTIPLIER, 8);
+    float exponent = max(fsShininess * SPECULAR_MULTIPLIER, 8);
     vec3 specular = pow(
         max(dot(normal, halfAngleDir), 0.0),
         exponent) * lightColor * baseColor;

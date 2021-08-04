@@ -107,8 +107,19 @@ static void createCubeVAO(GLuint & vao, GLuint & buffer) {
     glBindVertexArray(0);
 }
 
+struct CubeData {
+    GLuint vao = 0;
+    GLuint buffer = 0;
+};
+static CubeData __data;
+
 Cube::Cube() {
-    createCubeVAO(_vao, _buffer);
+    if (__data.vao == 0 || __data.buffer == 0) {
+        createCubeVAO(__data.vao, __data.buffer);
+    }
+    _vao = __data.vao;
+    _buffer = __data.buffer;
+    _data.data = (void *)&__data;
 }
 
 Cube::~Cube() {

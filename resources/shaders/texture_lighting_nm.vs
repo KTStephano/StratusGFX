@@ -9,9 +9,11 @@ layout (location = 1) in vec2 texCoords;
 layout (location = 2) in vec3 normal;
 layout (location = 3) in vec3 tangent;
 layout (location = 4) in vec3 bitangent;
+layout (location = 11) in float shininess;
+layout (location = 12) in mat4 model;
 
 uniform mat4 projection;
-uniform mat4 model;
+//uniform mat4 model;
 uniform mat4 view;
 //uniform mat4 modelView;
 
@@ -28,6 +30,7 @@ smooth out vec2 fsTexCoords;
 out mat3 fsTbnMatrix;
 out vec3 fsTanViewPosition;
 out vec3 fsTanFragPosition;
+out float fsShininess;
 
 void main() {
     vec4 pos = model * vec4(position, 1.0);
@@ -54,5 +57,6 @@ void main() {
     fsTbnMatrix = transpose(mat3(t, b, n));
     fsTanViewPosition = fsTbnMatrix * viewPosition;
     fsTanFragPosition = fsTbnMatrix * fsPosition;
+    fsShininess = shininess;
     gl_Position = projection * view * pos;
 }

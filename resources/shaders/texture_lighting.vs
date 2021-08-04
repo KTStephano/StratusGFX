@@ -8,14 +8,17 @@
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec2 texCoords;
 layout (location = 2) in vec3 normal;
+layout (location = 11) in float shininess;
+layout (location = 12) in mat4 model;
 
 uniform mat4 projection;
-uniform mat4 model;
+//uniform mat4 model;
 uniform mat4 view;
 //uniform mat4 modelView;
 
 smooth out vec3 fsPosition;
 out vec3 fsNormal;
+out float fsShininess;
 smooth out vec2 fsTexCoords;
 
 void main() {
@@ -23,5 +26,6 @@ void main() {
     fsPosition = pos.xyz;
     fsTexCoords = texCoords;
     fsNormal = normalize(mat3(model) * normal);
+    fsShininess = shininess;
     gl_Position = projection * view * pos;
 }

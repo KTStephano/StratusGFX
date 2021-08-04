@@ -7,7 +7,8 @@
 
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
-uniform float shininess = 0.0;
+//uniform float fsShininess = 0.0;
+in float fsShininess;
 
 /**
  * Information about the camera
@@ -57,7 +58,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 diffuse = lightNormalDot * lightColor * baseColor;
 
     vec3 halfAngleDir = normalize(lightDir + viewDir);
-    float exponent = max(shininess * SPECULAR_MULTIPLIER, 8);
+    float exponent = max(fsShininess * SPECULAR_MULTIPLIER, 8);
     vec3 specular = pow(
         max(dot(normal, halfAngleDir), 0.0),
         exponent) * lightColor * baseColor;

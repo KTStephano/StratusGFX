@@ -63,6 +63,7 @@ struct __RenderEntityContainer {
     std::vector<glm::mat4> modelMatrices;
     std::vector<glm::vec3> diffuseColors;
     std::vector<float> specularExponents;
+    size_t size = 0;
 
     __RenderEntityContainer(RenderEntity * e) : e(e) {}
 };
@@ -289,7 +290,9 @@ private:
     void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);
     void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
-    void _initLights(Shader * s, const glm::mat4 & view, const Camera & c);
+    void _initLights(Shader * s, const Camera & c);
+    void _initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers);
+    void _clearInstancedData(std::vector<GLuint> & buffers);
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

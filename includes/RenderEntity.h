@@ -64,6 +64,8 @@ class RenderEntity {
      */
     RenderMaterial _material;
 
+
+protected:
     /**
      * Holds a pointer to unique rendering data.
      */
