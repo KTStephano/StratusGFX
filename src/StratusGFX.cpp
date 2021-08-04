@@ -277,7 +277,7 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 2; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(1000.0f);
@@ -289,6 +289,7 @@ int main(int argc, char * args[]) {
 
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
+    //std::unique_ptr<Light> cameraLight(new PointLight());
     Camera camera;
     glm::vec3 cameraSpeed(0.0f);
 
@@ -372,7 +373,7 @@ int main(int argc, char * args[]) {
 
         renderer.begin(true);
         // Add the camera's light
-        //renderer.addPointLight(&cameraLight);
+        renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }
