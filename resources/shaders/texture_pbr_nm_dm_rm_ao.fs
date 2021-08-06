@@ -51,7 +51,7 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_LIGHTS 12
 #define SPECULAR_MULTIPLIER 128.0
-#define POINT_LIGHT_AMBIENT_INTENSITY 0.05
+#define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 #define AMBIENT_INTENSITY 0.0005
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
@@ -59,6 +59,8 @@
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
 uniform sampler2D depthMap;
+uniform sampler2D roughnessMap;
+uniform sampler2D ambientOcclusionMap;
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
@@ -224,6 +226,8 @@ void main() {
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = mat3(fsModel) * texture(normalMap, texCoords).rgb;
+    float roughness = texture(roughnessMap, texCoords).r;
+    float ao = texture(ambientOcclusionMap, texCoords).r;
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
@@ -234,7 +238,7 @@ void main() {
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= numLights) break;
-        color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness);
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i, roughness);
     }
     color = color + baseColor * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);

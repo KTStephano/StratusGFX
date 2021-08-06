@@ -181,6 +181,8 @@ Renderer::Renderer(SDL_Window * window) {
     */
     Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr_nm_dm.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm.fs");
+    Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm.vs",
+                                                     "../resources/shaders/texture_pbr_nm_dm_rm.fs");
     _shaders.push_back(lightTextureNormalDepthMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
@@ -191,6 +193,7 @@ Renderer::Renderer(SDL_Window * window) {
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED, lightTexture));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
+    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, lightTextureNormalDepthRoughnessMap));
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
@@ -198,6 +201,7 @@ Renderer::Renderer(SDL_Window * window) {
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma postprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
@@ -218,6 +222,7 @@ Renderer::Renderer(SDL_Window * window) {
             lightTexture->isValid() &&
             lightTextureNormalMap->isValid() &&
             lightTextureNormalDepthMap->isValid() &&
+            lightTextureNormalDepthRoughnessMap->isValid() &&
             _state.hdrGamma->isValid() &&
             _state.shadows->isValid();
 }
@@ -678,6 +683,10 @@ void Renderer::end(const Camera & c) {
             if (properties & NORMAL_HEIGHT_MAPPED) {
                 _bindTexture(s, "depthMap", e->getMaterial().depthMap);
                 s->setFloat("heightScale", e->getMaterial().heightScale);
+            }
+
+            if (properties & ROUGHNESS_MAPPED) {
+                _bindTexture(s, "roughnessMap", e->getMaterial().roughnessMap);
             }
         }
 

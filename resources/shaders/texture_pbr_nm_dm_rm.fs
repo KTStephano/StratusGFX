@@ -59,6 +59,7 @@
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
 uniform sampler2D depthMap;
+uniform sampler2D roughnessMap;
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
@@ -224,6 +225,7 @@ void main() {
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = mat3(fsModel) * texture(normalMap, texCoords).rgb;
+    float roughness = texture(roughnessMap, texCoords).r;
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
@@ -234,7 +236,7 @@ void main() {
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= numLights) break;
-        color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness);
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i, roughness);
     }
     color = color + baseColor * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);

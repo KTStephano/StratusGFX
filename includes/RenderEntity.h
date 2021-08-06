@@ -20,7 +20,8 @@ enum RenderProperties {
     TEXTURED             = 16,     // material has one or more textures
     REFLECTIVE           = 32,     // material reflects world around it
     NORMAL_MAPPED        = 64,     // material has an associated normal map
-    NORMAL_HEIGHT_MAPPED = 128     // material has an associated normal & depth map
+    NORMAL_HEIGHT_MAPPED = 128,    // material has an associated normal & depth map
+    ROUGHNESS_MAPPED     = 256,    // material has an associated roughness map
 };
 
 /**
@@ -49,6 +50,8 @@ struct RenderMaterial {
     TextureHandle normalMap = -1;
     // Not required to have a depth map
     TextureHandle depthMap = -1;
+    // Not required to have a roughness map
+    TextureHandle roughnessMap = -1;
     float heightScale = 0.1;
 };
 

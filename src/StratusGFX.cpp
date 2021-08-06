@@ -235,6 +235,11 @@ int main(int argc, char * args[]) {
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_height.png"));
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_height.png"));
 
+    std::vector<stratus::TextureHandle> roughnessMaps;
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_Roughness.jpg"));
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_Roughness.jpg"));
+
     std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
     std::vector<size_t> textureIndices;
     stratus::RenderMaterial quadMat;
@@ -246,6 +251,7 @@ int main(int argc, char * args[]) {
         quadMat.texture = textures[texIndex];
         quadMat.normalMap = normalMaps[texIndex];
         quadMat.depthMap = depthMaps[texIndex];
+        quadMat.roughnessMap = roughnessMaps[texIndex];
         std::unique_ptr<stratus::Quad> q = std::make_unique<stratus::Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
@@ -265,6 +271,7 @@ int main(int argc, char * args[]) {
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
         cubeMat.depthMap = depthMaps[texIndex];
+        cubeMat.roughnessMap = roughnessMaps[texIndex];
         c->setMaterial(cubeMat);
         c->position.x = rand() % 250;
         c->position.y = rand() % 100;
