@@ -86,6 +86,11 @@ public:
         _changeDirection();
     }
 
+    void addToScene(stratus::Renderer & r) const {
+        r.addDrawable(cube.get());
+        r.addPointLight(light.get());
+    }
+
     void update(double deltaSeconds) override {
         position = position + speed * _direction * float(deltaSeconds);
         cube->position = position;
@@ -99,6 +104,18 @@ public:
             _elapsedSec = 0.0;
             _changeDirection();
         }
+    }
+};
+
+struct StationaryLight : public RandomLightMover {
+    StationaryLight() : RandomLightMover() {}
+
+    void update(double deltaSeconds) override {
+        cube->position = position;
+        light->position = position;
+        stratus::RenderMaterial m = cube->getMaterial();
+        m.diffuseColor = light->getColor() * light->getIntensity();
+        cube->setMaterial(m);
     }
 };
 
@@ -252,7 +269,6 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
     std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
-    std::vector<std::unique_ptr<stratus::RenderEntity>> sometimes;
     std::vector<size_t> textureIndices;
     stratus::RenderMaterial quadMat;
     //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
@@ -294,28 +310,12 @@ int main(int argc, char * args[]) {
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
         textureIndices.push_back(texIndex);
-
-        if (i % 2) {
-            c = std::make_unique<stratus::Cube>();
-            texIndex = rand() % textures.size();
-            cubeMat.texture = textures[texIndex];
-            cubeMat.normalMap = normalMaps[texIndex];
-            cubeMat.depthMap = depthMaps[texIndex];
-            cubeMat.roughnessMap = roughnessMaps[texIndex];
-            cubeMat.environmentMap = environmentMaps[texIndex];
-            c->setMaterial(cubeMat);
-            c->position.x = rand() % 2500;
-            c->position.y = rand() % 50;
-            c->position.z = rand() % 2500;
-            c->scale = glm::vec3(float(rand() % 25));
-            c->enableLightInteraction(true);
-            sometimes.push_back(std::move(c));
-        }
     }
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
     for (int i = 0; i < 5; ++i) {
+        /**
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(2500.0f);
@@ -323,6 +323,7 @@ int main(int argc, char * args[]) {
                                     0.0f, // float(rand() % 200),
                                     float(rand() % 1500 + 100));
         lightMovers.push_back(std::move(mover));
+        */
     }
 
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
@@ -335,7 +336,6 @@ int main(int argc, char * args[]) {
     stratus::PointLight cameraLight;
     cameraLight.setIntensity(2500.0f);
     bool camLightEnabled = true;
-    bool addSometimes = false;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
@@ -382,10 +382,17 @@ int main(int argc, char * args[]) {
                                 camLightEnabled = !camLightEnabled;
                             }
                             break;
-                        case SDL_SCANCODE_E:
-                            if (released) {
-                                addSometimes = !addSometimes;
-                            }
+                        case SDL_SCANCODE_E: {
+                            std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                            mover->light->setIntensity(2500.0f);
+                            mover->position = camera.getPosition();
+                            lightMovers.push_back(std::move(mover));
+                            break;
+                        }
+                        case SDL_SCANCODE_C: {
+                            lightMovers.clear();
+                            break;
+                        }
                         /*
                         case SDL_SCANCODE_N: {
                             if (released) {
@@ -432,16 +439,9 @@ int main(int argc, char * args[]) {
             renderer.addDrawable(entity.get());
         }
 
-        if (addSometimes) {
-            for (auto & e : sometimes) {
-                renderer.addDrawable(e.get());
-            }
-        }
-
         for (auto & mover : lightMovers) {
             mover->update(deltaSeconds);
-            renderer.addPointLight(mover->light.get());
-            renderer.addDrawable(mover->cube.get());
+            mover->addToScene(renderer);
         }
         renderer.end(camera);
 
