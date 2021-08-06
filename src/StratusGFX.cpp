@@ -237,8 +237,13 @@ int main(int argc, char * args[]) {
 
     std::vector<stratus::TextureHandle> roughnessMaps;
     roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
-    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_Roughness.jpg"));
-    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_Roughness.jpg"));
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_roughness.jpg"));
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_roughness.jpg"));
+
+    std::vector<stratus::TextureHandle> environmentMaps;
+    environmentMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg"));
+    environmentMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg"));
+    environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
 
     std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
     std::vector<size_t> textureIndices;
@@ -252,6 +257,7 @@ int main(int argc, char * args[]) {
         quadMat.normalMap = normalMaps[texIndex];
         quadMat.depthMap = depthMaps[texIndex];
         quadMat.roughnessMap = roughnessMaps[texIndex];
+        quadMat.environmentMap = environmentMaps[texIndex];
         std::unique_ptr<stratus::Quad> q = std::make_unique<stratus::Quad>();
         q->setMaterial(quadMat);
         q->position.x = rand() % 50;
@@ -265,17 +271,18 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 2000; ++i) {
         std::unique_ptr<stratus::Cube> c = std::make_unique<stratus::Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
         cubeMat.depthMap = depthMaps[texIndex];
         cubeMat.roughnessMap = roughnessMaps[texIndex];
+        cubeMat.environmentMap = environmentMaps[texIndex];
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 250;
+        c->position.x = rand() % 2500;
         c->position.y = rand() % 100;
-        c->position.z = rand() % 250;
+        c->position.z = rand() % 2500;
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
@@ -287,10 +294,10 @@ int main(int argc, char * args[]) {
     for (int i = 0; i < 5; ++i) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
-        mover->light->setIntensity(1000.0f);
-        mover->position = glm::vec3(float(rand() % 250 + 100),
+        mover->light->setIntensity(2500.0f);
+        mover->position = glm::vec3(float(rand() % 1500 + 100),
                                     0.0f, // float(rand() % 200),
-                                    float(rand() % 250 + 100));
+                                    float(rand() % 1500 + 100));
         lightMovers.push_back(std::move(mover));
     }
 
@@ -302,7 +309,8 @@ int main(int argc, char * args[]) {
 
     bool running = true;
     stratus::PointLight cameraLight;
-    cameraLight.setIntensity(500.0f);
+    cameraLight.setIntensity(2500.0f);
+    bool camLightEnabled = true;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
@@ -343,6 +351,12 @@ int main(int argc, char * args[]) {
                                 cameraSpeed.y = 0.0f;
                             }
                             break;
+                        case SDL_SCANCODE_F:
+                            if (released) {
+                                camLightEnabled = !camLightEnabled;
+                            }
+                            break;
+                        /*
                         case SDL_SCANCODE_N: {
                             if (released) {
                                 stratus::RenderMaterial m;
@@ -365,6 +379,7 @@ int main(int argc, char * args[]) {
                             }
                             break;
                         }
+                        */
                         default: break;
                     }
                     break;
@@ -380,7 +395,7 @@ int main(int argc, char * args[]) {
 
         renderer.begin(true);
         // Add the camera's light
-        renderer.addPointLight(&cameraLight);
+        if (camLightEnabled) renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }

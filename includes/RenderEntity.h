@@ -22,6 +22,7 @@ enum RenderProperties {
     NORMAL_MAPPED        = 64,     // material has an associated normal map
     NORMAL_HEIGHT_MAPPED = 128,    // material has an associated normal & depth map
     ROUGHNESS_MAPPED     = 256,    // material has an associated roughness map
+    ENVIRONMENT_MAPPED   = 512,    // material has an associated ambient occlusion/environment map
 };
 
 /**
@@ -52,6 +53,8 @@ struct RenderMaterial {
     TextureHandle depthMap = -1;
     // Not required to have a roughness map
     TextureHandle roughnessMap = -1;
+    // Not required to have an environment map
+    TextureHandle environmentMap = -1;
     float heightScale = 0.1;
 };
 

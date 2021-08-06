@@ -183,6 +183,8 @@ Renderer::Renderer(SDL_Window * window) {
                                                      "../resources/shaders/texture_pbr_nm_dm.fs");
     Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm_rm.fs");
+    Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm_ao.vs",
+                                                     "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                                       
     _shaders.push_back(lightTextureNormalDepthMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
@@ -194,6 +196,7 @@ Renderer::Renderer(SDL_Window * window) {
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
     _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, lightTextureNormalDepthRoughnessMap));
+    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, lightTextureNormalDepthRoughnessEnvironmentMap));
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
@@ -202,6 +205,7 @@ Renderer::Renderer(SDL_Window * window) {
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, vector<RenderEntity *>()));
     _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma postprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
@@ -524,6 +528,17 @@ void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
     glDeleteBuffers(buffers.size(), &buffers[0]);
 }
 
+void Renderer::_bindShader(Shader * s) {
+    s->bind();
+    _state.currentShader = s;
+}
+
+void Renderer::_unbindShader() {
+    if (!_state.currentShader) return;
+    _state.currentShader->unbind();
+    _state.currentShader = nullptr;
+}
+
 void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
@@ -533,7 +548,7 @@ void Renderer::end(const Camera & c) {
     std::vector<GLuint> buffers;
 
     // Perform the shadow volume pre-pass
-    _state.shadows->bind();
+
     // Set blend func just for shadow pass
     glBlendFunc(GL_ONE, GL_ONE);
     for (Light * light : _state.lights) {
@@ -587,7 +602,7 @@ void Renderer::end(const Camera & c) {
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-    _state.shadows->unbind();
+    _unbindShader();
 
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
@@ -611,8 +626,7 @@ void Renderer::end(const Camera & c) {
         uint32_t properties = e->getRenderProperties();
         auto it = _propertyShaderMap.find(properties);
         Shader * s = it->second;
-        _state.currentShader = s;
-        s->bind();
+        _bindShader(s);
 
         // Set up uniforms specific to this type of shader
         //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
@@ -688,6 +702,10 @@ void Renderer::end(const Camera & c) {
             if (properties & ROUGHNESS_MAPPED) {
                 _bindTexture(s, "roughnessMap", e->getMaterial().roughnessMap);
             }
+
+            if (properties & ENVIRONMENT_MAPPED) {
+                _bindTexture(s, "ambientOcclusionMap", e->getMaterial().environmentMap);
+            }
         }
 
         glFrontFace(GL_CW);
@@ -695,19 +713,19 @@ void Renderer::end(const Camera & c) {
         _unbindAllTextures();
         //glBindTexture(GL_TEXTURE_2D, 0);
 
-        s->unbind();
         _clearInstancedData(buffers);
+        _unbindShader();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Now render the screen
-    _state.hdrGamma->bind();
+    _bindShader(_state.hdrGamma.get());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
     _state.hdrGamma->setInt("screen", 0);
     _state.screenQuad->render();
     glBindTexture(GL_TEXTURE_2D, 0);
-    _state.hdrGamma->unbind();
+    _unbindShader();
 }
 
 TextureHandle Renderer::loadTexture(const std::string &file) {
@@ -840,7 +858,7 @@ void Renderer::_bindTexture(Shader * s, const std::string & textureName,
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
     glBindTexture(GL_TEXTURE_2D, texture);
-    _state.boundTextures.insert(std::make_pair(textureIndex, std::make_pair(texture, TextureType::TEXTURE_2D)));
+    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, texture, TextureType::TEXTURE_2D, textureName}));
 }
 
 void Renderer::_bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle) {
@@ -849,7 +867,7 @@ void Renderer::_bindShadowMapTexture(Shader * s, const std::string & textureName
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
     glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
-    _state.boundTextures.insert(std::make_pair(textureIndex, std::make_pair(smap.shadowCubeMap, TextureType::TEXTURE_CUBE_MAP)));
+    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, smap.shadowCubeMap, TextureType::TEXTURE_CUBE_MAP, textureName}));
 }
 
 void Renderer::_unbindAllTextures() {
@@ -861,10 +879,14 @@ void Renderer::_unbindAllTextures() {
     }
     */
    for (auto & e : _state.boundTextures) {
-       int textureIndex = e.first;
-       GLuint texture = e.second.first;
-       TextureType type = e.second.second;
+       int textureIndex = e.second.textureIndex;
+       GLuint texture = e.second.texture;
+       TextureType type = e.second.type;
+       const std::string & name = e.second.name;
        glActiveTexture(GL_TEXTURE0 + textureIndex);
+       if (_state.currentShader) {
+           _state.currentShader->setInt(name, 0);
+       }
        if (type == TextureType::TEXTURE_2D) {
            glBindTexture(GL_TEXTURE_2D, 0);
        }

@@ -88,6 +88,13 @@ class Renderer {
         TEXTURE_CUBE_MAP
     };
 
+    struct BoundTextureInfo {
+        int textureIndex;
+        GLuint texture;
+        TextureType type;
+        std::string name;
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
@@ -119,7 +126,7 @@ class Renderer {
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
         // Bound textures
-        std::unordered_map<int, std::pair<GLuint, TextureType>> boundTextures;
+        std::unordered_map<int, BoundTextureInfo> boundTextures;
     };
 
     struct Texture2D {
@@ -298,6 +305,8 @@ private:
     void _initLights(Shader * s, const Camera & c);
     void _initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers);
     void _clearInstancedData(std::vector<GLuint> & buffers);
+    void _bindShader(Shader *);
+    void _unbindShader();
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

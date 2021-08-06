@@ -49,7 +49,7 @@
  */
 
 // Apple limits us to 16 total samplers active in the pipeline :(
-#define MAX_LIGHTS 12
+#define MAX_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 #define AMBIENT_INTENSITY 0.0005
@@ -173,7 +173,7 @@ float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, const float roughness) 
     return geometrySchlickGGX(NdotV, k) * geometrySchlickGGX(NdotL, k);
 }
 
-vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness) {
+vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float ao) {
     vec3 lightPos   = fsTbnMatrix * lightPositions[lightIndex];
     vec3 lightColor = lightColors[lightIndex];
     vec3 lightDir   = lightPos - fsTanFragPosition;
@@ -203,7 +203,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     // We need to perform shadow calculations in world space
     float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex],
         lightIndex, dot(lightPositions[lightIndex] - fsPosition, fsNormal));
-    vec3 ambient = baseColor * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
+    vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
     return attenuationFactor * (ambient + (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi));
@@ -238,9 +238,9 @@ void main() {
     vec3 color = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= numLights) break;
-        color = color + calculatePointLighting(baseColor, normal, viewDir, i, roughness);
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i, roughness, ao);
     }
-    color = color + baseColor * AMBIENT_INTENSITY;
+    color = color + baseColor * ao * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
     //color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction

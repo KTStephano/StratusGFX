@@ -52,11 +52,14 @@ void RenderEntity::setMaterial(const RenderMaterial &material) {
         _enableProperties(TEXTURED);
     }
     if (material.normalMap == -1) {
+        _disableProperties(ENVIRONMENT_MAPPED);
+        _disableProperties(ROUGHNESS_MAPPED);
         _disableProperties(NORMAL_MAPPED);
         _disableProperties(NORMAL_HEIGHT_MAPPED);
     }
     else {
         if (material.depthMap == -1) {
+            _disableProperties(ENVIRONMENT_MAPPED);
             _disableProperties(ROUGHNESS_MAPPED);
             _disableProperties(NORMAL_HEIGHT_MAPPED);
             _enableProperties(NORMAL_MAPPED);
@@ -68,6 +71,10 @@ void RenderEntity::setMaterial(const RenderMaterial &material) {
             // Only want to set this if both normal and depth mapping are available
             if (material.roughnessMap != -1) {
                 _enableProperties(ROUGHNESS_MAPPED);
+
+                if (material.environmentMap != -1) {
+                    _enableProperties(ENVIRONMENT_MAPPED);
+                }
             }
         }
     }
