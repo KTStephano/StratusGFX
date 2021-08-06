@@ -175,8 +175,12 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_lighting_nm.vs",
                                                 "../resources/shaders/texture_lighting_nm.fs");
     _shaders.push_back(lightTextureNormalMap);
+    /*
     Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_lighting_nm_dm.vs",
-                                                    "../resources/shaders/texture_lighting_nm_dm.fs");
+                                                     "../resources/shaders/texture_lighting_nm_dm.fs");
+    */
+    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr_nm_dm.vs",
+                                                     "../resources/shaders/texture_pbr_nm_dm.fs");
     _shaders.push_back(lightTextureNormalDepthMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
@@ -416,7 +420,9 @@ void Renderer::addDrawable(RenderEntity * e) {
     __RenderEntityContainer & existing = _state.instancedEntities.find(c)->second;
     existing.modelMatrices.push_back(e->model);
     existing.diffuseColors.push_back(e->getMaterial().diffuseColor);
-    existing.specularExponents.push_back(e->getMaterial().specularShininess);
+    existing.baseReflectivity.push_back(e->getMaterial().baseReflectivity);
+    existing.roughness.push_back(e->getMaterial().roughness);
+    existing.metallic.push_back(e->getMaterial().metallic);
     ++existing.size;
 }
 
@@ -438,11 +444,15 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
 }
 
 void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers) {
+    Shader * pbr = _propertyShaderMap.find(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED)->second;
+
     auto & modelMats = c.modelMatrices;
-    auto & specularExponents = c.specularExponents;
+    auto & baseReflectivity = c.baseReflectivity;
+    auto & roughness = c.roughness;
+    auto & metallic = c.metallic;
 
     // All shaders should use the same location for model, so this should work
-    int pos = _state.shadows->getAttribLocation("model");
+    int pos = pbr->getAttribLocation("model");
     const int pos1 = pos + 0;
     const int pos2 = pos + 1;
     const int pos3 = pos + 2;
@@ -473,14 +483,35 @@ void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuin
     buffer = 0;
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, specularExponents.size() * sizeof(float), &specularExponents[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, baseReflectivity.size() * sizeof(glm::vec3), &baseReflectivity[0], GL_STATIC_DRAW);
+    pos = pbr->getAttribLocation("baseReflectivity");
+    glEnableVertexAttribArray(pos);
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+    glVertexAttribDivisor(pos, 1);
+    buffers.push_back(buffer);
+
+    buffer = 0;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, metallic.size() * sizeof(float), &metallic[0], GL_STATIC_DRAW);
     // All shaders should use the same location for shininess, so this should work
-    pos = _state.shadows->getAttribLocation("shininess");
+    pos = pbr->getAttribLocation("metallic");
     glEnableVertexAttribArray(pos);
     glVertexAttribPointer(pos, 1, GL_FLOAT, GL_FALSE, 0, (void *)0);
     glVertexAttribDivisor(pos, 1);
-
     buffers.push_back(buffer);
+
+    buffer = 0;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, roughness.size() * sizeof(float), &roughness[0], GL_STATIC_DRAW);
+    // All shaders should use the same location for shininess, so this should work
+    pos = pbr->getAttribLocation("roughness");
+    glEnableVertexAttribArray(pos);
+    glVertexAttribPointer(pos, 1, GL_FLOAT, GL_FALSE, 0, (void *)0);
+    glVertexAttribDivisor(pos, 1);
+    buffers.push_back(buffer);
+
     c.e->unbindVertexAttribArray();
 }
 

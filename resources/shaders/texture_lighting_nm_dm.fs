@@ -27,6 +27,7 @@ uniform vec3 viewPosition;
 in vec3 fsPosition;
 in vec3 fsNormal;
 in vec2 fsTexCoords;
+in mat4 fsModel;
 //in float fsfsShininess;
 
 /**
@@ -140,7 +141,7 @@ void main() {
     }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
-    vec3 normal = texture(normalMap, texCoords).rgb;
+    vec3 normal = mat3(fsModel) * texture(normalMap, texCoords).rgb;
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.

@@ -259,16 +259,16 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < 100; ++i) {
         std::unique_ptr<stratus::Cube> c = std::make_unique<stratus::Cube>();
         size_t texIndex = rand() % textures.size();
         cubeMat.texture = textures[texIndex];
         cubeMat.normalMap = normalMaps[texIndex];
         cubeMat.depthMap = depthMaps[texIndex];
         c->setMaterial(cubeMat);
-        c->position.x = rand() % 2500;
+        c->position.x = rand() % 250;
         c->position.y = rand() % 100;
-        c->position.z = rand() % 2500;
+        c->position.z = rand() % 250;
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
@@ -281,9 +281,9 @@ int main(int argc, char * args[]) {
         std::unique_ptr<RandomLightMover> mover =
                 std::make_unique<RandomLightMover>();
         mover->light->setIntensity(1000.0f);
-        mover->position = glm::vec3(float(rand() % 2000 + 100),
+        mover->position = glm::vec3(float(rand() % 250 + 100),
                                     0.0f, // float(rand() % 200),
-                                    float(rand() % 2000 + 100));
+                                    float(rand() % 250 + 100));
         lightMovers.push_back(std::move(mover));
     }
 

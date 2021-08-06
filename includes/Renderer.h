@@ -63,7 +63,9 @@ struct __RenderEntityContainer {
     RenderEntity * e;
     std::vector<glm::mat4> modelMatrices;
     std::vector<glm::vec3> diffuseColors;
-    std::vector<float> specularExponents;
+    std::vector<glm::vec3> baseReflectivity;
+    std::vector<float> roughness;
+    std::vector<float> metallic;
     size_t size = 0;
 
     __RenderEntityContainer(RenderEntity * e) : e(e) {}

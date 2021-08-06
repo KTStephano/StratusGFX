@@ -39,9 +39,10 @@ struct RenderData {
  */
 struct RenderMaterial {
     glm::vec3 diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 specularColor = glm::vec3(1.0f, 0.0f, 0.0f);
     glm::vec3 ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
-    float specularShininess = 0.0f;
+    glm::vec3 baseReflectivity = glm::vec3(0.04f);
+    float roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
+    float metallic = 0.0f;
     // Not required to have a texture
     TextureHandle texture = -1;
     // Not required to have a normal map
