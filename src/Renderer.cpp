@@ -453,7 +453,7 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
 }
 
 void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers) {
-    Shader * pbr = _propertyShaderMap.find(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED)->second;
+    Shader * pbr = _propertyShaderMap.find(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED)->second;
 
     auto & modelMats = c.modelMatrices;
     auto & baseReflectivity = c.baseReflectivity;
@@ -547,10 +547,10 @@ void Renderer::end(const Camera & c) {
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
-    // Perform the shadow volume pre-pass
-
     // Set blend func just for shadow pass
     glBlendFunc(GL_ONE, GL_ONE);
+    // Perform the shadow volume pre-pass
+    _bindShader(_state.shadows.get());
     for (Light * light : _state.lights) {
         const double distance = glm::distance(c.getPosition(), light->position);
         if (distance > 250.0) continue;
@@ -602,6 +602,7 @@ void Renderer::end(const Camera & c) {
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+    _unbindAllTextures();
     _unbindShader();
 
     // TEMP: Set up the light source

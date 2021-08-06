@@ -51,7 +51,7 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_LIGHTS 12
 #define SPECULAR_MULTIPLIER 128.0
-#define POINT_LIGHT_AMBIENT_INTENSITY 0.05
+#define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 #define AMBIENT_INTENSITY 0.0005
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001

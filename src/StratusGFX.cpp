@@ -201,11 +201,12 @@ int main(int argc, char * args[]) {
             "../resources/shaders/shader.fs");
     if (!shader.isValid() || !shader2.isValid()) return -1;
 
-
+    // For textures see https://3dtextures.me/
     std::vector<stratus::TextureHandle> textures;
     textures.push_back(renderer.loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
     textures.push_back(renderer.loadTexture("../resources/textures/Bark_06_basecolor.jpg"));
     textures.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
+    textures.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg"));
     /**
     textures.resize(6);
     textures[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-cm-big-talos.png");
@@ -220,6 +221,8 @@ int main(int argc, char * args[]) {
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Normal.jpg"));
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_normal.jpg"));
     normalMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
+    normalMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_normal.jpg"));
+
     /**
     normalMaps.resize(6);
     normalMaps[0] = renderer.loadTexture("../copyrighted/brick-plaster-01-nm-big-talos.png");
@@ -234,18 +237,22 @@ int main(int argc, char * args[]) {
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Height.png"));
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_height.png"));
     depthMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_height.png"));
+    depthMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_height.png"));
 
     std::vector<stratus::TextureHandle> roughnessMaps;
     roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
     roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_roughness.jpg"));
     roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_roughness.jpg"));
+    roughnessMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_roughness.jpg"));
 
     std::vector<stratus::TextureHandle> environmentMaps;
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
+    environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
     std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
+    std::vector<std::unique_ptr<stratus::RenderEntity>> sometimes;
     std::vector<size_t> textureIndices;
     stratus::RenderMaterial quadMat;
     //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
@@ -281,12 +288,29 @@ int main(int argc, char * args[]) {
         cubeMat.environmentMap = environmentMaps[texIndex];
         c->setMaterial(cubeMat);
         c->position.x = rand() % 2500;
-        c->position.y = rand() % 100;
+        c->position.y = rand() % 50;
         c->position.z = rand() % 2500;
         c->scale = glm::vec3(float(rand() % 25));
         c->enableLightInteraction(true);
         entities.push_back(std::move(c));
         textureIndices.push_back(texIndex);
+
+        if (i % 2) {
+            c = std::make_unique<stratus::Cube>();
+            texIndex = rand() % textures.size();
+            cubeMat.texture = textures[texIndex];
+            cubeMat.normalMap = normalMaps[texIndex];
+            cubeMat.depthMap = depthMaps[texIndex];
+            cubeMat.roughnessMap = roughnessMaps[texIndex];
+            cubeMat.environmentMap = environmentMaps[texIndex];
+            c->setMaterial(cubeMat);
+            c->position.x = rand() % 2500;
+            c->position.y = rand() % 50;
+            c->position.z = rand() % 2500;
+            c->scale = glm::vec3(float(rand() % 25));
+            c->enableLightInteraction(true);
+            sometimes.push_back(std::move(c));
+        }
     }
 
     // Create the light movers
@@ -311,14 +335,16 @@ int main(int argc, char * args[]) {
     stratus::PointLight cameraLight;
     cameraLight.setIntensity(2500.0f);
     bool camLightEnabled = true;
+    bool addSometimes = false;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
         double deltaSeconds = elapsedMS / 1000.0;
-        //std::cout << deltaSeconds << std::endl;
         start = curr;
         SDL_Event e;
         const float camSpeed = 100.0f;
+
+        // Check for key/mouse events
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -356,6 +382,10 @@ int main(int argc, char * args[]) {
                                 camLightEnabled = !camLightEnabled;
                             }
                             break;
+                        case SDL_SCANCODE_E:
+                            if (released) {
+                                addSometimes = !addSometimes;
+                            }
                         /*
                         case SDL_SCANCODE_N: {
                             if (released) {
@@ -388,17 +418,26 @@ int main(int argc, char * args[]) {
             }
         }
 
+        // Start a new renderer frame
+        renderer.begin(true);
+
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
 
-        renderer.begin(true);
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);
         for (auto & entity : entities) {
             renderer.addDrawable(entity.get());
         }
+
+        if (addSometimes) {
+            for (auto & e : sometimes) {
+                renderer.addDrawable(e.get());
+            }
+        }
+
         for (auto & mover : lightMovers) {
             mover->update(deltaSeconds);
             renderer.addPointLight(mover->light.get());
