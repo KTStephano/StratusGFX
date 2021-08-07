@@ -128,54 +128,7 @@ Cube::~Cube() {
     //glDeleteBuffers(1, &_buffer);
 }
 
-void Cube::render() {
-    glFrontFace(GL_CCW);
-    bindVertexAttribArray();
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    unbindVertexAttribArray();
-    /*
-    glGenVertexArrays(1, &_vao);
-    glGenBuffers(1, &_buffer);
-
-    glBindVertexArray(_vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, _buffer);
-    //std::cout << cubeData.size() << std::endl;
-    glBufferData(GL_ARRAY_BUFFER, cubeData.size() * sizeof(float), &cubeData[0], GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-            0,                   // attrib index
-            3,                   // elems per attrib
-            GL_FLOAT,            // data type
-            GL_FALSE,            // normalized?
-            8 * sizeof(float),   // offset until next vertex
-            nullptr);            // initial offset
-
-    // tex coords
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1,
-                          2,
-                          GL_FLOAT, GL_FALSE,
-                          sizeof(float) * 8,
-                          (void *)(sizeof(float) * 6));
-    // normals
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2,
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(float) * 8,
-                          (void *)(sizeof(float) * 3));
-
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-     */
-}
-
-void Cube::renderInstanced(const int numInstances) {
+void Cube::render(const int numInstances) {
     glFrontFace(GL_CCW);
     bindVertexAttribArray();
     glDrawArraysInstanced(GL_TRIANGLES, 0, 36, numInstances);

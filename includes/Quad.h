@@ -19,8 +19,7 @@ public:
     ~Quad() override;
     void bindVertexAttribArray() override;
     void unbindVertexAttribArray() override;
-    void render() override;
-    void renderInstanced(const int) override;
+    void render(const int) override;
 };
 }
 

@@ -587,14 +587,14 @@ void Renderer::end(const Camera & c) {
         for (auto & e : _state.instancedEntities) {
             // Set up temporary instancing buffers
             _initInstancedData(e.second, buffers);
-            e.second.e->renderInstanced(e.second.size);
+            e.second.e->render(e.second.size);
             _clearInstancedData(buffers);
             /**
             const size_t size = modelMats.size();
             for (int i = 0; i < size; i += maxInstances) {
                 const size_t instances = std::min<size_t>(maxInstances, size - i);
                 _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
-                e.second.e->renderInstanced(instances);
+                e.second.e->render(instances);
             }
             */
         }
@@ -710,7 +710,7 @@ void Renderer::end(const Camera & c) {
         }
 
         glFrontFace(GL_CW);
-        e->renderInstanced(entity.second.size);
+        e->render(entity.second.size);
         _unbindAllTextures();
         //glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -724,7 +724,7 @@ void Renderer::end(const Camera & c) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
     _state.hdrGamma->setInt("screen", 0);
-    _state.screenQuad->render();
+    _state.screenQuad->render(1);
     glBindTexture(GL_TEXTURE_2D, 0);
     _unbindShader();
 }

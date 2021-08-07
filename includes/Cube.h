@@ -12,10 +12,9 @@ class Cube : public RenderEntity {
 public:
     Cube();
     ~Cube() override;
-    void render() override;
     void bindVertexAttribArray() override;
     void unbindVertexAttribArray() override;
-    void renderInstanced(const int) override;
+    void render(const int) override;
 };
 }
 

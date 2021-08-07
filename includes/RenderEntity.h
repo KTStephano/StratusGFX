@@ -130,17 +130,11 @@ public:
     virtual void unbindVertexAttribArray() = 0;
 
     /**
-     * This gets called by the renderer when it is time
-     * for the object to be drawn.
-     */
-    virtual void render() = 0;
-
-    /**
      * If the rendering system has determined that multiple similar entities can be grouped
      * together, this will be called instead of render(). This call should be nearly identical
      * except it will call the graphics library instanced version of the draw function.
      */
-    virtual void renderInstanced(const int numInstances) = 0;
+    virtual void render(const int numInstances) = 0;
 
 private:
     void _setProperties(uint32_t properties);

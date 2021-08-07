@@ -1,3 +1,6 @@
 [submodule "gl3w"]
 	path = gl3w
 	url = https://github.com/skaslev/gl3w
+[submodule "assimp"]
+	path = assimp
+	url = https://github.com/assimp/assimp

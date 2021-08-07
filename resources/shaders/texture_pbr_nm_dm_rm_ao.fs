@@ -201,8 +201,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
     // We need to perform shadow calculations in world space
-    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex],
-        lightIndex, dot(lightPositions[lightIndex] - fsPosition, fsNormal));
+    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex], lightIndex, dot(lightPositions[lightIndex] - fsPosition, normal));
     vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);

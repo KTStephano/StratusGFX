@@ -117,15 +117,7 @@ Quad::~Quad() {
     //glDeleteBuffers(1, &_buffer);
 }
 
-void Quad::render() {
-    glDisable(GL_CULL_FACE);
-    bindVertexAttribArray();
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    unbindVertexAttribArray();
-    glEnable(GL_CULL_FACE);
-}
-
-void Quad::renderInstanced(const int numInstances) {
+void Quad::render(const int numInstances) {
     glDisable(GL_CULL_FACE);
     bindVertexAttribArray();
     glDrawArraysInstanced(GL_TRIANGLES, 0, 6, numInstances);

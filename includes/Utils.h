@@ -16,8 +16,8 @@ typedef std::pair<glm::vec3, glm::vec3> tan_bitan_t;
  * @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
  */
 inline tan_bitan_t calculateTangentAndBitangent(
-    glm::vec3 p1, glm::vec3 p2, glm::vec3 p3,
-    glm::vec2 uv1, glm::vec2 uv2, glm::vec2 uv3) {
+    const glm::vec3 & p1, const glm::vec3 & p2, const glm::vec3 & p3,
+    const glm::vec2 & uv1, const glm::vec2 & uv2, const glm::vec2 & uv3) {
 
     // Calculate reference lines E1 and E2
     glm::vec3 e1 = p2 - p1;
