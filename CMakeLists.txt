@@ -10,31 +10,35 @@ find_package(OpenGL REQUIRED)
 
 #add_subdirectory(gl3w)
 
-include_directories(gl3w/include includes ${SDL2_INCLUDE_DIRS} . ${OPENGL_INCLUDE_DIRS})
-add_executable(StratusGFX 
-    src/StratusGFX.cpp 
-    gl3w/src/gl3w.c 
-    includes/Shader.h 
-    src/Shader.cpp 
-    includes/Filesystem.h 
-    src/Filesystem.cpp 
-    includes/Common.h 
-    includes/Renderer.h 
-    src/Renderer.cpp 
-    includes/Vertex.h 
-    includes/Quad.h 
-    includes/RenderEntity.h 
-    src/RenderEntity.cpp 
-    src/Quad.cpp 
-    includes/Engine.h 
-    includes/Entity.h 
-    includes/Camera.h 
-    src/Camera.cpp 
-    includes/STBImage.h 
-    includes/Cube.h 
-    src/Cube.cpp 
-    includes/Light.h 
-    includes/Utils.h)
+include_directories(gl3w/include includes ${SDL2_INCLUDE_DIRS} . ${OPENGL_INCLUDE_DIRS} assimp/Deploy/include)
+link_directories(assimp/Deploy/lib)
+file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp ${CMAKE_CURRENT_LIST_DIR}/gl3w/src/gl3w.c)
+add_executable(StratusGFX ${SOURCES})
+
+# add_executable(StratusGFX 
+#     src/StratusGFX.cpp 
+#     gl3w/src/gl3w.c 
+#     includes/Shader.h 
+#     src/Shader.cpp 
+#     includes/Filesystem.h 
+#     src/Filesystem.cpp 
+#     includes/Common.h 
+#     includes/Renderer.h 
+#     src/Renderer.cpp 
+#     includes/Vertex.h 
+#     includes/Quad.h 
+#     includes/RenderEntity.h 
+#     src/RenderEntity.cpp 
+#     src/Quad.cpp 
+#     includes/Engine.h 
+#     includes/Entity.h 
+#     includes/Camera.h 
+#     src/Camera.cpp 
+#     includes/STBImage.h 
+#     includes/Cube.h 
+#     src/Cube.cpp 
+#     includes/Light.h 
+#     includes/Utils.h)
 
 set_target_properties(StratusGFX PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin/)
 if (WIN32)
@@ -43,8 +47,8 @@ if (WIN32)
     else ()
         set(SDL2_LIBRARIES "${CMAKE_CURRENT_LIST_DIR}/lib/x86/SDL2.lib;${CMAKE_CURRENT_LIST_DIR}/lib/x86/SDL2main.lib")
     endif ()
-    target_link_libraries(StratusGFX ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32)
+    target_link_libraries(StratusGFX ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32 assimp)
 else ()
     #target_link_libraries(StratusGFX ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} GLU X11 Xxf86vm Xrandr pthread Xi dl)
-    target_link_libraries(StratusGFX ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl)
+    target_link_libraries(StratusGFX ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl assimp)
 endif ()
