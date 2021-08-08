@@ -202,4 +202,15 @@ GLint Shader::getUniformLocation(const std::string &uniform) const {
 GLint Shader::getAttribLocation(const std::string &attrib) const {
     return glGetAttribLocation(_program, &attrib[0]);
 }
+
+std::vector<std::string> Shader::getFileNames() const {
+    return std::vector<std::string>{_vsFile, _gsFile, _fsFile};
+}
+
+void Shader::print() const {
+    for (auto & s : getFileNames()) {
+        std::cout << s << ", ";
+    }
+    std::cout << std::endl;
+}
 }

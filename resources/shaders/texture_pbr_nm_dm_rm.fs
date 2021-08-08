@@ -211,7 +211,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy * (height * 0.05);
+    vec2 p = viewDir.xy * (height * 0.03);
     return texCoords - p;
 }
 
@@ -219,9 +219,9 @@ void main() {
     vec3 viewDir = normalize(fsTanViewPosition - fsTanFragPosition);
     vec2 texCoords = fsTexCoords;
     texCoords = calculateDepthCoords(texCoords, viewDir);
-    if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-       discard;
-    }
+    // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+    //    discard;
+    // }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = mat3(fsModel) * texture(normalMap, texCoords).rgb;

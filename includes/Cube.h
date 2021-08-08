@@ -5,16 +5,10 @@
 #include "RenderEntity.h"
 
 namespace stratus {
-class Cube : public RenderEntity {
-    GLuint _vao;
-    GLuint _buffer;
-
+class Cube : public Mesh {
 public:
     Cube();
     ~Cube() override;
-    void bindVertexAttribArray() override;
-    void unbindVertexAttribArray() override;
-    void render(const int) override;
 };
 }
 

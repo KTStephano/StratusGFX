@@ -9,53 +9,7 @@
 #include <Cube.h>
 #include <Light.h>
 #include <Utils.h>
-
-static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
-    -1.0f, 1.0f, 0.0f,  0, 0, 0,    0.0f, 1.0f,
-    -1.0f, -1.0f, 0.0f, 0, 0, 0,    0.0f, 0.0f,
-    1.0f, -1.0f, 0.0f,  0, 0, 0,    1.0f, 0.0f,
-    -1.0f, 1.0f, 0.0f,  0, 0, 0,    0.0f, 1.0f,
-    1.0f, -1.0f, 0.0f,  0, 0, 0,    1.0f, 0.0f,
-    1.0f, 1.0f, 0.0f,   0, 0, 0,    1.0f, 1.0f
-};
-
-static std::vector<glm::vec3> genCubePositions() {
-    std::vector<glm::vec3> pos;
-    for (size_t index = 0; index < cubeData.size(); index += 8) {
-        glm::vec3 p(cubeData[index], cubeData[index + 1], cubeData[index + 2]);
-        pos.push_back(p);
-    }
-    return pos;
-}
-
-static std::vector<glm::vec2> genCubeTexCoords() {
-    std::vector<glm::vec2> coords;
-    for (size_t index = 6; index < cubeData.size(); index += 8) {
-        coords.push_back(glm::vec2(cubeData[index], cubeData[index + 1]));
-    }
-    return coords;
-}
-
-static void calcTangents() {
-    auto positions = genCubePositions();
-    auto coords = genCubeTexCoords();
-    for (size_t i = 0; i < positions.size(); i += 3) {
-        glm::vec3 p1 = positions[i];
-        glm::vec3 p2 = positions[i + 1];
-        glm::vec3 p3 = positions[i + 2];
-
-        glm::vec2 uv1 = coords[i];
-        glm::vec2 uv2 = coords[i + 1];
-        glm::vec2 uv3 = coords[i + 2];
-
-        auto tanBitan = stratus::calculateTangentAndBitangent(p1, p2, p3,
-                                                     uv1, uv2, uv3);
-        auto tangent = tanBitan.first;
-        auto bitangent = tanBitan.second;
-        std::cout << tangent.x << ", " << tangent.y << ", " << tangent.z << ", "
-            << bitangent.x << ", " << bitangent.y << ", " << bitangent.z << ", " << std::endl;
-    }
-}
+#include <memory>
 
 class RandomLightMover : public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -74,13 +28,14 @@ class RandomLightMover : public stratus::Entity {
     double _elapsedSec = 0.0;
 
 public:
-    std::unique_ptr<stratus::Cube> cube;
+    std::unique_ptr<stratus::RenderEntity> cube;
     std::unique_ptr<stratus::Light> light;
 
     RandomLightMover() {
-        cube = std::make_unique<stratus::Cube>();
-        cube->enableLightInteraction(false);
+        cube = std::make_unique<stratus::RenderEntity>();
+        cube->setLightProperties(stratus::LightProperties::FLAT);
         cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
+        cube->meshes.push_back(std::make_shared<stratus::Cube>());
         light = std::make_unique<stratus::PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
@@ -95,9 +50,9 @@ public:
         position = position + speed * _direction * float(deltaSeconds);
         cube->position = position;
         light->position = position;
-        stratus::RenderMaterial m = cube->getMaterial();
+        stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
         m.diffuseColor = light->getColor() * light->getIntensity();
-        cube->setMaterial(m);
+        cube->meshes[0]->setMaterial(m);
 
         _elapsedSec += deltaSeconds;
         if (_elapsedSec > 5.0) {
@@ -113,78 +68,13 @@ struct StationaryLight : public RandomLightMover {
     void update(double deltaSeconds) override {
         cube->position = position;
         light->position = position;
-        stratus::RenderMaterial m = cube->getMaterial();
+        stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
         m.diffuseColor = light->getColor() * light->getIntensity();
-        cube->setMaterial(m);
+        cube->meshes[0]->setMaterial(m);
     }
 };
 
-static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
-    float angleX = glm::radians(angles.x);
-    float angleY = glm::radians(angles.y);
-    float angleZ = glm::radians(angles.z);
-
-    float cx = std::cos(angleX);
-    float cy = std::cos(angleY);
-    float cz = std::cos(angleZ);
-
-    float sx = std::sin(angleX);
-    float sy = std::sin(angleY);
-    float sz = std::sin(angleZ);
-
-    out[0] = glm::vec4(cy * cz,
-                       sx * sy * cz + cx * sz,
-                       -cx * sy * cz + sx * sz,
-                       out[0].w);
-
-    out[1] = glm::vec4(-cy * sz,
-                       -sx * sy * sz + cx * cz,
-                       cx * sy * sz + sx * cz,
-                       out[1].w);
-
-    out[2] = glm::vec4(sy,
-                       -sx * cy,
-                       cx * cy, out[2].w);
-}
-
-// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
-static void inset(glm::mat4 & out, const glm::mat3 & in) {
-    out[0].x = in[0].x;
-    out[0].y = in[0].y;
-    out[0].z = in[0].z;
-
-    out[1].x = in[1].x;
-    out[1].y = in[1].y;
-    out[1].z = in[1].z;
-
-    out[2].x = in[2].x;
-    out[2].y = in[2].y;
-    out[2].z = in[2].z;
-}
-
-static void scale(glm::mat4 & out, const glm::vec3 & scale) {
-    out[0].x = out[0].x * scale.x;
-    out[0].y = out[0].y * scale.y;
-    out[0].z = out[0].z * scale.z;
-
-    out[1].x = out[1].x * scale.x;
-    out[1].y = out[1].y * scale.y;
-    out[1].z = out[1].z * scale.z;
-
-    out[2].x = out[2].x * scale.x;
-    out[2].y = out[2].y * scale.y;
-    out[2].z = out[2].z * scale.z;
-}
-
-static void translate(glm::mat4 & out, const glm::vec3 & translate) {
-    out[3].x = translate.x;
-    out[3].y = translate.y;
-    out[3].z = translate.z;
-}
-
 int main(int argc, char * args[]) {
-    calcTangents();
-
     auto start = std::chrono::system_clock::now();
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -268,26 +158,37 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
+    std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
+    std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
+    for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
+        auto cube = std::make_shared<stratus::Cube>();
+        auto quad = std::make_shared<stratus::Quad>();
+        stratus::RenderMaterial mat;
+        mat.texture = textures[texIndex];
+        mat.normalMap = normalMaps[texIndex];
+        mat.depthMap = depthMaps[texIndex];
+        mat.roughnessMap = roughnessMaps[texIndex];
+        mat.environmentMap = environmentMaps[texIndex];
+        cube->setMaterial(mat);
+        quad->setMaterial(mat);
+        cubeMeshes.push_back(cube);
+        quadMeshes.push_back(quad);
+    }
+
     std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
     std::vector<size_t> textureIndices;
     stratus::RenderMaterial quadMat;
     //quadMat.texture = renderer.loadTexture("../resources/textures/volcanic_rock_texture.png");
-    std::cout << quadMat.texture << std::endl;
     srand(time(nullptr));
     for (int i = 0; i < 100; ++i) {
         size_t texIndex = rand() % textures.size();
-        quadMat.texture = textures[texIndex];
-        quadMat.normalMap = normalMaps[texIndex];
-        quadMat.depthMap = depthMaps[texIndex];
-        quadMat.roughnessMap = roughnessMaps[texIndex];
-        quadMat.environmentMap = environmentMaps[texIndex];
-        std::unique_ptr<stratus::Quad> q = std::make_unique<stratus::Quad>();
-        q->setMaterial(quadMat);
+        auto mesh = quadMeshes[texIndex];
+        std::unique_ptr<stratus::RenderEntity> q = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
+        q->meshes.push_back(mesh);
         q->position.x = rand() % 50;
         q->position.y = rand() % 50;
         q->position.z = rand() % 50;
         q->scale = glm::vec3(float(rand() % 5));
-        q->enableLightInteraction(true);
         entities.push_back(std::move(q));
         textureIndices.push_back(texIndex);
     }
@@ -295,19 +196,14 @@ int main(int argc, char * args[]) {
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
     for (int i = 0; i < 2000; ++i) {
-        std::unique_ptr<stratus::Cube> c = std::make_unique<stratus::Cube>();
         size_t texIndex = rand() % textures.size();
-        cubeMat.texture = textures[texIndex];
-        cubeMat.normalMap = normalMaps[texIndex];
-        cubeMat.depthMap = depthMaps[texIndex];
-        cubeMat.roughnessMap = roughnessMaps[texIndex];
-        cubeMat.environmentMap = environmentMaps[texIndex];
-        c->setMaterial(cubeMat);
+        auto mesh = cubeMeshes[texIndex];
+        std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
+        c->meshes.push_back(mesh);
         c->position.x = rand() % 2500;
         c->position.y = rand() % 50;
         c->position.z = rand() % 2500;
         c->scale = glm::vec3(float(rand() % 25));
-        c->enableLightInteraction(true);
         entities.push_back(std::move(c));
         textureIndices.push_back(texIndex);
     }
@@ -440,8 +336,8 @@ int main(int argc, char * args[]) {
         }
 
         for (auto & mover : lightMovers) {
-            mover->update(deltaSeconds);
-            mover->addToScene(renderer);
+           mover->update(deltaSeconds);
+           mover->addToScene(renderer);
         }
         renderer.end(camera);
 

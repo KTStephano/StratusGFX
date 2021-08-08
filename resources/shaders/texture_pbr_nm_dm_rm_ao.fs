@@ -201,7 +201,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
     // We need to perform shadow calculations in world space
-    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex], lightIndex, dot(lightPositions[lightIndex] - fsPosition, normal));
+    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex], lightIndex, dot(lightPositions[lightIndex] - fsPosition, fsNormal));
     vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
@@ -211,17 +211,17 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy * (height * 0.05);
-    return texCoords - p;
+    vec2 p = viewDir.xy * (height * 0.03);
+    return texCoords + p;
 }
 
 void main() {
     vec3 viewDir = normalize(fsTanViewPosition - fsTanFragPosition);
     vec2 texCoords = fsTexCoords;
     texCoords = calculateDepthCoords(texCoords, viewDir);
-    if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-       discard;
-    }
+    // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+    //    discard;
+    // }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = mat3(fsModel) * texture(normalMap, texCoords).rgb;

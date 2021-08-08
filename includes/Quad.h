@@ -6,20 +6,10 @@
 #include "RenderEntity.h"
 
 namespace stratus {
-class Quad : public RenderEntity {
-    GLuint _vao;
-    GLuint _buffer;
-
+class Quad : public Mesh {
 public:
     Quad();
-    Quad(const Quad & other) = delete;
-    Quad(Quad && other) = delete;
-    Quad & operator=(const Quad & other) = delete;
-    Quad & operator=(Quad && other) = delete;
     ~Quad() override;
-    void bindVertexAttribArray() override;
-    void unbindVertexAttribArray() override;
-    void render(const int) override;
 };
 }
 

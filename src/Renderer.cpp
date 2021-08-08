@@ -5,87 +5,25 @@
 #include "Shader.h"
 #include "Renderer.h"
 #include "Quad.h"
+#include "Utils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
 namespace stratus {
 bool __RenderEntityObserver::operator==(const __RenderEntityObserver & c) const {
-    return e->getRenderData().data == c.e->getRenderData().data &&
-        e->getRenderProperties() == c.e->getRenderProperties() &&
-        e->getMaterial().texture == c.e->getMaterial().texture &&
-        e->getMaterial().normalMap == c.e->getMaterial().normalMap &&
-        e->getMaterial().depthMap == c.e->getMaterial().depthMap;
+    return (*e) == *(c.e);
 }
 
 size_t __RenderEntityObserver::hashCode() const {
-    return std::hash<void *>{}(e->getRenderData().data) +
-        std::hash<int>{}(int(e->getRenderProperties())) +
-        std::hash<int>{}(e->getMaterial().texture) +
-        std::hash<int>{}(e->getMaterial().normalMap) +
-        std::hash<int>{}(e->getMaterial().depthMap);
+    return e->hashCode();
 }
 
-static void rotate(glm::mat4 & out, const glm::vec3 & angles) {
-    float angleX = glm::radians(angles.x);
-    float angleY = glm::radians(angles.y);
-    float angleZ = glm::radians(angles.z);
-
-    float cx = std::cos(angleX);
-    float cy = std::cos(angleY);
-    float cz = std::cos(angleZ);
-
-    float sx = std::sin(angleX);
-    float sy = std::sin(angleY);
-    float sz = std::sin(angleZ);
-
-    out[0] = glm::vec4(cy * cz,
-                       sx * sy * cz + cx * sz,
-                       -cx * sy * cz + sx * sz,
-                       out[0].w);
-
-    out[1] = glm::vec4(-cy * sz,
-                       -sx * sy * sz + cx * cz,
-                       cx * sy * sz + sx * cz,
-                       out[1].w);
-
-    out[2] = glm::vec4(sy,
-                       -sx * cy,
-                       cx * cy, out[2].w);
+bool __MeshObserver::operator==(const __MeshObserver & c) const {
+    return (*m) == *(c.m);
 }
 
-// Inserts a 3x3 matrix into the upper section of a 4x4 matrix
-static void inset(glm::mat4 & out, const glm::mat3 & in) {
-    out[0].x = in[0].x;
-    out[0].y = in[0].y;
-    out[0].z = in[0].z;
-
-    out[1].x = in[1].x;
-    out[1].y = in[1].y;
-    out[1].z = in[1].z;
-
-    out[2].x = in[2].x;
-    out[2].y = in[2].y;
-    out[2].z = in[2].z;
-}
-
-static void scale(glm::mat4 & out, const glm::vec3 & scale) {
-    out[0].x = out[0].x * scale.x;
-    out[0].y = out[0].y * scale.y;
-    out[0].z = out[0].z * scale.z;
-
-    out[1].x = out[1].x * scale.x;
-    out[1].y = out[1].y * scale.y;
-    out[1].z = out[1].z * scale.z;
-
-    out[2].x = out[2].x * scale.x;
-    out[2].y = out[2].y * scale.y;
-    out[2].z = out[2].z * scale.z;
-}
-
-static void translate(glm::mat4 & out, const glm::vec3 & translate) {
-    out[3].x = translate.x;
-    out[3].y = translate.y;
-    out[3].z = translate.z;
+size_t __MeshObserver::hashCode() const {
+    return m->hashCode();
 }
 
 static void printGLInfo(const GFXConfig & config) {
@@ -184,28 +122,33 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm_rm.fs");
     Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm_ao.vs",
-                                                     "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                                       
+                                                     "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
+    _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
     _shaders.push_back(lightTextureNormalDepthMap);
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
     // all of a RenderEntities rendering requirements
-    _propertyShaderMap.insert(make_pair(FLAT, noLightNoTexture));
-    _propertyShaderMap.insert(make_pair(FLAT | TEXTURED, noLightTexture));
-    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED, lightTexture));
-    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
-    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
-    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, lightTextureNormalDepthRoughnessMap));
-    _propertyShaderMap.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, lightTextureNormalDepthRoughnessEnvironmentMap));
+
+    // Insert flat-lighting shaders
+    std::unordered_map<uint32_t, Shader *> shaderMap;
+    shaderMap.insert(make_pair(NONE, noLightNoTexture));
+    shaderMap.insert(make_pair(TEXTURED, noLightTexture));
+    _propertyShaderMap.insert(std::make_pair(FLAT, shaderMap));
+
+    // Insert dynamic-lighting shaders
+    shaderMap.clear();
+    shaderMap.insert(make_pair(TEXTURED, lightTexture));
+    shaderMap.insert(make_pair(TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
+    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
+    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, lightTextureNormalDepthRoughnessMap));
+    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, lightTextureNormalDepthRoughnessEnvironmentMap));
+    _propertyShaderMap.insert(std::make_pair(DYNAMIC, shaderMap));
+    
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
     _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(FLAT | TEXTURED, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC | TEXTURED, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_MAPPED, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, vector<RenderEntity *>()));
+    _state.entities.insert(make_pair(DYNAMIC, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma postprocessing shader
     _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
@@ -391,7 +334,7 @@ void Renderer::begin(bool clearScreen) {
     }
 
     // Clear all instanced entities
-    _state.instancedEntities.clear();
+    _state.instancedMeshes.clear();
 
     // Clear all lights
     _state.lights.clear();
@@ -409,7 +352,7 @@ void Renderer::begin(bool clearScreen) {
 }
 
 void Renderer::addDrawable(RenderEntity * e) {
-    auto it = _state.entities.find(e->getRenderProperties());
+    auto it = _state.entities.find(e->getLightProperties());
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to
         // invisible, we won't bother adding them
@@ -417,22 +360,30 @@ void Renderer::addDrawable(RenderEntity * e) {
         return;
     }
     e->model = glm::mat4(1.0f);
-    rotate(e->model, e->rotation);
-    scale(e->model, e->scale);
-    translate(e->model, e->position);
+    matRotate(e->model, e->rotation);
+    matScale(e->model, e->scale);
+    matTranslate(e->model, e->position);
     it->second.push_back(e);
 
     __RenderEntityObserver c(e);
-    if (_state.instancedEntities.find(c) == _state.instancedEntities.end()) {
-        _state.instancedEntities.insert(std::make_pair(c, __RenderEntityContainer(e)));
+    if (_state.instancedMeshes.find(c) == _state.instancedMeshes.end()) {
+        _state.instancedMeshes.insert(std::make_pair(c, std::unordered_map<__MeshObserver, __MeshContainer>{}));
     }
-    __RenderEntityContainer & existing = _state.instancedEntities.find(c)->second;
-    existing.modelMatrices.push_back(e->model);
-    existing.diffuseColors.push_back(e->getMaterial().diffuseColor);
-    existing.baseReflectivity.push_back(e->getMaterial().baseReflectivity);
-    existing.roughness.push_back(e->getMaterial().roughness);
-    existing.metallic.push_back(e->getMaterial().metallic);
-    ++existing.size;
+    std::unordered_map<__MeshObserver, __MeshContainer> & existing = _state.instancedMeshes.find(c)->second;
+    
+    for (std::shared_ptr<Mesh> m : e->meshes) {
+        __MeshObserver o(m.get());
+        if (existing.find(o) == existing.end()) {
+            existing.insert(std::make_pair(o, __MeshContainer(m.get())));
+        }
+        __MeshContainer & container = existing.find(o)->second;
+        container.modelMatrices.push_back(e->model);
+        container.diffuseColors.push_back(m->getMaterial().diffuseColor);
+        container.baseReflectivity.push_back(m->getMaterial().baseReflectivity);
+        container.roughness.push_back(m->getMaterial().roughness);
+        container.metallic.push_back(m->getMaterial().metallic);
+        ++container.size;
+    }
 }
 
 /**
@@ -452,8 +403,8 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
-void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers) {
-    Shader * pbr = _propertyShaderMap.find(DYNAMIC | TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED)->second;
+void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers) {
+    Shader * pbr = _state.pbrShader;
 
     auto & modelMats = c.modelMatrices;
     auto & baseReflectivity = c.baseReflectivity;
@@ -472,7 +423,7 @@ void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuin
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
 
-    c.e->bindVertexAttribArray();
+    c.m->bind();
 
     glEnableVertexAttribArray(pos1);
     glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
@@ -521,7 +472,7 @@ void Renderer::_initInstancedData(__RenderEntityContainer & c, std::vector<GLuin
     glVertexAttribDivisor(pos, 1);
     buffers.push_back(buffer);
 
-    c.e->unbindVertexAttribArray();
+    c.m->unbind();
 }
 
 void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
@@ -584,19 +535,27 @@ void Renderer::end(const Camera & c) {
         }
         */
 
-        for (auto & e : _state.instancedEntities) {
-            // Set up temporary instancing buffers
-            _initInstancedData(e.second, buffers);
-            e.second.e->render(e.second.size);
-            _clearInstancedData(buffers);
-            /**
-            const size_t size = modelMats.size();
-            for (int i = 0; i < size; i += maxInstances) {
-                const size_t instances = std::min<size_t>(maxInstances, size - i);
-                _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
-                e.second.e->render(instances);
+        for (auto & entityObservers : _state.instancedMeshes) {
+            uint32_t properties = entityObservers.first.e->getLightProperties();
+            if ( !(properties & DYNAMIC) ) continue;
+            for (auto & meshObservers : entityObservers.second) {
+                // Set up temporary instancing buffers
+                _initInstancedData(meshObservers.second, buffers);
+                Mesh * m = meshObservers.first.m;
+                glDisable(GL_CULL_FACE);
+                m->bind();
+                m->render(meshObservers.second.size);
+                m->unbind();
+                _clearInstancedData(buffers);
+                /**
+                const size_t size = modelMats.size();
+                for (int i = 0; i < size; i += maxInstances) {
+                    const size_t instances = std::min<size_t>(maxInstances, size - i);
+                    _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
+                    e.second.e->render(instances);
+                }
+                */
             }
-            */
         }
 
         // Unbind
@@ -617,114 +576,151 @@ void Renderer::end(const Camera & c) {
     glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
 //    for (auto & p : _state.entities) {
-    for (auto & entity : _state.instancedEntities) {
-        _initInstancedData(entity.second, buffers);
-        RenderEntity * e = entity.second.e;
-        // Set up the shader we will use for this batch of entities
-        if (_state.currentShader != nullptr) {
-            _state.currentShader->unbind();
-        }
-        uint32_t properties = e->getRenderProperties();
-        auto it = _propertyShaderMap.find(properties);
-        Shader * s = it->second;
-        _bindShader(s);
+    for (auto & entityObservers : _state.instancedMeshes) {
+        for (auto & meshObservers : entityObservers.second) {
+            _initInstancedData(meshObservers.second, buffers);
+            RenderEntity * e = entityObservers.first.e;
+            Mesh * m = meshObservers.first.m;
+            const size_t numInstances = meshObservers.second.size;
 
-        // Set up uniforms specific to this type of shader
-        //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
-        const float dynTextured = properties & (DYNAMIC | TEXTURED);
-        const float normOrHeight = (properties & NORMAL_MAPPED) || (properties & NORMAL_HEIGHT_MAPPED);
-        const bool lightingEnabled = dynTextured || (dynTextured && normOrHeight);
-        /**
-        if (dynTextured || (dynTextured && normOrHeight)) {
-            glm::vec3 lightColor;
-            for (int i = 0; i < _state.lights.size(); ++i) {
-                Light * light = _state.lights[i];
-                lightColor = light->getColor() * light->getIntensity();
-                s->setVec3("lightPositions[" + std::to_string(i) + "]",
-                        &light->position[0]);
-                s->setVec3("lightColors[" + std::to_string(i) + "]",
-                        &lightColor[0]);
+            // Unbind current shader if one is bound
+            _unbindShader();
+
+            // Set up the shader we will use for this batch of entities
+            uint32_t lightProperties = e->getLightProperties();
+            uint32_t renderProperties = m->getRenderProperties();
+            if (_propertyShaderMap.find(lightProperties) == _propertyShaderMap.end()) {
+                std::cout << "Error! Unable to find map with given light properties" << std::endl;
+                continue;
             }
-            s->setInt("numLights", (int)_state.lights.size());
-            s->setVec3("viewPosition", &c.getPosition()[0]);
-            s->setMat4("view", &(*view)[0][0]);
-        }
-        */
+            auto outer = _propertyShaderMap.find(lightProperties)->second;
+            if (outer.find(renderProperties) == outer.end()) {
+                std::cout << "Error! Unable to find shader with given render properties" << std::endl;
+                continue;
+            }
+            auto inner = _propertyShaderMap.find(lightProperties)->second.find(renderProperties);
+            Shader * s = inner->second;
+            //s->print();
+            _bindShader(s);
 
-        /*
-        if (_state.mode == RenderMode::ORTHOGRAPHIC) {
-            projection = &_state.orthographic;
-        } else {
-            projection = &_state.perspective;
-        }
-         */
-        s->setMat4("projection", &(*projection)[0][0]);
-        s->setMat4("view", &(*view)[0][0]);
-
-        // Iterate through all entities and draw them
-        //s->setMat4("projection", &(*projection)[0][0]);
-        const glm::mat4 & model = e->model;
-
-        if (lightingEnabled) _initLights(s, c);
-
-        if (properties & TEXTURED) {
-            /*
-            glActiveTexture(GL_TEXTURE0);
-            s->setInt("diffuseTexture", 0);
-            GLuint texture = _lookupTexture(e->getMaterial().texture);
-            glBindTexture(GL_TEXTURE_2D + 0, texture);
+            // Set up uniforms specific to this type of shader
+            //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
+            const float dynTextured = (lightProperties & DYNAMIC);
+            const float normOrHeight = (renderProperties & TEXTURED) || (renderProperties & NORMAL_MAPPED) || (renderProperties & NORMAL_HEIGHT_MAPPED);
+            const bool lightingEnabled = dynTextured || (dynTextured && normOrHeight);
+            /**
+            if (dynTextured || (dynTextured && normOrHeight)) {
+                glm::vec3 lightColor;
+                for (int i = 0; i < _state.lights.size(); ++i) {
+                    Light * light = _state.lights[i];
+                    lightColor = light->getColor() * light->getIntensity();
+                    s->setVec3("lightPositions[" + std::to_string(i) + "]",
+                            &light->position[0]);
+                    s->setVec3("lightColors[" + std::to_string(i) + "]",
+                            &lightColor[0]);
+                }
+                s->setInt("numLights", (int)_state.lights.size());
+                s->setVec3("viewPosition", &c.getPosition()[0]);
+                s->setMat4("view", &(*view)[0][0]);
+            }
             */
-            _bindTexture(s, "diffuseTexture", e->getMaterial().texture);
-        }
 
-        // Determine which uniforms we should set
-        if (properties & FLAT) {
-            s->setVec3("diffuseColor", &e->getMaterial().diffuseColor[0]);
-            //glm::mat4 modelView = (*view) * model;
-            //s->setMat4("modelView", &modelView[0][0]);
-        } else if (properties & DYNAMIC) {
-            //s->setFloat("shininess", e->getMaterial().specularShininess);
-            //s->setMat4("model", &model[0][0]);
-            if (properties & NORMAL_MAPPED || properties & NORMAL_HEIGHT_MAPPED) {
+            /*
+            if (_state.mode == RenderMode::ORTHOGRAPHIC) {
+                projection = &_state.orthographic;
+            } else {
+                projection = &_state.perspective;
+            }
+            */
+            s->setMat4("projection", &(*projection)[0][0]);
+            s->setMat4("view", &(*view)[0][0]);
+
+            // Iterate through all entities and draw them
+            //s->setMat4("projection", &(*projection)[0][0]);
+            const glm::mat4 & model = e->model;
+
+            if (lightingEnabled) _initLights(s, c);
+
+            if (renderProperties & TEXTURED) {
                 /*
-                s->setInt("normalMap", 0);
-                glActiveTexture(GL_TEXTURE0 + 0);
-                GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
-                glBindTexture(GL_TEXTURE_2D + 0, normalMap);
+                glActiveTexture(GL_TEXTURE0);
+                s->setInt("diffuseTexture", 0);
+                GLuint texture = _lookupTexture(e->getMaterial().texture);
+                glBindTexture(GL_TEXTURE_2D + 0, texture);
                 */
-                _bindTexture(s, "normalMap", e->getMaterial().normalMap);
+                _bindTexture(s, "diffuseTexture", m->getMaterial().texture);
             }
 
-            if (properties & NORMAL_HEIGHT_MAPPED) {
-                _bindTexture(s, "depthMap", e->getMaterial().depthMap);
-                s->setFloat("heightScale", e->getMaterial().heightScale);
+            // Determine which uniforms we should set
+            if (lightProperties & FLAT) {
+                s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
+                //glm::mat4 modelView = (*view) * model;
+                //s->setMat4("modelView", &modelView[0][0]);
+            } else if (lightProperties & DYNAMIC) {
+                //s->setFloat("shininess", e->getMaterial().specularShininess);
+                //s->setMat4("model", &model[0][0]);
+                if (renderProperties & NORMAL_MAPPED || renderProperties & NORMAL_HEIGHT_MAPPED) {
+                    /*
+                    s->setInt("normalMap", 0);
+                    glActiveTexture(GL_TEXTURE0 + 0);
+                    GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
+                    glBindTexture(GL_TEXTURE_2D + 0, normalMap);
+                    */
+                    _bindTexture(s, "normalMap", m->getMaterial().normalMap);
+                }
+
+                if (renderProperties & NORMAL_HEIGHT_MAPPED) {
+                    _bindTexture(s, "depthMap", m->getMaterial().depthMap);
+                    s->setFloat("heightScale", m->getMaterial().heightScale);
+                }
+
+                if (renderProperties & ROUGHNESS_MAPPED) {
+                    _bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
+                }
+
+                if (renderProperties & ENVIRONMENT_MAPPED) {
+                    _bindTexture(s, "ambientOcclusionMap", m->getMaterial().environmentMap);
+                }
             }
 
-            if (properties & ROUGHNESS_MAPPED) {
-                _bindTexture(s, "roughnessMap", e->getMaterial().roughnessMap);
+            // Set the culling state
+            switch (m->cullingMode) {
+            case RenderFaceCulling::CULLING_NONE:
+                glDisable(GL_CULL_FACE);
+                break;
+            case RenderFaceCulling::CULLING_CW:
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);
+                glFrontFace(GL_CW);
+                break;
+            default:
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);
+                glFrontFace(GL_CCW);
+                break;
             }
 
-            if (properties & ENVIRONMENT_MAPPED) {
-                _bindTexture(s, "ambientOcclusionMap", e->getMaterial().environmentMap);
-            }
+            m->bind();
+            m->render(numInstances);
+            m->unbind();
+            _unbindAllTextures();
+            //glBindTexture(GL_TEXTURE_2D, 0);
+
+            _clearInstancedData(buffers);
+            _unbindShader();
         }
-
-        glFrontFace(GL_CW);
-        e->render(entity.second.size);
-        _unbindAllTextures();
-        //glBindTexture(GL_TEXTURE_2D, 0);
-
-        _clearInstancedData(buffers);
-        _unbindShader();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Now render the screen
+    glDisable(GL_CULL_FACE);
     _bindShader(_state.hdrGamma.get());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
     _state.hdrGamma->setInt("screen", 0);
+    _state.screenQuad->bind();
     _state.screenQuad->render(1);
+    _state.screenQuad->unbind();
     glBindTexture(GL_TEXTURE_2D, 0);
     _unbindShader();
 }

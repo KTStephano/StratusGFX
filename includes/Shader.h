@@ -73,6 +73,9 @@ public:
     GLint getUniformLocation(const std::string & uniform) const;
     GLint getAttribLocation(const std::string & attrib) const;
 
+    std::vector<std::string> getFileNames() const;
+    void print() const;
+
     /**
      * Various setters to make it easy to set various uniforms
      * such as bool, int, float, vector, matrix.

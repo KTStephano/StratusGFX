@@ -50,96 +50,37 @@ static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
         -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f,       1, 0, 0,     0, 0, -1// bottom-left
 };
 
-static void createCubeVAO(GLuint & vao, GLuint & buffer) {
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &buffer);
-
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    //std::cout << cubeData.size() << std::endl;
-    glBufferData(GL_ARRAY_BUFFER, cubeData.size() * sizeof(float), &cubeData[0], GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-            0,                   // attrib index
-            3,                   // elems per attrib
-            GL_FLOAT,            // data type
-            GL_FALSE,            // normalized?
-            14 * sizeof(float),   // offset until next vertex
-            nullptr);            // initial offset
-
-    // tex coords
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1,
-                          2,
-                          GL_FLOAT, 
-                          GL_FALSE,
-                          sizeof(float) * 14,
-                          (void *)(sizeof(float) * 6));
-    // normals
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2,
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(float) * 14,
-                          (void *)(sizeof(float) * 3));
-
-    // tangents
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3,
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(float) * 14,
-                          (void *)(sizeof(float) * 8));
-
-    // bitangents
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4,
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(float) * 14,
-                          (void *)(sizeof(float) * 11));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-}
-
-struct CubeData {
-    GLuint vao = 0;
-    GLuint buffer = 0;
-};
-static CubeData __data;
-
-Cube::Cube() {
-    if (__data.vao == 0 || __data.buffer == 0) {
-        createCubeVAO(__data.vao, __data.buffer);
+static const size_t cubeStride = 14;
+static const size_t cubeNumVertices = cubeData.size() / cubeStride;
+static std::vector<glm::vec3> getCubeVertices() {
+    std::vector<glm::vec3> vertices(cubeNumVertices);
+    for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
+        vertices[i] = glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]);
     }
-    _vao = __data.vao;
-    _buffer = __data.buffer;
-    _data.data = (void *)&__data;
+    return vertices;
 }
 
-Cube::~Cube() {
-    //glDeleteVertexArrays(1, &_vao);
-    //glDeleteBuffers(1, &_buffer);
+static std::vector<glm::vec2> getCubeTexCoords() {
+    std::vector<glm::vec2> uvs(cubeNumVertices);
+    const size_t offset = 6;
+    for (size_t i = 0, f = offset; i < cubeNumVertices; ++i, f += cubeStride) {
+        uvs[i] = glm::vec2(cubeData[f], cubeData[f + 1]);
+    }
+    return uvs;
 }
 
-void Cube::render(const int numInstances) {
-    glFrontFace(GL_CCW);
-    bindVertexAttribArray();
-    glDrawArraysInstanced(GL_TRIANGLES, 0, 36, numInstances);
-    unbindVertexAttribArray();
+static std::vector<glm::vec3> getCubeNormals() {
+    std::vector<glm::vec3> normals(cubeNumVertices);
+    const size_t offset = 3;
+    for (size_t i = 0, f = offset; i < cubeNumVertices; ++i, f += cubeStride) {
+        normals[i] = glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]);
+    }
+    return normals;
 }
 
-void Cube::bindVertexAttribArray() {
-    glBindVertexArray(_vao);
+Cube::Cube() : Mesh(getCubeVertices(), getCubeTexCoords(), getCubeNormals()) {
+    this->cullingMode = CULLING_CCW;
 }
 
-void Cube::unbindVertexAttribArray() {
-    glBindVertexArray(0);
-}
+Cube::~Cube() {}
 }

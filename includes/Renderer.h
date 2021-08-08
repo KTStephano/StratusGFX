@@ -59,8 +59,17 @@ struct __RenderEntityObserver {
     size_t hashCode() const;
 };
 
-struct __RenderEntityContainer {
-    RenderEntity * e;
+struct __MeshObserver {
+    Mesh * m;
+
+    __MeshObserver(Mesh * m) : m(m) {}
+
+    bool operator==(const __MeshObserver & c) const;
+    size_t hashCode() const;
+};
+
+struct __MeshContainer {
+    Mesh * m;
     std::vector<glm::mat4> modelMatrices;
     std::vector<glm::vec3> diffuseColors;
     std::vector<glm::vec3> baseReflectivity;
@@ -68,7 +77,7 @@ struct __RenderEntityContainer {
     std::vector<float> metallic;
     size_t size = 0;
 
-    __RenderEntityContainer(RenderEntity * e) : e(e) {}
+    __MeshContainer(Mesh * m) : m(m) {}
 };
 }
 
@@ -76,6 +85,15 @@ namespace std {
     template<>
     struct hash<stratus::__RenderEntityObserver> {
         size_t operator()(const stratus::__RenderEntityObserver & c) const {
+            return c.hashCode();
+        }
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<stratus::__MeshObserver> {
+        size_t operator()(const stratus::__MeshObserver & c) const {
             return c.hashCode();
         }
     };
@@ -99,7 +117,7 @@ class Renderer {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
-        std::unordered_map<__RenderEntityObserver, __RenderEntityContainer> instancedEntities;
+        std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
@@ -110,6 +128,7 @@ class Renderer {
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
         Shader * currentShader;
+        Shader * pbrShader;
         // Buffer where all color data is written
         GLuint frameBuffer = 0;
         GLuint colorBuffer = 0;
@@ -187,7 +206,7 @@ class Renderer {
      * This maps a set of properties to a shader. This should be
      * a valid combination, such as FLAT | TEXTURED.
      */
-    std::unordered_map<uint32_t, Shader *> _propertyShaderMap;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, Shader *>> _propertyShaderMap;
 
     /**
      * Contains a list of textures that have been loaded into memory.
@@ -303,7 +322,7 @@ private:
     void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
     void _initLights(Shader * s, const Camera & c);
-    void _initInstancedData(__RenderEntityContainer & c, std::vector<GLuint> & buffers);
+    void _initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers);
     void _clearInstancedData(std::vector<GLuint> & buffers);
     void _bindShader(Shader *);
     void _unbindShader();
