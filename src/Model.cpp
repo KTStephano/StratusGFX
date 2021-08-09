@@ -56,6 +56,11 @@ namespace stratus {
             mat.depthMap = loadMaterialTexture(renderer, material, aiTextureType_HEIGHT, directory);
             mat.roughnessMap = loadMaterialTexture(renderer, material, aiTextureType_SPECULAR, directory);
             mat.environmentMap = loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory);
+            std::cout << "m " << mat.texture << " "
+                << mat.normalMap << " "
+                << mat.depthMap << " "
+                << mat.roughnessMap << " "
+                << mat.environmentMap << std::endl;
             m->setMaterial(mat);
         }
 
@@ -81,7 +86,8 @@ namespace stratus {
         this->_filename = filename;
         this->_valid = true;
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_SplitLargeMeshes | aiProcess_GenUVCoords);
+        //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
+        const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
 
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             std::cout << "Error loading model: " << filename << std::endl << importer.GetErrorString() << std::endl;

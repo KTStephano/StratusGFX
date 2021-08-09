@@ -158,14 +158,7 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
-    stratus::Model m = renderer.loadModel("../resources/models/cottage_fbx.fbx");
-    m.setLightProperties(stratus::LightProperties::FLAT);
-    std::cout << m.meshes.size() << std::endl;
-    std::cout << m.nodes.size() << std::endl;
-    for (int i = 0; i < m.nodes.size(); ++i) {
-        std::cout << "m " << m.nodes[i].meshes.size() << std::endl;
-        std::cout << "n " << m.nodes[i].nodes.size() << std::endl;
-    }
+    stratus::Model m = renderer.loadModel("../resources/models/Latrine.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -204,14 +197,14 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 2000; ++i) {
+    for (int i = 0; i < 100; ++i) {
         size_t texIndex = rand() % textures.size();
         auto mesh = cubeMeshes[texIndex];
         std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
         c->meshes.push_back(mesh);
-        c->position.x = rand() % 2500;
+        c->position.x = rand() % 250;
         c->position.y = rand() % 50;
-        c->position.z = rand() % 2500;
+        c->position.z = rand() % 250;
         c->scale = glm::vec3(float(rand() % 25));
         entities.push_back(std::move(c));
         textureIndices.push_back(texIndex);
@@ -338,8 +331,9 @@ int main(int argc, char * args[]) {
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
         
-        m.scale = glm::vec3(15.0f);
-        m.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        m.scale = glm::vec3(10.0f);
+        m.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        m.position = glm::vec3(-15.0f, 0.0f, -15.0f);
         renderer.addDrawable(&m);
 
         // Add the camera's light
