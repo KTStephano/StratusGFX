@@ -158,7 +158,7 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
-    stratus::Model m = renderer.loadModel("../resources/models/Latrine.fbx");
+    stratus::Model m = renderer.loadModel("../resources/models/frank.blend");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -331,8 +331,8 @@ int main(int argc, char * args[]) {
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
         
-        m.scale = glm::vec3(10.0f);
-        m.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        m.scale = glm::vec3(1.0f);
+        m.rotation = glm::vec3(120.0f, 40.0f, 60.0f);
         m.position = glm::vec3(-15.0f, 0.0f, -15.0f);
         renderer.addDrawable(&m);
 

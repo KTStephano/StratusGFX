@@ -107,8 +107,8 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * noLightTexture = new Shader("../resources/shaders/texture_no_lighting.vs",
             "../resources/shaders/texture_no_lighting.fs");
     _shaders.push_back(noLightTexture);
-    Shader * lightTexture = new Shader("../resources/shaders/texture_lighting.vs",
-            "../resources/shaders/texture_lighting.fs");
+    Shader * lightTexture = new Shader("../resources/shaders/texture_pbr.vs",
+            "../resources/shaders/texture_pbr.fs");
     _shaders.push_back(lightTexture);
     Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr_nm.vs",
                                                 "../resources/shaders/texture_pbr_nm.fs");
