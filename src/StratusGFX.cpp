@@ -158,7 +158,8 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
-    stratus::Model m = renderer.loadModel("../resources/models/frank.blend");
+    stratus::Model angel = renderer.loadModel("../resources/models/frank.blend");
+    stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -331,10 +332,14 @@ int main(int argc, char * args[]) {
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
         
-        m.scale = glm::vec3(1.0f);
-        m.rotation = glm::vec3(120.0f, 40.0f, 60.0f);
-        m.position = glm::vec3(-15.0f, 0.0f, -15.0f);
-        renderer.addDrawable(&m);
+        angel.scale = glm::vec3(1.0f);
+        angel.rotation = glm::vec3(120.0f, 40.0f, 60.0f);
+        angel.position = glm::vec3(-15.0f, 0.0f, -15.0f);
+        renderer.addDrawable(&angel);
+
+        outhouse.scale = glm::vec3(10.0f);
+        outhouse.position = glm::vec3(-50.0f, 0.0f, -45.0f);
+        renderer.addDrawable(&outhouse);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

@@ -427,12 +427,12 @@ void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buf
     const int pos3 = pos + 2;
     const int pos4 = pos + 3;
 
+    c.m->bind();
+
     GLuint buffer;
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
-
-    c.m->bind();
 
     glEnableVertexAttribArray(pos1);
     glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
@@ -507,6 +507,13 @@ void Renderer::end(const Camera & c) {
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
+    // Init the instance data which enables us to drastically reduce the number of draw calls
+    for (auto & entityObservers : _state.instancedMeshes) {
+        for (auto & meshObservers : entityObservers.second) {
+            _initInstancedData(meshObservers.second, buffers);
+        }
+    }
+
     // Set blend func just for shadow pass
     glBlendFunc(GL_ONE, GL_ONE);
     // Perform the shadow volume pre-pass
@@ -549,13 +556,13 @@ void Renderer::end(const Camera & c) {
             if ( !(properties & DYNAMIC) ) continue;
             for (auto & meshObservers : entityObservers.second) {
                 // Set up temporary instancing buffers
-                _initInstancedData(meshObservers.second, buffers);
+                //_initInstancedData(meshObservers.second, buffers);
                 Mesh * m = meshObservers.first.m;
                 glDisable(GL_CULL_FACE);
                 m->bind();
                 m->render(meshObservers.second.size);
                 m->unbind();
-                _clearInstancedData(buffers);
+                //_clearInstancedData(buffers);
                 /**
                 const size_t size = modelMats.size();
                 for (int i = 0; i < size; i += maxInstances) {
@@ -587,7 +594,7 @@ void Renderer::end(const Camera & c) {
 //    for (auto & p : _state.entities) {
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
-            _initInstancedData(meshObservers.second, buffers);
+            //_initInstancedData(meshObservers.second, buffers);
             RenderEntity * e = entityObservers.first.e;
             Mesh * m = meshObservers.first.m;
             const size_t numInstances = meshObservers.second.size;
@@ -715,7 +722,7 @@ void Renderer::end(const Camera & c) {
             _unbindAllTextures();
             //glBindTexture(GL_TEXTURE_2D, 0);
 
-            _clearInstancedData(buffers);
+            //_clearInstancedData(buffers);
             _unbindShader();
         }
     }
@@ -732,6 +739,9 @@ void Renderer::end(const Camera & c) {
     _state.screenQuad->unbind();
     glBindTexture(GL_TEXTURE_2D, 0);
     _unbindShader();
+
+    // Make sure to clear out all instanced data used this frame
+    _clearInstancedData(buffers);
 }
 
 TextureHandle Renderer::loadTexture(const std::string &file) {
