@@ -15,7 +15,7 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
     : Mesh(vertices, uvs, normals, {}, {}, indices) {}
 
 Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2> & uvs, const std::vector<glm::vec3> & normals, const std::vector<glm::vec3> & tangents, const std::vector<glm::vec3> & bitangents, const std::vector<uint32_t> & indices) {
-    assert(vertices.size() % 3 == 0);
+    //assert(vertices.size() % 3 == 0);
     this->_data.data = (void *)&this->_drawData;
 
     std::vector<uint32_t> indexBuffer;
@@ -148,8 +148,8 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
     glEnableVertexAttribArray(4);
     glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void *)(11 * sizeof(float)));
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    //glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     this->_drawData.numVertices = vertices.size();
@@ -275,6 +275,9 @@ RenderEntity::~RenderEntity() {
 
 void RenderEntity::setLightProperties(const LightProperties & properties) {
     this->_properties = properties;
+    for (auto & node : nodes) {
+        node.setLightProperties(properties);
+    }
 }
 
 const LightProperties & RenderEntity::getLightProperties() const {

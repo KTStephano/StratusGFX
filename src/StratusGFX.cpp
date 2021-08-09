@@ -158,6 +158,15 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
+    stratus::Model m = renderer.loadModel("../resources/models/cottage_fbx.fbx");
+    m.setLightProperties(stratus::LightProperties::FLAT);
+    std::cout << m.meshes.size() << std::endl;
+    std::cout << m.nodes.size() << std::endl;
+    for (int i = 0; i < m.nodes.size(); ++i) {
+        std::cout << "m " << m.nodes[i].meshes.size() << std::endl;
+        std::cout << "n " << m.nodes[i].nodes.size() << std::endl;
+    }
+
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
     for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
@@ -328,6 +337,10 @@ int main(int argc, char * args[]) {
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
+        
+        m.scale = glm::vec3(15.0f);
+        m.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        renderer.addDrawable(&m);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

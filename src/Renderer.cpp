@@ -352,6 +352,10 @@ void Renderer::begin(bool clearScreen) {
 }
 
 void Renderer::addDrawable(RenderEntity * e) {
+    _addDrawable(e, glm::mat4(1.0f));
+}
+
+void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
     auto it = _state.entities.find(e->getLightProperties());
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to
@@ -363,6 +367,7 @@ void Renderer::addDrawable(RenderEntity * e) {
     matRotate(e->model, e->rotation);
     matScale(e->model, e->scale);
     matTranslate(e->model, e->position);
+    e->model = accum * e->model;
     it->second.push_back(e);
 
     __RenderEntityObserver c(e);
@@ -383,6 +388,10 @@ void Renderer::addDrawable(RenderEntity * e) {
         container.roughness.push_back(m->getMaterial().roughness);
         container.metallic.push_back(m->getMaterial().metallic);
         ++container.size;
+    }
+
+    for (RenderEntity & node : e->nodes) {
+        _addDrawable(&node, e->model);
     }
 }
 
@@ -787,6 +796,17 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
     _textureHandles.insert(std::make_pair(tex.handle, tex));
     stbi_image_free(data);
     return tex.handle;
+}
+
+Model Renderer::loadModel(const std::string & file) {
+    auto it = this->_models.find(file);
+    if (it != this->_models.end()) {
+        return it->second;
+    }
+
+    Model m(*this, file);
+    this->_models.insert(std::make_pair(file, m));
+    return std::move(m);
 }
 
 ShadowMapHandle Renderer::createShadowMap3D(int resolutionX, int resolutionY) {

@@ -10,6 +10,7 @@
 #include "Common.h"
 #include "RenderEntity.h"
 #include "Camera.h"
+#include "Model.h"
 
 namespace stratus {
 class Shader;
@@ -226,6 +227,11 @@ class Renderer {
     std::unordered_map<ShadowMapHandle, ShadowMap3D> _shadowMap3DHandles;
 
     /**
+     * Contains all loaded models indexed by model name.
+     */
+    std::unordered_map<std::string, Model> _models;
+
+    /**
      * If the renderer was setup properly then this will be marked
      * true.
      */
@@ -265,6 +271,12 @@ public:
       * @return texture handle of valid or -1 if invalid
       */
      TextureHandle loadTexture(const std::string & file);
+
+     /**
+      * Attempts to load a model if not already loaded. Be sure to check
+      * the returned model's isValid() function.
+      */
+     Model loadModel(const std::string & file);
 
      ShadowMapHandle createShadowMap3D(int resolutionX, int resolutionY);
 
@@ -316,6 +328,7 @@ public:
      void end(const Camera & c);
 
 private:
+    void _addDrawable(RenderEntity * e, const glm::mat4 &);
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
     void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);

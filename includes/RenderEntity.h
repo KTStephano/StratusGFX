@@ -125,12 +125,12 @@ public:
     Mesh & operator=(Mesh &&) = delete;
     Mesh & operator=(const Mesh &) = delete;
 
-protected:
     /**
      * Determines which (if any) type of face culling should be used.
      */
     RenderFaceCulling cullingMode = CULLING_CW;
 
+protected:
     /**
      * If the rendering system has determined that multiple similar entities can be grouped
      * together, this will be called instead of render(). This call should be nearly identical
@@ -178,6 +178,7 @@ public:
     glm::vec3 rotation = glm::vec3(0.0f);
     glm::mat4 model = glm::mat4(1.0f);
     std::vector<std::shared_ptr<Mesh>> meshes;
+    std::vector<RenderEntity> nodes;
 
     /**
      * @param properties render properties which decides which
