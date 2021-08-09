@@ -11,21 +11,68 @@ namespace stratus {
 Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2> & uvs, const std::vector<glm::vec3> & normals)
     : Mesh(vertices, uvs, normals, {}) {}
 
-Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2> & uvs, const std::vector<glm::vec3> & normals, const std::vector<uint32_t> & indices) {
+Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2> & uvs, const std::vector<glm::vec3> & normals, const std::vector<uint32_t> & indices) 
+    : Mesh(vertices, uvs, normals, {}, {}, indices) {}
+
+Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2> & uvs, const std::vector<glm::vec3> & normals, const std::vector<glm::vec3> & tangents, const std::vector<glm::vec3> & bitangents, const std::vector<uint32_t> & indices) {
     assert(vertices.size() % 3 == 0);
     this->_data.data = (void *)&this->_drawData;
+
+    std::vector<uint32_t> indexBuffer;
+    const std::vector<uint32_t> * order;
+    if (indices.size() == 0) {
+        indexBuffer.resize(vertices.size());
+        for (uint32_t i = 0; i < vertices.size(); ++i) indexBuffer[i] = i;
+        order = &indexBuffer;
+    }
+    else {
+        order = &indices;
+    }
     
     // Calculate tangents and bitangents
-    std::vector<glm::vec3> tangents;
-    std::vector<glm::vec3> bitangents;
-    for (int i = 0; i < vertices.size(); i += 3) {
-        auto tanBitan = calculateTangentAndBitangent(normals[i], vertices[i], vertices[i + 1], vertices[i + 2],
-            uvs[i], uvs[i + 1], uvs[i + 2]);
-        
-        for (int j = 0; j < 3; ++j) {
-            tangents.push_back(tanBitan.tangent);
-            bitangents.push_back(tanBitan.bitangent);
+    // @see https://marti.works/posts/post-calculating-tangents-for-your-mesh/post/
+    const std::vector<glm::vec3> * finalizedTangents;
+    const std::vector<glm::vec3> * finalizedBitangents;
+    std::vector<glm::vec3> computedTangents;
+    std::vector<glm::vec3> computedBitangents;
+
+    if (tangents.size() == 0 || bitangents.size() == 0) {
+        computedTangents = std::vector<glm::vec3>(vertices.size(), glm::vec3(0.0f));
+        computedBitangents = std::vector<glm::vec3>(vertices.size(), glm::vec3(0.0f));
+        for (int i = 0; i < order->size(); i += 3) {
+            const uint32_t i0 = (*order)[i];
+            const uint32_t i1 = (*order)[i + 1];
+            const uint32_t i2 = (*order)[i + 2];
+            auto tanBitan = calculateTangentAndBitangent(vertices[i0], vertices[i1], vertices[i2], uvs[i0], uvs[i1], uvs[i2]);
+            
+            computedTangents[i0] += tanBitan.tangent;
+            computedTangents[i1] += tanBitan.tangent;
+            computedTangents[i2] += tanBitan.tangent;
+
+            computedBitangents[i0] += tanBitan.bitangent;
+            computedBitangents[i1] += tanBitan.bitangent;
+            computedBitangents[i2] += tanBitan.bitangent;
         }
+
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            glm::vec3 & tangent = computedTangents[i];
+            glm::vec3 & bitangent = computedBitangents[i];
+            const glm::vec3 & normal = normals[i];
+            glm::vec3 t = tangent - (normal * glm::dot(normal, tangent));
+            t = glm::normalize(t);
+
+            glm::vec3 c = glm::cross(normal, t); // Compute orthogonal 3rd basis vector
+            float w = (glm::dot(c, bitangent) < 0) ? -1.0f : 1.0f;
+            tangent = t * w;
+            bitangent = glm::normalize(c);
+        }
+
+        finalizedTangents = &computedTangents;
+        finalizedBitangents = &computedBitangents;
+    }
+    else {
+        finalizedTangents = &tangents;
+        finalizedBitangents = &bitangents;
     }
 
     // Pack all data into a single buffer
@@ -41,12 +88,12 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
         data.push_back(normals[i].x);
         data.push_back(normals[i].y);
         data.push_back(normals[i].z);
-        data.push_back(tangents[i].x);
-        data.push_back(tangents[i].y);
-        data.push_back(tangents[i].z);
-        data.push_back(bitangents[i].x);
-        data.push_back(bitangents[i].y);
-        data.push_back(bitangents[i].z);
+        data.push_back((*finalizedTangents)[i].x);
+        data.push_back((*finalizedTangents)[i].y);
+        data.push_back((*finalizedTangents)[i].z);
+        data.push_back((*finalizedBitangents)[i].x);
+        data.push_back((*finalizedBitangents)[i].y);
+        data.push_back((*finalizedBitangents)[i].z);
 
 /*
         std::cout << vertices[i].x << ", ";
@@ -57,12 +104,12 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
         std::cout << normals[i].x << ", ";
         std::cout << normals[i].y << ", ";
         std::cout << normals[i].z << ", ";
-        std::cout << tangents[i].x << ", ";
-        std::cout << tangents[i].y << ", ";
-        std::cout << tangents[i].z << ", ";
-        std::cout << bitangents[i].x << ", ";
-        std::cout << bitangents[i].y << ", ";
-        std::cout << bitangents[i].z << std::endl;
+        std::cout << (*finalizedTangents)[i].x << ", ";
+        std::cout << (*finalizedTangents)[i].y << ", ";
+        std::cout << (*finalizedTangents)[i].z << ", ";
+        std::cout << (*finalizedBitangents)[i].x << ", ";
+        std::cout << (*finalizedBitangents)[i].y << ", ";
+        std::cout << (*finalizedBitangents)[i].z << std::endl;
 */
     }
 

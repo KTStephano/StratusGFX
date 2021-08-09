@@ -20,7 +20,6 @@ struct TangentBitangent {
  * @see https://marti.works/posts/post-calculating-tangents-for-your-mesh/post/
  */
 inline TangentBitangent calculateTangentAndBitangent(
-    const glm::vec3 & normal, 
     const glm::vec3 & p1, const glm::vec3 & p2, const glm::vec3 & p3,
     const glm::vec2 & uv1, const glm::vec2 & uv2, const glm::vec2 & uv3) {
 
@@ -47,16 +46,6 @@ inline TangentBitangent calculateTangentAndBitangent(
         ((edge1.y * deltaUV2.x) - (edge2.y * deltaUV1.x)) * uvDet,
         ((edge1.z * deltaUV2.x) - (edge2.z * deltaUV1.x)) * uvDet
     );
-    bitangent = glm::normalize(bitangent);
-
-    glm::vec3 t = tangent - (normal * glm::dot(normal, tangent));
-    t = glm::normalize(t);
-
-    glm::vec3 c = glm::cross(normal, t); // Compute orthogonal 3rd basis vector
-    float w = (glm::dot(c, bitangent) < 0) ? -1.0f : 1.0f;
-    tangent = t;
-    bitangent = bitangent * w;
-    //bitangent = glm::normalize(bitangent);
 
     return TangentBitangent{std::move(tangent), std::move(bitangent)};
 }
