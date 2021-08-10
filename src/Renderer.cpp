@@ -499,6 +499,25 @@ void Renderer::_unbindShader() {
     _state.currentShader = nullptr;
 }
 
+static void setCullState(const RenderFaceCulling & mode) {
+    // Set the culling state
+    switch (mode) {
+    case RenderFaceCulling::CULLING_NONE:
+        glDisable(GL_CULL_FACE);
+        break;
+    case RenderFaceCulling::CULLING_CW:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CW);
+        break;
+    default:
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+        break;
+    }
+}
+
 void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
@@ -520,7 +539,11 @@ void Renderer::end(const Camera & c) {
     _bindShader(_state.shadows.get());
     for (Light * light : _state.lights) {
         const double distance = glm::distance(c.getPosition(), light->position);
-        if (distance > 250.0) continue;
+        // We want to compute shadows at least once for each light source before we enable the option of skipping it 
+        // due to it being too far away
+        const bool previouslyComputedShadows = this->_state.lightsSeenBefore.find(light) != this->_state.lightsSeenBefore.end();
+        if (distance > 50.0 && previouslyComputedShadows) continue;
+        this->_state.lightsSeenBefore.insert(light);
         // TODO: Make this work with spotlights
         PointLight * point = (PointLight *)light;
         const ShadowMap3D & smap = this->_shadowMap3DHandles.find(point->getShadowMapHandle())->second;
@@ -558,7 +581,7 @@ void Renderer::end(const Camera & c) {
                 // Set up temporary instancing buffers
                 //_initInstancedData(meshObservers.second, buffers);
                 Mesh * m = meshObservers.first.m;
-                glDisable(GL_CULL_FACE);
+                setCullState(m->cullingMode);
                 m->bind();
                 m->render(meshObservers.second.size);
                 m->unbind();
@@ -699,22 +722,7 @@ void Renderer::end(const Camera & c) {
                 }
             }
 
-            // Set the culling state
-            switch (m->cullingMode) {
-            case RenderFaceCulling::CULLING_NONE:
-                glDisable(GL_CULL_FACE);
-                break;
-            case RenderFaceCulling::CULLING_CW:
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
-                glFrontFace(GL_CW);
-                break;
-            default:
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
-                glFrontFace(GL_CCW);
-                break;
-            }
+            setCullState(m->cullingMode);
 
             m->bind();
             m->render(numInstances);

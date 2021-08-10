@@ -122,6 +122,7 @@ class Renderer {
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
+        std::unordered_set<Light *> lightsSeenBefore;
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;

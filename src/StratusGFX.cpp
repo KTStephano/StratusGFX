@@ -198,14 +198,14 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 5000; ++i) {
         size_t texIndex = rand() % textures.size();
         auto mesh = cubeMeshes[texIndex];
         std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
         c->meshes.push_back(mesh);
-        c->position.x = rand() % 250;
+        c->position.x = rand() % 3000;
         c->position.y = rand() % 50;
-        c->position.z = rand() % 250;
+        c->position.z = rand() % 3000;
         c->scale = glm::vec3(float(rand() % 25));
         entities.push_back(std::move(c));
         textureIndices.push_back(texIndex);
@@ -235,10 +235,13 @@ int main(int argc, char * args[]) {
     stratus::PointLight cameraLight;
     cameraLight.setIntensity(2500.0f);
     bool camLightEnabled = true;
+    size_t frameCount = 0;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
         double deltaSeconds = elapsedMS / 1000.0;
+        ++frameCount;
+        if (frameCount % 30 == 0) std::cout << "FPS:" << (1.0 / deltaSeconds) << std::endl;
         start = curr;
         SDL_Event e;
         const float camSpeed = 100.0f;
@@ -282,10 +285,12 @@ int main(int argc, char * args[]) {
                             }
                             break;
                         case SDL_SCANCODE_E: {
-                            std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                            mover->light->setIntensity(2500.0f);
-                            mover->position = camera.getPosition();
-                            lightMovers.push_back(std::move(mover));
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(2500.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
                             break;
                         }
                         case SDL_SCANCODE_C: {
