@@ -84,7 +84,7 @@ int main(int argc, char * args[]) {
 
     SDL_Window * window = SDL_CreateWindow("StratusGFX",
             100, 100, // location x/y on screen
-            1280, 720, // width/height of window
+            1920, 1080, // width/height of window
             SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
     if (window == nullptr) {
         std::cout << "Failed to create sdl window" << std::endl;
