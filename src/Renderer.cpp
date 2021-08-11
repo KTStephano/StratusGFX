@@ -1003,15 +1003,20 @@ void Renderer::_unbindAllTextures() {
 
 void Renderer::_initLights(Shader * s, const Camera & c) {
     glm::vec3 lightColor;
+    int lightIndex = 0;
     for (int i = 0; i < _state.lights.size(); ++i) {
         PointLight * light = (PointLight *)_state.lights[i];
+        const double distance = glm::distance(c.getPosition(), light->position);
+        // Skip lights too far from camera
+        if (distance > (2 * light->getRadius())) continue;
         lightColor = light->getColor() * light->getIntensity();
-        s->setVec3("lightPositions[" + std::to_string(i) + "]", &light->position[0]);
-        s->setVec3("lightColors[" + std::to_string(i) + "]", &lightColor[0]);
-        s->setFloat("lightFarPlanes[" + std::to_string(i) + "]", light->getFarPlane());
-        _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(i) + "]", light->getShadowMapHandle());
+        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &light->position[0]);
+        s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
+        s->setFloat("lightFarPlanes[" + std::to_string(lightIndex) + "]", light->getFarPlane());
+        _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+        ++lightIndex;
     }
-    s->setInt("numLights", (int)_state.lights.size());
+    s->setInt("numLights", lightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
 }
 }
