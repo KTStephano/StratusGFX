@@ -114,15 +114,20 @@ class Renderer {
         std::string name;
     };
 
+    struct EntityStateInfo {
+        glm::vec3 lastPos;
+        bool dirty; // if dirty, recompute all shadows
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
+        std::vector<RenderEntity *> lightInteractingEntities;
         std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
-        std::unordered_set<Light *> lightsSeenBefore;
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
@@ -214,6 +219,16 @@ class Renderer {
      * Contains a list of textures that have been loaded into memory.
      */
     std::unordered_map<std::string, Texture2D> _textures;
+
+    /**
+     * Set of lights added at some point during any frame.
+     */
+    std::unordered_map<Light *, EntityStateInfo> _lightsSeenBefore;
+
+    /**
+     * Set of entities added at some point during any frame.
+     */
+    std::unordered_map<RenderEntity *, EntityStateInfo> _entitiesSeenBefore;
 
     /**
      * This encodes the same information as the _textures map, except

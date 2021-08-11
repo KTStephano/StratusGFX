@@ -338,6 +338,7 @@ void Renderer::begin(bool clearScreen) {
 
     // Clear all lights
     _state.lights.clear();
+    _state.lightInteractingEntities.clear();
 
     glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -355,26 +356,12 @@ void Renderer::addDrawable(RenderEntity * e) {
     _addDrawable(e, glm::mat4(1.0f));
 }
 
-void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
-    auto it = _state.entities.find(e->getLightProperties());
-    if (it == _state.entities.end()) {
-        // Not necessarily an error since if an entity is set to
-        // invisible, we won't bother adding them
-        //std::cerr << "[error] Unable to add entity" << std::endl;
-        return;
-    }
-    e->model = glm::mat4(1.0f);
-    matRotate(e->model, e->rotation);
-    matScale(e->model, e->scale);
-    matTranslate(e->model, e->position);
-    e->model = accum * e->model;
-    it->second.push_back(e);
-
+static void addEntityMeshData(RenderEntity * e, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & map) {
     __RenderEntityObserver c(e);
-    if (_state.instancedMeshes.find(c) == _state.instancedMeshes.end()) {
-        _state.instancedMeshes.insert(std::make_pair(c, std::unordered_map<__MeshObserver, __MeshContainer>{}));
+    if (map.find(c) == map.end()) {
+        map.insert(std::make_pair(c, std::unordered_map<__MeshObserver, __MeshContainer>{}));
     }
-    std::unordered_map<__MeshObserver, __MeshContainer> & existing = _state.instancedMeshes.find(c)->second;
+    std::unordered_map<__MeshObserver, __MeshContainer> & existing = map.find(c)->second;
     
     for (std::shared_ptr<Mesh> m : e->meshes) {
         __MeshObserver o(m.get());
@@ -389,6 +376,44 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
         container.metallic.push_back(m->getMaterial().metallic);
         ++container.size;
     }
+}
+
+void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
+    auto it = _state.entities.find(e->getLightProperties());
+    if (it == _state.entities.end()) {
+        // Not necessarily an error since if an entity is set to
+        // invisible, we won't bother adding them
+        //std::cerr << "[error] Unable to add entity" << std::endl;
+        return;
+    }
+    e->model = glm::mat4(1.0f);
+    matRotate(e->model, e->rotation);
+    matScale(e->model, e->scale);
+    matTranslate(e->model, e->position);
+    e->model = accum * e->model;
+    it->second.push_back(e);
+    if (e->getLightProperties() & DYNAMIC) {
+        _state.lightInteractingEntities.push_back(e);
+    }
+
+    // We want to keep track of entities and whether or not they have moved for determining
+    // when shadows should be recomputed
+    if (_entitiesSeenBefore.find(e) == _entitiesSeenBefore.end()) {
+        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, true}));
+    }
+    else {
+        EntityStateInfo & info = _entitiesSeenBefore.find(e)->second;
+        const double distance = glm::distance(e->position, info.lastPos);
+        if (distance > 0.25) {
+            info.lastPos = e->position;
+            info.dirty = true;
+        }
+        else {
+            info.dirty = false;
+        }
+    }
+
+    addEntityMeshData(e, _state.instancedMeshes);
 
     for (RenderEntity & node : e->nodes) {
         _addDrawable(&node, e->model);
@@ -486,6 +511,7 @@ void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buf
 
 void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
     glDeleteBuffers(buffers.size(), &buffers[0]);
+    buffers.clear();
 }
 
 void Renderer::_bindShader(Shader * s) {
@@ -526,10 +552,21 @@ void Renderer::end(const Camera & c) {
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
-    // Init the instance data which enables us to drastically reduce the number of draw calls
-    for (auto & entityObservers : _state.instancedMeshes) {
-        for (auto & meshObservers : entityObservers.second) {
-            _initInstancedData(meshObservers.second, buffers);
+    std::unordered_map<Light *, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>> perLightInstancedMeshes;
+    std::unordered_map<Light *, bool> perLightIsDirty;
+    // Init per light instance data
+    for (Light * light : _state.lights) {
+        perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
+        perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
+    }
+
+    for (RenderEntity * e : _state.lightInteractingEntities) {
+        const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
+        for (Light * light : _state.lights) {
+            const double distance = glm::distance(e->position, light->position);
+            if (distance > light->getRadius()) continue;
+            addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
+            perLightIsDirty.find(light)->second |= entityIsDirty;
         }
     }
 
@@ -541,9 +578,18 @@ void Renderer::end(const Camera & c) {
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
-        const bool previouslyComputedShadows = this->_state.lightsSeenBefore.find(light) != this->_state.lightsSeenBefore.end();
-        if (distance > 50.0 && previouslyComputedShadows) continue;
-        this->_state.lightsSeenBefore.insert(light);
+        const bool dirty = perLightIsDirty.find(light)->second;
+        if (distance > light->getRadius() || !dirty) continue;
+
+        auto & instancedMeshes = perLightInstancedMeshes.find(light)->second;
+
+        // Init the instance data which enables us to drastically reduce the number of draw calls
+        for (auto & entityObservers : instancedMeshes) {
+            for (auto & meshObservers : entityObservers.second) {
+                _initInstancedData(meshObservers.second, buffers);
+            }
+        }
+    
         // TODO: Make this work with spotlights
         PointLight * point = (PointLight *)light;
         const ShadowMap3D & smap = this->_shadowMap3DHandles.find(point->getShadowMapHandle())->second;
@@ -574,9 +620,9 @@ void Renderer::end(const Camera & c) {
         }
         */
 
-        for (auto & entityObservers : _state.instancedMeshes) {
-            uint32_t properties = entityObservers.first.e->getLightProperties();
-            if ( !(properties & DYNAMIC) ) continue;
+        for (auto & entityObservers : instancedMeshes) {
+            //uint32_t properties = entityObservers.first.e->getLightProperties();
+            //if ( !(properties & DYNAMIC) ) continue;
             for (auto & meshObservers : entityObservers.second) {
                 // Set up temporary instancing buffers
                 //_initInstancedData(meshObservers.second, buffers);
@@ -599,9 +645,18 @@ void Renderer::end(const Camera & c) {
 
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        _clearInstancedData(buffers);
     }
+    _clearInstancedData(buffers);
     _unbindAllTextures();
     _unbindShader();
+
+    // Init the instance data which enables us to drastically reduce the number of draw calls
+    for (auto & entityObservers : _state.instancedMeshes) {
+        for (auto & meshObservers : entityObservers.second) {
+            _initInstancedData(meshObservers.second, buffers);
+        }
+    }
 
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
@@ -874,7 +929,7 @@ GLuint Renderer::_lookupTexture(TextureHandle handle) const {
 }
 
 // TODO: Need a way to clean up point light resources
-void Renderer::addPointLight(Light *light) {
+void Renderer::addPointLight(Light * light) {
     assert(light->getType() == LightType::POINTLIGHT || light->getType() == LightType::SPOTLIGHT);
     _state.lights.push_back(light);
 
@@ -884,10 +939,24 @@ void Renderer::addPointLight(Light *light) {
             point->_setShadowMapHandle(this->createShadowMap3D(1024, 1024));
         }
     }
+
+    if (_lightsSeenBefore.find(light) == _lightsSeenBefore.end()) {
+        _lightsSeenBefore.insert(std::make_pair(light, EntityStateInfo{light->position, true}));
+    }
+    else {
+        EntityStateInfo & info = _lightsSeenBefore.find(light)->second;
+        const double distance = glm::distance(light->position, info.lastPos);
+        if (distance > 0.25) {
+            info.lastPos = light->position;
+            info.dirty = true;
+        }
+        else {
+            info.dirty = false;
+        }
+    }
 }
 
-void Renderer::_bindTexture(Shader * s, const std::string & textureName,
-                            TextureHandle handle) {
+void Renderer::_bindTexture(Shader * s, const std::string & textureName, TextureHandle handle) {
     GLuint texture = _lookupTexture(handle);
     int textureIndex = (int)_state.boundTextures.size();
     glActiveTexture(GL_TEXTURE0 + textureIndex);

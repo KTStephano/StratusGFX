@@ -160,6 +160,7 @@ int main(int argc, char * args[]) {
 
     stratus::Model angel = renderer.loadModel("../resources/models/frank.blend");
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
+    stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -345,6 +346,11 @@ int main(int argc, char * args[]) {
         outhouse.scale = glm::vec3(10.0f);
         outhouse.position = glm::vec3(-50.0f, 0.0f, -45.0f);
         renderer.addDrawable(&outhouse);
+
+        clay.scale = glm::vec3(0.02f);
+        clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        clay.position = glm::vec3(100.0f, -5.0f, -50.0f);
+        renderer.addDrawable(&clay);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

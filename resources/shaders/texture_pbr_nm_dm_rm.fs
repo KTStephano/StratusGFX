@@ -183,7 +183,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 H = normalize(V + L);
     vec3 N = normal;
     // Linear attenuation
-    float attenuationFactor = 1.0 / (lightDist * lightDist);
+    float attenuationFactor = 1.0 / (1.0 + lightDist * lightDist);
 
     float NdotH    = max(dot(N, H), 0.0);
     float HdotV    = max(dot(H, V), 0.0);

@@ -4,6 +4,7 @@
 
 #include "Common.h"
 #include <algorithm>
+#include <cmath>
 
 namespace stratus {
 enum class LightType {
@@ -14,7 +15,8 @@ enum class LightType {
 
 class Light {
     glm::vec3 _color = glm::vec3(1.0f);
-    float _intensity = 1.0;
+    float _intensity = 1.0f;
+    float _radius = 1.0f;
 
 public:
     glm::vec3 position = glm::vec3(0.0f);
@@ -41,6 +43,7 @@ public:
         g = std::max(0.0f, g);
         b = std::max(0.0f, b);
         _color = glm::vec3(r, g, b);
+        _recalcRadius();
     }
 
     /**
@@ -52,10 +55,24 @@ public:
     void setIntensity(float i) {
         if (i < 0) return;
         _intensity = i;
+        _recalcRadius();
     }
 
     float getIntensity() const {
         return _intensity;
+    }
+
+    float getRadius() const {
+        return _radius;
+    }
+
+private:
+    // See https://learnopengl.com/Advanced-Lighting/Deferred-Shading for the equation
+    void _recalcRadius() {
+        static const float lightMin = 256.0 / 5;
+        const glm::vec3 intensity = getIntensity() * getColor();
+        const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
+        this->_radius = std::sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
     }
 };
 
