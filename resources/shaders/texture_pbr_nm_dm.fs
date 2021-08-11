@@ -232,11 +232,11 @@ void main() {
     //vec3 tbnNormal = normalize(fsTbnMatrix * normal);
     //normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
-    for (int i = 0; i < MAX_LIGHTS; ++i) {
-        if (i >= numLights) break;
+    for (int i = 0; i < numLights; ++i) {
+        //if (i >= numLights) break;
         color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness);
     }
-    color = color + baseColor * AMBIENT_INTENSITY;
+    //color = color + baseColor * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
     //color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction

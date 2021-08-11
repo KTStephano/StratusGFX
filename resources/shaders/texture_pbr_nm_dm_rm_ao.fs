@@ -52,7 +52,7 @@
 #define MAX_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.03
-#define AMBIENT_INTENSITY 0.0005
+#define AMBIENT_INTENSITY 12
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 
@@ -235,11 +235,11 @@ void main() {
     //vec3 tbnNormal = normalize(fsTbnMatrix * normal);
     //normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
-    for (int i = 0; i < MAX_LIGHTS; ++i) {
-        if (i >= numLights) break;
+    for (int i = 0; i < numLights; ++i) {
+        //if (i >= numLights) break;
         color = color + calculatePointLighting(baseColor, normal, viewDir, i, roughness, ao);
     }
-    color = color + baseColor * ao * AMBIENT_INTENSITY;
+    //color = color + baseColor * ao * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);
     //color = color + baseColor * AMBIENT_INTENSITY;
     // Apply gamma correction
