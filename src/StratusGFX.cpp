@@ -214,10 +214,10 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int x = 0; x < 3000; x += 300) {
-        for (int y = 0; y < 3000; y += 300) {
+    for (int x = 0; x < 3000; x += 150) {
+        for (int y = 0; y < 3000; y += 150) {
             std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-            mover->light->setIntensity(1000.0f);
+            mover->light->setIntensity(500.0f);
             mover->position = glm::vec3(float(x),
                                         0.0f, // float(rand() % 200),
                                         float(y));
@@ -251,7 +251,7 @@ int main(int argc, char * args[]) {
 
     bool running = true;
     stratus::PointLight cameraLight;
-    cameraLight.setIntensity(2500.0f);
+    cameraLight.setIntensity(1200.0f);
     bool camLightEnabled = true;
     size_t frameCount = 0;
     while (running) {

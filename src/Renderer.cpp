@@ -561,6 +561,7 @@ void Renderer::end(const Camera & c) {
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
     const int maxShadowCastingLights = 11;
+    const int maxShadowUpdatesPerFrame = 2;
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
@@ -608,7 +609,10 @@ void Renderer::end(const Camera & c) {
     glBlendFunc(GL_ONE, GL_ONE);
     // Perform the shadow volume pre-pass
     _bindShader(_state.shadows.get());
+    int shadowUpdates = 0;
     for (auto&[light, d] : perLightShadowCastingDistToViewer) {
+        if (shadowUpdates > maxShadowUpdatesPerFrame) break;
+        ++shadowUpdates;
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
