@@ -4,6 +4,7 @@
 #include <assimp/postprocess.h>
 #include <iostream>
 #include "Renderer.h"
+#include "Utils.h"
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {
@@ -14,6 +15,7 @@ namespace stratus {
             aiString str;
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
+            std::cout << file << std::endl;
             texture = renderer.loadTexture(directory + "/" + file);
         }
 
@@ -51,6 +53,22 @@ namespace stratus {
             // Only support one material for now
             RenderMaterial mat;
             aiMaterial * material = scene->mMaterials[mesh->mMaterialIndex];
+
+            /**
+            std::cout << "mat\n";
+            std::cout << material->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_AMBIENT) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_EMISSIVE) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_NORMALS) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_SHININESS) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_OPACITY) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
+            std::cout << material->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
+            */
+
             mat.texture = loadMaterialTexture(renderer, material, aiTextureType_DIFFUSE, directory);
             mat.normalMap = loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory);
             mat.depthMap = loadMaterialTexture(renderer, material, aiTextureType_HEIGHT, directory);
@@ -69,6 +87,23 @@ namespace stratus {
     }  
 
     static void processNode(Renderer & renderer, aiNode * node, const aiScene * scene, RenderEntity * entity, const std::string & directory) {
+        // set the transformation info
+        auto mat = node->mTransformation;
+        aiVector3t<float> scale;
+        aiQuaterniont<float> quat;
+        aiVector3t<float> position;
+        mat.Decompose(scale, quat, position);
+
+        auto rotation = quat.GetMatrix();
+        // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
+        const float angleX = glm::degrees(std::atan2f(rotation.c2, rotation.c3));
+        const float angleY = glm::degrees(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
+        const float angleZ = glm::degrees(std::atan2f(rotation.b1, rotation.a1));
+
+        entity->scale = glm::vec3(scale.x, scale.y, scale.z);
+        entity->rotation = glm::vec3(angleX, angleY, angleZ);
+        entity->position = glm::vec3(position.x, position.y, position.z);
+
         // process all the node's meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];

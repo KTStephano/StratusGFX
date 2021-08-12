@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <cmath>
 #include "glm/glm.hpp"
 
 namespace stratus {

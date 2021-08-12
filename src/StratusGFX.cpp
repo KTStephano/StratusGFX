@@ -254,6 +254,7 @@ int main(int argc, char * args[]) {
     cameraLight.setIntensity(1200.0f);
     bool camLightEnabled = true;
     size_t frameCount = 0;
+    float angle = 0.0f;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
@@ -350,23 +351,26 @@ int main(int argc, char * args[]) {
         // Start a new renderer frame
         renderer.begin(true);
 
+        angle += 10 * deltaSeconds;
+        //std::cout << angle << std::endl;
+
         camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
         
-        angel.scale = glm::vec3(1.0f);
-        angel.rotation = glm::vec3(120.0f, 40.0f, 60.0f);
-        angel.position = glm::vec3(-15.0f, 0.0f, -15.0f);
+        angel.scale = glm::vec3(5.0f);
+        angel.rotation = glm::vec3(260.0f, 340.0f, 350.0f);
+        angel.position = glm::vec3(-15.0f, 0.0f, -30.0f);
         renderer.addDrawable(&angel);
 
         outhouse.scale = glm::vec3(10.0f);
-        outhouse.position = glm::vec3(-50.0f, 0.0f, -45.0f);
+        outhouse.position = glm::vec3(-50.0f, -10.0f, -45.0f);
         renderer.addDrawable(&outhouse);
 
-        clay.scale = glm::vec3(0.02f);
-        clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        clay.position = glm::vec3(100.0f, -5.0f, -50.0f);
+        //clay.scale = glm::vec3(1.0f);
+        //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
         renderer.addDrawable(&clay);
 
         // Add the camera's light
