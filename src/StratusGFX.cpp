@@ -214,23 +214,34 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int i = 0; i < 128; ++i) {
-        /*
-        std::unique_ptr<RandomLightMover> mover =
-                std::make_unique<RandomLightMover>();
-        mover->light->setIntensity(2500.0f);
-        mover->position = glm::vec3(float(rand() % 3000 + 100),
-                                    0.0f, // float(rand() % 200),
-                                    float(rand() % 3000 + 100));
-        lightMovers.push_back(std::move(mover));
-        */
-        std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-        mover->light->setIntensity(1000.0f);
-        mover->position = glm::vec3(float(rand() % 3000 + 100),
-                                    0.0f, // float(rand() % 200),
-                                    float(rand() % 3000 + 100));
-        lightMovers.push_back(std::move(mover));
+    for (int x = 0; x < 3000; x += 300) {
+        for (int y = 0; y < 3000; y += 300) {
+            std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+            mover->light->setIntensity(1000.0f);
+            mover->position = glm::vec3(float(x),
+                                        0.0f, // float(rand() % 200),
+                                        float(y));
+            lightMovers.push_back(std::move(mover));
+        }
     }
+    // for (int i = 0; i < 128; ++i) {
+    //     /*
+    //     std::unique_ptr<RandomLightMover> mover =
+    //             std::make_unique<RandomLightMover>();
+    //     mover->light->setIntensity(2500.0f);
+    //     mover->position = glm::vec3(float(rand() % 3000 + 100),
+    //                                 0.0f, // float(rand() % 200),
+    //                                 float(rand() % 3000 + 100));
+    //     lightMovers.push_back(std::move(mover));
+    //     */
+    //     std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+    //     mover->light->setIntensity(1000.0f);
+    //     mover->position = glm::vec3(float(rand() % 3000 + 100),
+    //                                 0.0f, // float(rand() % 200),
+    //                                 float(rand() % 3000 + 100));
+    //     lightMovers.push_back(std::move(mover));
+    // }
+
 
     glm::mat4 persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
