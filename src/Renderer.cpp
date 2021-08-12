@@ -614,6 +614,9 @@ void Renderer::end(const Camera & c) {
         // due to it being too far away
         const bool dirty = perLightIsDirty.find(light)->second;
         if (distance > light->getRadius() || !dirty) continue;
+        
+        // Set dirty to false
+        _lightsSeenBefore.find(light)->second.dirty = false;
 
         auto & instancedMeshes = perLightInstancedMeshes.find(light)->second;
 
@@ -984,9 +987,9 @@ void Renderer::addPointLight(Light * light) {
             info.lastPos = light->position;
             info.dirty = true;
         }
-        else {
-            info.dirty = false;
-        }
+        //else {
+        //    info.dirty = false;
+        //}
     }
 }
 
