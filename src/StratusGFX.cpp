@@ -214,16 +214,16 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int x = 0; x < 3000; x += 150) {
-        for (int y = 0; y < 3000; y += 150) {
-            std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-            mover->light->setIntensity(500.0f);
-            mover->position = glm::vec3(float(x),
-                                        0.0f, // float(rand() % 200),
-                                        float(y));
-            lightMovers.push_back(std::move(mover));
-        }
-    }
+    // for (int x = 0; x < 3000; x += 150) {
+    //     for (int y = 0; y < 3000; y += 150) {
+    //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+    //         mover->light->setIntensity(500.0f);
+    //         mover->position = glm::vec3(float(x),
+    //                                     0.0f, // float(rand() % 200),
+    //                                     float(y));
+    //         lightMovers.push_back(std::move(mover));
+    //     }
+    // }
     // for (int i = 0; i < 128; ++i) {
     //     /*
     //     std::unique_ptr<RandomLightMover> mover =
@@ -360,7 +360,7 @@ int main(int argc, char * args[]) {
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
         
         angel.scale = glm::vec3(5.0f);
-        angel.rotation = glm::vec3(260.0f, 340.0f, 350.0f);
+        angel.rotation = glm::vec3(260.0f, 340.0f, 350.0f + angle);
         angel.position = glm::vec3(-15.0f, 0.0f, -30.0f);
         renderer.addDrawable(&angel);
 

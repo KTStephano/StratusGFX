@@ -399,17 +399,25 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
     // We want to keep track of entities and whether or not they have moved for determining
     // when shadows should be recomputed
     if (_entitiesSeenBefore.find(e) == _entitiesSeenBefore.end()) {
-        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, true}));
+        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation, true}));
     }
     else {
         EntityStateInfo & info = _entitiesSeenBefore.find(e)->second;
         const double distance = glm::distance(e->position, info.lastPos);
+        const double scale = glm::distance(e->scale, info.lastScale);
+        const double rotation = glm::distance(e->rotation, info.lastRotation);
+        info.dirty = false;
         if (distance > 0.25) {
             info.lastPos = e->position;
             info.dirty = true;
         }
-        else {
-            info.dirty = false;
+        if (scale > 0.25) {
+            info.lastScale = e->scale;
+            info.dirty = true;
+        }
+        if (rotation > 0.25) {
+            info.lastRotation = e->rotation;
+            info.dirty = true;
         }
     }
 
@@ -982,7 +990,7 @@ void Renderer::addPointLight(Light * light) {
     }
 
     if (_lightsSeenBefore.find(light) == _lightsSeenBefore.end()) {
-        _lightsSeenBefore.insert(std::make_pair(light, EntityStateInfo{light->position, true}));
+        _lightsSeenBefore.insert(std::make_pair(light, EntityStateInfo{light->position, glm::vec3(0.0f), glm::vec3(0.0f), true}));
     }
     else {
         EntityStateInfo & info = _lightsSeenBefore.find(light)->second;

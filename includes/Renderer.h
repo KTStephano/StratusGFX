@@ -116,6 +116,8 @@ class Renderer {
 
     struct EntityStateInfo {
         glm::vec3 lastPos;
+        glm::vec3 lastScale;
+        glm::vec3 lastRotation;
         bool dirty; // if dirty, recompute all shadows
     };
 
