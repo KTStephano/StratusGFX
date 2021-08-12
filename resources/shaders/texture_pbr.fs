@@ -1,4 +1,4 @@
-#version 330 core
+#version 410 core
 
 /**
  * @see https://learnopengl.com/PBR/Theory
@@ -48,8 +48,9 @@
  * wi = normalize(light_pos - world_pos)
  */
 
+#define MAX_LIGHTS 256
 // Apple limits us to 16 total samplers active in the pipeline :(
-#define MAX_LIGHTS 12
+#define MAX_SHADOW_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 #define AMBIENT_INTENSITY 0.0005
@@ -93,11 +94,12 @@ in vec3 fsTanFragPosition;
  */
 uniform vec3 lightPositions[MAX_LIGHTS];
 uniform vec3 lightColors[MAX_LIGHTS];
-uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
-uniform float lightFarPlanes[MAX_LIGHTS];
+uniform samplerCube shadowCubeMaps[MAX_SHADOW_LIGHTS];
+uniform float lightFarPlanes[MAX_SHADOW_LIGHTS];
 // Since max lights is an upper bound, this can
 // tell us how many lights are actually present
 uniform int numLights = 0;
+uniform int numShadowLights = 0;
 //uniform float gamma = 2.2;
 
 out vec4 fsColor;
@@ -169,7 +171,7 @@ float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, const float roughness) 
     return geometrySchlickGGX(NdotV, k) * geometrySchlickGGX(NdotL, k);
 }
 
-vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness) {
+vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float ao, const float shadowFactor) {
     vec3 lightPos   = fsTbnMatrix * lightPositions[lightIndex];
     vec3 lightColor = lightColors[lightIndex];
     vec3 lightDir   = lightPos - fsTanFragPosition;
@@ -196,10 +198,7 @@ vec3 calculatePointLighting(vec3 baseColor, vec3 normal, vec3 viewDir, int light
     vec3 diffuse   = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
-    // We need to perform shadow calculations in world space
-    float shadowFactor = calculateShadowValue(fsPosition, lightPositions[lightIndex],
-        lightIndex, dot(lightPositions[lightIndex] - fsPosition, fsNormal));
-    vec3 ambient = baseColor * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
+    vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
     return attenuationFactor * (ambient + (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi));
@@ -219,9 +218,15 @@ void main() {
     //vec3 tbnNormal = normalize(fsTbnMatrix * normal);
     //normal = normalize(fsTbnMatrix * normal);
     vec3 color = vec3(0.0);
-    for (int i = 0; i < numLights; ++i) {
+    for (int i = 0; i < numShadowLights; ++i) {
         //if (i >= numLights) break;
-        color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness);
+        float shadowFactor = calculateShadowValue(fsPosition, lightPositions[i], i, dot(lightPositions[i] - fsPosition, fsNormal));
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness, 1.0, shadowFactor);
+    }
+
+    for (int i = numShadowLights; i < numLights; ++i) {
+        //if (i >= numLights) break;
+        color = color + calculatePointLighting(baseColor, normal, viewDir, i, fsRoughness, 1.0, 0.0);
     }
     //color = color + baseColor * AMBIENT_INTENSITY;
     //vec3 color = calculatePointLighting(baseColor, normal, viewDir, 0);

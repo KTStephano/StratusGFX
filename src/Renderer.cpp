@@ -413,7 +413,7 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
         }
     }
 
-    addEntityMeshData(e, _state.instancedMeshes);
+    //addEntityMeshData(e, _state.instancedMeshes);
 
     for (RenderEntity & node : e->nodes) {
         _addDrawable(&node, e->model);
@@ -544,25 +544,59 @@ static void setCullState(const RenderFaceCulling & mode) {
     }
 }
 
+void Renderer::_buildEntityList(const Camera & c) {
+    for (auto & entityList : _state.entities) {
+        for (RenderEntity * e : entityList.second) {
+            const double distance = glm::distance(e->position, c.getPosition());
+            if (distance < _state.zfar) {
+                addEntityMeshData(e, _state.instancedMeshes);
+            }
+        }
+    }
+}
+
 void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
+    const int maxShadowCastingLights = 11;
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
+    // We need to figure out what we want to attempt to render
+    _buildEntityList(c);
+
     std::unordered_map<Light *, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>> perLightInstancedMeshes;
     std::unordered_map<Light *, bool> perLightIsDirty;
+    std::vector<std::pair<Light *, double>> perLightDistToViewer;
+    // This one is just for shadow-casting lights
+    std::vector<std::pair<Light *, double>> perLightShadowCastingDistToViewer;
     // Init per light instance data
     for (Light * light : _state.lights) {
+        const double distance = glm::distance(c.getPosition(), light->position);
+        perLightDistToViewer.push_back(std::make_pair(light, distance));
+        if (distance > light->getRadius()) continue;
         perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
         perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
+        perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
+    }
+
+    // Sort lights based on distance to viewer
+    const auto comparison = [](const std::pair<Light *, double> & a, const std::pair<Light *, double> & b) {
+        return a.second < b.second;
+    };
+    std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+    std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+
+    // Remove lights that exceed our max count
+    if (perLightShadowCastingDistToViewer.size() > maxShadowCastingLights) {
+        perLightShadowCastingDistToViewer.resize(maxShadowCastingLights);
     }
 
     for (RenderEntity * e : _state.lightInteractingEntities) {
         const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
-        for (Light * light : _state.lights) {
+        for (auto&[light, _] : perLightShadowCastingDistToViewer) {
             const double distance = glm::distance(e->position, light->position);
             if (distance > light->getRadius()) continue;
             addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
@@ -574,7 +608,7 @@ void Renderer::end(const Camera & c) {
     glBlendFunc(GL_ONE, GL_ONE);
     // Perform the shadow volume pre-pass
     _bindShader(_state.shadows.get());
-    for (Light * light : _state.lights) {
+    for (auto&[light, d] : perLightShadowCastingDistToViewer) {
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
@@ -733,7 +767,7 @@ void Renderer::end(const Camera & c) {
             //s->setMat4("projection", &(*projection)[0][0]);
             const glm::mat4 & model = e->model;
 
-            if (lightingEnabled) _initLights(s, c);
+            if (lightingEnabled) _initLights(s, c, perLightDistToViewer, perLightShadowCastingDistToViewer);
 
             if (renderProperties & TEXTURED) {
                 /*
@@ -1001,22 +1035,28 @@ void Renderer::_unbindAllTextures() {
     _state.boundTextures.clear();
 }
 
-void Renderer::_initLights(Shader * s, const Camera & c) {
+void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const std::vector<std::pair<Light *, double>> & shadowLights) {
     glm::vec3 lightColor;
     int lightIndex = 0;
-    for (int i = 0; i < _state.lights.size(); ++i) {
-        PointLight * light = (PointLight *)_state.lights[i];
-        const double distance = glm::distance(c.getPosition(), light->position);
+    int shadowLightIndex = 0;
+    for (int i = 0; i < lights.size(); ++i) {
+        PointLight * light = (PointLight *)lights[i].first;
+        const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
         if (distance > (2 * light->getRadius())) continue;
         lightColor = light->getColor() * light->getIntensity();
         s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &light->position[0]);
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
         s->setFloat("lightFarPlanes[" + std::to_string(lightIndex) + "]", light->getFarPlane());
-        _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+        //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+        if (lightIndex < shadowLights.size()) {
+            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+            ++shadowLightIndex;
+        }
         ++lightIndex;
     }
     s->setInt("numLights", lightIndex);
+    s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
 }
 }

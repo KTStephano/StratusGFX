@@ -288,7 +288,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_E: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(2500.0f);
+                                mover->light->setIntensity(1000.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }

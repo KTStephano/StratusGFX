@@ -350,11 +350,13 @@ private:
     void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);
     void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
-    void _initLights(Shader * s, const Camera & c);
+    void _initLights(Shader * s, const Camera & c, 
+                     const std::vector<std::pair<Light *, double>> & lights, const std::vector<std::pair<Light *, double>> & shadowLights);
     void _initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers);
     void _clearInstancedData(std::vector<GLuint> & buffers);
     void _bindShader(Shader *);
     void _unbindShader();
+    void _buildEntityList(const Camera & c);
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

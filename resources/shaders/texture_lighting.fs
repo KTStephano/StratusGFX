@@ -1,4 +1,4 @@
-#version 150 core
+#version 410 core
 
 #define MAX_LIGHTS 128
 #define SPECULAR_MULTIPLIER 128.0
