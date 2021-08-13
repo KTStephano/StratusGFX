@@ -96,9 +96,9 @@ public:
         return this->_shadowHap;
     }
 
-    void setNearFarPlane(float near, float far) {
-        this->lightNearPlane = near;
-        this->lightFarPlane = far;
+    void setNearFarPlane(float nearPlane, float farPlane) {
+        this->lightNearPlane = nearPlane;
+        this->lightFarPlane = farPlane;
     }
 
     float getNearPlane() const {

@@ -4,6 +4,7 @@
 
 #include <string>
 #include "GL/gl3w.h"
+#include <vector>
 
 namespace stratus {
 class Shader {

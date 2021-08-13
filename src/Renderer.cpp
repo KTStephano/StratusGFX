@@ -47,15 +47,15 @@ static void printGLInfo(const GFXConfig & config) {
 
 Renderer::Renderer(SDL_Window * window) {
     _window = window;
-    const int32_t maxGLVersion = 3;
-    const int32_t minGLVersion = 2;
+    //const int32_t maxGLVersion = 3;
+    //const int32_t minGLVersion = 2;
 
     // Set the profile to core as opposed to immediate mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK,
             SDL_GL_CONTEXT_PROFILE_CORE);
     // Set max/min version to be 3.2
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, maxGLVersion);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, minGLVersion);
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, maxGLVersion);
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, minGLVersion);
     // Enable double buffering
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -74,11 +74,11 @@ Renderer::Renderer(SDL_Window * window) {
         return;
     }
 
-    if (!gl3wIsSupported(maxGLVersion, minGLVersion)) {
-        std::cerr << "[error] OpenGL 3.2 not supported" << std::endl;
-        _isValid = false;
-        return;
-    }
+    //if (!gl3wIsSupported(maxGLVersion, minGLVersion)) {
+    //    std::cerr << "[error] OpenGL 3.2 not supported" << std::endl;
+    //    _isValid = false;
+    //    return;
+    //}
 
     // Query OpenGL about various different hardware capabilities
     _config.renderer = (const char *)glGetString(GL_RENDERER);
@@ -571,7 +571,7 @@ void Renderer::end(const Camera & c) {
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
     const int maxShadowCastingLights = 11;
-    const int maxShadowUpdatesPerFrame = 2;
+    const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
