@@ -172,6 +172,8 @@ Renderer::Renderer(SDL_Window * window) {
             lightTextureNormalDepthRoughnessMap->isValid() &&
             _state.hdrGamma->isValid() &&
             _state.shadows->isValid();
+
+    _state.dummyCubeMap = createShadowMap3D(64, 64);
 }
 
 Renderer::~Renderer() {
@@ -585,7 +587,7 @@ void Renderer::end(const Camera & c) {
     for (Light * light : _state.lights) {
         const double distance = glm::distance(c.getPosition(), light->position);
         perLightDistToViewer.push_back(std::make_pair(light, distance));
-        if (distance > light->getRadius()) continue;
+        if (distance > 2 * light->getRadius()) continue;
         perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
         perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
         perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
@@ -607,7 +609,7 @@ void Renderer::end(const Camera & c) {
         const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
         for (auto&[light, _] : perLightShadowCastingDistToViewer) {
             const double distance = glm::distance(e->position, light->position);
-            if (distance > light->getRadius()) continue;
+            if (distance > 2 * light->getRadius()) continue;
             addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
             perLightIsDirty.find(light)->second |= entityIsDirty;
         }
@@ -1070,6 +1072,19 @@ void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::
         }
         ++lightIndex;
     }
+
+    if (shadowLightIndex == 0) {
+        // If we don't do this the fragment shader crashes
+        _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
+    }
+
+    if (lightIndex == 0) {
+        s->setFloat("ambientIntensity", 0.0001f);
+    }
+    else {
+        s->setFloat("ambientIntensity", 0.0f);
+    }
+
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);

@@ -155,6 +155,8 @@ class Renderer {
         std::unique_ptr<Quad> screenQuad;
         // Bound textures
         std::unordered_map<int, BoundTextureInfo> boundTextures;
+        // Gets around what might be a driver bug...
+        TextureHandle dummyCubeMap;
     };
 
     struct Texture2D {
