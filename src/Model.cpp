@@ -54,7 +54,6 @@ namespace stratus {
             RenderMaterial mat;
             aiMaterial * material = scene->mMaterials[mesh->mMaterialIndex];
 
-            /**
             std::cout << "mat\n";
             std::cout << material->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
             std::cout << material->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
@@ -67,7 +66,6 @@ namespace stratus {
             std::cout << material->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
             std::cout << material->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
             std::cout << material->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
-            */
 
             mat.texture = loadMaterialTexture(renderer, material, aiTextureType_DIFFUSE, directory);
             mat.normalMap = loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory);

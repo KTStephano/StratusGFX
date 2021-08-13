@@ -158,9 +158,9 @@ int main(int argc, char * args[]) {
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
     environmentMaps.push_back(renderer.loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
-    stratus::Model angel = renderer.loadModel("../resources/models/frank.blend");
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
+    stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -358,11 +358,6 @@ int main(int argc, char * args[]) {
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
-        
-        angel.scale = glm::vec3(5.0f);
-        angel.rotation = glm::vec3(260.0f, 340.0f, 350.0f + angle);
-        angel.position = glm::vec3(-15.0f, 0.0f, -30.0f);
-        renderer.addDrawable(&angel);
 
         outhouse.scale = glm::vec3(10.0f);
         outhouse.position = glm::vec3(-50.0f, -10.0f, -45.0f);
@@ -372,6 +367,10 @@ int main(int argc, char * args[]) {
         //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
         clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
         renderer.addDrawable(&clay);
+
+        stump.rotation = glm::vec3(-180.0f, 0.0f, 0.0f);
+        stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
+        renderer.addDrawable(&stump);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);
