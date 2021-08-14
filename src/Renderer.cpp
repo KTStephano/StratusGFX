@@ -914,6 +914,7 @@ void Renderer::end(const Camera & c) {
     glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
     // Begin geometry pass
+    glDisable(GL_BLEND);
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
             //_initInstancedData(meshObservers.second, buffers);
@@ -929,6 +930,7 @@ void Renderer::end(const Camera & c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
 
     // Begin lighting pass
     glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
@@ -943,6 +945,26 @@ void Renderer::end(const Camera & c) {
     _state.screenQuad->bind();
     _state.screenQuad->render(1);
     _state.screenQuad->unbind();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, _state.buffer.fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _state.lightingFbo); // write to light-pass framebuffer
+    // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
+    // of the framebuffer you are reading to!
+    glBlitFramebuffer(0, 0, _state.windowWidth, _state.windowHeight, 0, 0, _state.windowWidth, _state.windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    for (auto & entityObservers : _state.instancedMeshes) {
+        for (auto & meshObservers : entityObservers.second) {
+            //_initInstancedData(meshObservers.second, buffers);
+            RenderEntity * e = entityObservers.first.e;
+            Mesh * m = meshObservers.first.m;
+            const size_t numInstances = meshObservers.second.size;
+
+            // We are only going to render flat entities during this pass
+            if (e->getLightProperties() & DYNAMIC) continue;
+            _render(c, e, m, numInstances);
+        }
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Now render the screen
