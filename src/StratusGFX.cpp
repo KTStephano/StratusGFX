@@ -161,7 +161,7 @@ int main(int argc, char * args[]) {
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
-    //stratus::Model hall = renderer.loadModel("../resources/models/hintze-hall-1m.obj");
+    // stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
     //stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;

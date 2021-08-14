@@ -50,9 +50,9 @@ void main() {
     vec3 viewDir = normalize(viewPosition - fsPosition);
     vec2 texCoords = fsTexCoords;
     texCoords = calculateDepthCoords(texCoords, viewDir);
-    // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-    //    discard;
-    // }
+    if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+       discard;
+    }
 
     vec3 baseColor = texture(diffuseTexture, texCoords).rgb;
     vec3 normal = texture(normalMap, texCoords).rgb;

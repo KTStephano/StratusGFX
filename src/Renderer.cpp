@@ -800,7 +800,7 @@ void Renderer::end(const Camera & c) {
         const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
         for (auto&[light, _] : perLightShadowCastingDistToViewer) {
             const double distance = glm::distance(e->position, light->position);
-            //if (distance > 2 * light->getRadius()) continue;
+            if (distance > light->getRadius()) continue;
             addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
             perLightIsDirty.find(light)->second |= entityIsDirty;
         }
@@ -1187,12 +1187,15 @@ void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::
         _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
     }
 
+    s->setFloat("ambientIntensity", 0.0001f);
+    /*
     if (lightIndex == 0) {
         s->setFloat("ambientIntensity", 0.0001f);
     }
     else {
         s->setFloat("ambientIntensity", 0.0f);
     }
+    */
 
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
