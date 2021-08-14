@@ -162,7 +162,7 @@ int main(int argc, char * args[]) {
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
     // stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
-
+    
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
     for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {

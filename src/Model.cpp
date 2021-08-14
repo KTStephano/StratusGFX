@@ -24,6 +24,7 @@ namespace stratus {
 
     // @see https://learnopengl.com/Model-Loading/Model
     std::shared_ptr<Mesh> processMesh(Renderer & renderer, aiMesh * mesh, const aiScene * scene, const std::string & directory) {
+        if (mesh->mNumUVComponents[0] == 0) return nullptr;
         std::vector<glm::vec3> vertices;
         std::vector<glm::vec2> uvs;
         std::vector<glm::vec3> normals;
@@ -107,7 +108,9 @@ namespace stratus {
         // process all the node's meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-            entity->meshes.push_back(processMesh(renderer, mesh, scene, directory));
+            auto sm = processMesh(renderer, mesh, scene, directory);
+            if (!sm) continue;
+            entity->meshes.push_back(sm);
         }
 
         // then do the same for each of its children
@@ -123,7 +126,7 @@ namespace stratus {
         Assimp::Importer importer;
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
-        const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
+        const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
 
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             std::cout << "Error loading model: " << filename << std::endl << importer.GetErrorString() << std::endl;
