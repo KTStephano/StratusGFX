@@ -45,7 +45,7 @@ void main() {
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
-    normal = normal * 2.0 - 1.0;
+    //normal = normal * 2.0 - 1.0;
     //normal = normalize(fsTbnMatrix * normal);
 
     // Coordinate space is set to world

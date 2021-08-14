@@ -259,16 +259,16 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glGenTextures(1, &buffer.position);
     glBindTexture(GL_TEXTURE_2D, buffer.position);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer.position, 0);
 
     // Normal buffer
     glGenTextures(1, &buffer.normals);
     glBindTexture(GL_TEXTURE_2D, buffer.normals);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, buffer.normals, 0);
 
     // Create the color buffer - notice that is uses higher
@@ -309,8 +309,8 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glGenTextures(1, &buffer.roughnessMetallicAmbient);
     glBindTexture(GL_TEXTURE_2D, buffer.roughnessMetallicAmbient);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, buffer.roughnessMetallicAmbient, 0);
 
     uint32_t attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
