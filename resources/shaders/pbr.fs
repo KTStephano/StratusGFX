@@ -48,7 +48,7 @@
  * wi = normalize(light_pos - world_pos)
  */
 
-#define MAX_LIGHTS 256
+#define MAX_LIGHTS 200
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
@@ -77,6 +77,7 @@ uniform vec3 viewPosition;
 uniform vec3 lightPositions[MAX_LIGHTS];
 uniform vec3 lightColors[MAX_LIGHTS];
 uniform float lightRadii[MAX_LIGHTS];
+uniform bool lightCastsShadows[MAX_LIGHTS];
 uniform samplerCube shadowCubeMaps[MAX_SHADOW_LIGHTS];
 uniform float lightFarPlanes[MAX_SHADOW_LIGHTS];
 // Since max lights is an upper bound, this can
@@ -210,26 +211,26 @@ void main() {
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 color = vec3(0.0);
-    for (int i = 0; i < numShadowLights; ++i) {
-        // calculate distance between light source and current fragment
-        float distance = length(lightPositions[i] - fragPos);
-        if(distance < lightRadii[i]) {
-            //if (i >= numLights) break;
-            // We need to perform shadow calculations in world space
-            float shadowFactor = calculateShadowValue(fragPos, lightPositions[i], i, dot(lightPositions[i] - fragPos, normal));
-            color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
-        }
-        else if (distance < 2 * lightRadii[i]) {
-            color = color + calculatePointAmbient(fragPos, baseColor, i, ambient);
-        }
-    }
-
-    for (int i = numShadowLights; i < numLights; ++i) {
+    int shadowIndex = 0;
+    for (int i = 0; i < numLights; ++i) {
         //if (i >= numLights) break;
+
+        // Check if we should perform any sort of shadow calculation
+        int shadowCubeMapIndex = MAX_LIGHTS;
+        float shadowFactor = 0.0;
+        if (shadowIndex < numShadowLights && lightCastsShadows[i] == true) {
+            // The cube maps are indexed independently from the light index
+            shadowCubeMapIndex = shadowIndex;
+            ++shadowIndex;
+        }
+
         // calculate distance between light source and current fragment
         float distance = length(lightPositions[i] - fragPos);
         if(distance < lightRadii[i]) {
-            color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, 0.0, baseReflectivity);
+            if (shadowCubeMapIndex < MAX_LIGHTS) {
+                shadowFactor = calculateShadowValue(fragPos, lightPositions[i], shadowCubeMapIndex, dot(lightPositions[i] - fragPos, normal));
+            }
+            color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }
         else if (distance < 2 * lightRadii[i]) {
             color = color + calculatePointAmbient(fragPos, baseColor, i, ambient);

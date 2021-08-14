@@ -776,7 +776,9 @@ void Renderer::end(const Camera & c) {
         //if (distance > 2 * light->getRadius()) continue;
         perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
         perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
-        perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
+        if (light->castsShadows()) {
+            perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
+        }
     }
 
     // Sort lights based on distance to viewer
@@ -932,7 +934,7 @@ void Renderer::end(const Camera & c) {
     glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
     _unbindAllTextures();
     _bindShader(_state.lighting.get());
-    _initLights(_state.lighting.get(), c, perLightDistToViewer, perLightShadowCastingDistToViewer);
+    _initLights(_state.lighting.get(), c, perLightDistToViewer, maxShadowCastingLights);
     _bindTexture(_state.lighting.get(), "gPosition", -1, _state.buffer.position);
     _bindTexture(_state.lighting.get(), "gNormal", -1, _state.buffer.normals);
     _bindTexture(_state.lighting.get(), "gAlbedo", -1, _state.buffer.albedo);
@@ -1160,11 +1162,12 @@ void Renderer::_unbindAllTextures() {
     _state.boundTextures.clear();
 }
 
-void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const std::vector<std::pair<Light *, double>> & shadowLights) {
+void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights) {
     glm::vec3 lightColor;
     int lightIndex = 0;
     int shadowLightIndex = 0;
-    for (int i = 0; i < lights.size(); ++i) {
+    int i = 0;
+    for (; i < lights.size(); ++i) {
         PointLight * light = (PointLight *)lights[i].first;
         const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
@@ -1173,10 +1176,11 @@ void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::
         s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &light->position[0]);
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
         s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", light->getRadius());
+        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", light->castsShadows());
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
-        if (lightIndex < shadowLights.size()) {
-            s->setFloat("lightFarPlanes[" + std::to_string(lightIndex) + "]", light->getFarPlane());
-            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+        if (light->castsShadows() && shadowLightIndex < maxShadowLights) {
+            s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", light->getFarPlane());
+            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", light->getShadowMapHandle());
             ++shadowLightIndex;
         }
         ++lightIndex;

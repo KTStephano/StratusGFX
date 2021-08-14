@@ -17,6 +17,7 @@ class Light {
     glm::vec3 _color = glm::vec3(1.0f);
     float _intensity = 1.0f;
     float _radius = 1.0f;
+    bool _castsShadows = true;
 
 public:
     glm::vec3 position = glm::vec3(0.0f);
@@ -64,6 +65,14 @@ public:
 
     float getRadius() const {
         return _radius;
+    }
+
+    void setCastsShadows(bool enable) {
+        this->_castsShadows = enable;
+    }
+
+    bool castsShadows() const {
+        return this->_castsShadows;
     }
 
 private:
