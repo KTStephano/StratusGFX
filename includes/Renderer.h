@@ -147,7 +147,6 @@ class Renderer {
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
         Shader * currentShader;
-        Shader * pbrShader;
         // Buffer where all color data is written
         GBuffer buffer;
         // Buffer for lighting pass
@@ -162,6 +161,10 @@ class Renderer {
         std::unique_ptr<Shader> hdrGamma;
         // Preprocessing shader which sets up the scene to allow for dynamic shadows
         std::unique_ptr<Shader> shadows;
+        // Geometry pass - handles all combinations of material properties
+        std::unique_ptr<Shader> geometry;
+        // Forward rendering pass
+        std::unique_ptr<Shader> forward;
         // Handles the lighting stage
         std::unique_ptr<Shader> lighting;
         // Generic screen quad so we can render the screen
@@ -231,7 +234,7 @@ class Renderer {
      * This maps a set of properties to a shader. This should be
      * a valid combination, such as FLAT | TEXTURED.
      */
-    std::unordered_map<uint32_t, std::unordered_map<uint32_t, Shader *>> _propertyShaderMap;
+    //std::unordered_map<uint32_t, std::unordered_map<uint32_t, Shader *>> _propertyShaderMap;
 
     /**
      * Contains a list of textures that have been loaded into memory.

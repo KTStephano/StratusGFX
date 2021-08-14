@@ -101,49 +101,43 @@ Renderer::Renderer(SDL_Window * window) {
     _isValid = true;
 
     // Initialize the shaders
-    Shader * noLightNoTexture = new Shader("../resources/shaders/no_texture_no_lighting.vs",
-            "../resources/shaders/no_texture_no_lighting.fs");
-    _shaders.push_back(noLightNoTexture);
-    Shader * noLightTexture = new Shader("../resources/shaders/texture_no_lighting.vs",
-            "../resources/shaders/texture_no_lighting.fs");
-    _shaders.push_back(noLightTexture);
-    Shader * lightTexture = new Shader("../resources/shaders/texture_pbr.vs",
-            "../resources/shaders/texture_pbr.fs");
-    _shaders.push_back(lightTexture);
-    Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr.vs",
-                                                "../resources/shaders/texture_pbr_nm.fs");
-    _shaders.push_back(lightTextureNormalMap);
+    // Shader * noLightNoTexture = new Shader("../resources/shaders/no_texture_no_lighting.vs",
+    //         "../resources/shaders/no_texture_no_lighting.fs");
+    // _shaders.push_back(noLightNoTexture);
+    // Shader * textureNoLighting = new Shader("../resources/shaders/texture_no_lighting.vs",
+    //         "../resources/shaders/texture_no_lighting.fs");
+    // _shaders.push_back(textureNoLighting);
+    // Shader * lightTexture = new Shader("../resources/shaders/texture_pbr.vs",
+    //         "../resources/shaders/texture_pbr.fs");
+    // _shaders.push_back(lightTexture);
+    // Shader * noTexturePbr = new Shader("../resources/shaders/texture_pbr.vs", "../resources/shaders/no_texture_pbr.fs");
+    // Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr.vs",
+    //                                             "../resources/shaders/texture_pbr_nm.fs");
+    // _shaders.push_back(lightTextureNormalMap);
     /*
     Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_lighting_nm_dm.fs");
     */
-    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
-                                                     "../resources/shaders/texture_pbr_nm_dm.fs");
-    Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr.vs",
-                                                     "../resources/shaders/texture_pbr_nm_dm_rm.fs");
-    Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr.vs",
-                                                     "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
-    _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
-    _shaders.push_back(lightTextureNormalDepthMap);
+    // Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
+    //                                                  "../resources/shaders/texture_pbr_nm_dm.fs");
+    // Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr.vs",
+    //                                                  "../resources/shaders/texture_pbr_nm_dm_rm.fs");
+    // Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr.vs",
+    //                                                  "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
+    // _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
+    // _shaders.push_back(lightTextureNormalDepthMap);
+    _state.geometry = std::make_unique<Shader>("../resources/shaders/pbr_geometry_pass.vs", "../resources/shaders/pbr_geometry_pass.fs");
+    _state.forward = std::make_unique<Shader>("../resources/shaders/flat_forward_pass.vs", "../resources/shaders/flat_forward_pass.fs");
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
     // all of a RenderEntities rendering requirements
 
     // Insert flat-lighting shaders
-    std::unordered_map<uint32_t, Shader *> shaderMap;
-    shaderMap.insert(make_pair(NONE, noLightNoTexture));
-    shaderMap.insert(make_pair(TEXTURED, noLightTexture));
-    _propertyShaderMap.insert(std::make_pair(FLAT, shaderMap));
-
-    // Insert dynamic-lighting shaders
-    shaderMap.clear();
-    shaderMap.insert(make_pair(TEXTURED, lightTexture));
-    shaderMap.insert(make_pair(TEXTURED | NORMAL_MAPPED, lightTextureNormalMap));
-    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED, lightTextureNormalDepthMap));
-    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED, lightTextureNormalDepthRoughnessMap));
-    shaderMap.insert(make_pair(TEXTURED | NORMAL_HEIGHT_MAPPED | ROUGHNESS_MAPPED | ENVIRONMENT_MAPPED, lightTextureNormalDepthRoughnessEnvironmentMap));
-    _propertyShaderMap.insert(std::make_pair(DYNAMIC, shaderMap));
+    // std::unordered_map<uint32_t, Shader *> shaderMap;
+    // shaderMap.insert(make_pair(NONE, noLightNoTexture));
+    // shaderMap.insert(make_pair(TEXTURED, textureNoLighting));
+    // _propertyShaderMap.insert(std::make_pair(FLAT, shaderMap));
     
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
@@ -166,13 +160,17 @@ Renderer::Renderer(SDL_Window * window) {
 
     // Use the shader isValid() method to determine if everything succeeded
     _isValid = _isValid &&
-            noLightNoTexture->isValid() &&
-            noLightTexture->isValid() &&
-            lightTexture->isValid() &&
-            lightTextureNormalMap->isValid() &&
-            lightTextureNormalDepthMap->isValid() &&
-            lightTextureNormalDepthRoughnessMap->isValid() &&
-            lightTextureNormalDepthRoughnessEnvironmentMap->isValid() &&
+            // noLightNoTexture->isValid() &&
+            // textureNoLighting->isValid() &&
+            // noTexturePbr->isValid() &&
+            // geometryPass->isValid() &&
+            // lightTexture->isValid() &&
+            // lightTextureNormalMap->isValid() &&
+            // lightTextureNormalDepthMap->isValid() &&
+            // lightTextureNormalDepthRoughnessMap->isValid() &&
+            // lightTextureNormalDepthRoughnessEnvironmentMap->isValid() &&
+            _state.forward ->isValid() &&
+            _state.geometry->isValid() &&
             _state.hdrGamma->isValid() &&
             _state.lighting->isValid() &&
             _state.shadows->isValid();
@@ -564,7 +562,7 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
 }
 
 void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers) {
-    Shader * pbr = _state.pbrShader;
+    Shader * pbr = _state.geometry.get();
 
     auto & modelMats = c.modelMatrices;
     auto & diffuseColors = c.diffuseColors;
@@ -701,19 +699,16 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     _unbindShader();
 
     // Set up the shader we will use for this batch of entities
+    Shader * s;
     uint32_t lightProperties = e->getLightProperties();
     uint32_t renderProperties = m->getRenderProperties();
-    if (_propertyShaderMap.find(lightProperties) == _propertyShaderMap.end()) {
-        std::cout << "Error! Unable to find map with given light properties" << std::endl;
-        return;
+    if (lightProperties == FLAT) {
+        s = _state.forward.get();
     }
-    auto outer = _propertyShaderMap.find(lightProperties)->second;
-    if (outer.find(renderProperties) == outer.end()) {
-        std::cout << "Error! Unable to find shader with given render properties" << std::endl;
-        return;
+    else {
+        s = _state.geometry.get();
     }
-    auto inner = _propertyShaderMap.find(lightProperties)->second.find(renderProperties);
-    Shader * s = inner->second;
+
     //s->print();
     _bindShader(s);
 
@@ -722,27 +717,55 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
     if (renderProperties & TEXTURED) {
         _bindTexture(s, "diffuseTexture", m->getMaterial().texture);
+        s->setBool("textured", true);
+    }
+    else {
+        s->setBool("textured", false);
     }
 
     // Determine which uniforms we should set
     if (lightProperties & FLAT) {
         s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
     } else if (lightProperties & DYNAMIC) {
-        if (renderProperties & NORMAL_MAPPED || renderProperties & NORMAL_HEIGHT_MAPPED) {
+        if (renderProperties & NORMAL_MAPPED) {
             _bindTexture(s, "normalMap", m->getMaterial().normalMap);
+            s->setBool("normalMapped", true);
+        }
+        else {
+            s->setBool("normalMapped", false);
         }
 
-        if (renderProperties & NORMAL_HEIGHT_MAPPED) {
+        if (renderProperties & HEIGHT_MAPPED) {
             _bindTexture(s, "depthMap", m->getMaterial().depthMap);
             s->setFloat("heightScale", m->getMaterial().heightScale);
+            s->setBool("depthMapped", true);
+        }
+        else {
+            s->setBool("depthMapped", false);
         }
 
         if (renderProperties & ROUGHNESS_MAPPED) {
             _bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
+            s->setBool("roughnessMapped", true);
+        }
+        else {
+            s->setBool("roughnessMapped", false);
         }
 
-        if (renderProperties & ENVIRONMENT_MAPPED) {
-            _bindTexture(s, "ambientOcclusionMap", m->getMaterial().environmentMap);
+        if (renderProperties & AMBIENT_MAPPED) {
+            _bindTexture(s, "ambientOcclusionMap", m->getMaterial().ambientMap);
+            s->setBool("ambientMapped", true);
+        }
+        else {
+            s->setBool("ambientMapped", false);
+        }
+
+        if (renderProperties & SHININESS_MAPPED) {
+            _bindTexture(s, "metalnessMap", m->getMaterial().metalnessMap);
+            s->setBool("metalnessMapped", true);
+        }
+        else {
+            s->setBool("metalnessMapped", false);
         }
 
         s->setVec3("viewPosition", &c.getPosition()[0]);
@@ -943,7 +966,7 @@ void Renderer::end(const Camera & c) {
     glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
 
-    // Begin lighting pass
+    // Begin deferred lighting pass
     glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
     _unbindAllTextures();
     _bindShader(_state.lighting.get());

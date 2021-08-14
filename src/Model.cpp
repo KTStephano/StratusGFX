@@ -71,12 +71,12 @@ namespace stratus {
             mat.normalMap = loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory);
             mat.depthMap = loadMaterialTexture(renderer, material, aiTextureType_HEIGHT, directory);
             mat.roughnessMap = loadMaterialTexture(renderer, material, aiTextureType_SPECULAR, directory);
-            mat.environmentMap = loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory);
+            mat.ambientMap = loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory);
             std::cout << "m " << mat.texture << " "
                 << mat.normalMap << " "
                 << mat.depthMap << " "
                 << mat.roughnessMap << " "
-                << mat.environmentMap << std::endl;
+                << mat.ambientMap << std::endl;
             m->setMaterial(mat);
         }
 

@@ -184,32 +184,17 @@ void Mesh::setMaterial(const RenderMaterial & material) {
     if (material.texture != -1) {
         _enableProperties(TEXTURED);
     }
-    if (material.normalMap == -1) {
-        _disableProperties(ENVIRONMENT_MAPPED);
-        _disableProperties(ROUGHNESS_MAPPED);
-        _disableProperties(NORMAL_MAPPED);
-        _disableProperties(NORMAL_HEIGHT_MAPPED);
+    if (material.normalMap != -1) {
+        _enableProperties(NORMAL_MAPPED);
     }
-    else {
-        if (material.depthMap == -1) {
-            _disableProperties(ENVIRONMENT_MAPPED);
-            _disableProperties(ROUGHNESS_MAPPED);
-            _disableProperties(NORMAL_HEIGHT_MAPPED);
-            _enableProperties(NORMAL_MAPPED);
-        }
-        else {
-            _disableProperties(NORMAL_MAPPED);
-            _enableProperties(NORMAL_HEIGHT_MAPPED);
-
-            // Only want to set this if both normal and depth mapping are available
-            if (material.roughnessMap != -1) {
-                _enableProperties(ROUGHNESS_MAPPED);
-
-                if (material.environmentMap != -1) {
-                    _enableProperties(ENVIRONMENT_MAPPED);
-                }
-            }
-        }
+    if (material.depthMap != -1) {
+        _enableProperties(HEIGHT_MAPPED);
+    }
+    if (material.ambientMap != -1) {
+        _enableProperties(AMBIENT_MAPPED);
+    }
+    if (material.metalnessMap != -1) {
+        _enableProperties(SHININESS_MAPPED);
     }
 }
 
@@ -250,7 +235,8 @@ size_t Mesh::hashCode() const {
         std::hash<int>{}(getMaterial().normalMap) +
         std::hash<int>{}(getMaterial().depthMap) +
         std::hash<int>{}(getMaterial().roughnessMap) +
-        std::hash<int>{}(getMaterial().environmentMap) +
+        std::hash<int>{}(getMaterial().ambientMap) +
+        std::hash<int>{}(getMaterial().metalnessMap) +
         std::hash<int>{}(cullingMode);
 }
 
@@ -261,7 +247,8 @@ bool Mesh::operator==(const Mesh & m) const {
         getMaterial().normalMap == m.getMaterial().normalMap &&
         getMaterial().depthMap == m.getMaterial().depthMap &&
         getMaterial().roughnessMap == m.getMaterial().roughnessMap &&
-        getMaterial().environmentMap == m.getMaterial().environmentMap &&
+        getMaterial().ambientMap == m.getMaterial().ambientMap &&
+        getMaterial().metalnessMap == m.getMaterial().metalnessMap &&
         cullingMode == m.cullingMode;
 }
 

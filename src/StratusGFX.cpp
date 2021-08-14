@@ -162,7 +162,6 @@ int main(int argc, char * args[]) {
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
     // stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
-    //stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -174,7 +173,7 @@ int main(int argc, char * args[]) {
         mat.normalMap = normalMaps[texIndex];
         mat.depthMap = depthMaps[texIndex];
         mat.roughnessMap = roughnessMaps[texIndex];
-        mat.environmentMap = environmentMaps[texIndex];
+        mat.ambientMap = environmentMaps[texIndex];
         cube->setMaterial(mat);
         quad->setMaterial(mat);
         cubeMeshes.push_back(cube);
@@ -390,8 +389,6 @@ int main(int argc, char * args[]) {
         // hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
         // hall.position = glm::vec3(0.0f, -30.0f, 0.0f);
         // renderer.addDrawable(&hall);
-
-        // renderer.addDrawable(&house);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);
