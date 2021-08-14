@@ -161,6 +161,8 @@ int main(int argc, char * args[]) {
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
+    //stratus::Model hall = renderer.loadModel("../resources/models/hintze-hall-1m.obj");
+    stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -199,7 +201,7 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < 0; ++i) {
         size_t texIndex = rand() % textures.size();
         auto mesh = cubeMeshes[texIndex];
         std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
@@ -214,16 +216,16 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-     for (int x = 0; x < 3000; x += 150) {
-         for (int y = 0; y < 3000; y += 150) {
-             std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-             mover->light->setIntensity(500.0f);
-             mover->position = glm::vec3(float(x),
-                                         0.0f, // float(rand() % 200),
-                                         float(y));
-             lightMovers.push_back(std::move(mover));
-         }
-     }
+    // for (int x = 0; x < 3000; x += 150) {
+    //     for (int y = 0; y < 3000; y += 150) {
+    //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+    //         mover->light->setIntensity(500.0f);
+    //         mover->position = glm::vec3(float(x),
+    //                                     0.0f, // float(rand() % 200),
+    //                                     float(y));
+    //         lightMovers.push_back(std::move(mover));
+    //     }
+    // }
     // for (int i = 0; i < 128; ++i) {
     //     /*
     //     std::unique_ptr<RandomLightMover> mover =
@@ -348,6 +350,17 @@ int main(int argc, char * args[]) {
             }
         }
 
+        // Check mouse state
+        int x, y;
+        uint32_t buttonState = SDL_GetMouseState(&x, &y);
+        cameraSpeed.z = 0.0f;
+        if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
+            cameraSpeed.z = -camSpeed;
+        }
+        else if ((buttonState & SDL_BUTTON_RMASK) != 0) { // right mouse button
+            cameraSpeed.z = camSpeed;
+        }
+
         // Start a new renderer frame
         renderer.begin(true);
 
@@ -371,6 +384,13 @@ int main(int argc, char * args[]) {
         stump.rotation = glm::vec3(-180.0f, 0.0f, 0.0f);
         stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
         renderer.addDrawable(&stump);
+
+        // hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        // hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
+        // hall.position = glm::vec3(0.0f, -30.0f, 0.0f);
+        // renderer.addDrawable(&hall);
+
+        // renderer.addDrawable(&house);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

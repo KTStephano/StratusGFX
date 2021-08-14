@@ -928,6 +928,7 @@ Model Renderer::loadModel(const std::string & file) {
         return it->second;
     }
 
+    std::cout << "Loading " << file << std::endl;
     Model m(*this, file);
     this->_models.insert(std::make_pair(file, m));
     return std::move(m);
