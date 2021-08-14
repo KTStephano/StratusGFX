@@ -110,18 +110,18 @@ Renderer::Renderer(SDL_Window * window) {
     Shader * lightTexture = new Shader("../resources/shaders/texture_pbr.vs",
             "../resources/shaders/texture_pbr.fs");
     _shaders.push_back(lightTexture);
-    Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr_nm.vs",
+    Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                 "../resources/shaders/texture_pbr_nm.fs");
     _shaders.push_back(lightTextureNormalMap);
     /*
-    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_lighting_nm_dm.vs",
+    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_lighting_nm_dm.fs");
     */
-    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr_nm_dm.vs",
+    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm.fs");
-    Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm.vs",
+    Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm_rm.fs");
-    Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr_nm_dm_rm_ao.vs",
+    Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
     _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
     _shaders.push_back(lightTextureNormalDepthMap);
@@ -567,6 +567,7 @@ void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buf
     Shader * pbr = _state.pbrShader;
 
     auto & modelMats = c.modelMatrices;
+    auto & diffuseColors = c.diffuseColors;
     auto & baseReflectivity = c.baseReflectivity;
     auto & roughness = c.roughness;
     auto & metallic = c.metallic;
@@ -598,6 +599,16 @@ void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buf
     glVertexAttribDivisor(pos3, 1);
     glVertexAttribDivisor(pos4, 1);
 
+    buffers.push_back(buffer);
+
+    buffer = 0;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, diffuseColors.size() * sizeof(glm::vec3), &diffuseColors[0], GL_STATIC_DRAW);
+    pos = pbr->getAttribLocation("diffuseColor");
+    glEnableVertexAttribArray(pos);
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+    glVertexAttribDivisor(pos, 1);
     buffers.push_back(buffer);
 
     buffer = 0;

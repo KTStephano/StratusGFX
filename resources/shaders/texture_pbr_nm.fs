@@ -21,6 +21,7 @@ in vec3 fsPosition;
 in vec3 fsNormal;
 in vec2 fsTexCoords;
 in mat4 fsModel;
+in vec3 fsDiffuseColor;
 in vec3 fsBaseReflectivity; // Ex: vec3(0.03-0.04) for plastics
 in float fsMetallic; // Between 0 and 1 where 0 is not metallic at all and 1 is purely metallic
 //in float fsfsShininess;

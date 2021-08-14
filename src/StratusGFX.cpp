@@ -161,7 +161,7 @@ int main(int argc, char * args[]) {
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
-    stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
+    // stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
     //stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
@@ -386,10 +386,10 @@ int main(int argc, char * args[]) {
         stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
         renderer.addDrawable(&stump);
 
-        hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
-        hall.position = glm::vec3(0.0f, -30.0f, 0.0f);
-        renderer.addDrawable(&hall);
+        // hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        // hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
+        // hall.position = glm::vec3(0.0f, -30.0f, 0.0f);
+        // renderer.addDrawable(&hall);
 
         // renderer.addDrawable(&house);
 
