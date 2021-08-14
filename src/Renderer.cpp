@@ -657,6 +657,7 @@ void Renderer::_bindShader(Shader * s) {
 
 void Renderer::_unbindShader() {
     if (!_state.currentShader) return;
+    _unbindAllTextures();
     _state.currentShader->unbind();
     _state.currentShader = nullptr;
 }
@@ -778,7 +779,6 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     m->render(numInstances);
     m->unbind();
 
-    _unbindAllTextures();
     _unbindShader();
 }
 
@@ -1244,6 +1244,7 @@ void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::
 
     if (shadowLightIndex == 0) {
         // If we don't do this the fragment shader crashes
+        s->setFloat("lightFarPlanes[0]", 0.0f);
         _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
     }
 

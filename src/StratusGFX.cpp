@@ -161,8 +161,8 @@ int main(int argc, char * args[]) {
     stratus::Model outhouse = renderer.loadModel("../resources/models/Latrine.fbx");
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
-    // stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
-    
+    stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
+
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
     for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
@@ -305,10 +305,74 @@ int main(int argc, char * args[]) {
                                 camLightEnabled = !camLightEnabled;
                             }
                             break;
-                        case SDL_SCANCODE_E: {
+                        case SDL_SCANCODE_1: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(250.0f);
+                                mover->light->setColor(255.0f / 256.0f, 188.0f / 255.0f, 0.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_2: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(1000.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_3: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(2500.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_4: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(5000.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_5: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(10000.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_6: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(20000.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_7: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(40000.0f);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_8: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(65000.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -385,10 +449,10 @@ int main(int argc, char * args[]) {
         stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
         renderer.addDrawable(&stump);
 
-        // hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        // hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
-        // hall.position = glm::vec3(0.0f, -30.0f, 0.0f);
-        // renderer.addDrawable(&hall);
+        hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
+        hall.position = glm::vec3(-250.0f, -30.0f, 0.0f);
+        renderer.addDrawable(&hall);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);
