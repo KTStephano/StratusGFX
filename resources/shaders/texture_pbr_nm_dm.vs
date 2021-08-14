@@ -24,8 +24,6 @@ smooth out vec2 fsTexCoords;
 
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
-out vec3 fsTanViewPosition;
-out vec3 fsTanFragPosition;
 out float fsRoughness;
 out mat4 fsModel;
 out vec3 fsBaseReflectivity;
@@ -45,19 +43,14 @@ void main() {
     */
     mat3 normalMatrix = mat3(model); //transpose(inverse(mat3(model)));
     vec3 t = normalize(normalMatrix * tangent);
-    //b = normalize(vec3(model * vec4(b, 0.0)));
     vec3 b = normalize(normalMatrix * bitangent);
     vec3 n = normalize(normalMatrix * normal);
-    // Gram-Schmidt
-    //t = normalize(t - dot(t, n) * n);
-    //vec3 b = cross(n, t);
 
     //t = normalize(t - dot(t, n) * n);
     //vec3 b = cross(n, t);
-    fsTbnMatrix = transpose(mat3(t, b, n));
-    fsTanViewPosition = fsTbnMatrix * viewPosition;
-    fsTanFragPosition = fsTbnMatrix * fsPosition;
-    //fsShininess = shininessVals[gl_InstanceID];
+    // The transpose variant turns TBN from tangent -> world space into world space -> tangent
+    // fsTbnMatrix = transpose(mat3(t, b, n));
+    fsTbnMatrix = mat3(t, b, n);
     fsRoughness = roughness;
     fsModel = model;
     fsBaseReflectivity = baseReflectivity;

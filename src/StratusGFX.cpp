@@ -162,7 +162,7 @@ int main(int argc, char * args[]) {
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
     //stratus::Model hall = renderer.loadModel("../resources/models/hintze-hall-1m.obj");
-    stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
+    //stratus::Model house = renderer.loadModel("../resources/models/texture_house.fbx");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -201,7 +201,7 @@ int main(int argc, char * args[]) {
     //std::vector<std::unique_ptr<Cube>> cubes;
     stratus::RenderMaterial cubeMat;
     //cubeMat.texture = renderer.loadTexture("../resources/textures/wood_texture.jpg");
-    for (int i = 0; i < 0; ++i) {
+    for (int i = 0; i < 5000; ++i) {
         size_t texIndex = rand() % textures.size();
         auto mesh = cubeMeshes[texIndex];
         std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);

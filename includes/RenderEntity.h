@@ -53,7 +53,7 @@ enum RenderFaceCulling {
 struct RenderMaterial {
     glm::vec3 diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
     glm::vec3 ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 baseReflectivity = glm::vec3(0.04f);
+    glm::vec3 baseReflectivity = glm::vec3(0.0f);
     float roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
     float metallic = 0.0f;
     // Not required to have a texture
@@ -136,7 +136,7 @@ protected:
      * together, this will be called instead of render(). This call should be nearly identical
      * except it will call the graphics library instanced version of the draw function.
      */
-    void render(const int numInstances);
+    void render(const int numInstances) const;
 
     /**
      * Binds any data buffers for the next call to render()

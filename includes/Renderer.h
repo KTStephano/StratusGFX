@@ -121,6 +121,16 @@ class Renderer {
         bool dirty; // if dirty, recompute all shadows
     };
 
+    struct GBuffer {
+        GLuint fbo = 0;
+        GLuint position = 0;                 // RGBA32F (rgba instead of rgb due to possible alignment issues)
+        GLuint normals = 0;                  // RGBA32F
+        GLuint albedo = 0;                   // RGBA32F
+        GLuint baseReflectivity = 0;         // RGBA32F
+        GLuint roughnessMetallicAmbient = 0; // RGBA32F
+        GLuint depth = 0;                    // R16F
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
@@ -139,9 +149,11 @@ class Renderer {
         Shader * currentShader;
         Shader * pbrShader;
         // Buffer where all color data is written
-        GLuint frameBuffer = 0;
-        GLuint colorBuffer = 0;
-        GLuint depthBuffer = 0;
+        GBuffer buffer;
+        // Buffer for lighting pass
+        GLuint lightingFbo;
+        GLuint lightingColorBuffer;
+        GLuint lightingDepthBuffer;
         // Used for a call to glBlendFunc
         GLenum blendSFactor = GL_ONE;
         GLenum blendDFactor = GL_ZERO;
@@ -150,6 +162,8 @@ class Renderer {
         std::unique_ptr<Shader> hdrGamma;
         // Preprocessing shader which sets up the scene to allow for dynamic shadows
         std::unique_ptr<Shader> shadows;
+        // Handles the lighting stage
+        std::unique_ptr<Shader> lighting;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
@@ -348,10 +362,12 @@ public:
      void end(const Camera & c);
 
 private:
+    void _clearGBuffer();
     void _addDrawable(RenderEntity * e, const glm::mat4 &);
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
     void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);
+    void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle, GLuint texture);
     void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
     void _initLights(Shader * s, const Camera & c, 
@@ -361,6 +377,7 @@ private:
     void _bindShader(Shader *);
     void _unbindShader();
     void _buildEntityList(const Camera & c);
+    void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances);
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

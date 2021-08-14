@@ -225,7 +225,7 @@ const RenderData & Mesh::getRenderData() const {
     return _data;
 }
 
-void Mesh::render(const int numInstances) {    
+void Mesh::render(const int numInstances) const {    
     if (this->_drawData.numIndices > 0) {
         glDrawElementsInstanced(GL_TRIANGLES, this->_drawData.numIndices, GL_UNSIGNED_INT, (void *)0, numInstances);
     }

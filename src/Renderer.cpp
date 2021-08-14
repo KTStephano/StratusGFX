@@ -159,6 +159,8 @@ Renderer::Renderer(SDL_Window * window) {
        "../resources/shaders/shadow.gs",
        "../resources/shaders/shadow.fs");
 
+    _state.lighting = std::make_unique<Shader>("../resources/shaders/pbr.vs", "../resources/shaders/pbr.fs");
+
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
 
@@ -170,7 +172,9 @@ Renderer::Renderer(SDL_Window * window) {
             lightTextureNormalMap->isValid() &&
             lightTextureNormalDepthMap->isValid() &&
             lightTextureNormalDepthRoughnessMap->isValid() &&
+            lightTextureNormalDepthRoughnessEnvironmentMap->isValid() &&
             _state.hdrGamma->isValid() &&
+            _state.lighting->isValid() &&
             _state.shadows->isValid();
 
     _state.dummyCubeMap = createShadowMap3D(64, 64);
@@ -186,9 +190,7 @@ Renderer::~Renderer() {
     invalidateAllTextures();
 
     // Delete the main frame buffer
-    glDeleteFramebuffers(1, &_state.frameBuffer);
-    glDeleteTextures(1, &_state.colorBuffer);
-    glDeleteTextures(1, &_state.depthBuffer);
+    _clearGBuffer();
 }
 
 const GFXConfig & Renderer::config() const {
@@ -223,6 +225,21 @@ void Renderer::_recalculateProjMatrices() {
             float(_state.windowHeight), 0.0f, -1.0f, 1.0f);
 }
 
+void Renderer::_clearGBuffer() {
+    GBuffer & buffer = _state.buffer;
+    glDeleteFramebuffers(1, &buffer.fbo);
+    glDeleteTextures(1, &buffer.position);
+    glDeleteTextures(1, &buffer.normals);
+    glDeleteTextures(1, &buffer.albedo);
+    glDeleteTextures(1, &buffer.baseReflectivity);
+    glDeleteTextures(1, &buffer.roughnessMetallicAmbient);
+    glDeleteTextures(1, &buffer.depth);
+
+    glDeleteFramebuffers(1, &_state.lightingFbo);
+    glDeleteTextures(1, &_state.lightingColorBuffer);
+    glDeleteTextures(1, &_state.lightingDepthBuffer);
+}
+
 void Renderer::_setWindowDimensions(int w, int h) {
     if (_state.windowWidth == w && _state.windowHeight == h) return;
     if (w < 0 || h < 0) return;
@@ -232,21 +249,36 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glViewport(0, 0, w, h);
 
     // Regenerate the main frame buffer
-    glDeleteFramebuffers(1, &_state.frameBuffer);
-    glDeleteTextures(1, &_state.colorBuffer);
-    glDeleteTextures(1, &_state.depthBuffer);
+    _clearGBuffer();
 
-    glGenFramebuffers(1, &_state.frameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+    GBuffer & buffer = _state.buffer;
+    glGenFramebuffers(1, &buffer.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
+
+    // Position buffer
+    glGenTextures(1, &buffer.position);
+    glBindTexture(GL_TEXTURE_2D, buffer.position);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer.position, 0);
+
+    // Normal buffer
+    glGenTextures(1, &buffer.normals);
+    glBindTexture(GL_TEXTURE_2D, buffer.normals);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, buffer.normals, 0);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    glGenTextures(1, &_state.colorBuffer);
-    glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
+    glGenTextures(1, &buffer.albedo);
+    glBindTexture(GL_TEXTURE_2D, buffer.albedo);
     glTexImage2D(GL_TEXTURE_2D, // target
             0, // level
-            GL_RGB16F, // internal format
+            GL_RGBA32F, // internal format
             _state.windowWidth, // width
             _state.windowHeight, // height
             0, // border
@@ -255,16 +287,38 @@ void Renderer::_setWindowDimensions(int w, int h) {
             nullptr); // data
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, buffer.albedo, 0);
     // Attach the color buffer to the frame buffer
+    /*
     glFramebufferTexture2D(GL_FRAMEBUFFER,
             GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_2D,
             _state.colorBuffer,
             0);
+    */
+
+    // Base reflectivity buffer
+    glGenTextures(1, &buffer.baseReflectivity);
+    glBindTexture(GL_TEXTURE_2D, buffer.baseReflectivity);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, buffer.baseReflectivity, 0);
+
+    // Roughness-Metallic-Ambient buffer
+    glGenTextures(1, &buffer.roughnessMetallicAmbient);
+    glBindTexture(GL_TEXTURE_2D, buffer.roughnessMetallicAmbient);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, buffer.roughnessMetallicAmbient, 0);
+
+    uint32_t attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
+    glDrawBuffers(5, attachments);
 
     // Create the depth buffer
-    glGenTextures(1, &_state.depthBuffer);
-    glBindTexture(GL_TEXTURE_2D, _state.depthBuffer);
+    glGenTextures(1, &buffer.depth);
+    glBindTexture(GL_TEXTURE_2D, buffer.depth);
     glTexImage2D(GL_TEXTURE_2D,
             0,
             GL_DEPTH_COMPONENT,
@@ -280,12 +334,68 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glFramebufferTexture2D(GL_FRAMEBUFFER,
             GL_DEPTH_ATTACHMENT,
             GL_TEXTURE_2D,
-            _state.depthBuffer,
+            buffer.depth,
             0);
 
     // Check the status to make sure it's complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "[error] Generating frame buffer failed" << std::endl;
+        std::cerr << "[error] Generating GBuffer failed" << std::endl;
+        _isValid = false;
+        return;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Now create the lighting frame buffer
+    glGenFramebuffers(1, &_state.lightingFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
+
+    // Create the color buffer - notice that is uses higher
+    // than normal precision. This allows us to write color values
+    // greater than 1.0 to support things like HDR.
+    glGenTextures(1, &_state.lightingColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, // target
+            0, // level
+            GL_RGB32F, // internal format
+            _state.windowWidth, // width
+            _state.windowHeight, // height
+            0, // border
+            GL_RGBA, // format
+            GL_FLOAT, // type
+            nullptr); // data
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the color buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            _state.lightingColorBuffer,
+            0);
+
+    // Create the depth buffer
+    glGenTextures(1, &_state.lightingDepthBuffer);
+    glBindTexture(GL_TEXTURE_2D, _state.lightingDepthBuffer);
+    glTexImage2D(GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT,
+            _state.windowWidth,
+            _state.windowHeight,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_FLOAT,
+            nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the depth buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            _state.lightingDepthBuffer,
+            0);
+
+    // Check the status to make sure it's complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "[error] Generating lighting frame buffer failed" << std::endl;
         _isValid = false;
         return;
     }
@@ -323,7 +433,13 @@ void Renderer::begin(bool clearScreen) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (clearScreen) {
-        glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, _state.buffer.fbo);
+        glClearColor(_state.clearColor.r, _state.clearColor.g,
+                     _state.clearColor.b, _state.clearColor.a);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
         glClearColor(_state.clearColor.r, _state.clearColor.g,
                      _state.clearColor.b, _state.clearColor.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -525,6 +641,7 @@ void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
 }
 
 void Renderer::_bindShader(Shader * s) {
+    _unbindShader();
     s->bind();
     _state.currentShader = s;
 }
@@ -565,15 +682,84 @@ void Renderer::_buildEntityList(const Camera & c) {
     }
 }
 
+void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const size_t numInstances) {
+    const glm::mat4 & projection = _state.perspective;
+    const glm::mat4 & view = c.getViewTransform();
+
+    // Unbind current shader if one is bound
+    _unbindShader();
+
+    // Set up the shader we will use for this batch of entities
+    uint32_t lightProperties = e->getLightProperties();
+    uint32_t renderProperties = m->getRenderProperties();
+    if (_propertyShaderMap.find(lightProperties) == _propertyShaderMap.end()) {
+        std::cout << "Error! Unable to find map with given light properties" << std::endl;
+        return;
+    }
+    auto outer = _propertyShaderMap.find(lightProperties)->second;
+    if (outer.find(renderProperties) == outer.end()) {
+        std::cout << "Error! Unable to find shader with given render properties" << std::endl;
+        return;
+    }
+    auto inner = _propertyShaderMap.find(lightProperties)->second.find(renderProperties);
+    Shader * s = inner->second;
+    //s->print();
+    _bindShader(s);
+
+    s->setMat4("projection", &projection[0][0]);
+    s->setMat4("view", &view[0][0]);
+
+    if (renderProperties & TEXTURED) {
+        _bindTexture(s, "diffuseTexture", m->getMaterial().texture);
+    }
+
+    // Determine which uniforms we should set
+    if (lightProperties & FLAT) {
+        s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
+    } else if (lightProperties & DYNAMIC) {
+        if (renderProperties & NORMAL_MAPPED || renderProperties & NORMAL_HEIGHT_MAPPED) {
+            _bindTexture(s, "normalMap", m->getMaterial().normalMap);
+        }
+
+        if (renderProperties & NORMAL_HEIGHT_MAPPED) {
+            _bindTexture(s, "depthMap", m->getMaterial().depthMap);
+            s->setFloat("heightScale", m->getMaterial().heightScale);
+        }
+
+        if (renderProperties & ROUGHNESS_MAPPED) {
+            _bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
+        }
+
+        if (renderProperties & ENVIRONMENT_MAPPED) {
+            _bindTexture(s, "ambientOcclusionMap", m->getMaterial().environmentMap);
+        }
+
+        s->setVec3("viewPosition", &c.getPosition()[0]);
+    }
+
+    // Perform instanced rendering
+    setCullState(m->cullingMode);
+
+    m->bind();
+    m->render(numInstances);
+    m->unbind();
+
+    _unbindAllTextures();
+    _unbindShader();
+}
+
 void Renderer::end(const Camera & c) {
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
-    const int maxShadowCastingLights = 11;
+    const int maxShadowCastingLights = 10;
+    const int maxTotalLights = 256;
     const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
+
+    _unbindAllTextures();
 
     // We need to figure out what we want to attempt to render
     _buildEntityList(c);
@@ -587,7 +773,7 @@ void Renderer::end(const Camera & c) {
     for (Light * light : _state.lights) {
         const double distance = glm::distance(c.getPosition(), light->position);
         perLightDistToViewer.push_back(std::make_pair(light, distance));
-        if (distance > 2 * light->getRadius()) continue;
+        //if (distance > 2 * light->getRadius()) continue;
         perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
         perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
         perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
@@ -600,7 +786,12 @@ void Renderer::end(const Camera & c) {
     std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
 
-    // Remove lights that exceed our max count
+    // Remove lights exceeding the absolute maximum
+    if (perLightDistToViewer.size() > maxTotalLights) {
+        perLightDistToViewer.resize(maxTotalLights);
+    }
+
+    // Remove shadow-casting lights that exceed our max count
     if (perLightShadowCastingDistToViewer.size() > maxShadowCastingLights) {
         perLightShadowCastingDistToViewer.resize(maxShadowCastingLights);
     }
@@ -609,7 +800,7 @@ void Renderer::end(const Camera & c) {
         const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
         for (auto&[light, _] : perLightShadowCastingDistToViewer) {
             const double distance = glm::distance(e->position, light->position);
-            if (distance > 2 * light->getRadius()) continue;
+            //if (distance > 2 * light->getRadius()) continue;
             addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
             perLightIsDirty.find(light)->second |= entityIsDirty;
         }
@@ -627,7 +818,7 @@ void Renderer::end(const Camera & c) {
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
         const bool dirty = perLightIsDirty.find(light)->second;
-        if (distance > light->getRadius() || !dirty) continue;
+        if (distance > 2 * light->getRadius() || !dirty) continue;
         
         // Set dirty to false
         _lightsSeenBefore.find(light)->second.dirty = false;
@@ -714,13 +905,13 @@ void Renderer::end(const Camera & c) {
     //glm::vec3 lightColor(10.0f); 
 
     // Make sure to bind our own frame buffer for rendering
-    glBindFramebuffer(GL_FRAMEBUFFER, _state.frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _state.buffer.fbo);
     
     // Make sure some of our global GL states are set properly for primary rendering below
     glBlendFunc(_state.blendSFactor, _state.blendDFactor);
     glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
-//    for (auto & p : _state.entities) {
+    // Begin geometry pass
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
             //_initInstancedData(meshObservers.second, buffers);
@@ -728,131 +919,43 @@ void Renderer::end(const Camera & c) {
             Mesh * m = meshObservers.first.m;
             const size_t numInstances = meshObservers.second.size;
 
-            // Unbind current shader if one is bound
-            _unbindShader();
-
-            // Set up the shader we will use for this batch of entities
-            uint32_t lightProperties = e->getLightProperties();
-            uint32_t renderProperties = m->getRenderProperties();
-            if (_propertyShaderMap.find(lightProperties) == _propertyShaderMap.end()) {
-                std::cout << "Error! Unable to find map with given light properties" << std::endl;
-                continue;
-            }
-            auto outer = _propertyShaderMap.find(lightProperties)->second;
-            if (outer.find(renderProperties) == outer.end()) {
-                std::cout << "Error! Unable to find shader with given render properties" << std::endl;
-                continue;
-            }
-            auto inner = _propertyShaderMap.find(lightProperties)->second.find(renderProperties);
-            Shader * s = inner->second;
-            //s->print();
-            _bindShader(s);
-
-            // Set up uniforms specific to this type of shader
-            //if (properties == (DYNAMIC | TEXTURED) || properties == (DYNAMIC | TEXTURED | NORMAL_MAPPED)) {
-            const float dynTextured = (lightProperties & DYNAMIC);
-            const float normOrHeight = (renderProperties & TEXTURED) || (renderProperties & NORMAL_MAPPED) || (renderProperties & NORMAL_HEIGHT_MAPPED);
-            const bool lightingEnabled = dynTextured || (dynTextured && normOrHeight);
-            /**
-            if (dynTextured || (dynTextured && normOrHeight)) {
-                glm::vec3 lightColor;
-                for (int i = 0; i < _state.lights.size(); ++i) {
-                    Light * light = _state.lights[i];
-                    lightColor = light->getColor() * light->getIntensity();
-                    s->setVec3("lightPositions[" + std::to_string(i) + "]",
-                            &light->position[0]);
-                    s->setVec3("lightColors[" + std::to_string(i) + "]",
-                            &lightColor[0]);
-                }
-                s->setInt("numLights", (int)_state.lights.size());
-                s->setVec3("viewPosition", &c.getPosition()[0]);
-                s->setMat4("view", &(*view)[0][0]);
-            }
-            */
-
-            /*
-            if (_state.mode == RenderMode::ORTHOGRAPHIC) {
-                projection = &_state.orthographic;
-            } else {
-                projection = &_state.perspective;
-            }
-            */
-            s->setMat4("projection", &(*projection)[0][0]);
-            s->setMat4("view", &(*view)[0][0]);
-
-            // Iterate through all entities and draw them
-            //s->setMat4("projection", &(*projection)[0][0]);
-            const glm::mat4 & model = e->model;
-
-            if (lightingEnabled) _initLights(s, c, perLightDistToViewer, perLightShadowCastingDistToViewer);
-
-            if (renderProperties & TEXTURED) {
-                /*
-                glActiveTexture(GL_TEXTURE0);
-                s->setInt("diffuseTexture", 0);
-                GLuint texture = _lookupTexture(e->getMaterial().texture);
-                glBindTexture(GL_TEXTURE_2D + 0, texture);
-                */
-                _bindTexture(s, "diffuseTexture", m->getMaterial().texture);
-            }
-
-            // Determine which uniforms we should set
-            if (lightProperties & FLAT) {
-                s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
-                //glm::mat4 modelView = (*view) * model;
-                //s->setMat4("modelView", &modelView[0][0]);
-            } else if (lightProperties & DYNAMIC) {
-                //s->setFloat("shininess", e->getMaterial().specularShininess);
-                //s->setMat4("model", &model[0][0]);
-                if (renderProperties & NORMAL_MAPPED || renderProperties & NORMAL_HEIGHT_MAPPED) {
-                    /*
-                    s->setInt("normalMap", 0);
-                    glActiveTexture(GL_TEXTURE0 + 0);
-                    GLuint normalMap = _lookupTexture(e->getMaterial().normalMap);
-                    glBindTexture(GL_TEXTURE_2D + 0, normalMap);
-                    */
-                    _bindTexture(s, "normalMap", m->getMaterial().normalMap);
-                }
-
-                if (renderProperties & NORMAL_HEIGHT_MAPPED) {
-                    _bindTexture(s, "depthMap", m->getMaterial().depthMap);
-                    s->setFloat("heightScale", m->getMaterial().heightScale);
-                }
-
-                if (renderProperties & ROUGHNESS_MAPPED) {
-                    _bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
-                }
-
-                if (renderProperties & ENVIRONMENT_MAPPED) {
-                    _bindTexture(s, "ambientOcclusionMap", m->getMaterial().environmentMap);
-                }
-            }
-
-            setCullState(m->cullingMode);
-
-            m->bind();
-            m->render(numInstances);
-            m->unbind();
-            _unbindAllTextures();
-            //glBindTexture(GL_TEXTURE_2D, 0);
-
-            //_clearInstancedData(buffers);
-            _unbindShader();
+            // We are only going to render dynamic-lit entities this pass
+            if (e->getLightProperties() & FLAT) continue;
+            _render(c, e, m, numInstances);
         }
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Now render the screen
     glDisable(GL_CULL_FACE);
-    _bindShader(_state.hdrGamma.get());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, _state.colorBuffer);
-    _state.hdrGamma->setInt("screen", 0);
+
+    // Begin lighting pass
+    glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
+    _unbindAllTextures();
+    _bindShader(_state.lighting.get());
+    _initLights(_state.lighting.get(), c, perLightDistToViewer, perLightShadowCastingDistToViewer);
+    _bindTexture(_state.lighting.get(), "gPosition", -1, _state.buffer.position);
+    _bindTexture(_state.lighting.get(), "gNormal", -1, _state.buffer.normals);
+    _bindTexture(_state.lighting.get(), "gAlbedo", -1, _state.buffer.albedo);
+    _bindTexture(_state.lighting.get(), "gBaseReflectivity", -1, _state.buffer.baseReflectivity);
+    _bindTexture(_state.lighting.get(), "gRoughnessMetallicAmbient", -1, _state.buffer.roughnessMetallicAmbient);
     _state.screenQuad->bind();
     _state.screenQuad->render(1);
     _state.screenQuad->unbind();
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Now render the screen
+    _unbindAllTextures();
+    _bindShader(_state.hdrGamma.get());
+    //glActiveTexture(GL_TEXTURE0);
+    //glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
+    //_state.hdrGamma->setInt("screen", 0);
+    _bindTexture(_state.hdrGamma.get(), "screen", -1, _state.lightingColorBuffer);
+    _state.screenQuad->bind();
+    _state.screenQuad->render(1);
+    _state.screenQuad->unbind();
+    //glBindTexture(GL_TEXTURE_2D, 0);
     _unbindShader();
+    _unbindAllTextures();
 
     // Make sure to clear out all instanced data used this frame
     _clearInstancedData(buffers);
@@ -1010,6 +1113,10 @@ void Renderer::addPointLight(Light * light) {
 
 void Renderer::_bindTexture(Shader * s, const std::string & textureName, TextureHandle handle) {
     GLuint texture = _lookupTexture(handle);
+    _bindTexture(s, textureName, handle, texture);
+}
+
+void Renderer::_bindTexture(Shader * s, const std::string & textureName, TextureHandle handle, GLuint texture) {
     int textureIndex = (int)_state.boundTextures.size();
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
@@ -1061,13 +1168,14 @@ void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::
         PointLight * light = (PointLight *)lights[i].first;
         const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
-        if (distance > (2 * light->getRadius())) continue;
+        //if (distance > (2 * light->getRadius())) continue;
         lightColor = light->getColor() * light->getIntensity();
         s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &light->position[0]);
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
-        s->setFloat("lightFarPlanes[" + std::to_string(lightIndex) + "]", light->getFarPlane());
+        s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", light->getRadius());
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         if (lightIndex < shadowLights.size()) {
+            s->setFloat("lightFarPlanes[" + std::to_string(lightIndex) + "]", light->getFarPlane());
             _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
             ++shadowLightIndex;
         }
