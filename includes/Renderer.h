@@ -131,6 +131,12 @@ class Renderer {
         GLuint depth = 0;                    // R16F
     };
 
+    struct PostFXBuffer {
+        GLuint fbo;
+        GLuint colorBuffer;
+        std::vector<GLuint> additionalBuffers;
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
@@ -152,7 +158,14 @@ class Renderer {
         // Buffer for lighting pass
         GLuint lightingFbo;
         GLuint lightingColorBuffer;
+        // Used for effects like bloom
+        GLuint lightingHighBrightnessBuffer;
         GLuint lightingDepthBuffer;
+        // For everything else including bloom post-processing
+        int numBlurIterations = 10;
+        // Might change from frame to frame
+        GLuint finalBloomColorBuffer;
+        std::vector<PostFXBuffer> postFxBuffers;
         // Used for a call to glBlendFunc
         GLenum blendSFactor = GL_ONE;
         GLenum blendDFactor = GL_ZERO;
@@ -167,6 +180,10 @@ class Renderer {
         std::unique_ptr<Shader> forward;
         // Handles the lighting stage
         std::unique_ptr<Shader> lighting;
+        // Stage 1 handles extracting only the bright parts of the scene
+        std::unique_ptr<Shader> bloomStageOne;
+        // Stage 2 takes the bright parts and applies a 9x9 kernel Gaussian Blur several times
+        std::unique_ptr<Shader> bloomStageTwo;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
@@ -379,8 +396,12 @@ private:
     void _clearInstancedData(std::vector<GLuint> & buffers);
     void _bindShader(Shader *);
     void _unbindShader();
+    void _performPostFxProcessing();
+    void _finalizeFrame();
+    void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
     void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances);
+    void _renderQuad();
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

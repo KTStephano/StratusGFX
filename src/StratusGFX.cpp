@@ -162,6 +162,7 @@ int main(int argc, char * args[]) {
     stratus::Model clay = renderer.loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
     stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
+    stratus::Model ramparts = renderer.loadModel("../local/model.obj");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -309,7 +310,7 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(250.0f);
-                                mover->light->setColor(255.0f / 256.0f, 188.0f / 255.0f, 0.0f);
+                                mover->light->setColor(1.0f, 1.0f, 0.5f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -453,6 +454,11 @@ int main(int argc, char * args[]) {
         hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
         hall.position = glm::vec3(-250.0f, -30.0f, 0.0f);
         renderer.addDrawable(&hall);
+
+        ramparts.position = glm::vec3(300.0f, 0.0f, -100.0f);
+        ramparts.rotation = glm::vec3(90.0f, 0.0f, 0.0f);
+        ramparts.scale = glm::vec3(10.0f);
+        renderer.addDrawable(&ramparts);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

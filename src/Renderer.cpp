@@ -155,6 +155,10 @@ Renderer::Renderer(SDL_Window * window) {
 
     _state.lighting = std::make_unique<Shader>("../resources/shaders/pbr.vs", "../resources/shaders/pbr.fs");
 
+    _state.bloomStageOne = std::make_unique<Shader>("../resources/shaders/bloom_stage1.vs", "../resources/shaders/bloom_stage1.fs");
+    // We re-use the stage 1 vertex shader since the vertex shader does almost nothing in this case
+    _state.bloomStageTwo = std::make_unique<Shader>("../resources/shaders/bloom_stage1.vs", "../resources/shaders/bloom_stage2.fs");
+
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
 
@@ -173,6 +177,7 @@ Renderer::Renderer(SDL_Window * window) {
             _state.geometry->isValid() &&
             _state.hdrGamma->isValid() &&
             _state.lighting->isValid() &&
+            _state.bloomStageOne->isValid() &&
             _state.shadows->isValid();
 
     _state.dummyCubeMap = createShadowMap3D(64, 64);
@@ -236,6 +241,12 @@ void Renderer::_clearGBuffer() {
     glDeleteFramebuffers(1, &_state.lightingFbo);
     glDeleteTextures(1, &_state.lightingColorBuffer);
     glDeleteTextures(1, &_state.lightingDepthBuffer);
+
+    for (auto postFx : _state.postFxBuffers) {
+        glDeleteFramebuffers(1, &postFx.fbo);
+        glDeleteTextures(1, &postFx.colorBuffer);
+        glDeleteTextures(postFx.additionalBuffers.size(), &postFx.additionalBuffers[0]);
+    }
 }
 
 void Renderer::_setWindowDimensions(int w, int h) {
@@ -256,7 +267,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Position buffer
     glGenTextures(1, &buffer.position);
     glBindTexture(GL_TEXTURE_2D, buffer.position);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer.position, 0);
@@ -264,7 +275,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Normal buffer
     glGenTextures(1, &buffer.normals);
     glBindTexture(GL_TEXTURE_2D, buffer.normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, buffer.normals, 0);
@@ -276,7 +287,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glBindTexture(GL_TEXTURE_2D, buffer.albedo);
     glTexImage2D(GL_TEXTURE_2D, // target
             0, // level
-            GL_RGBA32F, // internal format
+            GL_RGBA16F, // internal format
             _state.windowWidth, // width
             _state.windowHeight, // height
             0, // border
@@ -298,7 +309,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Base reflectivity buffer
     glGenTextures(1, &buffer.baseReflectivity);
     glBindTexture(GL_TEXTURE_2D, buffer.baseReflectivity);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, buffer.baseReflectivity, 0);
@@ -306,13 +317,13 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Roughness-Metallic-Ambient buffer
     glGenTextures(1, &buffer.roughnessMetallicAmbient);
     glBindTexture(GL_TEXTURE_2D, buffer.roughnessMetallicAmbient);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, buffer.roughnessMetallicAmbient, 0);
 
-    uint32_t attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
-    glDrawBuffers(5, attachments);
+    std::vector<uint32_t> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
+    glDrawBuffers(attachments.size(), &attachments[0]);
 
     // Create the depth buffer
     glGenTextures(1, &buffer.depth);
@@ -354,7 +365,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
     glTexImage2D(GL_TEXTURE_2D, // target
             0, // level
-            GL_RGB32F, // internal format
+            GL_RGBA16F, // internal format
             _state.windowWidth, // width
             _state.windowHeight, // height
             0, // border
@@ -363,12 +374,41 @@ void Renderer::_setWindowDimensions(int w, int h) {
             nullptr); // data
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // Attach the color buffer to the frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER,
             GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_2D,
             _state.lightingColorBuffer,
             0);
+
+    // Create the buffer we will use to add bloom as a post-processing effect
+    glGenTextures(1, &_state.lightingHighBrightnessBuffer);
+    glBindTexture(GL_TEXTURE_2D, _state.lightingHighBrightnessBuffer);
+    glTexImage2D(GL_TEXTURE_2D, // target
+            0, // level
+            GL_RGBA16F, // internal format
+            _state.windowWidth, // width
+            _state.windowHeight, // height
+            0, // border
+            GL_RGBA, // format
+            GL_FLOAT, // type
+            nullptr); // data
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // Attach the color buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT1,
+            GL_TEXTURE_2D,
+            _state.lightingHighBrightnessBuffer,
+            0);
+
+    // Tell OpenGL about the additional color buffer
+    attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(attachments.size(), &attachments[0]);
 
     // Create the depth buffer
     glGenTextures(1, &_state.lightingDepthBuffer);
@@ -398,6 +438,92 @@ void Renderer::_setWindowDimensions(int w, int h) {
         return;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    _initializePostFxBuffers();
+}
+
+void Renderer::_initializePostFxBuffers() {
+    _state.postFxBuffers.resize(1);
+
+    PostFXBuffer & bloomStage1 = _state.postFxBuffers[0];
+    // Now create the post FX fbo
+    glGenFramebuffers(1, &bloomStage1.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1.fbo);
+
+    // Create the color buffer - notice that is uses higher
+    // than normal precision. This allows us to write color values
+    // greater than 1.0 to support things like HDR.
+    glGenTextures(1, &bloomStage1.colorBuffer);
+    glBindTexture(GL_TEXTURE_2D, bloomStage1.colorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, // target
+            0, // level
+            GL_RGBA16F, // internal format
+            _state.windowWidth, // width
+            _state.windowHeight, // height
+            0, // border
+            GL_RGBA, // format
+            GL_FLOAT, // type
+            nullptr); // data
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // Attach the color buffer to the frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            bloomStage1.colorBuffer,
+            0);
+
+    // Check the status to make sure it's complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "[error] Generating lighting frame buffer failed" << std::endl;
+        _isValid = false;
+        return;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // See https://learnopengl.com/Advanced-Lighting/Bloom
+    // What we are going to do is create 2 buffers. The first handles horizontal blurring.
+    // The second takes the input of the first and does vertical blurring. Then we pass the second
+    // back into the first and do horizontal blurring a second time, and on and on for however many
+    // iterations.
+    GLuint dualBlurFbo[2];
+    GLuint dualBlurColor[2];
+    glGenFramebuffers(2, dualBlurFbo);
+    glGenTextures(2, dualBlurColor);
+    for (int i = 0; i < 2; ++i) {
+        _state.postFxBuffers.push_back(PostFXBuffer{dualBlurFbo[i], dualBlurColor[i], {}});
+
+        glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[i]);
+        glBindTexture(GL_TEXTURE_2D, dualBlurColor[i]);
+        glTexImage2D(GL_TEXTURE_2D, // target
+                0, // level
+                GL_RGBA16F, // internal format
+                _state.windowWidth, // width
+                _state.windowHeight, // height
+                0, // border
+                GL_RGBA, // format
+                GL_FLOAT, // type
+                nullptr); // data
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // Attach the color buffer to the frame buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D,
+                dualBlurColor[i],
+                0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "[error] Generating lighting frame buffer failed" << std::endl;
+            _isValid = false;
+            return;
+        }
+    }
 }
 
 void Renderer::setPerspectiveData(float fov, float fnear, float ffar) {
@@ -1001,22 +1127,75 @@ void Renderer::end(const Camera & c) {
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // Enable post-FX effects such as bloom
+    _performPostFxProcessing();
+
+    // Perform final drawing to screen + gamma correction
+    _finalizeFrame();
+
+    // Make sure to clear out all instanced data used this frame
+    _clearInstancedData(buffers);
+}
+
+void Renderer::_performPostFxProcessing() {
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+
+    // Process stage one
+    PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
+    _bindShader(_state.bloomStageOne.get());
+    _bindTexture(_state.bloomStageOne.get(), "image", -1, _state.lightingColorBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1Buf.fbo);
+    _renderQuad();
+    _unbindShader();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Process stage two
+    bool horizontal = true, firstIteration = true;
+    // Since we do one blur direction at a time (horizontal vs vertical), the total Gaussian Blur iterations
+    // turns out to be numIterations / 2
+    const int numIterations = _state.numBlurIterations;
+    _bindShader(_state.bloomStageTwo.get());
+    GLuint dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
+    GLuint dualBlurColor[] = {_state.postFxBuffers[1].colorBuffer, _state.postFxBuffers[2].colorBuffer};
+    for (int i = 0; i < numIterations; ++i) {
+        const int blurIndexCurrent = static_cast<int>(horizontal);
+        const int blurIndexPrev = static_cast<int>(!horizontal);
+        glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
+        // We set finalBloomColorBuffer so that finalize frame knows which one to pull from
+        GLuint prevColor = firstIteration ? bloomStage1Buf.colorBuffer : dualBlurColor[blurIndexPrev];
+        _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
+        _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
+        _state.bloomStageTwo->setBool("horizontal", horizontal);
+        _renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        horizontal = !horizontal;
+        firstIteration = false;
+    }
+    _unbindShader();
+}
+
+void Renderer::_finalizeFrame() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+
     // Now render the screen
-    _unbindAllTextures();
     _bindShader(_state.hdrGamma.get());
     //glActiveTexture(GL_TEXTURE0);
     //glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
     //_state.hdrGamma->setInt("screen", 0);
     _bindTexture(_state.hdrGamma.get(), "screen", -1, _state.lightingColorBuffer);
+    _bindTexture(_state.hdrGamma.get(), "bloomBlur", -1, _state.finalBloomColorBuffer);
+    _renderQuad();
+    //glBindTexture(GL_TEXTURE_2D, 0);
+    _unbindShader();
+}
+
+void Renderer::_renderQuad() {
     _state.screenQuad->bind();
     _state.screenQuad->render(1);
     _state.screenQuad->unbind();
-    //glBindTexture(GL_TEXTURE_2D, 0);
-    _unbindShader();
-    _unbindAllTextures();
-
-    // Make sure to clear out all instanced data used this frame
-    _clearInstancedData(buffers);
 }
 
 TextureHandle Renderer::loadTexture(const std::string &file) {
