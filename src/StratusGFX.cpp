@@ -34,7 +34,8 @@ public:
     RandomLightMover() {
         cube = std::make_unique<stratus::RenderEntity>();
         cube->setLightProperties(stratus::LightProperties::FLAT);
-        cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
+        //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
+        cube->scale = glm::vec3(1.0f);
         cube->meshes.push_back(std::make_shared<stratus::Cube>());
         light = std::make_unique<stratus::PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));

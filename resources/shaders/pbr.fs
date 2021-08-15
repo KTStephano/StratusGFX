@@ -109,7 +109,7 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
     float shadow = 0.0;
-    float samples = 2.0;
+    float samples = 3.0;
     float totalSamples = samples * samples * samples; // 64 if samples is set to 4.0
     float offset = 0.1;
     float increment = offset / (samples * 0.5);
