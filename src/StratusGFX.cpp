@@ -43,7 +43,7 @@ public:
     }
 
     void addToScene(stratus::Renderer & r) const {
-        r.addDrawable(cube.get());
+        //r.addDrawable(cube.get());
         r.addPointLight(light.get());
     }
 

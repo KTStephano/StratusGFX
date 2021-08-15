@@ -11,7 +11,7 @@ void main() {
     // See https://learnopengl.com/Advanced-Lighting/Bloom
     vec3 weights = vec3(0.2126, 0.7152, 0.0722);
     float brightness = color.r * weights.r + color.g * weights.g + color.b * weights.b;
-    if (brightness > 1.0) {
+    if (brightness > 5.0) {
         fsBrightSpot = color;
     }
     else {
