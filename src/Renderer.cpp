@@ -1458,11 +1458,11 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
         ++lightIndex;
     }
 
-    //if (shadowLightIndex == 0) {
-    //    // If we don't do this the fragment shader crashes
-    //    s->setFloat("lightFarPlanes[0]", 0.0f);
-    //    _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
-    //}
+    if (shadowLightIndex == 0) {
+       // If we don't do this the fragment shader crashes
+       s->setFloat("lightFarPlanes[0]", 0.0f);
+       _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
+    }
 
     s->setFloat("ambientIntensity", 0.0001f);
     /*
