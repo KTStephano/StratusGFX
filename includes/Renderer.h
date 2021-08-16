@@ -149,6 +149,7 @@ class Renderer {
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
+        int shadowCubeMapX = 4096, shadowCubeMapY = 4096;
         glm::mat4 orthographic;
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;

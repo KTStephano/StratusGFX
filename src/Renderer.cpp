@@ -1343,7 +1343,7 @@ void Renderer::addPointLight(Light * light) {
     if (light->getType() == LightType::POINTLIGHT) {
         PointLight * point = (PointLight *)light;
         if (point->getShadowMapHandle() == -1) {
-            point->_setShadowMapHandle(this->createShadowMap3D(1024 * 2, 1024 * 2));
+            point->_setShadowMapHandle(this->createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY));
         }
     }
 

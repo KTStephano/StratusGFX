@@ -115,7 +115,8 @@ public:
     }
 
     float getFarPlane() const {
-        return this->lightFarPlane;
+        //return this->lightFarPlane;
+        return this->getRadius();
     }
 
 private:
