@@ -195,7 +195,12 @@ Renderer::Renderer(SDL_Window * window) {
             _state.bloomStageOne->isValid() &&
             _state.shadows->isValid();
 
-    _state.dummyCubeMap = createShadowMap3D(64, 64);
+    _state.dummyCubeMap = createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+
+    // Create a pool of shadow maps for point lights to use
+    for (int i = 0; i < _state.numShadowMaps; ++i) {
+        createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+    }
 }
 
 Renderer::~Renderer() {
@@ -282,7 +287,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Position buffer
     glGenTextures(1, &buffer.position);
     glBindTexture(GL_TEXTURE_2D, buffer.position);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer.position, 0);
@@ -290,7 +295,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Normal buffer
     glGenTextures(1, &buffer.normals);
     glBindTexture(GL_TEXTURE_2D, buffer.normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, buffer.normals, 0);
@@ -583,6 +588,14 @@ void Renderer::begin(bool clearScreen) {
                      _state.clearColor.b, _state.clearColor.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        for (auto& postFx : _state.postFxBuffers) {
+            glBindBuffer(GL_FRAMEBUFFER, postFx.fbo);
+            glClearColor(_state.clearColor.r, _state.clearColor.g,
+                         _state.clearColor.b, _state.clearColor.a);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
     }
 
     // Clear all entities from the previous frame
@@ -597,7 +610,7 @@ void Renderer::begin(bool clearScreen) {
     _state.lights.clear();
     _state.lightInteractingEntities.clear();
 
-    glEnable(GL_BLEND);
+    glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW);
@@ -928,7 +941,7 @@ void Renderer::end(const Camera & c) {
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
     const int maxInstances = 250;
-    const int maxShadowCastingLights = 10;
+    const int maxShadowCastingLights = 8;
     const int maxTotalLights = 256;
     const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
     // Need to delete these at the end of the frame
@@ -985,6 +998,7 @@ void Renderer::end(const Camera & c) {
 
     // Set blend func just for shadow pass
     glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
     _bindShader(_state.shadows.get());
     int shadowUpdates = 0;
@@ -994,8 +1008,9 @@ void Renderer::end(const Camera & c) {
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
-        const bool dirty = perLightIsDirty.find(light)->second;
-        if (distance > 2 * light->getRadius() || !dirty) continue;
+        const bool dirty = _lightsSeenBefore.find(light)->second.dirty || perLightIsDirty.find(light)->second;
+        //if (distance > 2 * light->getRadius() || !dirty) continue;
+        if (!dirty) continue;
         
         // Set dirty to false
         _lightsSeenBefore.find(light)->second.dirty = false;
@@ -1011,7 +1026,7 @@ void Renderer::end(const Camera & c) {
     
         // TODO: Make this work with spotlights
         PointLight * point = (PointLight *)light;
-        const ShadowMap3D & smap = this->_shadowMap3DHandles.find(point->getShadowMapHandle())->second;
+        const ShadowMap3D & smap = this->_shadowMap3DHandles.find(_getShadowMapHandleForLight(point))->second;
 
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), smap.width / smap.height, point->getNearPlane(), point->getFarPlane());
 
@@ -1089,7 +1104,8 @@ void Renderer::end(const Camera & c) {
     glViewport(0, 0, _state.windowWidth, _state.windowHeight);
 
     // Begin geometry pass
-    glDisable(GL_BLEND);
+    //glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
             //_initInstancedData(meshObservers.second, buffers);
@@ -1105,10 +1121,11 @@ void Renderer::end(const Camera & c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
+    //glEnable(GL_BLEND);
 
     // Begin deferred lighting pass
     glBindFramebuffer(GL_FRAMEBUFFER, _state.lightingFbo);
+    glDisable(GL_DEPTH_TEST);
     _unbindAllTextures();
     _bindShader(_state.lighting.get());
     _initLights(_state.lighting.get(), c, perLightDistToViewer, maxShadowCastingLights);
@@ -1127,6 +1144,7 @@ void Renderer::end(const Camera & c) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _state.lightingFbo); // write to light-pass framebuffer
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
+    glEnable(GL_DEPTH_TEST);
     glBlitFramebuffer(0, 0, _state.windowWidth, _state.windowHeight, 0, 0, _state.windowWidth, _state.windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
@@ -1154,7 +1172,7 @@ void Renderer::end(const Camera & c) {
 
 void Renderer::_performPostFxProcessing() {
     glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
+    //glEnable(GL_BLEND);
 
     // Process stage one
     PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
@@ -1193,7 +1211,7 @@ void Renderer::_performPostFxProcessing() {
 void Renderer::_finalizeFrame() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
+    //glEnable(GL_BLEND);
 
     // Now render the screen
     _bindShader(_state.hdrGamma.get());
@@ -1340,18 +1358,22 @@ void Renderer::addPointLight(Light * light) {
     assert(light->getType() == LightType::POINTLIGHT || light->getType() == LightType::SPOTLIGHT);
     _state.lights.push_back(light);
 
-    if (light->getType() == LightType::POINTLIGHT) {
-        PointLight * point = (PointLight *)light;
-        if (point->getShadowMapHandle() == -1) {
-            point->_setShadowMapHandle(this->createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY));
-        }
-    }
+    // if (light->getType() == LightType::POINTLIGHT) {
+    //     PointLight * point = (PointLight *)light;
+    //     if (_getShadowMapHandleForLight(light) == -1) {
+    //         _setLightShadowMapHandle(light, this->createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY));
+    //     }
+    // }
 
     if (_lightsSeenBefore.find(light) == _lightsSeenBefore.end()) {
         _lightsSeenBefore.insert(std::make_pair(light, EntityStateInfo{light->position, glm::vec3(0.0f), glm::vec3(0.0f), true}));
     }
     else {
         EntityStateInfo & info = _lightsSeenBefore.find(light)->second;
+        // If no associated shadow map, mark as dirty
+        if (_lightsToShadowMap.find(light) == _lightsToShadowMap.end()) {
+            info.dirty = true;
+        }
         const double distance = glm::distance(light->position, info.lastPos);
         if (distance > 0.25) {
             info.lastPos = light->position;
@@ -1430,17 +1452,17 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         if (light->castsShadows() && shadowLightIndex < maxShadowLights) {
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", light->getFarPlane());
-            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", light->getShadowMapHandle());
+            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
             ++shadowLightIndex;
         }
         ++lightIndex;
     }
 
-    if (shadowLightIndex == 0) {
-        // If we don't do this the fragment shader crashes
-        s->setFloat("lightFarPlanes[0]", 0.0f);
-        _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
-    }
+    //if (shadowLightIndex == 0) {
+    //    // If we don't do this the fragment shader crashes
+    //    s->setFloat("lightFarPlanes[0]", 0.0f);
+    //    _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
+    //}
 
     s->setFloat("ambientIntensity", 0.0001f);
     /*
@@ -1455,5 +1477,61 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
+}
+
+ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
+    assert(_shadowMap3DHandles.size() > 0);
+
+    auto it = _lightsToShadowMap.find(light);
+    // If not found, look for an existing shadow map
+    if (it == _lightsToShadowMap.end()) {
+        // Mark the light as dirty since its map will need to be updated
+        _lightsSeenBefore.find(light)->second.dirty = true;
+
+        ShadowMapHandle handle = -1;
+        for (const auto & entry : _shadowMap3DHandles) {
+            if (_usedShadowMaps.find(entry.first) == _usedShadowMaps.end()) {
+                handle = entry.first;
+                break;
+            }
+        }
+
+        if (handle == -1) {
+            // Evict oldest since we could not find an available handle
+            Light * oldest = _lruLightCache.front();
+            _lruLightCache.pop_front();
+            handle = _lightsToShadowMap.find(oldest)->second;
+            _evictLightFromShadowMapCache(oldest);
+        }
+
+        _setLightShadowMapHandle(light, handle);
+        _addLightToShadowMapCache(light);
+        return handle;
+    }
+
+    // Update the LRU cache
+    _addLightToShadowMapCache(light);
+    return it->second;
+}
+
+void Renderer::_setLightShadowMapHandle(Light * light, ShadowMapHandle handle) {
+    _lightsToShadowMap.insert(std::make_pair(light, handle));
+    _usedShadowMaps.insert(handle);
+}
+
+void Renderer::_evictLightFromShadowMapCache(Light * light) {
+    for (auto it = _lruLightCache.begin(); it != _lruLightCache.end(); ++it) {
+        if (*it == light) {
+            _lruLightCache.erase(it);
+            return;
+        }
+    }
+}
+
+void Renderer::_addLightToShadowMapCache(Light * light) {
+    // First remove the existing light entry if it's already there
+    _evictLightFromShadowMapCache(light);
+    // Push to back so that it is seen as most recently used
+    _lruLightCache.push_back(light);
 }
 }

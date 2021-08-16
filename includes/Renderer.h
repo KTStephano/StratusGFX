@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <list>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -149,7 +150,8 @@ class Renderer {
         int windowWidth = 0;
         int windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
-        int shadowCubeMapX = 4096, shadowCubeMapY = 4096;
+        int numShadowMaps = 10;
+        int shadowCubeMapX = 2048, shadowCubeMapY = 2048;
         glm::mat4 orthographic;
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
@@ -281,6 +283,15 @@ class Renderer {
      */
     std::unordered_map<ShadowMapHandle, ShadowMap3D> _shadowMap3DHandles;
 
+    // Lights -> Handles map
+    std::unordered_map<Light *, ShadowMapHandle> _lightsToShadowMap;
+
+    // Marks which maps are in use by an active light
+    std::unordered_set<ShadowMapHandle> _usedShadowMaps;
+
+    // Marks which lights are currently in the cache
+    std::list<Light *> _lruLightCache;
+
     /**
      * Contains all loaded models indexed by model name.
      */
@@ -403,6 +414,10 @@ private:
     void _buildEntityList(const Camera & c);
     void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances);
     void _renderQuad();
+    ShadowMapHandle _getShadowMapHandleForLight(Light *);
+    void _setLightShadowMapHandle(Light *, ShadowMapHandle);
+    void _evictLightFromShadowMapCache(Light*);
+    void _addLightToShadowMapCache(Light*);
 
 public:
     GLuint _lookupTexture(TextureHandle handle) const;

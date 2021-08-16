@@ -88,10 +88,10 @@ private:
 class PointLight : public Light {
     friend class Renderer;
     
-    ShadowMapHandle _shadowHap = -1;
+    // ShadowMapHandle _shadowHap = -1;
 
     // These are used to set up the light view matrix
-    float lightNearPlane = 0.25f;
+    float lightNearPlane = 0.1f;
     float lightFarPlane = 500.0f;
 
 public:
@@ -101,9 +101,9 @@ public:
         return LightType::POINTLIGHT;
     }
 
-    ShadowMapHandle getShadowMapHandle() const {
-        return this->_shadowHap;
-    }
+    // ShadowMapHandle getShadowMapHandle() const {
+    //     return this->_shadowHap;
+    // }
 
     void setNearFarPlane(float nearPlane, float farPlane) {
         this->lightNearPlane = nearPlane;
@@ -120,9 +120,9 @@ public:
     }
 
 private:
-    void _setShadowMapHandle(ShadowMapHandle handle) {
-        this->_shadowHap = handle;
-    }
+    // void _setShadowMapHandle(ShadowMapHandle handle) {
+    //     this->_shadowHap = handle;
+    // }
 };
 }
 
