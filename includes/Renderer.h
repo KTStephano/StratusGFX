@@ -13,7 +13,7 @@
 #include "Model.h"
 
 namespace stratus {
-class Shader;
+class Pipeline;
 class Light;
 class Quad;
 
@@ -152,7 +152,7 @@ class Renderer {
         glm::mat4 orthographic;
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
-        Shader * currentShader;
+        Pipeline * currentShader;
         // Buffer where all color data is written
         GBuffer buffer;
         // Buffer for lighting pass
@@ -171,19 +171,19 @@ class Renderer {
         GLenum blendDFactor = GL_ZERO;
         // Postprocessing shader which allows for application
         // of hdr and gamma correction
-        std::unique_ptr<Shader> hdrGamma;
+        std::unique_ptr<Pipeline> hdrGamma;
         // Preprocessing shader which sets up the scene to allow for dynamic shadows
-        std::unique_ptr<Shader> shadows;
+        std::unique_ptr<Pipeline> shadows;
         // Geometry pass - handles all combinations of material properties
-        std::unique_ptr<Shader> geometry;
+        std::unique_ptr<Pipeline> geometry;
         // Forward rendering pass
-        std::unique_ptr<Shader> forward;
+        std::unique_ptr<Pipeline> forward;
         // Handles the lighting stage
-        std::unique_ptr<Shader> lighting;
+        std::unique_ptr<Pipeline> lighting;
         // Stage 1 handles extracting only the bright parts of the scene
-        std::unique_ptr<Shader> bloomStageOne;
+        std::unique_ptr<Pipeline> bloomStageOne;
         // Stage 2 takes the bright parts and applies a 9x9 kernel Gaussian Blur several times
-        std::unique_ptr<Shader> bloomStageTwo;
+        std::unique_ptr<Pipeline> bloomStageTwo;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
@@ -245,13 +245,13 @@ class Renderer {
     /**
      * Contains all of the shaders that are used by the renderer.
      */
-    std::vector<Shader *> _shaders;
+    std::vector<Pipeline *> _shaders;
 
     /**
      * This maps a set of properties to a shader. This should be
      * a valid combination, such as FLAT | TEXTURED.
      */
-    //std::unordered_map<uint32_t, std::unordered_map<uint32_t, Shader *>> _propertyShaderMap;
+    //std::unordered_map<uint32_t, std::unordered_map<uint32_t, Pipeline *>> _propertyShaderMap;
 
     /**
      * Contains a list of textures that have been loaded into memory.
@@ -313,7 +313,7 @@ public:
       */
      void setClearColor(const Color & c);
 
-     const Shader * getCurrentShader() const;
+     const Pipeline * getCurrentShader() const;
 
      void invalidateAllTextures();
 
@@ -386,15 +386,15 @@ private:
     void _addDrawable(RenderEntity * e, const glm::mat4 &);
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
-    void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle);
-    void _bindTexture(Shader * s, const std::string & textureName, TextureHandle handle, GLuint texture);
-    void _bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle);
+    void _bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle);
+    void _bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle, GLuint texture);
+    void _bindShadowMapTexture(Pipeline * s, const std::string & textureName, ShadowMapHandle handle);
     void _unbindAllTextures();
-    void _initLights(Shader * s, const Camera & c, 
+    void _initLights(Pipeline * s, const Camera & c, 
                      const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights);
     void _initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers);
     void _clearInstancedData(std::vector<GLuint> & buffers);
-    void _bindShader(Shader *);
+    void _bindShader(Pipeline *);
     void _unbindShader();
     void _performPostFxProcessing();
     void _finalizeFrame();

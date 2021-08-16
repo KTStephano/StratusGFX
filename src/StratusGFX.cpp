@@ -100,15 +100,6 @@ int main(int argc, char * args[]) {
         return -1;
     }
 
-    std::cout << "Renderer: " << renderer.config().renderer << std::endl;
-    std::cout << "GL version: " << renderer.config().version << std::endl;
-
-    stratus::Shader shader("../resources/shaders/texture_no_lighting.vs",
-            "../resources/shaders/texture_no_lighting.fs");
-    stratus::Shader shader2("../resources/shaders/shader.vs",
-            "../resources/shaders/shader.fs");
-    if (!shader.isValid() || !shader2.isValid()) return -1;
-
     // For textures see https://3dtextures.me/
     std::vector<stratus::TextureHandle> textures;
     textures.push_back(renderer.loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));

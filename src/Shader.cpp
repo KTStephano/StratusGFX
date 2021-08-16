@@ -3,17 +3,12 @@
 #include <iostream>
 
 namespace stratus {
-Shader::Shader(const std::string & vertexShader, const std::string & geomShader, const std::string & fragShader)
-    : _vsFile(vertexShader),
-    _gsFile(geomShader),
-    _fsFile(fragShader) {
+Pipeline::Pipeline(const std::vector<Shader> & shaders)
+    : _shaders(shaders) {
     this->_compile();
 }
 
-Shader::Shader(const std::string &vertexShader, const std::string &fragShader)
-    : Shader(vertexShader, std::string(), fragShader) {}
-
-Shader::~Shader() {
+Pipeline::~Pipeline() {
     glDeleteProgram(_program);
 }
 
@@ -72,142 +67,133 @@ static bool checkProgramError(GLuint program) {
     return true;
 }
 
-void Shader::_compile() {
+void Pipeline::_compile() {
     _isValid = true;
-    std::string vsBuffer = Filesystem::readAscii(_vsFile);
-    std::string fsBuffer = Filesystem::readAscii(_fsFile);
-    if (vsBuffer.empty() || fsBuffer.empty()) {
-        _isValid = false;
-        return;
-    }
-
-    std::string gsBuffer;
-    bool geomShaderPresent = false;
-    if (_gsFile.size() > 0) {
-        gsBuffer = Filesystem::readAscii(_gsFile);
-        if (gsBuffer.empty()) {
+    std::vector<GLuint> shaderBinaries;
+    for (Shader & s : this->_shaders) {
+        std::string buffer = Filesystem::readAscii(s.filename);
+        if (buffer.empty()) {
             _isValid = false;
             return;
         }
-        geomShaderPresent = true;
-    }
 
-    // Compile the vertex shader
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    const char * bufferPtr = vsBuffer.c_str();
-    glShaderSource(vs, 1, &bufferPtr, nullptr);
-    glCompileShader(vs);
-
-    if (!checkShaderError(vs, _vsFile)) {
-        _isValid = false;
-        return;
-    }
-
-    // Compile the geometry shader if there is one
-    GLuint gs;
-    if (geomShaderPresent) {
-        gs = glCreateShader(GL_GEOMETRY_SHADER);
-        const char * bufferPtr = gsBuffer.c_str();
-        glShaderSource(gs, 1, &bufferPtr, nullptr);
-        glCompileShader(gs);
-
-        if (!checkShaderError(gs, _gsFile)) {
+        GLenum type;
+        switch (s.type) {
+        case ShaderType::VERTEX:
+            type = GL_VERTEX_SHADER;
+            break;
+        case ShaderType::GEOMETRY:
+            type = GL_GEOMETRY_SHADER;
+            break;
+        case ShaderType::FRAGMENT:
+            type = GL_FRAGMENT_SHADER;
+            break;
+        case ShaderType::COMPUTE:
+            type = GL_COMPUTE_SHADER;
+            break;
+        default:
+            std::cerr << "Unknown shader type" << std::endl;
             _isValid = false;
             return;
         }
+
+        GLuint bin = glCreateShader(type);
+        const char * bufferPtr = buffer.c_str();
+        glShaderSource(bin, 1, &bufferPtr, nullptr);
+        glCompileShader(bin);
+
+        if (!checkShaderError(bin, s.filename)) {
+            _isValid = false;
+            return;
+        }
+
+        shaderBinaries.push_back(bin);
     }
 
-    // Compile the fragment shader
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    bufferPtr = fsBuffer.c_str();
-    glShaderSource(fs, 1, &bufferPtr, nullptr);
-    glCompileShader(fs);
-
-    if (!checkShaderError(fs, _fsFile)) {
-        // Make sure to delete vs since it succeeded
-        glDeleteShader(vs);
-        _isValid = false;
-        return;
-    }
-
+    // Link all the compiled binaries into a program
     _program = glCreateProgram();
-    glAttachShader(_program, vs);
-    if (geomShaderPresent) glAttachShader(_program, gs);
-    glAttachShader(_program, fs);
-    // Compile program
+    for (auto bin : shaderBinaries) {
+        glAttachShader(_program, bin);
+    }
     glLinkProgram(_program);
 
     // We can safely delete the shaders now
-    glDeleteShader(vs);
-    if (geomShaderPresent) glDeleteShader(gs);
-    glDeleteShader(fs);
+    for (auto bin : shaderBinaries) {
+        glDeleteShader(bin);
+    }
+
+    // Make sure no errors during linking came up
     if (!checkProgramError(_program)) {
         _isValid = false;
         return;
     }
 }
 
-void Shader::recompile() {
+void Pipeline::recompile() {
     _compile();
 }
 
-void Shader::bind() {
+void Pipeline::bind() {
     glUseProgram(_program);
 }
 
-void Shader::unbind() {
+void Pipeline::unbind() {
     glUseProgram(0);
 }
 
-void Shader::setBool(const std::string &uniform, bool b) const {
+void Pipeline::setBool(const std::string &uniform, bool b) const {
     setInt(uniform, b ? 1 : 0);
 }
 
-void Shader::setInt(const std::string &uniform, int i) const {
+void Pipeline::setInt(const std::string &uniform, int i) const {
     glUniform1i(getUniformLocation(uniform), i);
 }
 
-void Shader::setFloat(const std::string &uniform, float f) const {
+void Pipeline::setFloat(const std::string &uniform, float f) const {
     glUniform1f(getUniformLocation(uniform), f);
 }
 
-void Shader::setVec2(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::setVec2(const std::string &uniform, const float *vec, int num) const {
     glUniform2fv(getUniformLocation(uniform), num, vec);
 }
 
-void Shader::setVec3(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::setVec3(const std::string &uniform, const float *vec, int num) const {
     glUniform3fv(getUniformLocation(uniform), num, vec);
 }
 
-void Shader::setVec4(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::setVec4(const std::string &uniform, const float *vec, int num) const {
     glUniform4fv(getUniformLocation(uniform), num, vec);
 }
 
-void Shader::setMat2(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::setMat2(const std::string &uniform, const float *mat, int num) const {
     glUniformMatrix2fv(getUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Shader::setMat3(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::setMat3(const std::string &uniform, const float *mat, int num) const {
     glUniformMatrix3fv(getUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Shader::setMat4(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::setMat4(const std::string &uniform, const float *mat, int num) const {
     glUniformMatrix4fv(getUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-GLint Shader::getUniformLocation(const std::string &uniform) const {
+GLint Pipeline::getUniformLocation(const std::string &uniform) const {
     return glGetUniformLocation(_program, &uniform[0]);
 }
 
-GLint Shader::getAttribLocation(const std::string &attrib) const {
+GLint Pipeline::getAttribLocation(const std::string &attrib) const {
     return glGetAttribLocation(_program, &attrib[0]);
 }
 
-std::vector<std::string> Shader::getFileNames() const {
-    return std::vector<std::string>{_vsFile, _gsFile, _fsFile};
+std::vector<std::string> Pipeline::getFileNames() const {
+    std::vector<std::string> filenames;
+    for (Shader s : this->_shaders) {
+        filenames.push_back(s.filename);
+    }
+    return filenames;
 }
 
-void Shader::print() const {
+void Pipeline::print() const {
     for (auto & s : getFileNames()) {
         std::cout << s << ", ";
     }

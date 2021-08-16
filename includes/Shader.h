@@ -1,27 +1,29 @@
 
-#ifndef STRATUSGFX_SHADER_H
-#define STRATUSGFX_SHADER_H
+#ifndef STRATUSGFX_Pipeline_H
+#define STRATUSGFX_Pipeline_H
 
 #include <string>
 #include "GL/gl3w.h"
 #include <vector>
 
 namespace stratus {
-class Shader {
-    /**
-     * Filename for the vertex shader
-     */
-    std::string _vsFile;
+    enum class ShaderType {
+        VERTEX,
+        GEOMETRY,
+        FRAGMENT,
+        COMPUTE
+    };
 
-    /**
-     * Filename for the geometry shader (optional - may be empty)
-     */
-    std::string _gsFile;
+    struct Shader {
+        std::string filename;
+        ShaderType type;
+    };
 
+class Pipeline {
     /**
-     * Filename for the fragment shader
+     * List of all shaders used by the pipeline.
      */
-    std::string _fsFile;
+    std::vector<Shader> _shaders;
 
     /**
      * Program handle returned from OpenGL
@@ -29,45 +31,44 @@ class Shader {
     GLuint _program;
 
     /**
-     * Used to determine whether or not this shader
+     * Used to determine whether or not this Pipeline
      * is valid. If true then it is safe to use.
      */
     bool _isValid = false;
 
 public:
     /**
-     * @param vertexShader file for the vertex shader
-     * @param geomShader file for the geometry shader (optional)
-     * @param fragShader file for the fragment shader
+     * @param vertexPipeline file for the vertex Pipeline
+     * @param geomPipeline file for the geometry Pipeline (optional)
+     * @param fragPipeline file for the fragment Pipeline
      */
-    Shader(const std::string & vertexShader, const std::string & geomShader, const std::string & fragShader);
-    Shader(const std::string & vertexShader, const std::string & fragShader);
-    ~Shader();
+    Pipeline(const std::vector<Shader>& shaders);
+    ~Pipeline();
 
     /**
-     * @return true if the shader was successfully compiled
+     * @return true if the Pipeline was successfully compiled
      */
     bool isValid() { return _isValid; }
 
     /**
-     * Tells the shader to recompile its source files.
+     * Tells the Pipeline to recompile its source files.
      */
     void recompile();
 
     /**
-     * Binds this shader so that it can be used for rendering.
+     * Binds this Pipeline so that it can be used for rendering.
      */
     void bind();
 
     /**
-     * Unbinds this shader so that it no longer affects future
+     * Unbinds this Pipeline so that it no longer affects future
      * rendering.
      */
     void unbind();
 
     /**
      * Takes a uniform name (such as "viewMatrix") and returns its
-     * location within the shader.
+     * location within the Pipeline.
      * @param uniform name of the uniform
      * @return integer representing the uniform location
      */
@@ -96,4 +97,4 @@ private:
 };
 }
 
-#endif //STRATUSGFX_SHADER_H
+#endif //STRATUSGFX_Pipeline_H

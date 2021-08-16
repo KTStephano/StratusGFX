@@ -101,40 +101,46 @@ Renderer::Renderer(SDL_Window * window) {
     _isValid = true;
 
     // Initialize the shaders
-    // Shader * noLightNoTexture = new Shader("../resources/shaders/no_texture_no_lighting.vs",
+    // Pipeline * noLightNoTexture = new Pipeline("../resources/shaders/no_texture_no_lighting.vs",
     //         "../resources/shaders/no_texture_no_lighting.fs");
     // _shaders.push_back(noLightNoTexture);
-    // Shader * textureNoLighting = new Shader("../resources/shaders/texture_no_lighting.vs",
+    // Pipeline * textureNoLighting = new Pipeline("../resources/shaders/texture_no_lighting.vs",
     //         "../resources/shaders/texture_no_lighting.fs");
     // _shaders.push_back(textureNoLighting);
-    // Shader * lightTexture = new Shader("../resources/shaders/texture_pbr.vs",
+    // Pipeline * lightTexture = new Pipeline("../resources/shaders/texture_pbr.vs",
     //         "../resources/shaders/texture_pbr.fs");
     // _shaders.push_back(lightTexture);
-    // Shader * noTexturePbr = new Shader("../resources/shaders/texture_pbr.vs", "../resources/shaders/no_texture_pbr.fs");
-    // Shader * lightTextureNormalMap = new Shader("../resources/shaders/texture_pbr.vs",
+    // Pipeline * noTexturePbr = new Pipeline("../resources/shaders/texture_pbr.vs", "../resources/shaders/no_texture_pbr.fs");
+    // Pipeline * lightTextureNormalMap = new Pipeline("../resources/shaders/texture_pbr.vs",
     //                                             "../resources/shaders/texture_pbr_nm.fs");
     // _shaders.push_back(lightTextureNormalMap);
     /*
-    Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
+    Pipeline * lightTextureNormalDepthMap = new Pipeline("../resources/shaders/texture_pbr.vs",
                                                      "../resources/shaders/texture_lighting_nm_dm.fs");
     */
-    // Shader * lightTextureNormalDepthMap = new Shader("../resources/shaders/texture_pbr.vs",
+    // Pipeline * lightTextureNormalDepthMap = new Pipeline("../resources/shaders/texture_pbr.vs",
     //                                                  "../resources/shaders/texture_pbr_nm_dm.fs");
-    // Shader * lightTextureNormalDepthRoughnessMap = new Shader("../resources/shaders/texture_pbr.vs",
+    // Pipeline * lightTextureNormalDepthRoughnessMap = new Pipeline("../resources/shaders/texture_pbr.vs",
     //                                                  "../resources/shaders/texture_pbr_nm_dm_rm.fs");
-    // Shader * lightTextureNormalDepthRoughnessEnvironmentMap = new Shader("../resources/shaders/texture_pbr.vs",
+    // Pipeline * lightTextureNormalDepthRoughnessEnvironmentMap = new Pipeline("../resources/shaders/texture_pbr.vs",
     //                                                  "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
     // _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
     // _shaders.push_back(lightTextureNormalDepthMap);
-    _state.geometry = std::make_unique<Shader>("../resources/shaders/pbr_geometry_pass.vs", "../resources/shaders/pbr_geometry_pass.fs");
-    _state.forward = std::make_unique<Shader>("../resources/shaders/flat_forward_pass.vs", "../resources/shaders/flat_forward_pass.fs");
+    _state.geometry = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/pbr_geometry_pass.vs", ShaderType::VERTEX}, 
+        Shader{"../resources/shaders/pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
+
+    _state.forward = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/flat_forward_pass.vs", ShaderType::VERTEX}, 
+        Shader{"../resources/shaders/flat_forward_pass.fs", ShaderType::FRAGMENT}}));
+
     using namespace std;
     // Now we need to insert the shaders into the property map - this allows
     // the renderer to perform quick lookup to determine the shader that matches
     // all of a RenderEntities rendering requirements
 
     // Insert flat-lighting shaders
-    // std::unordered_map<uint32_t, Shader *> shaderMap;
+    // std::unordered_map<uint32_t, Pipeline *> shaderMap;
     // shaderMap.insert(make_pair(NONE, noLightNoTexture));
     // shaderMap.insert(make_pair(TEXTURED, textureNoLighting));
     // _propertyShaderMap.insert(std::make_pair(FLAT, shaderMap));
@@ -145,19 +151,28 @@ Renderer::Renderer(SDL_Window * window) {
     _state.entities.insert(make_pair(DYNAMIC, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma postprocessing shader
-    _state.hdrGamma = std::make_unique<Shader>("../resources/shaders/hdr.vs",
-            "../resources/shaders/hdr.fs");
+    _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/hdr.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/hdr.fs", ShaderType::FRAGMENT}}));
 
     // Set up the shadow preprocessing shader
-    _state.shadows = std::make_unique<Shader>("../resources/shaders/shadow.vs",
-       "../resources/shaders/shadow.gs",
-       "../resources/shaders/shadow.fs");
+    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/shadow.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/shadow.gs", ShaderType::GEOMETRY},
+        Shader{"../resources/shaders/shadow.fs", ShaderType::FRAGMENT}}));
 
-    _state.lighting = std::make_unique<Shader>("../resources/shaders/pbr.vs", "../resources/shaders/pbr.fs");
+    _state.lighting = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/pbr.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/pbr.fs", ShaderType::FRAGMENT}}));
 
-    _state.bloomStageOne = std::make_unique<Shader>("../resources/shaders/bloom_stage1.vs", "../resources/shaders/bloom_stage1.fs");
+    _state.bloomStageOne = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/bloom_stage1.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/bloom_stage1.fs", ShaderType::FRAGMENT}}));
+
     // We re-use the stage 1 vertex shader since the vertex shader does almost nothing in this case
-    _state.bloomStageTwo = std::make_unique<Shader>("../resources/shaders/bloom_stage1.vs", "../resources/shaders/bloom_stage2.fs");
+    _state.bloomStageTwo = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/bloom_stage1.vs", ShaderType::VERTEX}, 
+        Shader{"../resources/shaders/bloom_stage2.fs", ShaderType::FRAGMENT}}));
 
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
@@ -188,7 +203,7 @@ Renderer::~Renderer() {
         SDL_GL_DeleteContext(_context);
         _context = nullptr;
     }
-    for (Shader * shader : _shaders) delete shader;
+    for (Pipeline * shader : _shaders) delete shader;
     _shaders.clear();
     invalidateAllTextures();
 
@@ -208,7 +223,7 @@ void Renderer::setClearColor(const Color &c) {
     _state.clearColor = c;
 }
 
-const Shader *Renderer::getCurrentShader() const {
+const Pipeline *Renderer::getCurrentShader() const {
     return nullptr;
 }
 
@@ -688,7 +703,7 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
 }
 
 void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers) {
-    Shader * pbr = _state.geometry.get();
+    Pipeline * pbr = _state.geometry.get();
 
     auto & modelMats = c.modelMatrices;
     auto & diffuseColors = c.diffuseColors;
@@ -775,7 +790,7 @@ void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
     buffers.clear();
 }
 
-void Renderer::_bindShader(Shader * s) {
+void Renderer::_bindShader(Pipeline * s) {
     _unbindShader();
     s->bind();
     _state.currentShader = s;
@@ -826,7 +841,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     _unbindShader();
 
     // Set up the shader we will use for this batch of entities
-    Shader * s;
+    Pipeline * s;
     uint32_t lightProperties = e->getLightProperties();
     uint32_t renderProperties = m->getRenderProperties();
     if (lightProperties == FLAT) {
@@ -1348,12 +1363,12 @@ void Renderer::addPointLight(Light * light) {
     }
 }
 
-void Renderer::_bindTexture(Shader * s, const std::string & textureName, TextureHandle handle) {
+void Renderer::_bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle) {
     GLuint texture = _lookupTexture(handle);
     _bindTexture(s, textureName, handle, texture);
 }
 
-void Renderer::_bindTexture(Shader * s, const std::string & textureName, TextureHandle handle, GLuint texture) {
+void Renderer::_bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle, GLuint texture) {
     int textureIndex = (int)_state.boundTextures.size();
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
@@ -1361,7 +1376,7 @@ void Renderer::_bindTexture(Shader * s, const std::string & textureName, Texture
     _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, texture, TextureType::TEXTURE_2D, textureName}));
 }
 
-void Renderer::_bindShadowMapTexture(Shader * s, const std::string & textureName, ShadowMapHandle handle) {
+void Renderer::_bindShadowMapTexture(Pipeline * s, const std::string & textureName, ShadowMapHandle handle) {
     const ShadowMap3D & smap = _shadowMap3DHandles.find(handle)->second;
     int textureIndex = (int)_state.boundTextures.size();
     glActiveTexture(GL_TEXTURE0 + textureIndex);
@@ -1397,7 +1412,7 @@ void Renderer::_unbindAllTextures() {
     _state.boundTextures.clear();
 }
 
-void Renderer::_initLights(Shader * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights) {
+void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights) {
     glm::vec3 lightColor;
     int lightIndex = 0;
     int shadowLightIndex = 0;
