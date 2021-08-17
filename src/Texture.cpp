@@ -29,7 +29,6 @@ namespace stratus {
                     _convertFormat(config.format),
                     _convertType(config.dataType, config.storage),
                     data);
-                if (config.generateMipMaps) (GL_TEXTURE_2D);
             }
             else {
                 for (int face = 0; face < 6; ++face) {
@@ -43,6 +42,7 @@ namespace stratus {
                         data);
                 }
             }
+            if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_type));
             _unbind();
         }
 
