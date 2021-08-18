@@ -19,7 +19,7 @@ namespace stratus {
             _width = config.width;
             _height = config.height;
 
-            _bind();
+            bind();
             if (config.type == TextureType::TEXTURE_2D) {
                 glTexImage2D(GL_TEXTURE_2D,
                     0,
@@ -43,7 +43,7 @@ namespace stratus {
                 }
             }
             if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_type));
-            _unbind();
+            unbind();
         }
 
         ~TextureImpl() {
@@ -68,20 +68,19 @@ namespace stratus {
             glTexParameteri(_convertTexture(_type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
         }
 
-        TextureType type() const { return _type; }
-
+        TextureType type() const              { return _type; }
         TextureComponentFormat format() const { return _format; }
+        uint32_t width() const                { return _width; }
+        uint32_t height() const               { return _height; }
+        void * underlying() const             { return (void *)&_texture; }
 
-        uint32_t width() const { return _width; }
-
-        uint32_t height() const { return _height; }
-
-    private:
-        void _bind() const {
+    public:
+        void bind(int activeTexture = 0) const {
+            glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(_type), _texture);
         }
 
-        void _unbind() const {
+        void unbind() const {
             glBindTexture(_convertTexture(_type), 0);
         }
 
@@ -94,6 +93,7 @@ namespace stratus {
             }
         }
 
+    private:
         static GLenum _convertFormat(TextureComponentFormat format) {
             switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
@@ -267,4 +267,10 @@ namespace stratus {
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
+
+    void Texture::bind(int activeTexture) { _impl->bind(activeTexture); }
+    void Texture::unbind() { _impl->unbind(); }
+    bool Texture::valid() const { return _impl != nullptr; }
+
+    const void * Texture::underlying() const { return _impl->underlying(); }
 }

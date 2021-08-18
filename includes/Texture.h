@@ -88,5 +88,13 @@ namespace stratus {
 
         uint32_t width() const;
         uint32_t height() const;
+
+        void bind(int activeTexture = 0);
+        void unbind();
+
+        bool valid() const;
+
+        // Gets a pointer to the underlying data (implementation-dependent)
+        const void * underlying() const;
     };
 }
