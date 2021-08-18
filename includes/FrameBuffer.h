@@ -51,5 +51,7 @@ namespace stratus {
         void unbind() const;
 
         bool valid() const;
+
+        void * underlying() const;
     };
 }

@@ -135,6 +135,10 @@ namespace stratus {
             return _depthStencilAttachment;
         }
 
+        void * underlying() const {
+            return (void *)&_fbo;
+        }
+
     private:
         void _bind(GLenum bindingPoint) const {
             glBindFramebuffer(bindingPoint, _fbo);
@@ -164,7 +168,8 @@ namespace stratus {
     const std::vector<Texture> & FrameBuffer::getColorAttachments() const { return _fbo->getColorAttachments(); }
     const Texture & FrameBuffer::getDepthStencilAttachment() const        { return _fbo->getDepthStencilAttachment(); }
 
-    void FrameBuffer::bind() const   { _fbo->bind(); }
-    void FrameBuffer::unbind() const { _fbo->unbind(); }
-    bool FrameBuffer::valid() const  { return _fbo->valid(); }
+    void FrameBuffer::bind() const         { _fbo->bind(); }
+    void FrameBuffer::unbind() const       { _fbo->unbind(); }
+    bool FrameBuffer::valid() const        { return _fbo->valid(); }
+    void * FrameBuffer::underlying() const { return _fbo->underlying(); }
 }

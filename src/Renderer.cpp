@@ -259,7 +259,8 @@ void Renderer::_clearGBuffer() {
     glDeleteTextures(1, &buffer.depth);
 
     glDeleteFramebuffers(1, &_state.lightingFbo);
-    glDeleteTextures(1, &_state.lightingColorBuffer);
+    //glDeleteTextures(1, &_state.lightingColorBuffer);
+    _state.lightingColorBuffer = Texture();
     glDeleteTextures(1, &_state.lightingDepthBuffer);
 
     for (auto postFx : _state.postFxBuffers) {
@@ -327,6 +328,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     */
 
     // Base reflectivity buffer
+
     glGenTextures(1, &buffer.baseReflectivity);
     glBindTexture(GL_TEXTURE_2D, buffer.baseReflectivity);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -381,6 +383,7 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
+    /*
     glGenTextures(1, &_state.lightingColorBuffer);
     glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
     glTexImage2D(GL_TEXTURE_2D, // target
@@ -396,12 +399,18 @@ void Renderer::_setWindowDimensions(int w, int h) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    */
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.lightingColorBuffer.bind();
     // Attach the color buffer to the frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER,
             GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_2D,
-            _state.lightingColorBuffer,
+            *(GLuint *)_state.lightingColorBuffer.underlying(),
             0);
+    _state.lightingColorBuffer.unbind();
 
     // Create the buffer we will use to add bloom as a post-processing effect
     glGenTextures(1, &_state.lightingHighBrightnessBuffer);
@@ -1177,7 +1186,7 @@ void Renderer::_performPostFxProcessing() {
     // Process stage one
     PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
     _bindShader(_state.bloomStageOne.get());
-    _bindTexture(_state.bloomStageOne.get(), "image", -1, _state.lightingColorBuffer);
+    _bindTexture(_state.bloomStageOne.get(), "image", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
     glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1Buf.fbo);
     _renderQuad();
     _unbindShader();
@@ -1218,7 +1227,7 @@ void Renderer::_finalizeFrame() {
     //glActiveTexture(GL_TEXTURE0);
     //glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
     //_state.hdrGamma->setInt("screen", 0);
-    _bindTexture(_state.hdrGamma.get(), "screen", -1, _state.lightingColorBuffer);
+    _bindTexture(_state.hdrGamma.get(), "screen", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
     _bindTexture(_state.hdrGamma.get(), "bloomBlur", -1, _state.finalBloomColorBuffer);
     _renderQuad();
     //glBindTexture(GL_TEXTURE_2D, 0);
@@ -1395,7 +1404,7 @@ void Renderer::_bindTexture(Pipeline * s, const std::string & textureName, Textu
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
     glBindTexture(GL_TEXTURE_2D, texture);
-    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, texture, TextureType::TEXTURE_2D, textureName}));
+    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, texture, RTextureType::TEXTURE_2D, textureName}));
 }
 
 void Renderer::_bindShadowMapTexture(Pipeline * s, const std::string & textureName, ShadowMapHandle handle) {
@@ -1404,7 +1413,7 @@ void Renderer::_bindShadowMapTexture(Pipeline * s, const std::string & textureNa
     glActiveTexture(GL_TEXTURE0 + textureIndex);
     s->setInt(textureName, textureIndex);
     glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
-    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, smap.shadowCubeMap, TextureType::TEXTURE_CUBE_MAP, textureName}));
+    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, smap.shadowCubeMap, RTextureType::TEXTURE_CUBE_MAP, textureName}));
 }
 
 void Renderer::_unbindAllTextures() {
@@ -1418,13 +1427,13 @@ void Renderer::_unbindAllTextures() {
    for (auto & e : _state.boundTextures) {
        int textureIndex = e.second.textureIndex;
        GLuint texture = e.second.texture;
-       TextureType type = e.second.type;
+       RTextureType type = e.second.type;
        const std::string & name = e.second.name;
        glActiveTexture(GL_TEXTURE0 + textureIndex);
        if (_state.currentShader) {
            _state.currentShader->setInt(name, 0);
        }
-       if (type == TextureType::TEXTURE_2D) {
+       if (type == RTextureType::TEXTURE_2D) {
            glBindTexture(GL_TEXTURE_2D, 0);
        }
        else {

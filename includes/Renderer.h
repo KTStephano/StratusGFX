@@ -12,6 +12,7 @@
 #include "RenderEntity.h"
 #include "Camera.h"
 #include "Model.h"
+#include "Texture.h"
 
 namespace stratus {
 class Pipeline;
@@ -103,7 +104,7 @@ namespace std {
 
 namespace stratus {
 class Renderer {
-    enum TextureType {
+    enum RTextureType {
         TEXTURE_2D,
         TEXTURE_CUBE_MAP
     };
@@ -111,7 +112,7 @@ class Renderer {
     struct BoundTextureInfo {
         int textureIndex;
         GLuint texture;
-        TextureType type;
+        RTextureType type;
         std::string name;
     };
 
@@ -147,8 +148,8 @@ class Renderer {
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
-        int windowWidth = 0;
-        int windowHeight = 0;
+        uint32_t windowWidth = 0;
+        uint32_t windowHeight = 0;
         float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
         int numShadowMaps = 10;
         int shadowCubeMapX = 2048, shadowCubeMapY = 2048;
@@ -160,7 +161,7 @@ class Renderer {
         GBuffer buffer;
         // Buffer for lighting pass
         GLuint lightingFbo;
-        GLuint lightingColorBuffer;
+        Texture lightingColorBuffer;
         // Used for effects like bloom
         GLuint lightingHighBrightnessBuffer;
         GLuint lightingDepthBuffer;

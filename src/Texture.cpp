@@ -1,6 +1,7 @@
 #include "Texture.h"
 #include <GL/gl3w.h>
 #include <exception>
+#include <iostream>
 
 namespace stratus {
     class TextureImpl {
@@ -21,13 +22,14 @@ namespace stratus {
 
             bind();
             if (config.type == TextureType::TEXTURE_2D) {
-                glTexImage2D(GL_TEXTURE_2D,
-                    0,
-                    _convertInternalFormat(config.format, config.storage, config.dataType),
+                std::cout << "TEX:" << (_convertType(config.dataType, config.storage) == GL_FLOAT) << std::endl;
+                glTexImage2D(GL_TEXTURE_2D, // target
+                    0, // level 
+                    _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, config.height,
                     0,
-                    _convertFormat(config.format),
-                    _convertType(config.dataType, config.storage),
+                    _convertFormat(config.format), // format (e.g. RGBA)
+                    _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
                     data);
             }
             else {
@@ -57,15 +59,19 @@ namespace stratus {
         TextureImpl & operator=(TextureImpl &&) = delete;
 
         void setCoordinateWrapping(TextureCoordinateWrapping wrap) {
+            bind();
             glTexParameteri(_convertTexture(_type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(_type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
             if (_type == TextureType::TEXTURE_3D) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            unbind();
         }
 
         void setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) {
+            bind();
             glTexParameteri(_convertTexture(_type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
             glTexParameteri(_convertTexture(_type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
+            unbind();
         }
 
         TextureType type() const              { return _type; }
@@ -76,7 +82,7 @@ namespace stratus {
 
     public:
         void bind(int activeTexture = 0) const {
-            glActiveTexture(GL_TEXTURE0 + activeTexture);
+            //glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(_type), _texture);
         }
 
@@ -84,6 +90,7 @@ namespace stratus {
             glBindTexture(_convertTexture(_type), 0);
         }
 
+    private:
         static GLenum _convertTexture(TextureType type) {
             if (type == TextureType::TEXTURE_2D) {
                 return GL_TEXTURE_2D;
@@ -93,7 +100,6 @@ namespace stratus {
             }
         }
 
-    private:
         static GLenum _convertFormat(TextureComponentFormat format) {
             switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
