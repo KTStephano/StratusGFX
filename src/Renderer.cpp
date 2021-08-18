@@ -249,14 +249,7 @@ void Renderer::_recalculateProjMatrices() {
 }
 
 void Renderer::_clearGBuffer() {
-    GBuffer & buffer = _state.buffer;
-    glDeleteFramebuffers(1, &buffer.fbo);
-    glDeleteTextures(1, &buffer.position);
-    glDeleteTextures(1, &buffer.normals);
-    glDeleteTextures(1, &buffer.albedo);
-    glDeleteTextures(1, &buffer.baseReflectivity);
-    glDeleteTextures(1, &buffer.roughnessMetallicAmbient);
-    glDeleteTextures(1, &buffer.depth);
+    _state.buffer = GBuffer();
 
     for (auto postFx : _state.postFxBuffers) {
         glDeleteFramebuffers(1, &postFx.fbo);
@@ -277,99 +270,41 @@ void Renderer::_setWindowDimensions(int w, int h) {
     _clearGBuffer();
 
     GBuffer & buffer = _state.buffer;
-    glGenFramebuffers(1, &buffer.fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
+    // glGenFramebuffers(1, &buffer.fbo);
+    // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    glGenTextures(1, &buffer.position);
-    glBindTexture(GL_TEXTURE_2D, buffer.position);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, buffer.position, 0);
+    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    glGenTextures(1, &buffer.normals);
-    glBindTexture(GL_TEXTURE_2D, buffer.normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, buffer.normals, 0);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    glGenTextures(1, &buffer.albedo);
-    glBindTexture(GL_TEXTURE_2D, buffer.albedo);
-    glTexImage2D(GL_TEXTURE_2D, // target
-            0, // level
-            GL_RGBA16F, // internal format
-            _state.windowWidth, // width
-            _state.windowHeight, // height
-            0, // border
-            GL_RGBA, // format
-            GL_FLOAT, // type
-            nullptr); // data
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, buffer.albedo, 0);
-    // Attach the color buffer to the frame buffer
-    /*
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0,
-            GL_TEXTURE_2D,
-            _state.colorBuffer,
-            0);
-    */
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-
-    glGenTextures(1, &buffer.baseReflectivity);
-    glBindTexture(GL_TEXTURE_2D, buffer.baseReflectivity);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, buffer.baseReflectivity, 0);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Roughness-Metallic-Ambient buffer
-    glGenTextures(1, &buffer.roughnessMetallicAmbient);
-    glBindTexture(GL_TEXTURE_2D, buffer.roughnessMetallicAmbient);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _state.windowWidth, _state.windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, buffer.roughnessMetallicAmbient, 0);
-
-    std::vector<uint32_t> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
-    glDrawBuffers(attachments.size(), &attachments[0]);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the depth buffer
-    glGenTextures(1, &buffer.depth);
-    glBindTexture(GL_TEXTURE_2D, buffer.depth);
-    glTexImage2D(GL_TEXTURE_2D,
-            0,
-            GL_DEPTH_COMPONENT,
-            _state.windowWidth,
-            _state.windowHeight,
-            0,
-            GL_DEPTH_COMPONENT,
-            GL_FLOAT,
-            nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Attach the depth buffer to the frame buffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-            GL_DEPTH_ATTACHMENT,
-            GL_TEXTURE_2D,
-            buffer.depth,
-            0);
+    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
-    // Check the status to make sure it's complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "[error] Generating GBuffer failed" << std::endl;
+    // Create the frame buffer with all its texture attachments
+    buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.depth});
+    if (!buffer.fbo.valid()) {
         _isValid = false;
         return;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Code to create the lighting fbo
     _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
@@ -510,13 +445,9 @@ void Renderer::begin(bool clearScreen) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (clearScreen) {
-        glBindFramebuffer(GL_FRAMEBUFFER, _state.buffer.fbo);
-        glClearColor(_state.clearColor.r, _state.clearColor.g,
-                     _state.clearColor.b, _state.clearColor.a);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        _state.lightingFbo.clear(glm::vec4(_state.clearColor.r, _state.clearColor.g, _state.clearColor.b, _state.clearColor.a));
+        glm::vec4 color = glm::vec4(_state.clearColor.r, _state.clearColor.g, _state.clearColor.b, _state.clearColor.a);
+        _state.buffer.fbo.clear(color);
+        _state.lightingFbo.clear(color);
 
         for (auto& postFx : _state.postFxBuffers) {
             glBindBuffer(GL_FRAMEBUFFER, postFx.fbo);
@@ -1026,7 +957,7 @@ void Renderer::end(const Camera & c) {
     //glm::vec3 lightColor(10.0f); 
 
     // Make sure to bind our own frame buffer for rendering
-    glBindFramebuffer(GL_FRAMEBUFFER, _state.buffer.fbo);
+    _state.buffer.fbo.bind();
     
     // Make sure some of our global GL states are set properly for primary rendering below
     glBlendFunc(_state.blendSFactor, _state.blendDFactor);
@@ -1047,7 +978,7 @@ void Renderer::end(const Camera & c) {
             _render(c, e, m, numInstances);
         }
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    _state.buffer.fbo.unbind();
 
     glDisable(GL_CULL_FACE);
     //glEnable(GL_BLEND);
@@ -1058,23 +989,22 @@ void Renderer::end(const Camera & c) {
     _unbindAllTextures();
     _bindShader(_state.lighting.get());
     _initLights(_state.lighting.get(), c, perLightDistToViewer, maxShadowCastingLights);
-    _bindTexture(_state.lighting.get(), "gPosition", -1, _state.buffer.position);
-    _bindTexture(_state.lighting.get(), "gNormal", -1, _state.buffer.normals);
-    _bindTexture(_state.lighting.get(), "gAlbedo", -1, _state.buffer.albedo);
-    _bindTexture(_state.lighting.get(), "gBaseReflectivity", -1, _state.buffer.baseReflectivity);
-    _bindTexture(_state.lighting.get(), "gRoughnessMetallicAmbient", -1, _state.buffer.roughnessMetallicAmbient);
+    _bindTexture(_state.lighting.get(), "gPosition", -1, *(GLuint *)_state.buffer.position.underlying());
+    _bindTexture(_state.lighting.get(), "gNormal", -1,   *(GLuint *)_state.buffer.normals.underlying());
+    _bindTexture(_state.lighting.get(), "gAlbedo", -1,   *(GLuint *)_state.buffer.albedo.underlying());
+    _bindTexture(_state.lighting.get(), "gBaseReflectivity", -1, *(GLuint *)_state.buffer.baseReflectivity.underlying());
+    _bindTexture(_state.lighting.get(), "gRoughnessMetallicAmbient", -1, *(GLuint *)_state.buffer.roughnessMetallicAmbient.underlying());
     _state.screenQuad->bind();
     _state.screenQuad->render(1);
     _state.screenQuad->unbind();
     _state.lightingFbo.unbind();
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, _state.buffer.fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, *(GLuint *)_state.lightingFbo.underlying()); // write to light-pass framebuffer
+    _state.lightingFbo.copyFrom(_state.buffer.fbo, BufferBounds{0, 0, _state.windowWidth, _state.windowHeight}, BufferBounds{0, 0, _state.windowWidth, _state.windowHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
-    glBlitFramebuffer(0, 0, _state.windowWidth, _state.windowHeight, 0, 0, _state.windowWidth, _state.windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    _state.lightingFbo.bind();
     for (auto & entityObservers : _state.instancedMeshes) {
         for (auto & meshObservers : entityObservers.second) {
             //_initInstancedData(meshObservers.second, buffers);
@@ -1087,7 +1017,8 @@ void Renderer::end(const Camera & c) {
             _render(c, e, m, numInstances);
         }
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    _state.lightingFbo.unbind();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Enable post-FX effects such as bloom
     _performPostFxProcessing();

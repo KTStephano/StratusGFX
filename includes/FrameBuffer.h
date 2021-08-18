@@ -18,10 +18,10 @@ namespace stratus {
     };
 
     struct BufferBounds {
-        int startX;
-        int startY;
-        int endX;
-        int endY;
+        uint32_t startX;
+        uint32_t startY;
+        uint32_t endX;
+        uint32_t endY;
     };
 
     class FrameBufferImpl;

@@ -125,13 +125,13 @@ class Renderer {
     };
 
     struct GBuffer {
-        GLuint fbo = 0;
-        GLuint position = 0;                 // RGBA32F (rgba instead of rgb due to possible alignment issues)
-        GLuint normals = 0;                  // RGBA32F
-        GLuint albedo = 0;                   // RGBA32F
-        GLuint baseReflectivity = 0;         // RGBA32F
-        GLuint roughnessMetallicAmbient = 0; // RGBA32F
-        GLuint depth = 0;                    // R16F
+        FrameBuffer fbo;
+        Texture position;                 // RGBA32F (rgba instead of rgb due to possible alignment issues)
+        Texture normals;                  // RGBA32F
+        Texture albedo;                   // RGBA32F
+        Texture baseReflectivity;         // RGBA32F
+        Texture roughnessMetallicAmbient; // RGBA32F
+        Texture depth;                    // R16F
     };
 
     struct PostFXBuffer {
