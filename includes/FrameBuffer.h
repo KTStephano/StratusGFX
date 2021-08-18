@@ -30,6 +30,8 @@ namespace stratus {
 
     public:
         FrameBuffer();
+        // This constructor sets the attachments
+        FrameBuffer(const std::vector<Texture> &);
         ~FrameBuffer();
 
         FrameBuffer(const FrameBuffer &) = default;
@@ -39,8 +41,6 @@ namespace stratus {
 
         // Clears the color, depth and stencil buffers using rgba
         void clear(const glm::vec4 & rgba) const;
-        // Attaches a set of textures to the buffer - only call this once per buffer to avoid runtime exceptions
-        void setAttachments(const std::vector<Texture> &);
         // from = rectangular region in *other* to copy from
         // to = rectangular region in *this* to copy to
         void copyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);

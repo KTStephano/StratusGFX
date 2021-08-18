@@ -146,17 +146,16 @@ namespace stratus {
         }
     };
 
-    FrameBuffer::FrameBuffer() { _fbo = std::make_shared<FrameBufferImpl>(); }
+    FrameBuffer::FrameBuffer() {}
+    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments) {
+        _fbo = std::make_shared<FrameBufferImpl>();
+        _fbo->setAttachments(attachments);
+    }
     FrameBuffer::~FrameBuffer() {}
 
     // Clears the color, depth and stencil buffers using rgba
     void FrameBuffer::clear(const glm::vec4 & rgba) const {
         _fbo->clear(rgba);
-    }
-
-    // Attaches a set of textures to the buffer - only call this once per buffer to avoid runtime exceptions
-    void FrameBuffer::setAttachments(const std::vector<Texture> & attachments) {
-        _fbo->setAttachments(attachments);
     }
 
     // from = rectangular region in *other* to copy from

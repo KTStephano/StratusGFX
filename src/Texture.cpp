@@ -1,7 +1,6 @@
 #include "Texture.h"
 #include <GL/gl3w.h>
 #include <exception>
-#include <iostream>
 
 namespace stratus {
     class TextureImpl {
@@ -10,6 +9,7 @@ namespace stratus {
         TextureComponentFormat _format;
         uint32_t _width;
         uint32_t _height;
+        mutable int _activeTexture = -1;
 
     public:
         TextureImpl(const TextureConfig & config, const void * data) {
@@ -22,7 +22,6 @@ namespace stratus {
 
             bind();
             if (config.type == TextureType::TEXTURE_2D) {
-                std::cout << "TEX:" << (_convertType(config.dataType, config.storage) == GL_FLOAT) << std::endl;
                 glTexImage2D(GL_TEXTURE_2D, // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
@@ -82,12 +81,17 @@ namespace stratus {
 
     public:
         void bind(int activeTexture = 0) const {
-            //glActiveTexture(GL_TEXTURE0 + activeTexture);
+            unbind();
+            glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(_type), _texture);
+            _activeTexture = activeTexture;
         }
 
         void unbind() const {
+            if (_activeTexture == -1) return;
+            glActiveTexture(GL_TEXTURE0 + _activeTexture);
             glBindTexture(_convertTexture(_type), 0);
+            _activeTexture = -1;
         }
 
     private:

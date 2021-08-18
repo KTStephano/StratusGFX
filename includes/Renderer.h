@@ -13,6 +13,7 @@
 #include "Camera.h"
 #include "Model.h"
 #include "Texture.h"
+#include "FrameBuffer.h"
 
 namespace stratus {
 class Pipeline;
@@ -160,11 +161,11 @@ class Renderer {
         // Buffer where all color data is written
         GBuffer buffer;
         // Buffer for lighting pass
-        GLuint lightingFbo;
+        FrameBuffer lightingFbo;
         Texture lightingColorBuffer;
         // Used for effects like bloom
-        GLuint lightingHighBrightnessBuffer;
-        GLuint lightingDepthBuffer;
+        Texture lightingHighBrightnessBuffer;
+        Texture lightingDepthBuffer;
         // For everything else including bloom post-processing
         int numBlurIterations = 10;
         // Might change from frame to frame
