@@ -135,9 +135,7 @@ class Renderer {
     };
 
     struct PostFXBuffer {
-        GLuint fbo;
-        GLuint colorBuffer;
-        std::vector<GLuint> additionalBuffers;
+        FrameBuffer fbo;
     };
 
     struct RenderState {
@@ -157,7 +155,7 @@ class Renderer {
         glm::mat4 orthographic;
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
-        Pipeline * currentShader;
+        Pipeline * currentShader = nullptr;
         // Buffer where all color data is written
         GBuffer buffer;
         // Buffer for lighting pass
@@ -169,7 +167,7 @@ class Renderer {
         // For everything else including bloom post-processing
         int numBlurIterations = 10;
         // Might change from frame to frame
-        GLuint finalBloomColorBuffer;
+        Texture finalBloomColorBuffer;
         std::vector<PostFXBuffer> postFxBuffers;
         // Used for a call to glBlendFunc
         GLenum blendSFactor = GL_ONE;
@@ -192,16 +190,14 @@ class Renderer {
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
-        // Bound textures
-        std::unordered_map<int, BoundTextureInfo> boundTextures;
         // Gets around what might be a driver bug...
         TextureHandle dummyCubeMap;
     };
 
-    struct Texture2D {
+    struct TextureCache {
         std::string file;
         TextureHandle handle = -1;
-        GLuint texture;
+        Texture texture;
         /**
          * If true then the file is currently loaded into memory.
          * If false then it has been unloaded, so if anyone tries
@@ -212,11 +208,8 @@ class Renderer {
 
     struct ShadowMap3D {
         // Each shadow map is rendered to a frame buffer backed by a 3D texture
-        GLuint frameBuffer;
-        GLuint shadowCubeMap;
-        // How large the cube map texture is along the width/height axes
-        int width;
-        int height;
+        FrameBuffer frameBuffer;
+        Texture shadowCubeMap;
     };
 
     /**
@@ -261,7 +254,7 @@ class Renderer {
     /**
      * Contains a list of textures that have been loaded into memory.
      */
-    std::unordered_map<std::string, Texture2D> _textures;
+    mutable std::unordered_map<std::string, TextureCache> _textures;
 
     /**
      * Set of lights added at some point during any frame.
@@ -278,7 +271,10 @@ class Renderer {
      * that it can be indexed by a TextureHandle for fast lookup of
      * texture handles attached to Material objects.
      */
-    std::unordered_map<TextureHandle, Texture2D> _textureHandles;
+    mutable std::unordered_map<TextureHandle, TextureCache> _textureHandles;
+
+    // Next available handle
+    int _nextTextureHandle = 1;
 
     /**
      * Maps all shadow maps to a handle.
@@ -346,7 +342,7 @@ public:
       */
      Model loadModel(const std::string & file);
 
-     ShadowMapHandle createShadowMap3D(int resolutionX, int resolutionY);
+     ShadowMapHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
 
      /**
       * Sets up the arguments for the perspective projection,
@@ -400,10 +396,6 @@ private:
     void _addDrawable(RenderEntity * e, const glm::mat4 &);
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
-    void _bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle);
-    void _bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle, GLuint texture);
-    void _bindShadowMapTexture(Pipeline * s, const std::string & textureName, ShadowMapHandle handle);
-    void _unbindAllTextures();
     void _initLights(Pipeline * s, const Camera & c, 
                      const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights);
     void _initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers);
@@ -420,9 +412,7 @@ private:
     void _setLightShadowMapHandle(Light *, ShadowMapHandle);
     void _evictLightFromShadowMapCache(Light*);
     void _addLightToShadowMapCache(Light*);
-
-public:
-    GLuint _lookupTexture(TextureHandle handle) const;
+    Texture _lookupTexture(TextureHandle handle) const;
 };
 }
 

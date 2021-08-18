@@ -5,6 +5,7 @@
 #include <string>
 #include "GL/gl3w.h"
 #include <vector>
+#include "Texture.h"
 
 namespace stratus {
     enum class ShaderType {
@@ -20,10 +21,18 @@ namespace stratus {
     };
 
 class Pipeline {
+    struct TextureBinding {
+        std::string uniform;
+        Texture texture;
+    };
+
     /**
      * List of all shaders used by the pipeline.
      */
     std::vector<Shader> _shaders;
+
+    // List of bound textures since the last call to bind()
+    std::vector<TextureBinding> _boundTextures;
 
     /**
      * Program handle returned from OpenGL
@@ -91,6 +100,10 @@ public:
      void setMat2(const std::string & uniform, const float * mat, int num = 1) const;
      void setMat3(const std::string & uniform, const float * mat, int num = 1) const;
      void setMat4(const std::string & uniform, const float * mat, int num = 1) const;
+
+     // Texture management
+     void bindTexture(const std::string & uniform, const Texture & tex);
+     void unbindAllTextures();
 
 private:
     void _compile();

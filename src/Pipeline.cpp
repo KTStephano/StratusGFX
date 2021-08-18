@@ -1,4 +1,4 @@
-#include "Shader.h"
+#include "Pipeline.h"
 #include <Filesystem.h>
 #include <iostream>
 
@@ -138,6 +138,7 @@ void Pipeline::bind() {
 }
 
 void Pipeline::unbind() {
+    unbindAllTextures();
     glUseProgram(0);
 }
 
@@ -198,5 +199,24 @@ void Pipeline::print() const {
         std::cout << s << ", ";
     }
     std::cout << std::endl;
+}
+
+void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
+    if (!tex.valid()) {
+        std::cerr << "[Error] Invalid texture passed to shader" << std::endl;
+        return;
+    }
+    const int activeTexture = _boundTextures.size();
+    setInt(uniform, activeTexture);
+    tex.bind(activeTexture);
+    _boundTextures.push_back(TextureBinding{uniform, tex});
+}
+
+void Pipeline::unbindAllTextures() {
+    for (const TextureBinding & binding : _boundTextures) {
+        binding.texture.unbind();
+        setInt(binding.uniform, 0);
+    }
+    _boundTextures.clear();
 }
 }

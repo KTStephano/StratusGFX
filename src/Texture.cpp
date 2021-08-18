@@ -1,6 +1,8 @@
 #include "Texture.h"
 #include <GL/gl3w.h>
 #include <exception>
+#include <unordered_set>
+#include <iostream>
 
 namespace stratus {
     class TextureImpl {
@@ -108,9 +110,9 @@ namespace stratus {
             switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
                 case TextureComponentFormat::RGB: return GL_RGB;
-                case TextureComponentFormat::SRGB: return GL_SRGB;
+                case TextureComponentFormat::SRGB: return GL_RGB; // GL_RGB even for srgb
                 case TextureComponentFormat::RGBA: return GL_RGBA;
-                case TextureComponentFormat::SRGB_ALPHA: return GL_SRGB_ALPHA;
+                case TextureComponentFormat::SRGB_ALPHA: return GL_RGBA; // GL_RGBA even for srgb_alpha
                 case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT;
                 case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
                 default: throw std::runtime_error("Unknown format");
@@ -120,7 +122,16 @@ namespace stratus {
         static GLint _convertInternalFormat(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
             // If the bits are default we just mirror the format for the internal format option
             if (format == TextureComponentFormat::DEPTH || format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
-                return (GLint)_convertFormat(format);
+                switch (format) {
+                    case TextureComponentFormat::RED: return GL_RED;
+                    case TextureComponentFormat::RGB: return GL_RGB;
+                    case TextureComponentFormat::SRGB: return GL_SRGB; // Here we specify SRGB since it's internal format
+                    case TextureComponentFormat::RGBA: return GL_RGBA;
+                    case TextureComponentFormat::SRGB_ALPHA: return GL_SRGB_ALPHA; // GL_SRGB_ALPHA since it's internal format
+                    case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT;
+                    case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
+                    default: throw std::runtime_error("Unknown format");
+                }
             }
 
             // We don't support specifying bits type other than BITS_DEFAULT for SRGB and SRGB_ALPHA
@@ -278,9 +289,17 @@ namespace stratus {
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
 
-    void Texture::bind(int activeTexture) { _impl->bind(activeTexture); }
-    void Texture::unbind() { _impl->unbind(); }
+    void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
+    void Texture::unbind() const { _impl->unbind(); }
     bool Texture::valid() const { return _impl != nullptr; }
 
     const void * Texture::underlying() const { return _impl->underlying(); }
+
+    size_t Texture::hashCode() const {
+        return std::hash<void *>{}((void *)_impl.get());
+    }
+
+    bool Texture::operator==(const Texture & other) const {
+        return _impl == other._impl;
+    }
 }

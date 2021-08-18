@@ -26,6 +26,7 @@ namespace stratus {
         FrameBufferImpl & operator=(FrameBufferImpl &&) = delete;
 
         void clear(const glm::vec4 & rgba) const {
+            if (_currentBindingPoint != 0) std::cerr << "Warning: clear() called after bind()" << std::endl;
             bind();
             glClearColor(rgba.r, rgba.g, rgba.b, rgba.a);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -59,32 +60,41 @@ namespace stratus {
                 GLuint underlying = *(GLuint *)tex.underlying();
                 if (tex.format() == TextureComponentFormat::DEPTH) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth attachment present");
+                    /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER,
                         GL_DEPTH_ATTACHMENT,
                         GL_TEXTURE_2D,
                         underlying,
                         0);
+                    */
+                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, underlying, 0);
                     ++numDepthStencilAttachments;
                     _depthStencilAttachment = tex;
                 }
                 else if (tex.format() == TextureComponentFormat::DEPTH_STENCIL) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth_stencil attachment present");
+                    /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER,
                         GL_DEPTH_STENCIL_ATTACHMENT,
                         GL_TEXTURE_2D,
                         underlying,
                         0);
+                    */
+                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, underlying, 0);
                     ++numDepthStencilAttachments;
                     _depthStencilAttachment = tex;
                 }
                 else {
                     GLenum color = GL_COLOR_ATTACHMENT0 + drawBuffers.size();
                     drawBuffers.push_back(color);
+                    /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER, 
                         color, 
                         GL_TEXTURE_2D, 
                         underlying, 
                         0);
+                    */
+                    glFramebufferTexture(GL_FRAMEBUFFER, color, underlying, 0);
                     _colorAttachments.push_back(tex);
                 }
                 tex.unbind();

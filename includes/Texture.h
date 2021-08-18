@@ -89,12 +89,24 @@ namespace stratus {
         uint32_t width() const;
         uint32_t height() const;
 
-        void bind(int activeTexture = 0);
-        void unbind();
+        void bind(int activeTexture = 0) const;
+        void unbind() const;
 
         bool valid() const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * underlying() const;
+
+        size_t hashCode() const;
+        bool operator==(const Texture & other) const;
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<stratus::Texture> {
+        size_t operator()(const stratus::Texture & tex) const {
+            return tex.hashCode();
+        }
     };
 }

@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "glm/glm.hpp"
 #include <iostream>
-#include <Shader.h>
+#include <Pipeline.h>
 #include <Renderer.h>
 #include <Quad.h>
 #include <Camera.h>
@@ -43,7 +43,7 @@ public:
     }
 
     void addToScene(stratus::Renderer & r) const {
-        //r.addDrawable(cube.get());
+        r.addDrawable(cube.get());
         r.addPointLight(light.get());
     }
 

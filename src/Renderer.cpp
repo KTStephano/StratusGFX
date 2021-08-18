@@ -2,7 +2,7 @@
 #include <Renderer.h>
 #include <iostream>
 #include <Light.h>
-#include "Shader.h"
+#include "Pipeline.h"
 #include "Renderer.h"
 #include "Quad.h"
 #include "Utils.h"
@@ -100,32 +100,7 @@ Renderer::Renderer(SDL_Window * window) {
     printGLInfo(_config);
     _isValid = true;
 
-    // Initialize the shaders
-    // Pipeline * noLightNoTexture = new Pipeline("../resources/shaders/no_texture_no_lighting.vs",
-    //         "../resources/shaders/no_texture_no_lighting.fs");
-    // _shaders.push_back(noLightNoTexture);
-    // Pipeline * textureNoLighting = new Pipeline("../resources/shaders/texture_no_lighting.vs",
-    //         "../resources/shaders/texture_no_lighting.fs");
-    // _shaders.push_back(textureNoLighting);
-    // Pipeline * lightTexture = new Pipeline("../resources/shaders/texture_pbr.vs",
-    //         "../resources/shaders/texture_pbr.fs");
-    // _shaders.push_back(lightTexture);
-    // Pipeline * noTexturePbr = new Pipeline("../resources/shaders/texture_pbr.vs", "../resources/shaders/no_texture_pbr.fs");
-    // Pipeline * lightTextureNormalMap = new Pipeline("../resources/shaders/texture_pbr.vs",
-    //                                             "../resources/shaders/texture_pbr_nm.fs");
-    // _shaders.push_back(lightTextureNormalMap);
-    /*
-    Pipeline * lightTextureNormalDepthMap = new Pipeline("../resources/shaders/texture_pbr.vs",
-                                                     "../resources/shaders/texture_lighting_nm_dm.fs");
-    */
-    // Pipeline * lightTextureNormalDepthMap = new Pipeline("../resources/shaders/texture_pbr.vs",
-    //                                                  "../resources/shaders/texture_pbr_nm_dm.fs");
-    // Pipeline * lightTextureNormalDepthRoughnessMap = new Pipeline("../resources/shaders/texture_pbr.vs",
-    //                                                  "../resources/shaders/texture_pbr_nm_dm_rm.fs");
-    // Pipeline * lightTextureNormalDepthRoughnessEnvironmentMap = new Pipeline("../resources/shaders/texture_pbr.vs",
-    //                                                  "../resources/shaders/texture_pbr_nm_dm_rm_ao.fs");                             
-    // _state.pbrShader = lightTextureNormalDepthRoughnessEnvironmentMap;          
-    // _shaders.push_back(lightTextureNormalDepthMap);
+    // Initialize the pipelines
     _state.geometry = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/pbr_geometry_pass.vs", ShaderType::VERTEX}, 
         Shader{"../resources/shaders/pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
@@ -135,15 +110,6 @@ Renderer::Renderer(SDL_Window * window) {
         Shader{"../resources/shaders/flat_forward_pass.fs", ShaderType::FRAGMENT}}));
 
     using namespace std;
-    // Now we need to insert the shaders into the property map - this allows
-    // the renderer to perform quick lookup to determine the shader that matches
-    // all of a RenderEntities rendering requirements
-
-    // Insert flat-lighting shaders
-    // std::unordered_map<uint32_t, Pipeline *> shaderMap;
-    // shaderMap.insert(make_pair(NONE, noLightNoTexture));
-    // shaderMap.insert(make_pair(TEXTURED, textureNoLighting));
-    // _propertyShaderMap.insert(std::make_pair(FLAT, shaderMap));
     
     // Now we need to establish a mapping between all of the possible render
     // property combinations with a list of entities that match those requirements
@@ -179,15 +145,6 @@ Renderer::Renderer(SDL_Window * window) {
 
     // Use the shader isValid() method to determine if everything succeeded
     _isValid = _isValid &&
-            // noLightNoTexture->isValid() &&
-            // textureNoLighting->isValid() &&
-            // noTexturePbr->isValid() &&
-            // geometryPass->isValid() &&
-            // lightTexture->isValid() &&
-            // lightTextureNormalMap->isValid() &&
-            // lightTextureNormalDepthMap->isValid() &&
-            // lightTextureNormalDepthRoughnessMap->isValid() &&
-            // lightTextureNormalDepthRoughnessEnvironmentMap->isValid() &&
             _state.forward ->isValid() &&
             _state.geometry->isValid() &&
             _state.hdrGamma->isValid() &&
@@ -233,11 +190,6 @@ const Pipeline *Renderer::getCurrentShader() const {
 }
 
 void Renderer::_recalculateProjMatrices() {
-    std::cout << _state.fov
-        << " " << _state.znear
-        << " " << _state.zfar
-        << " " << _state.windowWidth
-        << " " << _state.windowHeight << std::endl;
     _state.perspective = glm::perspective(glm::radians(_state.fov),
             float(_state.windowWidth) / float(_state.windowHeight),
             _state.znear,
@@ -251,11 +203,12 @@ void Renderer::_recalculateProjMatrices() {
 void Renderer::_clearGBuffer() {
     _state.buffer = GBuffer();
 
-    for (auto postFx : _state.postFxBuffers) {
-        glDeleteFramebuffers(1, &postFx.fbo);
-        glDeleteTextures(1, &postFx.colorBuffer);
-        glDeleteTextures(postFx.additionalBuffers.size(), &postFx.additionalBuffers[0]);
-    }
+    // for (auto postFx : _state.postFxBuffers) {
+    //     glDeleteFramebuffers(1, &postFx.fbo);
+    //     glDeleteTextures(1, &postFx.colorBuffer);
+    //     glDeleteTextures(postFx.additionalBuffers.size(), &postFx.additionalBuffers[0]);
+    // }
+    _state.postFxBuffers.clear();
 }
 
 void Renderer::_setWindowDimensions(int w, int h) {
@@ -334,83 +287,33 @@ void Renderer::_initializePostFxBuffers() {
     _state.postFxBuffers.resize(1);
 
     PostFXBuffer & bloomStage1 = _state.postFxBuffers[0];
-    // Now create the post FX fbo
-    glGenFramebuffers(1, &bloomStage1.fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1.fbo);
-
-    // Create the color buffer - notice that is uses higher
-    // than normal precision. This allows us to write color values
-    // greater than 1.0 to support things like HDR.
-    glGenTextures(1, &bloomStage1.colorBuffer);
-    glBindTexture(GL_TEXTURE_2D, bloomStage1.colorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, // target
-            0, // level
-            GL_RGBA16F, // internal format
-            _state.windowWidth, // width
-            _state.windowHeight, // height
-            0, // border
-            GL_RGBA, // format
-            GL_FLOAT, // type
-            nullptr); // data
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // Attach the color buffer to the frame buffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0,
-            GL_TEXTURE_2D,
-            bloomStage1.colorBuffer,
-            0);
-
-    // Check the status to make sure it's complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "[error] Generating lighting frame buffer failed" << std::endl;
+    Texture colorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    colorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    colorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    bloomStage1.fbo = FrameBuffer({colorBuffer});
+    if (!bloomStage1.fbo.valid()) {
         _isValid = false;
         return;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+    
     // See https://learnopengl.com/Advanced-Lighting/Bloom
     // What we are going to do is create 2 buffers. The first handles horizontal blurring.
     // The second takes the input of the first and does vertical blurring. Then we pass the second
     // back into the first and do horizontal blurring a second time, and on and on for however many
     // iterations.
-    GLuint dualBlurFbo[2];
-    GLuint dualBlurColor[2];
-    glGenFramebuffers(2, dualBlurFbo);
-    glGenTextures(2, dualBlurColor);
+    FrameBuffer dualBlurFbo[2];
+    Texture dualBlurColor[2];
     for (int i = 0; i < 2; ++i) {
-        _state.postFxBuffers.push_back(PostFXBuffer{dualBlurFbo[i], dualBlurColor[i], {}});
-
-        glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[i]);
-        glBindTexture(GL_TEXTURE_2D, dualBlurColor[i]);
-        glTexImage2D(GL_TEXTURE_2D, // target
-                0, // level
-                GL_RGBA16F, // internal format
-                _state.windowWidth, // width
-                _state.windowHeight, // height
-                0, // border
-                GL_RGBA, // format
-                GL_FLOAT, // type
-                nullptr); // data
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        // Attach the color buffer to the frame buffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER,
-                GL_COLOR_ATTACHMENT0,
-                GL_TEXTURE_2D,
-                dualBlurColor[i],
-                0);
-
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "[error] Generating lighting frame buffer failed" << std::endl;
+        dualBlurColor[i] = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+        dualBlurColor[i].setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        dualBlurColor[i].setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        dualBlurFbo[i] = FrameBuffer({dualBlurColor[i]});
+        if (!dualBlurFbo[i].valid()) {
+            std::cerr << "[error] Generating post processing frame buffer failed" << std::endl;
             _isValid = false;
             return;
         }
+        _state.postFxBuffers.push_back(PostFXBuffer{dualBlurFbo[i]});
     }
 }
 
@@ -450,11 +353,7 @@ void Renderer::begin(bool clearScreen) {
         _state.lightingFbo.clear(color);
 
         for (auto& postFx : _state.postFxBuffers) {
-            glBindBuffer(GL_FRAMEBUFFER, postFx.fbo);
-            glClearColor(_state.clearColor.r, _state.clearColor.g,
-                         _state.clearColor.b, _state.clearColor.a);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            postFx.fbo.clear(color);
         }
     }
 
@@ -671,7 +570,7 @@ void Renderer::_bindShader(Pipeline * s) {
 
 void Renderer::_unbindShader() {
     if (!_state.currentShader) return;
-    _unbindAllTextures();
+    //_unbindAllTextures();
     _state.currentShader->unbind();
     _state.currentShader = nullptr;
 }
@@ -731,7 +630,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     s->setMat4("view", &view[0][0]);
 
     if (renderProperties & TEXTURED) {
-        _bindTexture(s, "diffuseTexture", m->getMaterial().texture);
+        //_bindTexture(s, "diffuseTexture", m->getMaterial().texture);
+        s->bindTexture("diffuseTexture", _lookupTexture(m->getMaterial().texture));
         s->setBool("textured", true);
     }
     else {
@@ -743,7 +643,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
     } else if (lightProperties & DYNAMIC) {
         if (renderProperties & NORMAL_MAPPED) {
-            _bindTexture(s, "normalMap", m->getMaterial().normalMap);
+            //_bindTexture(s, "normalMap", m->getMaterial().normalMap);
+            s->bindTexture("normalMap", _lookupTexture(m->getMaterial().normalMap));
             s->setBool("normalMapped", true);
         }
         else {
@@ -751,7 +652,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         }
 
         if (renderProperties & HEIGHT_MAPPED) {
-            _bindTexture(s, "depthMap", m->getMaterial().depthMap);
+            //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
+            s->bindTexture("depthMap", _lookupTexture(m->getMaterial().depthMap));
             s->setFloat("heightScale", m->getMaterial().heightScale);
             s->setBool("depthMapped", true);
         }
@@ -760,7 +662,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         }
 
         if (renderProperties & ROUGHNESS_MAPPED) {
-            _bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
+            //_bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
+            s->bindTexture("roughnessMap", _lookupTexture(m->getMaterial().roughnessMap));
             s->setBool("roughnessMapped", true);
         }
         else {
@@ -768,7 +671,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         }
 
         if (renderProperties & AMBIENT_MAPPED) {
-            _bindTexture(s, "ambientOcclusionMap", m->getMaterial().ambientMap);
+            //_bindTexture(s, "ambientOcclusionMap", m->getMaterial().ambientMap);
+            s->bindTexture("ambientOcclusionMap", _lookupTexture(m->getMaterial().ambientMap));
             s->setBool("ambientMapped", true);
         }
         else {
@@ -776,7 +680,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         }
 
         if (renderProperties & SHININESS_MAPPED) {
-            _bindTexture(s, "metalnessMap", m->getMaterial().metalnessMap);
+            //_bindTexture(s, "metalnessMap", m->getMaterial().metalnessMap);
+            s->bindTexture("metalnessMap", _lookupTexture(m->getMaterial().metalnessMap));
             s->setBool("metalnessMapped", true);
         }
         else {
@@ -807,7 +712,7 @@ void Renderer::end(const Camera & c) {
     // Need to delete these at the end of the frame
     std::vector<GLuint> buffers;
 
-    _unbindAllTextures();
+    //_unbindAllTextures();
 
     // We need to figure out what we want to attempt to render
     _buildEntityList(c);
@@ -871,7 +776,7 @@ void Renderer::end(const Camera & c) {
         const bool dirty = _lightsSeenBefore.find(light)->second.dirty || perLightIsDirty.find(light)->second;
         //if (distance > 2 * light->getRadius() || !dirty) continue;
         if (!dirty) continue;
-        
+
         // Set dirty to false
         _lightsSeenBefore.find(light)->second.dirty = false;
 
@@ -888,12 +793,14 @@ void Renderer::end(const Camera & c) {
         PointLight * point = (PointLight *)light;
         const ShadowMap3D & smap = this->_shadowMap3DHandles.find(_getShadowMapHandleForLight(point))->second;
 
-        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), smap.width / smap.height, point->getNearPlane(), point->getFarPlane());
+        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.width()) / smap.shadowCubeMap.height(), point->getNearPlane(), point->getFarPlane());
 
-        glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
-        glViewport(0, 0, smap.width, smap.height);
+        // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
+        smap.frameBuffer.clear(glm::vec4(1.0f));
+        smap.frameBuffer.bind();
+        glViewport(0, 0, smap.shadowCubeMap.width(), smap.shadowCubeMap.height());
         // Current pass only cares about depth buffer
-        glClear(GL_DEPTH_BUFFER_BIT);
+        // glClear(GL_DEPTH_BUFFER_BIT);
 
         auto transforms = generateLightViewTransforms(lightPerspective, point->position);
         for (int i = 0; i < transforms.size(); ++i) {
@@ -938,11 +845,12 @@ void Renderer::end(const Camera & c) {
         }
 
         // Unbind
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        smap.frameBuffer.unbind();
         _clearInstancedData(buffers);
     }
     _clearInstancedData(buffers);
-    _unbindAllTextures();
+    //_unbindAllTextures();
     _unbindShader();
 
     // Init the instance data which enables us to drastically reduce the number of draw calls
@@ -986,18 +894,19 @@ void Renderer::end(const Camera & c) {
     // Begin deferred lighting pass
     _state.lightingFbo.bind();
     glDisable(GL_DEPTH_TEST);
-    _unbindAllTextures();
+    //_unbindAllTextures();
     _bindShader(_state.lighting.get());
     _initLights(_state.lighting.get(), c, perLightDistToViewer, maxShadowCastingLights);
-    _bindTexture(_state.lighting.get(), "gPosition", -1, *(GLuint *)_state.buffer.position.underlying());
-    _bindTexture(_state.lighting.get(), "gNormal", -1,   *(GLuint *)_state.buffer.normals.underlying());
-    _bindTexture(_state.lighting.get(), "gAlbedo", -1,   *(GLuint *)_state.buffer.albedo.underlying());
-    _bindTexture(_state.lighting.get(), "gBaseReflectivity", -1, *(GLuint *)_state.buffer.baseReflectivity.underlying());
-    _bindTexture(_state.lighting.get(), "gRoughnessMetallicAmbient", -1, *(GLuint *)_state.buffer.roughnessMetallicAmbient.underlying());
+    _state.lighting->bindTexture("gPosition", _state.buffer.position);
+    _state.lighting->bindTexture("gNormal", _state.buffer.normals);
+    _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
+    _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
+    _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
     _state.screenQuad->bind();
     _state.screenQuad->render(1);
     _state.screenQuad->unbind();
     _state.lightingFbo.unbind();
+    _unbindShader();
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
     _state.lightingFbo.copyFrom(_state.buffer.fbo, BufferBounds{0, 0, _state.windowWidth, _state.windowHeight}, BufferBounds{0, 0, _state.windowWidth, _state.windowHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
@@ -1037,11 +946,14 @@ void Renderer::_performPostFxProcessing() {
     // Process stage one
     PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
     _bindShader(_state.bloomStageOne.get());
-    _bindTexture(_state.bloomStageOne.get(), "image", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
-    glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1Buf.fbo);
+    //_bindTexture(_state.bloomStageOne.get(), "image", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
+    _state.bloomStageOne->bindTexture("image", _state.lightingColorBuffer);
+    // glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1Buf.fbo);
+    bloomStage1Buf.fbo.bind();
     _renderQuad();
     _unbindShader();
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    bloomStage1Buf.fbo.unbind();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Process stage two
     bool horizontal = true, firstIteration = true;
@@ -1049,19 +961,22 @@ void Renderer::_performPostFxProcessing() {
     // turns out to be numIterations / 2
     const int numIterations = _state.numBlurIterations;
     _bindShader(_state.bloomStageTwo.get());
-    GLuint dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
-    GLuint dualBlurColor[] = {_state.postFxBuffers[1].colorBuffer, _state.postFxBuffers[2].colorBuffer};
+    FrameBuffer dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
+    Texture dualBlurColor[] = {_state.postFxBuffers[1].fbo.getColorAttachments()[0], _state.postFxBuffers[2].fbo.getColorAttachments()[0]};
     for (int i = 0; i < numIterations; ++i) {
         const int blurIndexCurrent = static_cast<int>(horizontal);
         const int blurIndexPrev = static_cast<int>(!horizontal);
-        glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
+        // glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
+        dualBlurFbo[blurIndexCurrent].bind();
         // We set finalBloomColorBuffer so that finalize frame knows which one to pull from
-        GLuint prevColor = firstIteration ? bloomStage1Buf.colorBuffer : dualBlurColor[blurIndexPrev];
+        Texture prevColor = firstIteration ? bloomStage1Buf.fbo.getColorAttachments()[0] : dualBlurColor[blurIndexPrev];
         _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
-        _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
+        // _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
+        _state.bloomStageTwo->bindTexture("image", prevColor);
         _state.bloomStageTwo->setBool("horizontal", horizontal);
         _renderQuad();
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        dualBlurFbo[blurIndexCurrent].unbind();
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
         horizontal = !horizontal;
         firstIteration = false;
     }
@@ -1075,13 +990,9 @@ void Renderer::_finalizeFrame() {
 
     // Now render the screen
     _bindShader(_state.hdrGamma.get());
-    //glActiveTexture(GL_TEXTURE0);
-    //glBindTexture(GL_TEXTURE_2D, _state.lightingColorBuffer);
-    //_state.hdrGamma->setInt("screen", 0);
-    _bindTexture(_state.hdrGamma.get(), "screen", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
-    _bindTexture(_state.hdrGamma.get(), "bloomBlur", -1, _state.finalBloomColorBuffer);
+    _state.hdrGamma->bindTexture("screen", _state.lightingColorBuffer);
+    _state.hdrGamma->bindTexture("bloomBlur", _state.finalBloomColorBuffer);
     _renderQuad();
-    //glBindTexture(GL_TEXTURE_2D, 0);
     _unbindShader();
 }
 
@@ -1091,67 +1002,62 @@ void Renderer::_renderQuad() {
     _state.screenQuad->unbind();
 }
 
-TextureHandle Renderer::loadTexture(const std::string &file) {
-    auto it = _textures.find(file);
-    if (it != _textures.end()) return it->second.handle;
-
-    Texture2D tex;
+static Texture _loadTexture(const std::string & file) {
+    Texture texture;
     int width, height, numChannels;
     // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
     uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
     if (data) {
-        glGenTextures(1, &tex.texture);
-        tex.handle = int(_textures.size() + 1);
-        GLenum internalFormat;
-        GLenum dataFormat;
+        TextureConfig config;
+        config.type = TextureType::TEXTURE_2D;
+        config.storage = TextureComponentSize::BITS_DEFAULT;
+        config.generateMipMaps = true;
+        config.dataType = TextureComponentType::UINT;
+        config.width = (uint32_t)width;
+        config.height = (uint32_t)height;
         // This loads the textures with sRGB in mind so that they get converted back
         // to linear color space. Warning: if the texture was not actually specified as an
         // sRGB texture (common for normal/specular maps), this will cause problems.
         switch (numChannels) {
             case 1:
-                internalFormat = GL_RED;
-                dataFormat = GL_RED;
+                config.format = TextureComponentFormat::RED;
                 break;
             case 3:
-                internalFormat = GL_SRGB;
-                dataFormat = GL_RGB;
+                config.format = TextureComponentFormat::SRGB;
                 break;
             case 4:
-                internalFormat = GL_SRGB_ALPHA;
-                dataFormat = GL_RGBA;
+                config.format = TextureComponentFormat::SRGB_ALPHA;
                 break;
             default:
-                std::cerr << "[error] Unknown texture loading error -"
-                    << " format may be invalid" << std::endl;
-                glDeleteTextures(1, &tex.texture);
+                std::cerr << "[error] Unknown texture loading error - format may be invalid" << std::endl;
                 stbi_image_free(data);
-                return -1;
+                return Texture();
         }
 
-        glBindTexture(GL_TEXTURE_2D, tex.texture);
-        glTexImage2D(GL_TEXTURE_2D,
-                0,
-                internalFormat,
-                width, height,
-                0,
-                dataFormat,
-                GL_UNSIGNED_BYTE,
-                data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        // Do not use MIPMAP_LINEAR here as it does not make sense with magnification
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        texture = Texture(config, data);
+        texture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+        texture.setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
     } else {
         std::cerr << "[error] Could not load texture: " << file << std::endl;
-        return -1;
+        return Texture();
     }
+    
+    stbi_image_free(data);
+    return texture;
+}
+
+TextureHandle Renderer::loadTexture(const std::string &file) {
+    auto it = _textures.find(file);
+    if (it != _textures.end()) return it->second.handle;
+
+    TextureCache tex;
+    tex.file = file;
+    tex.handle = this->_nextTextureHandle++;
+    tex.texture = _loadTexture(file);
+    if (!tex.texture.valid()) return -1;
+
     _textures.insert(std::make_pair(file, tex));
     _textureHandles.insert(std::make_pair(tex.handle, tex));
-    stbi_image_free(data);
     return tex.handle;
 }
 
@@ -1167,49 +1073,53 @@ Model Renderer::loadModel(const std::string & file) {
     return std::move(m);
 }
 
-ShadowMapHandle Renderer::createShadowMap3D(int resolutionX, int resolutionY) {
+ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
-    smap.width = resolutionX;
-    smap.height = resolutionY;
-    glGenFramebuffers(1, &smap.frameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
-    // Generate the 3D depth buffer
-    glGenTextures(1, &smap.shadowCubeMap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
-    for (int face = 0; face < 6; ++face) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT, resolutionX,
-                     resolutionY, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); // Notice the third dimension
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, smap.shadowCubeMap, 0);
-    // Tell OpenGL we won't be using a color buffer
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    // Unbind framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, false}, nullptr);
+    smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    TextureHandle handle = (int)(this->_shadowMap3DHandles.size() + 1);
+    smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
+    if (!smap.frameBuffer.valid()) {
+        _isValid = false;
+        return -1;
+    }
+    TextureHandle handle = this->_nextTextureHandle++;
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     return handle;
 }
 
 void Renderer::invalidateAllTextures() {
     for (auto & texture : _textures) {
-        glDeleteTextures(1, &texture.second.texture);
+        //glDeleteTextures(1, &texture.second.texture);
+        texture.second.texture = Texture();
         // Make sure we mark it as unloaded just in case someone tries
         // to use it in the future
         texture.second.loaded = false;
     }
 }
 
-GLuint Renderer::_lookupTexture(TextureHandle handle) const {
+Texture Renderer::_lookupTexture(TextureHandle handle) const {
+    if (handle == -1) return Texture();
+
     auto it = _textureHandles.find(handle);
     // TODO: Make sure that 0 actually signifies an invalid texture in OpenGL
-    if (it == _textureHandles.end()) return 0;
+    if (it == _textureHandles.end()) {
+        if (_shadowMap3DHandles.find(handle) == _shadowMap3DHandles.end()) return Texture();
+        return _shadowMap3DHandles.find(handle)->second.shadowCubeMap;
+    }
+
+    // If not in memory then bring it in
+    if (!it->second.loaded) {
+        TextureCache tex = it->second;
+        tex.texture = _loadTexture(tex.file);
+        tex.loaded = tex.texture.valid();
+        _textures.erase(tex.file);
+        _textures.insert(std::make_pair(tex.file, tex));
+        _textureHandles.erase(handle);
+        _textureHandles.insert(std::make_pair(handle, tex));
+        return tex.texture;
+    }
     return it->second.texture;
 }
 
@@ -1245,55 +1155,6 @@ void Renderer::addPointLight(Light * light) {
     }
 }
 
-void Renderer::_bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle) {
-    GLuint texture = _lookupTexture(handle);
-    _bindTexture(s, textureName, handle, texture);
-}
-
-void Renderer::_bindTexture(Pipeline * s, const std::string & textureName, TextureHandle handle, GLuint texture) {
-    int textureIndex = (int)_state.boundTextures.size();
-    glActiveTexture(GL_TEXTURE0 + textureIndex);
-    s->setInt(textureName, textureIndex);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, texture, RTextureType::TEXTURE_2D, textureName}));
-}
-
-void Renderer::_bindShadowMapTexture(Pipeline * s, const std::string & textureName, ShadowMapHandle handle) {
-    const ShadowMap3D & smap = _shadowMap3DHandles.find(handle)->second;
-    int textureIndex = (int)_state.boundTextures.size();
-    glActiveTexture(GL_TEXTURE0 + textureIndex);
-    s->setInt(textureName, textureIndex);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, smap.shadowCubeMap);
-    _state.boundTextures.insert(std::make_pair(textureIndex, BoundTextureInfo{textureIndex, smap.shadowCubeMap, RTextureType::TEXTURE_CUBE_MAP, textureName}));
-}
-
-void Renderer::_unbindAllTextures() {
-    /**
-    for (size_t i = 0; i < _state.boundTextures.size(); ++i) {
-        int textureIndex = (int)i;
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-    */
-   for (auto & e : _state.boundTextures) {
-       int textureIndex = e.second.textureIndex;
-       GLuint texture = e.second.texture;
-       RTextureType type = e.second.type;
-       const std::string & name = e.second.name;
-       glActiveTexture(GL_TEXTURE0 + textureIndex);
-       if (_state.currentShader) {
-           _state.currentShader->setInt(name, 0);
-       }
-       if (type == RTextureType::TEXTURE_2D) {
-           glBindTexture(GL_TEXTURE_2D, 0);
-       }
-       else {
-           glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-       }
-   }
-    _state.boundTextures.clear();
-}
-
 void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights) {
     glm::vec3 lightColor;
     int lightIndex = 0;
@@ -1312,7 +1173,8 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         if (light->castsShadows() && shadowLightIndex < maxShadowLights) {
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", light->getFarPlane());
-            _bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
+            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
+            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _lookupTexture(_getShadowMapHandleForLight(light)));
             ++shadowLightIndex;
         }
         ++lightIndex;
@@ -1321,7 +1183,8 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     if (shadowLightIndex == 0) {
        // If we don't do this the fragment shader crashes
        s->setFloat("lightFarPlanes[0]", 0.0f);
-       _bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
+       //_bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
+       s->bindTexture("shadowCubeMaps[0]", _lookupTexture(_state.dummyCubeMap));
     }
 
     s->setFloat("ambientIntensity", 0.0001f);
