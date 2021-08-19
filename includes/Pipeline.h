@@ -6,6 +6,7 @@
 #include "GL/gl3w.h"
 #include <vector>
 #include "Texture.h"
+#include <unordered_map>
 
 namespace stratus {
     enum class ShaderType {
@@ -21,18 +22,16 @@ namespace stratus {
     };
 
 class Pipeline {
-    struct TextureBinding {
-        std::string uniform;
-        Texture texture;
-    };
-
     /**
      * List of all shaders used by the pipeline.
      */
     std::vector<Shader> _shaders;
 
     // List of bound textures since the last call to bind()
-    std::vector<TextureBinding> _boundTextures;
+    std::vector<std::string, Texture> _boundTextures;
+
+    // Lets us keep track of the next texture index to use
+    int _activeTextureIndex = 1;
 
     /**
      * Program handle returned from OpenGL

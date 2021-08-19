@@ -206,17 +206,23 @@ void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
         std::cerr << "[Error] Invalid texture passed to shader" << std::endl;
         return;
     }
-    const int activeTexture = _boundTextures.size();
-    setInt(uniform, activeTexture);
+    // See if the uniform is already bound to a texture
+    auto it = _boundTextures.find(uniform);
+    if (it != _boundTextures.end()) {
+        it->second.unbind();
+    }
+
+    const int activeTexture = _activeTextureIndex++;
     tex.bind(activeTexture);
-    _boundTextures.push_back(TextureBinding{uniform, tex});
+    _boundTextures.insert(std::make_pair(uniform, tex));
 }
 
 void Pipeline::unbindAllTextures() {
-    for (const TextureBinding & binding : _boundTextures) {
-        binding.texture.unbind();
-        setInt(binding.uniform, 0);
+    for (auto & binding : _boundTextures) {
+        binding.second.unbind();
+        setInt(binding.first, 0);
     }
     _boundTextures.clear();
+    _activeTextureIndex = 1;
 }
 }
