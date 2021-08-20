@@ -8,7 +8,7 @@ uniform vec3 diffuseColor;
 uniform bool textured = false;
 //uniform float gamma = 2.2;
 
-out vec4 color;
+out vec3 color;
 
 void main() {
     vec3 diffuse = diffuseColor;
@@ -17,5 +17,5 @@ void main() {
     }
     // Apply gamma correction
     //texColor = pow(texColor, vec3(1.0 / gamma));
-    color = vec4(diffuse, 1.0);
+    color = diffuse;
 }

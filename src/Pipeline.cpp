@@ -214,6 +214,7 @@ void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
 
     const int activeTexture = _activeTextureIndex++;
     tex.bind(activeTexture);
+    setInt(uniform, activeTexture);
     _boundTextures.insert(std::make_pair(uniform, tex));
 }
 

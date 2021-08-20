@@ -227,25 +227,25 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the depth buffer
@@ -260,12 +260,12 @@ void Renderer::_setWindowDimensions(int w, int h) {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -287,7 +287,7 @@ void Renderer::_initializePostFxBuffers() {
     _state.postFxBuffers.resize(1);
 
     PostFXBuffer & bloomStage1 = _state.postFxBuffers[0];
-    Texture colorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    Texture colorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
     colorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     colorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     bloomStage1.fbo = FrameBuffer({colorBuffer});
@@ -304,7 +304,7 @@ void Renderer::_initializePostFxBuffers() {
     FrameBuffer dualBlurFbo[2];
     Texture dualBlurColor[2];
     for (int i = 0; i < 2; ++i) {
-        dualBlurColor[i] = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+        dualBlurColor[i] = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
         dualBlurColor[i].setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         dualBlurColor[i].setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
         dualBlurFbo[i] = FrameBuffer({dualBlurColor[i]});
@@ -941,8 +941,9 @@ void Renderer::end(const Camera & c) {
 
 void Renderer::_performPostFxProcessing() {
     glDisable(GL_CULL_FACE);
-    //glEnable(GL_BLEND);
-
+    // glEnable(GL_BLEND);
+    glDisable(GL_BLEND);
+    
     // Process stage one
     PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
     _bindShader(_state.bloomStageOne.get());
@@ -956,30 +957,51 @@ void Renderer::_performPostFxProcessing() {
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Process stage two
-    bool horizontal = true, firstIteration = true;
+
+    // Enable additive blending so that previous results are automatically added to new results
+    // glEnable(GL_BLEND);
+    // glBlendFunc(GL_ONE, GL_ONE);
+
+    bool horizontal = true;
     // Since we do one blur direction at a time (horizontal vs vertical), the total Gaussian Blur iterations
     // turns out to be numIterations / 2
-    const int numIterations = _state.numBlurIterations;
+    const int numIterations = _state.numBlurIterations / 2;
     _bindShader(_state.bloomStageTwo.get());
     FrameBuffer dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
     Texture dualBlurColor[] = {_state.postFxBuffers[1].fbo.getColorAttachments()[0], _state.postFxBuffers[2].fbo.getColorAttachments()[0]};
+    BufferBounds tofrom = BufferBounds{0, 0, dualBlurColor[0].width(), dualBlurColor[0].height()};
+    dualBlurFbo[0].copyFrom(bloomStage1Buf.fbo, tofrom, tofrom, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
     for (int i = 0; i < numIterations; ++i) {
-        const int blurIndexCurrent = static_cast<int>(horizontal);
-        const int blurIndexPrev = static_cast<int>(!horizontal);
-        // glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
+        const bool selector = i % 2 == 0;
+        const int blurIndexCurrent = static_cast<int>( selector );
+        const int blurIndexPrev = static_cast<int>( !selector );
         dualBlurFbo[blurIndexCurrent].bind();
-        // We set finalBloomColorBuffer so that finalize frame knows which one to pull from
-        Texture prevColor = firstIteration ? bloomStage1Buf.fbo.getColorAttachments()[0] : dualBlurColor[blurIndexPrev];
         _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
-        // _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
-        _state.bloomStageTwo->bindTexture("image", prevColor);
+        _state.bloomStageTwo->bindTexture("image", dualBlurColor[blurIndexPrev]);
         _state.bloomStageTwo->setBool("horizontal", horizontal);
         _renderQuad();
         dualBlurFbo[blurIndexCurrent].unbind();
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
         horizontal = !horizontal;
-        firstIteration = false;
     }
+    // FrameBuffer dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
+    // Texture dualBlurColor[] = {_state.postFxBuffers[1].fbo.getColorAttachments()[0], _state.postFxBuffers[2].fbo.getColorAttachments()[0]};
+    // for (int i = 0; i < numIterations; ++i) {
+    //     const int blurIndexCurrent = static_cast<int>(horizontal);
+    //     const int blurIndexPrev = static_cast<int>(!horizontal);
+    //     // glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
+    //     dualBlurFbo[blurIndexCurrent].bind();
+    //     // We set finalBloomColorBuffer so that finalize frame knows which one to pull from
+    //     Texture prevColor = firstIteration ? bloomStage1Buf.fbo.getColorAttachments()[0] : dualBlurColor[blurIndexPrev];
+    //     _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
+    //     // _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
+    //     _state.bloomStageTwo->bindTexture("image", prevColor);
+    //     _state.bloomStageTwo->setBool("horizontal", horizontal);
+    //     _renderQuad();
+    //     dualBlurFbo[blurIndexCurrent].unbind();
+    //     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //     horizontal = !horizontal;
+    //     firstIteration = false;
+    // }
     _unbindShader();
 }
 

@@ -19,6 +19,7 @@ namespace stratus {
 class Pipeline;
 class Light;
 class Quad;
+struct PostProcessFX;
 
 /**
  * This contains information about a lot of the
@@ -41,6 +42,12 @@ struct GFXConfig {
     int32_t maxVertexUniformVectors;
     int32_t maxVertexUniformComponents;
     int32_t maxViewportDims[2];
+};
+
+// Simple interface for implementing post-processing effects
+struct PostProcessFX {
+    virtual ~PostProcessFX() {}
+    virtual void apply(Renderer &, const FrameBuffer & source, FrameBuffer & destination) = 0;
 };
 
 /**

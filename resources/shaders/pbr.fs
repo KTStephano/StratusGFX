@@ -87,7 +87,7 @@ uniform int numShadowLights = 0;
 
 in vec2 fsTexCoords;
 
-layout (location = 0) out vec4 fsColor;
+layout (location = 0) out vec3 fsColor;
 
 float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
@@ -239,5 +239,5 @@ void main() {
     }
 
     color = color + baseColor * ambient * ambientIntensity;
-    fsColor = vec4(color, 1.0);
+    fsColor = color;
 }

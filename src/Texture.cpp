@@ -7,20 +7,14 @@
 namespace stratus {
     class TextureImpl {
         GLuint _texture;
-        TextureType _type;
-        TextureComponentFormat _format;
-        uint32_t _width;
-        uint32_t _height;
+        TextureConfig _config;
         mutable int _activeTexture = -1;
 
     public:
         TextureImpl(const TextureConfig & config, const void * data) {
             glGenTextures(1, &_texture);
 
-            _type = config.type;
-            _format = config.format;
-            _width = config.width;
-            _height = config.height;
+            _config = config;
 
             bind();
             if (config.type == TextureType::TEXTURE_2D) {
@@ -45,7 +39,7 @@ namespace stratus {
                         data);
                 }
             }
-            if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_type));
+            if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_config.type));
             unbind();
         }
 
@@ -61,39 +55,43 @@ namespace stratus {
 
         void setCoordinateWrapping(TextureCoordinateWrapping wrap) {
             bind();
-            glTexParameteri(_convertTexture(_type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
-            glTexParameteri(_convertTexture(_type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
+            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
+            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (_type == TextureType::TEXTURE_3D) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            if (_config.type == TextureType::TEXTURE_3D) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
             unbind();
         }
 
         void setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) {
             bind();
-            glTexParameteri(_convertTexture(_type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
-            glTexParameteri(_convertTexture(_type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
+            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
+            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
             unbind();
         }
 
-        TextureType type() const              { return _type; }
-        TextureComponentFormat format() const { return _format; }
-        uint32_t width() const                { return _width; }
-        uint32_t height() const               { return _height; }
+        TextureType type() const              { return _config.type; }
+        TextureComponentFormat format() const { return _config.format; }
+        uint32_t width() const                { return _config.width; }
+        uint32_t height() const               { return _config.height; }
         void * underlying() const             { return (void *)&_texture; }
 
     public:
         void bind(int activeTexture = 0) const {
             unbind();
             glActiveTexture(GL_TEXTURE0 + activeTexture);
-            glBindTexture(_convertTexture(_type), _texture);
+            glBindTexture(_convertTexture(_config.type), _texture);
             _activeTexture = activeTexture;
         }
 
         void unbind() const {
             if (_activeTexture == -1) return;
             glActiveTexture(GL_TEXTURE0 + _activeTexture);
-            glBindTexture(_convertTexture(_type), 0);
+            glBindTexture(_convertTexture(_config.type), 0);
             _activeTexture = -1;
+        }
+
+        std::shared_ptr<TextureImpl> copy(const TextureImpl & other) {
+            return nullptr;
         }
 
     private:
@@ -301,5 +299,10 @@ namespace stratus {
 
     bool Texture::operator==(const Texture & other) const {
         return _impl == other._impl;
+    }
+
+    // Creates a new texture and copies this texture into it
+    Texture Texture::copy(uint32_t newWidth, uint32_t newHeight) {
+        throw std::runtime_error("Must implement");
     }
 }

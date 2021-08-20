@@ -70,6 +70,8 @@ namespace stratus {
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> _impl;
 
+        Texture(std::shared_ptr<TextureImpl>) {}
+
     public:
         Texture();
         Texture(const TextureConfig & config, const void * data);
@@ -99,6 +101,9 @@ namespace stratus {
 
         size_t hashCode() const;
         bool operator==(const Texture & other) const;
+
+        // Creates a new texture and copies this texture into it
+        Texture copy(uint32_t newWidth, uint32_t newHeight);
     };
 }
 

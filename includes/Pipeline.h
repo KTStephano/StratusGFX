@@ -28,7 +28,7 @@ class Pipeline {
     std::vector<Shader> _shaders;
 
     // List of bound textures since the last call to bind()
-    std::vector<std::string, Texture> _boundTextures;
+    std::unordered_map<std::string, Texture> _boundTextures;
 
     // Lets us keep track of the next texture index to use
     int _activeTextureIndex = 1;

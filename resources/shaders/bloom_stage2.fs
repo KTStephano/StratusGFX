@@ -17,7 +17,7 @@ uniform float weights[WEIGHT_LENGTH] = float[] (0.227027, 0.1945946, 0.1216216, 
 
 in vec2 fsTexCoords;
 
-layout (location = 0) out vec4 fsColor;
+layout (location = 0) out vec3 fsColor;
 
 void main() {
     vec3 color = texture(image, fsTexCoords).rgb * weights[0];
@@ -40,5 +40,5 @@ void main() {
         }
     }
 
-    fsColor = vec4(color, 1.0);
+    fsColor = color;
 }
