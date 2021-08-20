@@ -89,6 +89,11 @@ in vec2 fsTexCoords;
 
 layout (location = 0) out vec4 fsColor;
 
+// Prevents HDR color values from exceeding 16-bit color buffer range
+vec3 boundHDR(vec3 value) {
+    return min(value, 65500.0);
+}
+
 float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
@@ -239,5 +244,5 @@ void main() {
     }
 
     color = color + baseColor * ambient * ambientIntensity;
-    fsColor = vec4(color, 1.0);
+    fsColor = vec4(boundHDR(color), 1.0);
 }
