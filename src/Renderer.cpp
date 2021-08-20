@@ -104,10 +104,12 @@ Renderer::Renderer(SDL_Window * window) {
     _state.geometry = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/pbr_geometry_pass.vs", ShaderType::VERTEX}, 
         Shader{"../resources/shaders/pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.geometry.get());
 
     _state.forward = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/flat_forward_pass.vs", ShaderType::VERTEX}, 
         Shader{"../resources/shaders/flat_forward_pass.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.forward.get());
 
     using namespace std;
     
@@ -120,25 +122,24 @@ Renderer::Renderer(SDL_Window * window) {
     _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/hdr.vs", ShaderType::VERTEX},
         Shader{"../resources/shaders/hdr.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.hdrGamma.get());
 
     // Set up the shadow preprocessing shader
     _state.shadows = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/shadow.vs", ShaderType::VERTEX},
         Shader{"../resources/shaders/shadow.gs", ShaderType::GEOMETRY},
         Shader{"../resources/shaders/shadow.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.shadows.get());
 
     _state.lighting = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/pbr.vs", ShaderType::VERTEX},
         Shader{"../resources/shaders/pbr.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.lighting.get());
 
-    _state.bloomStageOne = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/bloom_stage1.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/bloom_stage1.fs", ShaderType::FRAGMENT}}));
-
-    // We re-use the stage 1 vertex shader since the vertex shader does almost nothing in this case
-    _state.bloomStageTwo = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/bloom_stage1.vs", ShaderType::VERTEX}, 
-        Shader{"../resources/shaders/bloom_stage2.fs", ShaderType::FRAGMENT}}));
+    _state.bloom = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/bloom.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/bloom.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.bloom.get());
 
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
@@ -149,8 +150,8 @@ Renderer::Renderer(SDL_Window * window) {
             _state.geometry->isValid() &&
             _state.hdrGamma->isValid() &&
             _state.lighting->isValid() &&
-            _state.bloomStageOne->isValid() &&
-            _state.shadows->isValid();
+            _state.bloom   ->isValid() &&
+            _state.shadows ->isValid();
 
     _state.dummyCubeMap = createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
 
@@ -171,6 +172,12 @@ Renderer::~Renderer() {
 
     // Delete the main frame buffer
     _clearGBuffer();
+}
+
+void Renderer::recompileShaders() {
+    for (Pipeline* p : _state.shaders) {
+        p->recompile();
+    }
 }
 
 const GFXConfig & Renderer::config() const {
@@ -284,36 +291,45 @@ void Renderer::_setWindowDimensions(int w, int h) {
 }
 
 void Renderer::_initializePostFxBuffers() {
-    _state.postFxBuffers.resize(1);
+    uint32_t currWidth = _state.windowWidth;
+    uint32_t currHeight = _state.windowHeight;
+    _state.numDownsampleIterations = 0;
+    _state.numUpsampleIterations = 0;
 
-    PostFXBuffer & bloomStage1 = _state.postFxBuffers[0];
-    Texture colorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
-    colorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    colorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-    bloomStage1.fbo = FrameBuffer({colorBuffer});
-    if (!bloomStage1.fbo.valid()) {
-        _isValid = false;
-        return;
-    }
-    
-    // See https://learnopengl.com/Advanced-Lighting/Bloom
-    // What we are going to do is create 2 buffers. The first handles horizontal blurring.
-    // The second takes the input of the first and does vertical blurring. Then we pass the second
-    // back into the first and do horizontal blurring a second time, and on and on for however many
-    // iterations.
-    FrameBuffer dualBlurFbo[2];
-    Texture dualBlurColor[2];
-    for (int i = 0; i < 2; ++i) {
-        dualBlurColor[i] = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
-        dualBlurColor[i].setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        dualBlurColor[i].setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-        dualBlurFbo[i] = FrameBuffer({dualBlurColor[i]});
-        if (!dualBlurFbo[i].valid()) {
-            std::cerr << "[error] Generating post processing frame buffer failed" << std::endl;
+    // Initialize bloom
+    for (; _state.numDownsampleIterations < 6; ++_state.numDownsampleIterations) {
+        currWidth /= 2;
+        currHeight /= 2;
+        if (currWidth < 8 || currHeight < 8) break;
+        PostFXBuffer buffer;
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, false }, nullptr);
+        color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
+        buffer.fbo = FrameBuffer({ color });
+        if (!buffer.fbo.valid()) {
             _isValid = false;
+            std::cerr << "Unable to initialize bloom buffer" << std::endl;
             return;
         }
-        _state.postFxBuffers.push_back(PostFXBuffer{dualBlurFbo[i]});
+        _state.postFxBuffers.push_back(buffer);
+    }
+
+    for (;;) {
+        currWidth *= 2;
+        currHeight *= 2;
+        PostFXBuffer buffer;
+        ++_state.numUpsampleIterations;
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, false }, nullptr);
+        color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
+        buffer.fbo = FrameBuffer({ color });
+        if (!buffer.fbo.valid()) {
+            _isValid = false;
+            std::cerr << "Unable to initialize bloom buffer" << std::endl;
+            return;
+        }
+        _state.postFxBuffers.push_back(buffer);
+        if (currWidth == _state.windowWidth || currHeight == _state.windowHeight) break;
     }
 }
 
@@ -943,77 +959,67 @@ void Renderer::_performPostFxProcessing() {
     glDisable(GL_CULL_FACE);
     // glEnable(GL_BLEND);
     glDisable(GL_BLEND);
-    
-    // Process stage one
-    PostFXBuffer & bloomStage1Buf = _state.postFxBuffers[0];
-    _bindShader(_state.bloomStageOne.get());
-    //_bindTexture(_state.bloomStageOne.get(), "image", -1, *(GLuint *)_state.lightingColorBuffer.underlying());
-    _state.bloomStageOne->bindTexture("image", _state.lightingColorBuffer);
-    // glBindFramebuffer(GL_FRAMEBUFFER, bloomStage1Buf.fbo);
-    bloomStage1Buf.fbo.bind();
-    _renderQuad();
-    _unbindShader();
-    bloomStage1Buf.fbo.unbind();
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST);
+   
+    Pipeline* bloom = _state.bloom.get();
+    _bindShader(bloom);
 
-    // Process stage two
-
-    // Enable additive blending so that previous results are automatically added to new results
-    // glEnable(GL_BLEND);
-    // glBlendFunc(GL_ONE, GL_ONE);
-
-    bool horizontal = true;
-    // Since we do one blur direction at a time (horizontal vs vertical), the total Gaussian Blur iterations
-    // turns out to be numIterations / 2
-    const int numIterations = _state.numBlurIterations / 2;
-    _bindShader(_state.bloomStageTwo.get());
-    FrameBuffer dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
-    Texture dualBlurColor[] = {_state.postFxBuffers[1].fbo.getColorAttachments()[0], _state.postFxBuffers[2].fbo.getColorAttachments()[0]};
-    BufferBounds tofrom = BufferBounds{0, 0, dualBlurColor[0].width(), dualBlurColor[0].height()};
-    dualBlurFbo[0].copyFrom(bloomStage1Buf.fbo, tofrom, tofrom, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
-    for (int i = 0; i < numIterations; ++i) {
-        const bool selector = i % 2 == 0;
-        const int blurIndexCurrent = static_cast<int>( selector );
-        const int blurIndexPrev = static_cast<int>( !selector );
-        dualBlurFbo[blurIndexCurrent].bind();
-        _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
-        _state.bloomStageTwo->bindTexture("image", dualBlurColor[blurIndexPrev]);
-        _state.bloomStageTwo->setBool("horizontal", horizontal);
+    bloom->setBool("downsamplingStage", true);
+    bloom->setBool("upsamplingStage", false);
+    for (int i = 0; i < _state.numDownsampleIterations; ++i) {
+        PostFXBuffer& buffer = _state.postFxBuffers[i];
+        auto width = buffer.fbo.getColorAttachments()[0].width();
+        auto height = buffer.fbo.getColorAttachments()[0].height();
+        bloom->setFloat("viewportX", float(width));
+        bloom->setFloat("viewportY", float(height));
+        buffer.fbo.bind();
+        glViewport(0, 0, width, height);
+        if (i == 0) {
+            bloom->bindTexture("mainTexture", _state.lightingColorBuffer);
+        }
+        else {
+            bloom->bindTexture("mainTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+        }
         _renderQuad();
-        dualBlurFbo[blurIndexCurrent].unbind();
-        horizontal = !horizontal;
+        buffer.fbo.unbind();
     }
-    // FrameBuffer dualBlurFbo[] = {_state.postFxBuffers[1].fbo, _state.postFxBuffers[2].fbo};
-    // Texture dualBlurColor[] = {_state.postFxBuffers[1].fbo.getColorAttachments()[0], _state.postFxBuffers[2].fbo.getColorAttachments()[0]};
-    // for (int i = 0; i < numIterations; ++i) {
-    //     const int blurIndexCurrent = static_cast<int>(horizontal);
-    //     const int blurIndexPrev = static_cast<int>(!horizontal);
-    //     // glBindFramebuffer(GL_FRAMEBUFFER, dualBlurFbo[blurIndexCurrent]);
-    //     dualBlurFbo[blurIndexCurrent].bind();
-    //     // We set finalBloomColorBuffer so that finalize frame knows which one to pull from
-    //     Texture prevColor = firstIteration ? bloomStage1Buf.fbo.getColorAttachments()[0] : dualBlurColor[blurIndexPrev];
-    //     _state.finalBloomColorBuffer = dualBlurColor[blurIndexCurrent];
-    //     // _bindTexture(_state.bloomStageTwo.get(), "image", -1, prevColor);
-    //     _state.bloomStageTwo->bindTexture("image", prevColor);
-    //     _state.bloomStageTwo->setBool("horizontal", horizontal);
-    //     _renderQuad();
-    //     dualBlurFbo[blurIndexCurrent].unbind();
-    //     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //     horizontal = !horizontal;
-    //     firstIteration = false;
-    // }
+
+    bloom->setBool("downsamplingStage", false);
+    bloom->setBool("upsamplingStage", true);
+    int postFXIndex = _state.numDownsampleIterations;
+    for (int i = _state.numDownsampleIterations - 1; i >= 0; --i, ++postFXIndex) {
+        PostFXBuffer& buffer = _state.postFxBuffers[postFXIndex];
+        auto width = buffer.fbo.getColorAttachments()[0].width();
+        auto height = buffer.fbo.getColorAttachments()[0].height();
+        bloom->setFloat("viewportX", float(width));
+        bloom->setFloat("viewportY", float(height));
+        buffer.fbo.bind();
+        glViewport(0, 0, width, height);
+        bloom->bindTexture("mainTexture", _state.postFxBuffers[i].fbo.getColorAttachments()[0]);
+        if (i == 0) {
+            bloom->bindTexture("bloomTexture", _state.lightingColorBuffer);
+        }
+        else {
+            bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+        }
+        _renderQuad();
+        buffer.fbo.unbind();
+        
+        _state.finalScreenTexture = buffer.fbo.getColorAttachments()[0];
+    }
+
     _unbindShader();
 }
 
 void Renderer::_finalizeFrame() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
+    glViewport(0, 0, _state.windowWidth, _state.windowHeight);
     //glEnable(GL_BLEND);
 
     // Now render the screen
     _bindShader(_state.hdrGamma.get());
-    _state.hdrGamma->bindTexture("screen", _state.lightingColorBuffer);
-    _state.hdrGamma->bindTexture("bloomBlur", _state.finalBloomColorBuffer);
+    _state.hdrGamma->bindTexture("screen", _state.finalScreenTexture);
     _renderQuad();
     _unbindShader();
 }

@@ -298,6 +298,11 @@ int main(int argc, char * args[]) {
                                 camLightEnabled = !camLightEnabled;
                             }
                             break;
+                        case SDL_SCANCODE_R:
+                            if (released) {
+                                renderer.recompileShaders();
+                            }
+                            break;
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());

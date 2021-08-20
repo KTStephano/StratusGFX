@@ -174,8 +174,11 @@ class Renderer {
         // For everything else including bloom post-processing
         int numBlurIterations = 10;
         // Might change from frame to frame
-        Texture finalBloomColorBuffer;
+        int numDownsampleIterations = 0;
+        int numUpsampleIterations = 0;
         std::vector<PostFXBuffer> postFxBuffers;
+        // End of the pipeline should write to this
+        Texture finalScreenTexture;
         // Used for a call to glBlendFunc
         GLenum blendSFactor = GL_ONE;
         GLenum blendDFactor = GL_ZERO;
@@ -190,10 +193,8 @@ class Renderer {
         std::unique_ptr<Pipeline> forward;
         // Handles the lighting stage
         std::unique_ptr<Pipeline> lighting;
-        // Stage 1 handles extracting only the bright parts of the scene
-        std::unique_ptr<Pipeline> bloomStageOne;
-        // Stage 2 takes the bright parts and applies a 9x9 kernel Gaussian Blur several times
-        std::unique_ptr<Pipeline> bloomStageTwo;
+        std::unique_ptr<Pipeline> bloom;
+        std::vector<Pipeline *> shaders;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
         std::unique_ptr<Quad> screenQuad;
@@ -333,6 +334,8 @@ public:
      const Pipeline * getCurrentShader() const;
 
      void invalidateAllTextures();
+
+     void recompileShaders();
 
      /**
       * Attempts to load a texture if it hasn't already been loaded.

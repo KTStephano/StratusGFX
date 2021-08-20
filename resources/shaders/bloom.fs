@@ -1,14 +1,24 @@
 #version 410 core
 
-uniform float prefilterStage = true; // Only does brightness filtering
-uniform float downsamplingStage = false;
-uniform float upsamplingStage = false; // Performs upsample + previous bloom combine
+uniform bool downsamplingStage = true;
+uniform bool gaussianStage     = false;
+uniform bool horizontal        = false;
+uniform bool upsamplingStage   = false; // Performs upsample + previous bloom combine
 
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
 uniform float bloomThreshold = 1.0;
 uniform float upsampleRadiusScale = 1.0;
+
+uniform float viewportX;
+uniform float viewportY;
+
+#define WEIGHT_LENGTH 5
+
+// Notice that the weights decrease, which signifies the start (weight[0]) contributing most
+// and last (weight[4]) contributing least
+uniform float weights[WEIGHT_LENGTH] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 
 in vec2 fsTexCoords;
 out vec3 fsColor;
@@ -18,10 +28,18 @@ vec3 boundHDR(vec3 value) {
     return min(value, 65500.0);
 }
 
+vec2 convertTexCoords(vec2 uv) {
+    return uv; //(uv + 1.0) * 0.5;
+}
+
 vec2 computeTexelWidth(sampler2D tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
-    return 1.0 / textureSize(tex, miplevel);
+    return (1.0 / textureSize(tex, miplevel)) * vec2(2.0, 1.0);
+}
+
+vec2 screenTransformTexCoords(vec2 uv) {
+    return uv;// * (viewportX / viewportY);
 }
 
 // Performs bilinear downsampling using 13 texel fetches
@@ -33,25 +51,25 @@ vec3 downsampleBilinear13(sampler2D tex, vec2 uv) {
     vec2 texelWidth = computeTexelWidth(tex, 0);
 
     // Innermost square including center coordinate
-    vec3 innermost       = texture(tex, uv).rgb;
-    vec3 innerUpperLeft  = texture(tex, uv + texelWidth * vec2(-0.5, 0.5)).rgb;
-    vec3 innerLowerLeft  = texture(tex, uv + texelWidth * vec2(-0.5, -0.5)).rgb;
-    vec3 innerUpperRight = texture(tex, uv + texelWidth * vec2(0.5, 0.5)).rgb;
-    vec3 innerLowerRight = texture(tex, uv + texelWidth * vec2(0.5, -0.5)).rgb;
+    vec3 innermost       = texture(tex, screenTransformTexCoords(uv)).rgb;
+    vec3 innerUpperLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-0.5, 0.5))).rgb;
+    vec3 innerLowerLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-0.5, -0.5))).rgb;
+    vec3 innerUpperRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.5, 0.5))).rgb;
+    vec3 innerLowerRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.5, -0.5))).rgb;
 
     // Outermost square - notice the number of outer variables + number of inner variables = 13, which comprise
     // our 13 sampling points
-    vec3 outerUpperLeft  = texture(tex, uv + texelWidth * vec2(-1.0, 1.0)).rgb;
-    vec3 outerLeft       = texture(tex, uv + texelWidth * vec2(-1.0, 0.0)).rgb;
-    vec3 outerLowerLeft  = texture(tex, uv + texelWidth * vec2(-1.0, -1.0)).rgb;
-    vec3 outerUpperRight = texture(tex, uv + texelWidth * vec2(1.0, 1.0)).rgb;
-    vec3 outerRight      = texture(tex, uv + texelWidth * vec2(1.0, 0.0)).rgb;
-    vec3 outerLowerRight = texture(tex, uv + texelWidth * vec2(1.0, -1.0)).rgb;
-    vec3 outerTop        = texture(tex, uv + texelWidth * vec2(0.0, 1.0)).rgb;
-    vec3 outerBottom     = texture(tex, uv + texelWidth * vec2(0.0, -1.0)).rgb;
+    vec3 outerUpperLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, 1.0))).rgb;
+    vec3 outerLeft       = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, 0.0))).rgb;
+    vec3 outerLowerLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, -1.0))).rgb;
+    vec3 outerUpperRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, 1.0))).rgb;
+    vec3 outerRight      = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, 0.0))).rgb;
+    vec3 outerLowerRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, -1.0))).rgb;
+    vec3 outerTop        = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, 1.0))).rgb;
+    vec3 outerBottom     = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, -1.0))).rgb;
 
     // Comes from the weights in the CoD presentation
-    vec2 weights = (1 / 4) * vec2(0.5, 0.25);
+    vec2 weights = (1.0 / 4.0) * vec2(0.5, 0.25);
 
     return weights.x * (innerUpperLeft + innerLowerLeft + innerUpperRight + innerLowerRight) + // red circles in presentation
            weights.y * (outerUpperLeft + outerTop + outerLeft + innermost) +                   // yellowish circles in presentation
@@ -75,19 +93,19 @@ vec3 downsampleBilinear13(sampler2D tex, vec2 uv) {
 vec3 upsampleTentFilter9(sampler2D tex, vec2 uv, float radiusScale) {
     vec2 texelWidth = computeTexelWidth(tex, 0);
 
-    vec3 center     = texture(tex, uv).rgb;
-    vec3 top        = texture(tex, uv + texelWidth * vec2(0.0, 1.0)   * radiusScale).rgb;
-    vec3 upperLeft  = texture(tex, uv + texelWidth * vec2(-1.0, 1.0)  * radiusScale).rgb;
-    vec3 left       = texture(tex, uv + texelWidth * vec2(-1.0, 0.0)  * radiusScale).rgb;
-    vec3 lowerLeft  = texture(tex, uv + texelWidth * vec2(-1.0, -1.0) * radiusScale).rgb;
-    vec3 bottom     = texture(tex, uv + texelWidth * vec2(0.0, -1.0)  * radiusScale).rgb;
-    vec3 lowerRight = texture(tex, uv + texelWidth * vec2(1.0, -1.0)  * radiusScale).rgb;
-    vec3 right      = texture(tex, uv + texelWidth * vec2(1.0, 0.0)   * radiusScale).rgb;
-    vec3 upperRight = texture(tex, uv + texelWidth * vec2(1.0, 1.0)   * radiusScale).rgb;
+    vec3 center     = texture(tex, screenTransformTexCoords(uv)).rgb;
+    vec3 top        = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, 1.0)   * radiusScale)).rgb;
+    vec3 upperLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, 1.0)  * radiusScale)).rgb;
+    vec3 left       = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, 0.0)  * radiusScale)).rgb;
+    vec3 lowerLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, -1.0) * radiusScale)).rgb;
+    vec3 bottom     = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, -1.0)  * radiusScale)).rgb;
+    vec3 lowerRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, -1.0)  * radiusScale)).rgb;
+    vec3 right      = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, 0.0)   * radiusScale)).rgb;
+    vec3 upperRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, 1.0)   * radiusScale)).rgb;
 
-    return (1 / 16) * (upperLeft + top * 2    + upperRight +
+    return (1.0 / 16.0) * (upperLeft + top * 2    + upperRight +
                        left * 2  + center * 4 + right * 2  +
-                       lowerLeft + bottom * 2 + lowerRight)
+                       lowerLeft + bottom * 2 + lowerRight);
 }
 
 // Takes only the pixels which exceed the threshold
@@ -104,13 +122,35 @@ vec3 filterBrightest(vec3 color, float threshold) {
     }
 }
 
-vec3 applyPrefilterStage() {
-    return boundHDR(filterBrightest(texture(mainTexture, fsTexCoords).rgb, bloomThreshold));
+// See https://learnopengl.com/Advanced-Lighting/Bloom
+vec3 applyGaussianBlur() {
+    vec3 color = texture(mainTexture, fsTexCoords).rgb * weights[0];
+    // This will give us the size of a single texel in (x, y) directions
+    // (the 0 is telling it to give us the size at mipmap 0, aka full size image)
+    vec2 texelWidth = computeTexelWidth(mainTexture, 0);
+    if (horizontal) {
+        for (int i = 1; i < WEIGHT_LENGTH; ++i) {
+            vec2 texOffset = vec2(texelWidth.x * i, 0.0);
+            // Notice we to +- texOffset so we can calculate both directions at once from the starting pixel
+            color = color + texture(mainTexture, fsTexCoords + texOffset).rgb * weights[i];
+            color = color + texture(mainTexture, fsTexCoords - texOffset).rgb * weights[i];
+        }
+    }
+    else {
+        for (int i = 1; i < WEIGHT_LENGTH; ++i) {
+            vec2 texOffset = vec2(0.0, texelWidth.y * i);
+            color = color + texture(mainTexture, fsTexCoords + texOffset).rgb * weights[i];
+            color = color + texture(mainTexture, fsTexCoords - texOffset).rgb * weights[i];
+        }
+    }
+
+    return boundHDR(color);
 }
 
 // As per the CoD presentation, we apply filtering after downsampling
 vec3 applyDownsampleStage() {
-    vec3 color = downsampleBilinear13(mainTexture, fsTexCoords);
+    vec3 color = downsampleBilinear13(mainTexture, convertTexCoords(fsTexCoords));
+    //return boundHDR(color);
     return boundHDR(filterBrightest(color, bloomThreshold));
 }
 
@@ -131,22 +171,22 @@ vec3 applyDownsampleStage() {
 // After this step the final thing to do is to add G to O to get the finished image with
 // bloom fully applied.
 vec3 applyUpsampleStage() {
-    vec3 color = upsampleTentFilter9(mainTexture, fsTexCoords, upsampleRadiusScale);
-    // Take the bloom from the previous stage and perform additive blending
+    vec3 color = upsampleTentFilter9(mainTexture, convertTexCoords(fsTexCoords), upsampleRadiusScale);
+    //return boundHDR(filterBrightest(color, bloomThreshold)); // --> no to this??
     vec3 bloom = texture(bloomTexture, fsTexCoords).rgb;
     color = color + bloom;
-    //return filterBrightest(color, bloomThreshold); --> no to this??
     return boundHDR(color);
+    //return boundHDR(filterBrightest(color, bloomThreshold));
 }
 
 void main() {
-    if (prefilterStage) {
-        return applyPrefilterStage();
+    if (downsamplingStage) {
+        fsColor = applyDownsampleStage();
     }
-    else if (downsamplingStage) {
-        return applyDownsampleStage();
+    else if (gaussianStage) {
+        fsColor = applyGaussianBlur();
     }
     else {
-        return applyUpsampleStage();
+        fsColor = applyUpsampleStage();
     }
 }

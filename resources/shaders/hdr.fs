@@ -3,7 +3,6 @@
 in vec2 fsTexCoords;
 
 uniform sampler2D screen;
-uniform sampler2D bloomBlur;
 uniform float gamma = 2.2;
 
 out vec4 color;
@@ -28,8 +27,6 @@ vec3 applyACESFilm(vec3 color) {
 // look and feel to the final output.
 void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
-    vec3 bloomColor = texture(bloomBlur, fsTexCoords).rgb;
-    screenColor += bloomColor; // Additive blending - see https://learnopengl.com/Advanced-Lighting/Bloom
 
     //vec3 reinhard = screenColor / (screenColor + vec3(1.0));
     //vec3 corrected = pow(reinhard, vec3(1.0 / gamma));
