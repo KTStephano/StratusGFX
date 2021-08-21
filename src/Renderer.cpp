@@ -215,6 +215,7 @@ void Renderer::_clearGBuffer() {
     //     glDeleteTextures(1, &postFx.colorBuffer);
     //     glDeleteTextures(postFx.additionalBuffers.size(), &postFx.additionalBuffers[0]);
     // }
+    _state.gaussianBuffers.clear();
     _state.postFxBuffers.clear();
 }
 
@@ -312,6 +313,17 @@ void Renderer::_initializePostFxBuffers() {
             return;
         }
         _state.postFxBuffers.push_back(buffer);
+
+        // Create the Gaussian Blur buffers
+        PostFXBuffer dualBlurFbos[2];
+        for (int i = 0; i < 2; ++i) {
+            FrameBuffer& blurFbo = dualBlurFbos[i].fbo;
+            Texture tex = Texture(color.getConfig(), nullptr);
+            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            blurFbo = FrameBuffer({tex});
+            _state.gaussianBuffers.push_back(dualBlurFbos[i]);
+        }
     }
 
     std::vector<std::pair<uint32_t, uint32_t>> sizes;
@@ -371,6 +383,10 @@ void Renderer::begin(bool clearScreen) {
         glm::vec4 color = glm::vec4(_state.clearColor.r, _state.clearColor.g, _state.clearColor.b, _state.clearColor.a);
         _state.buffer.fbo.clear(color);
         _state.lightingFbo.clear(color);
+
+        for (auto& gaussian : _state.gaussianBuffers) {
+            gaussian.fbo.clear(color);
+        }
 
         for (auto& postFx : _state.postFxBuffers) {
             postFx.fbo.clear(color);
@@ -972,8 +988,7 @@ void Renderer::_performPostFxProcessing() {
     bloom->setBool("upsamplingStage", false);
     bloom->setBool("finalStage", false);
     bloom->setBool("gaussianStage", false);
-    FrameBuffer dualBlurFbos[2]; // For a two-pass Gaussian Blur (really one pass, but one for horizontal and one for vertical)
-    for (int i = 0; i < _state.numDownsampleIterations; ++i) {
+    for (int i = 0, gaussian = 0; i < _state.numDownsampleIterations; ++i, gaussian += 2) {
         PostFXBuffer& buffer = _state.postFxBuffers[i];
         Texture colorTex = buffer.fbo.getColorAttachments()[0];
         auto width = colorTex.width();
@@ -997,17 +1012,13 @@ void Renderer::_performPostFxProcessing() {
         bloom->setBool("gaussianStage", true);
         BufferBounds bounds = BufferBounds{0, 0, width, height};
         for (int i = 0; i < 2; ++i) {
-            FrameBuffer & blurFbo = dualBlurFbos[i];
+            FrameBuffer& blurFbo = _state.gaussianBuffers[gaussian + i].fbo;
             FrameBuffer copyFromFbo;
-            Texture tex = Texture(colorTex.getConfig(), nullptr);
-            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
-            blurFbo = FrameBuffer({ tex });
             if (i == 0) {
                 copyFromFbo = buffer.fbo;
             }
             else {
-                copyFromFbo = dualBlurFbos[i - 1];
+                copyFromFbo = _state.gaussianBuffers[gaussian].fbo;
             }
 
             bloom->setBool("horizontal", horizontal);
@@ -1019,7 +1030,7 @@ void Renderer::_performPostFxProcessing() {
         }
 
         // Copy the end result back to the original buffer
-        buffer.fbo.copyFrom(dualBlurFbos[1], bounds, bounds, BufferBit::COLOR_BIT, BufferFilter::LINEAR);
+        buffer.fbo.copyFrom(_state.gaussianBuffers[gaussian + 1].fbo, bounds, bounds, BufferBit::COLOR_BIT, BufferFilter::LINEAR);
     }
 
     bloom->setBool("downsamplingStage", false);

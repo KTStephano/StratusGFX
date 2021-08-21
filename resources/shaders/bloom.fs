@@ -12,7 +12,7 @@ uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
 uniform float bloomThreshold = 1.0;
-uniform float upsampleRadiusScale = 0.5;
+uniform float upsampleRadiusScale = 2.0;
 
 uniform float viewportX;
 uniform float viewportY;
@@ -131,7 +131,7 @@ vec3 filterBrightest(vec3 color, float threshold) {
 
     // color = clamp(color, 0.0, 30.0);
 
-    float softening = 0.25;
+    float softening = 0.1;
     float offset = threshold * softening + PREVENT_DIV_BY_ZERO;    
     vec3 curve = vec3(threshold, threshold - offset, 0.25 / offset);
 

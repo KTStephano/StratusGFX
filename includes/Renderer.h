@@ -176,6 +176,7 @@ class Renderer {
         // Might change from frame to frame
         int numDownsampleIterations = 0;
         int numUpsampleIterations = 0;
+        std::vector<PostFXBuffer> gaussianBuffers;
         std::vector<PostFXBuffer> postFxBuffers;
         // End of the pipeline should write to this
         Texture finalScreenTexture;
