@@ -1236,6 +1236,8 @@ void Renderer::addPointLight(Light * light) {
 }
 
 void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights) {
+    // Set up point lights
+
     glm::vec3 lightColor;
     int lightIndex = 0;
     int shadowLightIndex = 0;
@@ -1280,6 +1282,13 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
+
+    // Set up world light if enabled
+
+    s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
+    s->setVec3("infiniteLightDirection", &_state.worldLight.getDirection()[0]);
+    lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();
+    s->setVec3("infiniteLightColor", &lightColor[0]);
 }
 
 ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
@@ -1336,5 +1345,15 @@ void Renderer::_addLightToShadowMapCache(Light * light) {
     _evictLightFromShadowMapCache(light);
     // Push to back so that it is seen as most recently used
     _lruLightCache.push_back(light);
+}
+
+// Allows user to toggle on/off the global infinite light
+void Renderer::toggleWorldLighting(bool enabled) {
+    _state.worldLightingEnabled = enabled;
+}
+
+// Allows user to modify world light properties
+InfiniteLight & Renderer::getWorldLight() {
+    return _state.worldLight;
 }
 }

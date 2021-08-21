@@ -14,10 +14,12 @@
 #include "Model.h"
 #include "Texture.h"
 #include "FrameBuffer.h"
+#include "Light.h"
 
 namespace stratus {
 class Pipeline;
 class Light;
+class InfiniteLight;
 class Quad;
 struct PostProcessFX;
 
@@ -151,6 +153,8 @@ class Renderer {
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
         std::vector<RenderEntity *> lightInteractingEntities;
         std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
+        InfiniteLight worldLight;
+        bool worldLightingEnabled = false;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
@@ -324,83 +328,89 @@ public:
      * @return true if the renderer initialized itself properly
      *      and false if any errors occurred
      */
-     bool valid() const;
+    bool valid() const;
 
-     /**
-      * Sets the clear color for screen refreshes.
-      * @param c clear color
-      */
-     void setClearColor(const Color & c);
+    /**
+     * Sets the clear color for screen refreshes.
+     * @param c clear color
+     */
+    void setClearColor(const Color & c);
 
-     const Pipeline * getCurrentShader() const;
+    const Pipeline * getCurrentShader() const;
 
-     void invalidateAllTextures();
+    void invalidateAllTextures();
 
-     void recompileShaders();
+    void recompileShaders();
 
-     /**
-      * Attempts to load a texture if it hasn't already been loaded.
-      * In the event that it was previously loaded previously, it will
-      * return an existing handle rather than re-loading the data.
-      * @param texture
-      * @return texture handle of valid or -1 if invalid
-      */
-     TextureHandle loadTexture(const std::string & file);
+    /**
+     * Attempts to load a texture if it hasn't already been loaded.
+     * In the event that it was previously loaded previously, it will
+     * return an existing handle rather than re-loading the data.
+     * @param texture
+     * @return texture handle of valid or -1 if invalid
+     */
+    TextureHandle loadTexture(const std::string & file);
 
-     /**
-      * Attempts to load a model if not already loaded. Be sure to check
-      * the returned model's isValid() function.
-      */
-     Model loadModel(const std::string & file);
+    /**
+     * Attempts to load a model if not already loaded. Be sure to check
+     * the returned model's isValid() function.
+     */
+    Model loadModel(const std::string & file);
 
-     ShadowMapHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
+    ShadowMapHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
 
-     /**
-      * Sets up the arguments for the perspective projection,
-      * if/when the render mode is set to PERSPECTIVE.
-      * @param fov field of view in degrees
-      * @param near near clipping plane (ex: 0.25f)
-      * @param far far clipping plane (ex: 1000.0f)
-      */
-     void setPerspectiveData(float fov, float near, float far);
+    /**
+     * Sets up the arguments for the perspective projection,
+     * if/when the render mode is set to PERSPECTIVE.
+     * @param fov field of view in degrees
+     * @param near near clipping plane (ex: 0.25f)
+     * @param far far clipping plane (ex: 1000.0f)
+     */
+    void setPerspectiveData(float fov, float near, float far);
 
-     /**
-      * Sets the render mode to be either ORTHOGRAPHIC (2d)
-      * or PERSPECTIVE (3d).
-      */
-     void setRenderMode(RenderMode mode);
+    /**
+     * Sets the render mode to be either ORTHOGRAPHIC (2d)
+     * or PERSPECTIVE (3d).
+     */
+    void setRenderMode(RenderMode mode);
 
-     /**
-      * IMPORTANT! This sets up the renderer for a new frame.
-      *
-      * @param clearScreen if false then renderer will begin
-      * drawing without clearing the screen
-      */
-     void begin(bool clearScreen);
+    /**
+     * IMPORTANT! This sets up the renderer for a new frame.
+     *
+     * @param clearScreen if false then renderer will begin
+     * drawing without clearing the screen
+     */
+    void begin(bool clearScreen);
 
-     /**
-      * For the current scene, this will add a render entity
-      * that is means to be drawn.
-      */
-     void addDrawable(RenderEntity * e);
+    /**
+     * For the current scene, this will add a render entity
+     * that is means to be drawn.
+     */
+    void addDrawable(RenderEntity * e);
 
-     /**
-      * Adds a light to the scene. These lights are considered
-      * to be finite in power and so their contribution to the
-      * scene will decrease with distance.
-      */
-     void addPointLight(Light * light);
+    /**
+     * Adds a light to the scene. These lights are considered
+     * to be finite in power and so their contribution to the
+     * scene will decrease with distance.
+     */
+    void addPointLight(Light * light);
 
-     /**
-      * Sets the camera for the current scene which will be
-      * the camera whose perspective we render from.
-      */
-     //void setCamera(std::shared_ptr<Camera> c);
+    /**
+     * Sets the camera for the current scene which will be
+     * the camera whose perspective we render from.
+     */
+    //void setCamera(std::shared_ptr<Camera> c);
 
-     /**
-      * Finalizes the current scene and draws it.
-      */
-     void end(const Camera & c);
+    /**
+     * Finalizes the current scene and draws it.
+     */
+    void end(const Camera & c);
+
+    // Allows user to toggle on/off the global infinite light
+    void toggleWorldLighting(bool enabled);
+
+    // Allows user to modify world light properties
+    InfiniteLight & getWorldLight();
 
 private:
     void _clearGBuffer();

@@ -9,11 +9,27 @@
 namespace stratus {
 enum class LightType {
     POINTLIGHT,
-    SPOTLIGHT,
-    DIRECTIONLIGHT
+    SPOTLIGHT
 };
 
 const float maxLightColor = 10000.0f;
+
+// Serves as a global world light
+class InfiniteLight {
+    glm::vec3 _color = glm::vec3(1.0f);
+    glm::vec3 _direction = glm::vec3(0.0f, 1.0f, 0.0f);
+    float _intensity = 1.0f;
+
+public:
+    const glm::vec3 & getDirection() const { return _direction; }
+    void setDirection(const glm::vec3 & direction) { _direction = direction; }
+
+    const glm::vec3 & getColor() const { return _color; }
+    void setColor(glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
+
+    float getIntensity() const { return _intensity; }
+    void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
+};
 
 class Light {
     glm::vec3 _color = glm::vec3(1.0f);

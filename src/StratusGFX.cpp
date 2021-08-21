@@ -155,6 +155,7 @@ int main(int argc, char * args[]) {
     stratus::Model stump = renderer.loadModel("../resources/models/boubin_stump.FBX");
     stratus::Model hall = renderer.loadModel("../local/hintze-hall-1m.obj");
     stratus::Model ramparts = renderer.loadModel("../local/model.obj");
+    stratus::Model rocks = renderer.loadModel("../local/Rock_Terrain_SF.obj");
 
     std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
     std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
@@ -250,6 +251,7 @@ int main(int argc, char * args[]) {
     bool camLightEnabled = true;
     size_t frameCount = 0;
     float angle = 0.0f;
+    bool worldLightEnabled = false;
     while (running) {
         auto curr = std::chrono::system_clock::now();
         auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(curr - start).count();
@@ -303,6 +305,13 @@ int main(int argc, char * args[]) {
                                 renderer.recompileShaders();
                             }
                             break;
+                        case SDL_SCANCODE_I:
+                            if (released) {
+                                std::cout << "ENABLING\n";
+                                worldLightEnabled = !worldLightEnabled;
+                                renderer.toggleWorldLighting(worldLightEnabled);
+                            }
+                            break;
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
@@ -317,7 +326,6 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(1000.0);
-                                mover->light->setColor(1.0f, 0.0f, 0.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -327,7 +335,6 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(1500.0f);
-                                mover->light->setColor(0.0f, 1.0f, 0.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -337,7 +344,6 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(2000.0f);
-                                mover->light->setColor(0.0f, 0.0f, 1.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -394,7 +400,7 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(65000.0f);
-                                mover->light->setColor(1.0f, 0.75f, 0.5);
+                                mover->light->setColor(1.0f, 1.0f, 1.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -480,6 +486,10 @@ int main(int argc, char * args[]) {
         ramparts.rotation = glm::vec3(90.0f, 0.0f, 0.0f);
         ramparts.scale = glm::vec3(10.0f);
         renderer.addDrawable(&ramparts);
+
+        rocks.position = glm::vec3(700.0f, -75.0f, -100.0f);
+        rocks.scale = glm::vec3(15.0f);
+        renderer.addDrawable(&rocks);
 
         // Add the camera's light
         if (camLightEnabled) renderer.addPointLight(&cameraLight);

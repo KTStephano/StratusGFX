@@ -85,6 +85,13 @@ uniform float lightFarPlanes[MAX_SHADOW_LIGHTS];
 uniform int numLights = 0;
 uniform int numShadowLights = 0;
 
+/**
+ * Information about the directional infinite light (if there is one)
+ */
+uniform bool infiniteLightingEnabled = false;
+uniform vec3 infiniteLightDirection;
+uniform vec3 infiniteLightColor;
+
 in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
@@ -171,18 +178,18 @@ vec3 calculatePointAmbient(vec3 fragPosition, vec3 baseColor, int lightIndex, co
     return attenuationFactor * ambient;
 }
 
-vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
-    vec3 lightPos   = lightPositions[lightIndex];
-    vec3 lightColor = lightColors[lightIndex];
-    vec3 lightDir   = lightPos - fragPosition;
+float quadraticAttenuation(vec3 lightDir) {
     float lightDist = length(lightDir);
+    return 1.0 / (1.0 + lightDist * lightDist);
+}
 
+vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
+    const float attenuationFactor, const float ambientIntensity) {
+    
     vec3 V = viewDir;
     vec3 L = normalize(lightDir);
     vec3 H = normalize(V + L);
     vec3 N = normal;
-    // Linear attenuation
-    float attenuationFactor = 1.0 / (1.0 + lightDist * lightDist);
 
     float NdotH    = max(dot(N, H), 0.0);
     float HdotV    = max(dot(H, V), 0.0);
@@ -198,10 +205,18 @@ vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3
     vec3 diffuse   = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
-    vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY; // * attenuationFactor;
+    vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi));
+    return attenuationFactor * (ambient + (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi));  
+}
+
+vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
+    vec3 lightPos   = lightPositions[lightIndex];
+    vec3 lightColor = lightColors[lightIndex];
+    vec3 lightDir   = lightPos - fragPosition;
+
+    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), POINT_LIGHT_AMBIENT_INTENSITY);
 }
 
 void main() {
@@ -243,6 +258,13 @@ void main() {
         }
     }
 
-    color = color + baseColor * ambient * ambientIntensity;
+    if (infiniteLightingEnabled) {
+        //vec3 lightDir = -infiniteLightDirection; --> don't seem to need to negate
+        vec3 lightDir = infiniteLightDirection;
+        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 0.0, baseReflectivity, 1.0, POINT_LIGHT_AMBIENT_INTENSITY);
+    }
+    else {
+        color = color + baseColor * ambient * ambientIntensity;
+    }
     fsColor = boundHDR(color);
 }
