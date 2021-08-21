@@ -1,15 +1,18 @@
 #version 410 core
 
+#define PREVENT_DIV_BY_ZERO 0.00001
+
 uniform bool downsamplingStage = true;
 uniform bool gaussianStage     = false;
 uniform bool horizontal        = false;
 uniform bool upsamplingStage   = false; // Performs upsample + previous bloom combine
+uniform bool finalStage        = false;
 
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
 uniform float bloomThreshold = 1.0;
-uniform float upsampleRadiusScale = 1.0;
+uniform float upsampleRadiusScale = 0.5;
 
 uniform float viewportX;
 uniform float viewportY;
@@ -35,7 +38,7 @@ vec2 convertTexCoords(vec2 uv) {
 vec2 computeTexelWidth(sampler2D tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
-    return (1.0 / textureSize(tex, miplevel)) * vec2(2.0, 1.0);
+    return (1.0 / textureSize(tex, miplevel));// * vec2(2.0, 1.0);
 }
 
 vec2 screenTransformTexCoords(vec2 uv) {
@@ -108,18 +111,41 @@ vec3 upsampleTentFilter9(sampler2D tex, vec2 uv, float radiusScale) {
                        lowerLeft + bottom * 2 + lowerRight);
 }
 
+float max3(vec3 vals) {
+    return max(vals.r, max(vals.g, vals.b));
+}
+
 // Takes only the pixels which exceed the threshold
 // See https://learnopengl.com/Advanced-Lighting/Bloom
 vec3 filterBrightest(vec3 color, float threshold) {
     // TODO: Might need to find a better brightness filter
-    vec3 weights = vec3(0.2126, 0.7152, 0.0722);
-    float brightness = dot(color, weights); // multiplies each element together and sums them up
-    if (brightness > threshold) {
-        return color;
-    }
-    else {
-        return vec3(0.0);
-    }
+    // vec3 weights = vec3(0.2126, 0.7152, 0.0722);
+    // float brightness = dot(color - vec3(threshold), weights); // multiplies each element together and sums them up
+    // return max(vec3(0.0), color * brightness);
+    // if (brightness > threshold) {
+    //     return color;
+    // }
+    // else {
+    //     return vec3(0.0);
+    // }
+
+    // color = clamp(color, 0.0, 30.0);
+
+    float softening = 0.25;
+    float offset = threshold * softening + PREVENT_DIV_BY_ZERO;    
+    vec3 curve = vec3(threshold, threshold - offset, 0.25 / offset);
+
+    // Pixel brightness
+    float br = max3(color);
+
+    // Under-threshold part: quadratic curve
+    float rq = clamp(br - curve.x, 0.0, curve.y);
+    rq = curve.z * rq * rq;
+
+    // Combine and apply the brightness response curve.
+    color *= max(rq, br - threshold) / max(br, PREVENT_DIV_BY_ZERO);
+
+    return color;
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Bloom
@@ -176,7 +202,12 @@ vec3 applyUpsampleStage() {
     vec3 bloom = texture(bloomTexture, fsTexCoords).rgb;
     color = color + bloom;
     return boundHDR(color);
-    //return boundHDR(filterBrightest(color, bloomThreshold));
+    // if (!finalStage) {
+    //     return boundHDR(filterBrightest(color, bloomThreshold));
+    // }
+    // else {
+    //     return boundHDR(color);
+    // }
 }
 
 void main() {

@@ -94,6 +94,10 @@ namespace stratus {
             return nullptr;
         }
 
+        const TextureConfig & getConfig() const {
+            return _config;
+        }
+
     private:
         static GLenum _convertTexture(TextureType type) {
             if (type == TextureType::TEXTURE_2D) {
@@ -304,5 +308,9 @@ namespace stratus {
     // Creates a new texture and copies this texture into it
     Texture Texture::copy(uint32_t newWidth, uint32_t newHeight) {
         throw std::runtime_error("Must implement");
+    }
+
+    const TextureConfig & Texture::getConfig() const {
+        return _impl->getConfig();
     }
 }

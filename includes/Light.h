@@ -13,8 +13,11 @@ enum class LightType {
     DIRECTIONLIGHT
 };
 
+const float maxLightColor = 10000.0f;
+
 class Light {
     glm::vec3 _color = glm::vec3(1.0f);
+    glm::vec3 _baseColor = _color;
     float _intensity = 1.0f;
     float _radius = 1.0f;
     bool _castsShadows = true;
@@ -33,6 +36,10 @@ public:
         return _color;
     }
 
+    const glm::vec3& getBaseColor() const {
+        return _baseColor;
+    }
+
     /**
      * Sets the color of the light where the scale
      * is not from [0.0, 1.0] but instead can be any
@@ -44,6 +51,8 @@ public:
         g = std::max(0.0f, g);
         b = std::max(0.0f, b);
         _color = glm::vec3(r, g, b);
+        _baseColor = _color;
+        _recalcColorWithIntensity();
         _recalcRadius();
     }
 
@@ -56,6 +65,7 @@ public:
     void setIntensity(float i) {
         if (i < 0) return;
         _intensity = i;
+        _recalcColorWithIntensity();
         _recalcRadius();
     }
 
@@ -82,6 +92,12 @@ private:
         const glm::vec3 intensity = getIntensity() * getColor();
         const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
         this->_radius = std::sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
+    }
+
+    void _recalcColorWithIntensity() {
+        _color = _baseColor * _intensity;
+        _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
+        _color = (_color / maxLightColor) * 30.0f;
     }
 };
 

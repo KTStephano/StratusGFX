@@ -52,7 +52,7 @@ public:
         cube->position = position;
         light->position = position;
         stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
-        m.diffuseColor = light->getColor() * light->getIntensity();
+        m.diffuseColor = light->getColor();
         cube->meshes[0]->setMaterial(m);
 
         _elapsedSec += deltaSeconds;
@@ -70,7 +70,7 @@ struct StationaryLight : public RandomLightMover {
         cube->position = position;
         light->position = position;
         stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
-        m.diffuseColor = light->getColor() * light->getIntensity();
+        m.diffuseColor = light->getColor();
         cube->meshes[0]->setMaterial(m);
     }
 };
@@ -208,16 +208,16 @@ int main(int argc, char * args[]) {
 
     // Create the light movers
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    for (int x = 0; x < 3000; x += 150) {
-        for (int y = 0; y < 3000; y += 150) {
-            std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-            mover->light->setIntensity(500.0f);
-            mover->position = glm::vec3(float(x),
-                                        0.0f, // float(rand() % 200),
-                                        float(y));
-            lightMovers.push_back(std::move(mover));
-        }
-    }
+    // for (int x = 0; x < 3000; x += 150) {
+    //     for (int y = 0; y < 3000; y += 150) {
+    //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+    //         mover->light->setIntensity(500.0f);
+    //         mover->position = glm::vec3(float(x),
+    //                                     0.0f, // float(rand() % 200),
+    //                                     float(y));
+    //         lightMovers.push_back(std::move(mover));
+    //     }
+    // }
     // for (int i = 0; i < 128; ++i) {
     //     /*
     //     std::unique_ptr<RandomLightMover> mover =
@@ -306,7 +306,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(250.0f);
+                                mover->light->setIntensity(500.0f);
                                 mover->light->setColor(1.0f, 1.0f, 0.5f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
@@ -316,7 +316,8 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1000.0f);
+                                mover->light->setIntensity(1000.0);
+                                mover->light->setColor(1.0f, 0.0f, 0.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -325,7 +326,8 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(2500.0f);
+                                mover->light->setIntensity(1500.0f);
+                                mover->light->setColor(0.0f, 1.0f, 0.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -334,7 +336,8 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_4: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(5000.0f);
+                                mover->light->setIntensity(2000.0f);
+                                mover->light->setColor(0.0f, 0.0f, 1.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -343,7 +346,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_5: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(10000.0f);
+                                mover->light->setIntensity(3000.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -352,7 +355,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_6: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(20000.0f);
+                                mover->light->setIntensity(6000.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -361,13 +364,33 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_7: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(40000.0f);
+                                mover->light->setIntensity(12000.0f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));
                             }
                             break;
                         }
                         case SDL_SCANCODE_8: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(24000.0f);
+                                mover->light->setColor(1.0f, 0.75f, 0.5);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_9: {
+                            if (released) {
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
+                                mover->light->setIntensity(48000.0f);
+                                mover->light->setColor(1.0f, 0.75f, 0.5);
+                                mover->position = camera.getPosition();
+                                lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_0: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(65000.0f);
