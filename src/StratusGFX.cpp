@@ -307,15 +307,16 @@ int main(int argc, char * args[]) {
                             break;
                         case SDL_SCANCODE_I:
                             if (released) {
-                                std::cout << "ENABLING\n";
                                 worldLightEnabled = !worldLightEnabled;
                                 renderer.toggleWorldLighting(worldLightEnabled);
+                                renderer.getWorldLight().setColor(glm::vec3(1.0f, 0.75f, 0.5));
+                                renderer.getWorldLight().setIntensity(5.0f);
                             }
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(500.0f);
+                                mover->light->setIntensity(1200.0f);
                                 mover->light->setColor(1.0f, 1.0f, 0.5f);
                                 mover->position = camera.getPosition();
                                 lightMovers.push_back(std::move(mover));

@@ -499,14 +499,13 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
  */
 static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & projection, const glm::vec3 & lightPos) {
     return std::vector<glm::mat4>{
-        //                       pos       pos + dir                               up
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-        projection * glm::lookAt(lightPos, 
-        lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))
+        //                       pos       pos + dir                                  up
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
     };
 }
 
@@ -980,10 +979,14 @@ void Renderer::_performPostFxProcessing() {
     glDisable(GL_BLEND);
     //glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
+
+    // We use this so that we can avoid a final copy between the downsample and blurring stages
+    std::vector<PostFXBuffer> finalizedPostFxFrames(_state.numDownsampleIterations + _state.numUpsampleIterations);
    
     Pipeline* bloom = _state.bloom.get();
     _bindShader(bloom);
 
+    // Downsample stage
     bloom->setBool("downsamplingStage", true);
     bloom->setBool("upsamplingStage", false);
     bloom->setBool("finalStage", false);
@@ -1030,9 +1033,11 @@ void Renderer::_performPostFxProcessing() {
         }
 
         // Copy the end result back to the original buffer
-        buffer.fbo.copyFrom(_state.gaussianBuffers[gaussian + 1].fbo, bounds, bounds, BufferBit::COLOR_BIT, BufferFilter::LINEAR);
+        // buffer.fbo.copyFrom(_state.gaussianBuffers[gaussian + 1].fbo, bounds, bounds, BufferBit::COLOR_BIT, BufferFilter::LINEAR);
+        finalizedPostFxFrames[i] = _state.gaussianBuffers[gaussian + 1];
     }
 
+    // Upsample stage
     bloom->setBool("downsamplingStage", false);
     bloom->setBool("upsamplingStage", true);
     bloom->setBool("finalStage", false);
@@ -1046,17 +1051,20 @@ void Renderer::_performPostFxProcessing() {
         bloom->setFloat("viewportY", float(height));
         buffer.fbo.bind();
         glViewport(0, 0, width, height);
-        bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
+        //bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
+        bloom->bindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.getColorAttachments()[0]);
         if (i == 0) {
             bloom->bindTexture("bloomTexture", _state.lightingColorBuffer);
             bloom->setBool("finalStage", true);
         }
         else {
-            bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+            //bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+            bloom->bindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.getColorAttachments()[0]);
         }
         _renderQuad();
         buffer.fbo.unbind();
         
+        finalizedPostFxFrames[postFXIndex] = buffer;
         _state.finalScreenTexture = buffer.fbo.getColorAttachments()[0];
     }
 

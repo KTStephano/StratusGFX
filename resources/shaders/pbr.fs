@@ -101,6 +101,10 @@ vec3 boundHDR(vec3 value) {
     return min(value, 65500.0);
 }
 
+#define PCF_SAMPLES 2.5;
+#define PCF_SAMPLES_CUBED 16.0; // Not exactly... constrained it to 16 for Mac
+#define PCF_SAMPLES_HALF 1;
+
 float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
@@ -121,10 +125,10 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
     float shadow = 0.0;
-    float samples = 4.0;
-    float totalSamples = samples * samples * samples; // 64 if samples is set to 4.0
+    float samples = PCF_SAMPLES;
+    float totalSamples = PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
     float offset = 0.1;
-    float increment = offset / (samples * 0.5);
+    float increment = offset / PCF_SAMPLES_HALF;
     for (float x = -offset; x < offset; x += increment) {
         for (float y = -offset; y < offset; y += increment) {
             for (float z = -offset; z < offset; z += increment) {

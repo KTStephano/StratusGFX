@@ -25,7 +25,7 @@ public:
     void setDirection(const glm::vec3 & direction) { _direction = direction; }
 
     const glm::vec3 & getColor() const { return _color; }
-    void setColor(glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
+    void setColor(const glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
 
     float getIntensity() const { return _intensity; }
     void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
