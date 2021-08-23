@@ -5,6 +5,7 @@
 #include "Pipeline.h"
 #include "Renderer.h"
 #include "Quad.h"
+#include "Cube.h"
 #include "Utils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -640,9 +641,17 @@ void Renderer::_buildEntityList(const Camera & c) {
     }
 }
 
-void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const size_t numInstances) {
+void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const size_t numInstances, bool removeViewTranslation) {
     const glm::mat4 & projection = _state.perspective;
-    const glm::mat4 & view = c.getViewTransform();
+    //const glm::mat4 & view = c.getViewTransform();
+    glm::mat4 view;
+    if (removeViewTranslation) {
+        // Remove the translation component of the view matrix
+        view = glm::mat4(glm::mat3(c.getViewTransform()));
+    }
+    else {
+        view = c.getViewTransform();
+    }
 
     // Unbind current shader if one is bound
     _unbindShader();
@@ -737,9 +746,32 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 }
 
 void Renderer::end(const Camera & c) {
+    // Add the sunlight if added
+    // std::unique_ptr<stratus::RenderEntity> sun;
+    // if (_state.worldLightingEnabled) {
+    //     sun = std::make_unique<stratus::RenderEntity>();
+    //     sun->setLightProperties(stratus::LightProperties::FLAT);
+    //     sun->scale = glm::vec3(5.0f);
+    //     sun->position = _state.worldLight.getPosition();
+    //     sun->meshes.push_back(std::make_shared<stratus::Cube>());
+    //     stratus::RenderMaterial m = sun->meshes[0]->getMaterial();
+    //     m.diffuseColor = _state.worldLight.getColor() * std::min(30.0f, _state.worldLight.getIntensity());
+    //     sun->meshes[0]->setMaterial(m);
+    //     addDrawable(sun.get());
+    // }
+
     // Pull the view transform/projection matrices
     const glm::mat4 * projection = &_state.perspective;
     const glm::mat4 * view = &c.getViewTransform();
+
+    // const glm::mat4 cameraToWorld = glm::inverse(*view);
+    // glm::mat4 lightToWorld = glm::mat4(1.0f);
+    // lightToWorld[3] = glm::vec4(glm::vec3(0.0f, 10.0f, 0.0f), 1.0f);
+    // const glm::mat4 lightViewMat = glm::inverse(lightToWorld);
+    // Camera lightCam;
+    // lightCam.setDirection(_state.worldLight.getDirection());
+    // std::cout << lightCam.getViewTransform() << std::endl;
+
     const int maxInstances = 250;
     const int maxShadowCastingLights = 8;
     const int maxTotalLights = 256;
@@ -1292,9 +1324,11 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->setVec3("viewPosition", &c.getPosition()[0]);
 
     // Set up world light if enabled
-
+    glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
+    glm::mat4 lightWorld = glm::inverse(lightView);
+    glm::vec3 direction = glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
-    s->setVec3("infiniteLightDirection", &_state.worldLight.getDirection()[0]);
+    s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();
     s->setVec3("infiniteLightColor", &lightColor[0]);
 }

@@ -17,15 +17,19 @@ const float maxLightColor = 10000.0f;
 // Serves as a global world light
 class InfiniteLight {
     glm::vec3 _color = glm::vec3(1.0f);
-    glm::vec3 _direction = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 _position = glm::vec3(0.0f);
+    glm::vec3 _rotation = glm::vec3(0.0f);
     float _intensity = 1.0f;
 
 public:
-    const glm::vec3 & getDirection() const { return _direction; }
-    void setDirection(const glm::vec3 & direction) { _direction = direction; }
-
     const glm::vec3 & getColor() const { return _color; }
     void setColor(const glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
+
+    const glm::vec3 & getPosition() const { return _position; }
+    void setPosition(const glm::vec3 & position) { _position = position; }
+
+    const glm::vec3 & getRotation() const { return _rotation; }
+    void setRotation(const glm::vec3 & rotation) { _rotation = rotation; }
 
     float getIntensity() const { return _intensity; }
     void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }

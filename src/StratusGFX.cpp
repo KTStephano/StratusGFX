@@ -310,7 +310,8 @@ int main(int argc, char * args[]) {
                                 worldLightEnabled = !worldLightEnabled;
                                 renderer.toggleWorldLighting(worldLightEnabled);
                                 renderer.getWorldLight().setColor(glm::vec3(1.0f, 0.75f, 0.5));
-                                renderer.getWorldLight().setIntensity(5.0f);
+                                renderer.getWorldLight().setIntensity(10.0f);
+                                renderer.getWorldLight().setPosition(camera.getPosition());
                             }
                             break;
                         case SDL_SCANCODE_1: {

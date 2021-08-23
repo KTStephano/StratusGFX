@@ -15,6 +15,7 @@ class Camera : private Entity {
     glm::vec3 _up = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::vec3 _side;// = glm::cross(_up, _dir);
     glm::mat4 _viewTransform;
+    glm::mat4 _worldTransform;
 
 public:
     Camera();
@@ -28,8 +29,13 @@ public:
      */
     void modifyAngle(double deltaYaw, double deltaPitch);
 
+    // Sets the x, y and z angles in degrees
+    void setAngle(const glm::vec3 & angle);
+
     void setPosition(float x, float y, float z);
     const glm::vec3 & getPosition() const;
+
+    const glm::vec3 & getDirection() const;
 
     /**
      * Sets the speed x/y/z of the camera.
@@ -53,9 +59,16 @@ public:
     void update(double deltaSeconds) override;
 
     /**
-     * @return view transform associated with this camera
+     * @return view transform associated with this camera (world -> camera)
      */
     const glm::mat4 & getViewTransform() const;
+
+    // Gets the camera -> world transform
+    const glm::mat4 & getWorldTransform() const;
+
+private:
+    void _updateViewTransform();
+    void _updateCameraAxes();
 };
 }
 

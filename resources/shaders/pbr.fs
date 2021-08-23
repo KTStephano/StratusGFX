@@ -263,8 +263,8 @@ void main() {
     }
 
     if (infiniteLightingEnabled) {
-        //vec3 lightDir = -infiniteLightDirection; --> don't seem to need to negate
-        vec3 lightDir = infiniteLightDirection;
+        vec3 lightDir = -infiniteLightDirection;
+        //vec3 lightDir = infiniteLightDirection;
         color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 0.0, baseReflectivity, 1.0, POINT_LIGHT_AMBIENT_INTENSITY);
     }
     else {

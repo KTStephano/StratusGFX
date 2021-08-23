@@ -427,7 +427,7 @@ private:
     void _finalizeFrame();
     void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
-    void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances);
+    void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances, bool removeViewTranslation = false);
     void _renderQuad();
     ShadowMapHandle _getShadowMapHandleForLight(Light *);
     void _setLightShadowMapHandle(Light *, ShadowMapHandle);
