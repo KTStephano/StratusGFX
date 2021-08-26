@@ -147,14 +147,27 @@ class Renderer {
         FrameBuffer fbo;
     };
 
+    struct CascadedShadowMap {
+        FrameBuffer fbo;
+        glm::mat4 projection;
+        glm::mat4 view;
+        glm::vec4 cascadePlane;
+        glm::vec3 cascadeScale;
+        glm::vec3 cascadeOffset;
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
         std::vector<RenderEntity *> lightInteractingEntities;
         std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
+        std::vector<CascadedShadowMap> csms;
+        glm::vec4 cascadeShadowOffsets[2];
         InfiniteLight worldLight;
         bool worldLightingEnabled = false;
+        // If true then we need to re-calculate all world light data
+        bool worldLightIsDirty = false;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
@@ -434,6 +447,7 @@ private:
     void _evictLightFromShadowMapCache(Light*);
     void _addLightToShadowMapCache(Light*);
     Texture _lookupTexture(TextureHandle handle) const;
+    void _recalculateCascadeData(const Camera&);
 };
 }
 
