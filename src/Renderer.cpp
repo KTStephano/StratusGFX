@@ -232,7 +232,8 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     // FOV_x = 2tan^-1(s/g), FOV_y = 2tan^-1(1/g)
     // ==> tan(FOV_y/2)=1/g ==> g=1/tan(FOV_y/2)
     // where s is the aspect ratio (width / height)
-    _state.csms.clear();
+    //_state.csms.clear();
+    bool recalculateFbos = _state.csms.size() == 0;
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
@@ -245,29 +246,36 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const glm::mat4& lightWorldTransform = light.getWorldTransform();
     const glm::mat4& lightViewTransform = light.getViewTransform();
     const glm::mat4& cameraWorldTransform = c.getWorldTransform();
-    const glm::mat4& transposeLightWorldTransform = glm::transpose(lightWorldTransform);
+    const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
-    const glm::mat4& L = lightWorldTransform * cameraWorldTransform;
+    const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
     const float g = 1.0f / std::atanf(_state.fov / 2.0f);
     std::cout << "AAAAAA: " << g << std::endl;
+    std::cout << c.getViewTransform() << std::endl;
     std::vector<float> cascadeDistances = { 0.0f, 40.0f, 80.0f, 400.0f, 800.0f }; // 4 cascades max
     std::vector<float> aks;
     std::vector<float> bks;
     std::vector<float> dks;
-    std::vector<glm::vec4> sks;
+    std::vector<glm::vec3> sks;
     std::vector<float> zmins;
     std::vector<float> zmaxs;
 
     for (int i = 0; i < numCascades; ++i) {
-        // Create the depth buffer
-        Texture tex(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false}, nullptr);
-        tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        if (recalculateFbos) {
+            // Create the depth buffer
+            Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
+            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-        // Create the frame buffer
-        _state.csms[i].fbo = FrameBuffer({tex});
+            Texture color(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
+            color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+            // Create the frame buffer
+            _state.csms[i].fbo = FrameBuffer({ color, tex });
+        }
     
         const float ak = std::max(0.0f, cascadeDistances[i] - 10.0f); // we want some overlap, so we subtract some value
         const float bk = cascadeDistances[i + 1];
@@ -318,32 +326,38 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         // This tells us the maximum diameter for the cascade bounding box k
         const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
         dks.push_back(dk);
+        std::cout << "dk " << dk << std::endl;
         const float T = dk / cascadeResolutionXY;
 
         // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
-        const glm::vec4 sk(std::floor((maxX + minX) / (2.0f * T)) * T, std::floor((maxY + minY) / (2.0f * T)) * T, minZ, 1.0f);
+        const glm::vec3 sk(std::floor((maxX + minX) / (2.0f * T)) * T, std::floor((maxY + minY) / (2.0f * T)) * T, minZ);
         sks.push_back(sk);
+        std::cout << "sk " << sk << std::endl;
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
         // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-        const glm::mat4 cascadeViewTransform(transposeLightWorldTransform[0], transposeLightWorldTransform[1], transposeLightWorldTransform[2], -sk);
+        const glm::mat4 cascadeViewTransform(transposeLightWorldTransform[0], transposeLightWorldTransform[1], transposeLightWorldTransform[2], glm::vec4(-sk, 1.0f));
 
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
         // so it enables us to use the simplified Orthographic Projection matrix below
-        const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                               glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
+        const glm::mat4 cascadeOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                               glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
                                                glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-                                               glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                                               glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
 
         _state.csms[i].projection = cascadeOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
+
+        std::cout << cascadeOrthoProjection << std::endl << std::endl;
+        std::cout << cascadeViewTransform << std::endl << std::endl;
+        std::cout << cascadeOrthoProjection * cascadeViewTransform << std::endl << std::endl;
 
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
             // the cascade indices in the pixel shader
             const glm::vec4 n = cameraWorldTransform[2];
             const glm::vec4 c = cameraWorldTransform[3];
-            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, -n * c - ak) * (1.0f / (bks[i - 1] - ak));
+            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
             _state.csms[i].cascadePlane = fk;
             // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
             // what cascadeScale and cascadeOffset allow us to do
@@ -537,6 +551,10 @@ void Renderer::begin(bool clearScreen) {
         _state.buffer.fbo.clear(color);
         _state.lightingFbo.clear(color);
 
+        for (auto& csm : _state.csms) {
+            csm.fbo.clear(color);
+        }
+
         for (auto& gaussian : _state.gaussianBuffers) {
             gaussian.fbo.clear(color);
         }
@@ -566,7 +584,7 @@ void Renderer::begin(bool clearScreen) {
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
-    glEnable(GL_DEPTH_CLAMP);
+    //glEnable(GL_DEPTH_CLAMP);
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
@@ -902,8 +920,11 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & entities) {
     _bindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
+    glBlendFunc(GL_ONE, GL_ONE);
     for (CascadedShadowMap & csm : _state.csms) {
         csm.fbo.bind();
+        _state.csmDepth->setMat4("projection", &csm.projection[0][0]);
+        _state.csmDepth->setMat4("view", &csm.view[0][0]);
         const Texture * depth = csm.fbo.getDepthStencilAttachment();
         if (!depth) {
             throw std::runtime_error("Critical error: depth attachment not present");
@@ -927,13 +948,13 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
 }
 
 void Renderer::end(const Camera & c) {
-    if (_state.worldLightIsDirty) {
+    if (true || _state.worldLightingEnabled) {
         _recalculateCascadeData(c);
     }
 
     // Pull the view transform/projection matrices
-    const glm::mat4 * projection = &_state.perspective;
-    const glm::mat4 * view = &c.getViewTransform();
+    // const glm::mat4 * projection = &_state.perspective;
+    // const glm::mat4 * view = &c.getViewTransform();
 
     // const glm::mat4 cameraToWorld = glm::inverse(*view);
     // glm::mat4 lightToWorld = glm::mat4(1.0f);

@@ -70,6 +70,10 @@ const glm::mat4 &Camera::getViewTransform() const {
     return _viewTransform;
 }
 
+const glm::mat4& Camera::getWorldTransform() const {
+    return _worldTransform;
+}
+
 void Camera::setPosition(float x, float y, float z) {
     Entity::setPosition(x, y, z);
 }
