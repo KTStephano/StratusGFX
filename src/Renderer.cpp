@@ -241,7 +241,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 3.0f * cascadeDelta, -3.0f * cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
-    Camera light;
+    Camera light(false);
     light.setAngle(_state.worldLight.getRotation());
     const glm::mat4& lightWorldTransform = light.getWorldTransform();
     const glm::mat4& lightViewTransform = light.getViewTransform();
@@ -332,14 +332,22 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
 
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
         // so it enables us to use the simplified Orthographic Projection matrix below
-        const glm::mat4 cascadeOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                               glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+        //
+        // This results in values between [-1, 1]
+        const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                               glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
                                                glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-                                               glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+                                               glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-        _state.csms[i].projection = cascadeOrthoProjection;
+        const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                                    glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+                                                    glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+
+        _state.csms[i].depthProjection = cascadeOrthoProjection;
+        _state.csms[i].texelProjection = cascadeTexelOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
-        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionView = cascadeTexelOrthoProjection * cascadeViewTransform;
 
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
@@ -912,7 +920,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
     glBlendFunc(GL_ONE, GL_ONE);
     for (CascadedShadowMap & csm : _state.csms) {
         csm.fbo.bind();
-        _state.csmDepth->setMat4("projection", &csm.projection[0][0]);
+        _state.csmDepth->setMat4("projection", &csm.depthProjection[0][0]);
         _state.csmDepth->setMat4("view", &csm.view[0][0]);
         const Texture * depth = csm.fbo.getDepthStencilAttachment();
         if (!depth) {
@@ -1512,9 +1520,14 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->setVec3("viewPosition", &c.getPosition()[0]);
 
     // Set up world light if enabled
-    glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
-    glm::mat4 lightWorld = glm::inverse(lightView);
+    //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
+    //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), glm::vec3(0.0f));
+    Camera lightCam(false);
+    lightCam.setAngle(_state.worldLight.getRotation());
+    glm::mat4 lightWorld = lightCam.getWorldTransform();
+    glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
+    std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();

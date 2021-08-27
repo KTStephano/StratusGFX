@@ -7,21 +7,20 @@
 #include <iostream>
 #include <ostream>
 
-namespace stratus {
 // Printing helper functions
-inline std::ostream & operator<<(std::ostream & os, const glm::vec2 & v) {
+inline std::ostream& operator<<(std::ostream& os, const glm::vec2& v) {
     return os << "[" << v.x << ", " << v.y << "]";
 }
 
-inline std::ostream & operator<<(std::ostream & os, const glm::vec3 & v) {
+inline std::ostream& operator<<(std::ostream& os, const glm::vec3& v) {
     return os << "[" << v.x << ", " << v.y << ", " << v.z << "]";
 }
 
-inline std::ostream & operator<<(std::ostream & os, const glm::vec4 & v) {
+inline std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
     return os << "[" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "]";
 }
 
-inline std::ostream & operator<<(std::ostream & os, const glm::mat2 & m) { 
+inline std::ostream& operator<<(std::ostream& os, const glm::mat2& m) {
     static constexpr size_t size = 2;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
@@ -36,7 +35,7 @@ inline std::ostream & operator<<(std::ostream & os, const glm::mat2 & m) {
     return os << "]";
 }
 
-inline std::ostream & operator<<(std::ostream & os, const glm::mat3 & m) { 
+inline std::ostream& operator<<(std::ostream& os, const glm::mat3& m) {
     static constexpr size_t size = 3;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
@@ -51,7 +50,7 @@ inline std::ostream & operator<<(std::ostream & os, const glm::mat3 & m) {
     return os << "]";
 }
 
-inline std::ostream & operator<<(std::ostream & os, const glm::mat4 & m) { 
+inline std::ostream& operator<<(std::ostream& os, const glm::mat4& m) {
     static constexpr size_t size = 4;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
@@ -66,6 +65,7 @@ inline std::ostream & operator<<(std::ostream & os, const glm::mat4 & m) {
     return os << "]";
 }
 
+namespace stratus {
 // first: tangent, second: bitangent
 struct TangentBitangent {
     glm::vec3 tangent;
@@ -112,7 +112,7 @@ inline TangentBitangent calculateTangentAndBitangent(
     return TangentBitangent{std::move(tangent), std::move(bitangent)};
 }
 
-static void matRotate(glm::mat4 & out, const glm::vec3 & angles) {
+static void matRotate(glm::mat4& out, const glm::vec3& angles) {
     float angleX = glm::radians(angles.x);
     float angleY = glm::radians(angles.y);
     float angleZ = glm::radians(angles.z);
@@ -126,18 +126,18 @@ static void matRotate(glm::mat4 & out, const glm::vec3 & angles) {
     float sz = std::sin(angleZ);
 
     out[0] = glm::vec4(cy * cz,
-                       sx * sy * cz + cx * sz,
-                       -cx * sy * cz + sx * sz,
-                       out[0].w);
+                        sx * sy * cz + cx * sz,
+                        -cx * sy * cz + sx * sz,
+                        out[0].w);
 
     out[1] = glm::vec4(-cy * sz,
-                       -sx * sy * sz + cx * cz,
-                       cx * sy * sz + sx * cz,
-                       out[1].w);
+                        -sx * sy * sz + cx * cz,
+                        cx * sy * sz + sx * cz,
+                        out[1].w);
 
     out[2] = glm::vec4(sy,
-                       -sx * cy,
-                       cx * cy, out[2].w);
+                        -sx * cy,
+                        cx * cy, out[2].w);
 }
 
 // Inserts a 3x3 matrix into the upper section of a 4x4 matrix

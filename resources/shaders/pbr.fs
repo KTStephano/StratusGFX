@@ -176,10 +176,11 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
 }
 
 float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
-    float closestDepth = texture(shadow, coords).r;
-    // 0.0 means not in shadow, 1.0 means fully in shadow
-    //return depth > closestDepth ? 1.0 : 0.0;
+    float closestDepth = texture(shadow, coords, depth).r;
     return closestDepth;
+    // 0.0 means not in shadow, 1.0 means fully in shadow
+    // return depth > closestDepth ? 1.0 : 0.0;
+    // return closestDepth;
 }
 
 // For more information, see:
@@ -206,8 +207,8 @@ float calculateInfiniteShadowValue(vec3 cascadeCoord0) {
     vec2 shadowCoord1 = cascadeCoords[index1].xy;
     vec2 shadowCoord2 = cascadeCoords[index2].xy;
     // Convert from range [-1, 1] to [0, 1]
-    shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
-    shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
+    // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
+    // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
     float depth1 = cascadeCoords[index1].z;
     float depth2 = cascadeCoords[index2].z;
 
@@ -353,7 +354,7 @@ void main() {
     }
 
     if (infiniteLightingEnabled) {
-        vec3 lightDir = -infiniteLightDirection;
+        vec3 lightDir = infiniteLightDirection;
         vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
         // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
         for (int i = 0; i < 3; ++i) {

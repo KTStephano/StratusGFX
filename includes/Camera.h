@@ -16,9 +16,10 @@ class Camera : private Entity {
     glm::vec3 _side;// = glm::cross(_up, _dir);
     glm::mat4 _viewTransform;
     glm::mat4 _worldTransform;
+    bool _rangeCheckAngles;
 
 public:
-    Camera();
+    Camera(bool rangeCheckAngles = true);
     ~Camera() override = default;
 
     /**

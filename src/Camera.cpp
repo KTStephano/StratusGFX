@@ -6,7 +6,7 @@
 #include "Utils.h"
 
 namespace stratus {
-Camera::Camera() {
+Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {
     _side = glm::cross(_up, _dir);
     _viewTransform = glm::lookAt(position, position + _dir, _up);
 }
@@ -22,8 +22,10 @@ void Camera::modifyAngle(double deltaYaw, double deltaPitch) {
 
 void Camera::setAngle(const glm::vec3 & angle) {
     rotation = angle;
-    if (rotation.y > 89) rotation.y = 89.0f;
-    else if (rotation.y < -89.0f) rotation.y = -89.0f;
+    if (_rangeCheckAngles) {
+        if (rotation.y > 89) rotation.y = 89.0f;
+        else if (rotation.y < -89.0f) rotation.y = -89.0f;
+    }
 
     // _dir = glm::normalize(
     //     glm::vec3(cos(glm::radians(-getPitch())) * cos(glm::radians(getYaw())),
@@ -88,10 +90,11 @@ const glm::vec3 & Camera::getDirection() const {
 
 void Camera::_updateViewTransform() {
     // _viewTransform = glm::lookAt(position, position + _dir, _up);
-    // std::cout << "First version " << std::endl << _viewTransform << std::endl << std::endl;
-    _viewTransform = constructViewMatrix(glm::vec3(getPitch(), getYaw(), 0.0f), position);
+    _viewTransform = constructViewMatrix(glm::vec3(getPitch(), getYaw(), rotation.z), position);
     _worldTransform = glm::inverse(_viewTransform);
-    // std::cout << "Second version" << std::endl << _viewTransform << std::endl << std::endl;
+    //_worldTransform = constructTransformMat(glm::vec3(getPitch(), getYaw(), rotation.z), position, glm::vec3(0.0f));
+    //glm::mat4 transposed = glm::transpose(_worldTransform);
+    //_viewTransform = glm::mat4(transposed[0], transposed[1], transposed[2], -transposed[3]);
 }
 
 void Camera::_updateCameraAxes() {

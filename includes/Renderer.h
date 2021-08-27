@@ -149,9 +149,10 @@ class Renderer {
 
     struct CascadedShadowMap {
         FrameBuffer fbo;
-        glm::mat4 projection;
+        glm::mat4 depthProjection; // Used during depth rendering
+        glm::mat4 texelProjection; // Used for texel fetching during lighting stage
         glm::mat4 view;
-        glm::mat4 projectionView;
+        glm::mat4 projectionView; // This equals texelProjection * view
         glm::vec4 cascadePlane;
         glm::vec3 cascadeScale;
         glm::vec3 cascadeOffset;
