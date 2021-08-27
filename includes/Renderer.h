@@ -151,6 +151,7 @@ class Renderer {
         FrameBuffer fbo;
         glm::mat4 projection;
         glm::mat4 view;
+        glm::mat4 projectionView;
         glm::vec4 cascadePlane;
         glm::vec3 cascadeScale;
         glm::vec3 cascadeOffset;

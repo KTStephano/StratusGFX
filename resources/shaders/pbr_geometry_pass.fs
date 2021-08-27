@@ -28,9 +28,9 @@ uniform vec3 viewPosition;
  * Fragment information. All values should be
  * in world space.
  */
-in vec3 fsPosition;
+smooth in vec3 fsPosition;
 in vec3 fsNormal;
-in vec2 fsTexCoords;
+smooth in vec2 fsTexCoords;
 in mat4 fsModel;
 in vec3 fsDiffuseColor;
 in vec3 fsBaseReflectivity; // Ex: vec3(0.03-0.04) for plastics

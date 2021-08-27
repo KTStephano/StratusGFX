@@ -52,6 +52,7 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
+#define WORLD_LIGHT_AMBIENT_INTENSITY 0.008
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 //#define AMBIENT_INTENSITY 0.00025
 #define PI 3.14159265359
@@ -91,6 +92,22 @@ uniform int numShadowLights = 0;
 uniform bool infiniteLightingEnabled = false;
 uniform vec3 infiniteLightDirection;
 uniform vec3 infiniteLightColor;
+uniform sampler2D infiniteLightShadowMaps[4];
+// Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
+// a neighborhood of 4 texels and additive blend the results.
+uniform vec4 shadowOffset[2];
+// cascadeScale and cascadeOffset represent the scale and translation components of a matrix
+// which can convert from texture coordinates in cascade 0 to texture coordinates in any of the other
+// cascades.
+uniform vec3 cascadeScale[3];
+uniform vec3 cascadeOffset[3];
+// Represents a plane which transitions from 0 to 1 as soon as two cascades overlap
+uniform vec4 cascadePlanes[3];
+// Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
+uniform mat4 cascade0ProjView;
+
+// Not a uniform
+float cascadeBlend[3];
 
 in vec2 fsTexCoords;
 
@@ -99,6 +116,15 @@ layout (location = 0) out vec3 fsColor;
 // Prevents HDR color values from exceeding 16-bit color buffer range
 vec3 boundHDR(vec3 value) {
     return min(value, 65500.0);
+}
+
+// See https://community.khronos.org/t/saturate/53155
+vec3 saturate(vec3 value) {
+    return clamp(value, 0.0, 1.0);
+}
+
+float saturate(float value) {
+    return clamp(value, 0.0, 1.0);
 }
 
 #define PCF_SAMPLES 2.5;
@@ -147,6 +173,70 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     //bias = clamp(bias, 0, 0.01);
     //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
     return shadow / totalSamples;
+}
+
+float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
+    float closestDepth = texture(shadow, coords).r;
+    // 0.0 means not in shadow, 1.0 means fully in shadow
+    //return depth > closestDepth ? 1.0 : 0.0;
+    return closestDepth;
+}
+
+// For more information, see:
+//      "Foundations of Game Development, Volume 2: Rendering", pp. 189
+//      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
+//      https://ogldev.org/www/tutorial49/tutorial49.html
+//      https://alextardif.com/shadowmapping.html
+float calculateInfiniteShadowValue(vec3 cascadeCoord0) {
+    vec2 p1, p2;
+    vec3 cascadeCoords[4];
+    cascadeCoords[0] = cascadeCoord0;
+    for (int i = 1; i < 4; ++i) {
+        cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
+    }
+
+    bool beyondCascade2 = cascadeBlend[1] >= 0.0;
+    bool beyondCascade3 = cascadeBlend[2] >= 0.0;
+    // p1.z = float(beyondCascade2) * 2.0;
+    // p2.z = float(beyondCascade3) * 2.0 + 1.0;
+
+    int index1 = beyondCascade2 ? 2 : 0;
+    int index2 = beyondCascade3 ? 3 : 1;
+
+    vec2 shadowCoord1 = cascadeCoords[index1].xy;
+    vec2 shadowCoord2 = cascadeCoords[index2].xy;
+    // Convert from range [-1, 1] to [0, 1]
+    shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
+    shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
+    float depth1 = cascadeCoords[index1].z;
+    float depth2 = cascadeCoords[index2].z;
+
+    vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
+    float weight = beyondCascade2 ? blend.y - blend.z : 1.0 - blend.x;
+
+    float light1 = 0.0, light2 = 0.0;
+    // Sample four times from first cascade
+    p1 = shadowCoord1 + shadowOffset[0].xy;
+    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
+    p1 = shadowCoord1 + shadowOffset[0].zw;
+    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
+    p1 = shadowCoord1 + shadowOffset[1].xy;
+    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
+    p1 = shadowCoord1 + shadowOffset[1].zw;
+    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
+
+    // Sample four times from second cascade
+    p2 = shadowCoord2 + shadowOffset[0].xy;
+    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
+    p2 = shadowCoord2 + shadowOffset[0].zw;
+    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
+    p2 = shadowCoord2 + shadowOffset[1].xy;
+    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
+    p2 = shadowCoord2 + shadowOffset[1].zw;
+    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
+
+    // blend and return
+    return mix(light2, light1, weight) * 0.25; // 0.25 = 1.0 / 4.0 = average
 }
 
 float normalDistribution(const float NdotH, const float roughness) {
@@ -212,7 +302,7 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi));  
+    return attenuationFactor * (ambient + shadowFactor * ((kD * baseColor / PI + specular) * diffuse * NdotWi));  
 }
 
 vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
@@ -220,7 +310,7 @@ vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3
     vec3 lightColor = lightColors[lightIndex];
     vec3 lightDir   = lightPos - fragPosition;
 
-    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), POINT_LIGHT_AMBIENT_INTENSITY);
+    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), POINT_LIGHT_AMBIENT_INTENSITY);
 }
 
 void main() {
@@ -264,8 +354,14 @@ void main() {
 
     if (infiniteLightingEnabled) {
         vec3 lightDir = -infiniteLightDirection;
+        vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
+        // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
+        for (int i = 0; i < 3; ++i) {
+            cascadeBlend[i] = dot(cascadePlanes[i], vec4(fragPos, 1.0));
+        }
+        float shadowFactor = calculateInfiniteShadowValue(cascadeCoord0);
         //vec3 lightDir = infiniteLightDirection;
-        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 0.0, baseReflectivity, 1.0, POINT_LIGHT_AMBIENT_INTENSITY);
+        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
     }
     else {
         color = color + baseColor * ambient * ambientIntensity;

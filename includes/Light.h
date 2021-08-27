@@ -31,6 +31,8 @@ public:
     const glm::vec3 & getRotation() const { return _rotation; }
     void setRotation(const glm::vec3 & rotation) { _rotation = rotation; }
 
+    void offsetRotation(const glm::vec3& offsets) { _rotation += offsets; }
+
     float getIntensity() const { return _intensity; }
     void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
 };
