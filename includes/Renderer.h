@@ -212,6 +212,8 @@ class Renderer {
         // Handles the lighting stage
         std::unique_ptr<Pipeline> lighting;
         std::unique_ptr<Pipeline> bloom;
+        // Handles cascading shadow map depth buffer rendering
+        std::unique_ptr<Pipeline> csmDepth;
         std::vector<Pipeline *> shaders;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
@@ -423,7 +425,7 @@ public:
     void toggleWorldLighting(bool enabled);
 
     // Allows user to modify world light properties
-    InfiniteLight & getWorldLight();
+    void setWorldLight(const InfiniteLight &);
 
 private:
     void _clearGBuffer();
@@ -441,6 +443,7 @@ private:
     void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
     void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances, bool removeViewTranslation = false);
+    void _renderCSMDepth(const Camera &, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> &);
     void _renderQuad();
     ShadowMapHandle _getShadowMapHandleForLight(Light *);
     void _setLightShadowMapHandle(Light *, ShadowMapHandle);
@@ -448,6 +451,7 @@ private:
     void _addLightToShadowMapCache(Light*);
     Texture _lookupTexture(TextureHandle handle) const;
     void _recalculateCascadeData(const Camera&);
+    void _validateAllShaders();
 };
 }
 

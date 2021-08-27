@@ -141,8 +141,8 @@ namespace stratus {
             return _colorAttachments;
         }
 
-        const Texture & getDepthStencilAttachment() const {
-            return _depthStencilAttachment;
+        const Texture * getDepthStencilAttachment() const {
+            return &_depthStencilAttachment;
         }
 
         void * underlying() const {
@@ -175,7 +175,7 @@ namespace stratus {
     }
     
     const std::vector<Texture> & FrameBuffer::getColorAttachments() const { return _fbo->getColorAttachments(); }
-    const Texture & FrameBuffer::getDepthStencilAttachment() const        { return _fbo->getDepthStencilAttachment(); }
+    const Texture * FrameBuffer::getDepthStencilAttachment() const        { return _fbo->getDepthStencilAttachment(); }
 
     void FrameBuffer::bind() const         { _fbo->bind(); }
     void FrameBuffer::unbind() const       { _fbo->unbind(); }

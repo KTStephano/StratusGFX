@@ -246,6 +246,7 @@ int main(int argc, char * args[]) {
 
     bool running = true;
     stratus::PointLight cameraLight;
+    stratus::InfiniteLight worldLight;
     cameraLight.setCastsShadows(false);
     cameraLight.setIntensity(1200.0f);
     bool camLightEnabled = true;
@@ -309,9 +310,10 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 worldLightEnabled = !worldLightEnabled;
                                 renderer.toggleWorldLighting(worldLightEnabled);
-                                renderer.getWorldLight().setColor(glm::vec3(1.0f, 0.75f, 0.5));
-                                renderer.getWorldLight().setIntensity(10.0f);
-                                renderer.getWorldLight().setPosition(camera.getPosition());
+                                worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
+                                worldLight.setIntensity(10.0f);
+                                worldLight.setPosition(camera.getPosition());
+                                renderer.setWorldLight(worldLight);
                             }
                             break;
                         case SDL_SCANCODE_1: {

@@ -144,23 +144,29 @@ Renderer::Renderer(SDL_Window * window) {
         Shader{"../resources/shaders/bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
+    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/csm.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.csmDepth.get());
+
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
 
     // Use the shader isValid() method to determine if everything succeeded
-    _isValid = _isValid &&
-            _state.forward ->isValid() &&
-            _state.geometry->isValid() &&
-            _state.hdrGamma->isValid() &&
-            _state.lighting->isValid() &&
-            _state.bloom   ->isValid() &&
-            _state.shadows ->isValid();
+    _validateAllShaders();
 
     _state.dummyCubeMap = createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
 
     // Create a pool of shadow maps for point lights to use
     for (int i = 0; i < _state.numShadowMaps; ++i) {
         createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+    }
+}
+
+void Renderer::_validateAllShaders() {
+    _isValid = true;
+    for (Pipeline * p : _state.shaders) {
+        _isValid = _isValid && p->isValid();
     }
 }
 
@@ -181,6 +187,7 @@ void Renderer::recompileShaders() {
     for (Pipeline* p : _state.shaders) {
         p->recompile();
     }
+    _validateAllShaders();
 }
 
 const GFXConfig & Renderer::config() const {
@@ -340,9 +347,15 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             _state.csms[i].cascadePlane = fk;
             // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
             // what cascadeScale and cascadeOffset allow us to do
-            _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, dks[0] / dk, (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
+            //
+            // (These are actually pulled from a matrix which corresponds to PkShadow * MkView)
+            _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, 
+                                                    dks[0] / dk, 
+                                                    (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
             const float d02dk = dks[0] / (2.0f * dk);
-            _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, (sks[0].z - sk.z) / (maxZ - minZ));
+            _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, 
+                                                     ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, 
+                                                     (sks[0].z - sk.z) / (maxZ - minZ));
         }
     }
 }
@@ -552,6 +565,8 @@ void Renderer::begin(bool clearScreen) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
+    // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
+    glEnable(GL_DEPTH_CLAMP);
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
@@ -884,6 +899,33 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     _unbindShader();
 }
 
+void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & entities) {
+    _bindShader(_state.csmDepth.get());
+    glEnable(GL_DEPTH_TEST);
+    for (CascadedShadowMap & csm : _state.csms) {
+        csm.fbo.bind();
+        const Texture * depth = csm.fbo.getDepthStencilAttachment();
+        if (!depth) {
+            throw std::runtime_error("Critical error: depth attachment not present");
+        }
+        glViewport(0, 0, depth->width(), depth->height());
+        // Render each entity into the depth map
+        for (auto & entityObservers : entities) {
+            for (auto & meshObservers : entityObservers.second) {
+                const RenderEntity * e = entityObservers.first.e;
+                const Mesh * m = meshObservers.first.m;
+                const size_t numInstances = meshObservers.second.size;
+                setCullState(m->cullingMode);
+                m->bind();
+                m->render(numInstances);
+                m->unbind();
+            }
+        }
+        csm.fbo.unbind();
+    }
+    _unbindShader();
+}
+
 void Renderer::end(const Camera & c) {
     if (_state.worldLightIsDirty) {
         _recalculateCascadeData(c);
@@ -1054,6 +1096,11 @@ void Renderer::end(const Camera & c) {
         for (auto & meshObservers : entityObservers.second) {
             _initInstancedData(meshObservers.second, buffers);
         }
+    }
+
+    // Perform world light depth pass if enabled
+    if (_state.worldLightingEnabled) {
+        _renderCSMDepth(c, _state.instancedMeshes);
     }
 
     // TEMP: Set up the light source
@@ -1524,7 +1571,8 @@ void Renderer::toggleWorldLighting(bool enabled) {
 }
 
 // Allows user to modify world light properties
-InfiniteLight & Renderer::getWorldLight() {
-    return _state.worldLight;
+void Renderer::setWorldLight(const InfiniteLight & wl) {
+    _state.worldLight = wl;
+    _state.worldLightIsDirty = true;
 }
 }

@@ -45,13 +45,12 @@ namespace stratus {
         // to = rectangular region in *this* to copy to
         void copyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);
         const std::vector<Texture> & getColorAttachments() const;
-        const Texture & getDepthStencilAttachment() const;
+        const Texture * getDepthStencilAttachment() const;
 
         void bind() const;
         void unbind() const;
 
         bool valid() const;
-
         void * underlying() const;
     };
 }
