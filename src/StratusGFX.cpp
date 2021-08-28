@@ -264,7 +264,7 @@ int main(int argc, char * args[]) {
         SDL_Event e;
         const float camSpeed = 100.0f;
 
-        worldLight.offsetRotation(glm::vec3(0.0f, 0.0f, value * deltaSeconds));
+        // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         renderer.setWorldLight(worldLight);
 
         //std::cout << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
@@ -276,7 +276,7 @@ int main(int argc, char * args[]) {
                     running = false;
                     break;
                 case SDL_MOUSEMOTION:
-                    camera.modifyAngle(e.motion.xrel, 0.0f);
+                    camera.modifyAngle(0.0f, e.motion.xrel);
                     break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {

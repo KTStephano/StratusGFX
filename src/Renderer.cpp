@@ -251,8 +251,11 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
-    const float g = 1.0f / std::atanf(_state.fov / 2.0f);
-    std::vector<float> cascadeDistances = { 0.0f, 40.0f, 80.0f, 400.0f, 800.0f }; // 4 cascades max
+    const float g = 1.0f / std::tanf(glm::radians(_state.fov / 2.0f));
+    //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
+    std::cout << "AAAAAAA " << g << std::endl;
+    const std::vector<float> cascadeBegins = {   0.0f,  40.0f, 90.0f, 290.0f }; // 4 cascades max
+    const std::vector<float> cascadeEnds   = { 50.0f, 100.0f, 300.0f, 500.0f };
     std::vector<float> aks;
     std::vector<float> bks;
     std::vector<float> dks;
@@ -265,14 +268,14 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             // Create the depth buffer
             Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
             tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            //tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             // Create the frame buffer
             _state.csms[i].fbo = FrameBuffer({ tex });
         }
     
-        const float ak = std::max(0.0f, cascadeDistances[i] - 10.0f); // we want some overlap, so we subtract some value
-        const float bk = cascadeDistances[i + 1];
+        const float ak = cascadeBegins[i];
+        const float bk = cascadeEnds[i];
         aks.push_back(ak);
         bks.push_back(bk);
 
@@ -281,20 +284,26 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         const float baseAkY = ak / g;
         const float baseBkX = (bk * s) / g;
         const float baseBkY = bk / g;
-        // With L * <val> we convert from camera space to light space
+        // Keep all of these in camera space for now
         std::vector<glm::vec4> frustumCorners = {
             // Near corners
+            glm::vec4(baseAkX, -baseAkY, ak, 1.0f),
             glm::vec4(baseAkX, baseAkY, ak, 1.0f),
             glm::vec4(-baseAkX, baseAkY, ak, 1.0f),
-            glm::vec4(baseAkX, -baseAkY, ak, 1.0f),
             glm::vec4(-baseAkX, -baseAkY, ak, 1.0f),
 
             // Far corners
+            glm::vec4(baseBkX, -baseBkY, bk, 1.0f),
             glm::vec4(baseBkX, baseBkY, bk, 1.0f),
             glm::vec4(-baseBkX, baseBkY, bk, 1.0f),
-            glm::vec4(baseBkX, -baseBkY, bk, 1.0f),
             glm::vec4(-baseBkX, -baseBkY, bk, 1.0f),
         };
+        
+        // This tells us the maximum diameter for the cascade bounding box k
+        const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+                                                    glm::length(frustumCorners[4] - frustumCorners[6])));
+        dks.push_back(dk);
+        const float T = dk / cascadeResolutionXY;
 
         // Compute min/max of each
         float minX = std::numeric_limits<float>::max();
@@ -304,6 +313,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         float minZ = minX;
         float maxZ = maxX;
         for (int j = 0; j < frustumCorners.size(); ++j) {
+            // First make sure to transform frustumCorners[j] from camera space to light space
+            frustumCorners[j] = L * frustumCorners[j];
+
             minX = std::min(minX, frustumCorners[j].x);
             maxX = std::max(maxX, frustumCorners[j].x);
 
@@ -316,19 +328,21 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
 
         zmins.push_back(minZ);
         zmaxs.push_back(maxZ);
-        
-        // This tells us the maximum diameter for the cascade bounding box k
-        const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
-        dks.push_back(dk);
-        const float T = dk / cascadeResolutionXY;
 
         // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
-        const glm::vec3 sk(std::floor((maxX + minX) / (2.0f * T)) * T, std::floor((maxY + minY) / (2.0f * T)) * T, minZ);
+        glm::vec3 sk(std::floorf((maxX + minX) / (2.0f * T)) * T, 
+                     std::floorf((maxY + minY) / (2.0f * T)) * T, 
+                     minZ);
+        //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
+        std::cout << "sk " << sk << std::endl;
         sks.push_back(sk);
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
         // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-        const glm::mat4 cascadeViewTransform(transposeLightWorldTransform[0], transposeLightWorldTransform[1], transposeLightWorldTransform[2], glm::vec4(-sk, 1.0f));
+        glm::mat4 cascadeViewTransform = glm::mat4(1.0f);
+        cascadeViewTransform[3] = glm::vec4(-sk, 1.0f);
+        cascadeViewTransform = lightViewTransform * cascadeViewTransform;
+        //const glm::mat4 cascadeViewTransform = lightViewTransform;
 
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
         // so it enables us to use the simplified Orthographic Projection matrix below
@@ -917,7 +931,9 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & entities) {
     _bindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
-    glBlendFunc(GL_ONE, GL_ONE);
+    glDisable(GL_BLEND);
+    //glBlendFunc(GL_ONE, GL_ONE);
+    glDisable(GL_CULL_FACE);
     for (CascadedShadowMap & csm : _state.csms) {
         csm.fbo.bind();
         _state.csmDepth->setMat4("projection", &csm.depthProjection[0][0]);
@@ -933,7 +949,6 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
                 const RenderEntity * e = entityObservers.first.e;
                 const Mesh * m = meshObservers.first.m;
                 const size_t numInstances = meshObservers.second.size;
-                setCullState(m->cullingMode);
                 m->bind();
                 m->render(numInstances);
                 m->unbind();
@@ -1020,7 +1035,7 @@ void Renderer::end(const Camera & c) {
     }
 
     // Set blend func just for shadow pass
-    glBlendFunc(GL_ONE, GL_ONE);
+    // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
     _bindShader(_state.shadows.get());
@@ -1526,7 +1541,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     lightCam.setAngle(_state.worldLight.getRotation());
     glm::mat4 lightWorld = lightCam.getWorldTransform();
     glm::mat4 lightView = lightCam.getViewTransform();
-    glm::vec3 direction = glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
+    glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
@@ -1542,9 +1557,9 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     }
 
     for (int i = 0; i < 3; ++i) {
-        s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i].cascadeScale[0]);
-        s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i].cascadeOffset[0]);
-        s->setVec3("cascadePlanes[" + std::to_string(i) + "]", &_state.csms[i].cascadePlane[0]);
+        s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
+        s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
+        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadePlane[0]);
     }
 
     s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);

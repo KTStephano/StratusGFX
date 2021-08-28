@@ -17,15 +17,15 @@ void Camera::modifyAngle(double deltaYaw, double deltaPitch) {
     rotation.x -= deltaYaw;
     rotation.y -= deltaPitch;
 
-    setAngle(glm::vec3(rotation.x, rotation.y, 0.0f));
+    setAngle(rotation);
 }
 
 void Camera::setAngle(const glm::vec3 & angle) {
     rotation = angle;
-    if (_rangeCheckAngles) {
-        if (rotation.y > 89) rotation.y = 89.0f;
-        else if (rotation.y < -89.0f) rotation.y = -89.0f;
-    }
+    //if (_rangeCheckAngles) {
+    //    if (rotation.y > 89) rotation.y = 89.0f;
+    //    else if (rotation.y < -89.0f) rotation.y = -89.0f;
+    //}
 
     // _dir = glm::normalize(
     //     glm::vec3(cos(glm::radians(-getPitch())) * cos(glm::radians(getYaw())),
@@ -35,7 +35,9 @@ void Camera::setAngle(const glm::vec3 & angle) {
     _updateCameraAxes();
     _updateViewTransform();
 
-    _dir = glm::vec3(_worldTransform[2].x, _worldTransform[2].y, _worldTransform[2].z) * -1.0f;
+    //_dir = glm::vec3(_worldTransform[2].x, _worldTransform[2].y, _worldTransform[2].z) * -1.0f;
+    //_dir = glm::vec3(_viewTransform[2]);
+    _dir = -glm::vec3(_worldTransform[2]);
 }
 
 void Camera::setSpeed(float forward, float up, float strafe) {
@@ -90,11 +92,17 @@ const glm::vec3 & Camera::getDirection() const {
 
 void Camera::_updateViewTransform() {
     // _viewTransform = glm::lookAt(position, position + _dir, _up);
-    _viewTransform = constructViewMatrix(glm::vec3(getPitch(), getYaw(), rotation.z), position);
-    _worldTransform = glm::inverse(_viewTransform);
-    //_worldTransform = constructTransformMat(glm::vec3(getPitch(), getYaw(), rotation.z), position, glm::vec3(0.0f));
-    //glm::mat4 transposed = glm::transpose(_worldTransform);
-    //_viewTransform = glm::mat4(transposed[0], transposed[1], transposed[2], -transposed[3]);
+    //_viewTransform = constructViewMatrix(glm::vec3(getPitch(), getYaw(), rotation.z), position);
+    //_worldTransform = glm::inverse(_viewTransform);
+    _worldTransform = constructTransformMat(rotation, position, glm::vec3(1.0f));
+    //_viewTransform = glm::inverse(_worldTransform);
+    // See https://learnopengl.com/Getting-started/Camera for information about rotation + translation when
+    // creating view matrix. We use transpose of the rotation component since doing inverse results in precision errors.
+    _viewTransform = glm::mat4(glm::mat3(glm::transpose(_worldTransform)));
+    _viewTransform[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::mat4 translate = glm::mat4(1.0f);
+    translate[3] = glm::vec4(-position, 1.0f);
+    _viewTransform = _viewTransform * translate;
 }
 
 void Camera::_updateCameraAxes() {
