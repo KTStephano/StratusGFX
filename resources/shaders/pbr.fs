@@ -92,7 +92,7 @@ uniform int numShadowLights = 0;
 uniform bool infiniteLightingEnabled = false;
 uniform vec3 infiniteLightDirection;
 uniform vec3 infiniteLightColor;
-uniform sampler2D infiniteLightShadowMaps[4];
+uniform sampler2DShadow infiniteLightShadowMaps[4];
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
 uniform vec4 shadowOffset[2];
@@ -173,8 +173,9 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     return shadow / totalSamples;
 }
 
-float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
-    float closestDepth = texture(shadow, coords, depth).r;
+float sampleInfiniteShadowTexture(sampler2DShadow shadow, vec3 coords, float depth) {
+    coords.z = depth;
+    float closestDepth = texture(shadow, coords);
     return closestDepth;
     // float closestDepth = texture(shadow, coords).r;
     // // 0.0 means not in shadow, 1.0 means fully in shadow
@@ -188,19 +189,22 @@ float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
 //      https://ogldev.org/www/tutorial49/tutorial49.html
 //      https://alextardif.com/shadowmapping.html
 float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
-    vec2 p1, p2;
+    vec3 p1, p2;
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
-        cascadeCoords[i] = (cascadeProjViews[i] * fragPos).rgb;
-        // cascadeCoords[i].xy = cascadeCoords[i].xy * 0.5 + vec2(0.5);
+        vec4 coords = cascadeProjViews[i] * fragPos;
+        cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
+        // cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
     bool beyondCascade3 = cascadeBlends.z >= 0.0;
     // p1.z = float(beyondCascade2) * 2.0;
     // p2.z = float(beyondCascade3) * 2.0 + 1.0;
+    p1.z = 0.0;
+    p2.z = 0.0;
 
     int index1 = beyondCascade2 ? 2 : 0;
     int index2 = beyondCascade3 ? 3 : 1;
@@ -210,8 +214,8 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     // Convert from range [-1, 1] to [0, 1]
     // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
     // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
-    float depth1 = cascadeCoords[index1].z;
-    float depth2 = cascadeCoords[index2].z;
+    float depth1 = cascadeCoords[index1].z * 0.5 + 0.5;
+    float depth2 = cascadeCoords[index2].z * 0.5 + 0.5;
     // Clamp depths between [0, 1] for final cascade to prevent darkening beyond bounds
     depth2 = beyondCascade3 ? saturate(depth2) : depth2;
 
@@ -220,24 +224,24 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
 
     float light1 = 0.0;
     // Sample four times from first cascade
-    p1 = shadowCoord1 + shadowOffset[0].xy;
+    p1.xy = shadowCoord1 + shadowOffset[0].xy;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1 = shadowCoord1 + shadowOffset[0].zw;
+    p1.xy = shadowCoord1 + shadowOffset[0].zw;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1 = shadowCoord1 + shadowOffset[1].xy;
+    p1.xy = shadowCoord1 + shadowOffset[1].xy;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1 = shadowCoord1 + shadowOffset[1].zw;
+    p1.xy = shadowCoord1 + shadowOffset[1].zw;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
 
     float light2 = 0.0;
     // Sample four times from second cascade
-    p2 = shadowCoord2 + shadowOffset[0].xy;
+    p2.xy = shadowCoord2 + shadowOffset[0].xy;
     light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2 = shadowCoord2 + shadowOffset[0].zw;
+    p2.xy = shadowCoord2 + shadowOffset[0].zw;
     light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2 = shadowCoord2 + shadowOffset[1].xy;
+    p2.xy = shadowCoord2 + shadowOffset[1].xy;
     light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2 = shadowCoord2 + shadowOffset[1].zw;
+    p2.xy = shadowCoord2 + shadowOffset[1].zw;
     light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
 
     // blend and return

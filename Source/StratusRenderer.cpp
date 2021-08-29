@@ -226,7 +226,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.worldLightIsDirty = false;
     static constexpr int cascadeResolutionXY = 2048;
     static constexpr float cascadeResReciprocal = 1.0f / cascadeResolutionXY;
-    static constexpr float cascadeDelta = (3.0f / 16.0f) * cascadeResReciprocal;
+    static constexpr float cascadeDelta = cascadeResReciprocal;
 
     // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
     //
@@ -238,8 +238,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
-    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -3.0f * cascadeDelta, 3.0f * cascadeDelta, -cascadeDelta);
-    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 3.0f * cascadeDelta, -3.0f * cascadeDelta, cascadeDelta);
+    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -3.0f * cascadeDelta, 3.0f * cascadeDelta, -cascadeDelta);
+    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 3.0f * cascadeDelta, -3.0f * cascadeDelta, cascadeDelta);
+    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
     Camera light(false);
@@ -257,8 +259,8 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
     const float zfar = _state.zfar;
-    const std::vector<float> cascadeBegins = {   0.0f,  75.0f, 175.0f, 375.0f }; // 4 cascades max
-    const std::vector<float> cascadeEnds   = { 100.0f, 200.0f, 400.0f, 700.0f };
+    const std::vector<float> cascadeBegins = {   0.0f, 10.0f,  40.0f, 100.0f }; // 4 cascades max
+    const std::vector<float> cascadeEnds   = {  15.0f, 50.0f, 120.0f, 320.0f };
     std::vector<float> aks;
     std::vector<float> bks;
     std::vector<float> dks;
@@ -269,10 +271,11 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     for (int i = 0; i < numCascades; ++i) {
         if (recalculateFbos) {
             // Create the depth buffer
+            // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
             Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
-            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-            tex.setTextureCompare(TextureCompareMode::NONE, TextureCompareFunc::LEQUAL);
+            tex.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
             // Create the frame buffer
             _state.csms[i].fbo = FrameBuffer({ tex });
@@ -382,7 +385,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             // the cascade indices in the pixel shader
             const glm::vec3 n = glm::vec3(cameraWorldTransform[2]);
             const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
-            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, -glm::dot(n, c) - ak) * (1.0f / (bks[i - 1] - ak));
+            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
             _state.csms[i].cascadePlane = fk;
             // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
             // what cascadeScale and cascadeOffset allow us to do
