@@ -38,15 +38,15 @@ namespace stratus {
         return _position;
     }
 
-    const glm::vec3 & Camera::getDirection() {
+    glm::vec3 Camera::getDirection() {
         return glm::normalize(-getWorldTransform()[2]);
     }
 
-    const glm::vec3 & Camera::getUp() {
+    glm::vec3 Camera::getUp() {
         return glm::normalize(-getWorldTransform()[1]);
     }
 
-    const glm::vec3 & Camera::getSide() {
+    glm::vec3 Camera::getSide() {
         return glm::normalize(-getWorldTransform()[0]);
     }
 
