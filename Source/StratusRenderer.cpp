@@ -238,10 +238,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
-    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -3.0f * cascadeDelta, 3.0f * cascadeDelta, -cascadeDelta);
-    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 3.0f * cascadeDelta, -3.0f * cascadeDelta, cascadeDelta);
-    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
-    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -2.0f * cascadeDelta, 2.0f * cascadeDelta, -cascadeDelta);
+    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 2.0f * cascadeDelta, -2.0f * cascadeDelta, cascadeDelta);
+    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
     Camera light(false);
@@ -254,7 +254,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
-    const float g = 1.0f / tangent(_state.fov / 2.0f).value();
+    const float g = 1.0 / tangent(_state.fov / 2.0f).value();
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
     // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
@@ -398,7 +398,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
             // the cascade indices in the pixel shader
-            const glm::vec3 n = glm::vec3(cameraWorldTransform[2]);
+            const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);
             const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
             const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
             _state.csms[i].cascadePlane = fk;
@@ -965,7 +965,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     //glBlendFunc(GL_ONE, GL_ONE);
-    glDisable(GL_CULL_FACE);
+    // glDisable(GL_CULL_FACE);
     for (CascadedShadowMap & csm : _state.csms) {
         csm.fbo.bind();
         _state.csmDepth->setMat4("projection", &csm.depthProjection[0][0]);
@@ -981,6 +981,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
                 const RenderEntity * e = entityObservers.first.e;
                 const Mesh * m = meshObservers.first.m;
                 const size_t numInstances = meshObservers.second.size;
+                setCullState(m->cullingMode);
                 m->bind();
                 m->render(numInstances);
                 m->unbind();
