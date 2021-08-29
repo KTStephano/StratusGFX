@@ -104,6 +104,7 @@ uniform vec3 cascadeOffset[3];
 // Represents a plane which transitions from 0 to 1 as soon as two cascades overlap
 uniform vec4 cascadePlanes[3];
 uniform mat4 cascadeProjViews[4];
+uniform float cascadeSplits[4];
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
 // uniform mat4 cascade0ProjView;
 
@@ -188,6 +189,8 @@ float sampleInfiniteShadowTexture(sampler2DShadow shadow, vec3 coords, float dep
 //      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
 //      https://ogldev.org/www/tutorial49/tutorial49.html
 //      https://alextardif.com/shadowmapping.html
+//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
 float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     vec3 p1, p2;
     vec3 cascadeCoords[4];

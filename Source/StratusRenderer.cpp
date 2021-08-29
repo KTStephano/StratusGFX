@@ -258,7 +258,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
     // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
-    const float zfar = std::min(600.0f, _state.zfar); // We don't want zfar to be unbounded
+    const float zfar  = std::min(600.0f, _state.zfar); // We don't want zfar to be unbounded
 
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -274,7 +274,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         cascadeEnds[i] = d;
     }
 
-    const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 20.0f,  cascadeEnds[1] - 20.0f, cascadeEnds[2] - 20.0f }; // 4 cascades max
+    const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
     //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
     std::vector<float> aks;
     std::vector<float> bks;
@@ -1440,7 +1440,7 @@ Model Renderer::loadModel(const std::string & file) {
 ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
     smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, false}, nullptr);
-    smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
@@ -1584,6 +1584,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     for (int i = 0; i < 4; ++i) {
         s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionView[0][0]);
+        // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 
     for (int i = 0; i < 2; ++i) {

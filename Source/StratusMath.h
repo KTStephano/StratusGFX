@@ -257,7 +257,12 @@ namespace stratus {
     // @See https://www.3dgep.com/understanding-the-view-matrix/
     static glm::mat4 constructViewMatrix(const Rotation& rotation, const glm::vec3& translation) {
         glm::mat4 world = constructTransformMat(rotation, translation, glm::vec3(1.0f));
-        return glm::inverse(world);
+        // return glm::inverse(world);
+        glm::mat4 worldTranspose = glm::mat4(glm::transpose(glm::mat3(world)));
+        worldTranspose[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        glm::mat4 invTranslation = glm::mat4(1.0f);
+        invTranslation[3] = glm::vec4(-translation, 1.0f);
+        return worldTranspose * invTranslation;
     }
 }
 
