@@ -224,7 +224,7 @@ void Renderer::_recalculateProjMatrices() {
 void Renderer::_recalculateCascadeData(const Camera & c) {
     static constexpr int numCascades = 4;
     _state.worldLightIsDirty = false;
-    static constexpr int cascadeResolutionXY = 2048;
+    static constexpr int cascadeResolutionXY = 4096;
     static constexpr float cascadeResReciprocal = 1.0f / cascadeResolutionXY;
     static constexpr float cascadeDelta = cascadeResReciprocal;
 
@@ -238,10 +238,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
-    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -2.0f * cascadeDelta, 2.0f * cascadeDelta, -cascadeDelta);
-    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 2.0f * cascadeDelta, -2.0f * cascadeDelta, cascadeDelta);
-    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
-    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -2.0f * cascadeDelta, 2.0f * cascadeDelta, -cascadeDelta);
+    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 2.0f * cascadeDelta, -2.0f * cascadeDelta, cascadeDelta);
+    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
     Camera light(false);
