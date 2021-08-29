@@ -15,6 +15,7 @@
 #include "Texture.h"
 #include "FrameBuffer.h"
 #include "Light.h"
+#include "Math.h"
 
 namespace stratus {
 class Pipeline;
@@ -175,7 +176,8 @@ class Renderer {
         std::vector<Light *> lights;
         uint32_t windowWidth = 0;
         uint32_t windowHeight = 0;
-        float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
+        Degrees fov = Degrees(90.0f);
+        float znear = 0.25f, zfar = 1000.0f;
         int numShadowMaps = 10;
         int shadowCubeMapX = 2048, shadowCubeMapY = 2048;
         glm::mat4 orthographic;
@@ -383,7 +385,7 @@ public:
      * @param near near clipping plane (ex: 0.25f)
      * @param far far clipping plane (ex: 1000.0f)
      */
-    void setPerspectiveData(float fov, float near, float far);
+    void setPerspectiveData(const Degrees & fov, float near, float far);
 
     /**
      * Sets the render mode to be either ORTHOGRAPHIC (2d)

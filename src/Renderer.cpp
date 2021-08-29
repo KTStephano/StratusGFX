@@ -9,6 +9,7 @@
 #include "Quad.h"
 #include "Cube.h"
 #include "Utils.h"
+#include "StratusMath.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
@@ -207,7 +208,7 @@ const Pipeline *Renderer::getCurrentShader() const {
 }
 
 void Renderer::_recalculateProjMatrices() {
-    _state.perspective = glm::perspective(glm::radians(_state.fov),
+    _state.perspective = glm::perspective(Radians(_state.fov).value(),
             float(_state.windowWidth) / float(_state.windowHeight),
             _state.znear,
             _state.zfar);
@@ -251,7 +252,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
-    const float g = 1.0f / std::tanf(glm::radians(_state.fov / 2.0f));
+    const float g = 1.0f / tangent(_state.fov / 2.0f).value();
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
     std::cout << "AAAAAAA " << g << std::endl;
     const float znear = _state.znear;
@@ -539,9 +540,9 @@ void Renderer::_initializePostFxBuffers() {
     }
 }
 
-void Renderer::setPerspectiveData(float fov, float fnear, float ffar) {
+void Renderer::setPerspectiveData(const Degrees & fov, float fnear, float ffar) {
     // TODO: Find the best lower bound for fov instead of arbitrary 25.0f
-    if (fov < 25.0f) return;
+    if (fov.value() < 25.0f) return;
     _state.fov = fov;
     _state.znear = fnear;
     _state.zfar = ffar;
@@ -660,13 +661,13 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
     // We want to keep track of entities and whether or not they have moved for determining
     // when shadows should be recomputed
     if (_entitiesSeenBefore.find(e) == _entitiesSeenBefore.end()) {
-        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation, true}));
+        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation.asVec3(), true}));
     }
     else {
         EntityStateInfo & info = _entitiesSeenBefore.find(e)->second;
         const double distance = glm::distance(e->position, info.lastPos);
         const double scale = glm::distance(e->scale, info.lastScale);
-        const double rotation = glm::distance(e->rotation, info.lastRotation);
+        const double rotation = glm::distance(e->rotation.asVec3(), info.lastRotation);
         info.dirty = false;
         if (distance > 0.25) {
             info.lastPos = e->position;
@@ -677,7 +678,7 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
             info.dirty = true;
         }
         if (rotation > 0.25) {
-            info.lastRotation = e->rotation;
+            info.lastRotation = e->rotation.asVec3();
             info.dirty = true;
         }
     }

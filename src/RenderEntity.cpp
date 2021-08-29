@@ -3,6 +3,7 @@
 
 #include "RenderEntity.h"
 #include "Common.h"
+#include "StratusMath.h"
 #include "Utils.h"
 #include <iostream>
 #include <vector>

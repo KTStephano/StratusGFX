@@ -276,7 +276,8 @@ int main(int argc, char * args[]) {
                     running = false;
                     break;
                 case SDL_MOUSEMOTION:
-                    camera.modifyAngle(0.0f, e.motion.xrel);
+                    camera.modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(e.motion.xrel), stratus::Degrees(0.0f));
+                    std::cout << camera.getRotation() << std::endl;
                     break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
@@ -485,17 +486,17 @@ int main(int argc, char * args[]) {
         clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
         renderer.addDrawable(&clay);
 
-        stump.rotation = glm::vec3(-180.0f, 0.0f, 0.0f);
+        stump.rotation = stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
         stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
         renderer.addDrawable(&stump);
 
-        hall.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+        hall.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
         hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
         hall.position = glm::vec3(-250.0f, -30.0f, 0.0f);
         renderer.addDrawable(&hall);
 
         ramparts.position = glm::vec3(300.0f, 0.0f, -100.0f);
-        ramparts.rotation = glm::vec3(90.0f, 0.0f, 0.0f);
+        ramparts.rotation = stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
         ramparts.scale = glm::vec3(10.0f);
         renderer.addDrawable(&ramparts);
 

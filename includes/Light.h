@@ -3,6 +3,7 @@
 #define STRATUSGFX_LIGHT_H
 
 #include "Common.h"
+#include "Math.h"
 #include <algorithm>
 #include <cmath>
 
@@ -18,7 +19,7 @@ const float maxLightColor = 10000.0f;
 class InfiniteLight {
     glm::vec3 _color = glm::vec3(1.0f);
     glm::vec3 _position = glm::vec3(0.0f);
-    glm::vec3 _rotation = glm::vec3(0.0f);
+    Rotation _rotation;
     float _intensity = 1.0f;
 
 public:
@@ -28,10 +29,14 @@ public:
     const glm::vec3 & getPosition() const { return _position; }
     void setPosition(const glm::vec3 & position) { _position = position; }
 
-    const glm::vec3 & getRotation() const { return _rotation; }
-    void setRotation(const glm::vec3 & rotation) { _rotation = rotation; }
+    const Rotation & getRotation() const { return _rotation; }
+    void setRotation(const Rotation & rotation) { _rotation = rotation; }
 
-    void offsetRotation(const glm::vec3& offsets) { _rotation += offsets; }
+    void offsetRotation(const glm::vec3& offsets) {
+        _rotation.x += Degrees(offsets.x);
+        _rotation.y += Degrees(offsets.y);
+        _rotation.z += Degrees(offsets.z);
+    }
 
     float getIntensity() const { return _intensity; }
     void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
