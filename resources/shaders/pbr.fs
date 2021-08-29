@@ -196,7 +196,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
-        // cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
+        cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
@@ -214,8 +214,8 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     // Convert from range [-1, 1] to [0, 1]
     // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
     // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
-    float depth1 = cascadeCoords[index1].z * 0.5 + 0.5;
-    float depth2 = cascadeCoords[index2].z * 0.5 + 0.5;
+    float depth1 = cascadeCoords[index1].z;
+    float depth2 = cascadeCoords[index2].z;
     // Clamp depths between [0, 1] for final cascade to prevent darkening beyond bounds
     depth2 = beyondCascade3 ? saturate(depth2) : depth2;
 

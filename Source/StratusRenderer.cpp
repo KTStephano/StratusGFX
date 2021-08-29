@@ -258,7 +258,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
     // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
-    const float zfar = _state.zfar;
+    const float zfar = std::min(600.0f, _state.zfar); // We don't want zfar to be unbounded
 
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -302,10 +302,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         bks.push_back(bk);
 
         // These base values are in camera space
-        const float baseAkX = (ak * s) / g;
-        const float baseAkY = ak / g;
-        const float baseBkX = (bk * s) / g;
-        const float baseBkY = bk / g;
+        const float baseAkX = std::floorf((ak * s) / g);
+        const float baseAkY = std::floorf(ak / g);
+        const float baseBkX = std::floorf((bk * s) / g);
+        const float baseBkY = std::floorf(bk / g);
         // Keep all of these in camera space for now
         std::vector<glm::vec4> frustumCorners = {
             // Near corners
@@ -385,9 +385,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                                                     glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
 
         _state.csms[i].depthProjection = cascadeOrthoProjection;
-        _state.csms[i].texelProjection = cascadeTexelOrthoProjection;
+        _state.csms[i].texelProjection = cascadeOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
-        _state.csms[i].projectionView = cascadeTexelOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
 
         // std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
         // std::cout << light.getDirection() << std::endl;
