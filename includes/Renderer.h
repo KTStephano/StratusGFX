@@ -15,7 +15,7 @@
 #include "Texture.h"
 #include "FrameBuffer.h"
 #include "Light.h"
-#include "Math.h"
+#include "StratusMath.h"
 
 namespace stratus {
 class Pipeline;

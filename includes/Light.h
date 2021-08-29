@@ -3,7 +3,7 @@
 #define STRATUSGFX_LIGHT_H
 
 #include "Common.h"
-#include "Math.h"
+#include "StratusMath.h"
 #include <algorithm>
 #include <cmath>
 
