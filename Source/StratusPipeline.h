@@ -5,7 +5,7 @@
 #include <string>
 #include "GL/gl3w.h"
 #include <vector>
-#include "Texture.h"
+#include "StratusTexture.h"
 #include <unordered_map>
 
 namespace stratus {

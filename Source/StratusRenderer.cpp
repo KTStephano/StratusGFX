@@ -1,12 +1,15 @@
 
-#include <Renderer.h>
+#include <StratusRenderer.h>
 #include <iostream>
-#include <Light.h>
-#include "Pipeline.h"
-#include "Renderer.h"
-#include "Quad.h"
-#include "Cube.h"
-#include "Utils.h"
+#include <StratusLight.h>
+#include "StratusPipeline.h"
+#include "StratusRenderer.h"
+#include <math.h>
+#include <cmath>
+#include "StratusQuad.h"
+#include "StratusCube.h"
+#include "StratusUtils.h"
+#include "StratusMath.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
@@ -142,23 +145,29 @@ Renderer::Renderer(SDL_Window * window) {
         Shader{"../resources/shaders/bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
+    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/csm.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.csmDepth.get());
+
     // Create the screen quad
     _state.screenQuad = std::make_unique<Quad>();
 
     // Use the shader isValid() method to determine if everything succeeded
-    _isValid = _isValid &&
-            _state.forward ->isValid() &&
-            _state.geometry->isValid() &&
-            _state.hdrGamma->isValid() &&
-            _state.lighting->isValid() &&
-            _state.bloom   ->isValid() &&
-            _state.shadows ->isValid();
+    _validateAllShaders();
 
     _state.dummyCubeMap = createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
 
     // Create a pool of shadow maps for point lights to use
     for (int i = 0; i < _state.numShadowMaps; ++i) {
         createShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+    }
+}
+
+void Renderer::_validateAllShaders() {
+    _isValid = true;
+    for (Pipeline * p : _state.shaders) {
+        _isValid = _isValid && p->isValid();
     }
 }
 
@@ -179,6 +188,7 @@ void Renderer::recompileShaders() {
     for (Pipeline* p : _state.shaders) {
         p->recompile();
     }
+    _validateAllShaders();
 }
 
 const GFXConfig & Renderer::config() const {
@@ -198,7 +208,7 @@ const Pipeline *Renderer::getCurrentShader() const {
 }
 
 void Renderer::_recalculateProjMatrices() {
-    _state.perspective = glm::perspective(glm::radians(_state.fov),
+    _state.perspective = glm::perspective(Radians(_state.fov).value(),
             float(_state.windowWidth) / float(_state.windowHeight),
             _state.znear,
             _state.zfar);
@@ -206,6 +216,205 @@ void Renderer::_recalculateProjMatrices() {
     // transforms [0,width] to [-1, 1] and [0, height] to [-1, 1]
     _state.orthographic = glm::ortho(0.0f, float(_state.windowWidth),
             float(_state.windowHeight), 0.0f, -1.0f, 1.0f);
+
+    // Recalculate cascade-specific data
+    _state.worldLightIsDirty = true;
+}
+
+void Renderer::_recalculateCascadeData(const Camera & c) {
+    static constexpr int numCascades = 4;
+    _state.worldLightIsDirty = false;
+    static constexpr int cascadeResolutionXY = 4096;
+    static constexpr float cascadeResReciprocal = 1.0f / cascadeResolutionXY;
+    static constexpr float cascadeDelta = cascadeResReciprocal;
+
+    // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
+    //
+    // FOV_x = 2tan^-1(s/g), FOV_y = 2tan^-1(1/g)
+    // ==> tan(FOV_y/2)=1/g ==> g=1/tan(FOV_y/2)
+    // where s is the aspect ratio (width / height)
+    //_state.csms.clear();
+    const bool recalculateFbos = _state.csms.size() == 0;
+    _state.csms.resize(numCascades);
+
+    // Set up the shadow texture offsets
+    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -2.0f * cascadeDelta, 2.0f * cascadeDelta, -cascadeDelta);
+    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 2.0f * cascadeDelta, -2.0f * cascadeDelta, cascadeDelta);
+    _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+
+    // Assume directional light translation is none
+    Camera light(false);
+    light.setAngle(_state.worldLight.getRotation());
+    const glm::mat4& lightWorldTransform = light.getWorldTransform();
+    const glm::mat4& lightViewTransform = light.getViewTransform();
+    const glm::mat4& cameraWorldTransform = c.getWorldTransform();
+    const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
+
+    const glm::mat4 L = lightViewTransform * cameraWorldTransform;
+
+    const float s = float(_state.windowWidth) / float(_state.windowHeight);
+    const float g = 1.0 / tangent(_state.fov / 2.0f).value();
+    //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
+    // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
+    const float znear = _state.znear;
+    const float zfar  = std::min(600.0f, _state.zfar); // We don't want zfar to be unbounded
+
+    // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    const float lambda = 0.5f;
+    const float clipRange = zfar - znear;
+    const float ratio = zfar / znear;
+    std::vector<float> cascadeEnds(numCascades);
+    for (int i = 0; i < numCascades; ++i) {
+        const float p = (i + 1) / float(numCascades);
+        const float log = znear * std::pow(ratio, p);
+        const float uniform = znear + clipRange * p;
+        const float d = std::floorf(lambda * (log - uniform) + uniform);
+        cascadeEnds[i] = d;
+    }
+
+    const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+    //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
+    std::vector<float> aks;
+    std::vector<float> bks;
+    std::vector<float> dks;
+    std::vector<glm::vec3> sks;
+    std::vector<float> zmins;
+    std::vector<float> zmaxs;
+
+    for (int i = 0; i < numCascades; ++i) {
+        if (recalculateFbos) {
+            // Create the depth buffer
+            // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
+            Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
+            tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            tex.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
+
+            // Create the frame buffer
+            _state.csms[i].fbo = FrameBuffer({ tex });
+        }
+    
+        const float ak = cascadeBegins[i];
+        const float bk = cascadeEnds[i];
+        aks.push_back(ak);
+        bks.push_back(bk);
+
+        // These base values are in camera space
+        const float baseAkX = (ak * s) / g;
+        const float baseAkY = ak / g;
+        const float baseBkX = (bk * s) / g;
+        const float baseBkY = bk / g;
+        // Keep all of these in camera space for now
+        std::vector<glm::vec4> frustumCorners = {
+            // Near corners
+            glm::vec4(baseAkX, -baseAkY, -ak, 1.0f),
+            glm::vec4(baseAkX, baseAkY, -ak, 1.0f),
+            glm::vec4(-baseAkX, baseAkY, -ak, 1.0f),
+            glm::vec4(-baseAkX, -baseAkY, -ak, 1.0f),
+
+            // Far corners
+            glm::vec4(baseBkX, -baseBkY, -bk, 1.0f),
+            glm::vec4(baseBkX, baseBkY, -bk, 1.0f),
+            glm::vec4(-baseBkX, baseBkY, -bk, 1.0f),
+            glm::vec4(-baseBkX, -baseBkY, -bk, 1.0f),
+        };
+        
+        // This tells us the maximum diameter for the cascade bounding box k
+        const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+                                                    glm::length(frustumCorners[4] - frustumCorners[6])));
+        dks.push_back(dk);
+        const float T = dk / cascadeResolutionXY;
+
+        // Compute min/max of each
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::min();
+        float minY = minX;
+        float maxY = maxX;
+        float minZ = minX;
+        float maxZ = maxX;
+        for (int j = 0; j < frustumCorners.size(); ++j) {
+            // First make sure to transform frustumCorners[j] from camera space to light space
+            frustumCorners[j] = L * frustumCorners[j];
+
+            minX = std::min(minX, frustumCorners[j].x);
+            maxX = std::max(maxX, frustumCorners[j].x);
+
+            minY = std::min(minY, frustumCorners[j].y);
+            maxY = std::max(maxY, frustumCorners[j].y);
+
+            minZ = std::min(minZ, frustumCorners[j].z);
+            maxZ = std::max(maxZ, frustumCorners[j].z);
+        }
+
+        zmins.push_back(minZ);
+        zmaxs.push_back(maxZ);
+
+        // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
+        glm::vec3 sk(std::floorf((maxX + minX) / (2.0f * T)) * T, 
+                     std::floorf((maxY + minY) / (2.0f * T)) * T, 
+                     minZ);
+        //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
+        // std::cout << "sk " << sk << std::endl;
+        sks.push_back(sk);
+
+        // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
+        // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
+        // glm::mat4 cascadeViewTransform = glm::mat4(1.0f);
+        // cascadeViewTransform[3] = glm::vec4(-sk, 1.0f);
+        // cascadeViewTransform = lightViewTransform * cascadeViewTransform;
+        const glm::mat4 cascadeViewTransform = glm::mat4(transposeLightWorldTransform[0], 
+                                                         transposeLightWorldTransform[1],
+                                                         transposeLightWorldTransform[2],
+                                                         glm::vec4(-sk, 1.0f));
+        //const glm::mat4 cascadeViewTransform = lightViewTransform;
+
+        // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
+        // so it enables us to use the simplified Orthographic Projection matrix below
+        //
+        // This results in values between [-1, 1]
+        const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                               glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
+                                               glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+                                               glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+        const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                                    glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+                                                    glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+
+        _state.csms[i].depthProjection = cascadeOrthoProjection;
+        _state.csms[i].texelProjection = cascadeOrthoProjection;
+        _state.csms[i].view = cascadeViewTransform;
+        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
+
+        // std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
+        // std::cout << light.getDirection() << std::endl;
+
+        // std::cout << cascadeOrthoProjection << std::endl;
+        // std::cout << glm::ortho(minX, maxX, minY, maxY, minZ, maxZ) << std::endl;
+
+        if (i > 0) {
+            // This will allow us to calculate the cascade blending weights in the vertex shader and then
+            // the cascade indices in the pixel shader
+            const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);
+            const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
+            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
+            _state.csms[i].cascadePlane = fk;
+            // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
+            // what cascadeScale and cascadeOffset allow us to do
+            //
+            // (These are actually pulled from a matrix which corresponds to PkShadow * MkView)
+            // _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, 
+            //                                         dks[0] / dk, 
+            //                                         (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
+            // const float d02dk = dks[0] / (2.0f * dk);
+            // _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, 
+            //                                          ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, 
+            //                                          (sks[0].z - sk.z) / (maxZ - minZ));
+        }
+    }
 }
 
 void Renderer::_clearGBuffer() {
@@ -350,9 +559,9 @@ void Renderer::_initializePostFxBuffers() {
     }
 }
 
-void Renderer::setPerspectiveData(float fov, float fnear, float ffar) {
+void Renderer::setPerspectiveData(const Degrees & fov, float fnear, float ffar) {
     // TODO: Find the best lower bound for fov instead of arbitrary 25.0f
-    if (fov < 25.0f) return;
+    if (fov.value() < 25.0f) return;
     _state.fov = fov;
     _state.znear = fnear;
     _state.zfar = ffar;
@@ -385,6 +594,10 @@ void Renderer::begin(bool clearScreen) {
         _state.buffer.fbo.clear(color);
         _state.lightingFbo.clear(color);
 
+        for (auto& csm : _state.csms) {
+            csm.fbo.clear(color);
+        }
+
         for (auto& gaussian : _state.gaussianBuffers) {
             gaussian.fbo.clear(color);
         }
@@ -413,6 +626,8 @@ void Renderer::begin(bool clearScreen) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
+    // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
+    glEnable(GL_DEPTH_CLAMP);
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
@@ -465,13 +680,13 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
     // We want to keep track of entities and whether or not they have moved for determining
     // when shadows should be recomputed
     if (_entitiesSeenBefore.find(e) == _entitiesSeenBefore.end()) {
-        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation, true}));
+        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation.asVec3(), true}));
     }
     else {
         EntityStateInfo & info = _entitiesSeenBefore.find(e)->second;
         const double distance = glm::distance(e->position, info.lastPos);
         const double scale = glm::distance(e->scale, info.lastScale);
-        const double rotation = glm::distance(e->rotation, info.lastRotation);
+        const double rotation = glm::distance(e->rotation.asVec3(), info.lastRotation);
         info.dirty = false;
         if (distance > 0.25) {
             info.lastPos = e->position;
@@ -482,7 +697,7 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
             info.dirty = true;
         }
         if (rotation > 0.25) {
-            info.lastRotation = e->rotation;
+            info.lastRotation = e->rotation.asVec3();
             info.dirty = true;
         }
     }
@@ -745,24 +960,48 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     _unbindShader();
 }
 
+void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & entities) {
+    _bindShader(_state.csmDepth.get());
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    //glBlendFunc(GL_ONE, GL_ONE);
+    // glDisable(GL_CULL_FACE);
+    for (CascadedShadowMap & csm : _state.csms) {
+        csm.fbo.bind();
+        _state.csmDepth->setMat4("projection", &csm.depthProjection[0][0]);
+        _state.csmDepth->setMat4("view", &csm.view[0][0]);
+        const Texture * depth = csm.fbo.getDepthStencilAttachment();
+        if (!depth) {
+            throw std::runtime_error("Critical error: depth attachment not present");
+        }
+        glViewport(0, 0, depth->width(), depth->height());
+        // Render each entity into the depth map
+        for (auto & entityObservers : entities) {
+            for (auto & meshObservers : entityObservers.second) {
+                const RenderEntity * e = entityObservers.first.e;
+                const Mesh * m = meshObservers.first.m;
+                const size_t numInstances = meshObservers.second.size;
+                setCullState(m->cullingMode);
+                m->bind();
+                m->render(numInstances);
+                m->unbind();
+            }
+        }
+        csm.fbo.unbind();
+    }
+    _unbindShader();
+}
+
 void Renderer::end(const Camera & c) {
-    // Add the sunlight if added
-    // std::unique_ptr<stratus::RenderEntity> sun;
-    // if (_state.worldLightingEnabled) {
-    //     sun = std::make_unique<stratus::RenderEntity>();
-    //     sun->setLightProperties(stratus::LightProperties::FLAT);
-    //     sun->scale = glm::vec3(5.0f);
-    //     sun->position = _state.worldLight.getPosition();
-    //     sun->meshes.push_back(std::make_shared<stratus::Cube>());
-    //     stratus::RenderMaterial m = sun->meshes[0]->getMaterial();
-    //     m.diffuseColor = _state.worldLight.getColor() * std::min(30.0f, _state.worldLight.getIntensity());
-    //     sun->meshes[0]->setMaterial(m);
-    //     addDrawable(sun.get());
-    // }
+    //if (_state.worldLightingEnabled) {
+    //    _recalculateCascadeData(c);
+    //}
+    // TODO: Recalculate every scene?
+    _recalculateCascadeData(c);
 
     // Pull the view transform/projection matrices
-    const glm::mat4 * projection = &_state.perspective;
-    const glm::mat4 * view = &c.getViewTransform();
+    // const glm::mat4 * projection = &_state.perspective;
+    // const glm::mat4 * view = &c.getViewTransform();
 
     // const glm::mat4 cameraToWorld = glm::inverse(*view);
     // glm::mat4 lightToWorld = glm::mat4(1.0f);
@@ -829,7 +1068,7 @@ void Renderer::end(const Camera & c) {
     }
 
     // Set blend func just for shadow pass
-    glBlendFunc(GL_ONE, GL_ONE);
+    // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
     _bindShader(_state.shadows.get());
@@ -925,6 +1164,11 @@ void Renderer::end(const Camera & c) {
         for (auto & meshObservers : entityObservers.second) {
             _initInstancedData(meshObservers.second, buffers);
         }
+    }
+
+    // Perform world light depth pass if enabled
+    if (_state.worldLightingEnabled) {
+        _renderCSMDepth(c, _state.instancedMeshes);
     }
 
     // TEMP: Set up the light source
@@ -1196,7 +1440,7 @@ Model Renderer::loadModel(const std::string & file) {
 ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
     smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, false}, nullptr);
-    smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
@@ -1324,13 +1568,36 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->setVec3("viewPosition", &c.getPosition()[0]);
 
     // Set up world light if enabled
-    glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
-    glm::mat4 lightWorld = glm::inverse(lightView);
-    glm::vec3 direction = glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
+    //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
+    //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), glm::vec3(0.0f));
+    Camera lightCam(false);
+    lightCam.setAngle(_state.worldLight.getRotation());
+    glm::mat4 lightWorld = lightCam.getWorldTransform();
+    glm::mat4 lightView = lightCam.getViewTransform();
+    glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
+    // std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();
     s->setVec3("infiniteLightColor", &lightColor[0]);
+
+    for (int i = 0; i < 4; ++i) {
+        s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
+        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionView[0][0]);
+        // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        s->setVec4("shadowOffset[" + std::to_string(i) + "]", &_state.cascadeShadowOffsets[i][0]);
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
+        // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
+        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadePlane[0]);
+    }
+
+    // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
 
 ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
@@ -1395,7 +1662,8 @@ void Renderer::toggleWorldLighting(bool enabled) {
 }
 
 // Allows user to modify world light properties
-InfiniteLight & Renderer::getWorldLight() {
-    return _state.worldLight;
+void Renderer::setWorldLight(const InfiniteLight & wl) {
+    _state.worldLight = wl;
+    _state.worldLightIsDirty = true;
 }
 }

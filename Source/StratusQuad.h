@@ -3,7 +3,7 @@
 #ifndef STRATUSGFX_QUAD_H
 #define STRATUSGFX_QUAD_H
 
-#include "RenderEntity.h"
+#include "StratusRenderEntity.h"
 
 namespace stratus {
 class Quad : public Mesh {

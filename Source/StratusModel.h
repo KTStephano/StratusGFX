@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderEntity.h"
+#include "StratusRenderEntity.h"
 #include <string>
 
 namespace stratus {

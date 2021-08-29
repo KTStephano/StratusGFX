@@ -1,10 +1,10 @@
-#include "Model.h"
+#include "StratusModel.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <iostream>
-#include "Renderer.h"
-#include "Utils.h"
+#include "StratusRenderer.h"
+#include "StratusUtils.h"
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {
@@ -97,12 +97,12 @@ namespace stratus {
 
         auto rotation = quat.GetMatrix();
         // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
-        const float angleX = glm::degrees(std::atan2f(rotation.c2, rotation.c3));
-        const float angleY = glm::degrees(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
-        const float angleZ = glm::degrees(std::atan2f(rotation.b1, rotation.a1));
+        const Degrees angleX = Degrees(std::atan2f(rotation.c2, rotation.c3));
+        const Degrees angleY = Degrees(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
+        const Degrees angleZ = Degrees(std::atan2f(rotation.b1, rotation.a1));
 
         entity->scale = glm::vec3(scale.x, scale.y, scale.z);
-        entity->rotation = glm::vec3(angleX, angleY, angleZ);
+        entity->rotation = Rotation(angleX, angleY, angleZ);
         entity->position = glm::vec3(position.x, position.y, position.z);
 
         // process all the node's meshes (if any)

@@ -1,9 +1,8 @@
 
-#include <RenderEntity.h>
-
-#include "RenderEntity.h"
-#include "Common.h"
-#include "Utils.h"
+#include "StratusRenderEntity.h"
+#include "StratusCommon.h"
+#include "StratusMath.h"
+#include "StratusUtils.h"
 #include <iostream>
 #include <vector>
 

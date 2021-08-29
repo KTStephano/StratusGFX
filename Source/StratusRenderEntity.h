@@ -5,7 +5,8 @@
 #ifndef STRATUSGFX_RENDERENTITY_H
 #define STRATUSGFX_RENDERENTITY_H
 
-#include "Common.h"
+#include "StratusCommon.h"
+#include "StratusMath.h"
 #include <vector>
 #include <memory>
 
@@ -177,7 +178,7 @@ class RenderEntity {
 public:
     glm::vec3 position = glm::vec3(0.0f);
     glm::vec3 scale = glm::vec3(1.0f);
-    glm::vec3 rotation = glm::vec3(0.0f);
+    Rotation rotation;
     glm::mat4 model = glm::mat4(1.0f);
     std::vector<std::shared_ptr<Mesh>> meshes;
     std::vector<RenderEntity> nodes;

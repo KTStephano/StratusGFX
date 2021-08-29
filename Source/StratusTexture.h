@@ -55,6 +55,24 @@ namespace stratus {
         LINEAR
     };
 
+    enum class TextureCompareMode : int {
+        NONE,
+        // Interpolated and clamped r texture coordinate should be compared to the value
+        // in the currently bound depth texture
+        COMPARE_REF_TO_TEXTURE
+    };
+
+    enum class TextureCompareFunc : int {
+        ALWAYS,
+        NEVER,
+        LESS,
+        LEQUAL,
+        GREATER,
+        GEQUAL,
+        EQUAL,
+        NOTEQUAL
+    };
+
     struct TextureConfig {
         TextureType type;
         TextureComponentFormat format;
@@ -84,6 +102,7 @@ namespace stratus {
 
         void setCoordinateWrapping(TextureCoordinateWrapping);
         void setMinMagFilter(TextureMinificationFilter, TextureMagnificationFilter);
+        void setTextureCompare(TextureCompareMode, TextureCompareFunc);
 
         TextureType type() const;
         TextureComponentFormat format() const;

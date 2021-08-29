@@ -8,13 +8,14 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
-#include "Common.h"
-#include "RenderEntity.h"
-#include "Camera.h"
-#include "Model.h"
-#include "Texture.h"
-#include "FrameBuffer.h"
-#include "Light.h"
+#include "StratusCommon.h"
+#include "StratusRenderEntity.h"
+#include "StratusCamera.h"
+#include "StratusModel.h"
+#include "StratusTexture.h"
+#include "StratusFrameBuffer.h"
+#include "StratusLight.h"
+#include "StratusMath.h"
 
 namespace stratus {
 class Pipeline;
@@ -147,20 +148,36 @@ class Renderer {
         FrameBuffer fbo;
     };
 
+    struct CascadedShadowMap {
+        FrameBuffer fbo;
+        glm::mat4 depthProjection; // Used during depth rendering
+        glm::mat4 texelProjection; // Used for texel fetching during lighting stage
+        glm::mat4 view;
+        glm::mat4 projectionView; // This equals texelProjection * view
+        glm::vec4 cascadePlane;
+        glm::vec3 cascadeScale;
+        glm::vec3 cascadeOffset;
+    };
+
     struct RenderState {
         Color clearColor;
         RenderMode mode = RenderMode::PERSPECTIVE;
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
         std::vector<RenderEntity *> lightInteractingEntities;
         std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
+        std::vector<CascadedShadowMap> csms;
+        glm::vec4 cascadeShadowOffsets[2];
         InfiniteLight worldLight;
         bool worldLightingEnabled = false;
+        // If true then we need to re-calculate all world light data
+        bool worldLightIsDirty = false;
         // These are either point or spotlights and will attenuate with
         // distance
         std::vector<Light *> lights;
         uint32_t windowWidth = 0;
         uint32_t windowHeight = 0;
-        float fov = 90.0f, znear = 0.25f, zfar = 1000.0f;
+        Degrees fov = Degrees(90.0f);
+        float znear = 0.25f, zfar = 1000.0f;
         int numShadowMaps = 10;
         int shadowCubeMapX = 2048, shadowCubeMapY = 2048;
         glm::mat4 orthographic;
@@ -199,6 +216,8 @@ class Renderer {
         // Handles the lighting stage
         std::unique_ptr<Pipeline> lighting;
         std::unique_ptr<Pipeline> bloom;
+        // Handles cascading shadow map depth buffer rendering
+        std::unique_ptr<Pipeline> csmDepth;
         std::vector<Pipeline *> shaders;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
@@ -366,7 +385,7 @@ public:
      * @param near near clipping plane (ex: 0.25f)
      * @param far far clipping plane (ex: 1000.0f)
      */
-    void setPerspectiveData(float fov, float near, float far);
+    void setPerspectiveData(const Degrees & fov, float near, float far);
 
     /**
      * Sets the render mode to be either ORTHOGRAPHIC (2d)
@@ -410,7 +429,7 @@ public:
     void toggleWorldLighting(bool enabled);
 
     // Allows user to modify world light properties
-    InfiniteLight & getWorldLight();
+    void setWorldLight(const InfiniteLight &);
 
 private:
     void _clearGBuffer();
@@ -428,12 +447,15 @@ private:
     void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
     void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances, bool removeViewTranslation = false);
+    void _renderCSMDepth(const Camera &, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> &);
     void _renderQuad();
     ShadowMapHandle _getShadowMapHandleForLight(Light *);
     void _setLightShadowMapHandle(Light *, ShadowMapHandle);
     void _evictLightFromShadowMapCache(Light*);
     void _addLightToShadowMapCache(Light*);
     Texture _lookupTexture(TextureHandle handle) const;
+    void _recalculateCascadeData(const Camera&);
+    void _validateAllShaders();
 };
 }
 

@@ -2,7 +2,7 @@
 #ifndef STRATUSGFX_CUBE_H
 #define STRATUSGFX_CUBE_H
 
-#include "RenderEntity.h"
+#include "StratusRenderEntity.h"
 
 namespace stratus {
 class Cube : public Mesh {

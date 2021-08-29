@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "StratusTexture.h"
 #include <GL/gl3w.h>
 #include <exception>
 #include <unordered_set>
@@ -66,6 +66,13 @@ namespace stratus {
             bind();
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
+            unbind();
+        }
+
+        void setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) {
+            bind();
+            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
+            glTexParameterf(_convertTexture(_config.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
             unbind();
         }
 
@@ -273,6 +280,28 @@ namespace stratus {
                 default: throw std::runtime_error("Unknown mag filter");
             }
         }
+
+        static GLenum _convertTextureCompareMode(TextureCompareMode mode) {
+            switch (mode) {
+                case TextureCompareMode::NONE: return GL_NONE;
+                case TextureCompareMode::COMPARE_REF_TO_TEXTURE: return GL_COMPARE_REF_TO_TEXTURE;
+                default: throw std::runtime_error("Unknown compare mode");
+            }
+        }
+
+        static GLenum _convertTextureCompareFunc(TextureCompareFunc func) {
+            switch (func) {
+                case TextureCompareFunc::ALWAYS: return GL_ALWAYS;
+                case TextureCompareFunc::NEVER: return GL_NEVER;
+                case TextureCompareFunc::EQUAL: return GL_EQUAL;
+                case TextureCompareFunc::NOTEQUAL: return GL_NOTEQUAL;
+                case TextureCompareFunc::LESS: return GL_LESS;
+                case TextureCompareFunc::LEQUAL: return GL_LEQUAL;
+                case TextureCompareFunc::GREATER: return GL_GREATER;
+                case TextureCompareFunc::GEQUAL: return GL_GEQUAL;
+                default: throw std::runtime_error("Unknown compare func");
+            }
+        }
     };
 
     Texture::Texture() {}
@@ -284,6 +313,7 @@ namespace stratus {
 
     void Texture::setCoordinateWrapping(TextureCoordinateWrapping wrap) { _impl->setCoordinateWrapping(wrap); }
     void Texture::setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { _impl->setMinMagFilter(min, mag); }
+    void Texture::setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { _impl->setTextureCompare(mode, func); }
 
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
