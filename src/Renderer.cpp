@@ -223,9 +223,9 @@ void Renderer::_recalculateProjMatrices() {
 void Renderer::_recalculateCascadeData(const Camera & c) {
     static constexpr int numCascades = 4;
     _state.worldLightIsDirty = false;
-    const int cascadeResolutionXY = 2048;
-    const float cascadeResReciprocal = 1.0f / cascadeResolutionXY;
-    const float cascadeDelta = (3.0f / 16.0f) * cascadeResReciprocal;
+    static constexpr int cascadeResolutionXY = 2048;
+    static constexpr float cascadeResReciprocal = 1.0f / cascadeResolutionXY;
+    static constexpr float cascadeDelta = (3.0f / 16.0f) * cascadeResReciprocal;
 
     // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
     //
@@ -233,7 +233,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     // ==> tan(FOV_y/2)=1/g ==> g=1/tan(FOV_y/2)
     // where s is the aspect ratio (width / height)
     //_state.csms.clear();
-    bool recalculateFbos = _state.csms.size() == 0;
+    const bool recalculateFbos = _state.csms.size() == 0;
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
@@ -254,8 +254,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const float g = 1.0f / std::tanf(glm::radians(_state.fov / 2.0f));
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
     std::cout << "AAAAAAA " << g << std::endl;
-    const std::vector<float> cascadeBegins = {   0.0f,  40.0f, 90.0f, 290.0f }; // 4 cascades max
-    const std::vector<float> cascadeEnds   = { 50.0f, 100.0f, 300.0f, 500.0f };
+    const float znear = _state.znear;
+    const float zfar = _state.zfar;
+    const std::vector<float> cascadeBegins = {   0.0f,  75.0f, 175.0f, 375.0f }; // 4 cascades max
+    const std::vector<float> cascadeEnds   = { 100.0f, 200.0f, 400.0f, 700.0f };
     std::vector<float> aks;
     std::vector<float> bks;
     std::vector<float> dks;
@@ -267,8 +269,8 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         if (recalculateFbos) {
             // Create the depth buffer
             Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
-            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-            //tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             // Create the frame buffer
             _state.csms[i].fbo = FrameBuffer({ tex });
@@ -339,9 +341,13 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
         // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-        glm::mat4 cascadeViewTransform = glm::mat4(1.0f);
-        cascadeViewTransform[3] = glm::vec4(-sk, 1.0f);
-        cascadeViewTransform = lightViewTransform * cascadeViewTransform;
+        // glm::mat4 cascadeViewTransform = glm::mat4(1.0f);
+        // cascadeViewTransform[3] = glm::vec4(-sk, 1.0f);
+        // cascadeViewTransform = lightViewTransform * cascadeViewTransform;
+        const glm::mat4 cascadeViewTransform = glm::mat4(transposeLightWorldTransform[0], 
+                                                         transposeLightWorldTransform[1],
+                                                         transposeLightWorldTransform[2],
+                                                         glm::vec4(-sk, 1.0f));
         //const glm::mat4 cascadeViewTransform = lightViewTransform;
 
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
@@ -359,9 +365,15 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                                                     glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
 
         _state.csms[i].depthProjection = cascadeOrthoProjection;
-        _state.csms[i].texelProjection = cascadeTexelOrthoProjection;
+        _state.csms[i].texelProjection = cascadeOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
-        _state.csms[i].projectionView = cascadeTexelOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
+
+        std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
+        std::cout << light.getDirection() << std::endl;
+
+        // std::cout << cascadeOrthoProjection << std::endl;
+        // std::cout << glm::ortho(minX, maxX, minY, maxY, minZ, maxZ) << std::endl;
 
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
@@ -482,7 +494,7 @@ void Renderer::_initializePostFxBuffers() {
         if (currWidth < 8 || currHeight < 8) break;
         PostFXBuffer buffer;
         auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, false }, nullptr);
-        color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        color.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
         if (!buffer.fbo.valid()) {
@@ -1550,6 +1562,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
 
     for (int i = 0; i < 4; ++i) {
         s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
+        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionView[0][0]);
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -1562,7 +1575,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
         s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadePlane[0]);
     }
 
-    s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
+    // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
 
 ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {

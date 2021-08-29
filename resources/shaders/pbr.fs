@@ -103,8 +103,9 @@ uniform vec3 cascadeScale[3];
 uniform vec3 cascadeOffset[3];
 // Represents a plane which transitions from 0 to 1 as soon as two cascades overlap
 uniform vec4 cascadePlanes[3];
+uniform mat4 cascadeProjViews[4];
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
-uniform mat4 cascade0ProjView;
+// uniform mat4 cascade0ProjView;
 
 // Not a uniform
 float cascadeBlend[3];
@@ -178,7 +179,8 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
 float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
     float closestDepth = texture(shadow, coords, depth).r;
     return closestDepth;
-    // 0.0 means not in shadow, 1.0 means fully in shadow
+    // float closestDepth = texture(shadow, coords).r;
+    // // 0.0 means not in shadow, 1.0 means fully in shadow
     // return depth > closestDepth ? 1.0 : 0.0;
     // return closestDepth;
 }
@@ -188,12 +190,14 @@ float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
 //      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
 //      https://ogldev.org/www/tutorial49/tutorial49.html
 //      https://alextardif.com/shadowmapping.html
-float calculateInfiniteShadowValue(vec3 cascadeCoord0) {
+float calculateInfiniteShadowValue(vec4 fragPos) {
     vec2 p1, p2;
     vec3 cascadeCoords[4];
-    cascadeCoords[0] = cascadeCoord0;
-    for (int i = 1; i < 4; ++i) {
-        cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
+    // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
+    for (int i = 0; i < 4; ++i) {
+        // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
+        cascadeCoords[i] = (cascadeProjViews[i] * fragPos).rgb;
+        cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
     }
 
     bool beyondCascade2 = cascadeBlend[1] >= 0.0;
@@ -355,17 +359,18 @@ void main() {
 
     if (infiniteLightingEnabled) {
         vec3 lightDir = infiniteLightDirection;
-        vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
+        // vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
         // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
         for (int i = 0; i < 3; ++i) {
             cascadeBlend[i] = dot(cascadePlanes[i], vec4(fragPos, 1.0));
         }
-        float shadowFactor = calculateInfiniteShadowValue(cascadeCoord0);
+        float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0));
         //vec3 lightDir = infiniteLightDirection;
         color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
     }
     else {
         color = color + baseColor * ambient * ambientIntensity;
     }
+
     fsColor = boundHDR(color);
 }
