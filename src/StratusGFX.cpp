@@ -276,8 +276,8 @@ int main(int argc, char * args[]) {
                     running = false;
                     break;
                 case SDL_MOUSEMOTION:
-                    camera.modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(e.motion.xrel), stratus::Degrees(0.0f));
-                    std::cout << camera.getRotation() << std::endl;
+                    camera.modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(-e.motion.xrel), stratus::Degrees(0.0f));
+                    //std::cout << camera.getRotation() << std::endl;
                     break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
@@ -298,7 +298,7 @@ int main(int argc, char * args[]) {
                         case SDL_SCANCODE_A:
                         case SDL_SCANCODE_D:
                             if (!released) {
-                                cameraSpeed.y = key == SDL_SCANCODE_D ? -camSpeed : camSpeed;
+                                cameraSpeed.y = key == SDL_SCANCODE_D ? camSpeed : -camSpeed;
                             } else {
                                 cameraSpeed.y = 0.0f;
                             }
@@ -472,7 +472,7 @@ int main(int argc, char * args[]) {
         angle += 10 * deltaSeconds;
         //std::cout << angle << std::endl;
 
-        camera.setSpeed(cameraSpeed.x, cameraSpeed.z, cameraSpeed.y);
+        camera.setSpeed(cameraSpeed.y, cameraSpeed.z, cameraSpeed.x);
         camera.update(deltaSeconds);
         cameraLight.position = camera.getPosition();
         renderer.setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
@@ -484,6 +484,7 @@ int main(int argc, char * args[]) {
         //clay.scale = glm::vec3(1.0f);
         //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
         clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
+        clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
         renderer.addDrawable(&clay);
 
         stump.rotation = stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));

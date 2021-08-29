@@ -254,7 +254,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
     const float g = 1.0f / tangent(_state.fov / 2.0f).value();
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
-    std::cout << "AAAAAAA " << g << std::endl;
+    // std::cout << "AAAAAAA " << g << std::endl;
     const float znear = _state.znear;
     const float zfar = _state.zfar;
     const std::vector<float> cascadeBegins = {   0.0f,  75.0f, 175.0f, 375.0f }; // 4 cascades max
@@ -337,7 +337,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                      std::floorf((maxY + minY) / (2.0f * T)) * T, 
                      minZ);
         //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
-        std::cout << "sk " << sk << std::endl;
+        // std::cout << "sk " << sk << std::endl;
         sks.push_back(sk);
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
@@ -370,8 +370,8 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         _state.csms[i].view = cascadeViewTransform;
         _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
 
-        std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
-        std::cout << light.getDirection() << std::endl;
+        // std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
+        // std::cout << light.getDirection() << std::endl;
 
         // std::cout << cascadeOrthoProjection << std::endl;
         // std::cout << glm::ortho(minX, maxX, minY, maxY, minZ, maxZ) << std::endl;
@@ -1555,7 +1555,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     glm::mat4 lightWorld = lightCam.getWorldTransform();
     glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
-    std::cout << "Light direction: " << direction << std::endl;
+    // std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();

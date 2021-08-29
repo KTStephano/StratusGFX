@@ -15,8 +15,8 @@ namespace stratus {
     void Camera::setAngle(const Rotation & rotation) {
         _rotation = rotation;
         if (_rangeCheckAngles) {
-            if (_rotation.y.value() > 89) _rotation.y = Degrees(89.0f);
-            else if (_rotation.y.value() < -89.0f) _rotation.y = Degrees(-89.0f);
+            if (_rotation.x.value() > 89) _rotation.x = Degrees(89.0f);
+            else if (_rotation.x.value() < -89.0f) _rotation.x = Degrees(-89.0f);
         }
         _invalidateView();
     }
@@ -43,11 +43,11 @@ namespace stratus {
     }
 
     glm::vec3 Camera::getUp() {
-        return glm::normalize(-getWorldTransform()[1]);
+        return getViewTransform()[1];
     }
 
     glm::vec3 Camera::getSide() {
-        return glm::normalize(-getWorldTransform()[0]);
+        return glm::cross(getDirection(), getUp());
     }
 
     void Camera::setSpeed(float forward, float up, float strafe) {

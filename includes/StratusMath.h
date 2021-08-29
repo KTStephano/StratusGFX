@@ -55,10 +55,10 @@ namespace stratus {
 		Radians& operator*=(const Degrees& d) { return (*this) *= Radians(d); }
 		Radians& operator/=(const Degrees& d) { return (*this) /= Radians(d); }
 
-        // Printing helper functions
-        friend std::ostream& operator<<(std::ostream& os, const Radians & r) {
-            return os << r.value() << " rad";
-        }
+        // Printing helper functions --> bug in Windows compiler: can't add it here
+        //friend std::ostream& operator<<(std::ostream& os, const Radians & r) {
+        //    return os << r.value() << " rad";
+        //}
 	};
 
 	class Degrees {
@@ -109,9 +109,9 @@ namespace stratus {
 		Degrees& operator/=(const Radians& r) { return (*this) /= Degrees(r); }
 
         // Printing helper functions
-        friend std::ostream& operator<<(std::ostream& os, const Degrees& d) {
-            return os << d.value() << " deg";
-        }
+        //friend std::ostream& operator<<(std::ostream& os, const Degrees& d) {
+        //    return os << d.value() << " deg";
+        //}
 	};
 
 	struct Rotation {
@@ -121,16 +121,16 @@ namespace stratus {
 
         Rotation() : Rotation(Degrees(0.0f), Degrees(0.0f), Degrees(0.0f)) {}
 		Rotation(const Degrees& x, const Degrees& y, const Degrees& z)
-			: x(x), y(y), z(y) {}
+			: x(x), y(y), z(z) {}
 
         glm::vec3 asVec3() const {
             return glm::vec3(x.value(), y.value(), z.value());
         }
 
         // Printing helper functions
-        friend std::ostream& operator<<(std::ostream& os, const Rotation& r) {
-            return os << "[" << r.x << ", " << r.y << ", " << r.z << "]";
-        }
+        //friend std::ostream& operator<<(std::ostream& os, const Rotation& r) {
+        //    return os << "[" << r.x << ", " << r.y << ", " << r.z << "]";
+        //}
 	};
 
 	inline Radians cosine(const Radians& r) { return Radians(std::cosf(r.value())); }
@@ -259,4 +259,17 @@ namespace stratus {
         glm::mat4 world = constructTransformMat(rotation, translation, glm::vec3(1.0f));
         return glm::inverse(world);
     }
+}
+
+// Printing helper functions --> Putting here due to bug in Windows compiler
+inline std::ostream& operator<<(std::ostream& os, const stratus::Radians & r) {
+   return os << r.value() << " rad";
+}
+
+inline std::ostream& operator<<(std::ostream& os, const stratus::Degrees& d) {
+    return os << d.value() << " deg";
+}
+
+inline std::ostream& operator<<(std::ostream& os, const stratus::Rotation& r) {
+    return os << "[" << r.x << ", " << r.y << ", " << r.z << "]";
 }
