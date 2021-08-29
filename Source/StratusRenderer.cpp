@@ -259,8 +259,23 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
     const float zfar = _state.zfar;
-    const std::vector<float> cascadeBegins = {   0.0f, 10.0f,  40.0f, 100.0f }; // 4 cascades max
-    const std::vector<float> cascadeEnds   = {  15.0f, 50.0f, 120.0f, 320.0f };
+
+    // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    const float lambda = 0.5f;
+    const float clipRange = zfar - znear;
+    const float ratio = zfar / znear;
+    std::vector<float> cascadeEnds(numCascades);
+    for (int i = 0; i < numCascades; ++i) {
+        const float p = (i + 1) / float(numCascades);
+        const float log = znear * std::pow(ratio, p);
+        const float uniform = znear + clipRange * p;
+        const float d = std::floorf(lambda * (log - uniform) + uniform);
+        cascadeEnds[i] = d;
+    }
+
+    const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 20.0f,  cascadeEnds[1] - 20.0f, cascadeEnds[2] - 20.0f }; // 4 cascades max
+    //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
     std::vector<float> aks;
     std::vector<float> bks;
     std::vector<float> dks;
@@ -499,7 +514,7 @@ void Renderer::_initializePostFxBuffers() {
         if (currWidth < 8 || currHeight < 8) break;
         PostFXBuffer buffer;
         auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, false }, nullptr);
-        color.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
         if (!buffer.fbo.valid()) {
