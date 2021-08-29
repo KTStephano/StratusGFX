@@ -107,9 +107,6 @@ uniform mat4 cascadeProjViews[4];
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
 // uniform mat4 cascade0ProjView;
 
-// Not a uniform
-float cascadeBlend[3];
-
 in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
@@ -190,18 +187,18 @@ float sampleInfiniteShadowTexture(sampler2D shadow, vec2 coords, float depth) {
 //      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
 //      https://ogldev.org/www/tutorial49/tutorial49.html
 //      https://alextardif.com/shadowmapping.html
-float calculateInfiniteShadowValue(vec4 fragPos) {
+float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     vec2 p1, p2;
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
         cascadeCoords[i] = (cascadeProjViews[i] * fragPos).rgb;
-        cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
+        // cascadeCoords[i].xy = cascadeCoords[i].xy * 0.5 + vec2(0.5);
     }
 
-    bool beyondCascade2 = cascadeBlend[1] >= 0.0;
-    bool beyondCascade3 = cascadeBlend[2] >= 0.0;
+    bool beyondCascade2 = cascadeBlends.y >= 0.0;
+    bool beyondCascade3 = cascadeBlends.z >= 0.0;
     // p1.z = float(beyondCascade2) * 2.0;
     // p2.z = float(beyondCascade3) * 2.0 + 1.0;
 
@@ -215,11 +212,13 @@ float calculateInfiniteShadowValue(vec4 fragPos) {
     // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
     float depth1 = cascadeCoords[index1].z;
     float depth2 = cascadeCoords[index2].z;
+    // Clamp depths between [0, 1] for final cascade to prevent darkening beyond bounds
+    depth2 = beyondCascade3 ? saturate(depth2) : depth2;
 
-    vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
-    float weight = beyondCascade2 ? blend.y - blend.z : 1.0 - blend.x;
+    //vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
+    float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
 
-    float light1 = 0.0, light2 = 0.0;
+    float light1 = 0.0;
     // Sample four times from first cascade
     p1 = shadowCoord1 + shadowOffset[0].xy;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
@@ -230,6 +229,7 @@ float calculateInfiniteShadowValue(vec4 fragPos) {
     p1 = shadowCoord1 + shadowOffset[1].zw;
     light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
 
+    float light2 = 0.0;
     // Sample four times from second cascade
     p2 = shadowCoord2 + shadowOffset[0].xy;
     light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
@@ -361,10 +361,10 @@ void main() {
         vec3 lightDir = infiniteLightDirection;
         // vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
         // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
-        for (int i = 0; i < 3; ++i) {
-            cascadeBlend[i] = dot(cascadePlanes[i], vec4(fragPos, 1.0));
-        }
-        float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0));
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(fragPos, 1.0)),
+                                  dot(cascadePlanes[1], vec4(fragPos, 1.0)),
+                                  dot(cascadePlanes[2], vec4(fragPos, 1.0f)));
+        float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends);
         //vec3 lightDir = infiniteLightDirection;
         color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
     }

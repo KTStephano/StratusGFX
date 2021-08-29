@@ -254,7 +254,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
     const float g = 1.0f / tangent(_state.fov / 2.0f).value();
     //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
-    // std::cout << "AAAAAAA " << g << std::endl;
+    // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
     const float zfar = _state.zfar;
     const std::vector<float> cascadeBegins = {   0.0f,  75.0f, 175.0f, 375.0f }; // 4 cascades max
@@ -270,8 +270,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         if (recalculateFbos) {
             // Create the depth buffer
             Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
-            tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            tex.setTextureCompare(TextureCompareMode::NONE, TextureCompareFunc::LEQUAL);
 
             // Create the frame buffer
             _state.csms[i].fbo = FrameBuffer({ tex });
@@ -366,9 +367,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                                                     glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
 
         _state.csms[i].depthProjection = cascadeOrthoProjection;
-        _state.csms[i].texelProjection = cascadeOrthoProjection;
+        _state.csms[i].texelProjection = cascadeTexelOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
-        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionView = cascadeTexelOrthoProjection * cascadeViewTransform;
 
         // std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
         // std::cout << light.getDirection() << std::endl;
@@ -379,9 +380,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
             // the cascade indices in the pixel shader
-            const glm::vec4 n = cameraWorldTransform[2];
-            const glm::vec4 c = cameraWorldTransform[3];
-            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
+            const glm::vec3 n = glm::vec3(cameraWorldTransform[2]);
+            const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
+            const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, -glm::dot(n, c) - ak) * (1.0f / (bks[i - 1] - ak));
             _state.csms[i].cascadePlane = fk;
             // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
             // what cascadeScale and cascadeOffset allow us to do
@@ -1555,7 +1556,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     glm::mat4 lightWorld = lightCam.getWorldTransform();
     glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
-    // std::cout << "Light direction: " << direction << std::endl;
+    std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();

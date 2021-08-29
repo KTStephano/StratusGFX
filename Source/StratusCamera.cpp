@@ -43,11 +43,11 @@ namespace stratus {
     }
 
     glm::vec3 Camera::getUp() {
-        return getViewTransform()[1];
+        return glm::normalize(-getWorldTransform()[1]);
     }
 
     glm::vec3 Camera::getSide() {
-        return glm::cross(getDirection(), getUp());
+        return -glm::cross(getDirection(), getUp());
     }
 
     void Camera::setSpeed(float forward, float up, float strafe) {

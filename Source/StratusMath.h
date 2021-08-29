@@ -23,7 +23,7 @@ namespace stratus {
 
 		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
 		Radians operator*(const float f) const { return Radians(value() * f); }
-		Radians operator/(const float f) const { return Radians(value() * f); }
+		Radians operator/(const float f) const { return Radians(value() / f); }
 		
 		Radians& operator*=(const float f) { _rad *= f; return *this; }
 		Radians& operator/=(const float f) { _rad /= f; return *this; }
@@ -76,7 +76,7 @@ namespace stratus {
 
 		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
 		Degrees operator*(const float f) const { return Degrees(value() * f); }
-		Degrees operator/(const float f) const { return Degrees(value() * f); }
+		Degrees operator/(const float f) const { return Degrees(value() / f); }
 		
 		Degrees& operator*=(const float f) { _deg *= f; return *this; }
 		Degrees& operator/=(const float f) { _deg /= f; return *this; }

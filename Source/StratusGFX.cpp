@@ -265,6 +265,7 @@ int main(int argc, char * args[]) {
         const float camSpeed = 100.0f;
 
         // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
+        worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         renderer.setWorldLight(worldLight);
 
         //std::cout << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
