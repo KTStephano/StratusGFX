@@ -99,12 +99,12 @@ uniform vec4 shadowOffset[2];
 // cascadeScale and cascadeOffset represent the scale and translation components of a matrix
 // which can convert from texture coordinates in cascade 0 to texture coordinates in any of the other
 // cascades.
-uniform vec3 cascadeScale[3];
-uniform vec3 cascadeOffset[3];
+// uniform vec3 cascadeScale[3];
+// uniform vec3 cascadeOffset[3];
 // Represents a plane which transitions from 0 to 1 as soon as two cascades overlap
 uniform vec4 cascadePlanes[3];
 uniform mat4 cascadeProjViews[4];
-uniform float cascadeSplits[4];
+// uniform float cascadeSplits[4];
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
 // uniform mat4 cascade0ProjView;
 

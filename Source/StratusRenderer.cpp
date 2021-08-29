@@ -302,23 +302,23 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         bks.push_back(bk);
 
         // These base values are in camera space
-        const float baseAkX = std::floorf((ak * s) / g);
-        const float baseAkY = std::floorf(ak / g);
-        const float baseBkX = std::floorf((bk * s) / g);
-        const float baseBkY = std::floorf(bk / g);
+        const float baseAkX = (ak * s) / g;
+        const float baseAkY = ak / g;
+        const float baseBkX = (bk * s) / g;
+        const float baseBkY = bk / g;
         // Keep all of these in camera space for now
         std::vector<glm::vec4> frustumCorners = {
             // Near corners
-            glm::vec4(baseAkX, -baseAkY, ak, 1.0f),
-            glm::vec4(baseAkX, baseAkY, ak, 1.0f),
-            glm::vec4(-baseAkX, baseAkY, ak, 1.0f),
-            glm::vec4(-baseAkX, -baseAkY, ak, 1.0f),
+            glm::vec4(baseAkX, -baseAkY, -ak, 1.0f),
+            glm::vec4(baseAkX, baseAkY, -ak, 1.0f),
+            glm::vec4(-baseAkX, baseAkY, -ak, 1.0f),
+            glm::vec4(-baseAkX, -baseAkY, -ak, 1.0f),
 
             // Far corners
-            glm::vec4(baseBkX, -baseBkY, bk, 1.0f),
-            glm::vec4(baseBkX, baseBkY, bk, 1.0f),
-            glm::vec4(-baseBkX, baseBkY, bk, 1.0f),
-            glm::vec4(-baseBkX, -baseBkY, bk, 1.0f),
+            glm::vec4(baseBkX, -baseBkY, -bk, 1.0f),
+            glm::vec4(baseBkX, baseBkY, -bk, 1.0f),
+            glm::vec4(-baseBkX, baseBkY, -bk, 1.0f),
+            glm::vec4(-baseBkX, -baseBkY, -bk, 1.0f),
         };
         
         // This tells us the maximum diameter for the cascade bounding box k
@@ -406,13 +406,13 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             // what cascadeScale and cascadeOffset allow us to do
             //
             // (These are actually pulled from a matrix which corresponds to PkShadow * MkView)
-            _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, 
-                                                    dks[0] / dk, 
-                                                    (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
-            const float d02dk = dks[0] / (2.0f * dk);
-            _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, 
-                                                     ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, 
-                                                     (sks[0].z - sk.z) / (maxZ - minZ));
+            // _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, 
+            //                                         dks[0] / dk, 
+            //                                         (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
+            // const float d02dk = dks[0] / (2.0f * dk);
+            // _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, 
+            //                                          ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, 
+            //                                          (sks[0].z - sk.z) / (maxZ - minZ));
         }
     }
 }
@@ -1575,7 +1575,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     glm::mat4 lightWorld = lightCam.getWorldTransform();
     glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
-    std::cout << "Light direction: " << direction << std::endl;
+    // std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();
@@ -1592,8 +1592,8 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     }
 
     for (int i = 0; i < 3; ++i) {
-        s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
-        s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
+        // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
+        // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
         s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadePlane[0]);
     }
 
