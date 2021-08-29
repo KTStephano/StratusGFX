@@ -1,7 +1,7 @@
 
 #include <vector>
 #include <iostream>
-#include "Cube.h"
+#include "StratusCube.h"
 
 namespace stratus {
 static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{

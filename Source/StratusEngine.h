@@ -5,7 +5,7 @@
 #ifndef STRATUSGFX_ENGINE_H
 #define STRATUSGFX_ENGINE_H
 
-#include "Common.h"
+#include "StratusCommon.h"
 //#include "Renderer.h"
 
 namespace stratus {

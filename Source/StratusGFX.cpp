@@ -1,14 +1,14 @@
-#include "Common.h"
+#include "StratusCommon.h"
 #include "glm/glm.hpp"
 #include <iostream>
-#include <Pipeline.h>
-#include <Renderer.h>
-#include <Quad.h>
-#include <Camera.h>
+#include <StratusPipeline.h>
+#include <StratusRenderer.h>
+#include <StratusQuad.h>
+#include <StratusCamera.h>
 #include <chrono>
-#include <Cube.h>
-#include <Light.h>
-#include <Utils.h>
+#include <StratusCube.h>
+#include <StratusLight.h>
+#include <StratusUtils.h>
 #include <memory>
 
 class RandomLightMover : public stratus::Entity {

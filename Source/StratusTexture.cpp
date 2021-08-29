@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "StratusTexture.h"
 #include <GL/gl3w.h>
 #include <exception>
 #include <unordered_set>

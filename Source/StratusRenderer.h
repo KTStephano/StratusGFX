@@ -8,13 +8,13 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
-#include "Common.h"
-#include "RenderEntity.h"
-#include "Camera.h"
-#include "Model.h"
-#include "Texture.h"
-#include "FrameBuffer.h"
-#include "Light.h"
+#include "StratusCommon.h"
+#include "StratusRenderEntity.h"
+#include "StratusCamera.h"
+#include "StratusModel.h"
+#include "StratusTexture.h"
+#include "StratusFrameBuffer.h"
+#include "StratusLight.h"
 #include "StratusMath.h"
 
 namespace stratus {

@@ -1,6 +1,6 @@
 
-#include "Quad.h"
-#include "Engine.h"
+#include "StratusQuad.h"
+#include "StratusEngine.h"
 #include <vector>
 #include <iostream>
 

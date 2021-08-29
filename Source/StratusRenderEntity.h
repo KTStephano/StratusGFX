@@ -5,7 +5,7 @@
 #ifndef STRATUSGFX_RENDERENTITY_H
 #define STRATUSGFX_RENDERENTITY_H
 
-#include "Common.h"
+#include "StratusCommon.h"
 #include "StratusMath.h"
 #include <vector>
 #include <memory>

@@ -2,7 +2,7 @@
 #ifndef STRATUSGFX_ENTITY_H
 #define STRATUSGFX_ENTITY_H
 
-#include "Common.h"
+#include "StratusCommon.h"
 
 namespace stratus {
 /**

@@ -2,7 +2,7 @@
 #ifndef STRATUSGFX_CAMERA_H
 #define STRATUSGFX_CAMERA_H
 
-#include "Entity.h"
+#include "StratusEntity.h"
 #include "StratusMath.h"
 
 namespace stratus {

@@ -1,5 +1,5 @@
-#include "Pipeline.h"
-#include <Filesystem.h>
+#include "StratusPipeline.h"
+#include <StratusFilesystem.h>
 #include <iostream>
 
 namespace stratus {

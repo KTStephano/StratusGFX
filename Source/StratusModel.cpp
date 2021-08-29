@@ -1,10 +1,10 @@
-#include "Model.h"
+#include "StratusModel.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <iostream>
-#include "Renderer.h"
-#include "Utils.h"
+#include "StratusRenderer.h"
+#include "StratusUtils.h"
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {

@@ -1,9 +1,8 @@
 #include <fstream>
 #include <sstream>
-#include <Filesystem.h>
 #include <iostream>
 
-#include "Filesystem.h"
+#include "StratusFilesystem.h"
 
 namespace stratus {
 /**

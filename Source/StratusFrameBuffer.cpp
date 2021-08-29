@@ -1,4 +1,4 @@
-#include "FrameBuffer.h"
+#include "StratusFrameBuffer.h"
 #include "GL/gl3w.h"
 #include <iostream>
 

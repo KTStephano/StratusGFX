@@ -1,9 +1,9 @@
 
-#include <Camera.h>
+#include <StratusCamera.h>
 #include <iostream>
 
-#include "Camera.h"
-#include "Utils.h"
+#include "StratusCamera.h"
+#include "StratusUtils.h"
 
 namespace stratus {
     Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {}

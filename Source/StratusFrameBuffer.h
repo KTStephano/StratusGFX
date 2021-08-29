@@ -2,7 +2,7 @@
 
 #include <memory>
 #include "glm/glm.hpp"
-#include "Texture.h"
+#include "StratusTexture.h"
 #include <vector>
 
 namespace stratus {

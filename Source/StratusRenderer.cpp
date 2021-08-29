@@ -1,14 +1,14 @@
 
-#include <Renderer.h>
+#include <StratusRenderer.h>
 #include <iostream>
-#include <Light.h>
-#include "Pipeline.h"
-#include "Renderer.h"
+#include <StratusLight.h>
+#include "StratusPipeline.h"
+#include "StratusRenderer.h"
 #include <math.h>
 #include <cmath>
-#include "Quad.h"
-#include "Cube.h"
-#include "Utils.h"
+#include "StratusQuad.h"
+#include "StratusCube.h"
+#include "StratusUtils.h"
 #include "StratusMath.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
