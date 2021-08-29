@@ -9,9 +9,9 @@ find_package(OpenGL REQUIRED)
 
 #add_subdirectory(gl3w)
 
-include_directories(gl3w/include includes ${SDL2_INCLUDE_DIRS} . ${OPENGL_INCLUDE_DIRS} assimp/Deploy/include)
+include_directories(gl3w/include Source/ ${SDL2_INCLUDE_DIRS} . ${OPENGL_INCLUDE_DIRS} assimp/Deploy/include)
 link_directories(assimp/Deploy/lib)
-file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp ${CMAKE_CURRENT_LIST_DIR}/gl3w/src/gl3w.c)
+file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/Source/*.cpp ${CMAKE_CURRENT_LIST_DIR}/gl3w/src/gl3w.c)
 add_executable(StratusGFX ${SOURCES})
 
 # add_executable(StratusGFX 
