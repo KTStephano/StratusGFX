@@ -4,5 +4,5 @@
 
 void main() {
 	// Written automatically
-	// gl_FragDepth = gl_FragCoord.z
+	gl_FragDepth = gl_FragCoord.z;
 }

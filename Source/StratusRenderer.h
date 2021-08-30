@@ -168,6 +168,7 @@ class Renderer {
         std::vector<CascadedShadowMap> csms;
         glm::vec4 cascadeShadowOffsets[2];
         InfiniteLight worldLight;
+        Camera worldLightCamera;
         bool worldLightingEnabled = false;
         // If true then we need to re-calculate all world light data
         bool worldLightIsDirty = false;

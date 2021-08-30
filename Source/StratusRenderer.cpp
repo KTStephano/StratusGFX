@@ -244,8 +244,9 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
-    Camera light(false);
-    light.setAngle(_state.worldLight.getRotation());
+    // Camera light(false);
+    // light.setAngle(_state.worldLight.getRotation());
+    const Camera & light = _state.worldLightCamera;
     const glm::mat4& lightWorldTransform = light.getWorldTransform();
     const glm::mat4& lightViewTransform = light.getViewTransform();
     const glm::mat4& cameraWorldTransform = c.getWorldTransform();
@@ -961,6 +962,9 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
     _bindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
+    // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(0.5f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
     for (CascadedShadowMap & csm : _state.csms) {
@@ -987,6 +991,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
         csm.fbo.unbind();
     }
     _unbindShader();
+    glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 void Renderer::end(const Camera & c) {
@@ -1567,10 +1572,11 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     // Set up world light if enabled
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), glm::vec3(0.0f));
-    Camera lightCam(false);
-    lightCam.setAngle(_state.worldLight.getRotation());
+    // Camera lightCam(false);
+    // lightCam.setAngle(_state.worldLight.getRotation());
+    const Camera & lightCam = _state.worldLightCamera;
     glm::mat4 lightWorld = lightCam.getWorldTransform();
-    glm::mat4 lightView = lightCam.getViewTransform();
+    // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // std::cout << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
@@ -1662,5 +1668,7 @@ void Renderer::toggleWorldLighting(bool enabled) {
 void Renderer::setWorldLight(const InfiniteLight & wl) {
     _state.worldLight = wl;
     _state.worldLightIsDirty = true;
+    _state.worldLightCamera = Camera(false);
+    _state.worldLightCamera.setAngle(_state.worldLight.getRotation());
 }
 }

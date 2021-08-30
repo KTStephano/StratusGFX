@@ -40,9 +40,9 @@ public:
     void setPosition(const glm::vec3 & position);
     const glm::vec3 & getPosition() const;
 
-    glm::vec3 getDirection();
-    glm::vec3 getUp();
-    glm::vec3 getSide();
+    glm::vec3 getDirection() const;
+    glm::vec3 getUp() const;
+    glm::vec3 getSide() const;
 
     /**
      * Sets the speed x/y/z of the camera.
