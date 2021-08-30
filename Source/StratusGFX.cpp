@@ -319,8 +319,9 @@ int main(int argc, char * args[]) {
                             if (released) {
                                 worldLightEnabled = !worldLightEnabled;
                                 renderer.toggleWorldLighting(worldLightEnabled);
-                                worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
-                                //worldLight.setColor(glm::vec3(1.0f));
+                                // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
+                                worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
+                                // worldLight.setColor(glm::vec3(1.0f));
                                 worldLight.setIntensity(10.0f);
                                 worldLight.setPosition(camera.getPosition());
                                 //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
