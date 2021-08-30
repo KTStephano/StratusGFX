@@ -374,13 +374,15 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                                                          transposeLightWorldTransform[2],
                                                          glm::vec4(-sk, 1.0f));
 
+        // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
+        const float shadowDepthOffset = 2e-19;
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
         // so it enables us to use the simplified Orthographic Projection matrix below
         //
         // This results in values between [-1, 1]
         const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
                                                glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
-                                               glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+                                               glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
                                                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Gives us x, y values between [0, 1]
