@@ -254,11 +254,12 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
     const float s = float(_state.windowWidth) / float(_state.windowHeight);
+    // g is also known as the camera's focal length
     const float g = 1.0 / tangent(_state.fov / 2.0f).value();
-    //const float tanHalfFovVertical = std::tanf(glm::radians((_state.fov * s) / 2.0f));
-    // std::cout << "AAAAAAA " << g << ", " << _state.fov << ", " << _state.fov / 2.0f << std::endl;
     const float znear = _state.znear;
-    const float zfar  = std::min(600.0f, _state.zfar); // We don't want zfar to be unbounded
+    // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
+    // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
+    const float zfar  = std::min(600.0f, _state.zfar);
 
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -267,6 +268,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     const float ratio = zfar / znear;
     std::vector<float> cascadeEnds(numCascades);
     for (int i = 0; i < numCascades; ++i) {
+        // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
+        // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
+        // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
+        // distances.
         const float p = (i + 1) / float(numCascades);
         const float log = znear * std::pow(ratio, p);
         const float uniform = znear + clipRange * p;
@@ -274,6 +279,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         cascadeEnds[i] = d;
     }
 
+    // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
     const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
     //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
     std::vector<float> aks;
@@ -290,6 +296,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
             tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            // We need to set this when using sampler2DShadow in the GLSL shader
             tex.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
             // Create the frame buffer
@@ -301,7 +308,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         aks.push_back(ak);
         bks.push_back(bk);
 
-        // These base values are in camera space
+        // These base values are in camera space and define our frustum corners
         const float baseAkX = (ak * s) / g;
         const float baseAkY = ak / g;
         const float baseBkX = (bk * s) / g;
@@ -321,13 +328,14 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
             glm::vec4(-baseBkX, -baseBkY, -bk, 1.0f),
         };
         
-        // This tells us the maximum diameter for the cascade bounding box k
+        // This tells us the maximum diameter for the cascade bounding box
         const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
                                                     glm::length(frustumCorners[4] - frustumCorners[6])));
         dks.push_back(dk);
+        // T is essentially the physical width/height of area corresponding to each texel in the shadow map
         const float T = dk / cascadeResolutionXY;
 
-        // Compute min/max of each
+        // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
         float minX = std::numeric_limits<float>::max();
         float maxX = std::numeric_limits<float>::min();
         float minY = minX;
@@ -361,14 +369,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
         // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-        // glm::mat4 cascadeViewTransform = glm::mat4(1.0f);
-        // cascadeViewTransform[3] = glm::vec4(-sk, 1.0f);
-        // cascadeViewTransform = lightViewTransform * cascadeViewTransform;
         const glm::mat4 cascadeViewTransform = glm::mat4(transposeLightWorldTransform[0], 
                                                          transposeLightWorldTransform[1],
                                                          transposeLightWorldTransform[2],
                                                          glm::vec4(-sk, 1.0f));
-        //const glm::mat4 cascadeViewTransform = lightViewTransform;
 
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
         // so it enables us to use the simplified Orthographic Projection matrix below
@@ -379,40 +383,31 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                                                glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
                                                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
+        // Gives us x, y values between [0, 1]
         const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
                                                     glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
                                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
                                                     glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
 
+        // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
+        // to be cascadeTexelOrthoProjection * cascadeViewTransform. This has the added benefit of automatically translating
+        // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
+        //
+        // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
         _state.csms[i].depthProjection = cascadeOrthoProjection;
         _state.csms[i].texelProjection = cascadeOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
         _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
-
-        // std::cout << -glm::inverse(cascadeViewTransform)[2] << std::endl;
-        // std::cout << light.getDirection() << std::endl;
-
-        // std::cout << cascadeOrthoProjection << std::endl;
-        // std::cout << glm::ortho(minX, maxX, minY, maxY, minZ, maxZ) << std::endl;
 
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
             // the cascade indices in the pixel shader
             const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);
             const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
+            // fk now represents a plane along the direction of the view frustum. Its normal is equal to the camera's forward
+            // direction in world space and it contains the point c + ak*n.
             const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
             _state.csms[i].cascadePlane = fk;
-            // We need an easy way to transform a texture coordinate in cascade 0 to any of the other cascades, which is
-            // what cascadeScale and cascadeOffset allow us to do
-            //
-            // (These are actually pulled from a matrix which corresponds to PkShadow * MkView)
-            // _state.csms[i].cascadeScale = glm::vec3(dks[0] / dk, 
-            //                                         dks[0] / dk, 
-            //                                         (zmaxs[0] - zmins[0]) / (zmaxs[i] - zmins[i]));
-            // const float d02dk = dks[0] / (2.0f * dk);
-            // _state.csms[i].cascadeOffset = glm::vec3(((sks[0].x - sk.x) / dk) - d02dk + 0.5f, 
-            //                                          ((sks[0].y - sk.y) / dk) - d02dk + 0.5f, 
-            //                                          (sks[0].z - sk.z) / (maxZ - minZ));
         }
     }
 }
@@ -508,7 +503,7 @@ void Renderer::_initializePostFxBuffers() {
     _state.numUpsampleIterations = 0;
 
     // Initialize bloom
-    for (; _state.numDownsampleIterations < 6; ++_state.numDownsampleIterations) {
+    for (; _state.numDownsampleIterations < 8; ++_state.numDownsampleIterations) {
         currWidth /= 2;
         currHeight /= 2;
         if (currWidth < 8 || currHeight < 8) break;

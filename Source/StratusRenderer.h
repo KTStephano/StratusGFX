@@ -155,8 +155,8 @@ class Renderer {
         glm::mat4 view;
         glm::mat4 projectionView; // This equals texelProjection * view
         glm::vec4 cascadePlane;
-        glm::vec3 cascadeScale;
-        glm::vec3 cascadeOffset;
+        // glm::vec3 cascadeScale;
+        // glm::vec3 cascadeOffset;
     };
 
     struct RenderState {
