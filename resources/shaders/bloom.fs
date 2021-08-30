@@ -11,17 +11,19 @@ uniform bool finalStage        = false;
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
-uniform float bloomThreshold = 3.0;
+uniform float bloomThreshold = 1.75;
 uniform float upsampleRadiusScale = 0.5;
 
 uniform float viewportX;
 uniform float viewportY;
 
-#define WEIGHT_LENGTH 5
+#define WEIGHT_LENGTH 3
 
 // Notice that the weights decrease, which signifies the start (weight[0]) contributing most
 // and last (weight[4]) contributing least
-uniform float weights[WEIGHT_LENGTH] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+//uniform float weights[WEIGHT_LENGTH] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+// See https://computergraphics.stackexchange.com/questions/39/how-is-gaussian-blur-implemented
+uniform float weights[WEIGHT_LENGTH] = float[] (41.0 / 200.0, 26.0 / 200.0, 7.0 / 200.0);
 
 in vec2 fsTexCoords;
 out vec3 fsColor;
