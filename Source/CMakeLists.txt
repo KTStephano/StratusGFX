@@ -9,7 +9,6 @@ file(GLOB SOURCES ${ROOT_DIRECTORY}/Source/*.cpp ${ROOT_DIRECTORY}/gl3w/src/gl3w
 add_library(${OUTPUT_NAME} STATIC ${SOURCES})
 
 set(OUTPUT_DIRECTORY ${ROOT_DIRECTORY}/Bin/)
-#set_target_properties(${OUTPUT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})
 if (WIN32)
     include_directories(${ROOT_DIRECTORY}/SDL2/include)
     if (${CMAKE_SIZEOF_VOID_P} MATCHES 8)
