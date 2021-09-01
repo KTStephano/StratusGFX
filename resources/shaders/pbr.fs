@@ -175,7 +175,7 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
 }
 
 float sampleInfiniteShadowTexture(sampler2DShadow shadow, vec3 coords, float depth) {
-    coords.z = depth;
+    coords.z = depth + PREVENT_DIV_BY_ZERO;
     float closestDepth = texture(shadow, coords);
     return closestDepth;
     // float closestDepth = texture(shadow, coords).r;
