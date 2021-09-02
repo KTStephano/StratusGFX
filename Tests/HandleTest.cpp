@@ -12,6 +12,7 @@ TEST_CASE( "Stratus Handle Test", "[stratus_handle_test]" ) {
     typedef stratus::Handle<S> TestHandle;
 
     REQUIRE(TestHandle() == TestHandle::Null());
+    REQUIRE(TestHandle::Null() == TestHandle::Null());
     REQUIRE(TestHandle::Null() != TestHandle::NextHandle());
     REQUIRE(!TestHandle::Null());
     REQUIRE(TestHandle::NextHandle());

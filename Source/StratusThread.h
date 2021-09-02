@@ -49,15 +49,21 @@ namespace stratus {
         bool operator!=(const Thread & other) const { return !((*this) == other); }
 
     private:
+        void _ProcessNext();
+
+    private:
         // May be empty if ownsExecutionContext is false
         std::thread _context;
         // True if a private thread is used for all function executions, false otherwise
-        bool _ownsExecutionContext;
+        const bool _ownsExecutionContext;
         // While true the thread can continue servicing calls to Dispatch
-        bool _running = true;
+        std::atomic<bool> _running{true};
         // List of functions to execute on next call to Dispatch
-        std::vector<ThreadFunction> _queue;
+        std::vector<ThreadFunction> _frontQueue;
+        std::vector<ThreadFunction> _backQueue;
         // Protects critical section
-        std::mutex _mutex;
+        mutable std::mutex _mutex;
+        // When true it signals to the dispatch thread that it should begin its next batch of work
+        std::atomic<bool> _processing{false};
     };
 }

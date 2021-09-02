@@ -9,8 +9,9 @@ int main(int argc, char* argv[]) {
     // this is the preferred way to set them
 
     int returnCode = session.applyCommandLine(argc, argv);
-    if (returnCode != 0) // Indicates a command line error
+    if (returnCode != 0) { // Indicates a command line error
         return returnCode;
+    }
 
     // writing to session.configData() or session.Config() here
     // overrides command line args
