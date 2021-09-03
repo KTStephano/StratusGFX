@@ -1,5 +1,6 @@
 #include "StratusThread.h"
 #include <chrono>
+#include <string>
 
 namespace stratus {
     static Thread ** GetCurrentThreadPtr() {
@@ -20,13 +21,24 @@ namespace stratus {
         *current = thread;
     }
 
+    // Used for when the user does not specify their own thread name
+    static std::string NextThreadName() {
+        static std::atomic<uint64_t> threadId(1);
+        return "Thread#" + std::to_string(threadId.fetch_add(1));
+    }
+
     Thread& Thread::Current() {
         Thread ** current = GetCurrentThreadPtr();
         if (*current == nullptr) throw std::runtime_error("stratus::Thread::Current called from a thread not wrapped around stratus::Thread");
         return **current;
     }
 
-    Thread::Thread(bool ownsExecutionContext) : _ownsExecutionContext(ownsExecutionContext) {
+    Thread::Thread(bool ownsExecutionContext) : Thread(NextThreadName(), ownsExecutionContext) {}
+
+    Thread::Thread(const std::string& name, bool ownsExecutionContext)
+        : _name(name),
+          _ownsExecutionContext(ownsExecutionContext) {
+
         if (ownsExecutionContext) {
             _context = std::thread([this]() {
                 SetCurrentThread(this);
@@ -48,6 +60,9 @@ namespace stratus {
             // If we're still processing a previous dispatch, don't try to process another
             if (_processing.load()) return;
             
+            // If nothing to process, return early
+            if (_frontQueue.size() == 0) return;
+
             // Copy contents of front buffer to back buffer for processing
             for (const auto & func : _frontQueue) _backQueue.push_back(func);
             _frontQueue.clear();
@@ -93,5 +108,9 @@ namespace stratus {
             // Sleep a bit to prevent hogging CPU core
             std::this_thread::sleep_for(std::chrono::nanoseconds(1));
         }
+    }
+
+    const std::string& Thread::Name() const {
+        return _name;
     }
 }
