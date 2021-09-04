@@ -1,5 +1,7 @@
 #pragma once
 
+#include "StratusSystemStatus.h"
+
 namespace stratus {
     // Special interface class which the engine knows is the entry point
     // for the application (e.g. editor or game)
@@ -11,8 +13,8 @@ namespace stratus {
         virtual void Initialize() = 0;
         // Run a single update for the application (no infinite loops)
         // deltaSeconds = time since last frame
-        virtual void Update(double deltaSeconds) = 0;
+        virtual SystemStatus Update(double deltaSeconds) = 0;
         // Perform any resource cleanup
-        virtual void Shutdown() = 0;
+        virtual void ShutDown() = 0;
     };
 }

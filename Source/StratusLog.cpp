@@ -6,7 +6,7 @@ namespace stratus {
 
     static void EmbedLogData(const std::string & tagline, std::ostream & out) {
         auto& thread = Thread::Current();
-        out << tagline << " Thread::(" << thread.Name() << ")";
+        out << tagline << " Thread::(" << thread.Name() << ") ";
     }
 
     Log::Log() {}

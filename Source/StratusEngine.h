@@ -8,14 +8,17 @@
 #include "StratusCommon.h"
 #include "StratusHandle.h"
 #include "StratusApplication.h"
+#include "StratusSystemStatus.h"
 #include <shared_mutex>
 #include <memory>
+#include <atomic>
+#include <chrono>
 //#include "Renderer.h"
 
-#define STRATUS_ENTRY_POINT(ApplicationClass)               \
-    int main(int nargs, char ** args) {                     \
-        stratus::EngineBoot<ApplicationClass>(nargs, args); \
-        return 0;                                           \
+#define STRATUS_ENTRY_POINT(ApplicationClass)                              \
+    int main(int nargs, char ** args) {                                    \
+        stratus::EngineBoot<ApplicationClass>(nargs, (const char **)args); \
+        return 0;                                                          \
     }
 
 namespace stratus {
@@ -25,7 +28,7 @@ namespace stratus {
     struct EngineInitParams {
         uint32_t           numCmdArgs;
         const char **      cmdArgs;
-        uint32_t           frameRateCap = 1000;
+        uint32_t           maxFrameRate = 1000;
         Application *      application;
     };
 
@@ -33,9 +36,8 @@ namespace stratus {
         // Each frame update increments this by 1
         uint64_t currentFrame = 0;
         // Records the time the last frame took to complete - 16.0/1000.0 = 60 fps for example
-        double lastFrameTimeSeconds;
-        // Average over all previous frames since engine init
-        double totalAverageFrameTimeSeconds;
+        double lastFrameTimeSeconds = 0.0;
+        std::chrono::system_clock::time_point prevFrameStart = std::chrono::system_clock::now();
     };
 
     // Engine class which handles initializing all core engine subsystems and helps 
@@ -51,14 +53,7 @@ namespace stratus {
 
         // Creates a new application and calls EngineMain
         template<typename E>
-        friend void EngineBoot(const int numArgs, const char ** args) {
-            // Ensure E is derived from Application
-            static_assert(std::is_base_of<Application, E>::value);
-            while (true) {
-                std::unique_ptr<Application> app(new E());
-                if (!EngineMain(app.get(), numArgs, args)) break;
-            }
-        }
+        friend void EngineBoot(const int numArgs, const char** args);
 
         // Global engine instance
         static Engine * Instance() { return _instance; }
@@ -71,22 +66,24 @@ namespace stratus {
         uint64_t FrameCount() const;
         // Useful functions for checking current and average frame delta seconds
         double LastFrameTimeSeconds() const;
-        double TotalAverageFrameTimeSeconds() const;
 
         // Pre-initialization for things like CommandLine, Log, Filesystem
         void PreInitialize();
         // Initialize rest of the system
         void Initialize();
+        // Should be called before Shutdown()
+        void BeginShutDown();
         // Begins shutdown sequence for engine and all core subsystems
         void ShutDown();
-        // Checks if the engine needs to restart after shut down
-        bool ShouldRestart() const;
         // Processes the next full system frame, including rendering. Returns false only
         // if the main engine loop should stop.
-        bool Frame();
+        SystemStatus Frame();
 
         // Main thread is where both engine + application run
         Thread * GetMainThread() const;
+
+    private:
+        void _InitLog();
 
     private:
         // Global engine instance - should only be set by EngineMain function
@@ -94,14 +91,23 @@ namespace stratus {
         EngineStatistics _stats;
         EngineInitParams _params;
         Thread * _main;
-        bool _isInitializing = false;
-        bool _isShuttingDown = false;
+        std::atomic<bool> _isInitializing{false};
+        std::atomic<bool> _isShuttingDown{false};
 
         // Set of locks for synchronizing different engine operations
         mutable std::shared_mutex _startupShutdown;
         mutable std::shared_mutex _mainLoop;
     };
-
+       
+    template<typename E>
+    void EngineBoot(const int numArgs, const char** args) {
+        // Ensure E is derived from Application
+        static_assert(std::is_base_of<Application, E>::value);
+        while (true) {
+            std::unique_ptr<Application> app(new E());
+            if (!EngineMain(app.get(), numArgs, args)) break;
+        }
+    }
 }
 
 #endif //STRATUSGFX_ENGINE_H
