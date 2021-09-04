@@ -37,7 +37,8 @@ namespace stratus {
 
     Thread::Thread(const std::string& name, bool ownsExecutionContext)
         : _name(name),
-          _ownsExecutionContext(ownsExecutionContext) {
+          _ownsExecutionContext(ownsExecutionContext),
+          _id(ThreadHandle::NextHandle()) {
 
         if (ownsExecutionContext) {
             _context = std::thread([this]() {
@@ -79,6 +80,10 @@ namespace stratus {
         }
     }
 
+    bool Thread::Idle() const {
+        return !_processing.load();
+    }
+
     void Thread::Dispose() {
         _running.store(false);
         if (_ownsExecutionContext) _context.join();
@@ -112,5 +117,9 @@ namespace stratus {
 
     const std::string& Thread::Name() const {
         return _name;
+    }
+
+    const ThreadHandle& Thread::Id() const {
+        return _id;
     }
 }

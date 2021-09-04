@@ -7,8 +7,12 @@
 #include <shared_mutex>
 #include <functional>
 #include <vector>
+#include "StratusHandle.h"
 
 namespace stratus {
+    class Thread;
+    typedef Handle<Thread> ThreadHandle;
+
     // A stratus thread represents a reusable thread of execution. To use it, small
     // functions should be queued for execution on it, and these functions should have
     // a finite execution time rather than being infinite.
@@ -41,15 +45,20 @@ namespace stratus {
         void Dispatch();
         // Blocks the calling function until all functions from the previous call to Dispatch are complete
         void Synchronize() const;
+        // Checks if the thread is ready for the next call to Dispatch meaning it is sitting idle (note that
+        // this is more of a hint since another thread could immediately call Dispatch())
+        bool Idle() const;
         // Tells the thread to quit after it finishes executing the last call to Dispatch
         void Dispose();
         // Gets thread name set in constructor (note: not required to be unique)
         const std::string& Name() const;
+        // Returns the unique id for this thread
+        const ThreadHandle& Id() const;
 
         // Gets a reference to the underlying Thread object for the current active context it is called from
         static Thread& Current();
 
-        bool operator==(const Thread & other) const { return this == &other; }
+        bool operator==(const Thread & other) const { return this->_id == other._id; }
         bool operator!=(const Thread & other) const { return !((*this) == other); }
 
     private:
@@ -62,6 +71,8 @@ namespace stratus {
         const std::string _name;
         // True if a private thread is used for all function executions, false otherwise
         const bool _ownsExecutionContext;
+        // Uniquely identifies the thread
+        const ThreadHandle _id;
         // While true the thread can continue servicing calls to Dispatch
         std::atomic<bool> _running{true};
         // List of functions to execute on next call to Dispatch
@@ -104,6 +115,9 @@ namespace stratus {
                     this->_failed = true;
                     this->_exceptionMessage = e.what();
                 }
+
+                // Notify everyone that we're done (even if failed)
+                this->_ProcessCallbacks();
             });
         }
 
@@ -134,9 +148,35 @@ namespace stratus {
             return _result;
         }
 
+        void AddCallback(const Thread::ThreadFunction & callback) {
+            Thread * thread = &Thread::Current();
+            // If completed then schedule it immediately
+            if (Completed()) {
+                thread->Queue(callback);
+            }
+            else {
+                auto ul = _LockWrite();
+                if (_callbacks.find(thread) == _callbacks.end()) {
+                    _callbacks.insert(std::make_pair(thread, std::vector<Thread::ThreadFunction>()));
+                }
+                _callbacks.find(thread)->second.push_back(callback);
+            }
+        }
+
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+
+        void _ProcessCallbacks() {
+            std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> callbacks;
+            {
+                auto ul = _LockWrite();
+                callbacks = std::move(_callbacks);
+            }
+            for (auto entry : callbacks) {
+                entry.first->Queue(entry.second);
+            }
+        }
 
     private:
         std::shared_ptr<E> _result = nullptr;
@@ -146,6 +186,7 @@ namespace stratus {
         std::string _exceptionMessage;
         bool _failed = false;
         bool _complete = false;
+        std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> _callbacks;
     };
 
     // To use this class, do something like the following:
@@ -157,6 +198,8 @@ namespace stratus {
     template<typename E>
     class Async {
     public:
+        typedef std::function<void(Async<E>)> AsyncCallback;
+
         Async() {}
         Async(Thread& context, std::function<E *(void)> function)
             : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
@@ -177,6 +220,12 @@ namespace stratus {
         const E& Get()              const { return _impl->Get(); }
         E& Get()                          { return _impl->Get(); }
         std::shared_ptr<E> GetPtr() const { return _impl->GetPtr(); }
+
+        // Callback support
+        void AddCallback(const AsyncCallback & callback) {
+            Async<E> copy = *this;
+            _impl->AddCallback([copy, callback]() { callback(copy); });
+        }
 
     private:
         std::shared_ptr<__AsyncImpl<E>> _impl;

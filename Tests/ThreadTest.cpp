@@ -28,8 +28,10 @@ TEST_CASE( "Stratus Thread Test", "[stratus_thread_test]" ) {
     }
     // Make sure no execution has happened yet
     REQUIRE(counter.load() == 0);
+    REQUIRE(thread.Idle() == true);
     thread.Dispatch();
     thread.Synchronize();
+    REQUIRE(thread.Idle() == true);
     REQUIRE(counter.load() == numFunctions);
 
     // Now test threads which share the current thread
@@ -38,6 +40,9 @@ TEST_CASE( "Stratus Thread Test", "[stratus_thread_test]" ) {
     counter.store(0);
     for (int i = 0; i < numThreads; ++i) {
         stratus::Thread * th = new stratus::Thread(false);
+        if (i > 0) {
+            REQUIRE(*th != *threads[i - 1].get());
+        }
         th->Queue([&counter, i, th]() {
             REQUIRE(stratus::Thread::Current() == *th);
             REQUIRE(counter.fetch_add(1) == i);
@@ -90,4 +95,35 @@ TEST_CASE( "Stratus Async Test", "[stratus_async_test]" ) {
     thread.Synchronize();
     REQUIRE(compute.Completed() == true);
     REQUIRE(compute.Failed() == true);
+
+    // Now test callbacks
+    stratus::Thread callbackThread(true);
+    std::atomic<bool> called(false);
+    stratus::Async<int>::AsyncCallback checkCallback = [&called, &callbackThread](stratus::Async<int> as) {
+        // The callback will be registered on callbackThread, and so the callback should also take place
+        // on callbackThread
+        REQUIRE(stratus::Thread::Current() == callbackThread);
+        REQUIRE(as.Completed() == true);
+        REQUIRE(as.Failed() == false);
+        REQUIRE(as.Get() == 10);
+        called.store(true);
+    };
+
+    stratus::Async<int> computeint(thread, []() { return new int(10); });
+    callbackThread.Queue([checkCallback, &computeint]() {
+        computeint.AddCallback(checkCallback);
+    });
+    callbackThread.Dispatch();
+    callbackThread.Synchronize();
+    REQUIRE(called.load() == false); // should not have happened yet
+
+    // Kick off the async job and wait for completion
+    thread.Dispatch();
+    thread.Synchronize();
+
+    // At this point a job should have been added to callbackThread
+    callbackThread.Dispatch();
+    callbackThread.Synchronize();
+
+    REQUIRE(called.load() == true);
 }
