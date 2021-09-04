@@ -9,8 +9,8 @@ namespace stratus {
     public:
         virtual ~Application() = default;
 
-        // Perform first-time initialization
-        virtual void Initialize() = 0;
+        // Perform first-time initialization - true if success, false otherwise
+        virtual bool Initialize() = 0;
         // Run a single update for the application (no infinite loops)
         // deltaSeconds = time since last frame
         virtual SystemStatus Update(double deltaSeconds) = 0;

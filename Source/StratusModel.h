@@ -23,6 +23,7 @@ namespace stratus {
         Model(Renderer &, const std::string filename);
 
     public:
+        Model() {}
         virtual ~Model();
 
         const std::string & getFile() const {

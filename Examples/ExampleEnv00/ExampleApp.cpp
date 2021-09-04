@@ -5,7 +5,8 @@ class ExampleApp : public stratus::Application {
 public:
     virtual ~ExampleApp() = default;
 
-    virtual void Initialize() override {
+    virtual bool Initialize() override {
+        return true; // success
     }
 
     virtual stratus::SystemStatus Update(double deltaSeconds) override {
