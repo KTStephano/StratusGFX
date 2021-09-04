@@ -80,6 +80,11 @@ namespace stratus {
         }
     }
 
+    void Thread::DispatchAndSynchronize() {
+        Dispatch();
+        Synchronize();
+    }
+
     bool Thread::Idle() const {
         return !_processing.load();
     }

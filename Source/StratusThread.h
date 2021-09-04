@@ -43,6 +43,7 @@ namespace stratus {
         // off the list and executed on a private thread. Otherwise, the thread calling Dispatch
         // will be used as the context.
         void Dispatch();
+        void DispatchAndSynchronize();
         // Blocks the calling function until all functions from the previous call to Dispatch are complete
         void Synchronize() const;
         // Checks if the thread is ready for the next call to Dispatch meaning it is sitting idle (note that

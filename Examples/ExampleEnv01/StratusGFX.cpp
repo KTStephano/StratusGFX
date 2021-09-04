@@ -10,6 +10,7 @@
 #include <StratusLight.h>
 #include <StratusUtils.h>
 #include <memory>
+#include <filesystem>
 
 class RandomLightMover : public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -76,6 +77,7 @@ struct StationaryLight : public RandomLightMover {
 };
 
 int main(int argc, char * args[]) {
+    std::cout << std::filesystem::current_path() << std::endl;
     auto start = std::chrono::system_clock::now();
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
