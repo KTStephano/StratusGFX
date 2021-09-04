@@ -1,6 +1,7 @@
 #include "StratusPipeline.h"
 #include <StratusFilesystem.h>
 #include <iostream>
+#include "StratusLog.h"
 
 namespace stratus {
 Pipeline::Pipeline(const std::vector<Shader> & shaders)
@@ -24,7 +25,7 @@ static bool checkShaderError(GLuint shader, const std::string & filename) {
     GLint result;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if (!result) {
-        std::cerr << "[error] Unable to compile shader: " << filename << std::endl;
+        STRATUS_ERROR << "[error] Unable to compile shader: " << filename << std::endl;
 
         // Now we're going to get the error log and print it out
         GLint logLength;
@@ -51,7 +52,7 @@ static bool checkProgramError(GLuint program) {
     GLint linkStatus;
     glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
     if (!linkStatus) {
-        std::cerr << "[error] Program failed during linking" << std::endl;
+        STRATUS_ERROR << "[error] Program failed during linking" << std::endl;
 
         GLint logLength;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
@@ -92,7 +93,7 @@ void Pipeline::_compile() {
             type = GL_COMPUTE_SHADER;
             break;
         default:
-            std::cerr << "Unknown shader type" << std::endl;
+            STRATUS_ERROR << "Unknown shader type" << std::endl;
             _isValid = false;
             return;
         }
@@ -195,15 +196,16 @@ std::vector<std::string> Pipeline::getFileNames() const {
 }
 
 void Pipeline::print() const {
+    auto & log = STRATUS_LOG;
     for (auto & s : getFileNames()) {
-        std::cout << s << ", ";
+        log << s << ", ";
     }
-    std::cout << std::endl;
+    log << std::endl;
 }
 
 void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
     if (!tex.valid()) {
-        std::cerr << "[Error] Invalid texture passed to shader" << std::endl;
+        STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
         return;
     }
     // See if the uniform is already bound to a texture

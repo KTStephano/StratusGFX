@@ -5,17 +5,18 @@
 #include <iostream>
 #include "StratusRenderer.h"
 #include "StratusUtils.h"
+#include "StratusLog.h"
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {
         TextureHandle texture = -1;
 
-        std::cout << "Tex count: " << mat->GetTextureCount(type) << std::endl;
+        STRATUS_LOG << "Tex count: " << mat->GetTextureCount(type) << std::endl;
         if (mat->GetTextureCount(type) > 0) {
             aiString str;
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            std::cout << file << std::endl;
+            STRATUS_LOG << file << std::endl;
             texture = renderer.loadTexture(directory + "/" + file);
         }
 
@@ -55,18 +56,18 @@ namespace stratus {
             RenderMaterial mat;
             aiMaterial * material = scene->mMaterials[mesh->mMaterialIndex];
 
-            std::cout << "mat\n";
-            std::cout << material->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_AMBIENT) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_EMISSIVE) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_NORMALS) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_SHININESS) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_OPACITY) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
-            std::cout << material->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
+            STRATUS_LOG << "mat\n";
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_AMBIENT) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_EMISSIVE) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_NORMALS) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_SHININESS) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_OPACITY) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
+            STRATUS_LOG << material->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
 
             mat.texture = loadMaterialTexture(renderer, material, aiTextureType_DIFFUSE, directory);
             mat.normalMap = loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory);
@@ -74,7 +75,7 @@ namespace stratus {
             mat.roughnessMap = loadMaterialTexture(renderer, material, aiTextureType_SHININESS, directory);
             mat.ambientMap = loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory);
             mat.metalnessMap = loadMaterialTexture(renderer, material, aiTextureType_SPECULAR, directory);
-            std::cout << "m " << mat.texture << " "
+            STRATUS_LOG << "m " << mat.texture << " "
                 << mat.normalMap << " "
                 << mat.depthMap << " "
                 << mat.roughnessMap << " "
@@ -129,7 +130,7 @@ namespace stratus {
         const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
 
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            std::cout << "Error loading model: " << filename << std::endl << importer.GetErrorString() << std::endl;
+            STRATUS_ERROR << "Error loading model: " << filename << std::endl << importer.GetErrorString() << std::endl;
             this->_valid = false;
             return;
         }

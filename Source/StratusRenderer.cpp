@@ -10,6 +10,7 @@
 #include "StratusCube.h"
 #include "StratusUtils.h"
 #include "StratusMath.h"
+#include "StratusLog.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
@@ -31,22 +32,23 @@ size_t __MeshObserver::hashCode() const {
 }
 
 static void printGLInfo(const GFXConfig & config) {
-    std::cout << "==================== OpenGL Information ====================" << std::endl;
-    std::cout << "\tRenderer: "                         << config.renderer << std::endl;
-    std::cout << "\tVersion: "                          << config.version << std::endl;
-    std::cout << "\tMax draw buffers: "                 << config.maxDrawBuffers << std::endl;
-    std::cout << "\tMax combined textures: "            << config.maxCombinedTextures << std::endl;
-    std::cout << "\tMax cube map texture size: "        << config.maxCubeMapTextureSize << std::endl;
-    std::cout << "\tMax fragment uniform vectors: "     << config.maxFragmentUniformVectors << std::endl;
-    std::cout << "\tMax fragment uniform components: "  << config.maxFragmentUniformComponents << std::endl;
-    std::cout << "\tMax varying floats: "               << config.maxVaryingFloats << std::endl;
-    std::cout << "\tMax render buffer size: "           << config.maxRenderbufferSize << std::endl;
-    std::cout << "\tMax texture image units: "          << config.maxTextureImageUnits << std::endl;
-    std::cout << "\tMax texture size: "                 << config.maxTextureSize << std::endl;
-    std::cout << "\tMax vertex attribs: "               << config.maxVertexAttribs << std::endl;
-    std::cout << "\tMax vertex uniform vectors: "       << config.maxVertexUniformVectors << std::endl;
-    std::cout << "\tMax vertex uniform components: "    << config.maxVertexUniformComponents << std::endl;
-    std::cout << "\tMax viewport dims: "                << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+    auto & log = STRATUS_LOG << std::endl;
+    log << "==================== OpenGL Information ====================" << std::endl;
+    log << "\tRenderer: "                         << config.renderer << std::endl;
+    log << "\tVersion: "                          << config.version << std::endl;
+    log << "\tMax draw buffers: "                 << config.maxDrawBuffers << std::endl;
+    log << "\tMax combined textures: "            << config.maxCombinedTextures << std::endl;
+    log << "\tMax cube map texture size: "        << config.maxCubeMapTextureSize << std::endl;
+    log << "\tMax fragment uniform vectors: "     << config.maxFragmentUniformVectors << std::endl;
+    log << "\tMax fragment uniform components: "  << config.maxFragmentUniformComponents << std::endl;
+    log << "\tMax varying floats: "               << config.maxVaryingFloats << std::endl;
+    log << "\tMax render buffer size: "           << config.maxRenderbufferSize << std::endl;
+    log << "\tMax texture image units: "          << config.maxTextureImageUnits << std::endl;
+    log << "\tMax texture size: "                 << config.maxTextureSize << std::endl;
+    log << "\tMax vertex attribs: "               << config.maxVertexAttribs << std::endl;
+    log << "\tMax vertex uniform vectors: "       << config.maxVertexUniformVectors << std::endl;
+    log << "\tMax vertex uniform components: "    << config.maxVertexUniformComponents << std::endl;
+    log << "\tMax viewport dims: "                << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
 }
 
 Renderer::Renderer(SDL_Window * window) {
@@ -66,20 +68,20 @@ Renderer::Renderer(SDL_Window * window) {
     // Create the gl context
     _context = SDL_GL_CreateContext(window);
     if (_context == nullptr) {
-        std::cerr << "[error] Unable to create a valid OpenGL context" << std::endl;
+        STRATUS_ERROR << "[error] Unable to create a valid OpenGL context" << std::endl;
         _isValid = false;
         return;
     }
 
     // Init gl core profile using gl3w
     if (gl3wInit()) {
-        std::cerr << "[error] Failed to initialize core OpenGL profile" << std::endl;
+        STRATUS_ERROR << "[error] Failed to initialize core OpenGL profile" << std::endl;
         _isValid = false;
         return;
     }
 
     //if (!gl3wIsSupported(maxGLVersion, minGLVersion)) {
-    //    std::cerr << "[error] OpenGL 3.2 not supported" << std::endl;
+    //    STRATUS_ERROR << "[error] OpenGL 3.2 not supported" << std::endl;
     //    _isValid = false;
     //    return;
     //}
@@ -365,7 +367,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
                      std::floorf((maxY + minY) / (2.0f * T)) * T, 
                      minZ);
         //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
-        // std::cout << "sk " << sk << std::endl;
+        // STRATUS_LOG << "sk " << sk << std::endl;
         sks.push_back(sk);
 
         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
@@ -517,7 +519,7 @@ void Renderer::_initializePostFxBuffers() {
         buffer.fbo = FrameBuffer({ color });
         if (!buffer.fbo.valid()) {
             _isValid = false;
-            std::cerr << "Unable to initialize bloom buffer" << std::endl;
+            STRATUS_ERROR << "Unable to initialize bloom buffer" << std::endl;
             return;
         }
         _state.postFxBuffers.push_back(buffer);
@@ -550,7 +552,7 @@ void Renderer::_initializePostFxBuffers() {
         buffer.fbo = FrameBuffer({ color });
         if (!buffer.fbo.valid()) {
             _isValid = false;
-            std::cerr << "Unable to initialize bloom buffer" << std::endl;
+            STRATUS_ERROR << "Unable to initialize bloom buffer" << std::endl;
             return;
         }
         _state.postFxBuffers.push_back(buffer);
@@ -662,7 +664,7 @@ void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
     if (it == _state.entities.end()) {
         // Not necessarily an error since if an entity is set to
         // invisible, we won't bother adding them
-        //std::cerr << "[error] Unable to add entity" << std::endl;
+        //STRATUS_ERROR << "[error] Unable to add entity" << std::endl;
         return;
     }
     e->model = glm::mat4(1.0f);
@@ -1011,7 +1013,7 @@ void Renderer::end(const Camera & c) {
     // const glm::mat4 lightViewMat = glm::inverse(lightToWorld);
     // Camera lightCam;
     // lightCam.setDirection(_state.worldLight.getDirection());
-    // std::cout << lightCam.getViewTransform() << std::endl;
+    // STRATUS_LOG << lightCam.getViewTransform() << std::endl;
 
     const int maxInstances = 250;
     const int maxShadowCastingLights = 8;
@@ -1395,7 +1397,7 @@ static Texture _loadTexture(const std::string & file) {
                 config.format = TextureComponentFormat::SRGB_ALPHA;
                 break;
             default:
-                std::cerr << "[error] Unknown texture loading error - format may be invalid" << std::endl;
+                STRATUS_ERROR << "[error] Unknown texture loading error - format may be invalid" << std::endl;
                 stbi_image_free(data);
                 return Texture();
         }
@@ -1404,7 +1406,7 @@ static Texture _loadTexture(const std::string & file) {
         texture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
         texture.setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
     } else {
-        std::cerr << "[error] Could not load texture: " << file << std::endl;
+        STRATUS_ERROR << "[error] Could not load texture: " << file << std::endl;
         return Texture();
     }
     
@@ -1433,7 +1435,7 @@ Model Renderer::loadModel(const std::string & file) {
         return it->second;
     }
 
-    std::cout << "Loading " << file << std::endl;
+    STRATUS_LOG << "Loading " << file << std::endl;
     Model m(*this, file);
     this->_models.insert(std::make_pair(file, m));
     return std::move(m);
@@ -1578,7 +1580,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     glm::mat4 lightWorld = lightCam.getWorldTransform();
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
-    // std::cout << "Light direction: " << direction << std::endl;
+    // STRATUS_LOG << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _state.worldLightingEnabled);
     s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();

@@ -4,25 +4,25 @@
 namespace stratus {
     Log * Log::_instance = nullptr;
 
-    static void EmbedLogData(const std::string & tagline, std::ostream & out) {
+    static void EmbedLogData(const std::string & tagline, const std::string& function, const int line, std::ostream & out) {
         auto& thread = Thread::Current();
-        out << tagline << " Thread::(" << thread.Name() << ") ";
+        out << tagline << " Thread::(" << thread.Name() << ") " << function << ":" << line << " -> ";
     }
 
     Log::Log() {}
 
-    std::ostream& Log::Inform() const {
-        EmbedLogData("[Info]", std::cout);
+    std::ostream& Log::Inform(const std::string & function, const int line) const {
+        EmbedLogData("[Info]", function, line, std::cout);
         return std::cout;
     }
 
-    std::ostream& Log::Warn() const {
-        EmbedLogData("[Warn]", std::cout);
+    std::ostream& Log::Warn(const std::string & function, const int line) const {
+        EmbedLogData("[Warn]", function, line, std::cout);
         return std::cout;
     }
 
-    std::ostream& Log::Error() const {
-        EmbedLogData("[Error]", std::cerr);
+    std::ostream& Log::Error(const std::string & function, const int line) const {
+        EmbedLogData("[Error]", function, line, std::cerr);
         return std::cerr;
     }
 }
