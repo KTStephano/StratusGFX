@@ -8,6 +8,7 @@
 #include <functional>
 #include <vector>
 #include "StratusHandle.h"
+#include "StratusCommon.h"
 
 namespace stratus {
     class Thread;

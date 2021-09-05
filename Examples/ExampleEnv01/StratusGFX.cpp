@@ -14,7 +14,7 @@
 #include <memory>
 #include <filesystem>
 
-class RandomLightMover : public stratus::Entity {
+class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
 
     void _changeDirection() {
@@ -33,6 +33,8 @@ class RandomLightMover : public stratus::Entity {
 public:
     std::unique_ptr<stratus::RenderEntity> cube;
     std::unique_ptr<stratus::Light> light;
+    glm::vec3 position;
+    glm::vec3 speed;
 
     RandomLightMover() {
         cube = std::make_unique<stratus::RenderEntity>();
@@ -50,7 +52,7 @@ public:
         r.addPointLight(light.get());
     }
 
-    void update(double deltaSeconds) override {
+    virtual void update(double deltaSeconds) {
         position = position + speed * _direction * float(deltaSeconds);
         cube->position = position;
         light->position = position;

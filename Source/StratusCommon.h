@@ -7,6 +7,8 @@
 #include "SDL.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include <exception>
+#include <stdexcept>
 
 namespace stratus {
 typedef int TextureHandle;
