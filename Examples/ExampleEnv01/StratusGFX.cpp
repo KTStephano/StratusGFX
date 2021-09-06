@@ -448,6 +448,8 @@ public:
         }
         renderer->end(camera);
 
+        // 0 lets it run as fast as it can
+        SDL_GL_SetSwapInterval(0);
         // Swap front and back buffer
         SDL_GL_SwapWindow(window);
 

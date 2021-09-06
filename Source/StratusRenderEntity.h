@@ -9,6 +9,7 @@
 #include "StratusMath.h"
 #include <vector>
 #include <memory>
+#include "StratusGpuBuffer.h"
 
 namespace stratus {
 enum class RenderMode {
@@ -94,8 +95,9 @@ class Mesh {
 
     struct _MeshData {
         GLuint vao;
-        GLuint vbo;
-        GLuint ebo;
+        // GLuint vbo;
+        // GLuint ebo;
+        GpuArrayBuffer buffers;
         uint32_t numVertices;
         uint32_t numIndices;
     };

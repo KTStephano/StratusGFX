@@ -113,42 +113,51 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
     }
 
     glGenVertexArrays(1, &this->_drawData.vao);
-    glGenBuffers(1, &this->_drawData.vbo);
-    glGenBuffers(1, &this->_drawData.ebo);
+    // glGenBuffers(1, &this->_drawData.vbo);
+    // glGenBuffers(1, &this->_drawData.ebo);
 
     glBindVertexArray(this->_drawData.vao);
+    GpuBuffer buffer;
     if (indices.size() > 0) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->_drawData.ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), &indices[0], GL_STATIC_DRAW);
+        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->_drawData.ebo);
+        // glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), &indices[0], GL_STATIC_DRAW);
+        buffer = GpuBuffer(GpuBufferType::INDEX_BUFFER, indices.data(), indices.size() * sizeof(uint32_t));
+        _drawData.buffers.AddBuffer(buffer);
     }
     // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
     const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
-    glBindBuffer(GL_ARRAY_BUFFER, this->_drawData.vbo);
-    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
+    // glBindBuffer(GL_ARRAY_BUFFER, this->_drawData.vbo);
+    // glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, data.data(), data.size() * sizeof(float));
+    _drawData.buffers.AddBuffer(buffer);
     
     // Vertices
-    glEnableVertexAttribArray(0);
-    // Index, size, type, normalized?, stride, offset
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)0);
+    // glEnableVertexAttribArray(0);
+    // // Index, size, type, normalized?, stride, offset
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)0);
+    buffer.EnableAttribute(0, 3, GpuStorageType::FLOAT, false, stride, 0);
 
     // UVs
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void *)(3 * sizeof(float)));
+    buffer.EnableAttribute(1, 2, GpuStorageType::FLOAT, false, stride, 3 * sizeof(float));
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void *)(3 * sizeof(float)));
     
     // Normals
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void *)(5 * sizeof(float)));
+    buffer.EnableAttribute(2, 3, GpuStorageType::FLOAT, false, stride, 5 * sizeof(float));
+    // glEnableVertexAttribArray(2);
+    // glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void *)(5 * sizeof(float)));
 
     // Tangents
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void *)(8 * sizeof(float)));
+    buffer.EnableAttribute(3, 3, GpuStorageType::FLOAT, false, stride, 8 * sizeof(float));
+    // glEnableVertexAttribArray(3);
+    // glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void *)(8 * sizeof(float)));
 
     // Bitangents
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void *)(11 * sizeof(float)));
+    buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
+    // glEnableVertexAttribArray(4);
+    // glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void *)(11 * sizeof(float)));
 
-    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    //glBindBuffer(GL_ARRAY_BUFFER, 0);
+    _drawData.buffers.Bind();
     glBindVertexArray(0);
 
     this->_drawData.numVertices = vertices.size();
@@ -157,8 +166,8 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
 
 Mesh::~Mesh() {
     glDeleteVertexArrays(1, &this->_drawData.vao);
-    glDeleteBuffers(1, &this->_drawData.vbo);
-    glDeleteBuffers(1, &this->_drawData.ebo);
+    // glDeleteBuffers(1, &this->_drawData.vbo);
+    // glDeleteBuffers(1, &this->_drawData.ebo);
 }
 
 void Mesh::_setProperties(uint32_t properties) {

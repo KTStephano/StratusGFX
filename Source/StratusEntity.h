@@ -10,8 +10,6 @@
 #include <vector>
 
 namespace stratus {
-    #define BITMASK_OFFSET_POW2(offset) 1 << offset
-
     struct Entity;
     struct EntityComponent;
 
@@ -24,24 +22,24 @@ namespace stratus {
         // Generated for both the parent and the child.
         // The data will be std::shared_ptr<Entity> where for the child it will contain
         // the parent and for the parent it will contain the child.
-        ENTITY_ATTACHED             = BITMASK_OFFSET_POW2(0),
-        ENTITY_DETACHED             = BITMASK_OFFSET_POW2(1),
+        ENTITY_ATTACHED             = BITMASK64_POW2(0),
+        ENTITY_DETACHED             = BITMASK64_POW2(1),
         // Next 3 involve a component of the entity's transform matrix changing. In this case
         // only Event.type will be valid, where data and deltaSeconds will be left as default.
-        ENTITY_SCALE_CHANGED        = BITMASK_OFFSET_POW2(2),
-        ENTITY_TRANSLATE_CHANGED    = BITMASK_OFFSET_POW2(3),
-        ENTITY_ROTATION_CHANGED     = BITMASK_OFFSET_POW2(4),
+        ENTITY_SCALE_CHANGED        = BITMASK64_POW2(2),
+        ENTITY_TRANSLATE_CHANGED    = BITMASK64_POW2(3),
+        ENTITY_ROTATION_CHANGED     = BITMASK64_POW2(4),
         // Entity was added or removed from a currently-active Scene. Event.data will be equal to
         // shared_ptr<Scene> containins the Scene that the entity became active or inactive in.
-        ENTITY_SPAWNED              = BITMASK_OFFSET_POW2(5),
-        ENTITY_DESPAWNED            = BITMASK_OFFSET_POW2(6),
+        ENTITY_SPAWNED              = BITMASK64_POW2(5),
+        ENTITY_DESPAWNED            = BITMASK64_POW2(6),
         // Following two happen when an entity is either deactivated (no longer receives updates)
         // or is reactivated (can receive updates)
-        ENTITY_DEACTIVATED          = BITMASK_OFFSET_POW2(7),
-        ENTITY_REACTIVATED          = BITMASK_OFFSET_POW2(8),
+        ENTITY_DEACTIVATED          = BITMASK64_POW2(7),
+        ENTITY_REACTIVATED          = BITMASK64_POW2(8),
         // Called once per frame for each entity that has one or more components attached that
         // want to update. Event.deltaSeconds will be the time since the last frame.
-        ENTITY_UPDATE               = BITMASK_OFFSET_POW2(9),
+        ENTITY_UPDATE               = BITMASK64_POW2(9),
     };
 
     class Entity;
