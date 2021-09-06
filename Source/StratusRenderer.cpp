@@ -725,7 +725,7 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
-void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers) {
+void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GpuArrayBuffer> & gabuffers) {
     Pipeline * pbr = _state.geometry.get();
 
     auto & modelMats = c.modelMatrices;
@@ -733,84 +733,47 @@ void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GLuint> & buf
     auto & baseReflectivity = c.baseReflectivity;
     auto & roughness = c.roughness;
     auto & metallic = c.metallic;
+    auto & buffers = c.buffers;
+    buffers.Clear();
+    gabuffers.push_back(buffers);
+
+    GpuBuffer buffer;
+
+    // First the model matrices
 
     // All shaders should use the same location for model, so this should work
     int pos = pbr->getAttribLocation("model");
-    const int pos1 = pos + 0;
-    const int pos2 = pos + 1;
-    const int pos3 = pos + 2;
-    const int pos4 = pos + 3;
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
+    buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
+    buffers.AddBuffer(buffer);
 
-    c.m->bind();
-
-    GLuint buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, modelMats.size() * sizeof(glm::mat4), &modelMats[0], GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(pos1);
-    glVertexAttribPointer(pos1, 4, GL_FLOAT, GL_FALSE, 64, (void *)0);
-    glEnableVertexAttribArray(pos2);
-    glVertexAttribPointer(pos2, 4, GL_FLOAT, GL_FALSE, 64, (void *)16);
-    glEnableVertexAttribArray(pos3);
-    glVertexAttribPointer(pos3, 4, GL_FLOAT, GL_FALSE, 64, (void *)32);
-    glEnableVertexAttribArray(pos4);
-    glVertexAttribPointer(pos4, 4, GL_FLOAT, GL_FALSE, 64, (void *)48);
-    glVertexAttribDivisor(pos1, 1);
-    glVertexAttribDivisor(pos2, 1);
-    glVertexAttribDivisor(pos3, 1);
-    glVertexAttribDivisor(pos4, 1);
-
-    buffers.push_back(buffer);
-
-    buffer = 0;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, diffuseColors.size() * sizeof(glm::vec3), &diffuseColors[0], GL_STATIC_DRAW);
     pos = pbr->getAttribLocation("diffuseColor");
-    glEnableVertexAttribArray(pos);
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glVertexAttribDivisor(pos, 1);
-    buffers.push_back(buffer);
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffers.AddBuffer(buffer);
 
-    buffer = 0;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, baseReflectivity.size() * sizeof(glm::vec3), &baseReflectivity[0], GL_STATIC_DRAW);
     pos = pbr->getAttribLocation("baseReflectivity");
-    glEnableVertexAttribArray(pos);
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glVertexAttribDivisor(pos, 1);
-    buffers.push_back(buffer);
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffers.AddBuffer(buffer);
 
-    buffer = 0;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, metallic.size() * sizeof(float), &metallic[0], GL_STATIC_DRAW);
-    // All shaders should use the same location for shininess, so this should work
     pos = pbr->getAttribLocation("metallic");
-    glEnableVertexAttribArray(pos);
-    glVertexAttribPointer(pos, 1, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glVertexAttribDivisor(pos, 1);
-    buffers.push_back(buffer);
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, metallic.data(), metallic.size() * sizeof(float));
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffers.AddBuffer(buffer);
 
-    buffer = 0;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, roughness.size() * sizeof(float), &roughness[0], GL_STATIC_DRAW);
-    // All shaders should use the same location for shininess, so this should work
     pos = pbr->getAttribLocation("roughness");
-    glEnableVertexAttribArray(pos);
-    glVertexAttribPointer(pos, 1, GL_FLOAT, GL_FALSE, 0, (void *)0);
-    glVertexAttribDivisor(pos, 1);
-    buffers.push_back(buffer);
+    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, roughness.data(), roughness.size() * sizeof(float));
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffers.AddBuffer(buffer);
 
-    c.m->unbind();
+    buffers.Bind();
 }
 
-void Renderer::_clearInstancedData(std::vector<GLuint> & buffers) {
-    glDeleteBuffers(buffers.size(), &buffers[0]);
-    buffers.clear();
+void Renderer::_clearInstancedData(std::vector<GpuArrayBuffer> & gabuffers) {
+    // glDeleteBuffers(buffers.size(), &buffers[0]);
+    for (auto& buffer: gabuffers) buffer.Clear();
+    gabuffers.clear();
 }
 
 void Renderer::_bindShader(Pipeline * s) {
@@ -856,7 +819,7 @@ void Renderer::_buildEntityList(const Camera & c) {
     }
 }
 
-void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const size_t numInstances, bool removeViewTranslation) {
+void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation) {
     const glm::mat4 & projection = _state.perspective;
     //const glm::mat4 & view = c.getViewTransform();
     glm::mat4 view;
@@ -953,9 +916,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     // Perform instanced rendering
     setCullState(m->cullingMode);
 
-    m->bind();
-    m->render(numInstances);
-    m->unbind();
+    m->render(numInstances, additionalBuffers);
 
     _unbindShader();
 }
@@ -985,9 +946,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
                 const Mesh * m = meshObservers.first.m;
                 const size_t numInstances = meshObservers.second.size;
                 setCullState(m->cullingMode);
-                m->bind();
-                m->render(numInstances);
-                m->unbind();
+                m->render(numInstances, meshObservers.second.buffers);
             }
         }
         csm.fbo.unbind();
@@ -1020,7 +979,7 @@ void Renderer::end(const Camera & c) {
     const int maxTotalLights = 256;
     const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
     // Need to delete these at the end of the frame
-    std::vector<GLuint> buffers;
+    std::vector<GpuArrayBuffer> buffers;
 
     //_unbindAllTextures();
 
@@ -1139,9 +1098,7 @@ void Renderer::end(const Camera & c) {
                 //_initInstancedData(meshObservers.second, buffers);
                 Mesh * m = meshObservers.first.m;
                 setCullState(m->cullingMode);
-                m->bind();
-                m->render(meshObservers.second.size);
-                m->unbind();
+                m->render(meshObservers.second.size, meshObservers.second.buffers);
                 //_clearInstancedData(buffers);
                 /**
                 const size_t size = modelMats.size();
@@ -1198,7 +1155,7 @@ void Renderer::end(const Camera & c) {
 
             // We are only going to render dynamic-lit entities this pass
             if (e->getLightProperties() & FLAT) continue;
-            _render(c, e, m, numInstances);
+            _render(c, e, m, meshObservers.second.buffers, numInstances);
         }
     }
     _state.buffer.fbo.unbind();
@@ -1217,9 +1174,7 @@ void Renderer::end(const Camera & c) {
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
     _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
-    _state.screenQuad->bind();
-    _state.screenQuad->render(1);
-    _state.screenQuad->unbind();
+    _state.screenQuad->render(1, GpuArrayBuffer());
     _state.lightingFbo.unbind();
     _unbindShader();
 
@@ -1238,7 +1193,7 @@ void Renderer::end(const Camera & c) {
 
             // We are only going to render flat entities during this pass
             if (e->getLightProperties() & DYNAMIC) continue;
-            _render(c, e, m, numInstances);
+            _render(c, e, m, meshObservers.second.buffers, numInstances);
         }
     }
     _state.lightingFbo.unbind();
@@ -1365,9 +1320,7 @@ void Renderer::_finalizeFrame() {
 }
 
 void Renderer::_renderQuad() {
-    _state.screenQuad->bind();
-    _state.screenQuad->render(1);
-    _state.screenQuad->unbind();
+    _state.screenQuad->render(1, GpuArrayBuffer());
 }
 
 static Texture _loadTexture(const std::string & file) {

@@ -1,5 +1,6 @@
 #include "StratusGpuBuffer.h"
 #include <functional>
+#include <iostream>
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
@@ -43,7 +44,7 @@ namespace stratus {
             // then we need treat it as multiple attribs
             for (int32_t i = 0, elem = 0; elem < sizePerElem; ++i, elem += 4) {
                 const int32_t pos = attribute + i;
-                const int32_t elemSize = (sizePerElem - elem) > 4 ? 4 : sizePerElem;
+                const int32_t elemSize = (sizePerElem - elem) > 4 ? 4 : (sizePerElem - elem);
                 const uint32_t totalSizeBytes = _CalculateSizeBytes(elemSize, storage);
                 glEnableVertexAttribArray(pos);
                 glVertexAttribPointer(
@@ -130,15 +131,22 @@ namespace stratus {
         _impl->Unbind();
     }
 
+    GpuArrayBuffer::GpuArrayBuffer()
+        : _buffers(std::make_shared<std::vector<GpuBuffer>>()) {}
+
     void GpuArrayBuffer::AddBuffer(const GpuBuffer& buffer) {
-        _buffers.push_back(buffer);
+        _buffers->push_back(buffer);
     }
 
     void GpuArrayBuffer::Bind() const {
-        for (auto& buffer : _buffers) buffer.Bind();
+        for (auto& buffer : *_buffers) buffer.Bind();
     }
 
     void GpuArrayBuffer::Unbind() const {
-        for (auto& buffer : _buffers) buffer.Unbind();
+        for (auto& buffer : *_buffers) buffer.Unbind();
+    }
+
+    void GpuArrayBuffer::Clear() {
+        _buffers->clear();
     }
 }

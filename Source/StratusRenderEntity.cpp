@@ -112,11 +112,6 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
 */
     }
 
-    glGenVertexArrays(1, &this->_drawData.vao);
-    // glGenBuffers(1, &this->_drawData.vbo);
-    // glGenBuffers(1, &this->_drawData.ebo);
-
-    glBindVertexArray(this->_drawData.vao);
     GpuBuffer buffer;
     if (indices.size() > 0) {
         // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->_drawData.ebo);
@@ -157,15 +152,11 @@ Mesh::Mesh(const std::vector<glm::vec3> & vertices, const std::vector<glm::vec2>
     // glEnableVertexAttribArray(4);
     // glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void *)(11 * sizeof(float)));
 
-    _drawData.buffers.Bind();
-    glBindVertexArray(0);
-
     this->_drawData.numVertices = vertices.size();
     this->_drawData.numIndices = indices.size();
 }
 
 Mesh::~Mesh() {
-    glDeleteVertexArrays(1, &this->_drawData.vao);
     // glDeleteBuffers(1, &this->_drawData.vbo);
     // glDeleteBuffers(1, &this->_drawData.ebo);
 }
@@ -218,7 +209,9 @@ const RenderData & Mesh::getRenderData() const {
     return _data;
 }
 
-void Mesh::render(const int numInstances) const {    
+void Mesh::render(const int numInstances, const GpuArrayBuffer & additionalBuffers) const {    
+    _drawData.buffers.Bind();
+    additionalBuffers.Bind();
     if (this->_drawData.numIndices > 0) {
         glDrawElementsInstanced(GL_TRIANGLES, this->_drawData.numIndices, GL_UNSIGNED_INT, (void *)0, numInstances);
     }
@@ -226,14 +219,8 @@ void Mesh::render(const int numInstances) const {
         //std::cout << "glDrawArraysInstanced(GL_TRIANGLES, 0, " << this->_drawData.numVertices << ", " << numInstances << ");" << std::endl;
         glDrawArraysInstanced(GL_TRIANGLES, 0, this->_drawData.numVertices, numInstances);
     }
-}
-
-void Mesh::bind() const {
-    glBindVertexArray(this->_drawData.vao);
-}
-
-void Mesh::unbind() const {
-    glBindVertexArray(0);
+    _drawData.buffers.Unbind();
+    additionalBuffers.Unbind();
 }
 
 size_t Mesh::hashCode() const {

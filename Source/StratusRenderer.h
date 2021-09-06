@@ -16,6 +16,7 @@
 #include "StratusFrameBuffer.h"
 #include "StratusLight.h"
 #include "StratusMath.h"
+#include "StratusGpuBuffer.h"
 
 namespace stratus {
 class Pipeline;
@@ -89,6 +90,7 @@ struct __MeshContainer {
     std::vector<glm::vec3> baseReflectivity;
     std::vector<float> roughness;
     std::vector<float> metallic;
+    GpuArrayBuffer buffers;
     size_t size = 0;
 
     __MeshContainer(Mesh * m) : m(m) {}
@@ -439,15 +441,15 @@ private:
     void _recalculateProjMatrices();
     void _initLights(Pipeline * s, const Camera & c, 
                      const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights);
-    void _initInstancedData(__MeshContainer & c, std::vector<GLuint> & buffers);
-    void _clearInstancedData(std::vector<GLuint> & buffers);
+    void _initInstancedData(__MeshContainer & c, std::vector<GpuArrayBuffer> & gabuffers);
+    void _clearInstancedData(std::vector<GpuArrayBuffer> & gabuffers);
     void _bindShader(Pipeline *);
     void _unbindShader();
     void _performPostFxProcessing();
     void _finalizeFrame();
     void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
-    void _render(const Camera &, const RenderEntity *, const Mesh *, const size_t numInstances, bool removeViewTranslation = false);
+    void _render(const Camera &, const RenderEntity *, const Mesh *, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation = false);
     void _renderCSMDepth(const Camera &, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> &);
     void _renderQuad();
     ShadowMapHandle _getShadowMapHandleForLight(Light *);

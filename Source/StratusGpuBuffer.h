@@ -43,14 +43,15 @@ namespace stratus {
 
     // Holds different gpu buffers and can bind/unbind them all as a group
     struct GpuArrayBuffer {
-        GpuArrayBuffer() {}
+        GpuArrayBuffer();
         ~GpuArrayBuffer() = default;
 
         void AddBuffer(const GpuBuffer&);
         void Bind() const;
         void Unbind() const;
+        void Clear();
 
     private:
-        std::vector<GpuBuffer> _buffers;
+        std::shared_ptr<std::vector<GpuBuffer>> _buffers;
     };
 }

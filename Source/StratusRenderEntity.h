@@ -94,7 +94,6 @@ class Mesh {
     RenderData _data;
 
     struct _MeshData {
-        GLuint vao;
         // GLuint vbo;
         // GLuint ebo;
         GpuArrayBuffer buffers;
@@ -141,17 +140,7 @@ protected:
      * together, this will be called instead of render(). This call should be nearly identical
      * except it will call the graphics library instanced version of the draw function.
      */
-    void render(const int numInstances) const;
-
-    /**
-     * Binds any data buffers for the next call to render()
-     */
-    void bind() const;
-
-    /**
-     * Unbind all data buffers associated with rendering
-     */
-    void unbind() const;
+    void render(const int numInstances, const GpuArrayBuffer & additionalBuffers) const;
 
 private:
     void _setProperties(uint32_t properties);
