@@ -34,7 +34,7 @@ namespace stratus {
             else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
                 // for an example of glTexImage3D
-                glTexImage3D(GL_TEXTURE_2D, // target
+                glTexImage3D(GL_TEXTURE_2D_ARRAY, // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, 
@@ -99,9 +99,10 @@ namespace stratus {
 
         TextureType type() const              { return _config.type; }
         TextureComponentFormat format() const { return _config.format; }
-        _TextureHandle handle() const          { return _handle; }
+        _TextureHandle handle() const         { return _handle; }
         uint32_t width() const                { return _config.width; }
         uint32_t height() const               { return _config.height; }
+        uint32_t depth() const                { return _config.depth; }
         void * underlying() const             { return (void *)&_texture; }
 
     public:
@@ -343,6 +344,7 @@ namespace stratus {
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
+    uint32_t Texture::depth() const { return _impl->depth(); }
 
     void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
     void Texture::unbind() const { _impl->unbind(); }

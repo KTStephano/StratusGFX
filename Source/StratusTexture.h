@@ -116,6 +116,7 @@ namespace stratus {
 
         uint32_t width() const;
         uint32_t height() const;
+        uint32_t depth() const;
 
         void bind(int activeTexture = 0) const;
         void unbind() const;

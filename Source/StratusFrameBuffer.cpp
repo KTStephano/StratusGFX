@@ -179,6 +179,6 @@ namespace stratus {
 
     void FrameBuffer::bind() const         { _fbo->bind(); }
     void FrameBuffer::unbind() const       { _fbo->unbind(); }
-    bool FrameBuffer::valid() const        { return _fbo->valid(); }
+    bool FrameBuffer::valid() const        { return _fbo != nullptr && _fbo->valid(); }
     void * FrameBuffer::underlying() const { return _fbo->underlying(); }
 }

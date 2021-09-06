@@ -151,7 +151,6 @@ class Renderer {
     };
 
     struct CascadedShadowMap {
-        FrameBuffer fbo;
         glm::mat4 depthProjection; // Used during depth rendering
         glm::mat4 texelProjection; // Used for texel fetching during lighting stage
         glm::mat4 view;
@@ -167,6 +166,7 @@ class Renderer {
         std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
         std::vector<RenderEntity *> lightInteractingEntities;
         std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
+        FrameBuffer cascadeFbo;
         std::vector<CascadedShadowMap> csms;
         glm::vec4 cascadeShadowOffsets[2];
         InfiniteLight worldLight;

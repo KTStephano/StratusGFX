@@ -149,6 +149,7 @@ Renderer::Renderer(SDL_Window * window) {
 
     _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline({
         Shader{"../resources/shaders/csm.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/csm.gs", ShaderType::GEOMETRY},
         Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.csmDepth.get());
 
@@ -292,20 +293,20 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     std::vector<float> zmins;
     std::vector<float> zmaxs;
 
-    for (int i = 0; i < numCascades; ++i) {
-        if (recalculateFbos) {
-            // Create the depth buffer
-            // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-            Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, 0, false }, nullptr);
-            tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-            tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-            // We need to set this when using sampler2DShadow in the GLSL shader
-            tex.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
+    if (recalculateFbos) {
+        // Create the depth buffer
+        // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
+        Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, numCascades, false }, nullptr);
+        tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        // We need to set this when using sampler2DShadow in the GLSL shader
+        tex.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
-            // Create the frame buffer
-            _state.csms[i].fbo = FrameBuffer({ tex });
-        }
-    
+        // Create the frame buffer
+        _state.cascadeFbo = FrameBuffer({ tex });
+    }
+
+    for (int i = 0; i < numCascades; ++i) {
         const float ak = cascadeBegins[i];
         const float bk = cascadeEnds[i];
         aks.push_back(ak);
@@ -594,9 +595,8 @@ void Renderer::begin(bool clearScreen) {
         _state.buffer.fbo.clear(color);
         _state.lightingFbo.clear(color);
 
-        for (auto& csm : _state.csms) {
-            csm.fbo.clear(color);
-        }
+        // Depending on when this happens we may not have generated cascadeFbo yet
+        if (_state.cascadeFbo.valid()) _state.cascadeFbo.clear(color);
 
         for (auto& gaussian : _state.gaussianBuffers) {
             gaussian.fbo.clear(color);
@@ -930,27 +930,32 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
     glPolygonOffset(0.5f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
-    for (CascadedShadowMap & csm : _state.csms) {
-        csm.fbo.bind();
-        _state.csmDepth->setMat4("projection", &csm.depthProjection[0][0]);
-        _state.csmDepth->setMat4("view", &csm.view[0][0]);
-        const Texture * depth = csm.fbo.getDepthStencilAttachment();
-        if (!depth) {
-            throw std::runtime_error("Critical error: depth attachment not present");
-        }
-        glViewport(0, 0, depth->width(), depth->height());
-        // Render each entity into the depth map
-        for (auto & entityObservers : entities) {
-            for (auto & meshObservers : entityObservers.second) {
-                const RenderEntity * e = entityObservers.first.e;
-                const Mesh * m = meshObservers.first.m;
-                const size_t numInstances = meshObservers.second.size;
-                setCullState(m->cullingMode);
-                m->render(numInstances, meshObservers.second.buffers);
-            }
-        }
-        csm.fbo.unbind();
+
+    // Set up each individual view-projection matrix
+    for (int i = 0; i < _state.csms.size(); ++i) {
+        auto& csm = _state.csms[i];
+        _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionView[0][0]);
     }
+
+    // Render everything in a single pass
+    _state.cascadeFbo.bind();
+    const Texture * depth = _state.cascadeFbo.getDepthStencilAttachment();
+    if (!depth) {
+        throw std::runtime_error("Critical error: depth attachment not present");
+    }
+    glViewport(0, 0, depth->width(), depth->height());
+    // Render each entity into the depth map
+    for (auto & entityObservers : entities) {
+        for (auto & meshObservers : entityObservers.second) {
+            const RenderEntity * e = entityObservers.first.e;
+            const Mesh * m = meshObservers.first.m;
+            const size_t numInstances = meshObservers.second.size;
+            setCullState(m->cullingMode);
+            m->render(numInstances, meshObservers.second.buffers);
+        }
+    }
+    _state.cascadeFbo.unbind();
+
     _unbindShader();
     glDisable(GL_POLYGON_OFFSET_FILL);
 }
@@ -1539,8 +1544,9 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     lightColor = _state.worldLight.getColor() * _state.worldLight.getIntensity();
     s->setVec3("infiniteLightColor", &lightColor[0]);
 
+    s->bindTexture("infiniteLightShadowMap", *_state.cascadeFbo.getDepthStencilAttachment());
     for (int i = 0; i < 4; ++i) {
-        s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
+        //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionView[0][0]);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
