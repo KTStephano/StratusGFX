@@ -296,7 +296,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         if (recalculateFbos) {
             // Create the depth buffer
             // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-            Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, false }, nullptr);
+            Texture tex(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, 0, false }, nullptr);
             tex.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
             // We need to set this when using sampler2DShadow in the GLSL shader
@@ -445,29 +445,29 @@ void Renderer::_setWindowDimensions(int w, int h) {
     // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the depth buffer
-    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the frame buffer with all its texture attachments
@@ -478,17 +478,17 @@ void Renderer::_setWindowDimensions(int w, int h) {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
-    _state.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, false}, nullptr);
+    _state.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _state.windowWidth, _state.windowHeight, 0, false}, nullptr);
     _state.lightingDepthBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Attach the textures to the FBO
@@ -513,7 +513,7 @@ void Renderer::_initializePostFxBuffers() {
         currHeight /= 2;
         if (currWidth < 8 || currHeight < 8) break;
         PostFXBuffer buffer;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, false }, nullptr);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, 0, false }, nullptr);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -546,7 +546,7 @@ void Renderer::_initializePostFxBuffers() {
     for (auto&[width, height] : sizes) {
         PostFXBuffer buffer;
         ++_state.numUpsampleIterations;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, false }, nullptr);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, 0, false }, nullptr);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -957,7 +957,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
 
 void Renderer::end(const Camera & c) {
     //if (_state.worldLightingEnabled) {
-    //    _recalculateCascadeData(c);
+    //   _recalculateCascadeData(c);
     //}
     // TODO: Recalculate every scene?
     _recalculateCascadeData(c);
@@ -1396,7 +1396,7 @@ Model Renderer::loadModel(const std::string & file) {
 
 ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
-    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, false}, nullptr);
+    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, nullptr);
     smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 

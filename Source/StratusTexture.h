@@ -9,6 +9,7 @@ namespace stratus {
 
     enum class TextureType : int {
         TEXTURE_2D,
+        TEXTURE_2D_ARRAY,
         TEXTURE_3D
     };
 
@@ -84,6 +85,7 @@ namespace stratus {
         TextureComponentType dataType;
         uint32_t width;
         uint32_t height;
+        uint32_t depth;
         bool generateMipMaps;
     };
 

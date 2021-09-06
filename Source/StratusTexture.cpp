@@ -23,22 +23,41 @@ namespace stratus {
                 glTexImage2D(GL_TEXTURE_2D, // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
-                    config.width, config.height,
+                    config.width, 
+                    config.height,
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    data);
+                    data
+                );
+            }
+            else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
+                // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+                // for an example of glTexImage3D
+                glTexImage3D(GL_TEXTURE_2D, // target
+                    0, // level 
+                    _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
+                    config.width, 
+                    config.height, 
+                    config.depth,
+                    0,
+                    _convertFormat(config.format), // format (e.g. RGBA)
+                    _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
+                    data
+                );
             }
             else {
                 for (int face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 
                         _convertInternalFormat(config.format, config.storage, config.dataType),
-                        config.width, config.height, 
+                        config.width, 
+                        config.height,
                         0, 
                         _convertFormat(config.format),
                         _convertType(config.dataType, config.storage), 
-                        data);
+                        data
+                    );
                 }
             }
             if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_config.type));
@@ -110,11 +129,11 @@ namespace stratus {
 
     private:
         static GLenum _convertTexture(TextureType type) {
-            if (type == TextureType::TEXTURE_2D) {
-                return GL_TEXTURE_2D;
-            }
-            else {
-                return GL_TEXTURE_CUBE_MAP;
+            switch (type) {
+            case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
+            case TextureType::TEXTURE_2D_ARRAY: return GL_TEXTURE_2D_ARRAY;
+            case TextureType::TEXTURE_3D: return GL_TEXTURE_CUBE_MAP;
+            default: throw std::runtime_error("Unknown texture type");
             }
         }
 
