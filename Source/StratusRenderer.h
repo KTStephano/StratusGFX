@@ -231,7 +231,7 @@ class Renderer {
 
     struct TextureCache {
         std::string file;
-        TextureHandle handle = -1;
+        TextureHandle handle = TextureHandle::Null();
         Texture texture;
         /**
          * If true then the file is currently loaded into memory.
@@ -308,19 +308,16 @@ class Renderer {
      */
     mutable std::unordered_map<TextureHandle, TextureCache> _textureHandles;
 
-    // Next available handle
-    int _nextTextureHandle = 1;
-
     /**
      * Maps all shadow maps to a handle.
      */
-    std::unordered_map<ShadowMapHandle, ShadowMap3D> _shadowMap3DHandles;
+    std::unordered_map<TextureHandle, ShadowMap3D> _shadowMap3DHandles;
 
     // Lights -> Handles map
-    std::unordered_map<Light *, ShadowMapHandle> _lightsToShadowMap;
+    std::unordered_map<Light *, TextureHandle> _lightsToShadowMap;
 
     // Marks which maps are in use by an active light
-    std::unordered_set<ShadowMapHandle> _usedShadowMaps;
+    std::unordered_set<TextureHandle> _usedShadowMaps;
 
     // Marks which lights are currently in the cache
     std::list<Light *> _lruLightCache;
@@ -379,7 +376,7 @@ public:
      */
     Model loadModel(const std::string & file);
 
-    ShadowMapHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
+    TextureHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
 
     /**
      * Sets up the arguments for the perspective projection,
@@ -452,8 +449,8 @@ private:
     void _render(const Camera &, const RenderEntity *, const Mesh *, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation = false);
     void _renderCSMDepth(const Camera &, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> &);
     void _renderQuad();
-    ShadowMapHandle _getShadowMapHandleForLight(Light *);
-    void _setLightShadowMapHandle(Light *, ShadowMapHandle);
+    TextureHandle _getShadowMapHandleForLight(Light *);
+    void _setLightShadowMapHandle(Light *, TextureHandle);
     void _evictLightFromShadowMapCache(Light*);
     void _addLightToShadowMapCache(Light*);
     Texture _lookupTexture(TextureHandle handle) const;

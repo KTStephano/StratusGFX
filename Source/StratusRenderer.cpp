@@ -651,10 +651,10 @@ static void addEntityMeshData(RenderEntity * e, std::unordered_map<__RenderEntit
         }
         __MeshContainer & container = existing.find(o)->second;
         container.modelMatrices.push_back(e->model);
-        container.diffuseColors.push_back(m->getMaterial().diffuseColor);
-        container.baseReflectivity.push_back(m->getMaterial().baseReflectivity);
-        container.roughness.push_back(m->getMaterial().roughness);
-        container.metallic.push_back(m->getMaterial().metallic);
+        container.diffuseColors.push_back(m->getMaterial()->GetDiffuseColor());
+        container.baseReflectivity.push_back(m->getMaterial()->GetBaseReflectivity());
+        container.roughness.push_back(m->getMaterial()->GetRoughness());
+        container.metallic.push_back(m->getMaterial()->GetMetallic());
         ++container.size;
     }
 }
@@ -853,7 +853,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
     if (renderProperties & TEXTURED) {
         //_bindTexture(s, "diffuseTexture", m->getMaterial().texture);
-        s->bindTexture("diffuseTexture", _lookupTexture(m->getMaterial().texture));
+        s->bindTexture("diffuseTexture", _lookupTexture(m->getMaterial()->GetDiffuseTexture()));
         s->setBool("textured", true);
     }
     else {
@@ -862,11 +862,11 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
     // Determine which uniforms we should set
     if (lightProperties & FLAT) {
-        s->setVec3("diffuseColor", &m->getMaterial().diffuseColor[0]);
+        s->setVec3("diffuseColor", &m->getMaterial()->GetDiffuseColor()[0]);
     } else if (lightProperties & DYNAMIC) {
         if (renderProperties & NORMAL_MAPPED) {
             //_bindTexture(s, "normalMap", m->getMaterial().normalMap);
-            s->bindTexture("normalMap", _lookupTexture(m->getMaterial().normalMap));
+            s->bindTexture("normalMap", _lookupTexture(m->getMaterial()->GetNormalMap()));
             s->setBool("normalMapped", true);
         }
         else {
@@ -875,8 +875,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         if (renderProperties & HEIGHT_MAPPED) {
             //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-            s->bindTexture("depthMap", _lookupTexture(m->getMaterial().depthMap));
-            s->setFloat("heightScale", m->getMaterial().heightScale);
+            s->bindTexture("depthMap", _lookupTexture(m->getMaterial()->GetDepthMap()));
+            s->setFloat("heightScale", 0.01f);
             s->setBool("depthMapped", true);
         }
         else {
@@ -885,7 +885,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         if (renderProperties & ROUGHNESS_MAPPED) {
             //_bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
-            s->bindTexture("roughnessMap", _lookupTexture(m->getMaterial().roughnessMap));
+            s->bindTexture("roughnessMap", _lookupTexture(m->getMaterial()->GetRoughnessMap()));
             s->setBool("roughnessMapped", true);
         }
         else {
@@ -894,7 +894,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         if (renderProperties & AMBIENT_MAPPED) {
             //_bindTexture(s, "ambientOcclusionMap", m->getMaterial().ambientMap);
-            s->bindTexture("ambientOcclusionMap", _lookupTexture(m->getMaterial().ambientMap));
+            s->bindTexture("ambientOcclusionMap", _lookupTexture(m->getMaterial()->GetAmbientTexture()));
             s->setBool("ambientMapped", true);
         }
         else {
@@ -903,7 +903,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         if (renderProperties & SHININESS_MAPPED) {
             //_bindTexture(s, "metalnessMap", m->getMaterial().metalnessMap);
-            s->bindTexture("metalnessMap", _lookupTexture(m->getMaterial().metalnessMap));
+            s->bindTexture("metalnessMap", _lookupTexture(m->getMaterial()->GetMetallicMap()));
             s->setBool("metalnessMapped", true);
         }
         else {
@@ -1378,9 +1378,9 @@ TextureHandle Renderer::loadTexture(const std::string &file) {
 
     TextureCache tex;
     tex.file = file;
-    tex.handle = this->_nextTextureHandle++;
+    tex.handle = TextureHandle::NextHandle();
     tex.texture = _loadTexture(file);
-    if (!tex.texture.valid()) return -1;
+    if (!tex.texture.valid()) return TextureHandle::Null();
 
     _textures.insert(std::make_pair(file, tex));
     _textureHandles.insert(std::make_pair(tex.handle, tex));
@@ -1399,7 +1399,7 @@ Model Renderer::loadModel(const std::string & file) {
     return std::move(m);
 }
 
-ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
+TextureHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
     smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, nullptr);
     smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
@@ -1408,9 +1408,9 @@ ShadowMapHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resol
     smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
     if (!smap.frameBuffer.valid()) {
         _isValid = false;
-        return -1;
+        return TextureHandle::Null();
     }
-    TextureHandle handle = this->_nextTextureHandle++;
+    TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     return handle;
 }
@@ -1426,7 +1426,7 @@ void Renderer::invalidateAllTextures() {
 }
 
 Texture Renderer::_lookupTexture(TextureHandle handle) const {
-    if (handle == -1) return Texture();
+    if (handle == TextureHandle::Null()) return Texture();
 
     auto it = _textureHandles.find(handle);
     // TODO: Make sure that 0 actually signifies an invalid texture in OpenGL
@@ -1564,7 +1564,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
 
-ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
+TextureHandle Renderer::_getShadowMapHandleForLight(Light * light) {
     assert(_shadowMap3DHandles.size() > 0);
 
     auto it = _lightsToShadowMap.find(light);
@@ -1573,7 +1573,7 @@ ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
         // Mark the light as dirty since its map will need to be updated
         _lightsSeenBefore.find(light)->second.dirty = true;
 
-        ShadowMapHandle handle = -1;
+        TextureHandle handle;
         for (const auto & entry : _shadowMap3DHandles) {
             if (_usedShadowMaps.find(entry.first) == _usedShadowMaps.end()) {
                 handle = entry.first;
@@ -1581,7 +1581,7 @@ ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
             }
         }
 
-        if (handle == -1) {
+        if (handle == TextureHandle::Null()) {
             // Evict oldest since we could not find an available handle
             Light * oldest = _lruLightCache.front();
             _lruLightCache.pop_front();
@@ -1599,7 +1599,7 @@ ShadowMapHandle Renderer::_getShadowMapHandleForLight(Light * light) {
     return it->second;
 }
 
-void Renderer::_setLightShadowMapHandle(Light * light, ShadowMapHandle handle) {
+void Renderer::_setLightShadowMapHandle(Light * light, TextureHandle handle) {
     _lightsToShadowMap.insert(std::make_pair(light, handle));
     _usedShadowMaps.insert(handle);
 }

@@ -7,6 +7,7 @@
 
 #include "StratusCommon.h"
 #include "StratusMath.h"
+#include "StratusMaterial.h"
 #include <vector>
 #include <memory>
 #include "StratusGpuBuffer.h"
@@ -48,31 +49,6 @@ enum RenderFaceCulling {
     CULLING_CCW,    // Counter-clock-wise
 };
 
-/**
- * @see http://devernay.free.fr/cours/opengl/materials.html
- *
- * A material specifies how light will interact with a surface.
- */
-struct RenderMaterial {
-    glm::vec3 diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 baseReflectivity = glm::vec3(0.04f);
-    float roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
-    float metallic = 0.0f;
-    // Not required to have a texture
-    TextureHandle texture = -1;
-    // Not required to have a normal map
-    TextureHandle normalMap = -1;
-    // Not required to have a depth map
-    TextureHandle depthMap = -1;
-    // Not required to have a roughness map
-    TextureHandle roughnessMap = -1;
-    // Not required to have an ambient map
-    TextureHandle ambientMap = -1;
-    TextureHandle metalnessMap = -1;
-    float heightScale = 0.1;
-};
-
 class Mesh {
     friend class Renderer;
 
@@ -81,7 +57,7 @@ class Mesh {
      * used, diffuse/specular/ambient colors, as well as the
      * shininess factor.
      */
-    RenderMaterial _material;
+    MaterialPtr _material;
 
     /**
      * Encodes key information about _material using an enum.
@@ -118,8 +94,8 @@ public:
      * defines the way light interacts with the surface of this
      * object.
      */
-    void setMaterial(const RenderMaterial & material);
-    const RenderMaterial & getMaterial() const;
+    void setMaterial(const MaterialPtr & material);
+    const MaterialPtr & getMaterial() const;
     const RenderProperties & getRenderProperties() const;
     const RenderData & getRenderData() const;
 

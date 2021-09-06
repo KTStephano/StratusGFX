@@ -84,6 +84,7 @@ namespace stratus {
 
     private:
         void _InitLog();
+        void _InitMaterialManager();
 
     private:
         // Global engine instance - should only be set by EngineMain function

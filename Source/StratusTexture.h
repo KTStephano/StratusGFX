@@ -5,7 +5,7 @@
 
 namespace stratus {    
     class Texture;
-    typedef Handle<Texture> _TextureHandle;
+    typedef Handle<Texture> TextureHandle;
 
     enum class TextureType : int {
         TEXTURE_2D,
@@ -112,7 +112,7 @@ namespace stratus {
 
         TextureType type() const;
         TextureComponentFormat format() const;
-        _TextureHandle handle() const;
+        TextureHandle handle() const;
 
         uint32_t width() const;
         uint32_t height() const;

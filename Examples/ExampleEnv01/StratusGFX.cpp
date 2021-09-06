@@ -42,6 +42,15 @@ public:
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->scale = glm::vec3(1.0f);
         cube->meshes.push_back(std::make_shared<stratus::Cube>());
+        stratus::MaterialPtr lightMat;
+        if (!stratus::MaterialManager::Instance()->ContainsMaterial("Light")) {
+            lightMat = stratus::MaterialManager::Instance()->CreateMaterial("Light");
+            lightMat = lightMat->CreateSubMaterial();
+        }
+        else {
+            lightMat = stratus::MaterialManager::Instance()->GetMaterial("Light")->CreateSubMaterial();
+        }
+        cube->meshes[0]->setMaterial(lightMat);
         light = std::make_unique<stratus::PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
@@ -56,8 +65,8 @@ public:
         position = position + speed * _direction * float(deltaSeconds);
         cube->position = position;
         light->position = position;
-        stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
-        m.diffuseColor = light->getColor();
+        stratus::MaterialPtr m = cube->meshes[0]->getMaterial();
+        m->SetDiffuseColor(light->getColor());
         cube->meshes[0]->setMaterial(m);
 
         _elapsedSec += deltaSeconds;
@@ -74,8 +83,8 @@ struct StationaryLight : public RandomLightMover {
     void update(double deltaSeconds) override {
         cube->position = position;
         light->position = position;
-        stratus::RenderMaterial m = cube->meshes[0]->getMaterial();
-        m.diffuseColor = light->getColor();
+        stratus::MaterialPtr m = cube->meshes[0]->getMaterial();
+        m->SetDiffuseColor(light->getColor());
         cube->meshes[0]->setMaterial(m);
     }
 };
@@ -146,12 +155,12 @@ public:
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
             auto cube = std::make_shared<stratus::Cube>();
             auto quad = std::make_shared<stratus::Quad>();
-            stratus::RenderMaterial mat;
-            mat.texture = textures[texIndex];
-            mat.normalMap = normalMaps[texIndex];
-            mat.depthMap = depthMaps[texIndex];
-            mat.roughnessMap = roughnessMaps[texIndex];
-            mat.ambientMap = environmentMaps[texIndex];
+            stratus::MaterialPtr mat = stratus::MaterialManager::Instance()->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
+            mat->SetDiffuseTexture(textures[texIndex]);
+            mat->SetNormalMap(normalMaps[texIndex]);
+            mat->SetDepthMap(depthMaps[texIndex]);
+            mat->SetRoughnessMap(roughnessMaps[texIndex]);
+            mat->SetAmbientTexture(environmentMaps[texIndex]);
             cube->setMaterial(mat);
             quad->setMaterial(mat);
             cubeMeshes.push_back(cube);
@@ -173,7 +182,6 @@ public:
             textureIndices.push_back(texIndex);
         }
         //std::vector<std::unique_ptr<Cube>> cubes;
-        stratus::RenderMaterial cubeMat;
         //cubeMat.texture = renderer->loadTexture("../resources/textures/wood_texture.jpg");
         for (int i = 0; i < 5000; ++i) {
             size_t texIndex = rand() % textures.size();
@@ -415,7 +423,7 @@ public:
         //clay.scale = glm::vec3(1.0f);
         //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
         clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
-        clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
+        //clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
         renderer->addDrawable(&clay);
 
         stump.rotation = stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));

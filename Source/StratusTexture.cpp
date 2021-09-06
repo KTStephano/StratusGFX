@@ -9,11 +9,11 @@ namespace stratus {
         GLuint _texture;
         TextureConfig _config;
         mutable int _activeTexture = -1;
-        _TextureHandle _handle;
+        TextureHandle _handle;
 
     public:
         TextureImpl(const TextureConfig & config, const void * data) 
-            : _handle(_TextureHandle::NextHandle()) {
+            : _handle(TextureHandle::NextHandle()) {
             glGenTextures(1, &_texture);
 
             _config = config;
@@ -99,7 +99,7 @@ namespace stratus {
 
         TextureType type() const              { return _config.type; }
         TextureComponentFormat format() const { return _config.format; }
-        _TextureHandle handle() const         { return _handle; }
+        TextureHandle handle() const         { return _handle; }
         uint32_t width() const                { return _config.width; }
         uint32_t height() const               { return _config.height; }
         uint32_t depth() const                { return _config.depth; }
@@ -340,7 +340,7 @@ namespace stratus {
 
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
-    _TextureHandle Texture::handle() const { return _impl->handle(); }
+    TextureHandle Texture::handle() const { return _impl->handle(); }
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }

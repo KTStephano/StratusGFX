@@ -2,6 +2,8 @@
 
 #include <typeinfo>
 #include <atomic>
+#include <iostream>
+#include <ostream>
 
 namespace stratus {
     // Simple class for providing extremely light weight comparable handles. The purpose
@@ -41,6 +43,10 @@ namespace stratus {
         bool operator> (const Handle<E>& other) const { return _handle >  other._handle; }
         bool operator>=(const Handle<E>& other) const { return _handle >= other._handle; }
         operator bool() const { return _handle != 0; }
+
+        friend std::ostream& operator<<(std::ostream& os, const Handle<E>& h) {
+            return os << "Handle{" << h._handle << "}";
+        }
 
     private:
         // Local 64-bit unsigned handle - 0 == Null Handle

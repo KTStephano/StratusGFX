@@ -9,7 +9,7 @@
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {
-        TextureHandle texture = -1;
+        TextureHandle texture;
 
         STRATUS_LOG << "Tex count: " << mat->GetTextureCount(type) << std::endl;
         if (mat->GetTextureCount(type) > 0) {
@@ -24,7 +24,7 @@ namespace stratus {
     }
 
     // @see https://learnopengl.com/Model-Loading/Model
-    std::shared_ptr<Mesh> processMesh(Renderer & renderer, aiMesh * mesh, const aiScene * scene, const std::string & directory) {
+    std::shared_ptr<Mesh> processMesh(Renderer & renderer, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string & directory) {
         if (mesh->mNumUVComponents[0] == 0) return nullptr;
         std::vector<glm::vec3> vertices;
         std::vector<glm::vec2> uvs;
@@ -53,7 +53,7 @@ namespace stratus {
         // process material
         if (mesh->mMaterialIndex >= 0) {
             // Only support one material for now
-            RenderMaterial mat;
+            MaterialPtr mat = rootMat->CreateSubMaterial();
             aiMaterial * material = scene->mMaterials[mesh->mMaterialIndex];
 
             STRATUS_LOG << "mat\n";
@@ -69,18 +69,18 @@ namespace stratus {
             STRATUS_LOG << material->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
             STRATUS_LOG << material->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
 
-            mat.texture = loadMaterialTexture(renderer, material, aiTextureType_DIFFUSE, directory);
-            mat.normalMap = loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory);
-            mat.depthMap = loadMaterialTexture(renderer, material, aiTextureType_HEIGHT, directory);
-            mat.roughnessMap = loadMaterialTexture(renderer, material, aiTextureType_SHININESS, directory);
-            mat.ambientMap = loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory);
-            mat.metalnessMap = loadMaterialTexture(renderer, material, aiTextureType_SPECULAR, directory);
-            STRATUS_LOG << "m " << mat.texture << " "
-                << mat.normalMap << " "
-                << mat.depthMap << " "
-                << mat.roughnessMap << " "
-                << mat.ambientMap << " "
-                << mat.metalnessMap << std::endl;
+            mat->SetDiffuseTexture(loadMaterialTexture(renderer, material, aiTextureType_DIFFUSE, directory));
+            mat->SetNormalMap(loadMaterialTexture(renderer, material, aiTextureType_NORMALS, directory));
+            mat->SetDepthMap(loadMaterialTexture(renderer, material, aiTextureType_HEIGHT, directory));
+            mat->SetRoughnessMap(loadMaterialTexture(renderer, material, aiTextureType_SHININESS, directory));
+            mat->SetAmbientTexture(loadMaterialTexture(renderer, material, aiTextureType_AMBIENT, directory));
+            mat->SetMetallicMap(loadMaterialTexture(renderer, material, aiTextureType_SPECULAR, directory));
+            STRATUS_LOG << "m " << mat->GetDiffuseTexture() << " "
+                << mat->GetNormalMap() << " "
+                << mat->GetDepthMap() << " "
+                << mat->GetRoughnessMap() << " "
+                << mat->GetAmbientTexture() << " "
+                << mat->GetMetallicMap() << std::endl;
             m->setMaterial(mat);
         }
 
@@ -88,7 +88,7 @@ namespace stratus {
         return m;
     }  
 
-    static void processNode(Renderer & renderer, aiNode * node, const aiScene * scene, RenderEntity * entity, const std::string & directory) {
+    static void processNode(Renderer & renderer, aiNode * node, const aiScene * scene, RenderEntity * entity, MaterialPtr rootMat, const std::string & directory) {
         // set the transformation info
         auto mat = node->mTransformation;
         aiVector3t<float> scale;
@@ -98,9 +98,9 @@ namespace stratus {
 
         auto rotation = quat.GetMatrix();
         // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
-        const Degrees angleX = Degrees(std::atan2f(rotation.c2, rotation.c3));
-        const Degrees angleY = Degrees(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
-        const Degrees angleZ = Degrees(std::atan2f(rotation.b1, rotation.a1));
+        const Radians angleX = Radians(std::atan2f(rotation.c2, rotation.c3));
+        const Radians angleY = Radians(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
+        const Radians angleZ = Radians(std::atan2f(rotation.b1, rotation.a1));
 
         entity->scale = glm::vec3(scale.x, scale.y, scale.z);
         entity->rotation = Rotation(angleX, angleY, angleZ);
@@ -109,7 +109,7 @@ namespace stratus {
         // process all the node's meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-            auto sm = processMesh(renderer, mesh, scene, directory);
+            auto sm = processMesh(renderer, mesh, scene, rootMat, directory);
             if (!sm) continue;
             entity->meshes.push_back(sm);
         }
@@ -117,7 +117,7 @@ namespace stratus {
         // then do the same for each of its children
         for (uint32_t i = 0; i < node->mNumChildren; i++) {
             entity->nodes.push_back(RenderEntity(LightProperties::DYNAMIC));
-            processNode(renderer, node->mChildren[i], scene, &entity->nodes[entity->nodes.size() - 1], directory);
+            processNode(renderer, node->mChildren[i], scene, &entity->nodes[entity->nodes.size() - 1], rootMat, directory);
         }
     }
 
@@ -129,6 +129,8 @@ namespace stratus {
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
 
+        auto material = MaterialManager::Instance()->CreateMaterial(filename);
+
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             STRATUS_ERROR << "Error loading model: " << filename << std::endl << importer.GetErrorString() << std::endl;
             this->_valid = false;
@@ -136,7 +138,7 @@ namespace stratus {
         }
 
         const std::string directory = filename.substr(0, filename.find_last_of('/'));
-        processNode(renderer, scene->mRootNode, scene, this, directory);
+        processNode(renderer, scene->mRootNode, scene, this, material, directory);
     }
 
     Model::~Model() {}

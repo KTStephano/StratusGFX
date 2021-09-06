@@ -1,6 +1,7 @@
 #include "StratusEngine.h"
 #include "StratusThread.h"
 #include "StratusLog.h"
+#include "StratusMaterial.h"
 #include <atomic>
 #include <mutex>
 
@@ -179,6 +180,8 @@ namespace stratus {
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
+        _InitMaterialManager();
+
         // Initialize application last
         _params.application->Initialize();
 
@@ -189,6 +192,11 @@ namespace stratus {
     void Engine::_InitLog() {
         delete Log::_instance;
         Log::_instance = new Log();
+    }
+
+    void Engine::_InitMaterialManager() {
+        delete MaterialManager::_instance;
+        MaterialManager::_instance = new MaterialManager();
     }
 
     // Should be called before Shutdown()

@@ -13,8 +13,8 @@
 #define BITMASK64_POW2(offset) (1ull << offset)
 
 namespace stratus {
-typedef int TextureHandle;
-typedef int ShadowMapHandle;
+// typedef int TextureHandle;
+// typedef int ShadowMapHandle;
 typedef void * RenderDataHandle;
 
 /**

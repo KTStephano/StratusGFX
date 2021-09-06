@@ -177,22 +177,25 @@ void Mesh::_disableProperties(uint32_t properties) {
     _properties = (RenderProperties)p;
 }
 
-void Mesh::setMaterial(const RenderMaterial & material) {
+void Mesh::setMaterial(const MaterialPtr & material) {
     _material = material;
     _setProperties(RenderProperties::NONE);
-    if (material.texture != -1) {
+    if (material->GetDiffuseTexture()) {
         _enableProperties(TEXTURED);
     }
-    if (material.normalMap != -1) {
+    if (material->GetNormalMap()) {
         _enableProperties(NORMAL_MAPPED);
     }
-    if (material.depthMap != -1) {
+    if (material->GetDepthMap()) {
         _enableProperties(HEIGHT_MAPPED);
     }
-    if (material.ambientMap != -1) {
+    if (material->GetAmbientTexture()) {
         _enableProperties(AMBIENT_MAPPED);
     }
-    if (material.metalnessMap != -1) {
+    if (material->GetRoughnessMap()) {
+        _enableProperties(ROUGHNESS_MAPPED);
+    }
+    if (material->GetMetallicMap()) {
         _enableProperties(SHININESS_MAPPED);
     }
 }
@@ -201,7 +204,7 @@ const RenderProperties & Mesh::getRenderProperties() const {
     return _properties;
 }
 
-const RenderMaterial & Mesh::getMaterial() const {
+const MaterialPtr & Mesh::getMaterial() const {
     return _material;
 }
 
@@ -226,24 +229,14 @@ void Mesh::render(const int numInstances, const GpuArrayBuffer & additionalBuffe
 size_t Mesh::hashCode() const {
     return std::hash<void *>{}(getRenderData().data) +
         std::hash<int>{}(int(getRenderProperties())) +
-        std::hash<int>{}(getMaterial().texture) +
-        std::hash<int>{}(getMaterial().normalMap) +
-        std::hash<int>{}(getMaterial().depthMap) +
-        std::hash<int>{}(getMaterial().roughnessMap) +
-        std::hash<int>{}(getMaterial().ambientMap) +
-        std::hash<int>{}(getMaterial().metalnessMap) +
+        std::hash<MaterialPtr>{}(_material) +
         std::hash<int>{}(cullingMode);
 }
 
 bool Mesh::operator==(const Mesh & m) const {
     return getRenderData().data == m.getRenderData().data &&
         getRenderProperties() == m.getRenderProperties() &&
-        getMaterial().texture == m.getMaterial().texture &&
-        getMaterial().normalMap == m.getMaterial().normalMap &&
-        getMaterial().depthMap == m.getMaterial().depthMap &&
-        getMaterial().roughnessMap == m.getMaterial().roughnessMap &&
-        getMaterial().ambientMap == m.getMaterial().ambientMap &&
-        getMaterial().metalnessMap == m.getMaterial().metalnessMap &&
+        getMaterial() == m.getMaterial() &&
         cullingMode == m.cullingMode;
 }
 
