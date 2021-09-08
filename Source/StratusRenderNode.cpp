@@ -1,68 +1,6 @@
 #include "StratusRenderNode.h"
 #include "StratusUtils.h"
 
-    // // A render node contains one or more material+mesh combinations as well as
-    // // a local transform. A render node itself is meant to be attached to an Entity
-    // // and the full world transform is derived by doing Entity->Transform * Node->Transform.
-    // struct RenderNode {
-    //     // Deep copy of transform data - shallow copy of render data
-    //     RenderNodePtr Copy() const;
-
-    //     size_t GetNumMeshContainers() const;
-    //     const RenderMeshContainer * GetMeshContainer(size_t index) const;
-    //     void AddMeshContainer(const RenderMeshContainer&);
-
-    //     // Sets the material for all mesh containers
-    //     void SetMaterial(const MaterialPtr&);
-    //     // Sets material for individual container
-    //     void SetMaterialFor(size_t containerIndex, const MaterialPtr&);
-
-    //     // Transform info
-    //     void SetLocalPosition(const glm::vec3&);
-    //     void SetLocalRotation(const Rotation&);
-    //     void SetLocalScale(const glm::vec3&);
-    //     void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
-    //     // Called by Entity when its transform info changes
-    //     void SetWorldTransform(const glm::mat4&);
-
-    //     const glm::vec3& GetLocalPosition() const;
-    //     const Rotation& GetLocalRotation() const;
-    //     const glm::vec3& GetLocalScale() const;
-    //     const glm::mat4& GetWorldTransform() const;
-
-    //     // True by default
-    //     void EnableLightInteraction(bool enabled);
-    //     void SetFaceCullMode(const RenderFaceCulling&);
-
-    //     bool GetLightInteractionEnabled() const;
-    //     RenderFaceCulling GetFaceCullMode() const;
-
-    //     bool operator==(const RenderNode& other) const {
-    //         if (GetNumMeshContainers() != other.GetNumMeshContainers()) return false;
-    //         // Lit entities have a separate pipeline from non-lit entities
-    //         if (_lightInteractionEnabled != other._lightInteractionEnabled) return false;
-    //         for (size_t i = 0; i < GetNumMeshContainers(); ++i) {
-    //             if ((GetMeshContainer(i)->mesh != other.GetMeshContainer(i)->mesh) ||
-    //                 (GetMeshContainer(i)->material != other.GetMeshContainer(i)->material)) {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     bool operator!=(const RenderNode& other) const {
-    //         return !(*this == other);
-    //     }
-
-    // private:
-    //     std::vector<RenderMeshContainer> _meshes;
-    //     glm::vec3 _position = glm::vec3(0.0f);
-    //     Rotation _rotation;
-    //     glm::vec3 _scale = glm::vec3(1.0f);
-    //     glm::mat4 _worldTransform = glm::mat4(1.0f);
-    //     bool _lightInteractionEnabled = true;
-    //     RenderFaceCulling _cullMode;
-    // };
-
 namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
         _vertices.push_back(v);

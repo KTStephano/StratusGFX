@@ -126,4 +126,14 @@ TEST_CASE( "Stratus Async Test", "[stratus_async_test]" ) {
     callbackThread.Synchronize();
 
     REQUIRE(called.load() == true);
+
+    // Test auto-complete when result is given
+    auto intcallback = stratus::Async<int>(std::make_shared<int>(10));
+    REQUIRE(intcallback.Completed() == true);
+    REQUIRE(intcallback.Failed() == false);
+    REQUIRE(intcallback.Get() == 10);
+
+    intcallback = stratus::Async<int>(nullptr);
+    REQUIRE(intcallback.Completed() == true);
+    REQUIRE(intcallback.Failed() == true);
 }
