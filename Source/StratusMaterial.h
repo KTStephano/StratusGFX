@@ -22,7 +22,7 @@ namespace stratus {
         friend class MaterialManager;
 
         // Only material manager should create
-        Material(const std::string& name);
+        Material(const std::string& name, bool registerSelf);
 
     public:
         ~Material();
@@ -74,10 +74,14 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+
+        void _Release();
     
     private:
         mutable std::shared_mutex _mutex;
         std::string _name;
+        // Register self with material manager
+        bool _registerSelf;
         glm::vec3 _diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _baseReflectivity = glm::vec3(0.04f);
@@ -115,6 +119,7 @@ namespace stratus {
         // is dropped the material will go out of scope
         void ReleaseMaterial(const std::string& name);
         MaterialPtr GetMaterial(const std::string& name) const;
+        MaterialPtr GetOrCreateMaterial(const std::string& name);
         bool ContainsMaterial(const std::string& name) const;
         std::vector<MaterialPtr> GetAllMaterials() const;
 

@@ -3,8 +3,8 @@
 namespace stratus {
     MaterialManager * MaterialManager::_instance = nullptr;
 
-    Material::Material(const std::string& name)
-        : _name(name) {}
+    Material::Material(const std::string& name, bool registerSelf)
+        : _name(name), _registerSelf(registerSelf) {}
 
     Material::~Material() {}
 
@@ -31,9 +31,14 @@ namespace stratus {
 
     MaterialPtr Material::CreateSubMaterial() {
         auto ul = _LockWrite();
-        auto mat = MaterialPtr(new Material(_name + std::to_string(_subMats.size() + 1)));
+        auto mat = MaterialPtr(new Material(_name + std::to_string(_subMats.size() + 1), false));
         _subMats.push_back(mat);
         return mat;
+    }
+
+    void Material::_Release() {
+        auto ul = _LockWrite();
+        _registerSelf = false;
     }
 
     // Get and set material properties
@@ -159,7 +164,7 @@ namespace stratus {
         MaterialPtr mat = GetMaterial(name);
         if (mat != nullptr) return mat;
 
-        mat = MaterialPtr(new Material(name));
+        mat = MaterialPtr(new Material(name, true));
         // If we fail to insert, return the one we have
         if (!_materials.InsertIfAbsent(std::make_pair(name, mat))) {
             return GetMaterial(name);
@@ -169,13 +174,23 @@ namespace stratus {
 
     void MaterialManager::ReleaseMaterial(const std::string& name) {
         STRATUS_LOG << "Releasing material: " << name << std::endl;
-        _materials.Remove(name);
+        auto mat = GetMaterial(name);
+        if (mat) {
+            mat->_Release();
+            _materials.Remove(name);
+        }
     }
 
     MaterialPtr MaterialManager::GetMaterial(const std::string& name) const {
         auto it = _materials.Find(name);
         if (it != _materials.End()) return it->second;
         return nullptr;
+    }
+
+    MaterialPtr MaterialManager::GetOrCreateMaterial(const std::string& name) {
+        auto mat = GetMaterial(name);
+        if (mat) return mat;
+        return CreateMaterial(name);
     }
 
     bool MaterialManager::ContainsMaterial(const std::string& name) const {

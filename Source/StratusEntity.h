@@ -112,6 +112,8 @@ namespace stratus {
         virtual const glm::vec3& GetScale() const;
         virtual void SetScale(const glm::vec3&);
 
+        virtual void SetPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
+
         // World transform is relative to the entity's parent
         virtual const glm::mat4& GetWorldTransform() const;
         // Local transform is only taking into account this current entity

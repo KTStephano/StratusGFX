@@ -15,7 +15,7 @@
 namespace stratus {
 // typedef int TextureHandle;
 // typedef int ShadowMapHandle;
-typedef void * RenderDataHandle;
+// typedef void * RenderDataHandle;
 
 /**
  * This class includes all of the most common functions
