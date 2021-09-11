@@ -85,6 +85,13 @@ namespace stratus {
     private:
         void _InitLog();
         void _InitMaterialManager();
+        void _InitResourceManager();
+
+        template<typename E>
+        void _DeleteResource(E *& ptr) {
+            delete ptr;
+            ptr = nullptr;
+        }
 
     private:
         // Global engine instance - should only be set by EngineMain function

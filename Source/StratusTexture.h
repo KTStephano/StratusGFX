@@ -91,6 +91,7 @@ namespace stratus {
 
     class TextureImpl;
     class Texture {
+        friend class ResourceManager;
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> _impl;
 
@@ -98,7 +99,7 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const void * data);
+        Texture(const TextureConfig & config, const void * data, bool initHandle = true);
         ~Texture();
 
         Texture(const Texture &) = default;
@@ -132,6 +133,9 @@ namespace stratus {
         // Creates a new texture and copies this texture into it
         Texture copy(uint32_t newWidth, uint32_t newHeight);
         const TextureConfig & getConfig() const;
+
+    private:
+        void _setHandle(const TextureHandle);
     };
 }
 

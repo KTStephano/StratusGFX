@@ -6,6 +6,7 @@
 #include "StratusRenderer.h"
 #include "StratusUtils.h"
 #include "StratusLog.h"
+#include "StratusResourceManager.h"
 
 namespace stratus {
     TextureHandle loadMaterialTexture(Renderer & renderer, aiMaterial * mat, const aiTextureType & type, const std::string & directory) {
@@ -17,7 +18,7 @@ namespace stratus {
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
             STRATUS_LOG << file << std::endl;
-            texture = renderer.loadTexture(directory + "/" + file);
+            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file);
         }
 
         return texture;

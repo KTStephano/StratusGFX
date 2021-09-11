@@ -17,6 +17,7 @@
 #include "StratusLight.h"
 #include "StratusMath.h"
 #include "StratusGpuBuffer.h"
+#include "StratusThread.h"
 
 namespace stratus {
 class Pipeline;
@@ -117,18 +118,6 @@ namespace std {
 
 namespace stratus {
 class Renderer {
-    enum RTextureType {
-        TEXTURE_2D,
-        TEXTURE_CUBE_MAP
-    };
-
-    struct BoundTextureInfo {
-        int textureIndex;
-        GLuint texture;
-        RTextureType type;
-        std::string name;
-    };
-
     struct EntityStateInfo {
         glm::vec3 lastPos;
         glm::vec3 lastScale;
@@ -289,7 +278,7 @@ class Renderer {
     /**
      * Contains a list of textures that have been loaded into memory.
      */
-    mutable std::unordered_map<std::string, TextureCache> _textures;
+    //mutable std::unordered_map<std::string, TextureCache> _textures;
 
     /**
      * Set of lights added at some point during any frame.
@@ -306,7 +295,7 @@ class Renderer {
      * that it can be indexed by a TextureHandle for fast lookup of
      * texture handles attached to Material objects.
      */
-    mutable std::unordered_map<TextureHandle, TextureCache> _textureHandles;
+    //mutable std::unordered_map<TextureHandle, TextureCache> _textureHandles;
 
     /**
      * Maps all shadow maps to a handle.
@@ -357,7 +346,7 @@ public:
 
     const Pipeline * getCurrentShader() const;
 
-    void invalidateAllTextures();
+    //void invalidateAllTextures();
 
     void recompileShaders();
 
@@ -368,7 +357,7 @@ public:
      * @param texture
      * @return texture handle of valid or -1 if invalid
      */
-    TextureHandle loadTexture(const std::string & file);
+    //TextureHandle loadTexture(const std::string & file);
 
     /**
      * Attempts to load a model if not already loaded. Be sure to check
@@ -453,7 +442,8 @@ private:
     void _setLightShadowMapHandle(Light *, TextureHandle);
     void _evictLightFromShadowMapCache(Light*);
     void _addLightToShadowMapCache(Light*);
-    Texture _lookupTexture(TextureHandle handle) const;
+    Async<Texture> _lookupTexture(TextureHandle handle) const;
+    Texture _lookupShadowmapTexture(TextureHandle handle) const;
     void _recalculateCascadeData(const Camera&);
     void _validateAllShaders();
 };

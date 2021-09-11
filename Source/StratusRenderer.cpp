@@ -11,8 +11,7 @@
 #include "StratusUtils.h"
 #include "StratusMath.h"
 #include "StratusLog.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "STBImage.h"
+#include "StratusResourceManager.h"
 
 namespace stratus {
 bool __RenderEntityObserver::operator==(const __RenderEntityObserver & c) const {
@@ -181,7 +180,6 @@ Renderer::~Renderer() {
     }
     for (Pipeline * shader : _shaders) delete shader;
     _shaders.clear();
-    invalidateAllTextures();
 
     // Delete the main frame buffer
     _clearGBuffer();
@@ -819,6 +817,10 @@ void Renderer::_buildEntityList(const Camera & c) {
     }
 }
 
+static bool ValidateTexture(const Async<Texture> & tex) {
+    return tex.Completed() && !tex.Failed();
+}
+
 void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation) {
     const glm::mat4 & projection = _state.perspective;
     //const glm::mat4 & view = c.getViewTransform();
@@ -851,10 +853,19 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
     s->setMat4("projection", &projection[0][0]);
     s->setMat4("view", &view[0][0]);
 
+    Async<Texture> tex;
+
+#define SETUP_TEXTURE(name, flag, handle)           \
+        tex = _lookupTexture(handle);               \
+        const bool valid = ValidateTexture(tex);    \
+        s->setBool(flag, valid);                    \
+        if (valid) {                                \
+            s->bindTexture(name, tex.Get());        \
+        }
+
+
     if (renderProperties & TEXTURED) {
-        //_bindTexture(s, "diffuseTexture", m->getMaterial().texture);
-        s->bindTexture("diffuseTexture", _lookupTexture(m->getMaterial()->GetDiffuseTexture()));
-        s->setBool("textured", true);
+        SETUP_TEXTURE("diffuseTexture", "textured", m->getMaterial()->GetDiffuseTexture())
     }
     else {
         s->setBool("textured", false);
@@ -865,9 +876,7 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
         s->setVec3("diffuseColor", &m->getMaterial()->GetDiffuseColor()[0]);
     } else if (lightProperties & DYNAMIC) {
         if (renderProperties & NORMAL_MAPPED) {
-            //_bindTexture(s, "normalMap", m->getMaterial().normalMap);
-            s->bindTexture("normalMap", _lookupTexture(m->getMaterial()->GetNormalMap()));
-            s->setBool("normalMapped", true);
+            SETUP_TEXTURE("normalMap", "normalMapped", m->getMaterial()->GetNormalMap())
         }
         else {
             s->setBool("normalMapped", false);
@@ -875,36 +884,29 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         if (renderProperties & HEIGHT_MAPPED) {
             //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-            s->bindTexture("depthMap", _lookupTexture(m->getMaterial()->GetDepthMap()));
             s->setFloat("heightScale", 0.01f);
-            s->setBool("depthMapped", true);
+            SETUP_TEXTURE("depthMap", "depthMapped", m->getMaterial()->GetDepthMap())
         }
         else {
             s->setBool("depthMapped", false);
         }
 
         if (renderProperties & ROUGHNESS_MAPPED) {
-            //_bindTexture(s, "roughnessMap", m->getMaterial().roughnessMap);
-            s->bindTexture("roughnessMap", _lookupTexture(m->getMaterial()->GetRoughnessMap()));
-            s->setBool("roughnessMapped", true);
+            SETUP_TEXTURE("roughnessMap", "roughnessMapped", m->getMaterial()->GetRoughnessMap());
         }
         else {
             s->setBool("roughnessMapped", false);
         }
 
         if (renderProperties & AMBIENT_MAPPED) {
-            //_bindTexture(s, "ambientOcclusionMap", m->getMaterial().ambientMap);
-            s->bindTexture("ambientOcclusionMap", _lookupTexture(m->getMaterial()->GetAmbientTexture()));
-            s->setBool("ambientMapped", true);
+            SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", m->getMaterial()->GetAmbientTexture())
         }
         else {
             s->setBool("ambientMapped", false);
         }
 
         if (renderProperties & SHININESS_MAPPED) {
-            //_bindTexture(s, "metalnessMap", m->getMaterial().metalnessMap);
-            s->bindTexture("metalnessMap", _lookupTexture(m->getMaterial()->GetMetallicMap()));
-            s->setBool("metalnessMapped", true);
+            SETUP_TEXTURE("metalnessMap", "metalnessMapped", m->getMaterial()->GetMetallicMap())
         }
         else {
             s->setBool("metalnessMapped", false);
@@ -912,6 +914,8 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
         s->setVec3("viewPosition", &c.getPosition()[0]);
     }
+
+#undef SETUP_TEXTURE
 
     // Perform instanced rendering
     setCullState(m->cullingMode);
@@ -1328,65 +1332,6 @@ void Renderer::_renderQuad() {
     _state.screenQuad->render(1, GpuArrayBuffer());
 }
 
-static Texture _loadTexture(const std::string & file) {
-    Texture texture;
-    int width, height, numChannels;
-    // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
-    uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
-    if (data) {
-        TextureConfig config;
-        config.type = TextureType::TEXTURE_2D;
-        config.storage = TextureComponentSize::BITS_DEFAULT;
-        config.generateMipMaps = true;
-        config.dataType = TextureComponentType::UINT;
-        config.width = (uint32_t)width;
-        config.height = (uint32_t)height;
-        // This loads the textures with sRGB in mind so that they get converted back
-        // to linear color space. Warning: if the texture was not actually specified as an
-        // sRGB texture (common for normal/specular maps), this will cause problems.
-        switch (numChannels) {
-            case 1:
-                config.format = TextureComponentFormat::RED;
-                break;
-            case 3:
-                config.format = TextureComponentFormat::SRGB;
-                break;
-            case 4:
-                config.format = TextureComponentFormat::SRGB_ALPHA;
-                break;
-            default:
-                STRATUS_ERROR << "[error] Unknown texture loading error - format may be invalid" << std::endl;
-                stbi_image_free(data);
-                return Texture();
-        }
-
-        texture = Texture(config, data);
-        texture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
-        texture.setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
-    } else {
-        STRATUS_ERROR << "[error] Could not load texture: " << file << std::endl;
-        return Texture();
-    }
-    
-    stbi_image_free(data);
-    return texture;
-}
-
-TextureHandle Renderer::loadTexture(const std::string &file) {
-    auto it = _textures.find(file);
-    if (it != _textures.end()) return it->second.handle;
-
-    TextureCache tex;
-    tex.file = file;
-    tex.handle = TextureHandle::NextHandle();
-    tex.texture = _loadTexture(file);
-    if (!tex.texture.valid()) return TextureHandle::Null();
-
-    _textures.insert(std::make_pair(file, tex));
-    _textureHandles.insert(std::make_pair(tex.handle, tex));
-    return tex.handle;
-}
-
 Model Renderer::loadModel(const std::string & file) {
     auto it = this->_models.find(file);
     if (it != this->_models.end()) {
@@ -1415,38 +1360,20 @@ TextureHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolut
     return handle;
 }
 
-void Renderer::invalidateAllTextures() {
-    for (auto & texture : _textures) {
-        //glDeleteTextures(1, &texture.second.texture);
-        texture.second.texture = Texture();
-        // Make sure we mark it as unloaded just in case someone tries
-        // to use it in the future
-        texture.second.loaded = false;
-    }
+Async<Texture> Renderer::_lookupTexture(TextureHandle handle) const {
+    Async<Texture> ret;
+    ResourceManager::Instance()->GetTexture(handle, ret);
+    return ret;
 }
 
-Texture Renderer::_lookupTexture(TextureHandle handle) const {
+Texture Renderer::_lookupShadowmapTexture(TextureHandle handle) const {
     if (handle == TextureHandle::Null()) return Texture();
 
-    auto it = _textureHandles.find(handle);
-    // TODO: Make sure that 0 actually signifies an invalid texture in OpenGL
-    if (it == _textureHandles.end()) {
-        if (_shadowMap3DHandles.find(handle) == _shadowMap3DHandles.end()) return Texture();
-        return _shadowMap3DHandles.find(handle)->second.shadowCubeMap;
+    if (_shadowMap3DHandles.find(handle) == _shadowMap3DHandles.end()) {
+        return Texture();
     }
 
-    // If not in memory then bring it in
-    if (!it->second.loaded) {
-        TextureCache tex = it->second;
-        tex.texture = _loadTexture(tex.file);
-        tex.loaded = tex.texture.valid();
-        _textures.erase(tex.file);
-        _textures.insert(std::make_pair(tex.file, tex));
-        _textureHandles.erase(handle);
-        _textureHandles.insert(std::make_pair(handle, tex));
-        return tex.texture;
-    }
-    return it->second.texture;
+    return _shadowMap3DHandles.find(handle)->second.shadowCubeMap;
 }
 
 // TODO: Need a way to clean up point light resources
@@ -1502,7 +1429,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
         if (light->castsShadows() && shadowLightIndex < maxShadowLights) {
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", light->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
-            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _lookupTexture(_getShadowMapHandleForLight(light)));
+            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _lookupShadowmapTexture(_getShadowMapHandleForLight(light)));
             ++shadowLightIndex;
         }
         ++lightIndex;
@@ -1512,7 +1439,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
        // If we don't do this the fragment shader crashes
        s->setFloat("lightFarPlanes[0]", 0.0f);
        //_bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
-       s->bindTexture("shadowCubeMaps[0]", _lookupTexture(_state.dummyCubeMap));
+       s->bindTexture("shadowCubeMaps[0]", _lookupShadowmapTexture(_state.dummyCubeMap));
     }
 
     s->setFloat("ambientIntensity", 0.0001f);

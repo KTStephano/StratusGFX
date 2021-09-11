@@ -12,8 +12,11 @@ namespace stratus {
         TextureHandle _handle;
 
     public:
-        TextureImpl(const TextureConfig & config, const void * data) 
-            : _handle(TextureHandle::NextHandle()) {
+        TextureImpl(const TextureConfig & config, const void * data, bool initHandle) {
+            if (initHandle) {
+                _handle = TextureHandle::NextHandle();
+            }
+
             glGenTextures(1, &_texture);
 
             _config = config;
@@ -95,6 +98,10 @@ namespace stratus {
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
             glTexParameterf(_convertTexture(_config.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
             unbind();
+        }
+
+        void setHandle(const TextureHandle handle) {
+            _handle = handle;
         }
 
         TextureType type() const              { return _config.type; }
@@ -328,8 +335,8 @@ namespace stratus {
     };
 
     Texture::Texture() {}
-    Texture::Texture(const TextureConfig & config, const void * data) {
-        _impl = std::make_shared<TextureImpl>(config, data);
+    Texture::Texture(const TextureConfig & config, const void * data, bool initHandle) {
+        _impl = std::make_shared<TextureImpl>(config, data, initHandle);
     }
 
     Texture::~Texture() {}
@@ -367,5 +374,9 @@ namespace stratus {
 
     const TextureConfig & Texture::getConfig() const {
         return _impl->getConfig();
+    }
+
+    void Texture::_setHandle(const TextureHandle handle) {
+        _impl->setHandle(handle);
     }
 }

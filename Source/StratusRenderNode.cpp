@@ -228,7 +228,7 @@ namespace stratus {
         _lightInteractionEnabled = enabled;
     }
 
-    void RenderNode::SetFaceCullMode(const RenderFaceCulling& mode) {
+    void RenderNode::SetFaceCullMode(const _RenderFaceCulling& mode) {
         _cullMode = mode;
     }
 
@@ -236,7 +236,7 @@ namespace stratus {
         return _lightInteractionEnabled;
     }
 
-    RenderFaceCulling RenderNode::GetFaceCullMode() const {
+    _RenderFaceCulling RenderNode::GetFaceCullMode() const {
         return _cullMode;
     }
 

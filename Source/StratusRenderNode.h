@@ -8,7 +8,7 @@
 #include "StratusMath.h"
 
 namespace stratus {
-    enum RenderFaceCulling {
+    enum class _RenderFaceCulling {
         CULLING_NONE,
         CULLING_CW,     // Clock-wise
         CULLING_CCW,    // Counter-clock-wise
@@ -86,10 +86,10 @@ namespace stratus {
 
         // True by default
         void EnableLightInteraction(bool enabled);
-        void SetFaceCullMode(const RenderFaceCulling&);
+        void SetFaceCullMode(const _RenderFaceCulling&);
 
         bool GetLightInteractionEnabled() const;
-        RenderFaceCulling GetFaceCullMode() const;
+        _RenderFaceCulling GetFaceCullMode() const;
 
         bool operator==(const RenderNode& other) const;
         bool operator!=(const RenderNode& other) const { return !(*this == other); }
@@ -103,6 +103,6 @@ namespace stratus {
         mutable glm::mat4 _worldTransform = glm::mat4(1.0f);
         glm::mat4 _worldEntityTransform = glm::mat4(1.0f);
         bool _lightInteractionEnabled = true;
-        RenderFaceCulling _cullMode;
+        _RenderFaceCulling _cullMode;
     };
 }

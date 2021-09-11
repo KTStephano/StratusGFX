@@ -6,6 +6,11 @@
 #include <ostream>
 
 namespace stratus {
+    inline uint64_t __NextHandle() {
+        static std::atomic<uint64_t> next(1);
+        return next.fetch_add(1);
+    }
+
     // Simple class for providing extremely light weight comparable handles. The purpose
     // of the template is to allow for differentiation between handles use by different
     // subsystems. For example, Handle<Texture> effectively creates a Texture Handle that
@@ -28,8 +33,7 @@ namespace stratus {
 
         // Static methods for creating new handles
         static Handle<E> NextHandle() {
-            static std::atomic<uint64_t> next(1);
-            return Handle<E>(next.fetch_add(1));
+            return Handle<E>(__NextHandle());
         }
         
         static Handle<E> Null() { return Handle<E>(); }

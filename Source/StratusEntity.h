@@ -5,9 +5,12 @@
 #include "StratusCommon.h"
 #include "StratusHandle.h"
 #include "StratusMath.h"
+#include "StratusRenderNode.h"
 #include <any>
 #include <memory>
 #include <vector>
+#include <unordered_set>
+#include <atomic>
 
 namespace stratus {
     struct Entity;
@@ -78,7 +81,7 @@ namespace stratus {
         EntityComponentHandle GetHandle() const { return _handle; }
 
         // Deep copy of this component
-        EntityComponentPtr Copy() const;
+        virtual EntityComponentPtr Copy() const = 0;
     
     private:
         // Specifies which events this component is interested in
@@ -91,7 +94,10 @@ namespace stratus {
      * Entity which stores relevant gameplay logic, rendering, physics and audio data. Only
      * one thread should handle an Entity tree at a time.
      */
-    struct Entity {
+    struct Entity : public std::enable_shared_from_this<Entity> {
+    public:
+        static EntityPtr Create();
+
         Entity();
         virtual ~Entity();
 
@@ -130,21 +136,45 @@ namespace stratus {
         virtual void ClearQueuedEvents();
 
         // Functions for dealing with parent and child entities
-        virtual void SetParent(EntityPtr);
         virtual EntityPtr GetParent() const;
 
         virtual void AttachChild(EntityPtr);
         virtual void DetachChild(EntityPtr);
-        virtual const std::vector<EntityPtr>& GetChildren() const;
+        virtual const std::unordered_set<EntityPtr>& GetChildren() const;
 
-        virtual EntityHandle GetHandle() const;
+        EntityHandle GetHandle() const;
+        uint64_t GetRefCount() const;
 
         // Functions for setting (optional) entity name and getting it
         virtual void SetName(const std::string&);
         virtual const std::string& GetName() const;
 
+        RenderNodePtr GetRenderNode() const;
+        void SetRenderNode(const RenderNodePtr&);
+
         // Creates a deep copy of this entity, its components, and all other nodes
-        EntityPtr Copy() const;
+        virtual EntityPtr Copy() const;
+
+    protected:
+        virtual void Copy(EntityPtr&) const;
+        void IncrRefCount();
+        void DecrRefCount();
+
+    private:
+        void _SetParent(EntityPtr);
+        void _RecalcTransform();
+
+    private:
+        EntityPtr _parent;
+        EntityHandle _handle;
+        std::shared_ptr<std::atomic<uint64_t>> _refCount;
+        std::unordered_set<EntityPtr> _children;
+        RenderNodePtr _renderNode;
+        glm::vec3 _position;
+        Rotation _rotation;
+        glm::vec3 _scale;
+        glm::mat4 _localTransform = glm::mat4(1.0f);
+        glm::mat4 _worldTransform = glm::mat4(1.0f);
     };
 }
 

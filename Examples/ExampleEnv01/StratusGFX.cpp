@@ -7,6 +7,7 @@
 #include <StratusCamera.h>
 #include <chrono>
 #include "StratusEngine.h"
+#include "StratusResourceManager.h"
 #include "StratusLog.h"
 #include <StratusCube.h>
 #include <StratusLight.h>
@@ -120,30 +121,30 @@ public:
         }
 
         // For textures see https://3dtextures.me/
-        textures.push_back(renderer->loadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
-        textures.push_back(renderer->loadTexture("../resources/textures/Bark_06_basecolor.jpg"));
-        textures.push_back(renderer->loadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
-        textures.push_back(renderer->loadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg"));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_basecolor.jpg"));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg"));
 
-        normalMaps.push_back(renderer->loadTexture("../resources/textures/Substance_graph_Normal.jpg"));
-        normalMaps.push_back(renderer->loadTexture("../resources/textures/Bark_06_normal.jpg"));
-        normalMaps.push_back(renderer->loadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
-        normalMaps.push_back(renderer->loadTexture("../resources/textures/Rock_Moss_001_normal.jpg"));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Normal.jpg"));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_normal.jpg"));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_normal.jpg"));
 
-        depthMaps.push_back(renderer->loadTexture("../resources/textures/Substance_graph_Height.png"));
-        depthMaps.push_back(renderer->loadTexture("../resources/textures/Bark_06_height.png"));
-        depthMaps.push_back(renderer->loadTexture("../resources/textures/Wood_Wall_003_height.png"));
-        depthMaps.push_back(renderer->loadTexture("../resources/textures/Rock_Moss_001_height.png"));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Height.png"));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_height.png"));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_height.png"));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_height.png"));
 
-        roughnessMaps.push_back(renderer->loadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
-        roughnessMaps.push_back(renderer->loadTexture("../resources/textures/Bark_06_roughness.jpg"));
-        roughnessMaps.push_back(renderer->loadTexture("../resources/textures/Wood_Wall_003_roughness.jpg"));
-        roughnessMaps.push_back(renderer->loadTexture("../resources/textures/Rock_Moss_001_roughness.jpg"));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_roughness.jpg"));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_roughness.jpg"));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_roughness.jpg"));
 
-        environmentMaps.push_back(renderer->loadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg"));
-        environmentMaps.push_back(renderer->loadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg"));
-        environmentMaps.push_back(renderer->loadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
-        environmentMaps.push_back(renderer->loadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg"));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg"));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
         outhouse = renderer->loadModel("../resources/models/Latrine.fbx");
         clay = renderer->loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
@@ -167,7 +168,7 @@ public:
             quadMeshes.push_back(quad);
         }
 
-        //quadMat.texture = renderer->loadTexture("../resources/textures/volcanic_rock_texture.png");
+        //quadMat.texture = stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/volcanic_rock_texture.png");
         srand(time(nullptr));
         for (int i = 0; i < 100; ++i) {
             size_t texIndex = rand() % textures.size();
@@ -182,7 +183,7 @@ public:
             textureIndices.push_back(texIndex);
         }
         //std::vector<std::unique_ptr<Cube>> cubes;
-        //cubeMat.texture = renderer->loadTexture("../resources/textures/wood_texture.jpg");
+        //cubeMat.texture = stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/wood_texture.jpg");
         for (int i = 0; i < 5000; ++i) {
             size_t texIndex = rand() % textures.size();
             auto mesh = cubeMeshes[texIndex];

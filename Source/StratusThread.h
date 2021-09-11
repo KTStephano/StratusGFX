@@ -13,6 +13,7 @@
 namespace stratus {
     class Thread;
     typedef Handle<Thread> ThreadHandle;
+    typedef std::unique_ptr<Thread> ThreadPtr;
 
     // A stratus thread represents a reusable thread of execution. To use it, small
     // functions should be queued for execution on it, and these functions should have
@@ -91,6 +92,12 @@ namespace stratus {
     template<typename E>
     class __AsyncImpl : public std::enable_shared_from_this<__AsyncImpl<E>> {
     public:        
+        __AsyncImpl(const std::shared_ptr<E>& result) {
+            _result = result;
+            _complete = true;
+            _failed = result == nullptr;
+        }
+
         __AsyncImpl(Thread& context, std::function<E *(void)> compute) 
             : _context(&context),
               _compute(compute) {}
@@ -102,6 +109,8 @@ namespace stratus {
 
         // Should only be called by the wrapper class Async
         void Start() {
+            if (Completed()) return;
+
             std::shared_ptr<__AsyncImpl> shared = shared_from_this();
             _context->Queue([this, shared]() {
                 try {
@@ -203,10 +212,14 @@ namespace stratus {
         typedef std::function<void(Async<E>)> AsyncCallback;
 
         Async() {}
+        Async(const std::shared_ptr<E>& result)
+            : _impl(std::make_shared<__AsyncImpl<E>>(result)) {}
+
         Async(Thread& context, std::function<E *(void)> function)
             : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
             _impl->Start();
         }
+
         Async(const Async&) = default;
         Async(Async&&) = default;
         Async& operator=(const Async&) = default;
@@ -214,9 +227,9 @@ namespace stratus {
         ~Async() = default;
 
         // Getters for checking internal state
-        bool Failed()                  const { return _impl->Failed(); }
-        bool Completed()               const { return _impl->Completed(); }
-        std::string ExceptionMessage() const { return _impl->ExceptionMessage(); }
+        bool Failed()                  const { return _impl == nullptr || _impl->Failed(); }
+        bool Completed()               const { return _impl == nullptr || _impl->Completed(); }
+        std::string ExceptionMessage() const { return _impl == nullptr ? "" : _impl->ExceptionMessage(); }
 
         // Getters for retrieving result
         const E& Get()              const { return _impl->Get(); }
