@@ -153,10 +153,11 @@ namespace stratus {
         void SetRenderNode(const RenderNodePtr&);
 
         // Creates a deep copy of this entity, its components, and all other nodes
-        virtual EntityPtr Copy() const;
+        // (if copyHandle == false it will generated a new handle)
+        virtual EntityPtr Copy(bool copyHandle = false) const;
 
     protected:
-        virtual void Copy(EntityPtr&) const;
+        virtual void Copy(EntityPtr&, bool) const;
         void IncrRefCount();
         void DecrRefCount();
 

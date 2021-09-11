@@ -5,30 +5,36 @@ namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
         _vertices.push_back(v);
         _numVertices = _vertices.size();
+        _isDirty = true;
     }
 
     void RenderMesh::AddUV(const glm::vec2& uv) {
         _uvs.push_back(uv);
+        _isDirty = true;
     }
 
     void RenderMesh::AddNormal(const glm::vec3& n) {
         _normals.push_back(n);
+        _isDirty = true;
     }
 
     void RenderMesh::AddTangent(const glm::vec3& t) {
         _tangents.push_back(t);
+        _isDirty = true;
     }
 
     void RenderMesh::AddBitangent(const glm::vec3& bt) {
         _bitangents.push_back(bt);
+        _isDirty = true;
     }
 
     void RenderMesh::AddIndex(uint32_t i) {
         _indices.push_back(i);
         _numIndices = _indices.size();
+        _isDirty = true;
     }
 
-    void RenderMesh::CalculateTangentsBitangents() {
+    void RenderMesh::CalculateTangentsBitangents() const {
         _tangents.clear();
         _bitangents.clear();
 
@@ -74,7 +80,9 @@ namespace stratus {
         }
     }
 
-    void RenderMesh::GenerateGpuData() {
+    void RenderMesh::GenerateGpuData() const {
+        if (!_isDirty) return;
+
         if (_tangents.size() == 0 || _bitangents.size() == 0) CalculateTangentsBitangents();
 
         // Pack all data into a single buffer
@@ -130,13 +138,17 @@ namespace stratus {
         _tangents.clear();
         _bitangents.clear();
         _indices.clear();
+
+        _isDirty = false;
     }
 
     const GpuArrayBuffer& RenderMesh::GetData() const {
         return _buffers;
     }
 
-    void RenderMesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) {
+    void RenderMesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
+        GenerateGpuData();
+
         _buffers.Bind();
         additionalBuffers.Bind();
 
@@ -244,11 +256,25 @@ namespace stratus {
         if (GetNumMeshContainers() != other.GetNumMeshContainers()) return false;
         // Lit entities have a separate pipeline from non-lit entities
         if (_lightInteractionEnabled != other._lightInteractionEnabled) return false;
+        if (_cullMode != other._cullMode) return false;
         for (size_t i = 0; i < GetNumMeshContainers(); ++i) {
             if ((GetMeshContainer(i)->mesh != other.GetMeshContainer(i)->mesh) ||
                 (GetMeshContainer(i)->material != other.GetMeshContainer(i)->material)) {
                 return false;
             }
         }
+    }
+
+    size_t RenderNode::HashCode() const {
+        size_t code = 0;
+        for (auto& mesh : _meshes) {
+            code += std::hash<RenderMeshPtr>{}(mesh.mesh);
+            code += std::hash<MaterialPtr>{}(mesh.material);
+        }
+
+        code += std::hash<bool>{}(_lightInteractionEnabled);
+        code += std::hash<int>{}(static_cast<int>(_cullMode));
+
+        return code;
     }
 }

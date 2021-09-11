@@ -106,6 +106,108 @@ namespace stratus {
         return true;
     }
 
+    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory) {
+        TextureHandle texture;
+        if (mat->GetTextureCount(type) > 0) {
+            aiString str;
+            mat->GetTexture(type, 0, &str);
+            std::string file = str.C_Str();
+            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file);
+        }
+
+        return texture;
+    }
+
+    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory) {
+        if (mesh->mNumUVComponents[0] == 0) return;
+
+        RenderMeshPtr rmesh = RenderMeshPtr(new RenderMesh());
+        // Process core primitive data
+        for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+            rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
+            rmesh->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
+            rmesh->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
+            rmesh->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
+            rmesh->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
+        }
+
+        // Process indices
+        for(uint32_t i = 0; i < mesh->mNumFaces; i++) {
+            aiFace face = mesh->mFaces[i];
+            for(uint32_t j = 0; j < face.mNumIndices; j++) {
+                rmesh->AddIndex(face.mIndices[j]);
+            }
+        }
+
+        // Process material
+        MaterialPtr m = rootMat->CreateSubMaterial();
+        if (mesh->mMaterialIndex >= 0) {
+            aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
+
+            STRATUS_LOG << "mat\n";
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_AMBIENT) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_EMISSIVE) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_NORMALS) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_SHININESS) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_OPACITY) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
+            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
+
+            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory));
+            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory));
+            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory));
+            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_SHININESS, directory));
+            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT, directory));
+            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_SPECULAR, directory));
+            STRATUS_LOG << "m " 
+                << m->GetDiffuseTexture() << " "
+                << m->GetNormalMap() << " "
+                << m->GetDepthMap() << " "
+                << m->GetRoughnessMap() << " "
+                << m->GetAmbientTexture() << " "
+                << m->GetMetallicMap() << std::endl;
+        }
+
+        renderNode->AddMeshContainer(RenderMeshContainer{rmesh, m});
+    }
+
+    static void ProcessNode(aiNode * node, const aiScene * scene, Entity * entity, MaterialPtr rootMat, const std::string& directory) {
+        // set the transformation info
+        auto mat = node->mTransformation;
+        aiVector3t<float> scale;
+        aiQuaterniont<float> quat;
+        aiVector3t<float> position;
+        mat.Decompose(scale, quat, position);
+
+        auto rotation = quat.GetMatrix();
+        // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
+        const Radians angleX = Radians(std::atan2f(rotation.c2, rotation.c3));
+        const Radians angleY = Radians(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
+        const Radians angleZ = Radians(std::atan2f(rotation.b1, rotation.a1));
+
+        entity->SetPosRotScale(glm::vec3(position.x, position.y, position.z), Rotation(angleX, angleY, angleZ), glm::vec3(scale.x, scale.y, scale.z));
+        RenderNodePtr rnode = RenderNodePtr(new RenderNode());
+        entity->SetRenderNode(rnode);
+
+        // Process all node meshes (if any)
+        for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
+            aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
+            ProcessMesh(rnode, mesh, scene, rootMat, directory);
+        }
+
+        // Now do the same for each child
+        for (uint32_t i = 0; i < node->mNumChildren; ++i) {
+            // Create a new container entity
+            EntityPtr centity = Entity::Create();
+            entity->AttachChild(centity);
+            ProcessNode(node->mChildren[i], scene, centity.get(), rootMat, directory);
+        }
+    }
+
     Entity * ResourceManager::_LoadModel(const std::string& name) const {
         Assimp::Importer importer;
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
@@ -121,7 +223,7 @@ namespace stratus {
 
         Entity * e = new Entity();
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        //processNode(scene->mRootNode, scene, e, material, directory);
+        ProcessNode(scene->mRootNode, scene, e, material, directory);
         return e;
     }
 

@@ -1,69 +1,5 @@
 #include "StratusEntity.h"
 
-    //     Entity();
-    //     ~Entity();
-
-    //     // Functions for manipulating entity components
-    //     void AddComponent(const EntityComponentPtr&);
-    //     void RemoveComponent(const EntityComponentPtr&);
-    //     void RemoveComponentByHandle(const EntityComponentHandle&);
-    //     void RemoveAllComponents();
-    //     const std::vector<EntityComponentPtr>& GetComponents() const;
-
-    //     // Functions for getting and setting transform
-    //     const glm::vec3& GetPosition() const;
-    //     void SetPosition(const glm::vec3&);
-
-    //     const Rotation& GetRotation() const;
-    //     void SetRotation(const Rotation&);
-
-    //     const glm::vec3& GetScale() const;
-    //     void SetScale(const glm::vec3&);
-
-    //     void SetPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
-
-    //     // World transform is relative to the entity's parent
-    //     const glm::mat4& GetWorldTransform() const;
-    //     // Local transform is only taking into account this current entity
-    //     const glm::mat4& GetLocalTransform() const;
-
-    //     // Shows which events this entity needs to receive
-    //     uint64_t GetEventMask() const;
-    //     // Called by the scene for each event that occurs
-    //     void SendEvent(const EntityEvent&);
-    //     // Queueing and getting queued events
-    //     void QueueEvent(const EntityEvent&);
-    //     void GetQueuedEvents(std::vector<EntityEvent>& out);
-    //     // Clears all events (happens after all events have been processed)
-    //     void ClearQueuedEvents();
-
-    //     // Functions for dealing with parent and child entities
-    //     void SetParent(EntityPtr);
-    //     EntityPtr GetParent() const;
-
-    //     void AttachChild(EntityPtr);
-    //     void DetachChild(EntityPtr);
-    //     const std::vector<EntityPtr>& GetChildren() const;
-
-    //     EntityHandle GetHandle() const;
-
-    //     // Functions for setting (optional) entity name and getting it
-    //     void SetName(const std::string&);
-    //     const std::string& GetName() const;
-
-    //     // Creates a deep copy of this entity, its components, and all other nodes
-    //     EntityPtr Copy() const;
-
-    // private:
-    //     EntityPtr _parent;
-    //     std::vector<EntityPtr> _children;
-    //     RenderNodePtr _renderNode;
-        // glm::vec3 _position;
-        // Rotation _rotation;
-        // glm::vec3 _scale;
-        // glm::mat4 _localTransform = glm::mat4(1.0f);
-        // glm::mat4 _worldTransform = glm::mat4(1.0f);
-
 namespace stratus {
     EntityPtr Entity::Create() {
         return EntityPtr(new Entity());
@@ -244,14 +180,19 @@ namespace stratus {
         _renderNode->SetWorldTransform(_worldTransform);
     }
 
-    EntityPtr Entity::Copy() const {
+    EntityPtr Entity::Copy(bool copyHandle) const {
         auto entity = Create();
-        Copy(entity);
+        Copy(entity, copyHandle);
         return entity;
     }
 
-    void Entity::Copy(EntityPtr& ptr) const {
-        ptr->_handle = _handle;
+    void Entity::Copy(EntityPtr& ptr, bool copyHandle) const {
+        if (copyHandle) {
+            ptr->_handle = _handle;
+        }
+        else {
+            ptr->_handle = EntityHandle::NextHandle();
+        }
         ptr->_refCount = _refCount;
         ptr->IncrRefCount();
 
@@ -266,7 +207,7 @@ namespace stratus {
         }
 
         for (auto& child : _children) {
-            auto childCopy = child->Copy();
+            auto childCopy = child->Copy(copyHandle);
             childCopy->_parent = ptr;
             ptr->_children.insert(childCopy);
         }

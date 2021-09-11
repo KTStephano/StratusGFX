@@ -8,7 +8,7 @@
 #include "StratusMath.h"
 
 namespace stratus {
-    enum class _RenderFaceCulling {
+    enum class _RenderFaceCulling : int {
         CULLING_NONE,
         CULLING_CW,     // Clock-wise
         CULLING_CCW,    // Counter-clock-wise
@@ -30,22 +30,23 @@ namespace stratus {
         void AddBitangent(const glm::vec3&);
         void AddIndex(uint32_t);
 
-        void CalculateTangentsBitangents();
-        void GenerateGpuData();
+        void CalculateTangentsBitangents() const;
+        void GenerateGpuData() const;
         const GpuArrayBuffer& GetData() const;
 
-        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers);
+        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
     private:
-        GpuArrayBuffer _buffers;
-        std::vector<glm::vec3> _vertices;
-        std::vector<glm::vec2> _uvs;
-        std::vector<glm::vec3> _normals;
-        std::vector<glm::vec3> _tangents;
-        std::vector<glm::vec3> _bitangents;
-        std::vector<uint32_t> _indices;
-        uint32_t _numVertices;
-        uint32_t _numIndices;
+        mutable GpuArrayBuffer _buffers;
+        mutable std::vector<glm::vec3> _vertices;
+        mutable std::vector<glm::vec2> _uvs;
+        mutable std::vector<glm::vec3> _normals;
+        mutable std::vector<glm::vec3> _tangents;
+        mutable std::vector<glm::vec3> _bitangents;
+        mutable std::vector<uint32_t> _indices;
+        mutable uint32_t _numVertices;
+        mutable uint32_t _numIndices;
+        mutable bool _isDirty = true;
     };
 
     struct RenderMeshContainer {
@@ -94,6 +95,8 @@ namespace stratus {
         bool operator==(const RenderNode& other) const;
         bool operator!=(const RenderNode& other) const { return !(*this == other); }
 
+        size_t HashCode() const;
+
     private:
         std::vector<RenderMeshContainer> _meshes;
         mutable bool _transformIsDirty = true;
@@ -104,5 +107,32 @@ namespace stratus {
         glm::mat4 _worldEntityTransform = glm::mat4(1.0f);
         bool _lightInteractionEnabled = true;
         _RenderFaceCulling _cullMode;
+    };
+
+    // This makes it easy to insert a render node into a hash set/map
+    struct RenderNodeView {
+        RenderNodeView(const RenderNodePtr& node) : _node(node) {}
+        size_t HashCode() const { return _node->HashCode(); }
+        const RenderNodePtr& Get() const { return _node; }
+
+        bool operator==(const RenderNodeView& other) const {
+            return *_node == *other._node;
+        }
+
+        bool operator!=(const RenderNodeView& other) const {
+            return !(*this == other);
+        }
+
+    private:
+        RenderNodePtr _node;
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<stratus::RenderNodeView> {
+        size_t operator()(const stratus::RenderNodeView & v) const {
+            return v.HashCode();
+        }
     };
 }
