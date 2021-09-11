@@ -213,4 +213,8 @@ namespace stratus {
         }        
         return result;
     }
+
+    MaterialPtr MaterialManager::CreateDefault() {
+        return MaterialPtr(new Material("Default", false));
+    }
 }

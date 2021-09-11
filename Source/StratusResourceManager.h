@@ -30,17 +30,26 @@ namespace stratus {
         TextureHandle LoadTexture(const std::string&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
 
+        // Default shapes
+        EntityPtr CreateCube();
+        EntityPtr CreateQuad();
+
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        Entity * _LoadModel(const std::string&) const;
+        EntityPtr _LoadModel(const std::string&) const;
         Texture * _LoadTexture(const std::string&, const TextureHandle) const;
         uint32_t _NextResourceIndex();
+
+        void _InitCube();
+        void _InitQuad();
 
     private:
         static ResourceManager * _instance;
         std::vector<ThreadPtr> _threads;
         uint32_t _nextResourceVector = 0;
+        EntityPtr _cube;
+        EntityPtr _quad;
         mutable std::unordered_map<std::string, Async<Entity>> _loadedModels;
         mutable std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
         mutable std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;

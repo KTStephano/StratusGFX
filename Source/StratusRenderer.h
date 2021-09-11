@@ -8,10 +8,10 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include "StratusEntity.h"
 #include "StratusCommon.h"
-#include "StratusRenderEntity.h"
 #include "StratusCamera.h"
-#include "StratusModel.h"
+#include "StratusRenderNode.h"
 #include "StratusTexture.h"
 #include "StratusFrameBuffer.h"
 #include "StratusLight.h"
@@ -66,26 +66,7 @@ struct Color {
             : r(r), g(g), b(b), a(a) {}
 };
 
-struct __RenderEntityObserver {
-    RenderEntity * e;
-
-    __RenderEntityObserver(RenderEntity * e) : e(e) {}
-
-    bool operator==(const __RenderEntityObserver & c) const;
-    size_t hashCode() const;
-};
-
-struct __MeshObserver {
-    Mesh * m;
-
-    __MeshObserver(Mesh * m) : m(m) {}
-
-    bool operator==(const __MeshObserver & c) const;
-    size_t hashCode() const;
-};
-
-struct __MeshContainer {
-    Mesh * m;
+struct __MeshInstanceContainer {
     std::vector<glm::mat4> modelMatrices;
     std::vector<glm::vec3> diffuseColors;
     std::vector<glm::vec3> baseReflectivity;
@@ -93,30 +74,8 @@ struct __MeshContainer {
     std::vector<float> metallic;
     GpuArrayBuffer buffers;
     size_t size = 0;
-
-    __MeshContainer(Mesh * m) : m(m) {}
 };
-}
 
-namespace std {
-    template<>
-    struct hash<stratus::__RenderEntityObserver> {
-        size_t operator()(const stratus::__RenderEntityObserver & c) const {
-            return c.hashCode();
-        }
-    };
-}
-
-namespace std {
-    template<>
-    struct hash<stratus::__MeshObserver> {
-        size_t operator()(const stratus::__MeshObserver & c) const {
-            return c.hashCode();
-        }
-    };
-}
-
-namespace stratus {
 class Renderer {
     struct EntityStateInfo {
         glm::vec3 lastPos;
@@ -151,10 +110,11 @@ class Renderer {
 
     struct RenderState {
         Color clearColor;
-        RenderMode mode = RenderMode::PERSPECTIVE;
-        std::unordered_map<uint32_t, std::vector<RenderEntity *>> entities;
-        std::vector<RenderEntity *> lightInteractingEntities;
-        std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> instancedMeshes;
+        // std::unordered_map<uint32_t, std::vector<RenderNodeView>> entities;
+        std::vector<RenderNodeView> entities;
+        std::vector<RenderNodeView> lightInteractingEntities;
+        std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>> instancedLightInteractMeshes;
+        std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>> instancedFlatMeshes;
         FrameBuffer cascadeFbo;
         std::vector<CascadedShadowMap> csms;
         glm::vec4 cascadeShadowOffsets[2];
@@ -170,8 +130,8 @@ class Renderer {
         uint32_t windowHeight = 0;
         Degrees fov = Degrees(90.0f);
         float znear = 0.25f, zfar = 1000.0f;
-        int numShadowMaps = 10;
-        int shadowCubeMapX = 2048, shadowCubeMapY = 2048;
+        int numShadowMaps = 20;
+        int shadowCubeMapX = 1024, shadowCubeMapY = 1024;
         glm::mat4 orthographic;
         glm::mat4 perspective;
         //std::shared_ptr<Camera> camera;
@@ -213,7 +173,7 @@ class Renderer {
         std::vector<Pipeline *> shaders;
         // Generic screen quad so we can render the screen
         // from a separate frame buffer
-        std::unique_ptr<Quad> screenQuad;
+        RenderNodePtr screenQuad;
         // Gets around what might be a driver bug...
         TextureHandle dummyCubeMap;
     };
@@ -288,7 +248,7 @@ class Renderer {
     /**
      * Set of entities added at some point during any frame.
      */
-    std::unordered_map<RenderEntity *, EntityStateInfo> _entitiesSeenBefore;
+    std::unordered_map<EntityView, EntityStateInfo> _entitiesSeenBefore;
 
     /**
      * This encodes the same information as the _textures map, except
@@ -314,7 +274,7 @@ class Renderer {
     /**
      * Contains all loaded models indexed by model name.
      */
-    std::unordered_map<std::string, Model> _models;
+    // std::unordered_map<std::string, Model> _models;
 
     /**
      * If the renderer was setup properly then this will be marked
@@ -363,7 +323,7 @@ public:
      * Attempts to load a model if not already loaded. Be sure to check
      * the returned model's isValid() function.
      */
-    Model loadModel(const std::string & file);
+    // Model loadModel(const std::string & file);
 
     TextureHandle createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY);
 
@@ -380,7 +340,7 @@ public:
      * Sets the render mode to be either ORTHOGRAPHIC (2d)
      * or PERSPECTIVE (3d).
      */
-    void setRenderMode(RenderMode mode);
+    // void setRenderMode(RenderMode mode);
 
     /**
      * IMPORTANT! This sets up the renderer for a new frame.
@@ -394,7 +354,7 @@ public:
      * For the current scene, this will add a render entity
      * that is means to be drawn.
      */
-    void addDrawable(RenderEntity * e);
+    void addDrawable(const EntityPtr& e);
 
     /**
      * Adds a light to the scene. These lights are considered
@@ -422,12 +382,12 @@ public:
 
 private:
     void _clearGBuffer();
-    void _addDrawable(RenderEntity * e, const glm::mat4 &);
+    void _addDrawable(const EntityPtr& e);
     void _setWindowDimensions(int w, int h);
     void _recalculateProjMatrices();
     void _initLights(Pipeline * s, const Camera & c, 
                      const std::vector<std::pair<Light *, double>> & lights, const size_t maxShadowLights);
-    void _initInstancedData(__MeshContainer & c, std::vector<GpuArrayBuffer> & gabuffers);
+    void _initInstancedData(__MeshInstanceContainer & c, std::vector<GpuArrayBuffer> & gabuffers);
     void _clearInstancedData(std::vector<GpuArrayBuffer> & gabuffers);
     void _bindShader(Pipeline *);
     void _unbindShader();
@@ -435,8 +395,8 @@ private:
     void _finalizeFrame();
     void _initializePostFxBuffers();
     void _buildEntityList(const Camera & c);
-    void _render(const Camera &, const RenderEntity *, const Mesh *, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation = false);
-    void _renderCSMDepth(const Camera &, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> &);
+    void _render(const Camera &, const RenderNodeView &, bool removeViewTranslation = false);
+    void _renderCSMDepth(const Camera &, const std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>>&);
     void _renderQuad();
     TextureHandle _getShadowMapHandleForLight(Light *);
     void _setLightShadowMapHandle(Light *, TextureHandle);

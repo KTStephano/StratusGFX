@@ -125,6 +125,8 @@ namespace stratus {
 
         bool NotifyNameChanged(const std::string& oldName, MaterialPtr);
 
+        MaterialPtr CreateDefault();
+
     private:
         static MaterialManager * _instance;
         ConcurrentHashMap<std::string, MaterialPtr> _materials;

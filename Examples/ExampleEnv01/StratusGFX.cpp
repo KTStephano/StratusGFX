@@ -3,13 +3,11 @@
 #include <iostream>
 #include <StratusPipeline.h>
 #include <StratusRenderer.h>
-#include <StratusQuad.h>
 #include <StratusCamera.h>
 #include <chrono>
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
 #include "StratusLog.h"
-#include <StratusCube.h>
 #include <StratusLight.h>
 #include <StratusUtils.h>
 #include <memory>
@@ -32,43 +30,33 @@ class RandomLightMover { //: public stratus::Entity {
     double _elapsedSec = 0.0;
 
 public:
-    std::unique_ptr<stratus::RenderEntity> cube;
+    stratus::EntityPtr cube;
     std::unique_ptr<stratus::Light> light;
     glm::vec3 position;
     glm::vec3 speed;
 
     RandomLightMover() {
-        cube = std::make_unique<stratus::RenderEntity>();
-        cube->setLightProperties(stratus::LightProperties::FLAT);
+        cube = stratus::ResourceManager::Instance()->CreateCube();
+        //cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
+        cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
-        cube->scale = glm::vec3(1.0f);
-        cube->meshes.push_back(std::make_shared<stratus::Cube>());
-        stratus::MaterialPtr lightMat;
-        if (!stratus::MaterialManager::Instance()->ContainsMaterial("Light")) {
-            lightMat = stratus::MaterialManager::Instance()->CreateMaterial("Light");
-            lightMat = lightMat->CreateSubMaterial();
-        }
-        else {
-            lightMat = stratus::MaterialManager::Instance()->GetMaterial("Light")->CreateSubMaterial();
-        }
-        cube->meshes[0]->setMaterial(lightMat);
+        cube->SetLocalScale(glm::vec3(1.0f));
         light = std::make_unique<stratus::PointLight>();
         speed = glm::vec3(float(rand() % 15 + 5));
         _changeDirection();
     }
 
     void addToScene(stratus::Renderer & r) const {
-        r.addDrawable(cube.get());
+        r.addDrawable(cube);
         r.addPointLight(light.get());
     }
 
     virtual void update(double deltaSeconds) {
         position = position + speed * _direction * float(deltaSeconds);
-        cube->position = position;
+        cube->SetLocalPosition(position);
         light->position = position;
-        stratus::MaterialPtr m = cube->meshes[0]->getMaterial();
+        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
         m->SetDiffuseColor(light->getColor());
-        cube->meshes[0]->setMaterial(m);
 
         _elapsedSec += deltaSeconds;
         if (_elapsedSec > 5.0) {
@@ -82,11 +70,10 @@ struct StationaryLight : public RandomLightMover {
     StationaryLight() : RandomLightMover() {}
 
     void update(double deltaSeconds) override {
-        cube->position = position;
+        cube->SetLocalPosition(position);
         light->position = position;
-        stratus::MaterialPtr m = cube->meshes[0]->getMaterial();
+        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
         m->SetDiffuseColor(light->getColor());
-        cube->meshes[0]->setMaterial(m);
     }
 };
 
@@ -146,24 +133,36 @@ public:
         environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
         environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
 
-        outhouse = renderer->loadModel("../resources/models/Latrine.fbx");
-        clay = renderer->loadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        stump = renderer->loadModel("../resources/models/boubin_stump.FBX");
-        hall = renderer->loadModel("../local/hintze-hall-1m.obj");
-        ramparts = renderer->loadModel("../local/model.obj");
-        rocks = renderer->loadModel("../local/Rock_Terrain_SF.obj");
+        stratus::Async<stratus::Entity> e;
+        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_ERROR << e.ExceptionMessage() << std::endl;  outhouse = e.GetPtr(); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/boubin_stump.FBX");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { stump = e.GetPtr(); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/hintze-hall-1m.obj");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { hall = e.GetPtr(); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/model.obj");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { ramparts = e.GetPtr(); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
-            auto cube = std::make_shared<stratus::Cube>();
-            auto quad = std::make_shared<stratus::Quad>();
+            auto cube = stratus::ResourceManager::Instance()->CreateCube();
+            auto quad = stratus::ResourceManager::Instance()->CreateQuad();
             stratus::MaterialPtr mat = stratus::MaterialManager::Instance()->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
             mat->SetDiffuseTexture(textures[texIndex]);
             mat->SetNormalMap(normalMaps[texIndex]);
             mat->SetDepthMap(depthMaps[texIndex]);
             mat->SetRoughnessMap(roughnessMaps[texIndex]);
             mat->SetAmbientTexture(environmentMaps[texIndex]);
-            cube->setMaterial(mat);
-            quad->setMaterial(mat);
+            cube->GetRenderNode()->SetMaterial(mat);
+            quad->GetRenderNode()->SetMaterial(mat);
             cubeMeshes.push_back(cube);
             quadMeshes.push_back(quad);
         }
@@ -172,28 +171,20 @@ public:
         srand(time(nullptr));
         for (int i = 0; i < 100; ++i) {
             size_t texIndex = rand() % textures.size();
-            auto mesh = quadMeshes[texIndex];
-            std::unique_ptr<stratus::RenderEntity> q = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
-            q->meshes.push_back(mesh);
-            q->position.x = rand() % 50;
-            q->position.y = rand() % 50;
-            q->position.z = rand() % 50;
-            q->scale = glm::vec3(float(rand() % 5));
-            entities.push_back(std::move(q));
+            auto mesh = quadMeshes[texIndex]->Copy();
+            mesh->SetLocalPosition(glm::vec3(rand() % 50, rand() % 50, rand() % 50));
+            entities.push_back(mesh);
+            mesh->SetLocalScale(glm::vec3(float(rand() % 5)));
             textureIndices.push_back(texIndex);
         }
         //std::vector<std::unique_ptr<Cube>> cubes;
         //cubeMat.texture = stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/wood_texture.jpg");
         for (int i = 0; i < 5000; ++i) {
             size_t texIndex = rand() % textures.size();
-            auto mesh = cubeMeshes[texIndex];
-            std::unique_ptr<stratus::RenderEntity> c = std::make_unique<stratus::RenderEntity>(stratus::LightProperties::DYNAMIC);
-            c->meshes.push_back(mesh);
-            c->position.x = rand() % 3000;
-            c->position.y = rand() % 50;
-            c->position.z = rand() % 3000;
-            c->scale = glm::vec3(float(rand() % 25));
-            entities.push_back(std::move(c));
+            auto mesh = cubeMeshes[texIndex]->Copy();
+            entities.push_back(mesh);
+            mesh->SetLocalPosition(glm::vec3(rand() % 3000, rand() % 50, rand() % 3000));
+            mesh->SetLocalScale(glm::vec3(float(rand() % 25)));
             textureIndices.push_back(texIndex);
         }
 
@@ -417,38 +408,50 @@ public:
         cameraLight.position = camera.getPosition();
         renderer->setClearColor(stratus::Color(0.0f, 0.0f, 0.0f, 1.0f));
 
-        outhouse.scale = glm::vec3(10.0f);
-        outhouse.position = glm::vec3(-50.0f, -10.0f, -45.0f);
-        renderer->addDrawable(&outhouse);
+        if (outhouse) {
+            outhouse->SetLocalScale(glm::vec3(10.0f));
+            outhouse->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
+        }
+        renderer->addDrawable(outhouse);
 
         //clay.scale = glm::vec3(1.0f);
         //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        clay.position = glm::vec3(100.0f, 0.0f, -50.0f);
+        if (clay) {
+            clay->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
+        }
         //clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        renderer->addDrawable(&clay);
+        renderer->addDrawable(clay);
 
-        stump.rotation = stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        stump.position = glm::vec3(0.0f, -15.0f, -20.0f);
-        renderer->addDrawable(&stump);
+        if (stump) {
+            stump->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            stump->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
+        }
+        renderer->addDrawable(stump);
 
-        hall.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        hall.scale = glm::vec3(10.0f, 10.0f, 10.0f);
-        hall.position = glm::vec3(-250.0f, -30.0f, 0.0f);
-        renderer->addDrawable(&hall);
+        if (hall) {
+            hall->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            hall->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
+            hall->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
+        }
+        renderer->addDrawable(hall);
 
-        ramparts.position = glm::vec3(300.0f, 0.0f, -100.0f);
-        ramparts.rotation = stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        ramparts.scale = glm::vec3(10.0f);
-        renderer->addDrawable(&ramparts);
+        if (ramparts) {
+            ramparts->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
+            ramparts->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            ramparts->SetLocalScale(glm::vec3(10.0f));
+        }
+        renderer->addDrawable(ramparts);
 
-        rocks.position = glm::vec3(700.0f, -75.0f, -100.0f);
-        rocks.scale = glm::vec3(15.0f);
-        renderer->addDrawable(&rocks);
+        if (rocks) {
+            rocks->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
+            rocks->SetLocalScale(glm::vec3(15.0f));
+        }
+        renderer->addDrawable(rocks);
 
         // Add the camera's light
         if (camLightEnabled) renderer->addPointLight(&cameraLight);
         for (auto & entity : entities) {
-            renderer->addDrawable(entity.get());
+            renderer->addDrawable(entity);
         }
 
         for (auto & mover : lightMovers) {
@@ -481,15 +484,15 @@ private:
     std::vector<stratus::TextureHandle> depthMaps;
     std::vector<stratus::TextureHandle> roughnessMaps;
     std::vector<stratus::TextureHandle> environmentMaps;
-    stratus::Model outhouse;
-    stratus::Model clay;
-    stratus::Model stump;
-    stratus::Model hall;
-    stratus::Model ramparts;
-    stratus::Model rocks;
-    std::vector<std::shared_ptr<stratus::Cube>> cubeMeshes;
-    std::vector<std::shared_ptr<stratus::Quad>> quadMeshes;
-    std::vector<std::unique_ptr<stratus::RenderEntity>> entities;
+    stratus::EntityPtr outhouse;
+    stratus::EntityPtr clay;
+    stratus::EntityPtr stump;
+    stratus::EntityPtr hall;
+    stratus::EntityPtr ramparts;
+    stratus::EntityPtr rocks;
+    std::vector<stratus::EntityPtr> cubeMeshes;
+    std::vector<stratus::EntityPtr> quadMeshes;
+    std::vector<stratus::EntityPtr> entities;
     std::vector<size_t> textureIndices;
     glm::mat4 persp;
     stratus::Camera camera;

@@ -8,7 +8,7 @@
 #include "StratusMath.h"
 
 namespace stratus {
-    enum class _RenderFaceCulling : int {
+    enum class RenderFaceCulling : int {
         CULLING_NONE,
         CULLING_CW,     // Clock-wise
         CULLING_CCW,    // Counter-clock-wise
@@ -16,6 +16,7 @@ namespace stratus {
 
     struct RenderMesh;
     struct RenderNode;
+    struct Entity;
 
     typedef std::shared_ptr<RenderMesh> RenderMeshPtr;
     typedef std::shared_ptr<RenderNode> RenderNodePtr;
@@ -31,6 +32,7 @@ namespace stratus {
         void AddIndex(uint32_t);
 
         void CalculateTangentsBitangents() const;
+        void GenerateCpuData() const;
         void GenerateGpuData() const;
         const GpuArrayBuffer& GetData() const;
 
@@ -44,9 +46,11 @@ namespace stratus {
         mutable std::vector<glm::vec3> _tangents;
         mutable std::vector<glm::vec3> _bitangents;
         mutable std::vector<uint32_t> _indices;
+        mutable std::vector<float> _data;
         mutable uint32_t _numVertices;
         mutable uint32_t _numIndices;
-        mutable bool _isDirty = true;
+        mutable bool _isCpuDirty = true;
+        mutable bool _isGpuDirty = true;
     };
 
     struct RenderMeshContainer {
@@ -82,35 +86,46 @@ namespace stratus {
         const Rotation& GetLocalRotation() const;
         const glm::vec3& GetLocalScale() const;
 
+        const glm::vec3& GetWorldPosition() const;
+
         // This will be entity world transform * node transform
         const glm::mat4& GetWorldTransform() const;
 
         // True by default
         void EnableLightInteraction(bool enabled);
-        void SetFaceCullMode(const _RenderFaceCulling&);
+        void SetInvisible(bool invisible);
+        void SetFaceCullMode(const RenderFaceCulling&);
 
         bool GetLightInteractionEnabled() const;
-        _RenderFaceCulling GetFaceCullMode() const;
+        bool GetInvisible() const;
+        RenderFaceCulling GetFaceCullMode() const;
 
         bool operator==(const RenderNode& other) const;
         bool operator!=(const RenderNode& other) const { return !(*this == other); }
 
         size_t HashCode() const;
 
+        const std::shared_ptr<Entity>& GetOwner() const;
+        void SetOwner(const std::shared_ptr<Entity>&);
+
     private:
         std::vector<RenderMeshContainer> _meshes;
         mutable bool _transformIsDirty = true;
         glm::vec3 _position = glm::vec3(0.0f);
+        mutable glm::vec3 _worldPosition = glm::vec3(0.0f);
         Rotation _rotation;
         glm::vec3 _scale = glm::vec3(1.0f);
         mutable glm::mat4 _worldTransform = glm::mat4(1.0f);
         glm::mat4 _worldEntityTransform = glm::mat4(1.0f);
         bool _lightInteractionEnabled = true;
-        _RenderFaceCulling _cullMode;
+        bool _invisible = false;
+        RenderFaceCulling _cullMode;
+        std::shared_ptr<Entity> _owner;
     };
 
     // This makes it easy to insert a render node into a hash set/map
     struct RenderNodeView {
+        RenderNodeView() {}
         RenderNodeView(const RenderNodePtr& node) : _node(node) {}
         size_t HashCode() const { return _node->HashCode(); }
         const RenderNodePtr& Get() const { return _node; }

@@ -99,8 +99,12 @@ namespace stratus {
         }
 
         __AsyncImpl(Thread& context, std::function<E *(void)> compute) 
+            : __AsyncImpl(context, [compute]() { return std::shared_ptr<E>(compute()); }) {}
+
+        __AsyncImpl(Thread& context, std::function<std::shared_ptr<E> (void)> compute)
             : _context(&context),
               _compute(compute) {}
+
         __AsyncImpl(const __AsyncImpl&) = delete;
         __AsyncImpl(__AsyncImpl&&) = delete;
         __AsyncImpl& operator=(const __AsyncImpl&) = delete;
@@ -114,9 +118,9 @@ namespace stratus {
             std::shared_ptr<__AsyncImpl> shared = shared_from_this();
             _context->Queue([this, shared]() {
                 try {
-                    E * result = this->_compute();
+                    std::shared_ptr<E> result = this->_compute();
                     auto ul = this->_LockWrite();
-                    this->_result = std::shared_ptr<E>(result);
+                    this->_result = result;
                     this->_complete = true;
                     this->_failed = false;
                 }
@@ -192,7 +196,7 @@ namespace stratus {
     private:
         std::shared_ptr<E> _result = nullptr;
         Thread * _context;
-        std::function<E *(void)> _compute;
+        std::function<std::shared_ptr<E> (void)> _compute;
         mutable std::shared_mutex _mutex;
         std::string _exceptionMessage;
         bool _failed = false;
@@ -216,6 +220,11 @@ namespace stratus {
             : _impl(std::make_shared<__AsyncImpl<E>>(result)) {}
 
         Async(Thread& context, std::function<E *(void)> function)
+            : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
+            _impl->Start();
+        }
+
+        Async(Thread& context, std::function<std::shared_ptr<E> (void)> function)
             : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
             _impl->Start();
         }

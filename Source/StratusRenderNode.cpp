@@ -1,37 +1,44 @@
 #include "StratusRenderNode.h"
 #include "StratusUtils.h"
+#include "StratusEntity.h"
 
 namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
         _vertices.push_back(v);
         _numVertices = _vertices.size();
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::AddUV(const glm::vec2& uv) {
         _uvs.push_back(uv);
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::AddNormal(const glm::vec3& n) {
         _normals.push_back(n);
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::AddTangent(const glm::vec3& t) {
         _tangents.push_back(t);
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::AddBitangent(const glm::vec3& bt) {
         _bitangents.push_back(bt);
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::AddIndex(uint32_t i) {
         _indices.push_back(i);
         _numIndices = _indices.size();
-        _isDirty = true;
+        _isCpuDirty = true;
+        _isGpuDirty = true;
     }
 
     void RenderMesh::CalculateTangentsBitangents() const {
@@ -80,30 +87,43 @@ namespace stratus {
         }
     }
 
-    void RenderMesh::GenerateGpuData() const {
-        if (!_isDirty) return;
+    void RenderMesh::GenerateCpuData() const {
+        if (!_isCpuDirty) return;
+        _isCpuDirty = false;
 
         if (_tangents.size() == 0 || _bitangents.size() == 0) CalculateTangentsBitangents();
 
         // Pack all data into a single buffer
-        std::vector<float> data;
-        data.reserve(_vertices.size() * 3 + _uvs.size() * 2 + _normals.size() * 3 + _tangents.size() * 3 + _bitangents.size() * 3);
+        _data.clear();
+        _data.reserve(_vertices.size() * 3 + _uvs.size() * 2 + _normals.size() * 3 + _tangents.size() * 3 + _bitangents.size() * 3);
         for (int i = 0; i < _numVertices; ++i) {
-            data.push_back(_vertices[i].x);
-            data.push_back(_vertices[i].y);
-            data.push_back(_vertices[i].z);
-            data.push_back(_uvs[i].x);
-            data.push_back(_uvs[i].y);
-            data.push_back(_normals[i].x);
-            data.push_back(_normals[i].y);
-            data.push_back(_normals[i].z);
-            data.push_back(_tangents[i].x);
-            data.push_back(_tangents[i].y);
-            data.push_back(_tangents[i].z);
-            data.push_back(_bitangents[i].x);
-            data.push_back(_bitangents[i].y);
-            data.push_back(_bitangents[i].z);
+            _data.push_back(_vertices[i].x);
+            _data.push_back(_vertices[i].y);
+            _data.push_back(_vertices[i].z);
+            _data.push_back(_uvs[i].x);
+            _data.push_back(_uvs[i].y);
+            _data.push_back(_normals[i].x);
+            _data.push_back(_normals[i].y);
+            _data.push_back(_normals[i].z);
+            _data.push_back(_tangents[i].x);
+            _data.push_back(_tangents[i].y);
+            _data.push_back(_tangents[i].z);
+            _data.push_back(_bitangents[i].x);
+            _data.push_back(_bitangents[i].y);
+            _data.push_back(_bitangents[i].z);
         }
+
+        // Clear out existing buffers to conserve system memory
+        _vertices.clear();
+        _uvs.clear();
+        _normals.clear();
+        _tangents.clear();
+        _bitangents.clear();
+    }
+
+    void RenderMesh::GenerateGpuData() const {
+        if (!_isGpuDirty) return;
+        _isGpuDirty = false;
 
         _buffers = GpuArrayBuffer();
         GpuBuffer buffer;
@@ -113,7 +133,7 @@ namespace stratus {
         }
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
         const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
-        buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, data.data(), data.size() * sizeof(float));
+        buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, _data.data(), _data.size() * sizeof(float));
         _buffers.AddBuffer(buffer);
         
         // Vertices
@@ -132,14 +152,8 @@ namespace stratus {
         buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
 
         // Clear out existing buffers to conserve system memory
-        _vertices.clear();
-        _uvs.clear();
-        _normals.clear();
-        _tangents.clear();
-        _bitangents.clear();
         _indices.clear();
-
-        _isDirty = false;
+        _data.clear();
     }
 
     const GpuArrayBuffer& RenderMesh::GetData() const {
@@ -147,6 +161,7 @@ namespace stratus {
     }
 
     void RenderMesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
+        GenerateCpuData();
         GenerateGpuData();
 
         _buffers.Bind();
@@ -227,10 +242,18 @@ namespace stratus {
         return _scale;
     }
 
+    const glm::vec3& RenderNode::GetWorldPosition() const {
+        if (_transformIsDirty) {
+            auto& mat = GetWorldTransform();
+        }
+        return _worldPosition;
+    }
+
     const glm::mat4& RenderNode::GetWorldTransform() const {
         if (_transformIsDirty) {
             _worldTransform = constructTransformMat(_rotation, _position, _scale);
             _worldTransform = _worldEntityTransform * _worldTransform;
+            _worldPosition = glm::vec3(_worldTransform * glm::vec4(_position, 1.0f));
             _transformIsDirty = false;
         }
         return _worldTransform;
@@ -240,7 +263,7 @@ namespace stratus {
         _lightInteractionEnabled = enabled;
     }
 
-    void RenderNode::SetFaceCullMode(const _RenderFaceCulling& mode) {
+    void RenderNode::SetFaceCullMode(const RenderFaceCulling& mode) {
         _cullMode = mode;
     }
 
@@ -248,7 +271,15 @@ namespace stratus {
         return _lightInteractionEnabled;
     }
 
-    _RenderFaceCulling RenderNode::GetFaceCullMode() const {
+    void RenderNode::SetInvisible(bool invisible) {
+        _invisible = invisible;
+    }
+
+    bool RenderNode::GetInvisible() const {
+        return _invisible;
+    }
+
+    RenderFaceCulling RenderNode::GetFaceCullMode() const {
         return _cullMode;
     }
 
@@ -263,6 +294,7 @@ namespace stratus {
                 return false;
             }
         }
+        return true;
     }
 
     size_t RenderNode::HashCode() const {
@@ -276,5 +308,13 @@ namespace stratus {
         code += std::hash<int>{}(static_cast<int>(_cullMode));
 
         return code;
+    }
+
+    const std::shared_ptr<Entity>& RenderNode::GetOwner() const {
+        return _owner;
+    }
+
+    void RenderNode::SetOwner(const std::shared_ptr<Entity>& owner) {
+        _owner = owner;
     }
 }

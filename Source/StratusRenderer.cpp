@@ -6,30 +6,12 @@
 #include "StratusRenderer.h"
 #include <math.h>
 #include <cmath>
-#include "StratusQuad.h"
-#include "StratusCube.h"
 #include "StratusUtils.h"
 #include "StratusMath.h"
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
 
 namespace stratus {
-bool __RenderEntityObserver::operator==(const __RenderEntityObserver & c) const {
-    return (*e) == *(c.e);
-}
-
-size_t __RenderEntityObserver::hashCode() const {
-    return e->hashCode();
-}
-
-bool __MeshObserver::operator==(const __MeshObserver & c) const {
-    return (*m) == *(c.m);
-}
-
-size_t __MeshObserver::hashCode() const {
-    return m->hashCode();
-}
-
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
     log << "==================== OpenGL Information ====================" << std::endl;
@@ -117,11 +99,6 @@ Renderer::Renderer(SDL_Window * window) {
     _state.shaders.push_back(_state.forward.get());
 
     using namespace std;
-    
-    // Now we need to establish a mapping between all of the possible render
-    // property combinations with a list of entities that match those requirements
-    _state.entities.insert(make_pair(FLAT, vector<RenderEntity *>()));
-    _state.entities.insert(make_pair(DYNAMIC, vector<RenderEntity *>()));
 
     // Set up the hdr/gamma postprocessing shader
     _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline({
@@ -153,7 +130,7 @@ Renderer::Renderer(SDL_Window * window) {
     _state.shaders.push_back(_state.csmDepth.get());
 
     // Create the screen quad
-    _state.screenQuad = std::make_unique<Quad>();
+    _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
     // Use the shader isValid() method to determine if everything succeeded
     _validateAllShaders();
@@ -567,10 +544,6 @@ void Renderer::setPerspectiveData(const Degrees & fov, float fnear, float ffar) 
     _recalculateProjMatrices();
 }
 
-void Renderer::setRenderMode(RenderMode mode) {
-    _state.mode = mode;
-}
-
 void Renderer::begin(bool clearScreen) {
     // Make sure we set our context as the active one
     SDL_GL_MakeCurrent(_window, _context);
@@ -606,12 +579,11 @@ void Renderer::begin(bool clearScreen) {
     }
 
     // Clear all entities from the previous frame
-    for (auto & e : _state.entities) {
-        e.second.clear();
-    }
+    _state.entities.clear();
 
     // Clear all instanced entities
-    _state.instancedMeshes.clear();
+    _state.instancedLightInteractMeshes.clear();
+    _state.instancedFlatMeshes.clear();
 
     // Clear all lights
     _state.lights.clear();
@@ -631,79 +603,76 @@ void Renderer::begin(bool clearScreen) {
     glDepthFunc(GL_LEQUAL);
 }
 
-void Renderer::addDrawable(RenderEntity * e) {
-    _addDrawable(e, glm::mat4(1.0f));
+void Renderer::addDrawable(const EntityPtr& e) {
+    _addDrawable(e);
 }
 
-static void addEntityMeshData(RenderEntity * e, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & map) {
-    __RenderEntityObserver c(e);
-    if (map.find(c) == map.end()) {
-        map.insert(std::make_pair(c, std::unordered_map<__MeshObserver, __MeshContainer>{}));
-    }
-    std::unordered_map<__MeshObserver, __MeshContainer> & existing = map.find(c)->second;
-    
-    for (std::shared_ptr<Mesh> m : e->meshes) {
-        __MeshObserver o(m.get());
-        if (existing.find(o) == existing.end()) {
-            existing.insert(std::make_pair(o, __MeshContainer(m.get())));
+static void addEntityMeshData(const RenderNodeView& e, std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>> & map) {
+    if (map.find(e) == map.end()) {
+        std::vector<__MeshInstanceContainer> c;
+        for (int i = 0; i < e.Get()->GetNumMeshContainers(); ++i) {
+            c.push_back(__MeshInstanceContainer());
         }
-        __MeshContainer & container = existing.find(o)->second;
-        container.modelMatrices.push_back(e->model);
-        container.diffuseColors.push_back(m->getMaterial()->GetDiffuseColor());
-        container.baseReflectivity.push_back(m->getMaterial()->GetBaseReflectivity());
-        container.roughness.push_back(m->getMaterial()->GetRoughness());
-        container.metallic.push_back(m->getMaterial()->GetMetallic());
+        map.insert(std::make_pair(e, c));
+    }
+
+    std::vector<__MeshInstanceContainer>& existing = map.find(e)->second;
+    for (int i = 0; i < e.Get()->GetNumMeshContainers(); ++i) {
+        const RenderMeshContainer* c = e.Get()->GetMeshContainer(i);
+        __MeshInstanceContainer& container = existing[i];
+        container.modelMatrices.push_back(e.Get()->GetWorldTransform());
+        container.diffuseColors.push_back(c->material->GetDiffuseColor());
+        container.baseReflectivity.push_back(c->material->GetBaseReflectivity());
+        container.roughness.push_back(c->material->GetRoughness());
+        container.metallic.push_back(c->material->GetMetallic());
         ++container.size;
     }
 }
 
-void Renderer::_addDrawable(RenderEntity * e, const glm::mat4 & accum) {
-    auto it = _state.entities.find(e->getLightProperties());
-    if (it == _state.entities.end()) {
-        // Not necessarily an error since if an entity is set to
-        // invisible, we won't bother adding them
-        //STRATUS_ERROR << "[error] Unable to add entity" << std::endl;
+void Renderer::_addDrawable(const EntityPtr& e) {
+    if (e == nullptr) return;
+    if (e->GetRenderNode() == nullptr || e->GetRenderNode()->GetInvisible()) {
+        for (auto& child : e->GetChildren()) {
+            _addDrawable(child);
+        }
         return;
     }
-    e->model = glm::mat4(1.0f);
-    matRotate(e->model, e->rotation);
-    matScale(e->model, e->scale);
-    matTranslate(e->model, e->position);
-    e->model = accum * e->model;
-    it->second.push_back(e);
-    if (e->getLightProperties() & DYNAMIC) {
-        _state.lightInteractingEntities.push_back(e);
+
+    RenderNodeView rnode = RenderNodeView(e->GetRenderNode());
+    _state.entities.push_back(rnode);
+    if (rnode.Get()->GetLightInteractionEnabled()) {
+        _state.lightInteractingEntities.push_back(rnode);
     }
 
     // We want to keep track of entities and whether or not they have moved for determining
     // when shadows should be recomputed
-    if (_entitiesSeenBefore.find(e) == _entitiesSeenBefore.end()) {
-        _entitiesSeenBefore.insert(std::make_pair(e, EntityStateInfo{e->position, e->scale, e->rotation.asVec3(), true}));
+    if (_entitiesSeenBefore.find(EntityView(e)) == _entitiesSeenBefore.end()) {
+        _entitiesSeenBefore.insert(std::make_pair(EntityView(e), EntityStateInfo{e->GetWorldPosition(), e->GetLocalScale(), e->GetLocalRotation().asVec3(), true}));
     }
     else {
-        EntityStateInfo & info = _entitiesSeenBefore.find(e)->second;
-        const double distance = glm::distance(e->position, info.lastPos);
-        const double scale = glm::distance(e->scale, info.lastScale);
-        const double rotation = glm::distance(e->rotation.asVec3(), info.lastRotation);
+        EntityStateInfo & info = _entitiesSeenBefore.find(EntityView(e))->second;
+        const double distance = glm::distance(e->GetWorldPosition(), info.lastPos);
+        const double scale = glm::distance(e->GetLocalScale(), info.lastScale);
+        const double rotation = glm::distance(e->GetLocalRotation().asVec3(), info.lastRotation);
         info.dirty = false;
         if (distance > 0.25) {
-            info.lastPos = e->position;
+            info.lastPos = e->GetWorldPosition();
             info.dirty = true;
         }
         if (scale > 0.25) {
-            info.lastScale = e->scale;
+            info.lastScale = e->GetLocalScale();
             info.dirty = true;
         }
         if (rotation > 0.25) {
-            info.lastRotation = e->rotation.asVec3();
+            info.lastRotation = e->GetLocalRotation().asVec3();
             info.dirty = true;
         }
     }
 
     //addEntityMeshData(e, _state.instancedMeshes);
 
-    for (RenderEntity & node : e->nodes) {
-        _addDrawable(&node, e->model);
+    for (auto& child : e->GetChildren()) {
+        _addDrawable(child);
     }
 }
 
@@ -723,7 +692,7 @@ static std::vector<glm::mat4> generateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
-void Renderer::_initInstancedData(__MeshContainer & c, std::vector<GpuArrayBuffer> & gabuffers) {
+void Renderer::_initInstancedData(__MeshInstanceContainer & c, std::vector<GpuArrayBuffer> & gabuffers) {
     Pipeline * pbr = _state.geometry.get();
 
     auto & modelMats = c.modelMatrices;
@@ -807,11 +776,14 @@ static void setCullState(const RenderFaceCulling & mode) {
 }
 
 void Renderer::_buildEntityList(const Camera & c) {
-    for (auto & entityList : _state.entities) {
-        for (RenderEntity * e : entityList.second) {
-            const double distance = glm::distance(e->position, c.getPosition());
-            if (distance < _state.zfar) {
-                addEntityMeshData(e, _state.instancedMeshes);
+    for (auto& node : _state.entities) {
+        const double distance = glm::distance(node.Get()->GetWorldPosition(), c.getPosition());
+        if (distance < _state.zfar) {
+            if (node.Get()->GetLightInteractionEnabled()) {
+                addEntityMeshData(node, _state.instancedLightInteractMeshes);
+            }
+            else {
+                addEntityMeshData(node, _state.instancedFlatMeshes);
             }
         }
     }
@@ -821,16 +793,16 @@ static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
 }
 
-void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m, const GpuArrayBuffer& additionalBuffers, const size_t numInstances, bool removeViewTranslation) {
+void Renderer::_render(const Camera & camera, const RenderNodeView& e, bool removeViewTranslation) {
     const glm::mat4 & projection = _state.perspective;
     //const glm::mat4 & view = c.getViewTransform();
     glm::mat4 view;
     if (removeViewTranslation) {
         // Remove the translation component of the view matrix
-        view = glm::mat4(glm::mat3(c.getViewTransform()));
+        view = glm::mat4(glm::mat3(camera.getViewTransform()));
     }
     else {
-        view = c.getViewTransform();
+        view = camera.getViewTransform();
     }
 
     // Unbind current shader if one is bound
@@ -838,13 +810,14 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
     // Set up the shader we will use for this batch of entities
     Pipeline * s;
-    uint32_t lightProperties = e->getLightProperties();
-    uint32_t renderProperties = m->getRenderProperties();
-    if (lightProperties == FLAT) {
+    std::vector<__MeshInstanceContainer>* meshContainer;
+    if (e.Get()->GetLightInteractionEnabled() == false) {
         s = _state.forward.get();
+        meshContainer = &_state.instancedFlatMeshes.find(e)->second;
     }
     else {
         s = _state.geometry.get();
+        meshContainer = &_state.instancedLightInteractMeshes.find(e)->second;
     }
 
     //s->print();
@@ -852,8 +825,6 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
 
     s->setMat4("projection", &projection[0][0]);
     s->setMat4("view", &view[0][0]);
-
-    Async<Texture> tex;
 
 #define SETUP_TEXTURE(name, flag, handle)           \
         tex = _lookupTexture(handle);               \
@@ -863,69 +834,76 @@ void Renderer::_render(const Camera & c, const RenderEntity * e, const Mesh * m,
             s->bindTexture(name, tex.Get());        \
         }
 
+    for (int i = 0; i < meshContainer->size(); ++i) {
 
-    if (renderProperties & TEXTURED) {
-        SETUP_TEXTURE("diffuseTexture", "textured", m->getMaterial()->GetDiffuseTexture())
-    }
-    else {
-        s->setBool("textured", false);
-    }
+        Async<Texture> tex;
+        const RenderMeshContainer* c = e.Get()->GetMeshContainer(i);
+        const __MeshInstanceContainer& container = (*meshContainer)[i];
 
-    // Determine which uniforms we should set
-    if (lightProperties & FLAT) {
-        s->setVec3("diffuseColor", &m->getMaterial()->GetDiffuseColor()[0]);
-    } else if (lightProperties & DYNAMIC) {
-        if (renderProperties & NORMAL_MAPPED) {
-            SETUP_TEXTURE("normalMap", "normalMapped", m->getMaterial()->GetNormalMap())
+        if (c->material->GetDiffuseTexture()) {
+            SETUP_TEXTURE("diffuseTexture", "textured", c->material->GetDiffuseTexture())
         }
         else {
-            s->setBool("normalMapped", false);
+            s->setBool("textured", false);
         }
 
-        if (renderProperties & HEIGHT_MAPPED) {
-            //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-            s->setFloat("heightScale", 0.01f);
-            SETUP_TEXTURE("depthMap", "depthMapped", m->getMaterial()->GetDepthMap())
+        // Determine which uniforms we should set
+        if (e.Get()->GetLightInteractionEnabled() == false) {
+            s->setVec3("diffuseColor", &c->material->GetDiffuseColor()[0]);
         }
         else {
-            s->setBool("depthMapped", false);
+            if (c->material->GetNormalMap()) {
+                SETUP_TEXTURE("normalMap", "normalMapped", c->material->GetNormalMap())
+            }
+            else {
+                s->setBool("normalMapped", false);
+            }
+
+            if (c->material->GetDepthMap()) {
+                //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
+                s->setFloat("heightScale", 0.01f);
+                SETUP_TEXTURE("depthMap", "depthMapped", c->material->GetDepthMap())
+            }
+            else {
+                s->setBool("depthMapped", false);
+            }
+
+            if (c->material->GetRoughnessMap()) {
+                SETUP_TEXTURE("roughnessMap", "roughnessMapped", c->material->GetRoughnessMap());
+            }
+            else {
+                s->setBool("roughnessMapped", false);
+            }
+
+            if (c->material->GetAmbientTexture()) {
+                SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", c->material->GetAmbientTexture())
+            }
+            else {
+                s->setBool("ambientMapped", false);
+            }
+
+            if (c->material->GetMetallicMap()) {
+                SETUP_TEXTURE("metalnessMap", "metalnessMapped", c->material->GetMetallicMap())
+            }
+            else {
+                s->setBool("metalnessMapped", false);
+            }
+
+            s->setVec3("viewPosition", &camera.getPosition()[0]);
         }
 
-        if (renderProperties & ROUGHNESS_MAPPED) {
-            SETUP_TEXTURE("roughnessMap", "roughnessMapped", m->getMaterial()->GetRoughnessMap());
-        }
-        else {
-            s->setBool("roughnessMapped", false);
-        }
+        // Perform instanced rendering
+        setCullState(e.Get()->GetFaceCullMode());
 
-        if (renderProperties & AMBIENT_MAPPED) {
-            SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", m->getMaterial()->GetAmbientTexture())
-        }
-        else {
-            s->setBool("ambientMapped", false);
-        }
-
-        if (renderProperties & SHININESS_MAPPED) {
-            SETUP_TEXTURE("metalnessMap", "metalnessMapped", m->getMaterial()->GetMetallicMap())
-        }
-        else {
-            s->setBool("metalnessMapped", false);
-        }
-
-        s->setVec3("viewPosition", &c.getPosition()[0]);
+        c->mesh->Render(container.size, container.buffers);
     }
 
 #undef SETUP_TEXTURE
 
-    // Perform instanced rendering
-    setCullState(m->cullingMode);
-
-    m->render(numInstances, additionalBuffers);
-
     _unbindShader();
 }
 
-void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>> & entities) {
+void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>>& entities) {
     _bindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -949,13 +927,14 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto & entityObservers : entities) {
-        for (auto & meshObservers : entityObservers.second) {
-            const RenderEntity * e = entityObservers.first.e;
-            const Mesh * m = meshObservers.first.m;
-            const size_t numInstances = meshObservers.second.size;
-            setCullState(m->cullingMode);
-            m->render(numInstances, meshObservers.second.buffers);
+    for (auto& viewMesh : entities) {
+        for (int i = 0; i < viewMesh.second.size(); ++i) {
+            const __MeshInstanceContainer& container = viewMesh.second[i];
+            const RenderNodeView& e = viewMesh.first;
+            const RenderMeshPtr m = e.Get()->GetMeshContainer(i)->mesh;
+            const size_t numInstances = container.size;
+            setCullState(e.Get()->GetFaceCullMode());
+            m->Render(numInstances, container.buffers);
         }
     }
     _state.cascadeFbo.unbind();
@@ -965,23 +944,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<__Rend
 }
 
 void Renderer::end(const Camera & c) {
-    //if (_state.worldLightingEnabled) {
-    //   _recalculateCascadeData(c);
-    //}
-    // TODO: Recalculate every scene?
     _recalculateCascadeData(c);
-
-    // Pull the view transform/projection matrices
-    // const glm::mat4 * projection = &_state.perspective;
-    // const glm::mat4 * view = &c.getViewTransform();
-
-    // const glm::mat4 cameraToWorld = glm::inverse(*view);
-    // glm::mat4 lightToWorld = glm::mat4(1.0f);
-    // lightToWorld[3] = glm::vec4(glm::vec3(0.0f, 10.0f, 0.0f), 1.0f);
-    // const glm::mat4 lightViewMat = glm::inverse(lightToWorld);
-    // Camera lightCam;
-    // lightCam.setDirection(_state.worldLight.getDirection());
-    // STRATUS_LOG << lightCam.getViewTransform() << std::endl;
 
     const int maxInstances = 250;
     const int maxShadowCastingLights = 8;
@@ -995,7 +958,7 @@ void Renderer::end(const Camera & c) {
     // We need to figure out what we want to attempt to render
     _buildEntityList(c);
 
-    std::unordered_map<Light *, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>> perLightInstancedMeshes;
+    std::unordered_map<Light *, std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>>> perLightInstancedMeshes;
     std::unordered_map<Light *, bool> perLightIsDirty;
     std::vector<std::pair<Light *, double>> perLightDistToViewer;
     // This one is just for shadow-casting lights
@@ -1005,7 +968,7 @@ void Renderer::end(const Camera & c) {
         const double distance = glm::distance(c.getPosition(), light->position);
         perLightDistToViewer.push_back(std::make_pair(light, distance));
         //if (distance > 2 * light->getRadius()) continue;
-        perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<__RenderEntityObserver, std::unordered_map<__MeshObserver, __MeshContainer>>()));
+        perLightInstancedMeshes.insert(std::make_pair(light, std::unordered_map<RenderNodeView, std::vector<__MeshInstanceContainer>>()));
         perLightIsDirty.insert(std::make_pair(light, _lightsSeenBefore.find(light)->second.dirty));
         if (light->castsShadows()) {
             perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
@@ -1029,10 +992,10 @@ void Renderer::end(const Camera & c) {
         perLightShadowCastingDistToViewer.resize(maxShadowCastingLights);
     }
 
-    for (RenderEntity * e : _state.lightInteractingEntities) {
-        const bool entityIsDirty = _entitiesSeenBefore.find(e)->second.dirty;
+    for (const RenderNodeView& e : _state.lightInteractingEntities) {
+        const bool entityIsDirty = _entitiesSeenBefore.find(EntityView(e.Get()->GetOwner()))->second.dirty;
         for (auto&[light, _] : perLightShadowCastingDistToViewer) {
-            const double distance = glm::distance(e->position, light->position);
+            const double distance = glm::distance(e.Get()->GetWorldPosition(), light->position);
             if (distance > light->getRadius()) continue;
             addEntityMeshData(e, perLightInstancedMeshes.find(light)->second);
             perLightIsDirty.find(light)->second |= entityIsDirty;
@@ -1061,9 +1024,9 @@ void Renderer::end(const Camera & c) {
         auto & instancedMeshes = perLightInstancedMeshes.find(light)->second;
 
         // Init the instance data which enables us to drastically reduce the number of draw calls
-        for (auto & entityObservers : instancedMeshes) {
-            for (auto & meshObservers : entityObservers.second) {
-                _initInstancedData(meshObservers.second, buffers);
+        for (auto& viewMesh : instancedMeshes) {
+            for (auto& mesh : viewMesh.second) {
+                _initInstancedData(mesh, buffers);
             }
         }
     
@@ -1088,35 +1051,11 @@ void Renderer::end(const Camera & c) {
         _state.shadows->setVec3("lightPos", &light->position[0]);
         _state.shadows->setFloat("farPlane", point->getFarPlane());
 
-        /*
-        for (auto & p : _state.entities) {
-            uint32_t properties = p.first;
-            if ( !(properties & DYNAMIC) ) continue;
-            for (auto & e : p.second) {
-                _state.shadows->setMat4("model", &e->model[0][0]);
-                e->render();
-            }
-        }
-        */
-
         for (auto & entityObservers : instancedMeshes) {
-            //uint32_t properties = entityObservers.first.e->getLightProperties();
-            //if ( !(properties & DYNAMIC) ) continue;
-            for (auto & meshObservers : entityObservers.second) {
-                // Set up temporary instancing buffers
-                //_initInstancedData(meshObservers.second, buffers);
-                Mesh * m = meshObservers.first.m;
-                setCullState(m->cullingMode);
-                m->render(meshObservers.second.size, meshObservers.second.buffers);
-                //_clearInstancedData(buffers);
-                /**
-                const size_t size = modelMats.size();
-                for (int i = 0; i < size; i += maxInstances) {
-                    const size_t instances = std::min<size_t>(maxInstances, size - i);
-                    _state.shadows->setMat4("modelMats", &modelMats[i][0][0], instances);
-                    e.second.e->render(instances);
-                }
-                */
+            for (int i = 0; i < entityObservers.second.size(); ++i) {
+                RenderMeshPtr m = entityObservers.first.Get()->GetMeshContainer(i)->mesh;
+                setCullState(entityObservers.first.Get()->GetFaceCullMode());
+                m->Render(entityObservers.second[i].size, entityObservers.second[i].buffers);
             }
         }
 
@@ -1130,15 +1069,21 @@ void Renderer::end(const Camera & c) {
     _unbindShader();
 
     // Init the instance data which enables us to drastically reduce the number of draw calls
-    for (auto & entityObservers : _state.instancedMeshes) {
+    for (auto & entityObservers : _state.instancedLightInteractMeshes) {
         for (auto & meshObservers : entityObservers.second) {
-            _initInstancedData(meshObservers.second, buffers);
+            _initInstancedData(meshObservers, buffers);
+        }
+    }
+
+    for (auto& entityObservers : _state.instancedFlatMeshes) {
+        for (auto& meshObservers : entityObservers.second) {
+            _initInstancedData(meshObservers, buffers);
         }
     }
 
     // Perform world light depth pass if enabled
     if (_state.worldLightingEnabled) {
-        _renderCSMDepth(c, _state.instancedMeshes);
+        _renderCSMDepth(c, _state.instancedLightInteractMeshes);
     }
 
     // TEMP: Set up the light source
@@ -1155,17 +1100,9 @@ void Renderer::end(const Camera & c) {
     // Begin geometry pass
     //glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
-    for (auto & entityObservers : _state.instancedMeshes) {
-        for (auto & meshObservers : entityObservers.second) {
-            //_initInstancedData(meshObservers.second, buffers);
-            RenderEntity * e = entityObservers.first.e;
-            Mesh * m = meshObservers.first.m;
-            const size_t numInstances = meshObservers.second.size;
-
-            // We are only going to render dynamic-lit entities this pass
-            if (e->getLightProperties() & FLAT) continue;
-            _render(c, e, m, meshObservers.second.buffers, numInstances);
-        }
+    for (auto & entityObservers : _state.instancedLightInteractMeshes) {
+        const RenderNodeView& e = entityObservers.first;
+        _render(c, e);
     }
     _state.buffer.fbo.unbind();
 
@@ -1183,7 +1120,7 @@ void Renderer::end(const Camera & c) {
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
     _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
-    _state.screenQuad->render(1, GpuArrayBuffer());
+    _renderQuad();
     _state.lightingFbo.unbind();
     _unbindShader();
 
@@ -1193,17 +1130,9 @@ void Renderer::end(const Camera & c) {
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
     _state.lightingFbo.bind();
-    for (auto & entityObservers : _state.instancedMeshes) {
-        for (auto & meshObservers : entityObservers.second) {
-            //_initInstancedData(meshObservers.second, buffers);
-            RenderEntity * e = entityObservers.first.e;
-            Mesh * m = meshObservers.first.m;
-            const size_t numInstances = meshObservers.second.size;
-
-            // We are only going to render flat entities during this pass
-            if (e->getLightProperties() & DYNAMIC) continue;
-            _render(c, e, m, meshObservers.second.buffers, numInstances);
-        }
+    for (auto & entityObservers : _state.instancedFlatMeshes) {
+        const RenderNodeView& e = entityObservers.first;
+        _render(c, e);
     }
     _state.lightingFbo.unbind();
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1329,19 +1258,7 @@ void Renderer::_finalizeFrame() {
 }
 
 void Renderer::_renderQuad() {
-    _state.screenQuad->render(1, GpuArrayBuffer());
-}
-
-Model Renderer::loadModel(const std::string & file) {
-    auto it = this->_models.find(file);
-    if (it != this->_models.end()) {
-        return it->second;
-    }
-
-    STRATUS_LOG << "Loading " << file << std::endl;
-    Model m(*this, file);
-    this->_models.insert(std::make_pair(file, m));
-    return std::move(m);
+    _state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
 TextureHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {

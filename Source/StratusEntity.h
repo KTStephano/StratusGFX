@@ -95,10 +95,11 @@ namespace stratus {
      * one thread should handle an Entity tree at a time.
      */
     struct Entity : public std::enable_shared_from_this<Entity> {
+        Entity();
+
     public:
         static EntityPtr Create();
 
-        Entity();
         virtual ~Entity();
 
         // Functions for manipulating entity components
@@ -109,16 +110,18 @@ namespace stratus {
         virtual const std::vector<EntityComponentPtr>& GetComponents() const;
 
         // Functions for getting and setting transform
-        virtual const glm::vec3& GetPosition() const;
-        virtual void SetPosition(const glm::vec3&);
+        virtual const glm::vec3& GetLocalPosition() const;
+        virtual void SetLocalPosition(const glm::vec3&);
 
-        virtual const Rotation& GetRotation() const;
-        virtual void SetRotation(const Rotation&);
+        virtual const Rotation& GetLocalRotation() const;
+        virtual void SetLocalRotation(const Rotation&);
 
-        virtual const glm::vec3& GetScale() const;
-        virtual void SetScale(const glm::vec3&);
+        virtual const glm::vec3& GetLocalScale() const;
+        virtual void SetLocalScale(const glm::vec3&);
 
-        virtual void SetPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
+        virtual void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
+
+        virtual const glm::vec3& GetWorldPosition() const;
 
         // World transform is relative to the entity's parent
         virtual const glm::mat4& GetWorldTransform() const;
@@ -156,6 +159,14 @@ namespace stratus {
         // (if copyHandle == false it will generated a new handle)
         virtual EntityPtr Copy(bool copyHandle = false) const;
 
+        virtual bool operator==(const Entity& other) const {
+            return _handle == other._handle;
+        }
+
+        virtual size_t HashCode() const {
+            return std::hash<EntityHandle>{}(_handle);
+        }
+
     protected:
         virtual void Copy(EntityPtr&, bool) const;
         void IncrRefCount();
@@ -172,10 +183,42 @@ namespace stratus {
         std::unordered_set<EntityPtr> _children;
         RenderNodePtr _renderNode;
         glm::vec3 _position;
+        glm::vec3 _worldPosition;
         Rotation _rotation;
         glm::vec3 _scale;
         glm::mat4 _localTransform = glm::mat4(1.0f);
         glm::mat4 _worldTransform = glm::mat4(1.0f);
+    };
+
+    // Allows for entity to be inserted into hash map
+    struct EntityView {
+        EntityView() {}
+        EntityView(const EntityPtr& entity) : _entity(entity) {}
+        const EntityPtr& Get() const { return _entity; }
+
+        bool operator==(const EntityView& other) const {
+            return *_entity == *other._entity;
+        }
+
+        bool operator!=(const EntityView& other) const {
+            return !(*this == other);
+        }
+
+        size_t HashCode() const {
+            return _entity->HashCode();
+        }
+
+    private:
+        EntityPtr _entity;
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<stratus::EntityView> {
+        size_t operator()(const stratus::EntityView& v) const {
+            return v.HashCode();
+        }
     };
 }
 

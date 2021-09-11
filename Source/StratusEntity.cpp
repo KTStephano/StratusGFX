@@ -50,38 +50,42 @@ namespace stratus {
 
     }
 
-    const glm::vec3& Entity::GetPosition() const {
+    const glm::vec3& Entity::GetLocalPosition() const {
         return _position;
     }
 
-    void Entity::SetPosition(const glm::vec3& pos) {
+    void Entity::SetLocalPosition(const glm::vec3& pos) {
         _position = pos;
         _RecalcTransform();
     }
 
-    const Rotation& Entity::GetRotation() const {
+    const Rotation& Entity::GetLocalRotation() const {
         return _rotation;
     }
 
-    void Entity::SetRotation(const Rotation& rot) {
+    void Entity::SetLocalRotation(const Rotation& rot) {
         _rotation = rot;
         _RecalcTransform();
     }
 
-    const glm::vec3& Entity::GetScale() const {
+    const glm::vec3& Entity::GetLocalScale() const {
         return _scale;
     }
 
-    void Entity::SetScale(const glm::vec3& scale) {
+    void Entity::SetLocalScale(const glm::vec3& scale) {
         _scale = scale;
         _RecalcTransform();
     }
 
-    void Entity::SetPosRotScale(const glm::vec3& pos, const Rotation& rot, const glm::vec3& scale) {
+    void Entity::SetLocalPosRotScale(const glm::vec3& pos, const Rotation& rot, const glm::vec3& scale) {
         _position = pos;
         _rotation = rot;
         _scale = scale;
         _RecalcTransform();
+    }
+
+    const glm::vec3& Entity::GetWorldPosition() const {
+        return _worldPosition;
     }
 
     const glm::mat4& Entity::GetWorldTransform() const {
@@ -161,6 +165,7 @@ namespace stratus {
         _localTransform = constructTransformMat(_rotation, _position, _scale);
         _worldTransform = _parent != nullptr ? _parent->_worldTransform : glm::mat4(1.0f);
         _worldTransform = _worldTransform * _localTransform;
+        _worldPosition = glm::vec3(_worldTransform * glm::vec4(_position, 1.0f));
         
         if (_renderNode != nullptr) {
             _renderNode->SetWorldTransform(_worldTransform);
@@ -178,6 +183,7 @@ namespace stratus {
     void Entity::SetRenderNode(const RenderNodePtr& node) {
         _renderNode = node;
         _renderNode->SetWorldTransform(_worldTransform);
+        _renderNode->SetOwner(shared_from_this());
     }
 
     EntityPtr Entity::Copy(bool copyHandle) const {
@@ -196,9 +202,10 @@ namespace stratus {
         ptr->_refCount = _refCount;
         ptr->IncrRefCount();
 
-        ptr->_position = GetPosition();
-        ptr->_rotation = GetRotation();
-        ptr->_scale = GetScale();
+        ptr->_position = GetLocalPosition();
+        ptr->_rotation = GetLocalRotation();
+        ptr->_scale = GetLocalScale();
+        ptr->_worldPosition = GetWorldPosition();
         ptr->_localTransform = GetLocalTransform();
         ptr->_worldTransform = GetWorldTransform();
 
