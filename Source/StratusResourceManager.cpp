@@ -67,12 +67,12 @@ namespace stratus {
         auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<Texture> as(*Engine::Instance()->GetMainThread(), [this, name, handle]() {
+        Async<RawTextureData> as(*_threads[index].get(), [this, name, handle]() {
             return _LoadTexture(name, handle);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
-        _loadedTextures.insert(std::make_pair(handle, as));
+        _asyncLoadedTextureData.insert(std::make_pair(handle, as));
 
         return handle;
     }
@@ -231,9 +231,9 @@ namespace stratus {
         return e;
     }
 
-    Texture * ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle) const {
+    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle) const {
         STRATUS_LOG << "Attempting to load texture from file: " << file << std::endl;
-        Texture * texture;
+        std::shared_ptr<RawTextureData> texdata;
         int width, height, numChannels;
         // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
         uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
@@ -264,17 +264,29 @@ namespace stratus {
                     return nullptr;
             }
 
-            texture = new Texture(config, data, false);
-            texture->_setHandle(handle);
-            texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
-            texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
+            texdata = std::make_shared<RawTextureData>();
+            texdata->config = config;
+            texdata->handle = handle;
+            texdata->data = data;
         } 
         else {
             STRATUS_ERROR << "Could not load texture: " << file << std::endl;
             return nullptr;
         }
-        
-        stbi_image_free(data);
+    
+        auto ul = _LockWrite();
+        _loadedTextures.insert(std::make_pair(handle, Async<Texture>(*Engine::Instance()->GetMainThread(), [this, texdata]() {
+            return _FinalizeTexture(*texdata);
+        })));
+        return texdata;
+    }
+
+    Texture * ResourceManager::_FinalizeTexture(const RawTextureData& data) const {
+        Texture * texture = new Texture(data.config, data.data, false);
+        texture->_setHandle(data.handle);
+        texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+        texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
+        stbi_image_free(data.data);
         return texture;
     }
 
