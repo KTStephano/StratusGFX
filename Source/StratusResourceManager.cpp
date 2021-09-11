@@ -6,28 +6,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
-    //     ResourceManager();
-
-    // public:
-    //     ResourceManager(const ResourceManager&) = delete;
-    //     ResourceManager(ResourceManager&&) = delete;
-    //     ResourceManager& operator=(const ResourceManager&) = delete;
-    //     ResourceManager& operator=(ResourceManager&&) = delete;
-
-    //     ~ResourceManager();
-
-    //     static ResourceManager * Instance() { return _instance; }
-
-    //     void Update();
-    //     Async<Entity> LoadModel(const std::string&);
-
-    // private:
-    //     static ResourceManager * _instance;
-    //     std::vector<ThreadPtr> _threads;
-    //     std::vector<std::vector<Thread::ThreadFunction>> _resourceLoadRequests;
-    //     uint32_t _nextResourceVector = 0;
-    //     mutable std::shared_mutex _mutex;
-
 namespace stratus {
     ResourceManager * ResourceManager::_instance = nullptr;
 
@@ -97,6 +75,19 @@ namespace stratus {
         _loadedTextures.insert(std::make_pair(handle, as));
 
         return handle;
+    }
+
+    void ResourceManager::FinalizeModelMemory(const EntityPtr& ptr) {
+        auto sl = _LockWrite();
+        EntityView view(ptr);
+        auto index = _NextResourceIndex();
+        RenderNodePtr rnode = ptr->GetRenderNode()->Copy();
+        Async<bool> as(*Engine::Instance()->GetMainThread(), [rnode]() {
+            for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+                rnode->GetMeshContainer(i)->mesh->FinalizeGpuData();
+            }
+            return new bool(true);
+        });
     }
 
     bool ResourceManager::GetTexture(const TextureHandle handle, Async<Texture>& tex) const {
@@ -232,7 +223,11 @@ namespace stratus {
         EntityPtr e = Entity::Create();
         const std::string directory = name.substr(0, name.find_last_of('/'));
         ProcessNode(scene->mRootNode, scene, e, material, directory);
-        STRATUS_LOG << "Finished processing\n";
+
+        auto ul = _LockWrite();
+        // Create an internal copy for thread safety
+        _loadedModels.insert(std::make_pair(name, Async<Entity>(e->Copy())));
+
         return e;
     }
 
@@ -364,6 +359,7 @@ namespace stratus {
             // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
         }
 
+        rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         rnode->SetFaceCullMode(RenderFaceCulling::CULLING_CCW);
         _cube->SetRenderNode(rnode);
@@ -386,6 +382,7 @@ namespace stratus {
             // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
         }
 
+        rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         rnode->SetFaceCullMode(RenderFaceCulling::CULLING_NONE);
         _quad->SetRenderNode(rnode);

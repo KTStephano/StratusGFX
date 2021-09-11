@@ -32,9 +32,18 @@ namespace stratus {
         void AddIndex(uint32_t);
 
         void CalculateTangentsBitangents() const;
+        // Generate Cpu data can happen on any thread
         void GenerateCpuData() const;
+        // Generate Gpu Data MUST happen on rendering thread
         void GenerateGpuData() const;
+        // Finalize gpu data can happen on any thread
+        void FinalizeGpuData() const;
         const GpuArrayBuffer& GetData() const;
+
+        bool IsCpuDirty() const;
+        bool IsGpuDirty() const;
+        bool IsGpuDataDirty() const;
+        bool Complete() const;
 
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
@@ -51,6 +60,9 @@ namespace stratus {
         mutable uint32_t _numIndices;
         mutable bool _isCpuDirty = true;
         mutable bool _isGpuDirty = true;
+        mutable bool _isGpuDataDirty = true;
+        mutable void * _primitiveMapped = nullptr;
+        mutable void * _indicesMapped = nullptr;
     };
 
     struct RenderMeshContainer {

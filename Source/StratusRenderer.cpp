@@ -944,6 +944,21 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<Render
 }
 
 void Renderer::end(const Camera & c) {
+    for (auto& entityView : _entitiesSeenBefore) {
+        auto rnode = entityView.first.Get()->GetRenderNode();
+        bool anyIncomplete = false;
+        for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+            if (rnode->GetMeshContainer(i)->mesh->IsGpuDirty()) {
+                anyIncomplete = true;
+                rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
+            }
+        }
+
+        if (anyIncomplete) {
+            ResourceManager::Instance()->FinalizeModelMemory(entityView.first.Get());
+        }
+    }
+
     _recalculateCascadeData(c);
 
     const int maxInstances = 250;

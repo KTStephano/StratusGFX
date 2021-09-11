@@ -37,6 +37,9 @@ namespace stratus {
         void Bind() const;
         void Unbind() const;
 
+        void * MapReadWrite() const;
+        void UnmapReadWrite() const;
+
     private:
         std::shared_ptr<GpuBufferImpl> _impl;
     };
@@ -47,6 +50,10 @@ namespace stratus {
         ~GpuArrayBuffer() = default;
 
         void AddBuffer(const GpuBuffer&);
+        size_t GetNumBuffers() const;
+        GpuBuffer& GetBuffer(size_t);
+        const GpuBuffer& GetBuffer(size_t) const;
+        void UnmapAllReadWrite() const;
         void Bind() const;
         void Unbind() const;
         void Clear();

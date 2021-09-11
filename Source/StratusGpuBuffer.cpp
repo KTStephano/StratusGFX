@@ -73,6 +73,19 @@ namespace stratus {
         _unbind();
     }
 
+    void * MapReadWrite() const {
+        _bind();
+        void * ptr = glMapBuffer(_bufferType, GL_READ_WRITE);
+        _unbind();
+        return ptr;
+    }
+    
+    void UnmapReadWrite() const {
+        _bind();
+        glUnmapBuffer(_bufferType);
+        _unbind();
+    }
+
     private:
         static GLenum _ConvertBufferType(GpuBufferType type) {
             switch (type) {
@@ -131,6 +144,14 @@ namespace stratus {
         _impl->Unbind();
     }
 
+    void * GpuBuffer::MapReadWrite() const {
+        return _impl->MapReadWrite();
+    }
+
+    void GpuBuffer::UnmapReadWrite() const {
+        _impl->UnmapReadWrite();
+    }
+
     GpuArrayBuffer::GpuArrayBuffer()
         : _buffers(std::make_shared<std::vector<GpuBuffer>>()) {}
 
@@ -148,5 +169,21 @@ namespace stratus {
 
     void GpuArrayBuffer::Clear() {
         _buffers->clear();
+    }
+
+    size_t GpuArrayBuffer::GetNumBuffers() const {
+        return _buffers->size();
+    }
+
+    GpuBuffer& GpuArrayBuffer::GetBuffer(size_t index) {
+        return (*_buffers)[index];
+    }
+
+    const GpuBuffer& GpuArrayBuffer::GetBuffer(size_t index) const {
+        return (*_buffers)[index];
+    }
+
+    void GpuArrayBuffer::UnmapAllReadWrite() const {
+        for (auto& buffer : *_buffers) buffer.UnmapReadWrite();
     }
 }

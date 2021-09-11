@@ -8,30 +8,35 @@ namespace stratus {
         _numVertices = _vertices.size();
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::AddUV(const glm::vec2& uv) {
         _uvs.push_back(uv);
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::AddNormal(const glm::vec3& n) {
         _normals.push_back(n);
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::AddTangent(const glm::vec3& t) {
         _tangents.push_back(t);
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::AddBitangent(const glm::vec3& bt) {
         _bitangents.push_back(bt);
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::AddIndex(uint32_t i) {
@@ -39,6 +44,7 @@ namespace stratus {
         _numIndices = _indices.size();
         _isCpuDirty = true;
         _isGpuDirty = true;
+        _isGpuDataDirty = true;
     }
 
     void RenderMesh::CalculateTangentsBitangents() const {
@@ -123,19 +129,22 @@ namespace stratus {
 
     void RenderMesh::GenerateGpuData() const {
         if (!_isGpuDirty) return;
-        _isGpuDirty = false;
 
         _buffers = GpuArrayBuffer();
         GpuBuffer buffer;
         if (_numIndices > 0) {
-            buffer = GpuBuffer(GpuBufferType::INDEX_BUFFER, _indices.data(), _indices.size() * sizeof(uint32_t));
+            buffer = GpuBuffer(GpuBufferType::INDEX_BUFFER, nullptr, _indices.size() * sizeof(uint32_t));
             _buffers.AddBuffer(buffer);
+            _indicesMapped = buffer.MapReadWrite();
         }
+
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
-        const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
-        buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, _data.data(), _data.size() * sizeof(float));
+        buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, nullptr, _data.size() * sizeof(float));
         _buffers.AddBuffer(buffer);
+        _primitiveMapped = buffer.MapReadWrite();
         
+        const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
+
         // Vertices
         buffer.EnableAttribute(0, 3, GpuStorageType::FLOAT, false, stride, 0);
 
@@ -151,9 +160,39 @@ namespace stratus {
         // Bitangents
         buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
 
+        _isGpuDirty = false;
+    }
+
+    void RenderMesh::FinalizeGpuData() const {
+        if (!_isGpuDataDirty) return;
+
+        if (_numIndices > 0) {
+            memcpy(_indicesMapped, (const void *)_indices.data(), _indices.size() * sizeof(uint32_t));
+        }
+
+        memcpy(_primitiveMapped, (const void *)_data.data(), _data.size() * sizeof(float));
+
         // Clear out existing buffers to conserve system memory
         _indices.clear();
         _data.clear();
+
+        _isGpuDataDirty = false;
+    }
+
+    bool RenderMesh::IsCpuDirty() const {
+        return _isCpuDirty;
+    }
+
+    bool RenderMesh::IsGpuDirty() const {
+        return _isGpuDirty;
+    }
+
+    bool RenderMesh::IsGpuDataDirty() const {
+        return _isGpuDataDirty;
+    }
+
+    bool RenderMesh::Complete() const {
+        return !_isCpuDirty && !_isGpuDirty && !_isGpuDataDirty;
     }
 
     const GpuArrayBuffer& RenderMesh::GetData() const {
@@ -161,8 +200,17 @@ namespace stratus {
     }
 
     void RenderMesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
-        GenerateCpuData();
-        GenerateGpuData();
+        // GenerateCpuData();
+        // GenerateGpuData();
+        // FinalizeGpuData();
+
+        if (!Complete()) return;
+
+        if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
+            _buffers.UnmapAllReadWrite();
+            _primitiveMapped = nullptr;
+            _indicesMapped = nullptr;
+        }
 
         _buffers.Bind();
         additionalBuffers.Bind();

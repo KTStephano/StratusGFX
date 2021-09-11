@@ -135,7 +135,7 @@ public:
 
         stratus::Async<stratus::Entity> e;
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_ERROR << e.ExceptionMessage() << std::endl;  outhouse = e.GetPtr(); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { outhouse = e.GetPtr(); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); });
