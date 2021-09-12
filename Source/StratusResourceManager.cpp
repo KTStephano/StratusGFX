@@ -38,14 +38,24 @@ namespace stratus {
 
     void ResourceManager::_ClearAsyncTextureData() {
         std::vector<TextureHandle> toDelete;
+        constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
+        size_t totalTex = 0;
+        size_t totalBytes = 0;
         for (auto& tpair : _asyncLoadedTextureData) {
+            if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
                 auto texdata = tpair.second.GetPtr();
+                totalBytes += texdata->sizeBytes;
+                ++totalTex;
                 _loadedTextures.insert(std::make_pair(tpair.first, Async<Texture>(*Engine::Instance()->GetMainThread(), [this, texdata]() {
                     return _FinalizeTexture(*texdata);
                 })));
             }
+        }
+
+        if (totalBytes > 0) {
+            STRATUS_LOG << "Texture data bytes processed: " << totalBytes << ", " << totalTex << std::endl;
         }
 
         for (auto handle : toDelete) _asyncLoadedTextureData.erase(handle);
@@ -309,6 +319,7 @@ namespace stratus {
             texdata = std::make_shared<RawTextureData>();
             texdata->config = config;
             texdata->handle = handle;
+            texdata->sizeBytes = width * height * numChannels * sizeof(uint8_t);
             texdata->data = data;
         } 
         else {

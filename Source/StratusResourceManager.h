@@ -18,6 +18,7 @@ namespace stratus {
         struct RawTextureData {
             TextureConfig config;
             TextureHandle handle;
+            size_t sizeBytes;
             uint8_t * data;
         };
 

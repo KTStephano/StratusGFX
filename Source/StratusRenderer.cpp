@@ -944,7 +944,7 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<Render
 }
 
 void Renderer::end(const Camera & c) {
-    constexpr size_t maxBytesPerFrame = 1024 * 1024 * 32; // 32 mb
+    constexpr size_t maxBytesPerFrame = 1024 * 1024 * 32; // 32 mb per frame
     size_t totalBytes = 0;
     for (auto& entityView : _entitiesSeenBefore) {
         auto rnode = entityView.first.Get()->GetRenderNode();
