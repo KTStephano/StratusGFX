@@ -217,11 +217,8 @@ public:
         }
         SDL_Event e;
         const float camSpeed = 100.0f;
-
-        // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
-        //worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        worldLight.offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
-        renderer->setWorldLight(worldLight);
+        const float lightIncreaseSpeed = 1.0f;
+        const float maxLightBrightness = 30.0f;
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -273,15 +270,20 @@ public:
                         case SDL_SCANCODE_I:
                             if (released) {
                                 worldLightEnabled = !worldLightEnabled;
-                                renderer->toggleWorldLighting(worldLightEnabled);
-                                // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
-                                // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-                                worldLight.setColor(glm::vec3(1.0f));
-                                worldLight.setIntensity(5.0f);
-                                worldLight.setPosition(camera.getPosition());
-                                //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
-                                renderer->setWorldLight(worldLight);
                             }
+                            break;
+                        case SDL_SCANCODE_P:
+                            if (released) {
+                                worldLightPaused = !worldLightPaused;
+                            }
+                            break;
+                        case SDL_SCANCODE_UP:
+                            worldLightBrightness += lightIncreaseSpeed * deltaSeconds;
+                            worldLightBrightness = std::min(maxLightBrightness, worldLightBrightness);
+                            break;
+                        case SDL_SCANCODE_DOWN:
+                            worldLightBrightness -= lightIncreaseSpeed * deltaSeconds;
+                            worldLightBrightness = std::max(0.0f, worldLightBrightness);
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
@@ -388,6 +390,21 @@ public:
                 default: break;
             }
         }
+
+        // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
+        //worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+        if (!worldLightPaused) {
+            worldLight.offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
+        }
+
+        renderer->toggleWorldLighting(worldLightEnabled);
+        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
+        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
+        worldLight.setColor(glm::vec3(1.0f));
+        worldLight.setIntensity(worldLightBrightness);
+        worldLight.setPosition(camera.getPosition());
+        //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
+        renderer->setWorldLight(worldLight);
 
         // Check mouse state
         int x, y;
@@ -501,7 +518,9 @@ private:
     stratus::InfiniteLight worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
     bool camLightEnabled = true;
-    bool worldLightEnabled = false;
+    bool worldLightEnabled = true;
+    bool worldLightPaused = true;
+    float worldLightBrightness = 0.5f;
 };
 
 STRATUS_ENTRY_POINT(StratusGFX)
