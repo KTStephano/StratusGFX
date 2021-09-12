@@ -944,20 +944,22 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<Render
 }
 
 void Renderer::end(const Camera & c) {
+    constexpr size_t maxBytesPerFrame = 1024 * 1024 * 32; // 32 mb
+    size_t totalBytes = 0;
     for (auto& entityView : _entitiesSeenBefore) {
         auto rnode = entityView.first.Get()->GetRenderNode();
-        bool anyIncomplete = false;
         for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+            if (totalBytes > maxBytesPerFrame) break;
+
             if (rnode->GetMeshContainer(i)->mesh->IsGpuDirty()) {
-                anyIncomplete = true;
                 rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
+                totalBytes += rnode->GetMeshContainer(i)->mesh->GetGpuSizeBytes();
+                ResourceManager::Instance()->FinalizeModelMemory(rnode->GetMeshContainer(i)->mesh);
             }
         }
-
-        if (anyIncomplete) {
-            ResourceManager::Instance()->FinalizeModelMemory(entityView.first.Get());
-        }
     }
+
+    //if (totalBytes > 0) STRATUS_LOG << "Total bytes " << totalBytes << std::endl;
 
     _recalculateCascadeData(c);
 

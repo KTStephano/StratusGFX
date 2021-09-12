@@ -119,12 +119,18 @@ namespace stratus {
             _data.push_back(_bitangents[i].z);
         }
 
+        _dataSizeBytes = _data.size() * sizeof(float);
+
         // Clear out existing buffers to conserve system memory
         _vertices.clear();
         _uvs.clear();
         _normals.clear();
         _tangents.clear();
         _bitangents.clear();
+    }
+
+    size_t RenderMesh::GetGpuSizeBytes() const {
+        return _dataSizeBytes;
     }
 
     void RenderMesh::GenerateGpuData() const {

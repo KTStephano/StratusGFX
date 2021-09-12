@@ -34,7 +34,7 @@ namespace stratus {
         void Update();
         Async<Entity> LoadModel(const std::string&);
         TextureHandle LoadTexture(const std::string&);
-        void FinalizeModelMemory(const EntityPtr&);
+        void FinalizeModelMemory(const RenderMeshPtr&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
 
         // Default shapes

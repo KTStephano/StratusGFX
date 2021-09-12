@@ -124,17 +124,12 @@ namespace stratus {
         return handle;
     }
 
-    void ResourceManager::FinalizeModelMemory(const EntityPtr& ptr) {
+    void ResourceManager::FinalizeModelMemory(const RenderMeshPtr& ptr) {
         auto sl = _LockWrite();
-        EntityView view(ptr);
         auto index = _NextResourceIndex();
-        RenderNodePtr rnode = ptr->GetRenderNode()->Copy();
-        Async<bool> as(*_threads[index].get(), [rnode]() {
-            STRATUS_LOG << "Finalizing from within thread\n";
-            for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
-                rnode->GetMeshContainer(i)->mesh->FinalizeGpuData();
-            }
-            return new bool(true);
+        Async<bool> as(*_threads[index].get(), [ptr]() {
+            ptr->FinalizeGpuData();
+            return (bool *)nullptr;
         });
     }
 
@@ -258,8 +253,7 @@ namespace stratus {
         Assimp::Importer importer;
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
-        //const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
-        const aiScene* scene = importer.ReadFile(name, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
+        const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_CalcTangentSpace | aiProcess_SplitLargeMeshes);
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);
 

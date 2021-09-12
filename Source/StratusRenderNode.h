@@ -40,6 +40,8 @@ namespace stratus {
         void FinalizeGpuData() const;
         const GpuArrayBuffer& GetData() const;
 
+        size_t GetGpuSizeBytes() const;
+
         bool IsCpuDirty() const;
         bool IsGpuDirty() const;
         bool IsGpuDataDirty() const;
@@ -56,6 +58,7 @@ namespace stratus {
         mutable std::vector<glm::vec3> _bitangents;
         mutable std::vector<uint32_t> _indices;
         mutable std::vector<float> _data;
+        mutable size_t _dataSizeBytes;
         mutable uint32_t _numVertices;
         mutable uint32_t _numIndices;
         mutable bool _isCpuDirty = true;
