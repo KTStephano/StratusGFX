@@ -520,7 +520,7 @@ private:
     bool camLightEnabled = true;
     bool worldLightEnabled = true;
     bool worldLightPaused = true;
-    float worldLightBrightness = 0.5f;
+    float worldLightBrightness = 5.0f;
 };
 
 STRATUS_ENTRY_POINT(StratusGFX)

@@ -216,10 +216,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
     _state.csms.resize(numCascades);
 
     // Set up the shadow texture offsets
-    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -2.0f * cascadeDelta, 2.0f * cascadeDelta, -cascadeDelta);
-    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, 2.0f * cascadeDelta, -2.0f * cascadeDelta, cascadeDelta);
     _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
     _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+    // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
     // Assume directional light translation is none
     // Camera light(false);
@@ -362,7 +362,7 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
                                                glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
                                                glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-                                               glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                                               glm::vec4(0.0f, 0.0f, shadowDepthOffset, 1.0f));
 
         // Gives us x, y values between [0, 1]
         const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
@@ -376,9 +376,10 @@ void Renderer::_recalculateCascadeData(const Camera & c) {
         //
         // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
         _state.csms[i].depthProjection = cascadeOrthoProjection;
-        _state.csms[i].texelProjection = cascadeOrthoProjection;
+        _state.csms[i].texelProjection = cascadeTexelOrthoProjection;
         _state.csms[i].view = cascadeViewTransform;
-        _state.csms[i].projectionView = cascadeOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
+        _state.csms[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
 
         if (i > 0) {
             // This will allow us to calculate the cascade blending weights in the vertex shader and then
@@ -913,10 +914,12 @@ void Renderer::_renderCSMDepth(const Camera & c, const std::unordered_map<Render
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
+    _state.csmDepth->setVec3("lightDir", &_state.worldLightCamera.getDirection()[0]);
+
     // Set up each individual view-projection matrix
     for (int i = 0; i < _state.csms.size(); ++i) {
         auto& csm = _state.csms[i];
-        _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionView[0][0]);
+        _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
     }
 
     // Render everything in a single pass
@@ -1283,6 +1286,8 @@ TextureHandle Renderer::createShadowMap3D(uint32_t resolutionX, uint32_t resolut
     smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, nullptr);
     smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    // We need to set this when using sampler2DShadow in the GLSL shader
+    //smap.shadowCubeMap.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
     smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
     if (!smap.frameBuffer.valid()) {
@@ -1408,7 +1413,7 @@ void Renderer::_initLights(Pipeline * s, const Camera & c, const std::vector<std
     s->bindTexture("infiniteLightShadowMap", *_state.cascadeFbo.getDepthStencilAttachment());
     for (int i = 0; i < 4; ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
-        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionView[0][0]);
+        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_state.csms[i].projectionViewSample[0][0]);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 

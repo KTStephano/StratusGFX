@@ -126,6 +126,12 @@ float saturate(float value) {
     return clamp(value, 0.0, 1.0);
 }
 
+vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
+    // This will give us the size of a single texel in (x, y) directions
+    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
+    return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
+}
+
 #define PCF_SAMPLES 2.5;
 #define PCF_SAMPLES_CUBED 16.0; // Not exactly... constrained it to 16 for Mac
 #define PCF_SAMPLES_HALF 1;
@@ -174,10 +180,11 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     return shadow / totalSamples;
 }
 
-float sampleInfiniteShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth) {
-    coords.w = depth + PREVENT_DIV_BY_ZERO;
-    float closestDepth = texture(shadow, coords);
-    return closestDepth;
+// See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset) {
+    coords.w = depth;
+    coords.xy += offset;
+    return texture(shadow, coords);
     // float closestDepth = texture(shadow, coords).r;
     // // 0.0 means not in shadow, 1.0 means fully in shadow
     // return depth > closestDepth ? 1.0 : 0.0;
@@ -199,7 +206,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
-        cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
+        cascadeCoords[i].z = cascadeCoords[i].z * 0.5 + 0.5;
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
@@ -226,26 +233,21 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
 
     float light1 = 0.0;
+    p1.xy = shadowCoord1;
     // Sample four times from first cascade
-    p1.xy = shadowCoord1 + shadowOffset[0].xy;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[0].zw;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[1].xy;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[1].zw;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p1, depth1);
+    light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, shadowOffset[0].xy);
+    light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, shadowOffset[0].zw);
+    light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, shadowOffset[1].xy);
+    light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, shadowOffset[1].zw);
+
 
     float light2 = 0.0;
     // Sample four times from second cascade
-    p2.xy = shadowCoord2 + shadowOffset[0].xy;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[0].zw;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[1].xy;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[1].zw;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMap, p2, depth2);
+    p2.xy = shadowCoord2;
+    light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, shadowOffset[0].xy);
+    light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, shadowOffset[0].zw);
+    light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, shadowOffset[1].xy);
+    light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, shadowOffset[1].zw);
 
     // blend and return
     return mix(light2, light1, weight) * 0.25; // 0.25 = 1.0 / 4.0 = average
