@@ -37,7 +37,7 @@ public:
 
     RandomLightMover() {
         cube = stratus::ResourceManager::Instance()->CreateCube();
-        //cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
+        cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->SetLocalScale(glm::vec3(1.0f));

@@ -42,11 +42,15 @@ namespace stratus {
         EntityPtr CreateQuad();
 
     private:
+        void _ClearAsyncTextureData();
+        void _ClearAsyncModelData();
+
+    private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&) const;
-        std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle) const;
-        Texture * _FinalizeTexture(const RawTextureData&) const;
+        EntityPtr _LoadModel(const std::string&);
+        std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle);
+        Texture * _FinalizeTexture(const RawTextureData&);
         uint32_t _NextResourceIndex();
 
         void _InitCube();
@@ -58,10 +62,11 @@ namespace stratus {
         uint32_t _nextResourceVector = 0;
         EntityPtr _cube;
         EntityPtr _quad;
-        mutable std::unordered_map<std::string, Async<Entity>> _loadedModels;
-        mutable std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
-        mutable std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
-        mutable std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;
+        std::unordered_map<std::string, Async<Entity>> _loadedModels;
+        std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
+        std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
+        std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
+        std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;
         mutable std::shared_mutex _mutex;
     };
 }
