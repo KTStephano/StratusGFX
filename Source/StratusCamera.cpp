@@ -96,6 +96,10 @@ namespace stratus {
         _viewTransformValid = true;
     }
 
+    CameraPtr Camera::Copy() const {
+        return CameraPtr(new Camera(*this));
+    }
+
 // Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {
 //     _side = glm::cross(_up, _dir);
 //     _viewTransform = glm::lookAt(position, position + _dir, _up);

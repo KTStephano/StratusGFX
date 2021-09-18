@@ -5,6 +5,10 @@ class ExampleApp : public stratus::Application {
 public:
     virtual ~ExampleApp() = default;
 
+    std::string GetAppName() const {
+        return "ExampleApp00";
+    }
+
     virtual bool Initialize() override {
         return true; // success
     }

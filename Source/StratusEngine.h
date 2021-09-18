@@ -86,6 +86,7 @@ namespace stratus {
         void _InitLog();
         void _InitMaterialManager();
         void _InitResourceManager();
+        void _InitRenderer();
 
         template<typename E>
         void _DeleteResource(E *& ptr) {

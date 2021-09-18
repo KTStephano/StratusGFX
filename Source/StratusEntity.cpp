@@ -8,6 +8,7 @@ namespace stratus {
     Entity::Entity() {
         _handle = EntityHandle::NextHandle();
         _refCount = std::make_shared<std::atomic<uint64_t>>(1);
+        _RecalcTransform();
     }
 
     uint64_t Entity::GetRefCount() const {
@@ -164,9 +165,9 @@ namespace stratus {
     void Entity::_RecalcTransform() {
         _localTransform = constructTransformMat(_rotation, _position, _scale);
         _worldTransform = _parent != nullptr ? _parent->_worldTransform : glm::mat4(1.0f);
-        _worldTransform = _worldTransform * _localTransform;
         _worldPosition = glm::vec3(_worldTransform * glm::vec4(_position, 1.0f));
-        
+        _worldTransform = _worldTransform * _localTransform;
+
         if (_renderNode != nullptr) {
             _renderNode->SetWorldTransform(_worldTransform);
         }

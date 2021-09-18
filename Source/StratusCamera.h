@@ -6,6 +6,9 @@
 #include "StratusMath.h"
 
 namespace stratus {
+    class Camera;
+    typedef std::shared_ptr<Camera> CameraPtr;
+
 /**
  * A camera is an object that can view the world
  * from a certain perspective.
@@ -74,6 +77,8 @@ public:
 
     // Gets the camera -> world transform
     const glm::mat4& getWorldTransform() const;
+
+    CameraPtr Copy() const;
 
 private:
     void _invalidateView();

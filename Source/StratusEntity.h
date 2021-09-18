@@ -182,10 +182,10 @@ namespace stratus {
         std::shared_ptr<std::atomic<uint64_t>> _refCount;
         std::unordered_set<EntityPtr> _children;
         RenderNodePtr _renderNode;
-        glm::vec3 _position;
+        glm::vec3 _position = glm::vec3(0.0f);
         glm::vec3 _worldPosition;
         Rotation _rotation;
-        glm::vec3 _scale;
+        glm::vec3 _scale = glm::vec3(1.0f);
         glm::mat4 _localTransform = glm::mat4(1.0f);
         glm::mat4 _worldTransform = glm::mat4(1.0f);
     };

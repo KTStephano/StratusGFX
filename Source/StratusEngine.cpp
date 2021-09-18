@@ -3,6 +3,7 @@
 #include "StratusLog.h"
 #include "StratusMaterial.h"
 #include "StratusResourceManager.h"
+#include "StratusRendererFrontend.h"
 #include <atomic>
 #include <mutex>
 
@@ -121,6 +122,7 @@ namespace stratus {
 
         _InitMaterialManager();
         _InitResourceManager();
+        _InitRenderer();
 
         // Initialize application last
         _params.application->Initialize();
@@ -139,6 +141,17 @@ namespace stratus {
 
     void Engine::_InitResourceManager() {
         ResourceManager::_instance = new ResourceManager();
+    }
+
+    void Engine::_InitRenderer() {
+        RendererParams params;
+        params.viewportWidth = 1920;
+        params.viewportHeight = 1080;
+        params.appName = _params.application->GetAppName();
+        params.fovy = Degrees(90.0f);
+        params.vsyncEnabled = false;
+
+        RendererFrontend::_instance = new RendererFrontend(params);
     }
 
     // Should be called before Shutdown()
@@ -162,6 +175,7 @@ namespace stratus {
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
         _DeleteResource(Log::_instance);
+        _DeleteResource(RendererFrontend::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only
@@ -195,6 +209,7 @@ namespace stratus {
 
         // Other logic.....
         ResourceManager::Instance()->Update();
+        RendererFrontend::Instance()->Update(deltaSeconds);
 
         return _params.application->Update(deltaSeconds);
     }

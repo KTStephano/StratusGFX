@@ -12,16 +12,17 @@ layout (triangle_strip, max_vertices = 12) out;
 // Each cascaded shadow map has its own view-projection matrix
 uniform mat4 shadowMatrices[NUM_CASCADES];
 
+uniform int currentCascade = 0;
+
 void main()
 {
-    for(int face = 0; face < NUM_CASCADES; ++face) {
-        gl_Layer = face; // built-in variable that specifies to which face we render
-        for(int i = 0; i < 3; ++i) { // for each triangle vertex
-            //fsPosition = gl_in[i].gl_Position;
-            vec4 fsPosition = gl_in[i].gl_Position;
-            gl_Position = shadowMatrices[face] * fsPosition;
-            EmitVertex(); // individual triangle vertex
-        }
-        EndPrimitive(); // triangle
+    int face = currentCascade;
+    gl_Layer = face; // built-in variable that specifies to which face we render
+    for(int i = 0; i < 3; ++i) { // for each triangle vertex
+        //fsPosition = gl_in[i].gl_Position;
+        vec4 fsPosition = gl_in[i].gl_Position;
+        gl_Position = shadowMatrices[face] * fsPosition;
+        EmitVertex(); // individual triangle vertex
     }
+    EndPrimitive(); // triangle
 }
