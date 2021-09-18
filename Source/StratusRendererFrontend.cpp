@@ -56,6 +56,9 @@ namespace stratus {
         else if (_dynamicPbrEntities.erase(view)) {
             _dynamicPbrDirty = true;
         }
+        else {
+            _flatEntities.erase(view);
+        }
 
         for (auto& entry : _lights) {
             if (entry.second.visible.erase(view)) {
@@ -437,7 +440,7 @@ namespace stratus {
         for (auto& entry : map) {
             EntityView view = entry.first;
             EntityStateData& data = entry.second;
-            if (_EntityChanged(view, data)) {
+            if (_EntityChanged(view, data)) {                 
                 // Update the cached info
                 data.lastPosition = view.Get()->GetWorldPosition();
                 data.lastScale = view.Get()->GetLocalScale();
@@ -535,6 +538,9 @@ namespace stratus {
                 auto& lightData = _frame->lights.find(lightCopy)->second;
                 lightData.dirty = true;
                 UpdateInstancedData(data.visible, lightData.visible);
+            }
+            else {
+                _frame->lights.find(lightCopy)->second.dirty = data.dirty;
             }
         }
     }
