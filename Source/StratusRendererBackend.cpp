@@ -667,8 +667,8 @@ void RendererBackend::_RenderCSMDepth() {
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(0.5f, 1.0f);
+    // glEnable(GL_POLYGON_OFFSET_FILL);
+    // glPolygonOffset(0.5f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -703,34 +703,34 @@ void RendererBackend::_RenderCSMDepth() {
 
     _frame->csc.fbo.unbind();
     _UnbindShader();
-    glDisable(GL_POLYGON_OFFSET_FILL);
+    // glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 void RendererBackend::RenderScene() {
     const Camera& c = *_frame->camera;
-    constexpr size_t maxBytesPerFrame = 1024 * 1024 * 32; // 32 mb per frame
-    size_t totalBytes = 0;
+    // constexpr size_t maxBytesPerFrame = 1024 * 1024 * 32; // 32 mb per frame
+    // size_t totalBytes = 0;
 
-    std::vector<InstancedData *> instEntities = std::vector<InstancedData *>{
-        &_frame->instancedPbrMeshes,
-        &_frame->instancedFlatMeshes  
-    };
+    // std::vector<InstancedData *> instEntities = std::vector<InstancedData *>{
+    //     &_frame->instancedPbrMeshes,
+    //     &_frame->instancedFlatMeshes  
+    // };
 
-    for (auto instData : instEntities) {
-        for (auto& entityView : *instData) {
-            //auto rnode = entityView.first.Get()->GetRenderNode();
-            auto rnode = entityView.first.Get();
-            for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
-                if (totalBytes > maxBytesPerFrame) break;
+    // for (auto instData : instEntities) {
+    //     for (auto& entityView : *instData) {
+    //         //auto rnode = entityView.first.Get()->GetRenderNode();
+    //         auto rnode = entityView.first.Get();
+    //         for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+    //             if (totalBytes > maxBytesPerFrame) break;
 
-                if (rnode->GetMeshContainer(i)->mesh->IsGpuDirty()) {
-                    rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
-                    totalBytes += rnode->GetMeshContainer(i)->mesh->GetGpuSizeBytes();
-                    ResourceManager::Instance()->FinalizeModelMemory(rnode->GetMeshContainer(i)->mesh);
-                }
-            }
-        }
-    }
+    //             if (rnode->GetMeshContainer(i)->mesh->IsGpuDirty()) {
+    //                 rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
+    //                 totalBytes += rnode->GetMeshContainer(i)->mesh->GetGpuSizeBytes();
+    //                 ResourceManager::Instance()->FinalizeModelMemory(rnode->GetMeshContainer(i)->mesh);
+    //             }
+    //         }
+    //     }
+    // }
 
     const int maxInstances = 250;
     const int maxShadowCastingLights = 8;

@@ -1,5 +1,6 @@
 #include "StratusRendererFrontend.h"
 #include "StratusUtils.h"
+#include "StratusLog.h"
 
 namespace stratus {
     RendererFrontend * RendererFrontend::_instance = nullptr;
@@ -34,6 +35,10 @@ namespace stratus {
         }
         else {
             flat.insert(std::make_pair(EntityView(p), state));
+        }
+
+        for (auto& child : p->GetChildren()) {
+            _AddEntity(child, pbrDirty, pbr, flat, lights);
         }
     }
 
@@ -209,6 +214,11 @@ namespace stratus {
 
         // Render the scene
         _renderer->Begin(_frame, true);
+
+        // Before rendering, process tasks
+        for (auto& task : _rendererTasks) task();
+        _rendererTasks.clear();
+
         _renderer->RenderScene();
         _renderer->End();
 
@@ -219,6 +229,11 @@ namespace stratus {
 
         // This needs to be unset
         _frame->csc.regenerateFbo = false;
+    }
+
+    void RendererFrontend::QueueRendererThreadTask(const Thread::ThreadFunction& task) {
+        auto ul = _LockWrite();
+        _rendererTasks.push_back(task);
     }
 
     void RendererFrontend::_UpdateViewport() {
@@ -600,11 +615,12 @@ namespace stratus {
             // to the shadows (z clamping enabled)
             const float radius = _frame->csc.cascades[i].cascadeRadius * 2.0f;
             glm::vec3 position = _frame->csc.cascades[i].cascadePosition;
-            position = position + position * (radius / 2.0f); // Position in center
+            //position = position + position * (radius / 2.0f); // Position in center
 
             for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
                 for (auto& entityView : *entities) {
-                    if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < radius) {
+                    //if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < radius) {
+                    if (true) {
                         visible.insert(entityView.first);
                     }
                 }

@@ -3,6 +3,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include "StratusRendererFrontend.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
@@ -62,28 +63,45 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
-        // TODO: maybe this will work when Engine owns renderer. We can do Renderer::Begin() and then call this. :(
-        //std::vector<std::string> toDelete;
-        //for (auto& mpair : _pendingFinalize) {
-        //    if (mpair.second.Completed()) {
-        //        toDelete.push_back(mpair.first);
-        //        auto ptr = mpair.second.GetPtr();
-        //        auto rnode = ptr->GetRenderNode();
+        constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
+        std::vector<std::string> toDelete;
+        std::shared_ptr<std::atomic<size_t>> totalBytes;
+        for (auto& mpair : _pendingFinalize) {
+            if (mpair.second.Completed() && !mpair.second.Failed()) {
+                toDelete.push_back(mpair.first);
+                auto ptr = mpair.second.GetPtr();
 
-        //        for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
-        //            rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
-        //        }
+                _ClearAsyncModelData(ptr);
+           }
+        }
 
-        //         Async<bool> as(*Engine::Instance()->GetMainThread(), [this, ptr, rnode]() {
-        //             FinalizeModelMemory(ptr);
-        //             return new bool(true);
-        //         });             
-        //    }
-        //}
+        for (const std::string& name : toDelete) {
+           _pendingFinalize.erase(name);
+        }
+    }
 
-        //for (const std::string& name : toDelete) {
-        //    _pendingFinalize.erase(name);
-        //}
+    void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
+        if (ptr == nullptr) return;
+        for (auto& child : ptr->GetChildren()) {
+            _ClearAsyncModelData(child);
+        }
+
+        auto rnode = ptr->GetRenderNode();
+        if (rnode == nullptr || rnode->GetNumMeshContainers() == 0) return;
+
+        // Async<bool> as(*Engine::Instance()->GetMainThread(), [this, ptr, rnode]() {
+        //     FinalizeModelMemory(ptr);
+        //     return new bool(true);
+        // });      
+
+        RendererFrontend::Instance()->QueueRendererThreadTask([this, rnode]() {
+            for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+                if (!rnode->GetMeshContainer(i)->mesh->Complete()) {
+                    rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
+                    FinalizeModelMemory(rnode->GetMeshContainer(i)->mesh);
+                }
+            }
+        });
     }
 
     Async<Entity> ResourceManager::LoadModel(const std::string& name) {
@@ -280,6 +298,8 @@ namespace stratus {
         // Create an internal copy for thread safety
         _loadedModels.insert(std::make_pair(name, Async<Entity>(e->Copy())));
 
+        STRATUS_LOG << "Model loaded [" << name << "]" << std::endl;
+
         return e;
     }
 
@@ -427,6 +447,7 @@ namespace stratus {
         rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         rnode->SetFaceCullMode(RenderFaceCulling::CULLING_CCW);
+        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
         _cube->SetRenderNode(rnode);
     }
 
@@ -450,6 +471,7 @@ namespace stratus {
         rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         rnode->SetFaceCullMode(RenderFaceCulling::CULLING_NONE);
+        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
         _quad->SetRenderNode(rnode);
     }
 }

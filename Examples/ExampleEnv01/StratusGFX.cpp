@@ -46,7 +46,6 @@ public:
     }
 
     void addToScene() const {
-        STRATUS_LOG << "WHAT AM I " << cube.get() << std::endl;
         stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
         //r.addPointLight(light.get());
         stratus::RendererFrontend::Instance()->AddLight(light);
@@ -127,22 +126,22 @@ public:
 
         stratus::Async<stratus::Entity> e;
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/boubin_stump.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/hintze-hall-1m.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/model.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
             auto cube = stratus::ResourceManager::Instance()->CreateCube();

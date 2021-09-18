@@ -45,6 +45,7 @@ namespace stratus {
     private:
         void _ClearAsyncTextureData();
         void _ClearAsyncModelData();
+        void _ClearAsyncModelData(EntityPtr);
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }

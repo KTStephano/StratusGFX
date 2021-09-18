@@ -73,6 +73,8 @@ namespace stratus {
 
         void Update(const double);
 
+        void QueueRendererThreadTask(const Thread::ThreadFunction&);
+
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
@@ -108,6 +110,7 @@ namespace stratus {
         std::shared_ptr<RendererFrame> _frame;
         std::unique_ptr<RendererBackend> _renderer;
         std::vector<SDL_Event> _events;
+        std::vector<Thread::ThreadFunction> _rendererTasks;
         mutable std::shared_mutex _mutex;
     };
 }
