@@ -284,6 +284,7 @@ namespace stratus {
         // light.setAngle(_state.worldLight.getRotation());
         const Camera & light = *worldLightCamera;
         const Camera & c = *_camera;
+
         const glm::mat4& lightWorldTransform = light.getWorldTransform();
         const glm::mat4& lightViewTransform = light.getViewTransform();
         const glm::mat4& cameraWorldTransform = c.getWorldTransform();
@@ -412,7 +413,7 @@ namespace stratus {
             const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
                                                    glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-                                                   glm::vec4(0.0f, 0.0f, shadowDepthOffset, 1.0f));
+                                                   glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // Gives us x, y values between [0, 1]
             const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
@@ -603,30 +604,31 @@ namespace stratus {
             &_dynamicPbrEntities
         };
 
-        std::unordered_set<EntityView> visible;
+        std::vector<std::unordered_set<EntityView>> visible(_frame->csc.cascades.size());
 
         _frame->csc.worldLightingEnabled = _worldLight.enabled;
         _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
         
-        for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-            visible.clear();
-            _frame->csc.cascades[i].visible.clear();
-            // Use diameter as radius so that even entities slightly out of view can contribute
-            // to the shadows (z clamping enabled)
-            const float radius = _frame->csc.cascades[i].cascadeRadius * 2.0f;
-            glm::vec3 position = _frame->csc.cascades[i].cascadePosition;
-            //position = position + position * (radius / 2.0f); // Position in center
+        for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
+            for (auto& entityView : *entities) {
+                for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
+                    // Use diameter as radius so that even entities slightly out of view can contribute
+                    // to the shadows (z clamping enabled)
+                    const float radius = _frame->csc.cascades[i].cascadeRadius * 2.0f;
+                    glm::vec3 position = _frame->csc.cascades[i].cascadePosition;
+                    //position = position + position * (radius / 2.0f); // Position in center
 
-            for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
-                for (auto& entityView : *entities) {
                     //if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < radius) {
                     if (true) {
-                        visible.insert(entityView.first);
+                        visible[i].insert(entityView.first);
                     }
                 }
             }
+        }
 
-            UpdateInstancedData(visible, _frame->csc.cascades[i].visible);
+        for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
+            _frame->csc.cascades[i].visible.clear();
+            UpdateInstancedData(visible[i], _frame->csc.cascades[i].visible);
         }
     }
 }

@@ -1,5 +1,6 @@
 #include "StratusLog.h"
 #include "StratusThread.h"
+#include "StratusUtils.h"
 
 namespace stratus {
     Log * Log::_instance = nullptr;

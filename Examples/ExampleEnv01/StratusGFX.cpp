@@ -261,11 +261,9 @@ public:
                                 camLightEnabled = !camLightEnabled;
                                 
                                 if (camLightEnabled) {
-                                    STRATUS_LOG << "Adding cam light\n";
                                     stratus::RendererFrontend::Instance()->AddLight(cameraLight);
                                 }
                                 else {
-                                    STRATUS_LOG << "Removing cam light\n";
                                     stratus::RendererFrontend::Instance()->RemoveLight(cameraLight);
                                 }
                             }
