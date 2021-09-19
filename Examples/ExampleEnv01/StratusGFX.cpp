@@ -126,22 +126,25 @@ public:
 
         stratus::Async<stratus::Entity> e;
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/boubin_stump.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/hintze-hall-1m.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/model.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { STRATUS_LOG << "COMPLETE\n"; rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
+
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/Sponza.gltf");
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
             auto cube = stratus::ResourceManager::Instance()->CreateCube();
@@ -486,6 +489,12 @@ public:
             rocks->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
             rocks->SetLocalScale(glm::vec3(15.0f));
         }
+
+        if (sponza) {
+            sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
+            sponza->SetLocalScale(glm::vec3(0.15f));
+        }
+
         //renderer->addDrawable(rocks);
 
         // Add the camera's light
@@ -523,6 +532,7 @@ private:
     stratus::EntityPtr hall;
     stratus::EntityPtr ramparts;
     stratus::EntityPtr rocks;
+    stratus::EntityPtr sponza;
     std::vector<stratus::EntityPtr> cubeMeshes;
     std::vector<stratus::EntityPtr> quadMeshes;
     std::vector<stratus::EntityPtr> entities;
