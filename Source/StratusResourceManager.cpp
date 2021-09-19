@@ -110,6 +110,8 @@ namespace stratus {
         RendererFrontend::Instance()->QueueRendererThreadTasks(functions);
 
         for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
+
+        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data" << std::endl;
     }
 
     void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
@@ -304,12 +306,16 @@ namespace stratus {
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
+                                                       aiProcess_JoinIdenticalVertices |
+                                                       aiProcess_SortByPType |
                                                        aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace | 
                                                        aiProcess_SplitLargeMeshes | 
-                                                       aiProcess_ImproveCacheLocality
+                                                       aiProcess_ImproveCacheLocality |
+                                                       aiProcess_OptimizeMeshes |
+                                                       aiProcess_OptimizeGraph
                                                 );
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);
