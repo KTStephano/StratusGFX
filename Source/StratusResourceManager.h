@@ -9,9 +9,6 @@
 #include <shared_mutex>
 #include <unordered_map>
 
-#define AI_CONFIG_PP_SLM_VERTEX_LIMIT 65000
-#define AI_CONFIG_PP_SLM_TRIANGLE_LIMIT 65000
-
 namespace stratus {
     class ResourceManager {
         friend class Engine;

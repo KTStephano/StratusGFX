@@ -39,7 +39,7 @@ namespace stratus {
 
     void ResourceManager::_ClearAsyncTextureData() {
         std::vector<TextureHandle> toDelete;
-        constexpr size_t maxBytes = 1024 * 1024 * 16; // 16 mb per frame
+        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
         std::vector<TextureHandle> handles;
@@ -78,7 +78,7 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
-        constexpr size_t maxBytes = 1024 * 1024 * 16; // 16 mb per frame
+        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : _pendingFinalize) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
@@ -111,7 +111,7 @@ namespace stratus {
 
         for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
 
-        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data" << std::endl;
+        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
     }
 
     void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
@@ -303,6 +303,8 @@ namespace stratus {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
@@ -315,7 +317,8 @@ namespace stratus {
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
-                                                       aiProcess_OptimizeGraph
+                                                       aiProcess_OptimizeGraph |
+                                                       aiProcess_FixInfacingNormals
                                                 );
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);
