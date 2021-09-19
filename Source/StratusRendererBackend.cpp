@@ -435,6 +435,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
         _state.events.push_back(e);
     }
 
+    // Update mouse
+    _state.mouse.mask = SDL_GetMouseState(&_state.mouse.x, &_state.mouse.y);
+
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
@@ -1007,6 +1010,10 @@ void RendererBackend::End() {
 
 std::vector<SDL_Event> RendererBackend::PollInputEvents() {
     return std::move(_state.events);
+}
+
+RendererMouseState RendererBackend::GetMouseState() const {
+    return _state.mouse;
 }
 
 void RendererBackend::_RenderQuad() {

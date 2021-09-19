@@ -196,6 +196,11 @@ namespace stratus {
         return std::move(_events);
     }
 
+    RendererMouseState RendererFrontend::GetMouseState() const {
+        auto sl = _LockRead();
+        return _mouse;
+    }
+
     void RendererFrontend::Update(const double deltaSeconds) {
         auto ul = _LockWrite();
         if (_camera == nullptr) return;
@@ -213,6 +218,9 @@ namespace stratus {
         for (auto e : _renderer->PollInputEvents()) {
             _events.push_back(e);
         }
+
+        // Update mouse
+        _mouse = _renderer->GetMouseState();
 
         // Render the scene
         _renderer->Begin(_frame, true);

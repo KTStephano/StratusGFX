@@ -38,6 +38,12 @@ namespace stratus {
         bool dirty;
     };
 
+    struct RendererMouseState {
+        int32_t x;
+        int32_t y;
+        uint32_t mask;
+    };
+
     typedef std::unordered_map<RenderNodeView, std::vector<RendererEntityData>> InstancedData;
 
     struct RendererLightData {
@@ -172,6 +178,8 @@ namespace stratus {
             TextureHandle dummyCubeMap;
             // Window events
             std::vector<SDL_Event> events;
+            // For keeping track of mouse location/button status
+            RendererMouseState mouse;
         };
 
         struct TextureCache {
@@ -309,6 +317,9 @@ namespace stratus {
 
         // Returns window events since the last time this was called
         std::vector<SDL_Event> PollInputEvents();
+
+        // Returns the mouse status as of the most recent frame
+        RendererMouseState GetMouseState() const;
 
     private:
         void _ClearGBuffer();

@@ -431,8 +431,7 @@ public:
         stratus::RendererFrontend::Instance()->SetWorldLightRotation(worldLight.getRotation());
 
         // Check mouse state
-        int x, y;
-        uint32_t buttonState = SDL_GetMouseState(&x, &y);
+        uint32_t buttonState = stratus::RendererFrontend::Instance()->GetMouseState().mask;
         cameraSpeed.z = 0.0f;
         if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
             cameraSpeed.z = -camSpeed;

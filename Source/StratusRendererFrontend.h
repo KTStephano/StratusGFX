@@ -70,6 +70,7 @@ namespace stratus {
         void SetClearColor(const glm::vec4&);
 
         std::vector<SDL_Event> PollInputEvents();
+        RendererMouseState GetMouseState() const;
 
         void Update(const double);
 
@@ -110,6 +111,7 @@ namespace stratus {
         std::shared_ptr<RendererFrame> _frame;
         std::unique_ptr<RendererBackend> _renderer;
         std::vector<SDL_Event> _events;
+        RendererMouseState _mouse;
         std::vector<Thread::ThreadFunction> _rendererTasks;
         mutable std::shared_mutex _mutex;
     };
