@@ -416,6 +416,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     // Make sure we set our context as the active one
     SDL_GL_MakeCurrent(_window, _context);
 
+    // Clear out instanced data from previous frame
+    _ClearInstancedData();
+
     // Update all dimension, texture and framebuffer data if the viewport changed
     _UpdateWindowDimensions();
 
@@ -424,9 +427,6 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // Checks to see if any framebuffers need to be generated or re-generated
     _RecalculateCascadeData();
-
-    // Clear out instanced data from previous frame
-    _ClearInstancedData();
 
     // Generate the GPU data for all instanced entities
     _InitAllInstancedData();

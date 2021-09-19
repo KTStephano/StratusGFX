@@ -12,7 +12,7 @@ namespace stratus {
         _frame->csc.cascades.resize(4);
         _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
-        _frame->csc.worldLightingEnabled;
+        _frame->csc.worldLightingEnabled = _worldLight.enabled;
 
         _renderer = std::make_unique<RendererBackend>(p.viewportWidth, p.viewportHeight, p.appName);
     }
@@ -294,7 +294,7 @@ namespace stratus {
 
         const float s = float(_params.viewportWidth) / float(_params.viewportHeight);
         // g is also known as the camera's focal length
-        const float g = 1.0 / tangent(_params.fovy / 2.0f).value();
+        const float g = 1.0f / tangent(_params.fovy / 2.0f).value();
         const float znear = _params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
@@ -428,6 +428,7 @@ namespace stratus {
             // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
             _frame->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
             _frame->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
+            //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
                 // This will allow us to calculate the cascade blending weights in the vertex shader and then
@@ -438,6 +439,8 @@ namespace stratus {
                 // direction in world space and it contains the point c + ak*n.
                 const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
                 _frame->csc.cascades[i].cascadePlane = fk;
+                //STRATUS_LOG << fk << std::endl;
+                //_frame->csc.cascades[i].cascadePlane = glm::vec4(10.0f);
             }
         }
     }

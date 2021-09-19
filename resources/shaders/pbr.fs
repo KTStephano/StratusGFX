@@ -372,7 +372,7 @@ void main() {
         // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(fragPos, 1.0)),
                                   dot(cascadePlanes[1], vec4(fragPos, 1.0)),
-                                  dot(cascadePlanes[2], vec4(fragPos, 1.0f)));
+                                  dot(cascadePlanes[2], vec4(fragPos, 1.0)));
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends);
         //vec3 lightDir = infiniteLightDirection;
         color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
