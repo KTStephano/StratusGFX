@@ -42,6 +42,7 @@ namespace stratus {
         constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
+        std::vector<Thread::ThreadFunction> functions;
         for (auto& tpair : _asyncLoadedTextureData) {
             if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
@@ -49,11 +50,17 @@ namespace stratus {
                 auto texdata = tpair.second.GetPtr();
                 totalBytes += texdata->sizeBytes;
                 ++totalTex;
-                _loadedTextures.insert(std::make_pair(tpair.first, Async<Texture>(*Engine::Instance()->GetMainThread(), [this, texdata]() {
-                    return _FinalizeTexture(*texdata);
-                })));
+
+                TextureHandle handle = tpair.first;
+                functions.push_back([this, texdata, handle]() {
+                    Texture * tex = _FinalizeTexture(*texdata);
+                    auto ul = _LockWrite();
+                    _loadedTextures.insert(std::make_pair(handle, Async<Texture>(std::shared_ptr<Texture>(tex))));
+                });
             }
         }
+
+        RendererFrontend::Instance()->QueueRendererThreadTasks(functions);
 
         if (totalBytes > 0) {
             STRATUS_LOG << "Texture data bytes processed: " << totalBytes << ", " << totalTex << std::endl;
@@ -65,7 +72,6 @@ namespace stratus {
     void ResourceManager::_ClearAsyncModelData() {
         constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
         std::vector<std::string> toDelete;
-        std::shared_ptr<std::atomic<size_t>> totalBytes;
         for (auto& mpair : _pendingFinalize) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
                 toDelete.push_back(mpair.first);
@@ -78,6 +84,24 @@ namespace stratus {
         for (const std::string& name : toDelete) {
            _pendingFinalize.erase(name);
         }
+
+        size_t totalBytes = 0;
+        std::vector<Thread::ThreadFunction> functions;
+        std::vector<RenderMeshPtr> meshesToDelete;
+
+        for (RenderMeshPtr mesh : _meshFinalizeQueue) {
+            totalBytes += mesh->GetGpuSizeBytes();
+            functions.push_back([this, mesh]() {
+                mesh->GenerateGpuData();
+                FinalizeModelMemory(mesh);
+            });
+            meshesToDelete.push_back(mesh);
+            if (totalBytes >= maxBytes) break;
+        }
+
+        RendererFrontend::Instance()->QueueRendererThreadTasks(functions);
+
+        for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
     }
 
     void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
@@ -89,19 +113,9 @@ namespace stratus {
         auto rnode = ptr->GetRenderNode();
         if (rnode == nullptr || rnode->GetNumMeshContainers() == 0) return;
 
-        // Async<bool> as(*Engine::Instance()->GetMainThread(), [this, ptr, rnode]() {
-        //     FinalizeModelMemory(ptr);
-        //     return new bool(true);
-        // });      
-
-        RendererFrontend::Instance()->QueueRendererThreadTask([this, rnode]() {
-            for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
-                if (!rnode->GetMeshContainer(i)->mesh->Complete()) {
-                    rnode->GetMeshContainer(i)->mesh->GenerateGpuData();
-                    FinalizeModelMemory(rnode->GetMeshContainer(i)->mesh);
-                }
-            }
-        });
+        for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
+            _meshFinalizeQueue.insert(rnode->GetMeshContainer(i)->mesh);
+        }
     }
 
     Async<Entity> ResourceManager::LoadModel(const std::string& name) {

@@ -242,8 +242,12 @@ namespace stratus {
     }
 
     void RendererFrontend::QueueRendererThreadTask(const Thread::ThreadFunction& task) {
+        QueueRendererThreadTasks({ task });
+    }
+
+    void RendererFrontend::QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>& tasks) {
         auto ul = _LockWrite();
-        _rendererTasks.push_back(task);
+        for (const auto& task : tasks) _rendererTasks.push_back(task);
     }
 
     void RendererFrontend::_UpdateViewport() {

@@ -216,7 +216,7 @@ public:
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << std::endl;
         }
         const float camSpeed = 100.0f;
-        const float lightIncreaseSpeed = 1.0f;
+        const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
@@ -287,10 +287,12 @@ public:
                         case SDL_SCANCODE_UP:
                             worldLightBrightness += lightIncreaseSpeed * deltaSeconds;
                             worldLightBrightness = std::min(maxLightBrightness, worldLightBrightness);
+                            STRATUS_LOG << "Brightness: " << worldLightBrightness << std::endl;
                             break;
                         case SDL_SCANCODE_DOWN:
                             worldLightBrightness -= lightIncreaseSpeed * deltaSeconds;
                             worldLightBrightness = std::max(0.0f, worldLightBrightness);
+                            STRATUS_LOG << "Brightness: " << worldLightBrightness << std::endl;
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {

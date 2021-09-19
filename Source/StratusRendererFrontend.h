@@ -75,6 +75,7 @@ namespace stratus {
         void Update(const double);
 
         void QueueRendererThreadTask(const Thread::ThreadFunction&);
+        void QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>&);
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
