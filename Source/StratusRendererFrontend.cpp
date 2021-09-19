@@ -609,31 +609,23 @@ namespace stratus {
             &_dynamicPbrEntities
         };
 
-        std::vector<std::unordered_set<EntityView>> visible(_frame->csc.cascades.size());
+        std::unordered_set<EntityView> visible;
 
         _frame->csc.worldLightingEnabled = _worldLight.enabled;
         _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
+
+        const size_t numCascades = _frame->csc.cascades.size();
+        const float maxDist = _frame->csc.cascades[numCascades - 1].cascadeEnds;
         
         for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
             for (auto& entityView : *entities) {
-                for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-                    // Use diameter as radius so that even entities slightly out of view can contribute
-                    // to the shadows (z clamping enabled)
-                    const float radius = _frame->csc.cascades[i].cascadeRadius * 2.0f;
-                    glm::vec3 position = _frame->csc.cascades[i].cascadePosition;
-                    //position = position + position * (radius / 2.0f); // Position in center
-
-                    //if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < radius) {
-                    if (true) {
-                        visible[i].insert(entityView.first);
-                    }
+                if (glm::distance(_camera->getPosition(), entityView.first.Get()->GetWorldPosition()) < maxDist) {
+                    visible.insert(entityView.first);
                 }
             }
         }
 
-        for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-            _frame->csc.cascades[i].visible.clear();
-            UpdateInstancedData(visible[i], _frame->csc.cascades[i].visible);
-        }
+        _frame->csc.visible.clear();
+        UpdateInstancedData(visible, _frame->csc.visible);
     }
 }

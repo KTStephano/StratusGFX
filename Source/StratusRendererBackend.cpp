@@ -402,9 +402,7 @@ void RendererBackend::_InitAllInstancedData() {
 
     // Cascades
     if (_frame->csc.worldLightingEnabled) {
-        for (auto& cascade : _frame->csc.cascades) {
-            INIT_INST_DATA(cascade.visible)
-        }
+        INIT_INST_DATA(_frame->csc.visible)
     }
 
 #undef INIT_INST_DATA
@@ -690,7 +688,7 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto& viewMesh : _frame->instancedPbrMeshes) {
+    for (auto& viewMesh : _frame->csc.visible) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
             const RendererEntityData& container = viewMesh.second[i];
             const RenderNodeView& e = viewMesh.first;
@@ -705,52 +703,6 @@ void RendererBackend::_RenderCSMDepth() {
     _UnbindShader();
     glDisable(GL_POLYGON_OFFSET_FILL);
 }
-
-/*
-void RendererBackend::_RenderCSMDepth() {
-    _BindShader(_state.csmDepth.get());
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-    // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(0.5f, 1.0f);
-    //glBlendFunc(GL_ONE, GL_ONE);
-    // glDisable(GL_CULL_FACE);
-
-    _state.csmDepth->setVec3("lightDir", &_frame->csc.worldLightCamera->getDirection()[0]);
-
-    // Set up the layered depth frame buffer
-    _frame->csc.fbo.bind();
-    const Texture * depth = _frame->csc.fbo.getDepthStencilAttachment();
-    if (!depth) {
-        throw std::runtime_error("Critical error: depth attachment not present");
-    }
-    glViewport(0, 0, depth->width(), depth->height());
-
-    // Set up each individual view-projection matrix
-    for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-        auto& csm = _frame->csc.cascades[i];
-        _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
-        _state.csmDepth->setInt("currentCascade", i);
-
-        // Render each entity into the depth map
-        for (auto& viewMesh : csm.visible) {
-            for (int j = 0; j < viewMesh.second.size(); ++j) {
-                const RendererEntityData& container = viewMesh.second[j];
-                const RenderNodeView& e = viewMesh.first;
-                const RenderMeshPtr m = e.Get()->GetMeshContainer(j)->mesh;
-                const size_t numInstances = container.size;
-                SetCullState(e.Get()->GetFaceCullMode());
-                m->Render(numInstances, container.buffers);
-            }
-        }
-    }
-
-    _frame->csc.fbo.unbind();
-    _UnbindShader();
-    glDisable(GL_POLYGON_OFFSET_FILL);
-}
-*/
 
 void RendererBackend::RenderScene() {
     const Camera& c = *_frame->camera;

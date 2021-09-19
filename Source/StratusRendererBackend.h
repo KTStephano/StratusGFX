@@ -47,7 +47,6 @@ namespace stratus {
     };
 
     struct RendererCascadeData {
-        InstancedData visible;
         // Use during shadow map rendering
         glm::mat4 projectionViewRender;
         // Use during shadow map sampling
@@ -61,6 +60,7 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
+        InstancedData visible;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
