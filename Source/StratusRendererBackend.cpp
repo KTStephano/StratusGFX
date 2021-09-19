@@ -362,15 +362,15 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
-            _frame->csc.fbo.clear(color);
+            _frame->csc.fbo.clear(glm::vec4(0.0f));
         }
 
         for (auto& gaussian : _state.gaussianBuffers) {
-            gaussian.fbo.clear(color);
+            gaussian.fbo.clear(glm::vec4(0.0f));
         }
 
         for (auto& postFx : _state.postFxBuffers) {
-            postFx.fbo.clear(color);
+            postFx.fbo.clear(glm::vec4(0.0f));
         }
     }
 }
@@ -419,14 +419,14 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     // Clear out instanced data from previous frame
     _ClearInstancedData();
 
+    // Checks to see if any framebuffers need to be generated or re-generated
+    _RecalculateCascadeData();
+
     // Update all dimension, texture and framebuffer data if the viewport changed
     _UpdateWindowDimensions();
 
     // Includes screen data
     _ClearFramebufferData(clearScreen);
-
-    // Checks to see if any framebuffers need to be generated or re-generated
-    _RecalculateCascadeData();
 
     // Generate the GPU data for all instanced entities
     _InitAllInstancedData();
@@ -690,7 +690,7 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto& viewMesh : _frame->csc.cascades[0].visible) {
+    for (auto& viewMesh : _frame->instancedPbrMeshes) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
             const RendererEntityData& container = viewMesh.second[i];
             const RenderNodeView& e = viewMesh.first;

@@ -70,6 +70,8 @@ namespace stratus {
                 entry.second.dirty = true;
             }
         }
+
+        for (auto child : p->GetChildren()) RemoveEntity(child);
     }
 
     void RendererFrontend::ClearEntities() {
