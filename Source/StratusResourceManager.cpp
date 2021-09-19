@@ -39,38 +39,46 @@ namespace stratus {
 
     void ResourceManager::_ClearAsyncTextureData() {
         std::vector<TextureHandle> toDelete;
-        constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
+        constexpr size_t maxBytes = 1024 * 1024 * 16; // 16 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
-        std::vector<Thread::ThreadFunction> functions;
+        std::vector<TextureHandle> handles;
+        std::vector<std::shared_ptr<RawTextureData>> rawTexData;
         for (auto& tpair : _asyncLoadedTextureData) {
             if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
+                TextureHandle handle = tpair.first;
                 auto texdata = tpair.second.GetPtr();
                 totalBytes += texdata->sizeBytes;
                 ++totalTex;
 
-                TextureHandle handle = tpair.first;
-                functions.push_back([this, texdata, handle]() {
-                    Texture * tex = _FinalizeTexture(*texdata);
-                    auto ul = _LockWrite();
-                    _loadedTextures.insert(std::make_pair(handle, Async<Texture>(std::shared_ptr<Texture>(tex))));
-                });
+                handles.push_back(handle);
+                rawTexData.push_back(texdata);
             }
         }
-
-        RendererFrontend::Instance()->QueueRendererThreadTasks(functions);
 
         if (totalBytes > 0) {
             STRATUS_LOG << "Texture data bytes processed: " << totalBytes << ", " << totalTex << std::endl;
         }
 
         for (auto handle : toDelete) _asyncLoadedTextureData.erase(handle);
+
+        RendererFrontend::Instance()->QueueRendererThreadTask([this, handles, rawTexData]() {
+            std::vector<Texture *> ptrs(rawTexData.size());
+            for (int i = 0; i < rawTexData.size(); ++i) {
+                ptrs[i] = _FinalizeTexture(*rawTexData[i]);
+            }
+
+            auto ul = _LockWrite();
+            for (int i = 0; i < handles.size(); ++i) {
+                _loadedTextures.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
+            }
+        });
     }
 
     void ResourceManager::_ClearAsyncModelData() {
-        constexpr size_t maxBytes = 1024 * 1024 * 32; // 32 mb per frame
+        constexpr size_t maxBytes = 1024 * 1024 * 16; // 16 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : _pendingFinalize) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
