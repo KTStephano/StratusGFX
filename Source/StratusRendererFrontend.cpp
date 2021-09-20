@@ -317,9 +317,11 @@ namespace stratus {
 
         const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
-        const float s = float(_params.viewportWidth) / float(_params.viewportHeight);
-        // g is also known as the camera's focal length
-        const float g = 1.0f / tangent(_params.fovy / 2.0f).value();
+        // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
+        // @see https://ogldev.org/www/tutorial49/tutorial49.html
+        const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
+        const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
+        const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float znear = _params.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
@@ -344,6 +346,8 @@ namespace stratus {
             cascadeEnds[i] = d;
         }
 
+        // see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
+        // see https://ogldev.org/www/tutorial49/tutorial49.html
         // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
         const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
         //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
@@ -363,23 +367,23 @@ namespace stratus {
             bks.push_back(bk);
 
             // These base values are in camera space and define our frustum corners
-            const float baseAkX = (ak * s) / g;
-            const float baseAkY = ak / g;
-            const float baseBkX = (bk * s) / g;
-            const float baseBkY = bk / g;
+            const float xn = ak * tanHalfHFov;
+            const float xf = bk * tanHalfHFov;
+            const float yn = ak * tanHalfVFov;
+            const float yf = bk * tanHalfVFov;
             // Keep all of these in camera space for now
             std::vector<glm::vec4> frustumCorners = {
                 // Near corners
-                glm::vec4(baseAkX, -baseAkY, -ak, 1.0f),
-                glm::vec4(baseAkX, baseAkY, -ak, 1.0f),
-                glm::vec4(-baseAkX, baseAkY, -ak, 1.0f),
-                glm::vec4(-baseAkX, -baseAkY, -ak, 1.0f),
+                glm::vec4(xn, yn, -ak, 1.0f),
+                glm::vec4(-xn, yn, -ak, 1.0f),
+                glm::vec4(xn, -yn, -ak, 1.0f),
+                glm::vec4(-xn, -yn, -ak, 1.0f),
 
                 // Far corners
-                glm::vec4(baseBkX, -baseBkY, -bk, 1.0f),
-                glm::vec4(baseBkX, baseBkY, -bk, 1.0f),
-                glm::vec4(-baseBkX, baseBkY, -bk, 1.0f),
-                glm::vec4(-baseBkX, -baseBkY, -bk, 1.0f),
+                glm::vec4(xf, yf, -bk, 1.0f),
+                glm::vec4(-xf, yf, -bk, 1.0f),
+                glm::vec4(xf, -yf, -bk, 1.0f),
+                glm::vec4(-xf, -yf, -bk, 1.0f),
             };
 
             // Calculate frustum center
@@ -387,10 +391,19 @@ namespace stratus {
             glm::vec3 frustumSum(0.0f);
             for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
             const glm::vec3 frustumCenter = frustumSum / float(frustumCorners.size());
+
+            // Calculate max diameter across frustum
+            float maxLength = std::numeric_limits<float>::min();
+            for (int i = 0; i < frustumCorners.size() - 1; ++i) {
+                for (int j = 1; j < frustumCorners.size(); ++j) {
+                    maxLength = std::max<float>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+                }
+            }
             
             // This tells us the maximum diameter for the cascade bounding box
-            const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
-                                                        glm::length(frustumCorners[4] - frustumCorners[6])));
+            // const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            //                                             glm::length(frustumCorners[4] - frustumCorners[6])));
+            const float dk = std::ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
             const float T = dk / _frame->csc.cascadeResolutionXY;
@@ -442,16 +455,21 @@ namespace stratus {
             // so it enables us to use the simplified Orthographic Projection matrix below
             //
             // This results in values between [-1, 1]
-            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                                   glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
+            // const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (dk), 0.0f, 0.0f, 0.0f), 
+            //                                        glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
+            //                                        glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+            //                                        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
+                                                   glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
                                                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-            // // Gives us x, y values between [0, 1]
-            const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                                        glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
-                                                        glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-                                                        glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+            // // // Gives us x, y values between [0, 1]
+            // const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+            //                                             glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+            //                                             glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+            //                                             glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+            const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
             // to be cascadeTexelOrthoProjection * cascadeViewTransform. This has the added benefit of automatically translating

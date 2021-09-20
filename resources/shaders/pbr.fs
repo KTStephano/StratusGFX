@@ -205,7 +205,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
 	float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
     float bias = 0.005 * tanTheta;
-    bias = clamp(bias, 0.0, 0.001);
+    bias = clamp(bias, 0.0, 0.01);
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];
