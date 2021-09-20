@@ -320,7 +320,7 @@ namespace stratus {
         const float s = float(_params.viewportWidth) / float(_params.viewportHeight);
         // g is also known as the camera's focal length
         const float g = 1.0f / tangent(_params.fovy / 2.0f).value();
-        const float znear = 0.001f; //_params.znear;
+        const float znear = _params.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = std::min(800.0f, _params.zfar);
@@ -381,6 +381,12 @@ namespace stratus {
                 glm::vec4(-baseBkX, baseBkY, -bk, 1.0f),
                 glm::vec4(-baseBkX, -baseBkY, -bk, 1.0f),
             };
+
+            // Calculate frustum center
+            // @see https://ahbejarano.gitbook.io/lwjglgamedev/chapter26
+            glm::vec3 frustumSum(0.0f);
+            for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
+            const glm::vec3 frustumCenter = frustumSum / float(frustumCorners.size());
             
             // This tells us the maximum diameter for the cascade bounding box
             const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
@@ -441,7 +447,7 @@ namespace stratus {
                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
                                                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-            // Gives us x, y values between [0, 1]
+            // // Gives us x, y values between [0, 1]
             const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
                                                         glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
                                                         glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),

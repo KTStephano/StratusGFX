@@ -204,7 +204,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
 	float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
-    float bias = 0.005 * tanTheta;
+    float bias = 0.002 * tanTheta;
     bias = clamp(bias, 0.0, 0.01);
 
     vec4 p1, p2;
@@ -214,6 +214,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
+        // cascadeCoords[i].xy = cascadeCoords[i].xy * 0.5 + vec2(0.5);
         cascadeCoords[i].z = cascadeCoords[i].z * 0.5 + 0.5;
     }
 
