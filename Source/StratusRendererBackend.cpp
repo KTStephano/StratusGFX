@@ -670,8 +670,8 @@ void RendererBackend::_RenderCSMDepth() {
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    //glEnable(GL_POLYGON_OFFSET_FILL);
-    //glPolygonOffset(0.5f, 1.0f);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(3.0f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -704,7 +704,7 @@ void RendererBackend::_RenderCSMDepth() {
     _frame->csc.fbo.unbind();
 
     _UnbindShader();
-    //glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 void RendererBackend::RenderScene() {
@@ -1130,7 +1130,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         s->setVec4("shadowOffset[" + std::to_string(i) + "]", &_frame->csc.cascadeShadowOffsets[i][0]);
     }
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < _frame->csc.cascades.size() - 1; ++i) {
         // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
         // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
         s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_frame->csc.cascades[i + 1].cascadePlane[0]);
