@@ -16,7 +16,7 @@ namespace stratus {
         uint32_t viewportHeight;
         std::string appName;
         Degrees fovy;
-        float znear = 0.1f;
+        float znear = 0.01f;
         float zfar = 1000.0f;
         bool vsyncEnabled;
     };
