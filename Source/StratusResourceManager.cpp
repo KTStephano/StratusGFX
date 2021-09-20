@@ -317,8 +317,8 @@ namespace stratus {
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
-                                                       aiProcess_OptimizeGraph
-                                                       //aiProcess_FixInfacingNormals
+                                                       aiProcess_OptimizeGraph |
+                                                       aiProcess_FixInfacingNormals
                                                 );
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);

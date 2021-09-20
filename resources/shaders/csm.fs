@@ -5,5 +5,5 @@ in float fsTanTheta;
 
 void main() {
 	// Written automatically
-	gl_FragDepth = gl_FragCoord.z + fsTanTheta;
+	gl_FragDepth = gl_FragCoord.z;// + fsTanTheta;
 }

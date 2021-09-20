@@ -327,6 +327,7 @@ namespace stratus {
 
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+        // @see https://developer.download.nvidia.com/SDK/10.5/opengl/src/cascaded_shadow_maps/doc/cascaded_shadow_maps.pdf
         const float lambda = 0.5f;
         const float clipRange = zfar - znear;
         const float ratio = zfar / znear;
@@ -430,7 +431,7 @@ namespace stratus {
                                                             glm::vec4(-sk, 1.0f));
 
             // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
-            const float shadowDepthOffset = 2e-19;
+            const float shadowDepthOffset = 0.0f;//2e-19;
             // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
             // so it enables us to use the simplified Orthographic Projection matrix below
             //
