@@ -77,6 +77,8 @@ namespace stratus {
         void QueueRendererThreadTask(const Thread::ThreadFunction&);
         void QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>&);
 
+        void RecompileShaders();
+
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
@@ -109,6 +111,7 @@ namespace stratus {
         bool _dynamicPbrDirty = true;
         bool _lightsDirty = true;
         bool _viewportDirty = true;
+        bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
         std::unique_ptr<RendererBackend> _renderer;
         std::vector<SDL_Event> _events;

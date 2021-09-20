@@ -222,6 +222,12 @@ namespace stratus {
         // Update mouse
         _mouse = _renderer->GetMouseState();
 
+        // Check for shader recompile request
+        if (_recompileShaders) {
+            _renderer->RecompileShaders();
+            _recompileShaders = false;
+        }
+
         // Render the scene
         _renderer->Begin(_frame, true);
 
@@ -248,6 +254,11 @@ namespace stratus {
     void RendererFrontend::QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>& tasks) {
         auto ul = _LockWrite();
         for (const auto& task : tasks) _rendererTasks.push_back(task);
+    }
+
+    void RendererFrontend::RecompileShaders() {
+        auto ul = _LockWrite();
+        _recompileShaders = true;
     }
 
     void RendererFrontend::_UpdateViewport() {
@@ -309,7 +320,7 @@ namespace stratus {
         const float s = float(_params.viewportWidth) / float(_params.viewportHeight);
         // g is also known as the camera's focal length
         const float g = 1.0f / tangent(_params.fovy / 2.0f).value();
-        const float znear = _params.znear;
+        const float znear = 0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = _params.zfar; //std::min(600.0f, _params.zfar);

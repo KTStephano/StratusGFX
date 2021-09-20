@@ -208,6 +208,8 @@ public:
             stratus::RendererFrontend::Instance()->AddLight(cameraLight);
         }
 
+        worldLight.setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
+
         return true;
     }
 
@@ -274,7 +276,7 @@ public:
                             break;
                         case SDL_SCANCODE_R:
                             if (released) {
-                                //renderer->recompileShaders();
+                                stratus::RendererFrontend::Instance()->RecompileShaders();
                             }
                             break;
                         case SDL_SCANCODE_I:

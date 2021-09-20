@@ -670,8 +670,8 @@ void RendererBackend::_RenderCSMDepth() {
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(0.5f, 1.0f);
+    //glEnable(GL_POLYGON_OFFSET_FILL);
+    //glPolygonOffset(0.5f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -704,7 +704,7 @@ void RendererBackend::_RenderCSMDepth() {
     _frame->csc.fbo.unbind();
 
     _UnbindShader();
-    glDisable(GL_POLYGON_OFFSET_FILL);
+    //glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 void RendererBackend::RenderScene() {
