@@ -232,6 +232,14 @@ namespace stratus {
         _buffers.Unbind();
     }
 
+    void RenderMesh::SetFaceCulling(const RenderFaceCulling& cullMode) {
+        _cullMode = cullMode;
+    }
+
+    RenderFaceCulling RenderMesh::GetFaceCulling() const {
+        return _cullMode;
+    }
+
     RenderNodePtr RenderNode::Copy() const {
         return std::make_shared<RenderNode>(*this);
     }
@@ -317,10 +325,6 @@ namespace stratus {
         _lightInteractionEnabled = enabled;
     }
 
-    void RenderNode::SetFaceCullMode(const RenderFaceCulling& mode) {
-        _cullMode = mode;
-    }
-
     bool RenderNode::GetLightInteractionEnabled() const {
         return _lightInteractionEnabled;
     }
@@ -333,15 +337,10 @@ namespace stratus {
         return _invisible;
     }
 
-    RenderFaceCulling RenderNode::GetFaceCullMode() const {
-        return _cullMode;
-    }
-
     bool RenderNode::operator==(const RenderNode& other) const {
         if (GetNumMeshContainers() != other.GetNumMeshContainers()) return false;
         // Lit entities have a separate pipeline from non-lit entities
         if (_lightInteractionEnabled != other._lightInteractionEnabled) return false;
-        if (_cullMode != other._cullMode) return false;
         for (size_t i = 0; i < GetNumMeshContainers(); ++i) {
             if ((GetMeshContainer(i)->mesh != other.GetMeshContainer(i)->mesh) ||
                 (GetMeshContainer(i)->material != other.GetMeshContainer(i)->material)) {
@@ -359,7 +358,6 @@ namespace stratus {
         }
 
         code += std::hash<bool>{}(_lightInteractionEnabled);
-        code += std::hash<int>{}(static_cast<int>(_cullMode));
 
         return code;
     }

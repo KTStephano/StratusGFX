@@ -655,7 +655,7 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
         }
 
         // Perform instanced rendering
-        SetCullState(e.Get()->GetFaceCullMode());
+        SetCullState(c->mesh->GetFaceCulling());
 
         c->mesh->Render(container.size, container.buffers);
     }
@@ -697,7 +697,7 @@ void RendererBackend::_RenderCSMDepth() {
             const RenderNodeView& e = viewMesh.first;
             const RenderMeshPtr m = e.Get()->GetMeshContainer(i)->mesh;
             const size_t numInstances = container.size;
-            SetCullState(e.Get()->GetFaceCullMode());
+            SetCullState(m->GetFaceCulling());
             m->Render(numInstances, container.buffers);
         }
     }
@@ -815,7 +815,7 @@ void RendererBackend::RenderScene() {
         for (auto & entityObservers : instancedMeshes) {
             for (int i = 0; i < entityObservers.second.size(); ++i) {
                 RenderMeshPtr m = entityObservers.first.Get()->GetMeshContainer(i)->mesh;
-                SetCullState(entityObservers.first.Get()->GetFaceCullMode());
+                SetCullState(m->GetFaceCulling());
                 m->Render(entityObservers.second[i].size, entityObservers.second[i].buffers);
             }
         }

@@ -62,9 +62,9 @@ void main() {
     vec2 texCoords = fsTexCoords;
     if (depthMapped) {
         texCoords = calculateDepthCoords(texCoords, viewDir);
-        if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-            discard;
-        }
+        // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+        //     discard;
+        // }
     }
 
     vec3 baseColor = fsDiffuseColor;
@@ -82,7 +82,7 @@ void main() {
         // Normals generally have values from [-1, 1], but inside
         // an OpenGL texture they are transformed to [0, 1]. To convert
         // them back, we multiply by 2 and subtract 1.
-        normal = normal * 2.0 - 1.0;
+        normal = normalize(normal * 2.0 - 1.0);
         normal = normalize(fsTbnMatrix * normal);
     }
 

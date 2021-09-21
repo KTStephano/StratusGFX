@@ -245,10 +245,21 @@ namespace stratus {
 
         // Process material
         MaterialPtr m = rootMat->CreateSubMaterial();
+        RenderFaceCulling cull = RenderFaceCulling::CULLING_CCW;
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
 
-            STRATUS_LOG << "mat\n";
+            // Disable face culling if applicable
+            int isTwoSided;
+            if(AI_SUCCESS == aimat->Get<int>(AI_MATKEY_TWOSIDED, isTwoSided)) {
+                if (isTwoSided) {
+                    cull = RenderFaceCulling::CULLING_NONE;
+                }
+            }
+
+            aiString matName;
+            aimat->Get<aiString>(AI_MATKEY_NAME, matName);
+            STRATUS_LOG << "Mat " << matName.C_Str() << std::endl;
             PrintMatType(aimat, aiTextureType_DIFFUSE);
             PrintMatType(aimat, aiTextureType_SPECULAR);
             PrintMatType(aimat, aiTextureType_AMBIENT);
@@ -261,12 +272,23 @@ namespace stratus {
             PrintMatType(aimat, aiTextureType_LIGHTMAP);
             PrintMatType(aimat, aiTextureType_REFLECTION);
 
+            aiColor3D diffuse;
+            aiColor3D ambient;
+            aiColor3D reflective;
+            auto diffuseret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+            auto ambientret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, ambient);
+            auto reflectret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_REFLECTIVE, reflective);
+            
+            if (diffuseret == AI_SUCCESS) m->SetDiffuseColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b));
+            if (ambientret == AI_SUCCESS) m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
+            if (reflectret == AI_SUCCESS) m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory));
             m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory));
             m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory));
-            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_SHININESS, directory));
+            // m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_SHININESS, directory));
             m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT, directory));
-            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_SPECULAR, directory));
+            // m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_SPECULAR, directory));
             STRATUS_LOG << "m " 
                 << m->GetDiffuseTexture() << " "
                 << m->GetNormalMap() << " "
@@ -278,7 +300,7 @@ namespace stratus {
 
         rmesh->GenerateCpuData();
         renderNode->AddMeshContainer(RenderMeshContainer{rmesh, m});
-        renderNode->SetFaceCullMode(RenderFaceCulling::CULLING_CCW);
+        rmesh->SetFaceCulling(cull);
     }
 
     static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory) {
@@ -318,8 +340,8 @@ namespace stratus {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
-        // importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
-        // importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
@@ -358,7 +380,7 @@ namespace stratus {
     }
 
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle) {
-        STRATUS_LOG << "Attempting to load texture from file: " << file << std::endl;
+        STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
         std::shared_ptr<RawTextureData> texdata;
         int width, height, numChannels;
         // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
@@ -500,7 +522,7 @@ namespace stratus {
 
         rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
-        rnode->SetFaceCullMode(RenderFaceCulling::CULLING_CCW);
+        rmesh->SetFaceCulling(RenderFaceCulling::CULLING_CCW);
         _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
         _cube->SetRenderNode(rnode);
     }
@@ -524,7 +546,7 @@ namespace stratus {
 
         rmesh->GenerateCpuData();
         rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
-        rnode->SetFaceCullMode(RenderFaceCulling::CULLING_NONE);
+        rmesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
         _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
         _quad->SetRenderNode(rnode);
     }

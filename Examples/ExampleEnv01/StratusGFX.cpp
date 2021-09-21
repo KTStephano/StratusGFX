@@ -143,7 +143,7 @@ public:
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
 
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/Sponza.gltf");
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/crytek-sponza-huge-vray.obj");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {

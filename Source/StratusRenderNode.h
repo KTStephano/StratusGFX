@@ -47,6 +47,9 @@ namespace stratus {
         bool IsGpuDataDirty() const;
         bool Complete() const;
 
+        void SetFaceCulling(const RenderFaceCulling&);
+        RenderFaceCulling GetFaceCulling() const;
+
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
     private:
@@ -66,6 +69,7 @@ namespace stratus {
         mutable bool _isGpuDataDirty = true;
         mutable void * _primitiveMapped = nullptr;
         mutable void * _indicesMapped = nullptr;
+        mutable RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
     };
 
     struct RenderMeshContainer {
@@ -109,11 +113,9 @@ namespace stratus {
         // True by default
         void EnableLightInteraction(bool enabled);
         void SetInvisible(bool invisible);
-        void SetFaceCullMode(const RenderFaceCulling&);
 
         bool GetLightInteractionEnabled() const;
         bool GetInvisible() const;
-        RenderFaceCulling GetFaceCullMode() const;
 
         bool operator==(const RenderNode& other) const;
         bool operator!=(const RenderNode& other) const { return !(*this == other); }
@@ -134,7 +136,6 @@ namespace stratus {
         glm::mat4 _worldEntityTransform = glm::mat4(1.0f);
         bool _lightInteractionEnabled = true;
         bool _invisible = false;
-        RenderFaceCulling _cullMode;
         std::shared_ptr<Entity> _owner;
     };
 
