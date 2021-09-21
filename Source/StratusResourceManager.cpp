@@ -155,7 +155,7 @@ namespace stratus {
         return index;
     }
 
-    TextureHandle ResourceManager::LoadTexture(const std::string& name) {
+    TextureHandle ResourceManager::LoadTexture(const std::string& name, const bool srgb) {
         {
             auto sl = _LockRead();
             if (_loadedTexturesByFile.find(name) != _loadedTexturesByFile.end()) {
@@ -167,8 +167,8 @@ namespace stratus {
         auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as(*_threads[index].get(), [this, name, handle]() {
-            return _LoadTexture(name, handle);
+        Async<RawTextureData> as(*_threads[index].get(), [this, name, handle, srgb]() {
+            return _LoadTexture(name, handle, srgb);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
@@ -196,13 +196,13 @@ namespace stratus {
         return true;
     }
 
-    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory) {
+    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const bool srgb) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {
             aiString str; 
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file);
+            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, srgb);
         }
 
         return texture;
@@ -224,6 +224,7 @@ namespace stratus {
 
     static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory) {
         if (mesh->mNumUVComponents[0] == 0) return;
+        if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
         RenderMeshPtr rmesh = RenderMeshPtr(new RenderMesh());
         // Process core primitive data
@@ -245,14 +246,16 @@ namespace stratus {
 
         // Process material
         MaterialPtr m = rootMat->CreateSubMaterial();
-        RenderFaceCulling cull = RenderFaceCulling::CULLING_CCW;
+
+        // TODO: re-enable CCW - sponza scene is a pain
+        RenderFaceCulling cull = RenderFaceCulling::CULLING_NONE;
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
 
             // Disable face culling if applicable
-            int isTwoSided;
-            if(AI_SUCCESS == aimat->Get<int>(AI_MATKEY_TWOSIDED, isTwoSided)) {
-                if (isTwoSided) {
+            int doubleSided = 0;
+            if(AI_SUCCESS == aimat->Get(AI_MATKEY_TWOSIDED, doubleSided)) {
+                if (doubleSided != 0) {
                     cull = RenderFaceCulling::CULLING_NONE;
                 }
             }
@@ -283,11 +286,12 @@ namespace stratus {
             if (ambientret == AI_SUCCESS) m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
             if (reflectret == AI_SUCCESS) m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
 
-            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory));
-            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory));
-            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory));
+            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, true));
+            // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
+            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, false));
+            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, false));
             // m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_SHININESS, directory));
-            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT, directory));
+            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT, directory, true));
             // m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_SPECULAR, directory));
             STRATUS_LOG << "m " 
                 << m->GetDiffuseTexture() << " "
@@ -347,16 +351,20 @@ namespace stratus {
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
                                                        aiProcess_JoinIdenticalVertices |
                                                        aiProcess_SortByPType |
-                                                       aiProcess_GenNormals |
-                                                    //    aiProcess_GenSmoothNormals | 
+                                                    //    aiProcess_GenNormals |
+                                                       aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
-                                                       aiProcess_OptimizeMeshes |
-                                                       aiProcess_OptimizeGraph |
-                                                       aiProcess_FixInfacingNormals
+                                                    //    aiProcess_OptimizeMeshes |
+                                                    //    aiProcess_OptimizeGraph |
+                                                       aiProcess_FixInfacingNormals |
+                                                       aiProcess_FindDegenerates |
+                                                       aiProcess_FindInvalidData |
+                                                       aiProcess_FindInstances
+                                                    //    aiProcess_FlipWindingOrder
                                                 );
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);
@@ -379,7 +387,7 @@ namespace stratus {
         return e;
     }
 
-    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle) {
+    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle, const bool srgb) {
         STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
         std::shared_ptr<RawTextureData> texdata;
         int width, height, numChannels;
@@ -401,10 +409,20 @@ namespace stratus {
                     config.format = TextureComponentFormat::RED;
                     break;
                 case 3:
-                    config.format = TextureComponentFormat::SRGB;
+                    if (srgb) {
+                        config.format = TextureComponentFormat::SRGB;
+                    }
+                    else {
+                        config.format = TextureComponentFormat::RGB;
+                    }
                     break;
                 case 4:
-                    config.format = TextureComponentFormat::SRGB_ALPHA;
+                    if (srgb) {
+                        config.format = TextureComponentFormat::SRGB_ALPHA;
+                    }
+                    else {
+                        config.format = TextureComponentFormat::RGBA;
+                    }
                     break;
                 default:
                     STRATUS_ERROR << "Unknown texture loading error - format may be invalid" << std::endl;

@@ -342,7 +342,7 @@ void main() {
     vec3 viewDir = normalize(viewPosition - fragPos);
 
     vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-    vec3 normal = texture(gNormal, texCoords).rgb;
+    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     float ambient = texture(gRoughnessMetallicAmbient, texCoords).b;

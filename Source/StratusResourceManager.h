@@ -34,7 +34,7 @@ namespace stratus {
 
         void Update();
         Async<Entity> LoadModel(const std::string&);
-        TextureHandle LoadTexture(const std::string&);
+        TextureHandle LoadTexture(const std::string&, const bool srgb);
         void FinalizeModelMemory(const RenderMeshPtr&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
 
@@ -51,7 +51,7 @@ namespace stratus {
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
         EntityPtr _LoadModel(const std::string&);
-        std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle);
+        std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle, const bool srgb);
         Texture * _FinalizeTexture(const RawTextureData&);
         uint32_t _NextResourceIndex();
 

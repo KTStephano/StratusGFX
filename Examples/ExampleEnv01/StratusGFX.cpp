@@ -99,30 +99,30 @@ public:
         stratus::RendererFrontend::Instance()->SetCamera(camera);
 
         // For textures see https://3dtextures.me/
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg"));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_basecolor.jpg"));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg"));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg"));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg", true));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_basecolor.jpg", true));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg", true));
+        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg", true));
 
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Normal.jpg"));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_normal.jpg"));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_normal.jpg"));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_normal.jpg"));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Normal.jpg", false));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_normal.jpg", false));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_normal.jpg", false));
+        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_normal.jpg", false));
 
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Height.png"));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_height.png"));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_height.png"));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_height.png"));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Height.png", false));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_height.png", false));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_height.png", false));
+        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_height.png", false));
 
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Roughness.jpg"));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_roughness.jpg"));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_roughness.jpg"));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_roughness.jpg"));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Roughness.jpg", false));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_roughness.jpg", false));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_roughness.jpg", false));
+        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_roughness.jpg", false));
 
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg"));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg"));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg"));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg"));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg", true));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg", true));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg", true));
+        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg", true));
 
         stratus::Async<stratus::Entity> e;
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
@@ -143,7 +143,7 @@ public:
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
 
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/crytek-sponza-huge-vray.obj");
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
@@ -494,7 +494,7 @@ public:
 
         if (sponza) {
            sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
-           sponza->SetLocalScale(glm::vec3(0.15f));
+           sponza->SetLocalScale(glm::vec3(15.0f));
         }
 
         //renderer->addDrawable(rocks);

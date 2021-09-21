@@ -41,18 +41,15 @@ void main() {
     fsNormal = normalize(fsModelNoTranslate * normal);
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // tbn matrix transforms from normal map space to world space
-    //mat3 normalMatrix = fsModelNoTranslate; //transpose(inverse(mat3(model)));
-    //vec3 t = normalize(normalMatrix * tangent);
-    //vec3 b = normalize(normalMatrix * bitangent);
-    //vec3 n = normalize(normalMatrix * normal);
-    vec3 n = normalize(normal);
-    vec3 t = normalize(tangent);
+    mat3 normalMatrix = mat3(model);
+    vec3 n = normalize(normalMatrix * normal);
+    vec3 t = normalize(normalMatrix * tangent);
     // re-orthogonalize T with respect to N - see end of https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // this is also called Graham-Schmidt
     t = normalize(t - dot(t, n) * n);
     // then retrieve perpendicular vector B with the cross product of T and N
-    vec3 b = cross(n, t);
-    fsTbnMatrix = fsModelNoTranslate * mat3(t, b, n);
+    vec3 b = normalize(cross(n, t));
+    fsTbnMatrix = mat3(t, b, n);
     fsRoughness = roughness;
     fsModel = model;
     fsBaseReflectivity = baseReflectivity;

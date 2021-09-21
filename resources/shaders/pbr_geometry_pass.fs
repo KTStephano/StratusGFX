@@ -68,7 +68,7 @@ void main() {
     }
 
     vec3 baseColor = fsDiffuseColor;
-    vec3 normal = fsNormal;
+    vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
     float roughness = fsRoughness;
     float ao = 1.0;
     float metallic = fsMetallic;
@@ -82,8 +82,9 @@ void main() {
         // Normals generally have values from [-1, 1], but inside
         // an OpenGL texture they are transformed to [0, 1]. To convert
         // them back, we multiply by 2 and subtract 1.
-        normal = normalize(normal * 2.0 - 1.0);
+        normal = normalize(normal * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
         normal = normalize(fsTbnMatrix * normal);
+        normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
     }
 
     if (roughnessMapped) {
@@ -100,6 +101,7 @@ void main() {
 
     // Coordinate space is set to world
     gPosition = fsPosition;
+    // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = baseColor;
     gBaseReflectivity = fsBaseReflectivity;
