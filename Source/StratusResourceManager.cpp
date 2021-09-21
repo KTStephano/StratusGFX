@@ -129,7 +129,7 @@ namespace stratus {
         }
     }
 
-    Async<Entity> ResourceManager::LoadModel(const std::string& name) {
+    Async<Entity> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         {
             auto sl = _LockRead();
             if (_loadedModels.find(name) != _loadedModels.end()) {
@@ -140,8 +140,8 @@ namespace stratus {
 
         auto ul = _LockWrite();
         auto index = _NextResourceIndex();
-        Async<Entity> e(*_threads[index].get(), [this, name]() {
-            return _LoadModel(name);
+        Async<Entity> e(*_threads[index].get(), [this, name, defaultCullMode]() {
+            return _LoadModel(name, defaultCullMode);
         });
 
         _loadedModels.insert(std::make_pair(name, e));
@@ -222,7 +222,7 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory) {
+    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, RenderFaceCulling defaultCullMode) {
         if (mesh->mNumUVComponents[0] == 0) return;
         if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
@@ -247,8 +247,7 @@ namespace stratus {
         // Process material
         MaterialPtr m = rootMat->CreateSubMaterial();
 
-        // TODO: re-enable CCW - sponza scene is a pain
-        RenderFaceCulling cull = RenderFaceCulling::CULLING_NONE;
+        RenderFaceCulling cull = defaultCullMode;
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
 
@@ -307,7 +306,7 @@ namespace stratus {
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory) {
+    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory, RenderFaceCulling defaultCullMode) {
         // set the transformation info
         auto mat = node->mTransformation;
         aiVector3t<float> scale;
@@ -328,7 +327,7 @@ namespace stratus {
         // Process all node meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
             aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-            ProcessMesh(rnode, mesh, scene, rootMat, directory);
+            ProcessMesh(rnode, mesh, scene, rootMat, directory, defaultCullMode);
         }
 
         // Now do the same for each child
@@ -336,11 +335,11 @@ namespace stratus {
             // Create a new container entity
             EntityPtr centity = Entity::Create();
             entity->AttachChild(centity);
-            ProcessNode(node->mChildren[i], scene, centity, rootMat, directory);
+            ProcessNode(node->mChildren[i], scene, centity, rootMat, directory, defaultCullMode);
         }
     }
 
-    EntityPtr ResourceManager::_LoadModel(const std::string& name) {
+    EntityPtr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
@@ -376,7 +375,7 @@ namespace stratus {
 
         EntityPtr e = Entity::Create();
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, material, directory);
+        ProcessNode(scene->mRootNode, scene, e, material, directory, defaultCullMode);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety

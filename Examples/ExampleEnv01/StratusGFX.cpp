@@ -143,7 +143,8 @@ public:
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
 
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf");
+        // Disable culling for this model since there are some weird parts that seem to be reversed
+        e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {

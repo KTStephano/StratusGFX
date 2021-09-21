@@ -5,6 +5,7 @@
 #include "StratusThread.h"
 #include "StratusEntity.h"
 #include "StratusTexture.h"
+#include "StratusRenderNode.h""
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>
@@ -33,7 +34,7 @@ namespace stratus {
         static ResourceManager * Instance() { return _instance; }
 
         void Update();
-        Async<Entity> LoadModel(const std::string&);
+        Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const bool srgb);
         void FinalizeModelMemory(const RenderMeshPtr&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
@@ -50,7 +51,7 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&);
+        EntityPtr _LoadModel(const std::string&, RenderFaceCulling);
         std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle, const bool srgb);
         Texture * _FinalizeTexture(const RawTextureData&);
         uint32_t _NextResourceIndex();
