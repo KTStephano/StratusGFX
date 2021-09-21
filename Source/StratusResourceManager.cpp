@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "StratusRendererFrontend.h"
+#include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
 
@@ -198,13 +199,27 @@ namespace stratus {
     static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {
-            aiString str;
+            aiString str; 
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
             texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file);
         }
 
         return texture;
+    }
+
+    static void PrintMatType(const aiMaterial * aimat, const aiTextureType type) {
+        const auto count = aimat->GetTextureCount(type);
+        std::stringstream out;
+        out << count;
+        if (count > 0) {
+            aiString str;
+            aimat->GetTexture(type, 0, &str);
+            std::string file = str.C_Str();
+            out << ", " << file;
+        }
+        out << std::endl;
+        STRATUS_LOG << out.str();
     }
 
     static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory) {
@@ -234,17 +249,17 @@ namespace stratus {
             aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
 
             STRATUS_LOG << "mat\n";
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_SPECULAR) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_AMBIENT) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_EMISSIVE) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_NORMALS) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_SHININESS) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_OPACITY) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_DISPLACEMENT) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_LIGHTMAP) << std::endl;
-            STRATUS_LOG << aimat->GetTextureCount(aiTextureType_REFLECTION) << std::endl;
+            PrintMatType(aimat, aiTextureType_DIFFUSE);
+            PrintMatType(aimat, aiTextureType_SPECULAR);
+            PrintMatType(aimat, aiTextureType_AMBIENT);
+            PrintMatType(aimat, aiTextureType_EMISSIVE);
+            PrintMatType(aimat, aiTextureType_HEIGHT);
+            PrintMatType(aimat, aiTextureType_NORMALS);
+            PrintMatType(aimat, aiTextureType_SHININESS);
+            PrintMatType(aimat, aiTextureType_OPACITY);
+            PrintMatType(aimat, aiTextureType_DISPLACEMENT);
+            PrintMatType(aimat, aiTextureType_LIGHTMAP);
+            PrintMatType(aimat, aiTextureType_REFLECTION);
 
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory));
             m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory));
@@ -303,17 +318,18 @@ namespace stratus {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
+        // importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
+        // importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
                                                        aiProcess_JoinIdenticalVertices |
                                                        aiProcess_SortByPType |
-                                                       aiProcess_GenSmoothNormals | 
+                                                       aiProcess_GenNormals |
+                                                    //    aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
-                                                       aiProcess_CalcTangentSpace | 
+                                                       aiProcess_CalcTangentSpace |
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |

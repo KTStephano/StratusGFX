@@ -493,8 +493,8 @@ public:
         }
 
         if (sponza) {
-            sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
-            sponza->SetLocalScale(glm::vec3(0.15f));
+           sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
+           sponza->SetLocalScale(glm::vec3(0.15f));
         }
 
         //renderer->addDrawable(rocks);

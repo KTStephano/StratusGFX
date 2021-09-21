@@ -27,6 +27,7 @@ smooth out vec2 fsTexCoords;
 out mat3 fsTbnMatrix;
 out float fsRoughness;
 out mat4 fsModel;
+out mat3 fsModelNoTranslate;
 out vec3 fsBaseReflectivity;
 out float fsMetallic;
 out vec3 fsDiffuseColor;
@@ -36,23 +37,22 @@ void main() {
     vec4 pos = model * vec4(position, 1.0);
     fsPosition = pos.xyz;
     fsTexCoords = texCoords;
-    fsNormal = normalize(mat3(model) * normal);
+    fsModelNoTranslate = mat3(model);
+    fsNormal = normalize(fsModelNoTranslate * normal);
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
-    /*
-    vec3 t = normalize(vec3(model * vec4(tangent, 0.0)));
-    vec3 b = normalize(vec3(model * vec4(bitangent, 0.0)));
-    vec3 n = normalize(vec3(model * vec4(normal, 0.0)));
-    */
-    mat3 normalMatrix = mat3(model); //transpose(inverse(mat3(model)));
-    vec3 t = normalize(normalMatrix * tangent);
-    vec3 b = normalize(normalMatrix * bitangent);
-    vec3 n = normalize(normalMatrix * normal);
-
-    //t = normalize(t - dot(t, n) * n);
-    //vec3 b = cross(n, t);
-    // The transpose variant turns TBN from tangent -> world space into world space -> tangent
-    // fsTbnMatrix = transpose(mat3(t, b, n));
-    fsTbnMatrix = mat3(t, b, n);
+    // tbn matrix transforms from normal map space to world space
+    //mat3 normalMatrix = fsModelNoTranslate; //transpose(inverse(mat3(model)));
+    //vec3 t = normalize(normalMatrix * tangent);
+    //vec3 b = normalize(normalMatrix * bitangent);
+    //vec3 n = normalize(normalMatrix * normal);
+    vec3 n = normalize(normal);
+    vec3 t = normalize(tangent);
+    // re-orthogonalize T with respect to N - see end of https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+    // this is also called Graham-Schmidt
+    t = normalize(t - dot(t, n) * n);
+    // then retrieve perpendicular vector B with the cross product of T and N
+    vec3 b = cross(n, t);
+    fsTbnMatrix = fsModelNoTranslate * mat3(t, b, n);
     fsRoughness = roughness;
     fsModel = model;
     fsBaseReflectivity = baseReflectivity;
