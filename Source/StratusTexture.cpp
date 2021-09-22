@@ -9,9 +9,14 @@ namespace stratus {
         GLuint _texture;
         TextureConfig _config;
         mutable int _activeTexture = -1;
+        TextureHandle _handle;
 
     public:
-        TextureImpl(const TextureConfig & config, const void * data) {
+        TextureImpl(const TextureConfig & config, const void * data, bool initHandle) {
+            if (initHandle) {
+                _handle = TextureHandle::NextHandle();
+            }
+
             glGenTextures(1, &_texture);
 
             _config = config;
@@ -21,22 +26,41 @@ namespace stratus {
                 glTexImage2D(GL_TEXTURE_2D, // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
-                    config.width, config.height,
+                    config.width, 
+                    config.height,
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    data);
+                    data
+                );
+            }
+            else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
+                // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+                // for an example of glTexImage3D
+                glTexImage3D(GL_TEXTURE_2D_ARRAY, // target
+                    0, // level 
+                    _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
+                    config.width, 
+                    config.height, 
+                    config.depth,
+                    0,
+                    _convertFormat(config.format), // format (e.g. RGBA)
+                    _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
+                    data
+                );
             }
             else {
                 for (int face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 
                         _convertInternalFormat(config.format, config.storage, config.dataType),
-                        config.width, config.height, 
+                        config.width, 
+                        config.height,
                         0, 
                         _convertFormat(config.format),
                         _convertType(config.dataType, config.storage), 
-                        data);
+                        data
+                    );
                 }
             }
             if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_config.type));
@@ -76,10 +100,16 @@ namespace stratus {
             unbind();
         }
 
+        void setHandle(const TextureHandle handle) {
+            _handle = handle;
+        }
+
         TextureType type() const              { return _config.type; }
         TextureComponentFormat format() const { return _config.format; }
+        TextureHandle handle() const         { return _handle; }
         uint32_t width() const                { return _config.width; }
         uint32_t height() const               { return _config.height; }
+        uint32_t depth() const                { return _config.depth; }
         void * underlying() const             { return (void *)&_texture; }
 
     public:
@@ -107,11 +137,11 @@ namespace stratus {
 
     private:
         static GLenum _convertTexture(TextureType type) {
-            if (type == TextureType::TEXTURE_2D) {
-                return GL_TEXTURE_2D;
-            }
-            else {
-                return GL_TEXTURE_CUBE_MAP;
+            switch (type) {
+            case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
+            case TextureType::TEXTURE_2D_ARRAY: return GL_TEXTURE_2D_ARRAY;
+            case TextureType::TEXTURE_3D: return GL_TEXTURE_CUBE_MAP;
+            default: throw std::runtime_error("Unknown texture type");
             }
         }
 
@@ -305,8 +335,8 @@ namespace stratus {
     };
 
     Texture::Texture() {}
-    Texture::Texture(const TextureConfig & config, const void * data) {
-        _impl = std::make_shared<TextureImpl>(config, data);
+    Texture::Texture(const TextureConfig & config, const void * data, bool initHandle) {
+        _impl = std::make_shared<TextureImpl>(config, data, initHandle);
     }
 
     Texture::~Texture() {}
@@ -317,9 +347,11 @@ namespace stratus {
 
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
+    TextureHandle Texture::handle() const { return _impl->handle(); }
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
+    uint32_t Texture::depth() const { return _impl->depth(); }
 
     void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
     void Texture::unbind() const { _impl->unbind(); }
@@ -342,5 +374,9 @@ namespace stratus {
 
     const TextureConfig & Texture::getConfig() const {
         return _impl->getConfig();
+    }
+
+    void Texture::_setHandle(const TextureHandle handle) {
+        _impl->setHandle(handle);
     }
 }

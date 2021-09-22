@@ -38,15 +38,15 @@ namespace stratus {
         return _position;
     }
 
-    glm::vec3 Camera::getDirection() {
+    glm::vec3 Camera::getDirection() const {
         return glm::normalize(-getWorldTransform()[2]);
     }
 
-    glm::vec3 Camera::getUp() {
+    glm::vec3 Camera::getUp() const {
         return glm::normalize(-getWorldTransform()[1]);
     }
 
-    glm::vec3 Camera::getSide() {
+    glm::vec3 Camera::getSide() const {
         return -glm::cross(getDirection(), getUp());
     }
 
@@ -94,6 +94,10 @@ namespace stratus {
         _worldTransform = constructTransformMat(_rotation, _position, glm::vec3(1.0f));
         _viewTransform = glm::inverse(_worldTransform);
         _viewTransformValid = true;
+    }
+
+    CameraPtr Camera::Copy() const {
+        return CameraPtr(new Camera(*this));
     }
 
 // Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {

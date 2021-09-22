@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "StratusFilesystem.h"
+#include "StratusLog.h"
 
 namespace stratus {
 /**
@@ -11,7 +12,7 @@ namespace stratus {
 std::vector <char> Filesystem::readBinary(const std::string &file) {
     std::ifstream binaryFile(file, std::ios::in | std::ios::binary);
     if (!binaryFile.is_open()) {
-        std::cerr << "[error] Unable to open " << file << std::endl;
+        STRATUS_ERROR << "[error] Unable to open " << file << std::endl;
         return std::vector<char>();
     }
 
@@ -36,7 +37,7 @@ std::vector <char> Filesystem::readBinary(const std::string &file) {
 std::string Filesystem::readAscii(const std::string &file) {
     std::ifstream asciiFile(file, std::ios::in);
     if (!asciiFile.is_open()) {
-        std::cerr << "[error] Unable to open " << file << std::endl;
+        STRATUS_ERROR << "[error] Unable to open " << file << std::endl;
         return std::string();
     }
     auto s = std::string((std::istreambuf_iterator<char>(asciiFile)),

@@ -6,167 +6,177 @@
 #include "StratusMath.h"
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace stratus {
-enum class LightType {
-    POINTLIGHT,
-    SPOTLIGHT
-};
+    class Light;
+    typedef std::shared_ptr<Light> LightPtr;
 
-const float maxLightColor = 10000.0f;
+    enum class LightType {
+        POINTLIGHT,
+        SPOTLIGHT
+    };
 
-// Serves as a global world light
-class InfiniteLight {
-    glm::vec3 _color = glm::vec3(1.0f);
-    glm::vec3 _position = glm::vec3(0.0f);
-    Rotation _rotation;
-    float _intensity = 1.0f;
+    const float maxLightColor = 10000.0f;
 
-public:
-    const glm::vec3 & getColor() const { return _color; }
-    void setColor(const glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
+    // Serves as a global world light
+    class InfiniteLight {
+        glm::vec3 _color = glm::vec3(1.0f);
+        glm::vec3 _position = glm::vec3(0.0f);
+        Rotation _rotation;
+        float _intensity = 1.0f;
 
-    const glm::vec3 & getPosition() const { return _position; }
-    void setPosition(const glm::vec3 & position) { _position = position; }
+    public:
+        const glm::vec3 & getColor() const { return _color; }
+        void setColor(const glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
 
-    const Rotation & getRotation() const { return _rotation; }
-    void setRotation(const Rotation & rotation) { _rotation = rotation; }
+        const glm::vec3 & getPosition() const { return _position; }
+        void setPosition(const glm::vec3 & position) { _position = position; }
 
-    void offsetRotation(const glm::vec3& offsets) {
-        _rotation.x += Degrees(offsets.x);
-        _rotation.y += Degrees(offsets.y);
-        _rotation.z += Degrees(offsets.z);
-    }
+        const Rotation & getRotation() const { return _rotation; }
+        void setRotation(const Rotation & rotation) { _rotation = rotation; }
 
-    float getIntensity() const { return _intensity; }
-    void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
-};
+        void offsetRotation(const glm::vec3& offsets) {
+            _rotation.x += Degrees(offsets.x);
+            _rotation.y += Degrees(offsets.y);
+            _rotation.z += Degrees(offsets.z);
+        }
 
-class Light {
-    glm::vec3 _color = glm::vec3(1.0f);
-    glm::vec3 _baseColor = _color;
-    float _intensity = 1.0f;
-    float _radius = 1.0f;
-    bool _castsShadows = true;
+        float getIntensity() const { return _intensity; }
+        void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
+    };
 
-public:
-    glm::vec3 position = glm::vec3(0.0f);
-    virtual ~Light() = default;
+    class Light {
+        glm::vec3 _color = glm::vec3(1.0f);
+        glm::vec3 _baseColor = _color;
+        float _intensity = 1.0f;
+        float _radius = 1.0f;
+        bool _castsShadows = true;
 
-    /**
-     * @return type of point light so that the renderer knows
-     *      how to deal with it
-     */
-    virtual LightType getType() const = 0;
+    public:
+        glm::vec3 position = glm::vec3(0.0f);
+        virtual ~Light() = default;
 
-    const glm::vec3 & getColor() const {
-        return _color;
-    }
+        /**
+         * @return type of point light so that the renderer knows
+         *      how to deal with it
+         */
+        virtual LightType getType() const = 0;
 
-    const glm::vec3& getBaseColor() const {
-        return _baseColor;
-    }
+        const glm::vec3 & getColor() const {
+            return _color;
+        }
 
-    /**
-     * Sets the color of the light where the scale
-     * is not from [0.0, 1.0] but instead can be any
-     * number > 0.0 for each color component. To make this
-     * work, HDR support is required.
-     */
-    void setColor(float r, float g, float b) {
-        r = std::max(0.0f, r);
-        g = std::max(0.0f, g);
-        b = std::max(0.0f, b);
-        _color = glm::vec3(r, g, b);
-        _baseColor = _color;
-        _recalcColorWithIntensity();
-        _recalcRadius();
-    }
+        const glm::vec3& getBaseColor() const {
+            return _baseColor;
+        }
 
-    /**
-     * A light's color values can all be on the range of
-     * [0.0, 1.0], but the intensity specifies how strong it
-     * should be.
-     * @param i
-     */
-    void setIntensity(float i) {
-        if (i < 0) return;
-        _intensity = i;
-        _recalcColorWithIntensity();
-        _recalcRadius();
-    }
+        /**
+         * Sets the color of the light where the scale
+         * is not from [0.0, 1.0] but instead can be any
+         * number > 0.0 for each color component. To make this
+         * work, HDR support is required.
+         */
+        void setColor(float r, float g, float b) {
+            r = std::max(0.0f, r);
+            g = std::max(0.0f, g);
+            b = std::max(0.0f, b);
+            _color = glm::vec3(r, g, b);
+            _baseColor = _color;
+            _recalcColorWithIntensity();
+            _recalcRadius();
+        }
 
-    float getIntensity() const {
-        return _intensity;
-    }
+        /**
+         * A light's color values can all be on the range of
+         * [0.0, 1.0], but the intensity specifies how strong it
+         * should be.
+         * @param i
+         */
+        void setIntensity(float i) {
+            if (i < 0) return;
+            _intensity = i;
+            _recalcColorWithIntensity();
+            _recalcRadius();
+        }
 
-    float getRadius() const {
-        return _radius;
-    }
+        float getIntensity() const {
+            return _intensity;
+        }
 
-    void setCastsShadows(bool enable) {
-        this->_castsShadows = enable;
-    }
+        float getRadius() const {
+            return _radius;
+        }
 
-    bool castsShadows() const {
-        return this->_castsShadows;
-    }
+        void setCastsShadows(bool enable) {
+            this->_castsShadows = enable;
+        }
 
-private:
-    // See https://learnopengl.com/Advanced-Lighting/Deferred-Shading for the equation
-    void _recalcRadius() {
-        static const float lightMin = 256.0 / 5;
-        const glm::vec3 intensity = getIntensity() * getColor();
-        const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
-        this->_radius = std::sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
-    }
+        bool castsShadows() const {
+            return this->_castsShadows;
+        }
 
-    void _recalcColorWithIntensity() {
-        _color = _baseColor * _intensity;
-        _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
-        _color = (_color / maxLightColor) * 30.0f;
-    }
-};
+        virtual LightPtr Copy() const = 0;
 
-class PointLight : public Light {
-    friend class Renderer;
-    
-    // ShadowMapHandle _shadowHap = -1;
+    private:
+        // See https://learnopengl.com/Advanced-Lighting/Deferred-Shading for the equation
+        void _recalcRadius() {
+            static const float lightMin = 256.0 / 5;
+            const glm::vec3 intensity = getIntensity() * getColor();
+            const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
+            this->_radius = std::sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
+        }
 
-    // These are used to set up the light view matrix
-    float lightNearPlane = 0.1f;
-    float lightFarPlane = 500.0f;
+        void _recalcColorWithIntensity() {
+            _color = _baseColor * _intensity;
+            _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
+            _color = (_color / maxLightColor) * 30.0f;
+        }
+    };
 
-public:
-    ~PointLight() override = default;
+    class PointLight : public Light {
+        friend class Renderer;
+        
+        // ShadowMapHandle _shadowHap = -1;
 
-    LightType getType() const override {
-        return LightType::POINTLIGHT;
-    }
+        // These are used to set up the light view matrix
+        float lightNearPlane = 0.1f;
+        float lightFarPlane = 500.0f;
 
-    // ShadowMapHandle getShadowMapHandle() const {
-    //     return this->_shadowHap;
-    // }
+    public:
+        ~PointLight() override = default;
 
-    void setNearFarPlane(float nearPlane, float farPlane) {
-        this->lightNearPlane = nearPlane;
-        this->lightFarPlane = farPlane;
-    }
+        LightType getType() const override {
+            return LightType::POINTLIGHT;
+        }
 
-    float getNearPlane() const {
-        return this->lightNearPlane;
-    }
+        // ShadowMapHandle getShadowMapHandle() const {
+        //     return this->_shadowHap;
+        // }
 
-    float getFarPlane() const {
-        //return this->lightFarPlane;
-        return this->getRadius();
-    }
+        void setNearFarPlane(float nearPlane, float farPlane) {
+            this->lightNearPlane = nearPlane;
+            this->lightFarPlane = farPlane;
+        }
 
-private:
-    // void _setShadowMapHandle(ShadowMapHandle handle) {
-    //     this->_shadowHap = handle;
-    // }
-};
+        float getNearPlane() const {
+            return this->lightNearPlane;
+        }
+
+        float getFarPlane() const {
+            //return this->lightFarPlane;
+            return this->getRadius();
+        }
+
+        LightPtr Copy() const override {
+            return LightPtr(new PointLight(*this));
+        }
+
+    private:
+        // void _setShadowMapHandle(ShadowMapHandle handle) {
+        //     this->_shadowHap = handle;
+        // }
+    };
 }
 
 #endif //STRATUSGFX_LIGHT_H

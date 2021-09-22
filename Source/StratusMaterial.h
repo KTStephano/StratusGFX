@@ -1,0 +1,134 @@
+#pragma once
+
+#include "StratusCommon.h"
+#include "StratusTexture.h"
+#include "StratusConcurrentHashMap.h"
+#include <vector>
+#include <shared_mutex>
+#include <string>
+#include <memory>
+#include "StratusLog.h"
+
+namespace stratus {
+    class Material;
+    typedef std::shared_ptr<Material> MaterialPtr;
+
+    /**
+     * @see http://devernay.free.fr/cours/opengl/materials.html
+     *
+     * A material specifies how light will interact with a surface.
+     */
+    class Material : public std::enable_shared_from_this<Material> {
+        friend class MaterialManager;
+
+        // Only material manager should create
+        Material(const std::string& name, bool registerSelf);
+
+    public:
+        ~Material();
+
+        Material(const Material&) = delete;
+        Material(Material&&) = delete;
+        Material& operator=(const Material&) = delete;
+        Material& operator=(Material&&) = delete;
+
+        // New name must be unique
+        void SetName(const std::string&);
+        std::string GetName() const;
+
+        // Creates an un-named sub material (only parent is registered with MaterialManager)
+        MaterialPtr CreateSubMaterial();
+
+        // Helper comparison functions
+        bool operator==(const Material& other) const { return GetName() == other.GetName(); }
+        bool operator!=(const Material& other) const { return !(*this == other); }
+
+        // Get and set material properties
+        const glm::vec3& GetDiffuseColor() const;
+        const glm::vec3& GetAmbientColor() const;
+        const glm::vec3& GetBaseReflectivity() const;
+        float GetRoughness() const;
+        float GetMetallic() const;
+
+        void SetDiffuseColor(const glm::vec3&);
+        void SetAmbientColor(const glm::vec3&);
+        void SetBaseReflectivity(const glm::vec3&);
+        void SetRoughness(float);
+        void SetMetallic(float);
+
+        // Get and set material properties as textures
+        TextureHandle GetDiffuseTexture() const;
+        TextureHandle GetAmbientTexture() const;
+        TextureHandle GetNormalMap() const;
+        TextureHandle GetDepthMap() const;
+        TextureHandle GetRoughnessMap() const;
+        TextureHandle GetMetallicMap() const;
+
+        void SetDiffuseTexture(TextureHandle);
+        void SetAmbientTexture(TextureHandle);
+        void SetNormalMap(TextureHandle);
+        void SetDepthMap(TextureHandle);
+        void SetRoughnessMap(TextureHandle);
+        void SetMetallicMap(TextureHandle);
+
+    private:
+        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
+        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+
+        void _Release();
+    
+    private:
+        mutable std::shared_mutex _mutex;
+        std::string _name;
+        // Register self with material manager
+        bool _registerSelf;
+        glm::vec3 _diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
+        glm::vec3 _ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
+        glm::vec3 _baseReflectivity = glm::vec3(0.04f);
+        float _roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
+        float _metallic = 0.0f;
+        // Not required to have a texture
+        TextureHandle _diffuseTexture = TextureHandle::Null();
+        // Not required to have an ambient texture
+        TextureHandle _ambientTexture = TextureHandle::Null();
+        // Not required to have a normal map
+        TextureHandle _normalMap = TextureHandle::Null();
+        // Not required to have a depth map
+        TextureHandle _depthMap = TextureHandle::Null();
+        // Not required to have a roughness map
+        TextureHandle _roughnessMap = TextureHandle::Null();
+        // Not required to have a metallic map
+        TextureHandle _metallicMap = TextureHandle::Null();
+        std::vector<MaterialPtr> _subMats;
+    };
+
+    class MaterialManager {
+        friend class Engine;
+
+        // Only engine should create
+        MaterialManager();
+
+    public:
+        static MaterialManager * Instance() { return _instance; }
+
+        ~MaterialManager();
+
+        // Creating and querying materials
+        MaterialPtr CreateMaterial(const std::string& name);
+        // Removes material from manager's cache - once the last outstanding pointer to it
+        // is dropped the material will go out of scope
+        void ReleaseMaterial(const std::string& name);
+        MaterialPtr GetMaterial(const std::string& name) const;
+        MaterialPtr GetOrCreateMaterial(const std::string& name);
+        bool ContainsMaterial(const std::string& name) const;
+        std::vector<MaterialPtr> GetAllMaterials() const;
+
+        bool NotifyNameChanged(const std::string& oldName, MaterialPtr);
+
+        MaterialPtr CreateDefault();
+
+    private:
+        static MaterialManager * _instance;
+        ConcurrentHashMap<std::string, MaterialPtr> _materials;
+    };
+}

@@ -1,10 +1,15 @@
 #pragma once
 
 #include <memory>
+#include "StratusHandle.h"
 
 namespace stratus {    
+    class Texture;
+    typedef Handle<Texture> TextureHandle;
+
     enum class TextureType : int {
         TEXTURE_2D,
+        TEXTURE_2D_ARRAY,
         TEXTURE_3D
     };
 
@@ -80,11 +85,13 @@ namespace stratus {
         TextureComponentType dataType;
         uint32_t width;
         uint32_t height;
+        uint32_t depth;
         bool generateMipMaps;
     };
 
     class TextureImpl;
     class Texture {
+        friend class ResourceManager;
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> _impl;
 
@@ -92,7 +99,7 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const void * data);
+        Texture(const TextureConfig & config, const void * data, bool initHandle = true);
         ~Texture();
 
         Texture(const Texture &) = default;
@@ -106,9 +113,11 @@ namespace stratus {
 
         TextureType type() const;
         TextureComponentFormat format() const;
+        TextureHandle handle() const;
 
         uint32_t width() const;
         uint32_t height() const;
+        uint32_t depth() const;
 
         void bind(int activeTexture = 0) const;
         void unbind() const;
@@ -124,6 +133,9 @@ namespace stratus {
         // Creates a new texture and copies this texture into it
         Texture copy(uint32_t newWidth, uint32_t newHeight);
         const TextureConfig & getConfig() const;
+
+    private:
+        void _setHandle(const TextureHandle);
     };
 }
 

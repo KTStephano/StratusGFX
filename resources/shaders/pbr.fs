@@ -52,7 +52,7 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 11
 #define SPECULAR_MULTIPLIER 128.0
-#define WORLD_LIGHT_AMBIENT_INTENSITY 0.005
+#define WORLD_LIGHT_AMBIENT_INTENSITY 0.009
 #define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 //#define AMBIENT_INTENSITY 0.00025
 #define PI 3.14159265359
@@ -92,7 +92,7 @@ uniform int numShadowLights = 0;
 uniform bool infiniteLightingEnabled = false;
 uniform vec3 infiniteLightDirection;
 uniform vec3 infiniteLightColor;
-uniform sampler2DShadow infiniteLightShadowMaps[4];
+uniform sampler2DArrayShadow infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
 uniform vec4 shadowOffset[2];
@@ -124,6 +124,12 @@ vec3 saturate(vec3 value) {
 
 float saturate(float value) {
     return clamp(value, 0.0, 1.0);
+}
+
+vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
+    // This will give us the size of a single texel in (x, y) directions
+    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
+    return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
 }
 
 #define PCF_SAMPLES 2.5;
@@ -174,10 +180,11 @@ float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float li
     return shadow / totalSamples;
 }
 
-float sampleInfiniteShadowTexture(sampler2DShadow shadow, vec3 coords, float depth) {
-    coords.z = depth;
-    float closestDepth = texture(shadow, coords);
-    return closestDepth;
+// See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
+    coords.w = depth - bias;
+    coords.xy += offset;
+    return texture(shadow, coords);
     // float closestDepth = texture(shadow, coords).r;
     // // 0.0 means not in shadow, 1.0 means fully in shadow
     // return depth > closestDepth ? 1.0 : 0.0;
@@ -191,26 +198,36 @@ float sampleInfiniteShadowTexture(sampler2DShadow shadow, vec3 coords, float dep
 //      https://alextardif.com/shadowmapping.html
 //      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
 //      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
-float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
-    vec3 p1, p2;
+//      https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+//      http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal) {
+	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
+    // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+	// float tanTheta = 3.0 * tan(acos(dot(normalize(infiniteLightDirection), normal)));
+    // float bias = 0.005 * tanTheta;
+    // bias = clamp(bias, 0.0, 0.001);
+    float bias = 2e-19;
+
+    vec4 p1, p2;
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
         // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
-        cascadeCoords[i] = cascadeCoords[i] * 0.5 + vec3(0.5);
+        cascadeCoords[i].xyz = cascadeCoords[i].xyz * 0.5 + vec3(0.5);
+        // cascadeCoords[i].z = cascadeCoords[i].z * 0.5 + 0.5;
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
     bool beyondCascade3 = cascadeBlends.z >= 0.0;
     // p1.z = float(beyondCascade2) * 2.0;
     // p2.z = float(beyondCascade3) * 2.0 + 1.0;
-    p1.z = 0.0;
-    p2.z = 0.0;
 
     int index1 = beyondCascade2 ? 2 : 0;
     int index2 = beyondCascade3 ? 3 : 1;
+    p1.z = float(index1);
+    p2.z = float(index2);
 
     vec2 shadowCoord1 = cascadeCoords[index1].xy;
     vec2 shadowCoord2 = cascadeCoords[index2].xy;
@@ -225,30 +242,24 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends) {
     //vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
     float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
 
-    float light1 = 0.0;
-    // Sample four times from first cascade
-    p1.xy = shadowCoord1 + shadowOffset[0].xy;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[0].zw;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[1].xy;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
-    p1.xy = shadowCoord1 + shadowOffset[1].zw;
-    light1 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index1], p1, depth1);
+    vec2 wh = computeTexelWidth(infiniteLightShadowMap, 0);
 
+    float light1 = 0.0;
     float light2 = 0.0;
-    // Sample four times from second cascade
-    p2.xy = shadowCoord2 + shadowOffset[0].xy;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[0].zw;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[1].xy;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
-    p2.xy = shadowCoord2 + shadowOffset[1].zw;
-    light2 += sampleInfiniteShadowTexture(infiniteLightShadowMaps[index2], p2, depth2);
+    float samples = 0.0;
+    p1.xy = shadowCoord1;
+    p2.xy = shadowCoord2;
+    // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+    for (float y = -1.5; y <= 1.5; y += 1.0) {
+        for (float x = -1.5; x <= 1.5; x += 1.0) {
+            light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
+            light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, vec2(x, y) * wh, bias);
+            ++samples;
+        }
+    }
 
     // blend and return
-    return mix(light2, light1, weight) * 0.25; // 0.25 = 1.0 / 4.0 = average
+    return mix(light2, light1, weight) * (1.0 / samples); //* 0.25;
 }
 
 float normalDistribution(const float NdotH, const float roughness) {
@@ -331,7 +342,7 @@ void main() {
     vec3 viewDir = normalize(viewPosition - fragPos);
 
     vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-    vec3 normal = texture(gNormal, texCoords).rgb;
+    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     float ambient = texture(gRoughnessMetallicAmbient, texCoords).b;
@@ -370,8 +381,8 @@ void main() {
         // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(fragPos, 1.0)),
                                   dot(cascadePlanes[1], vec4(fragPos, 1.0)),
-                                  dot(cascadePlanes[2], vec4(fragPos, 1.0f)));
-        float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends);
+                                  dot(cascadePlanes[2], vec4(fragPos, 1.0)));
+        float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
         color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
     }

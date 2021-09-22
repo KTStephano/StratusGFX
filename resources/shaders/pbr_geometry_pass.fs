@@ -32,6 +32,7 @@ smooth in vec3 fsPosition;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
+in mat3 fsModelNoTranslate;
 in vec3 fsDiffuseColor;
 in vec3 fsBaseReflectivity; // Ex: vec3(0.03-0.04) for plastics
 in float fsMetallic; // Between 0 and 1 where 0 is not metallic at all and 1 is purely metallic
@@ -61,13 +62,13 @@ void main() {
     vec2 texCoords = fsTexCoords;
     if (depthMapped) {
         texCoords = calculateDepthCoords(texCoords, viewDir);
-        if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-            discard;
-        }
+        // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
+        //     discard;
+        // }
     }
 
     vec3 baseColor = fsDiffuseColor;
-    vec3 normal = fsNormal;
+    vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
     float roughness = fsRoughness;
     float ao = 1.0;
     float metallic = fsMetallic;
@@ -81,8 +82,9 @@ void main() {
         // Normals generally have values from [-1, 1], but inside
         // an OpenGL texture they are transformed to [0, 1]. To convert
         // them back, we multiply by 2 and subtract 1.
-        normal = normal * 2.0 - 1.0;
+        normal = normalize(normal * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
         normal = normalize(fsTbnMatrix * normal);
+        normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
     }
 
     if (roughnessMapped) {
@@ -99,6 +101,7 @@ void main() {
 
     // Coordinate space is set to world
     gPosition = fsPosition;
+    // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = baseColor;
     gBaseReflectivity = fsBaseReflectivity;

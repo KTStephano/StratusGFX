@@ -22,18 +22,26 @@ vec3 applyACESFilm(vec3 color) {
     return saturate((color * (a * color + b)) / (color * (c * color + d) + e));
 }
 
+vec3 applyReinhard(vec3 color) {
+    return color / (color + vec3(1.0));
+}
+
+vec3 gammaCorrect(vec3 color) {
+    return pow(color, vec3(1.0 / gamma));
+}
+
 // This uses Reinhard tone mapping without exposure. More
 // advanced techniques can be used to achieve a very different
 // look and feel to the final output.
 void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
 
-    //vec3 reinhard = screenColor / (screenColor + vec3(1.0));
-    //vec3 corrected = pow(reinhard, vec3(1.0 / gamma));
+    // vec3 corrected = applyReinhard(screenColor);
+    // corrected = gammaCorrect(corrected);
 
     vec3 corrected = applyACESFilm(screenColor);
     // Gamma correction
-    corrected = pow(corrected, vec3(1.0 / gamma));
+    corrected = gammaCorrect(corrected);
 
     color = vec4(corrected, 1.0);
 }
