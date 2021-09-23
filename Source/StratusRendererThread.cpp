@@ -1,12 +1,18 @@
 #include "StratusRendererThread.h"
 
+void EnsureIsRendererThread() {
+    if ( !stratus::RendererThread::Instance()->CurrentIsRendererThread() ) {
+        throw std::runtime_error("Must execute on renderer thread");
+    }
+}
+
 namespace stratus {
+    RendererThread * RendererThread::_instance;
+
     RendererThread::RendererThread() 
         : _thread(new Thread("Renderer", true)) {}
 
     RendererThread::~RendererThread() {
-        _Synchronize();
-        _DispatchAndSynchronize();
         _thread.reset();
     }
 

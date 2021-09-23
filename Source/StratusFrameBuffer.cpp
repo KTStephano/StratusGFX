@@ -1,6 +1,7 @@
 #include "StratusFrameBuffer.h"
 #include "GL/gl3w.h"
 #include <iostream>
+#include "StratusRendererThread.h"
 
 namespace stratus {
    class FrameBufferImpl {
@@ -16,7 +17,13 @@ namespace stratus {
         }
 
         ~FrameBufferImpl() {
-            glDeleteFramebuffers(1, &_fbo);
+            if (RendererThread::Instance()->CurrentIsRendererThread()) {
+                glDeleteFramebuffers(1, &_fbo);
+            }
+            else {
+                auto buffer = _fbo;
+                RendererThread::Instance()->Queue([buffer]() { auto fbo = buffer; glDeleteFramebuffers(1, &fbo); });
+            }
         }
 
         // No copying

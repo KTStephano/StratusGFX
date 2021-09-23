@@ -1,5 +1,4 @@
 
-#include <StratusRendererBackend.h>
 #include <iostream>
 #include <StratusLight.h>
 #include "StratusPipeline.h"
@@ -10,6 +9,7 @@
 #include "StratusMath.h"
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
+#include "StratusRendererThread.h"
 
 namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
@@ -409,6 +409,8 @@ void RendererBackend::_InitAllInstancedData() {
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
+    CHECK_IS_RENDERER_THREAD();
+
     _frame = frame;
 
     // Make sure we set our context as the active one
@@ -708,6 +710,8 @@ void RendererBackend::_RenderCSMDepth() {
 }
 
 void RendererBackend::RenderScene() {
+    CHECK_IS_RENDERER_THREAD();
+
     const Camera& c = *_frame->camera;
 
     const int maxInstances = 250;
@@ -976,13 +980,17 @@ void RendererBackend::_FinalizeFrame() {
 }
 
 void RendererBackend::End() {
+    CHECK_IS_RENDERER_THREAD();
+
     if ( !_frame->vsyncEnabled ) {
         // 0 lets it run as fast as it can
         SDL_GL_SetSwapInterval(0);
     }
 
     // Swap front and back buffer
-    SDL_GL_SwapWindow(_window);    
+    SDL_GL_SwapWindow(_window);
+
+    _frame.reset();
 }
 
 std::vector<SDL_Event> RendererBackend::PollInputEvents() {

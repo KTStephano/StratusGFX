@@ -78,9 +78,6 @@ namespace stratus {
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
 
-        void QueueRendererThreadTask(const Thread::ThreadFunction&);
-        void QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>&);
-
         void RecompileShaders();
 
     private:
@@ -98,6 +95,7 @@ namespace stratus {
         void _UpdateLights();
         void _UpdateCameraVisibility();
         void _UpdateCascadeVisibility();
+        void _SwapFrames();
 
     private:
         static RendererFrontend * _instance;
@@ -117,10 +115,10 @@ namespace stratus {
         bool _viewportDirty = true;
         bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
+        std::shared_ptr<RendererFrame> _prevFrame;
         std::unique_ptr<RendererBackend> _renderer;
         std::vector<SDL_Event> _events;
         RendererMouseState _mouse;
-        std::vector<Thread::ThreadFunction> _rendererTasks;
         mutable std::shared_mutex _mutex;
     };
 }

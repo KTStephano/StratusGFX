@@ -4,13 +4,20 @@
 #include "StratusMaterial.h"
 #include "StratusResourceManager.h"
 #include "StratusRendererFrontend.h"
+#include "StratusRendererThread.h"
 #include <atomic>
 #include <mutex>
 
 namespace stratus {
     Engine * Engine::_instance = nullptr;
 
-    #define CHECK_IS_MAIN_THREAD() assert(Thread::Current() == *Engine::Instance()->GetMainThread())
+    void EnsureIsMainThread() {
+        if ( !(&Thread::Current() == Engine::Instance()->GetMainThread()) ) {
+            throw std::runtime_error("Must execute on main thread");
+        }
+    }
+
+    #define CHECK_IS_MAIN_THREAD() EnsureIsMainThread()
 
     bool EngineMain(Application * app, const int numArgs, const char ** args) {
         static std::mutex preventMultipleMainCalls;
@@ -110,6 +117,7 @@ namespace stratus {
         _main = &Thread::Current();
 
         _InitLog();
+        _InitRendererThead();
     }
 
     void Engine::Initialize() {
@@ -134,6 +142,10 @@ namespace stratus {
     void Engine::_InitLog() {
         Log::_instance = new Log();
         Log::Instance()->Initialize();
+    }
+
+    void Engine::_InitRendererThead() {
+        RendererThread::_instance = new RendererThread();
     }
 
     void Engine::_InitMaterialManager() {
@@ -172,18 +184,22 @@ namespace stratus {
 
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
+        // Synchronize renderer thread
+        RendererThread::Instance()->_Synchronize();
+
         // Application should shut down first
-        // Note: we do not delete Application since engine doesn't own its memory
         _params.application->Shutdown();
-        RendererFrontend::Instance()->Shutdown();
         ResourceManager::Instance()->Shutdown();
         MaterialManager::Instance()->Shutdown();
+        RendererFrontend::Instance()->Shutdown();
         Log::Instance()->Shutdown();
 
+        _DeleteResource(_params.application);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
-        _DeleteResource(Log::_instance);
         _DeleteResource(RendererFrontend::_instance);
+        _DeleteResource(RendererThread::_instance);
+        _DeleteResource(Log::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only

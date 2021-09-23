@@ -1,6 +1,7 @@
 #include "StratusRendererFrontend.h"
 #include "StratusUtils.h"
 #include "StratusLog.h"
+#include "StratusRendererThread.h"
 
 namespace stratus {
     RendererFrontend * RendererFrontend::_instance = nullptr;
@@ -206,6 +207,11 @@ namespace stratus {
         _UpdateCameraVisibility();
         _UpdateCascadeVisibility();
 
+        // Synchronize
+        RendererThread::Instance()->_Synchronize();
+
+        _SwapFrames();
+
         // Update events
         for (auto e : _renderer->PollInputEvents()) {
             _events.push_back(e);
@@ -220,15 +226,16 @@ namespace stratus {
             _recompileShaders = false;
         }
 
-        // Render the scene
-        _renderer->Begin(_frame, true);
+        // Begin the new frame
+        RendererThread::Instance()->_QueueFront([this]() { _renderer->Begin(_prevFrame, true); });
 
-        // Before rendering, process tasks
-        for (auto& task : _rendererTasks) task();
-        _rendererTasks.clear();
+        // Complete the frame
+        RendererThread::Instance()->Queue([this]() {
+            _renderer->RenderScene();
+            _renderer->End();
+        });
 
-        _renderer->RenderScene();
-        _renderer->End();
+        RendererThread::Instance()->_Dispatch();
 
         // Clear all light dirty flags
         for (auto& entry : _lights) {
@@ -250,30 +257,34 @@ namespace stratus {
         _frame->csc.regenerateFbo = true;
         _frame->csc.worldLightingEnabled = _worldLight.enabled;
 
-        _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
+        // Copy
+        _prevFrame = std::make_shared<RendererFrame>(*_frame);
+
+        // Create the renderer on the renderer thread only
+        RendererThread::Instance()->Queue([this]() {
+            _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
+        });
+        RendererThread::Instance()->_DispatchAndSynchronize();
 
         return true;
     }
 
     void RendererFrontend::Shutdown() {
-        auto ul = _LockWrite();
-        _frame.reset();
-        _renderer.reset();
+        RendererThread::Instance()->_Synchronize();
 
-        _staticPbrEntities.clear();
-        _dynamicPbrEntities.clear();
-        _flatEntities.clear();
-        _lights.clear();
-        _lightsToRemove.clear();
-    }
+        RendererThread::Instance()->Queue([this]() {
+            _frame.reset();
+            _prevFrame.reset();
+            _renderer.reset();
 
-    void RendererFrontend::QueueRendererThreadTask(const Thread::ThreadFunction& task) {
-        QueueRendererThreadTasks({ task });
-    }
+            _staticPbrEntities.clear();
+            _dynamicPbrEntities.clear();
+            _flatEntities.clear();
+            _lights.clear();
+            _lightsToRemove.clear();
+        });
 
-    void RendererFrontend::QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>& tasks) {
-        auto ul = _LockWrite();
-        for (const auto& task : tasks) _rendererTasks.push_back(task);
+        RendererThread::Instance()->_DispatchAndSynchronize();
     }
 
     void RendererFrontend::RecompileShaders() {
@@ -283,24 +294,24 @@ namespace stratus {
 
     void RendererFrontend::_UpdateViewport() {
         if (_viewportDirty) {
-            const float aspect = _params.viewportWidth / float(_params.viewportHeight);
-            _projection        = glm::perspective(
-                Radians(_params.fovy).value(),
-                aspect,
-                _params.znear,
-                _params.zfar
-            );
-
             _frame->viewportDirty  = true;
-            _frame->projection     = _projection;
-            _frame->viewportWidth  = _params.viewportWidth;
-            _frame->viewportHeight = _params.viewportHeight;
-
             _viewportDirty = false;
         }
         else {
             _frame->viewportDirty = false;
         }
+
+        const float aspect = _params.viewportWidth / float(_params.viewportHeight);
+        _projection        = glm::perspective(
+            Radians(_params.fovy).value(),
+            aspect,
+            _params.znear,
+            _params.zfar
+        );
+
+        _frame->projection     = _projection;
+        _frame->viewportWidth  = _params.viewportWidth;
+        _frame->viewportHeight = _params.viewportHeight;
     }
 
     void RendererFrontend::_UpdateCascadeTransforms() {
@@ -550,6 +561,7 @@ namespace stratus {
                             }
                             entry.second.dirty = true;
                         }
+
                         // If the EntityView has moved inside the light's radius, add it
                         else if (glm::distance(data.lastPosition, lightPos) < lightRadius) {
                             entry.second.visible.insert(view);
@@ -570,14 +582,40 @@ namespace stratus {
     }
 
     static void UpdateInstancedData(const std::unordered_set<EntityView>& entities, InstancedData& instanced) {
+        std::unordered_map<RenderNodeView, RenderNodeView> originalToCopy(16);
+        std::unordered_map<RenderNodeView, size_t> counts(16);
+
         for (auto& e : entities) {
-            auto view = RenderNodeView(e.Get()->GetRenderNode()->Copy());
+            auto view = RenderNodeView(e.Get()->GetRenderNode());
+
+            std::unordered_map<RenderNodeView, size_t>::iterator it = counts.find(view);
+            if (originalToCopy.find(view) == originalToCopy.end()) {
+                originalToCopy.insert(std::make_pair(view, RenderNodeView(e.Get()->GetRenderNode()->Copy())));
+                counts.insert(std::make_pair(view, 1));
+            }
+            else {
+                ++it->second;
+            }
+        }
+
+        for (auto& e : entities) {
+            auto view = originalToCopy.find(RenderNodeView(e.Get()->GetRenderNode()))->first;
             if (instanced.find(view) == instanced.end()) {
                 std::vector<RendererEntityData> instanceData(view.Get()->GetNumMeshContainers());
-                instanced.insert(std::make_pair(view, instanceData));
+                const size_t count = counts.find(view)->second;
+                for (int i = 0; i < instanceData.size(); ++i) {
+                    instanceData[i].modelMatrices.reserve(count);
+                    instanceData[i].diffuseColors.reserve(count);
+                    instanceData[i].baseReflectivity.reserve(count);
+                    instanceData[i].roughness.reserve(count);
+                    instanceData[i].metallic.reserve(count);
+                    instanceData[i].size = count;
+                }
+                instanced.insert(std::make_pair(view, std::move(instanceData)));
             }
 
             auto& entityDataVec = instanced.find(view)->second;
+            
             // Each mesh will have its own instanced data
             for (int i = 0; i < view.Get()->GetNumMeshContainers(); ++i) {
                 auto& entityData = entityDataVec[i];
@@ -588,7 +626,7 @@ namespace stratus {
                 entityData.baseReflectivity.push_back(meshData->material->GetBaseReflectivity());
                 entityData.roughness.push_back(meshData->material->GetRoughness());
                 entityData.metallic.push_back(meshData->material->GetMetallic());
-                ++entityData.size;
+                //++entityData.size;
             }
         }
     }
@@ -625,7 +663,7 @@ namespace stratus {
                 if ( !lightCopy->castsShadows() ) continue;
 
                 auto& lightData = _frame->lights.find(lightCopy)->second;
-                lightData.dirty = true;
+                lightData.dirty = data.dirty;
                 UpdateInstancedData(data.visible, lightData.visible);
             }
             else {
@@ -644,8 +682,8 @@ namespace stratus {
             &_flatEntities
         };
 
-        std::unordered_set<EntityView> visiblePbr;
-        std::unordered_set<EntityView> visibleFlat;
+        std::unordered_set<EntityView> visiblePbr(16);
+        std::unordered_set<EntityView> visibleFlat(16);
 
         _frame->instancedPbrMeshes.clear();
         _frame->instancedFlatMeshes.clear();
@@ -677,7 +715,7 @@ namespace stratus {
             &_dynamicPbrEntities
         };
 
-        std::unordered_set<EntityView> visible;
+        std::unordered_set<EntityView> visible(16);
 
         _frame->csc.worldLightingEnabled = _worldLight.enabled;
         _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
@@ -695,5 +733,32 @@ namespace stratus {
 
         _frame->csc.visible.clear();
         UpdateInstancedData(visible, _frame->csc.visible);
+    }
+
+    void RendererFrontend::_SwapFrames() {
+        // Keep flags consistent
+        _prevFrame->viewportDirty = _frame->viewportDirty;
+        _prevFrame->vsyncEnabled = _frame->vsyncEnabled;
+        _prevFrame->csc.regenerateFbo = _frame->csc.regenerateFbo;
+        _prevFrame->csc.worldLightingEnabled = _frame->csc.worldLightingEnabled;
+
+        // Copy shared memory
+        _frame->csc.fbo = _prevFrame->csc.fbo;
+
+        // Clear old data
+        _prevFrame->instancedPbrMeshes.clear();
+        _prevFrame->instancedFlatMeshes.clear();
+        _prevFrame->lights.clear();
+        _prevFrame->csc.visible.clear();
+
+        // Keep viewport data consistent
+        _prevFrame->clearColor = _frame->clearColor;
+        _prevFrame->viewportWidth = _frame->viewportWidth;
+        _prevFrame->viewportHeight = _frame->viewportHeight;
+
+        // Swap
+        auto tmp = _prevFrame;
+        _prevFrame = _frame;
+        _frame = tmp;
     }
 }

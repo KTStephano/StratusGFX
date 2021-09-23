@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "StratusRendererFrontend.h"
+#include "StratusRendererThread.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -83,7 +84,7 @@ namespace stratus {
 
         for (auto handle : toDelete) _asyncLoadedTextureData.erase(handle);
 
-        RendererFrontend::Instance()->QueueRendererThreadTask([this, handles, rawTexData]() {
+        RendererThread::Instance()->Queue([this, handles, rawTexData]() {
             std::vector<Texture *> ptrs(rawTexData.size());
             for (int i = 0; i < rawTexData.size(); ++i) {
                 ptrs[i] = _FinalizeTexture(*rawTexData[i]);
@@ -126,7 +127,7 @@ namespace stratus {
             if (totalBytes >= maxBytes) break;
         }
 
-        RendererFrontend::Instance()->QueueRendererThreadTasks(functions);
+        RendererThread::Instance()->QueueMany(functions);
 
         for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
 

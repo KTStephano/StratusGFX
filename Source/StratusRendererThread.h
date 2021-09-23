@@ -6,12 +6,13 @@
 #include <list>
 #include <mutex>
 
-#define CHECK_IS_RENDERER_THREAD() assert(stratus::RendererThread::Instance()->CurrentIsRendererThread())
+void EnsureIsRendererThread();
+#define CHECK_IS_RENDERER_THREAD() EnsureIsRendererThread()
 
 namespace stratus {
     class RendererThread {
         friend class Engine;
-        friend class RendererBackend;
+        friend class RendererFrontend;
         RendererThread();
 
     public:

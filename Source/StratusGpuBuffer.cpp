@@ -1,6 +1,7 @@
 #include "StratusGpuBuffer.h"
 #include <functional>
 #include <iostream>
+#include "StratusRendererThread.h"
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
@@ -20,7 +21,13 @@ namespace stratus {
         }
 
         ~GpuBufferImpl() {
-            glDeleteBuffers(1, &_buffer);
+            if (RendererThread::Instance()->CurrentIsRendererThread()) {
+                glDeleteBuffers(1, &_buffer);
+            }
+            else {
+                auto buffer = _buffer;
+                RendererThread::Instance()->Queue([buffer]() { GLuint buf = buffer; glDeleteBuffers(1, &buf); });
+            }
         }
 
     void EnableAttribute(int32_t attribute, 
