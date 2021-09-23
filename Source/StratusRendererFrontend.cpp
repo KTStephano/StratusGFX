@@ -721,7 +721,7 @@ namespace stratus {
         _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
 
         const size_t numCascades = _frame->csc.cascades.size();
-        const float maxDist = _frame->csc.cascades[numCascades - 1].cascadeEnds;
+        const float maxDist = _params.zfar;
         
         for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
             for (auto& entityView : *entities) {
