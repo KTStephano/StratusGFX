@@ -11,20 +11,13 @@
 namespace stratus {
     ResourceManager * ResourceManager::_instance = nullptr;
 
-    ResourceManager::ResourceManager() {
-        for (int i = 0; i < 8; ++i) {
-            _threads.push_back(ThreadPtr(new Thread("StreamingThread#" + std::to_string(i + 1), true)));
-        }
-
-        _InitCube();
-        _InitQuad();
-    }
+    ResourceManager::ResourceManager() {}
 
     ResourceManager::~ResourceManager() {
 
     }
 
-    void ResourceManager::Update() {
+    SystemStatus ResourceManager::Update(const double deltaSeconds) {
         {
             auto ul = _LockWrite();
             _ClearAsyncTextureData();
@@ -36,6 +29,31 @@ namespace stratus {
                 thread->Dispatch();
             }
         }
+
+        return SystemStatus::SYSTEM_CONTINUE;
+    }
+
+    bool ResourceManager::Initialize() {
+        for (int i = 0; i < 8; ++i) {
+            _threads.push_back(ThreadPtr(new Thread("StreamingThread#" + std::to_string(i + 1), true)));
+        }
+
+        _InitCube();
+        _InitQuad();
+
+        return true;
+    }
+
+    void ResourceManager::Shutdown() {
+        _threads.clear();
+
+        auto ul = _LockWrite();
+        _loadedModels.clear();
+        _pendingFinalize.clear();
+        _meshFinalizeQueue.clear();
+        _asyncLoadedTextureData.clear();
+        _loadedTextures.clear();
+        _loadedTexturesByFile.clear();
     }
 
     void ResourceManager::_ClearAsyncTextureData() {

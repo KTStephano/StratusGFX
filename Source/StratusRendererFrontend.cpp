@@ -6,15 +6,7 @@ namespace stratus {
     RendererFrontend * RendererFrontend::_instance = nullptr;
 
     RendererFrontend::RendererFrontend(const RendererParams& p)
-        : _params(p),
-          _frame(std::make_shared<RendererFrame>()) {
-        // 4 cascades total
-        _frame->csc.cascades.resize(4);
-        _frame->csc.cascadeResolutionXY = 2048;
-        _frame->csc.regenerateFbo = true;
-        _frame->csc.worldLightingEnabled = _worldLight.enabled;
-
-        _renderer = std::make_unique<RendererBackend>(p.viewportWidth, p.viewportHeight, p.appName);
+        : _params(p) {
     }
 
     void RendererFrontend::_AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_map<EntityView, EntityStateData>& pbr, std::unordered_map<EntityView, EntityStateData>& flat, std::unordered_map<LightPtr, LightData>& lights) {
@@ -201,9 +193,9 @@ namespace stratus {
         return _mouse;
     }
 
-    void RendererFrontend::Update(const double deltaSeconds) {
+    SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         auto ul = _LockWrite();
-        if (_camera == nullptr) return;
+        if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
         _frame->camera = _camera->Copy();
 
@@ -245,6 +237,34 @@ namespace stratus {
 
         // This needs to be unset
         _frame->csc.regenerateFbo = false;
+
+        return SystemStatus::SYSTEM_CONTINUE;
+    }
+
+    bool RendererFrontend::Initialize() {
+        _frame = std::make_shared<RendererFrame>();
+
+        // 4 cascades total
+        _frame->csc.cascades.resize(4);
+        _frame->csc.cascadeResolutionXY = 2048;
+        _frame->csc.regenerateFbo = true;
+        _frame->csc.worldLightingEnabled = _worldLight.enabled;
+
+        _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
+
+        return true;
+    }
+
+    void RendererFrontend::Shutdown() {
+        auto ul = _LockWrite();
+        _frame.reset();
+        _renderer.reset();
+
+        _staticPbrEntities.clear();
+        _dynamicPbrEntities.clear();
+        _flatEntities.clear();
+        _lights.clear();
+        _lightsToRemove.clear();
     }
 
     void RendererFrontend::QueueRendererThreadTask(const Thread::ThreadFunction& task) {

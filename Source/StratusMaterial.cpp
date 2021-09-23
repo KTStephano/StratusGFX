@@ -217,4 +217,16 @@ namespace stratus {
     MaterialPtr MaterialManager::CreateDefault() {
         return MaterialPtr(new Material("Default", false));
     }
+
+    bool MaterialManager::Initialize() {
+        return true;
+    }
+
+    SystemStatus MaterialManager::Update(const double) {
+        return SystemStatus::SYSTEM_CONTINUE;
+    }
+
+    void MaterialManager::Shutdown() {
+        _materials.Clear();
+    }
 }

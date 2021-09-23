@@ -38,9 +38,16 @@ namespace stratus {
         Thread& operator=(const Thread&) = delete;
         Thread& operator=(Thread&&) = delete;
 
-        // Submits a function to be executed upon the next call to Dispatch
-        void Queue(const ThreadFunction&);
-        void Queue(const std::vector<ThreadFunction>&);
+        template<typename E>
+        void QueueMany(const E& functions) {
+            std::unique_lock<std::mutex> ul(_mutex);
+            for (auto & func : functions) _frontQueue.push_back(func);
+        }
+
+        void Queue(const ThreadFunction& function) {
+            QueueMany(std::vector<ThreadFunction>{function});
+        }
+
         // Two modes of operation: if ownsExecutionContext was true, functions will be pulled
         // off the list and executed on a private thread. Otherwise, the thread calling Dispatch
         // will be used as the context.
@@ -189,7 +196,7 @@ namespace stratus {
                 callbacks = std::move(_callbacks);
             }
             for (auto entry : callbacks) {
-                entry.first->Queue(entry.second);
+                entry.first->QueueMany(entry.second);
             }
         }
 

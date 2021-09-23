@@ -4,6 +4,7 @@
 #include "StratusRendererBackend.h"
 #include "StratusEntity.h"
 #include "StratusRenderNode.h"
+#include "StratusSystemModule.h"
 #include "StratusLight.h"
 #include "StratusThread.h"
 #include <cstddef>
@@ -23,7 +24,7 @@ namespace stratus {
 
     // Public interface of the renderer - manages frame to frame state and manages
     // the backend
-    class RendererFrontend {
+    class RendererFrontend : public SystemModule {
         friend class Engine;
         RendererFrontend(const RendererParams&);
 
@@ -72,7 +73,10 @@ namespace stratus {
         std::vector<SDL_Event> PollInputEvents();
         RendererMouseState GetMouseState() const;
 
-        void Update(const double);
+        // SystemModule inteface
+        virtual bool Initialize();
+        virtual SystemStatus Update(const double);
+        virtual void Shutdown();
 
         void QueueRendererThreadTask(const Thread::ThreadFunction&);
         void QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>&);

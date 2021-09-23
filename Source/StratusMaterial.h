@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include "StratusLog.h"
+#include "StratusSystemModule.h"
 
 namespace stratus {
     class Material;
@@ -102,7 +103,7 @@ namespace stratus {
         std::vector<MaterialPtr> _subMats;
     };
 
-    class MaterialManager {
+    class MaterialManager : public SystemModule {
         friend class Engine;
 
         // Only engine should create
@@ -126,6 +127,11 @@ namespace stratus {
         bool NotifyNameChanged(const std::string& oldName, MaterialPtr);
 
         MaterialPtr CreateDefault();
+
+        // SystemModule inteface
+        virtual bool Initialize();
+        virtual SystemStatus Update(const double);
+        virtual void Shutdown();
 
     private:
         static MaterialManager * _instance;

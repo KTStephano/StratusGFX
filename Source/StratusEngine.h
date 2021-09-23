@@ -113,8 +113,9 @@ namespace stratus {
         // Ensure E is derived from Application
         static_assert(std::is_base_of<Application, E>::value);
         while (true) {
-            std::unique_ptr<Application> app(new E());
-            if (!EngineMain(app.get(), numArgs, args)) break;
+            // Engine owns the pointer and will delete it
+            Application * app = new E();
+            if (!EngineMain(app, numArgs, args)) break;
         }
     }
 }

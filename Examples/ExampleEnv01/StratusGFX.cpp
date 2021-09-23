@@ -520,7 +520,7 @@ public:
     }
 
     // Perform any resource cleanup
-    virtual void ShutDown() override {
+    virtual void Shutdown() override {
     }
 
 private:

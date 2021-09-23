@@ -133,14 +133,17 @@ namespace stratus {
 
     void Engine::_InitLog() {
         Log::_instance = new Log();
+        Log::Instance()->Initialize();
     }
 
     void Engine::_InitMaterialManager() {
         MaterialManager::_instance = new MaterialManager();
+        MaterialManager::Instance()->Initialize();
     }
 
     void Engine::_InitResourceManager() {
         ResourceManager::_instance = new ResourceManager();
+        ResourceManager::Instance()->Initialize();
     }
 
     void Engine::_InitRenderer() {
@@ -152,6 +155,7 @@ namespace stratus {
         params.vsyncEnabled = false;
 
         RendererFrontend::_instance = new RendererFrontend(params);
+        RendererFrontend::Instance()->Initialize();
     }
 
     // Should be called before Shutdown()
@@ -170,7 +174,11 @@ namespace stratus {
 
         // Application should shut down first
         // Note: we do not delete Application since engine doesn't own its memory
-        _params.application->ShutDown();
+        _params.application->Shutdown();
+        RendererFrontend::Instance()->Shutdown();
+        ResourceManager::Instance()->Shutdown();
+        MaterialManager::Instance()->Shutdown();
+        Log::Instance()->Shutdown();
 
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
@@ -207,10 +215,13 @@ namespace stratus {
         // Update prev frame start to be the beginning of this current frame
         _stats.prevFrameStart = end;
 
-        // Other logic.....
-        ResourceManager::Instance()->Update();
+        // Update core modules
+        Log::Instance()->Update(deltaSeconds);
+        MaterialManager::Instance()->Update(deltaSeconds);
+        ResourceManager::Instance()->Update(deltaSeconds);
         RendererFrontend::Instance()->Update(deltaSeconds);
 
+        // Finish with update to application
         return _params.application->Update(deltaSeconds);
     }
 

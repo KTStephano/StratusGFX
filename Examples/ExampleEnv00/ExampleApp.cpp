@@ -18,7 +18,7 @@ public:
         return stratus::SystemStatus::SYSTEM_SHUTDOWN;
     }
 
-    virtual void ShutDown() override {
+    virtual void Shutdown() override {
         STRATUS_LOG << "Successfully entered ExampleApp::ShutDown()" << std::endl;
     }
 };
