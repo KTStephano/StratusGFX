@@ -222,7 +222,7 @@ namespace stratus {
 
         // Check for shader recompile request
         if (_recompileShaders) {
-            _renderer->RecompileShaders();
+            RendererThread::Instance()->Queue([this]() { _renderer->RecompileShaders(); });
             _recompileShaders = false;
         }
 

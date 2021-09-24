@@ -6,6 +6,7 @@ uniform sampler2D depthMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D ambientOcclusionMap;
 uniform sampler2D metalnessMap;
+uniform sampler2D metallicRoughnessMap;
 
 uniform bool textured = false;
 uniform bool normalMapped = false;
@@ -13,6 +14,7 @@ uniform bool depthMapped = false;
 uniform bool roughnessMapped = false;
 uniform bool ambientMapped = false;
 uniform bool metalnessMapped = false;
+uniform bool metallicRoughnessMapped = false;
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
@@ -97,6 +99,12 @@ void main() {
 
     if (metalnessMapped) {
         metallic = texture(metalnessMap, texCoords).r;
+    }
+
+    if (metallicRoughnessMapped) {
+        vec2 metallicRoughness = texture(metallicRoughnessMap, texCoords).rg;
+        metallic = clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
+        roughness = metallicRoughness.g;
     }
 
     // Coordinate space is set to world

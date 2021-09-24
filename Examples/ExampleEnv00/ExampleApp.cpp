@@ -13,7 +13,7 @@ public:
         return true; // success
     }
 
-    virtual stratus::SystemStatus Update(double deltaSeconds) override {
+    virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         STRATUS_LOG << "Successfully entered ExampleApp::Update! Delta seconds = " << deltaSeconds << std::endl;
         return stratus::SystemStatus::SYSTEM_SHUTDOWN;
     }

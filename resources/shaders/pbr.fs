@@ -316,7 +316,7 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 F         = fresnel(baseColor, clamp(HdotV, 0.0, 1.0), baseReflectivity, metallic);
     vec3 kS        = F;
     // We multiply by inverse of metallic since we only want non-metals to have diffuse lighting
-    vec3 kD        = (vec3(1.0) - kS) * (1.0 - metallic);
+    vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
     float D        = normalDistribution(NdotH, roughness);
     float G        = geometry(N, V, L, roughness);
     vec3 diffuse   = lightColor; // * attenuationFactor;
@@ -370,9 +370,9 @@ void main() {
             }
             color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }
-        else if (distance < 2 * lightRadii[i]) {
-            color = color + calculatePointAmbient(fragPos, baseColor, i, ambient);
-        }
+        // else if (distance < 2 * lightRadii[i]) {
+        //     color = color + calculatePointAmbient(fragPos, baseColor, i, ambient);
+        // }
     }
 
     if (infiniteLightingEnabled) {

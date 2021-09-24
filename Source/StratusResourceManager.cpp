@@ -3,6 +3,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/pbrmaterial.h>
 #include "StratusRendererFrontend.h"
 #include "StratusRendererThread.h"
 #include <sstream>
@@ -241,7 +242,7 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, RenderFaceCulling defaultCullMode) {
+    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         if (mesh->mNumUVComponents[0] == 0) return;
         if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
@@ -287,37 +288,51 @@ namespace stratus {
             PrintMatType(aimat, aiTextureType_EMISSIVE);
             PrintMatType(aimat, aiTextureType_HEIGHT);
             PrintMatType(aimat, aiTextureType_NORMALS);
-            PrintMatType(aimat, aiTextureType_SHININESS);
-            PrintMatType(aimat, aiTextureType_OPACITY);
-            PrintMatType(aimat, aiTextureType_DISPLACEMENT);
-            PrintMatType(aimat, aiTextureType_LIGHTMAP);
-            PrintMatType(aimat, aiTextureType_REFLECTION);
+            PrintMatType(aimat, aiTextureType_BASE_COLOR);
+            PrintMatType(aimat, aiTextureType_NORMAL_CAMERA);
+            PrintMatType(aimat, aiTextureType_EMISSION_COLOR);
+            PrintMatType(aimat, aiTextureType_METALNESS);
+            PrintMatType(aimat, aiTextureType_AMBIENT_OCCLUSION);
+            PrintMatType(aimat, aiTextureType_UNKNOWN);
 
             aiColor3D diffuse;
             aiColor3D ambient;
             aiColor3D reflective;
+            float metallic;
+            float roughness;
             auto diffuseret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_DIFFUSE, diffuse);
             auto ambientret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, ambient);
             auto reflectret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_REFLECTIVE, reflective);
-            
+            auto metalret = aimat->Get<float>(AI_MATKEY_METALLIC_FACTOR, metallic);
+            auto roughret = aimat->Get<float>(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
+
             if (diffuseret == AI_SUCCESS) m->SetDiffuseColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b));
             if (ambientret == AI_SUCCESS) m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
             if (reflectret == AI_SUCCESS) m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+            if (metalret   == AI_SUCCESS) m->SetMetallic(metallic);
+            if (roughret   == AI_SUCCESS) m->SetRoughness(roughness);
 
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, true));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
             m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, false));
             m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, false));
-            // m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_SHININESS, directory));
-            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT, directory, true));
-            // m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_SPECULAR, directory));
+            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, false));
+            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, true));
+            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, false));
+            // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
+            // TODO: See if other file types encode metallic-roughness in the same way
+            if (extension == "gltf" || extension == "GLTF") {
+                m->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, false));
+            }
+
             STRATUS_LOG << "m " 
                 << m->GetDiffuseTexture() << " "
                 << m->GetNormalMap() << " "
                 << m->GetDepthMap() << " "
                 << m->GetRoughnessMap() << " "
                 << m->GetAmbientTexture() << " "
-                << m->GetMetallicMap() << std::endl;
+                << m->GetMetallicMap() << " "
+                << m->GetMetallicRoughnessMap() << std::endl;
         }
 
         rmesh->GenerateCpuData();
@@ -325,7 +340,7 @@ namespace stratus {
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory, RenderFaceCulling defaultCullMode) {
+    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
         auto mat = node->mTransformation;
         aiVector3t<float> scale;
@@ -346,7 +361,7 @@ namespace stratus {
         // Process all node meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
             aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-            ProcessMesh(rnode, mesh, scene, rootMat, directory, defaultCullMode);
+            ProcessMesh(rnode, mesh, scene, rootMat, directory, extension, defaultCullMode);
         }
 
         // Now do the same for each child
@@ -354,7 +369,7 @@ namespace stratus {
             // Create a new container entity
             EntityPtr centity = Entity::Create();
             entity->AttachChild(centity);
-            ProcessNode(node->mChildren[i], scene, centity, rootMat, directory, defaultCullMode);
+            ProcessNode(node->mChildren[i], scene, centity, rootMat, directory, extension, defaultCullMode);
         }
     }
 
@@ -376,7 +391,7 @@ namespace stratus {
                                                        aiProcess_CalcTangentSpace |
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
-                                                    //    aiProcess_OptimizeMeshes |
+                                                       aiProcess_OptimizeMeshes |
                                                     //    aiProcess_OptimizeGraph |
                                                        aiProcess_FixInfacingNormals |
                                                        aiProcess_FindDegenerates |
@@ -393,8 +408,9 @@ namespace stratus {
         }
 
         EntityPtr e = Entity::Create();
+        const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, material, directory, defaultCullMode);
+        ProcessNode(scene->mRootNode, scene, e, material, directory, extension, defaultCullMode);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety

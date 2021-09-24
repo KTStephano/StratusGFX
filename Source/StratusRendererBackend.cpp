@@ -240,7 +240,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Normal buffer
     buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.normals.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
@@ -250,11 +250,11 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Base reflectivity buffer
     buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Roughness-Metallic-Ambient buffer
     buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the depth buffer
     buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
@@ -494,22 +494,22 @@ void RendererBackend::_InitInstancedData(RendererEntityData & c) {
 
     pos = pbr->getAttribLocation("diffuseColor");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("baseReflectivity");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("metallic");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, metallic.data(), metallic.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("roughness");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, roughness.data(), roughness.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     //buffers.Bind();
@@ -651,6 +651,13 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
             }
             else {
                 s->setBool("metalnessMapped", false);
+            }
+
+            if (c->material->GetMetallicRoughnessMap()) {
+                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", c->material->GetMetallicRoughnessMap())
+            }
+            else {
+                s->setBool("metallicRoughnessMap", false);
             }
 
             s->setVec3("viewPosition", &camera.getPosition()[0]);
