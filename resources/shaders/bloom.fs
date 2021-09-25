@@ -11,7 +11,7 @@ uniform bool finalStage        = false;
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
-uniform float bloomThreshold = 1.25;
+uniform float bloomThreshold = 1.0;
 uniform float upsampleRadiusScale = 0.5;
 
 uniform float viewportX;
