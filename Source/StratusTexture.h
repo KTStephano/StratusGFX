@@ -27,7 +27,8 @@ namespace stratus {
         BITS_DEFAULT,
         BITS_8,
         BITS_16,
-        BITS_32
+        BITS_32,
+        BITS_11_11_10 // Only valid for float: R11G11B10_F
     };
 
     enum class TextureComponentType : int {
