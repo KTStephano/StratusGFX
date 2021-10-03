@@ -112,6 +112,18 @@ namespace stratus {
         int32_t maxVertexUniformVectors;
         int32_t maxVertexUniformComponents;
         int32_t maxViewportDims[2];
+        bool supportsSparseTextures2D;
+        // OpenGL may allow multiple page sizes at the same time which the application can select from
+        int32_t numPageSizes2D;
+        // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
+        // indicate that it is the most efficient page size for the implementation to work with
+        int32_t preferredPageSizeX2D;
+        int32_t preferredPageSizeY2D;
+        bool supportsSparseTextures3D;
+        int32_t numPageSizes3D;
+        int32_t preferredPageSizeX3D;
+        int32_t preferredPageSizeY3D;
+        int32_t preferredPageSizeZ3D;
     };
 
     class RendererBackend {

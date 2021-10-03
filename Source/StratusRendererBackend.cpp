@@ -15,21 +15,35 @@ namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
     log << "==================== OpenGL Information ====================" << std::endl;
-    log << "\tRenderer: "                         << config.renderer << std::endl;
-    log << "\tVersion: "                          << config.version << std::endl;
-    log << "\tMax draw buffers: "                 << config.maxDrawBuffers << std::endl;
-    log << "\tMax combined textures: "            << config.maxCombinedTextures << std::endl;
-    log << "\tMax cube map texture size: "        << config.maxCubeMapTextureSize << std::endl;
-    log << "\tMax fragment uniform vectors: "     << config.maxFragmentUniformVectors << std::endl;
-    log << "\tMax fragment uniform components: "  << config.maxFragmentUniformComponents << std::endl;
-    log << "\tMax varying floats: "               << config.maxVaryingFloats << std::endl;
-    log << "\tMax render buffer size: "           << config.maxRenderbufferSize << std::endl;
-    log << "\tMax texture image units: "          << config.maxTextureImageUnits << std::endl;
-    log << "\tMax texture size: "                 << config.maxTextureSize << std::endl;
-    log << "\tMax vertex attribs: "               << config.maxVertexAttribs << std::endl;
-    log << "\tMax vertex uniform vectors: "       << config.maxVertexUniformVectors << std::endl;
-    log << "\tMax vertex uniform components: "    << config.maxVertexUniformComponents << std::endl;
-    log << "\tMax viewport dims: "                << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+    log << "\tRenderer: "                               << config.renderer << std::endl;
+    log << "\tVersion: "                                << config.version << std::endl;
+    log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
+    log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
+    log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
+    log << "\tMax fragment uniform vectors: "           << config.maxFragmentUniformVectors << std::endl;
+    log << "\tMax fragment uniform components: "        << config.maxFragmentUniformComponents << std::endl;
+    log << "\tMax varying floats: "                     << config.maxVaryingFloats << std::endl;
+    log << "\tMax render buffer size: "                 << config.maxRenderbufferSize << std::endl;
+    log << "\tMax texture image units: "                << config.maxTextureImageUnits << std::endl;
+    log << "\tMax texture size: "                       << config.maxTextureSize << std::endl;
+    log << "\tMax vertex attribs: "                     << config.maxVertexAttribs << std::endl;
+    log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
+    log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
+    log << "\tMax viewport dims: "                      << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+    log << std::boolalpha;
+    log << "\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D << std::endl;
+    if (config.supportsSparseTextures2D) {
+        log << "\tNum sparse (virtual) page sizes 2D: " << config.numPageSizes2D << std::endl;
+        log << "\tPreferred page size X 2D: "           << config.preferredPageSizeX2D << std::endl;
+        log << "\tPreferred page size Y 2D: "           << config.preferredPageSizeY2D << std::endl;
+    }
+    log << "\tSupports sparse (virtual) textures 3D: "  << config.supportsSparseTextures3D << std::endl;
+    if (config.supportsSparseTextures3D) {
+        log << "\tNum sparse (virtual) page sizes 3D: " << config.numPageSizes3D << std::endl;
+        log << "\tPreferred page size X 3D: "           << config.preferredPageSizeX3D << std::endl;
+        log << "\tPreferred page size Y 3D: "           << config.preferredPageSizeY3D << std::endl;
+        log << "\tPreferred page size Z 3D: "           << config.preferredPageSizeZ3D << std::endl;
+    }
 }
 
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
@@ -95,6 +109,25 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
+
+    // Query OpenGL about sparse textures (2D)
+    glGetInternalformativ(GL_TEXTURE_2D, GL_RGBA8, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes2D);
+    _config.supportsSparseTextures2D = _config.numPageSizes2D > 0;
+    if (_config.supportsSparseTextures2D) {
+        // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
+        glGetInternalformativ(GL_TEXTURE_2D, GL_RGBA8, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX2D);
+        glGetInternalformativ(GL_TEXTURE_2D, GL_RGBA8, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY2D);
+    }
+
+    // Query OpenGL about sparse textures (3D)
+    glGetInternalformativ(GL_TEXTURE_3D, GL_RGBA8, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes3D);
+    _config.supportsSparseTextures3D = _config.numPageSizes3D > 0;
+    if (_config.supportsSparseTextures3D) {
+        // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
+        glGetInternalformativ(GL_TEXTURE_3D, GL_RGBA8, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX3D);
+        glGetInternalformativ(GL_TEXTURE_3D, GL_RGBA8, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY3D);
+        glGetInternalformativ(GL_TEXTURE_3D, GL_RGBA8, GL_VIRTUAL_PAGE_SIZE_Z_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeZ3D);
+    }
 
     printGLInfo(_config);
     _isValid = true;
