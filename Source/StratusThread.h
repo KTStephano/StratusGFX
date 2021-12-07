@@ -7,6 +7,7 @@
 #include <shared_mutex>
 #include <functional>
 #include <vector>
+#include <unordered_map>
 #include "StratusHandle.h"
 #include "StratusCommon.h"
 
@@ -122,7 +123,7 @@ namespace stratus {
         void Start() {
             if (Completed()) return;
 
-            std::shared_ptr<__AsyncImpl> shared = shared_from_this();
+            std::shared_ptr<__AsyncImpl> shared = this->shared_from_this();
             _context->Queue([this, shared]() {
                 try {
                     std::shared_ptr<E> result = this->_compute();

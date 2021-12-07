@@ -84,7 +84,7 @@ TEST_CASE( "Stratus Async Test", "[stratus_async_test]" ) {
 
     // Now test a failed async operation
     compute = stratus::Async<std::vector<int>>(thread, [](){
-        throw std::exception("Unable to allocate memory");
+        throw std::runtime_error("Unable to allocate memory");
         return (std::vector<int> *)nullptr;
     });
 

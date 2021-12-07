@@ -56,6 +56,7 @@ static void printGLInfo(const GFXConfig & config) {
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         return;
     }
 
@@ -65,6 +66,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
             SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
     if (_window == nullptr) {
         STRATUS_ERROR << "Failed to create sdl window" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         SDL_Quit();
         return;
     }
@@ -82,14 +84,15 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     // Create the gl context
     _context = SDL_GL_CreateContext(_window);
     if (_context == nullptr) {
-        STRATUS_ERROR << "[error] Unable to create a valid OpenGL context" << std::endl;
+        STRATUS_ERROR << "Unable to create a valid OpenGL context" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         _isValid = false;
         return;
     }
 
     // Init gl core profile using gl3w
     if (gl3wInit()) {
-        STRATUS_ERROR << "[error] Failed to initialize core OpenGL profile" << std::endl;
+        STRATUS_ERROR << "Failed to initialize core OpenGL profile" << std::endl;
         _isValid = false;
         return;
     }

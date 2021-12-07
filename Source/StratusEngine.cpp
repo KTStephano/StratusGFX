@@ -19,7 +19,7 @@ namespace stratus {
 
     #define CHECK_IS_MAIN_THREAD() EnsureIsMainThread()
 
-    bool EngineMain(Application * app, const int numArgs, const char ** args) {
+    bool Engine::EngineMain(Application * app, const int numArgs, const char ** args) {
         static std::mutex preventMultipleMainCalls;
         std::unique_lock<std::mutex> ul(preventMultipleMainCalls, std::defer_lock);
         if (!ul.try_lock()) {
@@ -166,8 +166,11 @@ namespace stratus {
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
-        RendererFrontend::_instance = new RendererFrontend(params);
-        RendererFrontend::Instance()->Initialize();
+        RendererThread::Instance()->Queue([this, params]() {
+            RendererFrontend::_instance = new RendererFrontend(params);
+            RendererFrontend::Instance()->Initialize();
+        });
+        RendererThread::Instance()->_DispatchAndSynchronize();
     }
 
     // Should be called before Shutdown()
@@ -185,20 +188,21 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Synchronize renderer thread
-        RendererThread::Instance()->_Synchronize();
+        RendererThread::Instance()->Instance()->_Synchronize();
 
         // Application should shut down first
         _params.application->Shutdown();
         ResourceManager::Instance()->Shutdown();
         MaterialManager::Instance()->Shutdown();
-        RendererFrontend::Instance()->Shutdown();
+        RendererThread::Instance()->Queue([this]() { RendererFrontend::Instance()->Shutdown(); });
+        RendererThread::Instance()->_DispatchAndSynchronize();
         Log::Instance()->Shutdown();
 
         _DeleteResource(_params.application);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
         _DeleteResource(RendererFrontend::_instance);
-        _DeleteResource(RendererThread::_instance);
+        _DeleteResource(RendererThread::Instance()->_instance);
         _DeleteResource(Log::_instance);
     }
 
@@ -235,7 +239,10 @@ namespace stratus {
         Log::Instance()->Update(deltaSeconds);
         MaterialManager::Instance()->Update(deltaSeconds);
         ResourceManager::Instance()->Update(deltaSeconds);
-        RendererFrontend::Instance()->Update(deltaSeconds);
+        
+        // Synchronize with previous frame
+        RendererThread::Instance()->_Synchronize();
+        RendererThread::Instance()->Queue([deltaSeconds]() { RendererFrontend::Instance()->Update(deltaSeconds); });
 
         // Finish with update to application
         return _params.application->Update(deltaSeconds);

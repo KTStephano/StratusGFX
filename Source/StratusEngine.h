@@ -49,7 +49,7 @@ namespace stratus {
     public:
         // Performs first-time start up and then begins the main loop
         // returns: true if EngineMain should be called again, false otherwise
-        friend bool EngineMain(Application * app, const int numArgs, const char ** args);
+        static bool EngineMain(Application * app, const int numArgs, const char ** args);
 
         // Creates a new application and calls EngineMain
         template<typename E>
@@ -116,7 +116,7 @@ namespace stratus {
         while (true) {
             // Engine owns the pointer and will delete it
             Application * app = new E();
-            if (!EngineMain(app, numArgs, args)) break;
+            if (!Engine::EngineMain(app, numArgs, args)) break;
         }
     }
 }

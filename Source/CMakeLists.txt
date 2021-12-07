@@ -1,6 +1,7 @@
 find_package(OpenGL REQUIRED)
 
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../)
+message(${ROOT_DIRECTORY})
 set(OUTPUT_NAME StratusEngine)
 
 include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/ . ${OPENGL_INCLUDE_DIRS} ${ROOT_DIRECTORY}/assimp/Deploy/include)
@@ -14,7 +15,7 @@ set_target_properties(${OUTPUT_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${OUTPU
 set_target_properties(${OUTPUT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})
 
 if (WIN32)
-    include_directories(${ROOT_DIRECTORY}/SDL2/include)
+    target_include_directories(${OUTPUT} PUBLIC ${ROOT_DIRECTORY}/SDL2/include)
     if (${CMAKE_SIZEOF_VOID_P} MATCHES 8)
         file(GLOB SDL2_LIBRARIES "${ROOT_DIRECTORY}SDL2/lib/x64/*.lib")
         set(SDL2 "${ROOT_DIRECTORY}SDL2/lib/x64/SDL2.dll")
@@ -27,11 +28,13 @@ if (WIN32)
     file(GLOB ASSIMP_DLLS "${ROOT_DIRECTORY}assimp/Deploy/lib/*.dll")
     file(COPY ${ASSIMP_DLLS} DESTINATION ${OUTPUT_DIRECTORY})
     message(${SDL2_LIBRARIES})
-    target_link_libraries(${OUTPUT_NAME} ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32 ${ASSIMP_LIBS})
+    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32 ${ASSIMP_LIBS})
 else ()
     find_package(SDL2 REQUIRED)
-    include_directories(${SDL2_INCLUDE_DIRS})
-    target_link_libraries(${OUTPUT_NAME} ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl assimp)
+    target_include_directories(${OUTPUT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
+    message(${SDL2_LIBRARIES})
+    target_link_directories(${OUTPUT_NAME} PUBLIC ${ROOT_DIRECTORY}/assimp/Deploy/lib/)
+    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl assimp)
 endif ()
 
 install(TARGETS ${OUTPUT_NAME}

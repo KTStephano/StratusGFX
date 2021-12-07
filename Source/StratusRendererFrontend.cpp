@@ -207,9 +207,6 @@ namespace stratus {
         _UpdateCameraVisibility();
         _UpdateCascadeVisibility();
 
-        // Synchronize
-        RendererThread::Instance()->_Synchronize();
-
         _SwapFrames();
 
         // Update events
@@ -222,20 +219,16 @@ namespace stratus {
 
         // Check for shader recompile request
         if (_recompileShaders) {
-            RendererThread::Instance()->Queue([this]() { _renderer->RecompileShaders(); });
+            _renderer->RecompileShaders();
             _recompileShaders = false;
         }
 
         // Begin the new frame
-        RendererThread::Instance()->_QueueFront([this]() { _renderer->Begin(_prevFrame, true); });
+        _renderer->Begin(_prevFrame, true);
 
         // Complete the frame
-        RendererThread::Instance()->Queue([this]() {
-            _renderer->RenderScene();
-            _renderer->End();
-        });
-
-        RendererThread::Instance()->_Dispatch();
+        _renderer->RenderScene();
+        _renderer->End();
 
         // Clear all light dirty flags
         for (auto& entry : _lights) {
@@ -261,30 +254,21 @@ namespace stratus {
         _prevFrame = std::make_shared<RendererFrame>(*_frame);
 
         // Create the renderer on the renderer thread only
-        RendererThread::Instance()->Queue([this]() {
-            _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
-        });
-        RendererThread::Instance()->_DispatchAndSynchronize();
+        _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
 
         return true;
     }
 
     void RendererFrontend::Shutdown() {
-        RendererThread::Instance()->_Synchronize();
+        _frame.reset();
+        _prevFrame.reset();
+        _renderer.reset();
 
-        RendererThread::Instance()->Queue([this]() {
-            _frame.reset();
-            _prevFrame.reset();
-            _renderer.reset();
-
-            _staticPbrEntities.clear();
-            _dynamicPbrEntities.clear();
-            _flatEntities.clear();
-            _lights.clear();
-            _lightsToRemove.clear();
-        });
-
-        RendererThread::Instance()->_DispatchAndSynchronize();
+        _staticPbrEntities.clear();
+        _dynamicPbrEntities.clear();
+        _flatEntities.clear();
+        _lights.clear();
+        _lightsToRemove.clear();
     }
 
     void RendererFrontend::RecompileShaders() {
