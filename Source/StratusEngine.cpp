@@ -31,19 +31,21 @@ namespace stratus {
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
         params.application = app;
-        Thread mainThread("Main", false);
+        // Main runs on a separate core from current - this is because the application's
+        // default main thread will be used as rendering thread to prevent issues with UI
+        Thread mainThread("Main", true);
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
         Engine::_instance = new Engine(params);
 
-        // Perform first-time initialize
-        const auto init = []() {
-            Engine::Instance()->PreInitialize();
+        // Perform first-time initialize on the default thread
+        Thread& mt = mainThread;
+        Engine::Instance()->PreInitialize(mt);
+        RendererThread::Instance()->Queue([&mt]() {
             Engine::Instance()->Initialize();
-        };
-        mainThread.Queue(init);
-        mainThread.Dispatch();
+        });
+        RendererThread::Instance()->_DispatchAndSynchronize();
 
         // Set up shut down sequence
         const auto shutdown = []() {
@@ -60,9 +62,11 @@ namespace stratus {
         volatile bool shouldRestart = false;
         volatile bool running = true;
         while (running) {
+            mainThread.Synchronize();
             mainThread.Queue(runFrame);
-            // No need to synchronize since mainThread uses this thread's context
             mainThread.Dispatch();
+            // No need to synchronize since RendererThread uses this thread's context
+            RendererThread::Instance()->_Dispatch();
 
             // Check the system status message and decide what to do next
             switch (status.load()) {
@@ -106,7 +110,7 @@ namespace stratus {
         return _stats.lastFrameTimeSeconds;
     }
 
-    void Engine::PreInitialize() {
+    void Engine::PreInitialize(stratus::Thread & context) {
         if (IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize called twice");
         }
@@ -114,13 +118,16 @@ namespace stratus {
         _isInitializing.store(true);
         
         // Pull the main thread
-        _main = &Thread::Current();
+        _main = &context;
 
         _InitLog();
         _InitRendererThead();
     }
 
     void Engine::Initialize() {
+        // We need to initialize everything on renderer thread
+        CHECK_IS_RENDERER_THREAD();
+
         if (!IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize not called");
         }
@@ -166,11 +173,8 @@ namespace stratus {
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
-        RendererThread::Instance()->Queue([this, params]() {
-            RendererFrontend::_instance = new RendererFrontend(params);
-            RendererFrontend::Instance()->Initialize();
-        });
-        RendererThread::Instance()->_DispatchAndSynchronize();
+        RendererFrontend::_instance = new RendererFrontend(params);
+        RendererFrontend::Instance()->Initialize();
     }
 
     // Should be called before Shutdown()
@@ -240,8 +244,7 @@ namespace stratus {
         MaterialManager::Instance()->Update(deltaSeconds);
         ResourceManager::Instance()->Update(deltaSeconds);
         
-        // Synchronize with previous frame
-        RendererThread::Instance()->_Synchronize();
+        // Queue next render frame
         RendererThread::Instance()->Queue([deltaSeconds]() { RendererFrontend::Instance()->Update(deltaSeconds); });
 
         // Finish with update to application

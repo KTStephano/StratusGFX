@@ -50,7 +50,7 @@ namespace stratus {
         // Performs first-time start up and then begins the main loop
         // returns: true if EngineMain should be called again, false otherwise
         static bool EngineMain(Application * app, const int numArgs, const char ** args);
-
+        
         // Creates a new application and calls EngineMain
         template<typename E>
         friend void EngineBoot(const int numArgs, const char** args);
@@ -68,7 +68,7 @@ namespace stratus {
         double LastFrameTimeSeconds() const;
 
         // Pre-initialization for things like CommandLine, Log, Filesystem
-        void PreInitialize();
+        void PreInitialize(stratus::Thread &);
         // Initialize rest of the system
         void Initialize();
         // Should be called before Shutdown()

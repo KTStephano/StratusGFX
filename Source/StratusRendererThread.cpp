@@ -10,7 +10,8 @@ namespace stratus {
     RendererThread * RendererThread::_instance;
 
     RendererThread::RendererThread() 
-        : _thread(new Thread("Renderer", true)) {}
+        // Don't create a new thread context - use current to prevent issues with UI
+        : _thread(new Thread("Renderer", false)) {}
 
     RendererThread::~RendererThread() {
         _thread.reset();

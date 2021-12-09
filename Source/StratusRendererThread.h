@@ -12,7 +12,6 @@ void EnsureIsRendererThread();
 namespace stratus {
     class RendererThread {
         friend class Engine;
-        friend class RendererFrontend;
         RendererThread();
 
     public:

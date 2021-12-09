@@ -48,11 +48,13 @@ static bool checkShaderError(GLuint shader, const std::string & filename) {
  * @return true if nothing went wrong and false if anything
  *      bad happened
  */
-static bool checkProgramError(GLuint program) {
+static bool checkProgramError(GLuint program, const std::vector<Shader> & shaders) {
     GLint linkStatus;
     glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
     if (!linkStatus) {
-        STRATUS_ERROR << "[error] Program failed during linking" << std::endl;
+        std::string files;
+        for (auto& s : shaders) files += s.filename + " ";
+        STRATUS_ERROR << "[error] Program failed during linking ( files were: " << files << ")" << std::endl;
 
         GLint logLength;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
@@ -124,7 +126,7 @@ void Pipeline::_compile() {
     }
 
     // Make sure no errors during linking came up
-    if (!checkProgramError(_program)) {
+    if (!checkProgramError(_program, this->_shaders)) {
         _isValid = false;
         return;
     }

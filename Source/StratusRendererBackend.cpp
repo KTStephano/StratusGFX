@@ -54,12 +54,14 @@ static void printGLInfo(const GFXConfig & config) {
 }
 
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
+    STRATUS_LOG << "Initializing SDL video" << std::endl;
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
         STRATUS_ERROR << SDL_GetError() << std::endl;
         return;
     }
 
+    STRATUS_LOG << "Initializing SDL window" << std::endl;
     _window = SDL_CreateWindow(appName.c_str(),
             100, 100, // location x/y on screen
             width, height, // width/height of window
@@ -82,6 +84,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     // Create the gl context
+    STRATUS_LOG << "Creating OpenGL context" << std::endl;
     _context = SDL_GL_CreateContext(_window);
     if (_context == nullptr) {
         STRATUS_ERROR << "Unable to create a valid OpenGL context" << std::endl;
