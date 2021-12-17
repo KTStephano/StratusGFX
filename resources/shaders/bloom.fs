@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 #define PREVENT_DIV_BY_ZERO 0.00001
 

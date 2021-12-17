@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 // Cascaded Shadow Maps
 // See https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping

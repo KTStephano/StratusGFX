@@ -357,7 +357,7 @@ namespace stratus {
             const float p = (i + 1) / float(numCascades);
             const float log = znear * std::pow(ratio, p);
             const float uniform = znear + clipRange * p;
-            const float d = std::floorf(lambda * (log - uniform) + uniform);
+            const float d = floorf(lambda * (log - uniform) + uniform);
             cascadeEnds[i] = d;
         }
 
@@ -418,7 +418,7 @@ namespace stratus {
             // This tells us the maximum diameter for the cascade bounding box
             // const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
             //                                             glm::length(frustumCorners[4] - frustumCorners[6])));
-            const float dk = std::ceilf(maxLength);
+            const float dk = ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
             const float T = dk / _frame->csc.cascadeResolutionXY;
@@ -449,9 +449,9 @@ namespace stratus {
             zmaxs.push_back(maxZ);
 
             // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
-            glm::vec3 sk(std::floorf((maxX + minX) / (2.0f * T)) * T, 
-                        std::floorf((maxY + minY) / (2.0f * T)) * T, 
-                        minZ);
+            glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
+                         floorf((maxY + minY) / (2.0f * T)) * T, 
+                         minZ);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             // STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);

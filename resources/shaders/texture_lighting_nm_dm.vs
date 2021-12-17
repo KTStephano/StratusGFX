@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 #define MAX_INSTANCES 100
 

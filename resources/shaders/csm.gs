@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 // See https://community.khronos.org/t/cascaded-shadow-mapping-and-gl-texture-2d-array/71482
 // See https://www.khronos.org/opengl/wiki/Geometry_Shader#Layered_rendering

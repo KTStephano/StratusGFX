@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <cmath>
+#include <math.h>
 #include <iostream>
 #include <ostream>
 #include "glm/glm.hpp"
@@ -133,14 +134,14 @@ namespace stratus {
         //}
 	};
 
-	inline Radians cosine(const Radians& r) { return Radians(std::cosf(r.value())); }
-	inline Radians cosine(const Degrees& d) { return Radians(std::cosf(Radians(d).value())); }
+	inline Radians cosine(const Radians& r) { return Radians(cosf(r.value())); }
+	inline Radians cosine(const Degrees& d) { return Radians(cosf(Radians(d).value())); }
 	
-	inline Radians sine(const Radians& r) { return Radians(std::sinf(r.value())); }
-	inline Radians sine(const Degrees& d) { return Radians(std::sinf(Radians(d).value())); }
+	inline Radians sine(const Radians& r) { return Radians(sinf(r.value())); }
+	inline Radians sine(const Degrees& d) { return Radians(sinf(Radians(d).value())); }
 
-	inline Radians tangent(const Radians& r) { return Radians(std::tanf(r.value())); }
-	inline Radians tangent(const Degrees& d) { return Radians(std::tanf(Radians(d).value())); }
+	inline Radians tangent(const Radians& r) { return Radians(tanf(r.value())); }
+	inline Radians tangent(const Degrees& d) { return Radians(tanf(Radians(d).value())); }
 
     struct TangentBitangent {
         glm::vec3 tangent;

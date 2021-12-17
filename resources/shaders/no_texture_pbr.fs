@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;

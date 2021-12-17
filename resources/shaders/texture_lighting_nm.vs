@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 // If we don't enable explicit_attrib/uniform_location
 // then we can't do things like "layout (location = 0)"
 #extension GL_ARB_explicit_attrib_location : enable

@@ -350,9 +350,9 @@ namespace stratus {
 
         auto rotation = quat.GetMatrix();
         // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
-        const Radians angleX = Radians(std::atan2f(rotation.c2, rotation.c3));
-        const Radians angleY = Radians(std::atan2f(-rotation.c1, std::sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
-        const Radians angleZ = Radians(std::atan2f(rotation.b1, rotation.a1));
+        const Radians angleX = Radians(atan2f(rotation.c2, rotation.c3));
+        const Radians angleY = Radians(atan2f(-rotation.c1, sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
+        const Radians angleZ = Radians(atan2f(rotation.b1, rotation.a1));
 
         entity->SetLocalPosRotScale(glm::vec3(position.x, position.y, position.z), Rotation(angleX, angleY, angleZ), glm::vec3(scale.x, scale.y, scale.z));
         RenderNodePtr rnode = RenderNodePtr(new RenderNode());

@@ -1,4 +1,4 @@
-#version 410 core
+#version 400 core
 
 smooth in vec2 fsTexCoords;
 

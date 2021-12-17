@@ -4,7 +4,7 @@ set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../)
 message(${ROOT_DIRECTORY})
 set(OUTPUT_NAME StratusEngine)
 
-include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/ . ${OPENGL_INCLUDE_DIRS} ${ROOT_DIRECTORY}/assimp/Deploy/include)
+include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/ . ${OPENGL_INCLUDE_DIRS})
 link_directories(assimp/Deploy/lib)
 file(GLOB SOURCES ${ROOT_DIRECTORY}/Source/*.cpp ${ROOT_DIRECTORY}/gl3w/src/gl3w.c)
 add_library(${OUTPUT_NAME} STATIC ${SOURCES})
@@ -31,10 +31,17 @@ if (WIN32)
     target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32 ${ASSIMP_LIBS})
 else ()
     find_package(SDL2 REQUIRED)
+
+    # See https://stackoverflow.com/questions/49082471/linking-assimp-library-with-find-package
+    find_package(assimp REQUIRED)
+    if (assimp_FOUND)
+        set(${ASSIMP_LIBRARY} "assimp")
+    endif(assimp_FOUND)
+
     target_include_directories(${OUTPUT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
     message(${SDL2_LIBRARIES})
     target_link_directories(${OUTPUT_NAME} PUBLIC ${ROOT_DIRECTORY}/assimp/Deploy/lib/)
-    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} pthread dl assimp)
+    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY} pthread dl assimp)
 endif ()
 
 install(TARGETS ${OUTPUT_NAME}
