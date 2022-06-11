@@ -174,6 +174,7 @@ namespace stratus {
 
         if (_numIndices > 0) {
             memcpy(_indicesMapped, (const void *)_indices.data(), _indices.size() * sizeof(uint32_t));
+
         }
 
         memcpy(_primitiveMapped, (const void *)_data.data(), _data.size() * sizeof(float));
@@ -183,6 +184,10 @@ namespace stratus {
         _data.clear();
 
         _isGpuDataDirty = false;
+    }
+
+    void RenderMesh::UnmapAllGpuBuffers() const {
+        _buffers.UnmapAllReadWrite();
     }
 
     bool RenderMesh::IsCpuDirty() const {

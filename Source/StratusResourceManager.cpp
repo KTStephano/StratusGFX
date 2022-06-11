@@ -202,6 +202,7 @@ namespace stratus {
         auto index = _NextResourceIndex();
         Async<bool> as(*_threads[index].get(), [ptr]() {
             ptr->FinalizeGpuData();
+            ApplicationThread::Instance()->Queue([ptr]() { ptr->UnmapAllGpuBuffers(); });
             return (bool *)nullptr;
         });
     }

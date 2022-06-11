@@ -206,7 +206,7 @@ namespace stratus {
         _UpdateCameraVisibility();
         _UpdateCascadeVisibility();
 
-        _SwapFrames();
+        //_SwapFrames();
 
         // Update events
         for (auto e : _renderer->PollInputEvents()) {
@@ -223,7 +223,7 @@ namespace stratus {
         }
 
         // Begin the new frame
-        _renderer->Begin(_prevFrame, true);
+        _renderer->Begin(_frame, true);
 
         // Complete the frame
         _renderer->RenderScene();
@@ -250,7 +250,7 @@ namespace stratus {
         _frame->csc.worldLightingEnabled = _worldLight.enabled;
 
         // Copy
-        _prevFrame = std::make_shared<RendererFrame>(*_frame);
+        //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
         // Create the renderer on the renderer thread only
         _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
@@ -719,6 +719,7 @@ namespace stratus {
     }
 
     void RendererFrontend::_SwapFrames() {
+        /*
         // Keep flags consistent
         _prevFrame->viewportDirty = _frame->viewportDirty;
         _prevFrame->vsyncEnabled = _frame->vsyncEnabled;
@@ -743,5 +744,6 @@ namespace stratus {
         auto tmp = _prevFrame;
         _prevFrame = _frame;
         _frame = tmp;
+        */
     }
 }
