@@ -2,6 +2,7 @@
 #include "StratusUtils.h"
 #include "StratusEntity.h"
 #include "StratusApplicationThread.h"
+#include "StratusLog.h"
 
 namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
@@ -184,6 +185,9 @@ namespace stratus {
         _indices.clear();
         _data.clear();
 
+        _indicesMapped = nullptr;
+        _primitiveMapped = nullptr;
+
         _isGpuDataDirty = false;
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
@@ -225,13 +229,13 @@ namespace stratus {
 
         // We don't want to run if our memory is mapped since another thread might be
         // writing data to a buffer's memory region
-        if (!Complete() || _buffers.IsMemoryMapped()) return;
+        //if (!Complete() || _buffers.IsMemoryMapped()) return;
 
-        if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
-            _buffers.UnmapAllReadWrite();
-            _primitiveMapped = nullptr;
-            _indicesMapped = nullptr;
-        }
+        //if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
+        //    //_buffers.UnmapAllReadWrite();
+        //    _primitiveMapped = nullptr;
+        //    _indicesMapped = nullptr;
+        //}
 
         _buffers.Bind();
         additionalBuffers.Bind();

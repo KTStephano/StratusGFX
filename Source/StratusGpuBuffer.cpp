@@ -2,6 +2,7 @@
 #include <functional>
 #include <iostream>
 #include "StratusApplicationThread.h"
+#include "StratusLog.h"
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
