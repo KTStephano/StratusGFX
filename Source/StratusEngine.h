@@ -68,7 +68,7 @@ namespace stratus {
         double LastFrameTimeSeconds() const;
 
         // Pre-initialization for things like CommandLine, Log, Filesystem
-        void PreInitialize(stratus::Thread &);
+        void PreInitialize();
         // Initialize rest of the system
         void Initialize();
         // Should be called before Shutdown()
@@ -84,7 +84,7 @@ namespace stratus {
 
     private:
         void _InitLog();
-        void _InitRendererThead();
+        void _InitApplicationThread();
         void _InitMaterialManager();
         void _InitResourceManager();
         void _InitRenderer();

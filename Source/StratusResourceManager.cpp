@@ -5,7 +5,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/pbrmaterial.h>
 #include "StratusRendererFrontend.h"
-#include "StratusRendererThread.h"
+#include "StratusApplicationThread.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -85,7 +85,7 @@ namespace stratus {
 
         for (auto handle : toDelete) _asyncLoadedTextureData.erase(handle);
 
-        RendererThread::Instance()->Queue([this, handles, rawTexData]() {
+        ApplicationThread::Instance()->Queue([this, handles, rawTexData]() {
             std::vector<Texture *> ptrs(rawTexData.size());
             for (int i = 0; i < rawTexData.size(); ++i) {
                 ptrs[i] = _FinalizeTexture(*rawTexData[i]);
@@ -128,7 +128,7 @@ namespace stratus {
             if (totalBytes >= maxBytes) break;
         }
 
-        RendererThread::Instance()->QueueMany(functions);
+        ApplicationThread::Instance()->QueueMany(functions);
 
         for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
 

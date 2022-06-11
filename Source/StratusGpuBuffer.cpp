@@ -1,7 +1,7 @@
 #include "StratusGpuBuffer.h"
 #include <functional>
 #include <iostream>
-#include "StratusRendererThread.h"
+#include "StratusApplicationThread.h"
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
@@ -21,12 +21,12 @@ namespace stratus {
         }
 
         ~GpuBufferImpl() {
-            if (RendererThread::Instance()->CurrentIsRendererThread()) {
+            if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
                 glDeleteBuffers(1, &_buffer);
             }
             else {
                 auto buffer = _buffer;
-                RendererThread::Instance()->Queue([buffer]() { GLuint buf = buffer; glDeleteBuffers(1, &buf); });
+                ApplicationThread::Instance()->Queue([buffer]() { GLuint buf = buffer; glDeleteBuffers(1, &buf); });
             }
         }
 
@@ -99,6 +99,8 @@ namespace stratus {
             case GpuBufferType::PRIMITIVE_BUFFER: return GL_ARRAY_BUFFER;
             case GpuBufferType::INDEX_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
             }
+
+            throw std::invalid_argument("Unknown buffer type");
         }
 
         static GLenum _ConvertStorageType(GpuStorageType type) {
@@ -111,6 +113,8 @@ namespace stratus {
             case GpuStorageType::UNSIGNED_INT: return GL_UNSIGNED_INT;
             case GpuStorageType::FLOAT: return GL_FLOAT;
             }
+
+            throw std::invalid_argument("Unknown storage type");
         }
 
         static uint32_t _CalculateSizeBytes(int32_t sizePerElem, GpuStorageType type) {
@@ -123,6 +127,8 @@ namespace stratus {
             case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(uint32_t);
             case GpuStorageType::FLOAT: return sizePerElem * sizeof(float);
             }
+
+            throw std::invalid_argument("Unable to calculate size in bytes");
         }
 
     private:

@@ -9,7 +9,7 @@
 #include "StratusMath.h"
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
-#include "StratusRendererThread.h"
+#include "StratusApplicationThread.h"
 
 namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
@@ -77,7 +77,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Set max/min version
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     // Enable double buffering
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -458,7 +458,7 @@ void RendererBackend::_InitAllInstancedData() {
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
-    CHECK_IS_RENDERER_THREAD();
+    CHECK_IS_APPLICATION_THREAD();
 
     _frame = frame;
 
@@ -766,7 +766,7 @@ void RendererBackend::_RenderCSMDepth() {
 }
 
 void RendererBackend::RenderScene() {
-    CHECK_IS_RENDERER_THREAD();
+    CHECK_IS_APPLICATION_THREAD();
 
     const Camera& c = *_frame->camera;
 
@@ -1036,7 +1036,7 @@ void RendererBackend::_FinalizeFrame() {
 }
 
 void RendererBackend::End() {
-    CHECK_IS_RENDERER_THREAD();
+    CHECK_IS_APPLICATION_THREAD();
 
     if ( !_frame->vsyncEnabled ) {
         // 0 lets it run as fast as it can

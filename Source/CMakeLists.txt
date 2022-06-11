@@ -14,35 +14,34 @@ set_target_properties(${OUTPUT_NAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPU
 set_target_properties(${OUTPUT_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})
 set_target_properties(${OUTPUT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})
 
-if (WIN32)
-    target_include_directories(${OUTPUT} PUBLIC ${ROOT_DIRECTORY}/SDL2/include)
-    if (${CMAKE_SIZEOF_VOID_P} MATCHES 8)
-        file(GLOB SDL2_LIBRARIES "${ROOT_DIRECTORY}SDL2/lib/x64/*.lib")
-        set(SDL2 "${ROOT_DIRECTORY}SDL2/lib/x64/SDL2.dll")
-    else ()
-        file(GLOB SDL2_LIBRARIES "${ROOT_DIRECTORY}SDL2/lib/x86/*.lib")
-        set(SDL2 "${ROOT_DIRECTORY}SDL2/lib/x86/SDL2.dll")
-    endif ()
-    file(COPY ${SDL2} DESTINATION ${OUTPUT_DIRECTORY})
-    file(GLOB ASSIMP_LIBS "${ROOT_DIRECTORY}assimp/Deploy/lib/*.lib")
-    file(GLOB ASSIMP_DLLS "${ROOT_DIRECTORY}assimp/Deploy/lib/*.dll")
-    file(COPY ${ASSIMP_DLLS} DESTINATION ${OUTPUT_DIRECTORY})
-    message(${SDL2_LIBRARIES})
-    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} opengl32 kernel32 user32 gdi32 winspool comdlg32 ${ASSIMP_LIBS})
-else ()
-    find_package(SDL2 REQUIRED)
+find_package(SDL2 REQUIRED)
 
-    # See https://stackoverflow.com/questions/49082471/linking-assimp-library-with-find-package
-    find_package(assimp REQUIRED)
-    if (assimp_FOUND)
-        set(${ASSIMP_LIBRARY} "assimp")
-    endif(assimp_FOUND)
+# See https://stackoverflow.com/questions/49082471/linking-assimp-library-with-find-package
+find_package(assimp REQUIRED)
+if (assimp_FOUND)
+    set(${ASSIMP_LIBRARY} "assimp")
+endif(assimp_FOUND)
 
-    target_include_directories(${OUTPUT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
-    message(${SDL2_LIBRARIES})
-    target_link_directories(${OUTPUT_NAME} PUBLIC ${ROOT_DIRECTORY}/assimp/Deploy/lib/)
-    target_link_libraries(${OUTPUT_NAME} PUBLIC ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY} pthread dl assimp)
-endif ()
+target_include_directories(${OUTPUT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
+message(${SDL2_LIBRARIES})
+message(${ASSIMP_LIBRARIES})
+
+target_link_directories(${OUTPUT_NAME} PUBLIC ${ROOT_DIRECTORY}/assimp/Deploy/lib/)
+
+set(LIBRARIES
+    ${SDL2_LIBRARIES}
+    ${OPENGL_LIBRARIES}
+    ${ASSIMP_LIBRARIES}
+)
+
+if (NOT WIN32)
+    message("hello")
+    list(APPEND LIBRARIES
+        pthread
+        dl)
+endif()
+
+target_link_libraries(${OUTPUT_NAME} PUBLIC ${LIBRARIES})
 
 install(TARGETS ${OUTPUT_NAME}
     ARCHIVE DESTINATION Bin

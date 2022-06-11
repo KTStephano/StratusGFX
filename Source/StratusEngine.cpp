@@ -4,20 +4,12 @@
 #include "StratusMaterial.h"
 #include "StratusResourceManager.h"
 #include "StratusRendererFrontend.h"
-#include "StratusRendererThread.h"
+#include "StratusApplicationThread.h"
 #include <atomic>
 #include <mutex>
 
 namespace stratus {
     Engine * Engine::_instance = nullptr;
-
-    void EnsureIsMainThread() {
-        if ( !(&Thread::Current() == Engine::Instance()->GetMainThread()) ) {
-            throw std::runtime_error("Must execute on main thread");
-        }
-    }
-
-    #define CHECK_IS_MAIN_THREAD() EnsureIsMainThread()
 
     bool Engine::EngineMain(Application * app, const int numArgs, const char ** args) {
         static std::mutex preventMultipleMainCalls;
@@ -31,21 +23,17 @@ namespace stratus {
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
         params.application = app;
-        // Main runs on a separate core from current - this is because the application's
-        // default main thread will be used as rendering thread to prevent issues with UI
-        Thread mainThread("Main", true);
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
         Engine::_instance = new Engine(params);
 
-        // Perform first-time initialize on the default thread
-        Thread& mt = mainThread;
-        Engine::Instance()->PreInitialize(mt);
-        RendererThread::Instance()->Queue([&mt]() {
+        // Pre-initialize to set up things like the ApplicationThread
+        Engine::Instance()->PreInitialize();
+        ApplicationThread::Instance()->Queue([]() {
             Engine::Instance()->Initialize();
         });
-        RendererThread::Instance()->_DispatchAndSynchronize();
+        ApplicationThread::Instance()->_DispatchAndSynchronize();
 
         // Set up shut down sequence
         const auto shutdown = []() {
@@ -62,11 +50,9 @@ namespace stratus {
         volatile bool shouldRestart = false;
         volatile bool running = true;
         while (running) {
-            mainThread.Synchronize();
-            mainThread.Queue(runFrame);
-            mainThread.Dispatch();
-            // No need to synchronize since RendererThread uses this thread's context
-            RendererThread::Instance()->_Dispatch();
+            ApplicationThread::Instance()->Queue(runFrame);
+            // No need to synchronize since ApplicationThread uses this thread's context
+            ApplicationThread::Instance()->_Dispatch();
 
             // Check the system status message and decide what to do next
             switch (status.load()) {
@@ -84,8 +70,8 @@ namespace stratus {
         }
 
         // Queue and dispatch shutdown sequence
-        mainThread.Queue(shutdown);
-        mainThread.Dispatch();
+        ApplicationThread::Instance()->Queue(shutdown);
+        ApplicationThread::Instance()->_Dispatch();
 
         // If this is true the boot function will call EngineMain again
         return shouldRestart;
@@ -110,23 +96,23 @@ namespace stratus {
         return _stats.lastFrameTimeSeconds;
     }
 
-    void Engine::PreInitialize(stratus::Thread & context) {
+    void Engine::PreInitialize() {
         if (IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize called twice");
         }
         std::unique_lock<std::shared_mutex> ul(_startupShutdown);
         _isInitializing.store(true);
-        
-        // Pull the main thread
-        _main = &context;
 
         _InitLog();
-        _InitRendererThead();
+        _InitApplicationThread();
+
+        // Pull the main thread
+        _main = ApplicationThread::Instance()->_thread.get();
     }
 
     void Engine::Initialize() {
         // We need to initialize everything on renderer thread
-        CHECK_IS_RENDERER_THREAD();
+        CHECK_IS_APPLICATION_THREAD();
 
         if (!IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize not called");
@@ -151,8 +137,8 @@ namespace stratus {
         Log::Instance()->Initialize();
     }
 
-    void Engine::_InitRendererThead() {
-        RendererThread::_instance = new RendererThread();
+    void Engine::_InitApplicationThread() {
+        ApplicationThread::_instance = new ApplicationThread();
     }
 
     void Engine::_InitMaterialManager() {
@@ -191,22 +177,18 @@ namespace stratus {
 
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
-        // Synchronize renderer thread
-        RendererThread::Instance()->Instance()->_Synchronize();
-
         // Application should shut down first
         _params.application->Shutdown();
         ResourceManager::Instance()->Shutdown();
         MaterialManager::Instance()->Shutdown();
-        RendererThread::Instance()->Queue([this]() { RendererFrontend::Instance()->Shutdown(); });
-        RendererThread::Instance()->_DispatchAndSynchronize();
+        RendererFrontend::Instance()->Shutdown();
         Log::Instance()->Shutdown();
 
         _DeleteResource(_params.application);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
         _DeleteResource(RendererFrontend::_instance);
-        _DeleteResource(RendererThread::Instance()->_instance);
+        _DeleteResource(ApplicationThread::Instance()->_instance);
         _DeleteResource(Log::_instance);
     }
 
@@ -214,7 +196,7 @@ namespace stratus {
     // if the main engine loop should stop.
     SystemStatus Engine::Frame() {
         // Validate
-        CHECK_IS_MAIN_THREAD();
+        CHECK_IS_APPLICATION_THREAD();
 
         if (IsInitializing()) return SystemStatus::SYSTEM_CONTINUE;
         if (IsShuttingDown()) return SystemStatus::SYSTEM_SHUTDOWN;
@@ -245,7 +227,7 @@ namespace stratus {
         ResourceManager::Instance()->Update(deltaSeconds);
         
         // Queue next render frame
-        RendererThread::Instance()->Queue([deltaSeconds]() { RendererFrontend::Instance()->Update(deltaSeconds); });
+        RendererFrontend::Instance()->Update(deltaSeconds);
 
         // Finish with update to application
         return _params.application->Update(deltaSeconds);

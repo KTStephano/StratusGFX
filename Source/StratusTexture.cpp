@@ -3,7 +3,7 @@
 #include <exception>
 #include <unordered_set>
 #include <iostream>
-#include "StratusRendererThread.h"
+#include "StratusApplicationThread.h"
 
 namespace stratus {
     class TextureImpl {
@@ -69,12 +69,12 @@ namespace stratus {
         }
 
         ~TextureImpl() {
-            if (RendererThread::Instance()->CurrentIsRendererThread()) {
+            if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
                 glDeleteTextures(1, &_texture);
             }
             else {
                 auto texture = _texture;
-                RendererThread::Instance()->Queue([texture]() { GLuint tex = texture; glDeleteTextures(1, &tex); });
+                ApplicationThread::Instance()->Queue([texture]() { GLuint tex = texture; glDeleteTextures(1, &tex); });
             }
         }
 

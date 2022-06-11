@@ -6,18 +6,18 @@
 #include <list>
 #include <mutex>
 
-void EnsureIsRendererThread();
-#define CHECK_IS_RENDERER_THREAD() EnsureIsRendererThread()
+void EnsureIsApplicationThread();
+#define CHECK_IS_APPLICATION_THREAD() EnsureIsApplicationThread()
 
 namespace stratus {
-    class RendererThread {
+    class ApplicationThread {
         friend class Engine;
-        RendererThread();
+        ApplicationThread();
 
     public:
-        static RendererThread * Instance() { return _instance; }
+        static ApplicationThread * Instance() { return _instance; }
 
-        virtual ~RendererThread();
+        virtual ~ApplicationThread();
 
         // Queue functions
         void Queue(const Thread::ThreadFunction& function) {
@@ -33,7 +33,7 @@ namespace stratus {
         }
 
         // Checks if current executing thread is the same as the renderer thread
-        bool CurrentIsRendererThread() const;
+        bool CurrentIsApplicationThread() const;
 
     private:
         std::unique_lock<std::mutex> _LockWrite() const { return std::unique_lock<std::mutex>(_mutex); }
@@ -43,7 +43,7 @@ namespace stratus {
         void _DispatchAndSynchronize();
 
     private:
-        static RendererThread * _instance;
+        static ApplicationThread * _instance;
         mutable std::mutex _mutex;
         std::list<Thread::ThreadFunction> _queue;
         std::unique_ptr<Thread> _thread;

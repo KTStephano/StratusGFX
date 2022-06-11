@@ -1,7 +1,6 @@
 #include "StratusRendererFrontend.h"
 #include "StratusUtils.h"
 #include "StratusLog.h"
-#include "StratusRendererThread.h"
 
 namespace stratus {
     RendererFrontend * RendererFrontend::_instance = nullptr;
