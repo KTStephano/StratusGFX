@@ -72,11 +72,13 @@ namespace stratus {
     }
 
     void Bind() const {
+        if (IsMemoryMapped()) return;
         _bind();
         for (auto& enable : _enableAttributes) enable();
     }
 
     void Unbind() const {
+        if (IsMemoryMapped()) return;
         _unbind();
     }
 
