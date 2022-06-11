@@ -1,6 +1,8 @@
 #include "StratusRenderNode.h"
 #include "StratusUtils.h"
 #include "StratusEntity.h"
+#include "StratusApplicationThread.h"
+#include "StratusLog.h"
 
 namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
@@ -174,6 +176,7 @@ namespace stratus {
 
         if (_numIndices > 0) {
             memcpy(_indicesMapped, (const void *)_indices.data(), _indices.size() * sizeof(uint32_t));
+
         }
 
         memcpy(_primitiveMapped, (const void *)_data.data(), _data.size() * sizeof(float));
@@ -182,7 +185,21 @@ namespace stratus {
         _indices.clear();
         _data.clear();
 
+        _indicesMapped = nullptr;
+        _primitiveMapped = nullptr;
+
         _isGpuDataDirty = false;
+
+        if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+            UnmapAllGpuBuffers();
+        }
+        else {
+            ApplicationThread::Instance()->Queue([this]() { UnmapAllGpuBuffers(); });
+        }
+    }
+
+    void RenderMesh::UnmapAllGpuBuffers() const {
+        _buffers.UnmapAllReadWrite();
     }
 
     bool RenderMesh::IsCpuDirty() const {
@@ -210,13 +227,15 @@ namespace stratus {
         // GenerateGpuData();
         // FinalizeGpuData();
 
-        if (!Complete()) return;
+        // We don't want to run if our memory is mapped since another thread might be
+        // writing data to a buffer's memory region
+        //if (!Complete() || _buffers.IsMemoryMapped()) return;
 
-        if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
-            _buffers.UnmapAllReadWrite();
-            _primitiveMapped = nullptr;
-            _indicesMapped = nullptr;
-        }
+        //if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
+        //    //_buffers.UnmapAllReadWrite();
+        //    _primitiveMapped = nullptr;
+        //    _indicesMapped = nullptr;
+        //}
 
         _buffers.Bind();
         additionalBuffers.Bind();

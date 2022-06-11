@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include "StratusLog.h"
+#include "StratusSystemModule.h"
 
 namespace stratus {
     class Material;
@@ -63,6 +64,7 @@ namespace stratus {
         TextureHandle GetDepthMap() const;
         TextureHandle GetRoughnessMap() const;
         TextureHandle GetMetallicMap() const;
+        TextureHandle GetMetallicRoughnessMap() const;
 
         void SetDiffuseTexture(TextureHandle);
         void SetAmbientTexture(TextureHandle);
@@ -70,6 +72,8 @@ namespace stratus {
         void SetDepthMap(TextureHandle);
         void SetRoughnessMap(TextureHandle);
         void SetMetallicMap(TextureHandle);
+        // Things like GLTF 2.0 permit a combined metallic-roughness map
+        void SetMetallicRoughnessMap(TextureHandle);
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
@@ -99,10 +103,12 @@ namespace stratus {
         TextureHandle _roughnessMap = TextureHandle::Null();
         // Not required to have a metallic map
         TextureHandle _metallicMap = TextureHandle::Null();
+        // Not required to have a metallic-roughness map
+        TextureHandle _metallicRoughnessMap = TextureHandle::Null();
         std::vector<MaterialPtr> _subMats;
     };
 
-    class MaterialManager {
+    class MaterialManager : public SystemModule {
         friend class Engine;
 
         // Only engine should create
@@ -126,6 +132,11 @@ namespace stratus {
         bool NotifyNameChanged(const std::string& oldName, MaterialPtr);
 
         MaterialPtr CreateDefault();
+
+        // SystemModule inteface
+        virtual bool Initialize();
+        virtual SystemStatus Update(const double);
+        virtual void Shutdown();
 
     private:
         static MaterialManager * _instance;

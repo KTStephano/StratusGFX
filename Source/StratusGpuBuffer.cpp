@@ -1,6 +1,8 @@
 #include "StratusGpuBuffer.h"
 #include <functional>
 #include <iostream>
+#include "StratusApplicationThread.h"
+#include "StratusLog.h"
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
@@ -20,7 +22,13 @@ namespace stratus {
         }
 
         ~GpuBufferImpl() {
-            glDeleteBuffers(1, &_buffer);
+            if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+                glDeleteBuffers(1, &_buffer);
+            }
+            else {
+                auto buffer = _buffer;
+                ApplicationThread::Instance()->Queue([buffer]() { GLuint buf = buffer; glDeleteBuffers(1, &buf); });
+            }
         }
 
     void EnableAttribute(int32_t attribute, 
@@ -65,15 +73,24 @@ namespace stratus {
     }
 
     void Bind() const {
+        if (IsMemoryMapped()) {
+            STRATUS_WARN << "GpuBuffer::Bind called while memory is still mapped for read/write" << std::endl;
+            return;
+        }
         _bind();
         for (auto& enable : _enableAttributes) enable();
     }
 
     void Unbind() const {
+        if (IsMemoryMapped()) {
+            STRATUS_WARN << "GpuBuffer::Unbind called while memory is still mapped for read/write" << std::endl;
+            return;
+        }
         _unbind();
     }
 
     void * MapReadWrite() const {
+        _isMemoryMapped = true;
         _bind();
         void * ptr = glMapBuffer(_bufferType, GL_READ_WRITE);
         _unbind();
@@ -84,6 +101,11 @@ namespace stratus {
         _bind();
         glUnmapBuffer(_bufferType);
         _unbind();
+        _isMemoryMapped = false;
+    }
+
+    bool IsMemoryMapped() const {
+        return _isMemoryMapped;
     }
 
     private:
@@ -92,6 +114,8 @@ namespace stratus {
             case GpuBufferType::PRIMITIVE_BUFFER: return GL_ARRAY_BUFFER;
             case GpuBufferType::INDEX_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
             }
+
+            throw std::invalid_argument("Unknown buffer type");
         }
 
         static GLenum _ConvertStorageType(GpuStorageType type) {
@@ -104,6 +128,8 @@ namespace stratus {
             case GpuStorageType::UNSIGNED_INT: return GL_UNSIGNED_INT;
             case GpuStorageType::FLOAT: return GL_FLOAT;
             }
+
+            throw std::invalid_argument("Unknown storage type");
         }
 
         static uint32_t _CalculateSizeBytes(int32_t sizePerElem, GpuStorageType type) {
@@ -116,12 +142,15 @@ namespace stratus {
             case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(uint32_t);
             case GpuStorageType::FLOAT: return sizePerElem * sizeof(float);
             }
+
+            throw std::invalid_argument("Unable to calculate size in bytes");
         }
 
     private:
         const GpuBufferType _type;
         const GLenum _bufferType;
         GLuint _buffer;
+        mutable bool _isMemoryMapped = false;
 
         // Cached functions
         GpuBufferCommand _bind;
@@ -150,6 +179,10 @@ namespace stratus {
 
     void GpuBuffer::UnmapReadWrite() const {
         _impl->UnmapReadWrite();
+    }
+
+    bool GpuBuffer::IsMemoryMapped() const {
+        return _impl->IsMemoryMapped();
     }
 
     GpuArrayBuffer::GpuArrayBuffer()
@@ -185,5 +218,12 @@ namespace stratus {
 
     void GpuArrayBuffer::UnmapAllReadWrite() const {
         for (auto& buffer : *_buffers) buffer.UnmapReadWrite();
+    }
+
+    bool GpuArrayBuffer::IsMemoryMapped() const {
+        for (auto& buffer : *_buffers) {
+            if (buffer.IsMemoryMapped()) return true;
+        }
+        return false;
     }
 }

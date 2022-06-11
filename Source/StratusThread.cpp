@@ -99,15 +99,6 @@ namespace stratus {
         while (_processing.load()) std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
 
-    void Thread::Queue(const ThreadFunction& func) {
-        Queue(std::vector<ThreadFunction>{func});
-    }
-
-    void Thread::Queue(const std::vector<ThreadFunction>& funcs) {
-        std::unique_lock<std::mutex> ul(_mutex);
-        for (auto & func : funcs) _frontQueue.push_back(func);
-    }
-
     void Thread::_ProcessNext() {
         if (_processing.load()) {
             for (const ThreadFunction & func : _backQueue) func();

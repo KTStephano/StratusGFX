@@ -3,6 +3,7 @@
 #include <exception>
 #include <unordered_set>
 #include <iostream>
+#include "StratusApplicationThread.h"
 
 namespace stratus {
     class TextureImpl {
@@ -68,7 +69,13 @@ namespace stratus {
         }
 
         ~TextureImpl() {
-            glDeleteTextures(1, &_texture);
+            if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+                glDeleteTextures(1, &_texture);
+            }
+            else {
+                auto texture = _texture;
+                ApplicationThread::Instance()->Queue([texture]() { GLuint tex = texture; glDeleteTextures(1, &tex); });
+            }
         }
 
         // No copying
@@ -196,7 +203,12 @@ namespace stratus {
                     }
                 }
                 if (type == TextureComponentType::FLOAT) {
-                    throw std::runtime_error("FLOAT cannot be specified with 8 bit type");
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8;
+                        case TextureComponentFormat::RGB: return GL_RGB8;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
                 }
             }
 
@@ -254,6 +266,20 @@ namespace stratus {
                 }
             }
 
+            if (size == TextureComponentSize::BITS_11_11_10) {
+                if (type == TextureComponentType::FLOAT) {
+                    if (format == TextureComponentFormat::RGB) {
+                        return GL_R11F_G11F_B10F;
+                    }
+                    else {
+                        throw std::runtime_error("Invalid 11_11_10 combination");
+                    }
+                }
+                else {
+                    throw std::runtime_error("Unable to use types other than float for 11_11_10");
+                }
+            }
+
             throw std::runtime_error("Unknown error occurred");
         }
 
@@ -273,6 +299,10 @@ namespace stratus {
             if (size == TextureComponentSize::BITS_32) {
                 if (type == TextureComponentType::INT) return GL_SHORT;
                 if (type == TextureComponentType::UINT) return GL_UNSIGNED_SHORT;
+                if (type == TextureComponentType::FLOAT) return GL_FLOAT;
+            }
+
+            if (size == TextureComponentSize::BITS_11_11_10) {
                 if (type == TextureComponentType::FLOAT) return GL_FLOAT;
             }
 

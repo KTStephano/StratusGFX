@@ -1,5 +1,4 @@
 
-#include <StratusRendererBackend.h>
 #include <iostream>
 #include <StratusLight.h>
 #include "StratusPipeline.h"
@@ -10,65 +9,91 @@
 #include "StratusMath.h"
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
+#include "StratusApplicationThread.h"
 
 namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
     log << "==================== OpenGL Information ====================" << std::endl;
-    log << "\tRenderer: "                         << config.renderer << std::endl;
-    log << "\tVersion: "                          << config.version << std::endl;
-    log << "\tMax draw buffers: "                 << config.maxDrawBuffers << std::endl;
-    log << "\tMax combined textures: "            << config.maxCombinedTextures << std::endl;
-    log << "\tMax cube map texture size: "        << config.maxCubeMapTextureSize << std::endl;
-    log << "\tMax fragment uniform vectors: "     << config.maxFragmentUniformVectors << std::endl;
-    log << "\tMax fragment uniform components: "  << config.maxFragmentUniformComponents << std::endl;
-    log << "\tMax varying floats: "               << config.maxVaryingFloats << std::endl;
-    log << "\tMax render buffer size: "           << config.maxRenderbufferSize << std::endl;
-    log << "\tMax texture image units: "          << config.maxTextureImageUnits << std::endl;
-    log << "\tMax texture size: "                 << config.maxTextureSize << std::endl;
-    log << "\tMax vertex attribs: "               << config.maxVertexAttribs << std::endl;
-    log << "\tMax vertex uniform vectors: "       << config.maxVertexUniformVectors << std::endl;
-    log << "\tMax vertex uniform components: "    << config.maxVertexUniformComponents << std::endl;
-    log << "\tMax viewport dims: "                << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+    log << "\tRenderer: "                               << config.renderer << std::endl;
+    log << "\tVersion: "                                << config.version << std::endl;
+    log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
+    log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
+    log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
+    log << "\tMax fragment uniform vectors: "           << config.maxFragmentUniformVectors << std::endl;
+    log << "\tMax fragment uniform components: "        << config.maxFragmentUniformComponents << std::endl;
+    log << "\tMax varying floats: "                     << config.maxVaryingFloats << std::endl;
+    log << "\tMax render buffer size: "                 << config.maxRenderbufferSize << std::endl;
+    log << "\tMax texture image units: "                << config.maxTextureImageUnits << std::endl;
+    log << "\tMax texture size 1D: "                    << config.maxTextureSize1D2D << std::endl;
+    log << "\tMax texture size 2D: "                    << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
+    log << "\tMax texture size 3D: "                    << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
+    log << "\tMax vertex attribs: "                     << config.maxVertexAttribs << std::endl;
+    log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
+    log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
+    log << "\tMax viewport dims: "                      << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+    log << std::boolalpha;
+    const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
+    const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
+    for (int i = 0; i < internalFormats.size(); ++i) {
+        log << "\t" << strInternalFormats[i] << std::endl;
+        log << "\t\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D[i] << std::endl;
+        if (config.supportsSparseTextures2D[i]) {
+            log << "\t\tNum sparse (virtual) page sizes 2D: " << config.numPageSizes2D[i] << std::endl;
+            log << "\t\tPreferred page size X 2D: "           << config.preferredPageSizeX2D[i] << std::endl;
+            log << "\t\tPreferred page size Y 2D: "           << config.preferredPageSizeY2D[i] << std::endl;
+        }
+        log << "\t\tSupports sparse (virtual) textures 3D: "  << config.supportsSparseTextures3D[i] << std::endl;
+        if (config.supportsSparseTextures3D[i]) {
+            log << "\t\tNum sparse (virtual) page sizes 3D: " << config.numPageSizes3D[i] << std::endl;
+            log << "\t\tPreferred page size X 3D: "           << config.preferredPageSizeX3D[i] << std::endl;
+            log << "\t\tPreferred page size Y 3D: "           << config.preferredPageSizeY3D[i] << std::endl;
+            log << "\t\tPreferred page size Z 3D: "           << config.preferredPageSizeZ3D[i] << std::endl;
+        }
+    }
 }
 
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
+    STRATUS_LOG << "Initializing SDL video" << std::endl;
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         return;
     }
 
+    STRATUS_LOG << "Initializing SDL window" << std::endl;
     _window = SDL_CreateWindow(appName.c_str(),
             100, 100, // location x/y on screen
             width, height, // width/height of window
             SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
     if (_window == nullptr) {
         STRATUS_ERROR << "Failed to create sdl window" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         SDL_Quit();
         return;
     }
 
-    //const int32_t minGLVersion = 2;
-
     // Set the profile to core as opposed to immediate mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    // Set max/min version to be 3.2
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, maxGLVersion);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, minGLVersion);
+    // Set max/min version
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     // Enable double buffering
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     // Create the gl context
+    STRATUS_LOG << "Creating OpenGL context" << std::endl;
     _context = SDL_GL_CreateContext(_window);
     if (_context == nullptr) {
-        STRATUS_ERROR << "[error] Unable to create a valid OpenGL context" << std::endl;
+        STRATUS_ERROR << "Unable to create a valid OpenGL context" << std::endl;
+        STRATUS_ERROR << SDL_GetError() << std::endl;
         _isValid = false;
         return;
     }
 
     // Init gl core profile using gl3w
     if (gl3wInit()) {
-        STRATUS_ERROR << "[error] Failed to initialize core OpenGL profile" << std::endl;
+        STRATUS_ERROR << "Failed to initialize core OpenGL profile" << std::endl;
         _isValid = false;
         return;
     }
@@ -87,7 +112,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &_config.maxFragmentUniformVectors);
     glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &_config.maxRenderbufferSize);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &_config.maxTextureImageUnits);
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &_config.maxTextureSize);
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &_config.maxTextureSize1D2D);
+    glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &_config.maxTextureSize3D);
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &_config.maxVertexAttribs);
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &_config.maxVertexUniformVectors);
     glGetIntegerv(GL_MAX_DRAW_BUFFERS, &_config.maxDrawBuffers);
@@ -95,6 +121,29 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
+
+    const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
+    for (int i = 0; i < internalFormats.size(); ++i) {
+        const GLenum internalFormat = internalFormats[i];
+        // Query OpenGL about sparse textures (2D)
+        glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes2D[i]);
+        _config.supportsSparseTextures2D[i] = _config.numPageSizes2D[i] > 0;
+        if (_config.supportsSparseTextures2D) {
+            // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
+            glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX2D[i]);
+            glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY2D[i]);
+        }
+
+        // Query OpenGL about sparse textures (3D)
+        glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes3D[i]);
+        _config.supportsSparseTextures3D[i] = _config.numPageSizes3D[i] > 0;
+        if (_config.supportsSparseTextures3D) {
+            // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
+            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX3D[i]);
+            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY3D[i]);
+            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Z_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeZ3D[i]);
+        }
+    }
 
     printGLInfo(_config);
     _isValid = true;
@@ -239,8 +288,8 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.normals.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
@@ -250,11 +299,11 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Base reflectivity buffer
     buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Roughness-Metallic-Ambient buffer
     buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the depth buffer
     buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
@@ -409,6 +458,8 @@ void RendererBackend::_InitAllInstancedData() {
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
+    CHECK_IS_APPLICATION_THREAD();
+
     _frame = frame;
 
     // Make sure we set our context as the active one
@@ -492,22 +543,22 @@ void RendererBackend::_InitInstancedData(RendererEntityData & c) {
 
     pos = pbr->getAttribLocation("diffuseColor");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("baseReflectivity");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("metallic");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, metallic.data(), metallic.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("roughness");
     buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, roughness.data(), roughness.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0);
+    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     //buffers.Bind();
@@ -651,6 +702,13 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
                 s->setBool("metalnessMapped", false);
             }
 
+            if (c->material->GetMetallicRoughnessMap()) {
+                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", c->material->GetMetallicRoughnessMap())
+            }
+            else {
+                s->setBool("metallicRoughnessMap", false);
+            }
+
             s->setVec3("viewPosition", &camera.getPosition()[0]);
         }
 
@@ -708,6 +766,8 @@ void RendererBackend::_RenderCSMDepth() {
 }
 
 void RendererBackend::RenderScene() {
+    CHECK_IS_APPLICATION_THREAD();
+
     const Camera& c = *_frame->camera;
 
     const int maxInstances = 250;
@@ -976,13 +1036,17 @@ void RendererBackend::_FinalizeFrame() {
 }
 
 void RendererBackend::End() {
+    CHECK_IS_APPLICATION_THREAD();
+
     if ( !_frame->vsyncEnabled ) {
         // 0 lets it run as fast as it can
         SDL_GL_SetSwapInterval(0);
     }
 
     // Swap front and back buffer
-    SDL_GL_SwapWindow(_window);    
+    SDL_GL_SwapWindow(_window);
+
+    _frame.reset();
 }
 
 std::vector<SDL_Event> RendererBackend::PollInputEvents() {

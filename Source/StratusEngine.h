@@ -49,8 +49,8 @@ namespace stratus {
     public:
         // Performs first-time start up and then begins the main loop
         // returns: true if EngineMain should be called again, false otherwise
-        friend bool EngineMain(Application * app, const int numArgs, const char ** args);
-
+        static bool EngineMain(Application * app, const int numArgs, const char ** args);
+        
         // Creates a new application and calls EngineMain
         template<typename E>
         friend void EngineBoot(const int numArgs, const char** args);
@@ -84,6 +84,7 @@ namespace stratus {
 
     private:
         void _InitLog();
+        void _InitApplicationThread();
         void _InitMaterialManager();
         void _InitResourceManager();
         void _InitRenderer();
@@ -113,8 +114,9 @@ namespace stratus {
         // Ensure E is derived from Application
         static_assert(std::is_base_of<Application, E>::value);
         while (true) {
-            std::unique_ptr<Application> app(new E());
-            if (!EngineMain(app.get(), numArgs, args)) break;
+            // Engine owns the pointer and will delete it
+            Application * app = new E();
+            if (!Engine::EngineMain(app, numArgs, args)) break;
         }
     }
 }

@@ -107,11 +107,25 @@ namespace stratus {
         int32_t maxVaryingFloats;
         int32_t maxRenderbufferSize;
         int32_t maxTextureImageUnits;
-        int32_t maxTextureSize;
+        int32_t maxTextureSize1D2D;
+        int32_t maxTextureSize3D;
         int32_t maxVertexAttribs;
         int32_t maxVertexUniformVectors;
         int32_t maxVertexUniformComponents;
         int32_t maxViewportDims[2];
+        bool supportsSparseTextures2D[3];
+        // OpenGL may allow multiple page sizes at the same time which the application can select from
+        // first element: RGBA8, second element: RGBA16, third element: RGBA32
+        int32_t numPageSizes2D[3];
+        // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
+        // indicate that it is the most efficient page size for the implementation to work with
+        int32_t preferredPageSizeX2D[3];
+        int32_t preferredPageSizeY2D[3];
+        bool supportsSparseTextures3D[3];
+        int32_t numPageSizes3D[3];
+        int32_t preferredPageSizeX3D[3];
+        int32_t preferredPageSizeY3D[3];
+        int32_t preferredPageSizeZ3D[3];
     };
 
     class RendererBackend {

@@ -4,15 +4,14 @@
 #include "StratusMaterial.h"
 #include "StratusResourceManager.h"
 #include "StratusRendererFrontend.h"
+#include "StratusApplicationThread.h"
 #include <atomic>
 #include <mutex>
 
 namespace stratus {
     Engine * Engine::_instance = nullptr;
 
-    #define CHECK_IS_MAIN_THREAD() assert(Thread::Current() == *Engine::Instance()->GetMainThread())
-
-    bool EngineMain(Application * app, const int numArgs, const char ** args) {
+    bool Engine::EngineMain(Application * app, const int numArgs, const char ** args) {
         static std::mutex preventMultipleMainCalls;
         std::unique_lock<std::mutex> ul(preventMultipleMainCalls, std::defer_lock);
         if (!ul.try_lock()) {
@@ -24,19 +23,17 @@ namespace stratus {
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
         params.application = app;
-        Thread mainThread("Main", false);
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
         Engine::_instance = new Engine(params);
 
-        // Perform first-time initialize
-        const auto init = []() {
-            Engine::Instance()->PreInitialize();
+        // Pre-initialize to set up things like the ApplicationThread
+        Engine::Instance()->PreInitialize();
+        ApplicationThread::Instance()->Queue([]() {
             Engine::Instance()->Initialize();
-        };
-        mainThread.Queue(init);
-        mainThread.Dispatch();
+        });
+        ApplicationThread::Instance()->_DispatchAndSynchronize();
 
         // Set up shut down sequence
         const auto shutdown = []() {
@@ -53,9 +50,9 @@ namespace stratus {
         volatile bool shouldRestart = false;
         volatile bool running = true;
         while (running) {
-            mainThread.Queue(runFrame);
-            // No need to synchronize since mainThread uses this thread's context
-            mainThread.Dispatch();
+            ApplicationThread::Instance()->Queue(runFrame);
+            // No need to synchronize since ApplicationThread uses this thread's context
+            ApplicationThread::Instance()->_Dispatch();
 
             // Check the system status message and decide what to do next
             switch (status.load()) {
@@ -73,8 +70,8 @@ namespace stratus {
         }
 
         // Queue and dispatch shutdown sequence
-        mainThread.Queue(shutdown);
-        mainThread.Dispatch();
+        ApplicationThread::Instance()->Queue(shutdown);
+        ApplicationThread::Instance()->_Dispatch();
 
         // If this is true the boot function will call EngineMain again
         return shouldRestart;
@@ -105,14 +102,18 @@ namespace stratus {
         }
         std::unique_lock<std::shared_mutex> ul(_startupShutdown);
         _isInitializing.store(true);
-        
-        // Pull the main thread
-        _main = &Thread::Current();
 
         _InitLog();
+        _InitApplicationThread();
+
+        // Pull the main thread
+        _main = ApplicationThread::Instance()->_thread.get();
     }
 
     void Engine::Initialize() {
+        // We need to initialize everything on renderer thread
+        CHECK_IS_APPLICATION_THREAD();
+
         if (!IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize not called");
         }
@@ -133,14 +134,21 @@ namespace stratus {
 
     void Engine::_InitLog() {
         Log::_instance = new Log();
+        Log::Instance()->Initialize();
+    }
+
+    void Engine::_InitApplicationThread() {
+        ApplicationThread::_instance = new ApplicationThread();
     }
 
     void Engine::_InitMaterialManager() {
         MaterialManager::_instance = new MaterialManager();
+        MaterialManager::Instance()->Initialize();
     }
 
     void Engine::_InitResourceManager() {
         ResourceManager::_instance = new ResourceManager();
+        ResourceManager::Instance()->Initialize();
     }
 
     void Engine::_InitRenderer() {
@@ -152,6 +160,7 @@ namespace stratus {
         params.vsyncEnabled = false;
 
         RendererFrontend::_instance = new RendererFrontend(params);
+        RendererFrontend::Instance()->Initialize();
     }
 
     // Should be called before Shutdown()
@@ -169,20 +178,25 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        // Note: we do not delete Application since engine doesn't own its memory
-        _params.application->ShutDown();
+        _params.application->Shutdown();
+        ResourceManager::Instance()->Shutdown();
+        MaterialManager::Instance()->Shutdown();
+        RendererFrontend::Instance()->Shutdown();
+        Log::Instance()->Shutdown();
 
+        _DeleteResource(_params.application);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
-        _DeleteResource(Log::_instance);
         _DeleteResource(RendererFrontend::_instance);
+        _DeleteResource(ApplicationThread::Instance()->_instance);
+        _DeleteResource(Log::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only
     // if the main engine loop should stop.
     SystemStatus Engine::Frame() {
         // Validate
-        CHECK_IS_MAIN_THREAD();
+        CHECK_IS_APPLICATION_THREAD();
 
         if (IsInitializing()) return SystemStatus::SYSTEM_CONTINUE;
         if (IsShuttingDown()) return SystemStatus::SYSTEM_SHUTDOWN;
@@ -207,10 +221,15 @@ namespace stratus {
         // Update prev frame start to be the beginning of this current frame
         _stats.prevFrameStart = end;
 
-        // Other logic.....
-        ResourceManager::Instance()->Update();
+        // Update core modules
+        Log::Instance()->Update(deltaSeconds);
+        MaterialManager::Instance()->Update(deltaSeconds);
+        ResourceManager::Instance()->Update(deltaSeconds);
+        
+        // Queue next render frame
         RendererFrontend::Instance()->Update(deltaSeconds);
 
+        // Finish with update to application
         return _params.application->Update(deltaSeconds);
     }
 

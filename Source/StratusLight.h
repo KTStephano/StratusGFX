@@ -124,7 +124,7 @@ namespace stratus {
             static const float lightMin = 256.0 / 5;
             const glm::vec3 intensity = getIntensity() * getColor();
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
-            this->_radius = std::sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
+            this->_radius = sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
         }
 
         void _recalcColorWithIntensity() {

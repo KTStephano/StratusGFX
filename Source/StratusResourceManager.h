@@ -5,13 +5,14 @@
 #include "StratusThread.h"
 #include "StratusEntity.h"
 #include "StratusTexture.h"
-#include "StratusRenderNode.h""
+#include "StratusRenderNode.h"
+#include "StratusSystemModule.h"
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>
 
 namespace stratus {
-    class ResourceManager {
+    class ResourceManager : public SystemModule {
         friend class Engine;
 
         ResourceManager();
@@ -33,7 +34,6 @@ namespace stratus {
 
         static ResourceManager * Instance() { return _instance; }
 
-        void Update();
         Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const bool srgb);
         void FinalizeModelMemory(const RenderMeshPtr&);
@@ -42,6 +42,11 @@ namespace stratus {
         // Default shapes
         EntityPtr CreateCube();
         EntityPtr CreateQuad();
+
+                // SystemModule inteface
+        virtual bool Initialize();
+        virtual SystemStatus Update(const double);
+        virtual void Shutdown();
 
     private:
         void _ClearAsyncTextureData();

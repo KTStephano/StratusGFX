@@ -30,7 +30,7 @@ vec3 gammaCorrect(vec3 color) {
     return pow(color, vec3(1.0 / gamma));
 }
 
-// This uses Reinhard tone mapping without exposure. More
+// This uses either Reinhard or ACES tone mapping without exposure. More
 // advanced techniques can be used to achieve a very different
 // look and feel to the final output.
 void main() {

@@ -2,6 +2,9 @@
 
 #include "GL/gl3w.h"
 #include <vector>
+#include "StratusRendererThread.h"
+
+// TODO: This class needs work to function with the new engine structure!!
 
 namespace stratus {
     /**

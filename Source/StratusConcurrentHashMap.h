@@ -561,6 +561,7 @@ namespace stratus {
             typedef size_t difference_type;
             typedef const_entry_type * pointer;
             typedef const_entry_type & reference;
+            typedef const const_entry_type & const_reference;
 
             ConcurrentIterator(const std::vector<std::unique_ptr<Bucket>> & buckets,
                             typename std::vector<std::unique_ptr<Bucket>>::const_iterator iter,
@@ -604,7 +605,7 @@ namespace stratus {
                 return _currentEntry.get();
             }
 
-            const reference operator*() const {
+            const_reference operator*() const {
                 return *_currentEntry;
             }
 

@@ -26,4 +26,16 @@ namespace stratus {
         EmbedLogData("[Error]", function, line, std::cerr);
         return std::cerr;
     }
+
+    bool Log::Initialize() {
+        return true;
+    }
+
+    SystemStatus Log::Update(const double) {
+        return SystemStatus::SYSTEM_CONTINUE;
+    }
+
+    void Log::Shutdown() {
+        
+    }
 }

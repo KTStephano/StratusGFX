@@ -4,6 +4,17 @@ project(StratusGFX)
 
 set(CMAKE_CXX_STANDARD 17)
 
+if (WIN32)
+    message($ENV{SYSROOT})
+    list(APPEND CMAKE_PREFIX_PATH 
+        $ENV{SYSROOT}/cmake 
+        $ENV{SYSROOT}/lib/cmake 
+        $ENV{SYSROOT}/lib/cmake/assimp 
+        $ENV{SYSROOT}/lib/cmake/assimp-5.0 
+        $ENV{SYSROOT}/lib/cmake/Catch2
+    )
+endif ()
+
 add_subdirectory(Source/)
 add_subdirectory(Examples/)
 

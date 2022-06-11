@@ -123,6 +123,11 @@ namespace stratus {
         return _metallicMap;
     }
 
+    TextureHandle Material::GetMetallicRoughnessMap() const {
+        auto sl = _LockRead();
+        return _metallicRoughnessMap;
+    }
+
     void Material::SetDiffuseTexture(TextureHandle handle) {
         auto ul = _LockWrite();
         _diffuseTexture = handle;
@@ -151,6 +156,11 @@ namespace stratus {
     void Material::SetMetallicMap(TextureHandle handle) {
         auto ul = _LockWrite();
         _metallicMap = handle;
+    }
+
+    void Material::SetMetallicRoughnessMap(TextureHandle handle) {
+        auto ul = _LockWrite();
+        _metallicRoughnessMap = handle;
     }
 
     MaterialManager::MaterialManager() {}
@@ -216,5 +226,17 @@ namespace stratus {
 
     MaterialPtr MaterialManager::CreateDefault() {
         return MaterialPtr(new Material("Default", false));
+    }
+
+    bool MaterialManager::Initialize() {
+        return true;
+    }
+
+    SystemStatus MaterialManager::Update(const double) {
+        return SystemStatus::SYSTEM_CONTINUE;
+    }
+
+    void MaterialManager::Shutdown() {
+        _materials.Clear();
     }
 }

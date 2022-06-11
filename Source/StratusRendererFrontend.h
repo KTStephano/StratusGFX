@@ -4,6 +4,7 @@
 #include "StratusRendererBackend.h"
 #include "StratusEntity.h"
 #include "StratusRenderNode.h"
+#include "StratusSystemModule.h"
 #include "StratusLight.h"
 #include "StratusThread.h"
 #include <cstddef>
@@ -23,7 +24,7 @@ namespace stratus {
 
     // Public interface of the renderer - manages frame to frame state and manages
     // the backend
-    class RendererFrontend {
+    class RendererFrontend : public SystemModule {
         friend class Engine;
         RendererFrontend(const RendererParams&);
 
@@ -72,10 +73,10 @@ namespace stratus {
         std::vector<SDL_Event> PollInputEvents();
         RendererMouseState GetMouseState() const;
 
-        void Update(const double);
-
-        void QueueRendererThreadTask(const Thread::ThreadFunction&);
-        void QueueRendererThreadTasks(const std::vector<Thread::ThreadFunction>&);
+        // SystemModule inteface
+        virtual bool Initialize();
+        virtual SystemStatus Update(const double);
+        virtual void Shutdown();
 
         void RecompileShaders();
 
@@ -94,6 +95,7 @@ namespace stratus {
         void _UpdateLights();
         void _UpdateCameraVisibility();
         void _UpdateCascadeVisibility();
+        void _SwapFrames();
 
     private:
         static RendererFrontend * _instance;
@@ -113,10 +115,10 @@ namespace stratus {
         bool _viewportDirty = true;
         bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
+        std::shared_ptr<RendererFrame> _prevFrame;
         std::unique_ptr<RendererBackend> _renderer;
         std::vector<SDL_Event> _events;
         RendererMouseState _mouse;
-        std::vector<Thread::ThreadFunction> _rendererTasks;
         mutable std::shared_mutex _mutex;
     };
 }

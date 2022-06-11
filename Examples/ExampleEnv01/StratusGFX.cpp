@@ -87,7 +87,7 @@ class StratusGFX : public stratus::Application {
 public:
     virtual ~StratusGFX() = default;
 
-    std::string GetAppName() const {
+    std::string GetAppName() const override {
         return "StratusGFX";
     }
 
@@ -216,10 +216,10 @@ public:
 
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
-    virtual stratus::SystemStatus Update(double deltaSeconds) override {
+    virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         float value = 1.0f;
         if (stratus::Engine::Instance()->FrameCount() % 100 == 0) {
-            STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << std::endl;
+            STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
         const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
@@ -520,7 +520,7 @@ public:
     }
 
     // Perform any resource cleanup
-    virtual void ShutDown() override {
+    virtual void Shutdown() override {
     }
 
 private:

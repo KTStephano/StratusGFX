@@ -38,6 +38,7 @@ namespace stratus {
         void GenerateGpuData() const;
         // Finalize gpu data can happen on any thread
         void FinalizeGpuData() const;
+        void UnmapAllGpuBuffers() const;
         const GpuArrayBuffer& GetData() const;
 
         size_t GetGpuSizeBytes() const;
