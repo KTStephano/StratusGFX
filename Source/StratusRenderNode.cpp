@@ -1,6 +1,7 @@
 #include "StratusRenderNode.h"
 #include "StratusUtils.h"
 #include "StratusEntity.h"
+#include "StratusApplicationThread.h"
 
 namespace stratus {
     void RenderMesh::AddVertex(const glm::vec3& v) {
@@ -184,6 +185,13 @@ namespace stratus {
         _data.clear();
 
         _isGpuDataDirty = false;
+
+        if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+            UnmapAllGpuBuffers();
+        }
+        else {
+            ApplicationThread::Instance()->Queue([this]() { UnmapAllGpuBuffers(); });
+        }
     }
 
     void RenderMesh::UnmapAllGpuBuffers() const {
@@ -215,7 +223,9 @@ namespace stratus {
         // GenerateGpuData();
         // FinalizeGpuData();
 
-        if (!Complete()) return;
+        // We don't want to run if our memory is mapped since another thread might be
+        // writing data to a buffer's memory region
+        if (!Complete() || _buffers.IsMemoryMapped()) return;
 
         if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
             _buffers.UnmapAllReadWrite();
