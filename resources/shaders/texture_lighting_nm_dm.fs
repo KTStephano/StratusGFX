@@ -1,4 +1,4 @@
-#version 400 core
+#version 410 core
 
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_LIGHTS 12

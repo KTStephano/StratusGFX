@@ -1,4 +1,4 @@
-#version 400 core
+#version 410 core
 
 // Cascaded Shadow Maps
 in float fsTanTheta;

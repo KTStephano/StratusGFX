@@ -1,4 +1,4 @@
-#version 400 core
+#version 410 core
 
 layout (triangles) in;
 // We are bringing in a single triangle (3 vertices) and outputting 6 triangles (18 vertices)

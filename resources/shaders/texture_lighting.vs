@@ -1,4 +1,4 @@
-#version 400 core
+#version 410 core
 
 // If we don't enable explicit_attrib/uniform_location
 // then we can't do things like "layout (location = 0)"

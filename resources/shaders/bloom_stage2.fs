@@ -1,4 +1,4 @@
-#version 400 core
+#version 410 core
 
 // Note that with length 5, we end up having a kernel size of 9x9 since the center counts as 1, then we go
 // +4 in one direction, -4 in other direction while blurring
