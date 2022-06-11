@@ -72,13 +72,19 @@ namespace stratus {
     }
 
     void Bind() const {
-        if (IsMemoryMapped()) return;
+        if (IsMemoryMapped()) {
+            STRATUS_WARN << "GpuBuffer::Bind called while memory is still mapped for read/write" << std::endl;
+            return;
+        }
         _bind();
         for (auto& enable : _enableAttributes) enable();
     }
 
     void Unbind() const {
-        if (IsMemoryMapped()) return;
+        if (IsMemoryMapped()) {
+            STRATUS_WARN << "GpuBuffer::Unbind called while memory is still mapped for read/write" << std::endl;
+            return;
+        }
         _unbind();
     }
 
