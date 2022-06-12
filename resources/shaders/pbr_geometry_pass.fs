@@ -31,6 +31,7 @@ uniform vec3 viewPosition;
  * in world space.
  */
 smooth in vec3 fsPosition;
+smooth in vec3 fsViewSpacePos;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
@@ -54,6 +55,19 @@ layout (location = 4) out vec3 gRoughnessMetallicAmbient;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
 layout (location = 5) out vec4 gStructureBuffer;
+
+// See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
+vec4 calculateStructureOutput(float z) {
+    // 0xFFFFE000 allows us to extract the upper 10 bits of precision. z - h then
+    // Removes the upper 10 bits of precision and leaves us with at least 11 bits of precision.
+    //
+    // When h and z - h are later recombined, the result will have at least 21 of the original
+    // 23 floating point mantissa.
+    float h = uintBitsToFloat(floatBitsToUint(z) & 0xFFFFE000U);
+    //return vec4(dFdx(z), dFdy(z), h, z - h);
+    z = z * 16.0;
+    return vec4(vec3(z), 1.0);
+}
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
@@ -117,5 +131,5 @@ void main() {
     gAlbedo = baseColor;
     gBaseReflectivity = fsBaseReflectivity;
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
-    gStructureBuffer = vec4(1.0);
+    gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
 }
