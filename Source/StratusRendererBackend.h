@@ -131,11 +131,12 @@ namespace stratus {
     class RendererBackend {
         struct GBuffer {
             FrameBuffer fbo;
-            Texture position;                 // RGBA32F (rgba instead of rgb due to possible alignment issues)
-            Texture normals;                  // RGBA32F
-            Texture albedo;                   // RGBA32F
-            Texture baseReflectivity;         // RGBA32F
-            Texture roughnessMetallicAmbient; // RGBA32F
+            Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
+            Texture normals;                  // RGB16F
+            Texture albedo;                   // RGB16F
+            Texture baseReflectivity;         // RGB16F
+            Texture roughnessMetallicAmbient; // RGB16F
+            Texture structure;                // RGBA16F
             Texture depth;                    // R16F
         };
 
