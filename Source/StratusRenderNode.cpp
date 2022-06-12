@@ -215,7 +215,7 @@ namespace stratus {
     }
 
     bool RenderMesh::Complete() const {
-        return !_isCpuDirty && !_isGpuDirty && !_isGpuDataDirty;
+        return !_isCpuDirty && !_isGpuDirty && !_isGpuDataDirty && !_buffers.IsMemoryMapped();
     }
 
     const GpuArrayBuffer& RenderMesh::GetData() const {
@@ -229,7 +229,7 @@ namespace stratus {
 
         // We don't want to run if our memory is mapped since another thread might be
         // writing data to a buffer's memory region
-        //if (!Complete() || _buffers.IsMemoryMapped()) return;
+        if (!Complete()) return;
 
         //if (_primitiveMapped != nullptr || _indicesMapped != nullptr) {
         //    //_buffers.UnmapAllReadWrite();
