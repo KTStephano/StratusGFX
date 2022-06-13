@@ -64,9 +64,7 @@ vec4 calculateStructureOutput(float z) {
     // When h and z - h are later recombined, the result will have at least 21 of the original
     // 23 floating point mantissa.
     float h = uintBitsToFloat(floatBitsToUint(z) & 0xFFFFE000U);
-    //return vec4(dFdx(z), dFdy(z), h, z - h);
-    z = z * 16.0;
-    return vec4(vec3(z), 1.0);
+    return vec4(dFdx(z), dFdy(z), h, z - h);
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
