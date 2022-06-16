@@ -193,6 +193,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.csmDepth.get());
 
+    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/ssao.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.ssaoOcclude.get());
+
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
@@ -200,6 +205,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _ValidateAllShaders();
 
     _state.dummyCubeMap = CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+
+    // Init constant SSAO data
+    _InitSSAO();
 
     // Create a pool of shadow maps for point lights to use
     for (int i = 0; i < _state.numShadowMaps; ++i) {
@@ -500,9 +508,6 @@ void RendererBackend::_InitSSAO() {
     _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, (const void *)&table[0]);
     _state.ssaoOffsetLookup.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.ssaoOffsetLookup.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
-
-    // Create the occlusion and occlusion blur buffers
-
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -813,6 +818,22 @@ void RendererBackend::_RenderCSMDepth() {
     glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
+void RendererBackend::_RenderSsaoOcclude() {
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    _state.ssaoOcclusionBuffer.bind();
+    _BindShader(_state.ssaoOcclude.get());
+    _state.ssaoOcclude->setMat4("view", &_frame->camera->getViewTransform()[0][0]);
+    _state.lighting->bindTexture("gLightFactor", _state.ssaoOcclusionTexture);
+    _RenderQuad();
+    _state.ssaoOcclusionBuffer.unbind();
+    _UnbindShader();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void RendererBackend::RenderScene() {
     CHECK_IS_APPLICATION_THREAD();
 
@@ -930,12 +951,15 @@ void RendererBackend::RenderScene() {
     }
     _state.buffer.fbo.unbind();
 
-    glDisable(GL_CULL_FACE);
     //glEnable(GL_BLEND);
 
+    // Begin first SSAO pass (occlusion)
+    _RenderSsaoOcclude();
+
     // Begin deferred lighting pass
-    _state.lightingFbo.bind();
+    glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
+    _state.lightingFbo.bind();
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
     _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);

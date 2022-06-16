@@ -190,6 +190,10 @@ namespace stratus {
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass
             std::unique_ptr<Pipeline> forward;
+            // Handles first SSAO pass (no blurring)
+            std::unique_ptr<Pipeline> ssaoOcclude;
+            // Handles second SSAO pass (blurring)
+            std::unique_ptr<Pipeline> ssaoBlur;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
             std::unique_ptr<Pipeline> bloom;
@@ -364,6 +368,7 @@ namespace stratus {
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _RenderCSMDepth();
         void _RenderQuad();
+        void _RenderSsaoOcclude();
         TextureHandle _GetShadowMapHandleForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);
