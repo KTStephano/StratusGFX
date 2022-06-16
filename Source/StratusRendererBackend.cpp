@@ -5,6 +5,9 @@
 #include "StratusRendererBackend.h"
 #include <math.h>
 #include <cmath>
+#include <algorithm>
+#include <random>
+#include <numeric>
 #include "StratusUtils.h"
 #include "StratusMath.h"
 #include "StratusLog.h"
@@ -341,6 +344,22 @@ void RendererBackend::_UpdateWindowDimensions() {
         return;
     }
 
+    // Code to create the SSAO fbo
+    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionBuffer = FrameBuffer({_state.ssaoOcclusionTexture});
+    if (!_state.ssaoOcclusionBuffer.valid()) {
+        _isValid = false;
+        return;
+    }
+
+    // Code to create the SSAO blurred fbo
+    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionBlurredBuffer = FrameBuffer({_state.ssaoOcclusionBlurredTexture});
+    if (!_state.ssaoOcclusionBlurredBuffer.valid()) {
+        _isValid = false;
+        return;
+    }
+
     _InitializePostFxBuffers();
 }
 
@@ -459,6 +478,31 @@ void RendererBackend::_InitAllInstancedData() {
     }
 
 #undef INIT_INST_DATA
+}
+
+void RendererBackend::_InitSSAO() {
+    // Create k values 0 to 15 and randomize them
+    std::vector<float> ks(16);
+    std::iota(ks.begin(), ks.end(), 0.0f);
+    std::shuffle(ks.begin(), ks.end(), std::default_random_engine{});
+
+    // Create the data for the 4x4 lookup table
+    float table[16 * 3]; // RGB
+    for (size_t i = 0; i < ks.size(); ++i) {
+        const float k = ks[i];
+        const Radians r(2.0f * float(STRATUS_PI) * k / 16.0f);
+        table[i * 3    ] = cosine(r).value();
+        table[i * 3 + 1] = sine(r).value();
+        table[i * 3 + 2] = 0.0f;
+    }
+
+    // Create the lookup texture
+    _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, (const void *)&table[0]);
+    _state.ssaoOffsetLookup.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.ssaoOffsetLookup.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+
+    // Create the occlusion and occlusion blur buffers
+
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -774,11 +818,6 @@ void RendererBackend::RenderScene() {
 
     const Camera& c = *_frame->camera;
 
-    const int maxInstances = 250;
-    const int maxShadowCastingLights = 8;
-    const int maxTotalLights = 256;
-    const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
-
     std::unordered_map<LightPtr, bool> perLightIsDirty;
     std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
     // This one is just for shadow-casting lights
@@ -804,13 +843,13 @@ void RendererBackend::RenderScene() {
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > maxTotalLights) {
-        perLightDistToViewer.resize(maxTotalLights);
+    if (perLightDistToViewer.size() > _state.maxTotalLights) {
+        perLightDistToViewer.resize(_state.maxTotalLights);
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > maxShadowCastingLights) {
-        perLightShadowCastingDistToViewer.resize(maxShadowCastingLights);
+    if (perLightShadowCastingDistToViewer.size() > _state.maxShadowCastingLights) {
+        perLightShadowCastingDistToViewer.resize(_state.maxShadowCastingLights);
     }
 
     // Set blend func just for shadow pass
@@ -820,7 +859,7 @@ void RendererBackend::RenderScene() {
     _BindShader(_state.shadows.get());
     int shadowUpdates = 0;
     for (auto&[light, d] : perLightShadowCastingDistToViewer) {
-        if (shadowUpdates > maxShadowUpdatesPerFrame) break;
+        if (shadowUpdates > _state.maxShadowUpdatesPerFrame) break;
         ++shadowUpdates;
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
@@ -899,7 +938,7 @@ void RendererBackend::RenderScene() {
     glDisable(GL_DEPTH_TEST);
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
-    _InitLights(_state.lighting.get(), perLightDistToViewer, maxShadowCastingLights);
+    _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
     _state.lighting->bindTexture("gPosition", _state.buffer.position);
     _state.lighting->bindTexture("gNormal", _state.buffer.normals);
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);

@@ -7,6 +7,8 @@
 #include <ostream>
 #include "glm/glm.hpp"
 
+#define STRATUS_PI (M_PI)
+
 namespace stratus {
 	class Degrees;
 	class Radians {

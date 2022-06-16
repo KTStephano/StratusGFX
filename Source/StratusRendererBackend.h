@@ -147,6 +147,10 @@ namespace stratus {
         struct RenderState {
             int numShadowMaps = 20;
             int shadowCubeMapX = 1024, shadowCubeMapY = 1024;
+            int maxShadowCastingLights = 8; // per frame
+            int maxTotalLights = 256; // active in a frame
+            // How many shadow maps can be rebuilt each frame
+            int maxShadowUpdatesPerFrame = maxShadowCastingLights;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -157,6 +161,12 @@ namespace stratus {
             // Used for effects like bloom
             Texture lightingHighBrightnessBuffer;
             Texture lightingDepthBuffer;
+            // Used for Screen Space Ambient Occlusion (SSAO)
+            Texture ssaoOffsetLookup;               // 4x4 table where each pixel is (16-bit, 16-bit)
+            Texture ssaoOcclusionTexture;
+            FrameBuffer ssaoOcclusionBuffer;        // Contains light factors computed per pixel
+            Texture ssaoOcclusionBlurredTexture;
+            FrameBuffer ssaoOcclusionBlurredBuffer; // Counteracts low sample count of occlusion buffer by depth-aware blurring
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -343,6 +353,7 @@ namespace stratus {
         void _ClearFramebufferData(const bool);
         void _InitAllInstancedData();
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
+        void _InitSSAO();
         void _InitInstancedData(RendererEntityData &);
         void _ClearInstancedData();
         void _BindShader(Pipeline *);
