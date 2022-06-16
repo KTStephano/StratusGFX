@@ -825,7 +825,8 @@ void RendererBackend::_RenderSsaoOcclude() {
     _state.ssaoOcclusionBuffer.bind();
     _BindShader(_state.ssaoOcclude.get());
     _state.ssaoOcclude->setMat4("view", &_frame->camera->getViewTransform()[0][0]);
-    _state.lighting->bindTexture("gLightFactor", _state.ssaoOcclusionTexture);
+    _state.ssaoOcclude->bindTexture("structureBuffer", _state.buffer.structure);
+    _state.ssaoOcclude->bindTexture("rotationLookup", _state.ssaoOffsetLookup);
     _RenderQuad();
     _state.ssaoOcclusionBuffer.unbind();
     _UnbindShader();
@@ -943,7 +944,6 @@ void RendererBackend::RenderScene() {
     glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
 
     // Begin geometry pass
-    //glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
         const RenderNodeView& e = entityObservers.first;
