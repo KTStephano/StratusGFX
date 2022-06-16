@@ -76,7 +76,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         return;
     }
 
-    // Set the profile to core as opposed to immediate mode
+    // Set the profile to core as opposed to compatibility mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Set max/min version
     //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -438,6 +438,7 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     if (clearScreen) {
         const glm::vec4& color = _frame->clearColor;
         _state.buffer.fbo.clear(color);
+        _state.ssaoOcclusionBuffer.clear(color);
         _state.lightingFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
@@ -822,8 +823,8 @@ void RendererBackend::_RenderSsaoOcclude() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
-    _state.ssaoOcclusionBuffer.bind();
     _BindShader(_state.ssaoOcclude.get());
+    _state.ssaoOcclusionBuffer.bind();
     _state.ssaoOcclude->setMat4("view", &_frame->camera->getViewTransform()[0][0]);
     _state.ssaoOcclude->bindTexture("structureBuffer", _state.buffer.structure);
     _state.ssaoOcclude->bindTexture("rotationLookup", _state.ssaoOffsetLookup);
