@@ -65,6 +65,7 @@ uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
+uniform sampler2D ssao;
 
 /**
  * Information about the camera
@@ -345,7 +346,8 @@ void main() {
     vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b;
+    // Note that we take the AO that may have been packed into a texture and augment it by SSAO
+    float ambient = texture(ssao, texCoords).r;//texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 color = vec3(0.0);

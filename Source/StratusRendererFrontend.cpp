@@ -295,6 +295,7 @@ namespace stratus {
         _frame->projection     = _projection;
         _frame->viewportWidth  = _params.viewportWidth;
         _frame->viewportHeight = _params.viewportHeight;
+        _frame->fovy           = Radians(_params.fovy);
     }
 
     void RendererFrontend::_UpdateCascadeTransforms() {

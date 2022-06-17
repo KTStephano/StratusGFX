@@ -1,7 +1,5 @@
 #version 410 core
 
-uniform mat4 view;
-
 smooth in vec2 fsTexCoords;
 
 // Structure buffer containing dFdx, dFdy, and z (split into 2 16-bit parts)
@@ -37,11 +35,11 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
     float vectorScale = 2.0 * s / (w * g);
 
     // Create the base offset vectors
-    const vec4 dx[4] = {0.25 * r, 0.0    , -0.75 * r, 0.0};
-    const vec4 dy[4] = {0.0     , 0.5 * r, 0.0      , -r };
+    const float dx[4] = float[](0.25 * r, 0.0    , -0.75 * r, 0.0);
+    const float dy[4] = float[](0.0     , 0.5 * r, 0.0      , -r );
 
-    float4 structure = texture(structureBuffer, pixelCoords);
-    float z0 = texture.z + texture.w;
+    vec4 structure = texture(structureBuffer, pixelCoords);
+    float z0 = structure.z + structure.w;
 
     float scale = z0 * vectorScale;
     vec3 normal = normalize(vec3(structure.xy, -scale));
@@ -73,8 +71,8 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
         // Compute H(v)
         float Hv = wv * fv;
 
-        occluision += Hv;
-        weight     += wv;
+        occlusion += Hv;
+        weight    += wv;
     }
 
     // Use 0.0001 for cases when weight is 0 or extremely close to it
@@ -82,5 +80,5 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
 }
 
 void main() {
-    gLightFactor = 0.5;
+    gLightFactor = calculateAmbientOcclusion(fsTexCoords);
 }

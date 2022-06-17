@@ -80,6 +80,7 @@ namespace stratus {
     struct RendererFrame {
         uint32_t viewportWidth;
         uint32_t viewportHeight;
+        Radians fovy;
         CameraPtr camera;
         RendererCascadeContainer csc;
         InstancedData instancedPbrMeshes;

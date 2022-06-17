@@ -354,6 +354,8 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Code to create the SSAO fbo
     _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.ssaoOcclusionTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBuffer = FrameBuffer({_state.ssaoOcclusionTexture});
     if (!_state.ssaoOcclusionBuffer.valid()) {
         _isValid = false;
@@ -362,6 +364,8 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Code to create the SSAO blurred fbo
     _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionBlurredTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.ssaoOcclusionBlurredTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBlurredBuffer = FrameBuffer({_state.ssaoOcclusionBlurredTexture});
     if (!_state.ssaoOcclusionBlurredBuffer.valid()) {
         _isValid = false;
@@ -823,11 +827,22 @@ void RendererBackend::_RenderSsaoOcclude() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
+    // Aspect ratio
+    const float ar        = float(_frame->viewportWidth) / float(_frame->viewportHeight);
+    // Distance to the view projection plane
+    const float g         = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
+    const float w         = _frame->viewportWidth;
+    // Gets fed into sigma value
+    const float intensity = 1.0f;
+
     _BindShader(_state.ssaoOcclude.get());
     _state.ssaoOcclusionBuffer.bind();
-    _state.ssaoOcclude->setMat4("view", &_frame->camera->getViewTransform()[0][0]);
     _state.ssaoOcclude->bindTexture("structureBuffer", _state.buffer.structure);
     _state.ssaoOcclude->bindTexture("rotationLookup", _state.ssaoOffsetLookup);
+    _state.ssaoOcclude->setFloat("aspectRatio", ar);
+    _state.ssaoOcclude->setFloat("projPlaneZDist", g);
+    _state.ssaoOcclude->setFloat("windowWidth", w);
+    _state.ssaoOcclude->setFloat("intensity", intensity);
     _RenderQuad();
     _state.ssaoOcclusionBuffer.unbind();
     _UnbindShader();
@@ -969,6 +984,7 @@ void RendererBackend::RenderScene() {
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
     _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
+    _state.lighting->bindTexture("ssao", _state.ssaoOcclusionTexture);
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();
