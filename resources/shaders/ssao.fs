@@ -63,7 +63,7 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
 
         // Compute f(v)
         float c  = max(dot(normal, normalize(v)) - tau, 0.0);
-        float fv = 1 - sqrt(1.0 - c * c);
+        float fv = 1.0 - sqrt(1.0 - c * c);
 
         // Compute w(v)
         float wv = saturate(1.0 - dot(normal, v) / dmax);
