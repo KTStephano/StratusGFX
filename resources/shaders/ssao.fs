@@ -8,6 +8,10 @@ smooth in vec2 fsTexCoords;
 uniform sampler2D structureBuffer;
 // Allows us to add variation to the pixels we sample to help avoid poor quality
 uniform sampler2D rotationLookup;
+uniform float aspectRatio;    // s
+uniform float projPlaneZDist; // g
+uniform float windowWidth;    // w
+uniform float intensity;      // sigma
 
 // GBuffer output
 layout (location = 0) out float gLightFactor;
@@ -19,6 +23,62 @@ vec3 saturate(vec3 value) {
 
 float saturate(float value) {
     return clamp(value, 0.0, 1.0);
+}
+
+float calculateAmbientOcclusion(vec2 pixelCoords) {
+    // In glsl, const refers to constant expression
+    const float tau   = 1.0 / 32.0;
+    const float dmax  = 2.0;
+    float s           = aspectRatio;
+    float g           = projPlaneZDist;
+    float w           = windowWidth;
+    float sigma       = intensity;
+    const float r     = 0.4;
+    float vectorScale = 2.0 * s / (w * g);
+
+    // Create the base offset vectors
+    const vec4 dx[4] = {0.25 * r, 0.0    , -0.75 * r, 0.0};
+    const vec4 dy[4] = {0.0     , 0.5 * r, 0.0      , -r };
+
+    float4 structure = texture(structureBuffer, pixelCoords);
+    float z0 = texture.z + texture.w;
+
+    float scale = z0 * vectorScale;
+    vec3 normal = normalize(vec3(structure.xy, -scale));
+    scale = 1.0 / scale; // w * g / (2.0 * s)
+
+    // Pull out rotation values so we can calculate final offsets
+    vec2 rotation   = texture(rotationLookup, 0.25 * pixelCoords).xy;
+    float occlusion = 0.0;
+    float weight    = 0.0;
+
+    for (int i = 0; i < 4; ++i) {
+        vec3 v;
+
+        // Compute vector v which is the rotated offset vector
+        v.x = rotation.x * dx[i] - rotation.y * dy[i]; // delta x camera
+        v.y = rotation.y * dx[i] + rotation.x * dy[i]; // delta y camera
+
+        vec2 depth = texture(structureBuffer, pixelCoords + v.xy * scale).zw;
+        float z    = depth.x + depth.y;
+        v.z        = z - z0;
+
+        // Compute f(v)
+        float c  = max(dot(normal, normalize(v)) - tau, 0.0);
+        float fv = 1 - sqrt(1.0 - c * c);
+
+        // Compute w(v)
+        float wv = saturate(1.0 - dot(normal, v) / dmax);
+
+        // Compute H(v)
+        float Hv = wv * fv;
+
+        occluision += Hv;
+        weight     += wv;
+    }
+
+    // Use 0.0001 for cases when weight is 0 or extremely close to it
+    return 1.0 - sigma * occlusion / max(weight, 0.0001);
 }
 
 void main() {
