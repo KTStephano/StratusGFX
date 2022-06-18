@@ -187,6 +187,9 @@ namespace stratus {
         Rotation _rotation;
         glm::vec3 _scale = glm::vec3(1.0f);
         glm::mat4 _localTransform = glm::mat4(1.0f);
+        glm::mat4 _worldScale = glm::mat4(1.0f);
+        glm::mat4 _worldRotate = glm::mat4(1.0f);
+        glm::mat4 _worldTranslate = glm::mat4(1.0f);
         glm::mat4 _worldTransform = glm::mat4(1.0f);
     };
 

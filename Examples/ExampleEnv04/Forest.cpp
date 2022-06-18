@@ -99,7 +99,7 @@ public:
         stratus::RendererFrontend::Instance()->SetCamera(camera);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/forest/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/stylized_hunters_lodge/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { forest = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(forest); });
 
         bool running = true;
@@ -366,7 +366,7 @@ public:
 
         if (forest) {
            forest->SetLocalPosition(glm::vec3(0.0f));
-           forest->SetLocalScale(glm::vec3(10.0f));
+           forest->SetLocalScale(glm::vec3(1.0f));
         }
 
         //renderer->addDrawable(rocks);
