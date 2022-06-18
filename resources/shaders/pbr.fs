@@ -52,12 +52,12 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 10
 #define SPECULAR_MULTIPLIER 128.0
-#define WORLD_LIGHT_AMBIENT_INTENSITY 0.05
-#define POINT_LIGHT_AMBIENT_INTENSITY 0.003
 //#define AMBIENT_INTENSITY 0.00025
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 
+uniform float worldLightAmbientIntensity = 0.003;
+uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
 uniform sampler2D gPosition;
@@ -295,7 +295,7 @@ vec3 calculatePointAmbient(vec3 fragPosition, vec3 baseColor, int lightIndex, co
     vec3 lightDir   = lightPos - fragPosition;
     float lightDist = length(lightDir);
     float attenuationFactor = 1.0 / (1.0 + lightDist * lightDist);
-    vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY;
+    vec3 ambient = baseColor * ao * lightColor * pointLightAmbientIntensity;
     return attenuationFactor * ambient;
 }
 
@@ -337,7 +337,7 @@ vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3
     vec3 lightColor = lightColors[lightIndex];
     vec3 lightDir   = lightPos - fragPosition;
 
-    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), POINT_LIGHT_AMBIENT_INTENSITY);
+    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
 }
 
 void main() {
@@ -390,7 +390,7 @@ void main() {
                                   dot(cascadePlanes[2], vec4(fragPos, 1.0)));
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
-        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
+        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, worldLightAmbientIntensity);
     }
     else {
         color = color + baseColor * ambient * ambientIntensity;

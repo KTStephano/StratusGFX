@@ -126,25 +126,16 @@ namespace stratus {
         _lightsDirty = true;
     }
 
-    void RendererFrontend::SetWorldLightingEnabled(const bool enabled) {
+    void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
+        if (light == nullptr) return;
         auto ul = _LockWrite();
-        _worldLight.enabled = enabled;
+        _worldLight = light;
     }
 
-    void RendererFrontend::SetWorldLightColor(const glm::vec3& color) {
+    void RendererFrontend::ClearWorldLight() {
         auto ul = _LockWrite();
-        _worldLight.color = color;
-    }
-
-    void RendererFrontend::SetWorldLightIntensity(float intensity) {
-        if (intensity < 0.0f) return;
-        auto ul = _LockWrite();
-        _worldLight.intensity = intensity;
-    }
-
-    void RendererFrontend::SetWorldLightRotation(const Rotation& rot) {
-        auto ul = _LockWrite();
-        _worldLight.rotation = rot;
+        // Create a dummy world light that is disabled
+        _worldLight = InfiniteLightPtr(new InfiniteLight(false));
     }
 
     void RendererFrontend::SetCamera(const CameraPtr& camera) {
@@ -247,7 +238,8 @@ namespace stratus {
         _frame->csc.cascades.resize(4);
         _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
-        _frame->csc.worldLightingEnabled = _worldLight.enabled;
+
+        ClearWorldLight();
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
@@ -305,7 +297,7 @@ namespace stratus {
 
         _frame->csc.worldLightCamera = CameraPtr(new Camera(false));
         auto worldLightCamera = _frame->csc.worldLightCamera;
-        worldLightCamera->setAngle(_worldLight.rotation);
+        worldLightCamera->setAngle(_worldLight->getRotation());
 
         // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
         //
@@ -622,6 +614,9 @@ namespace stratus {
         }
         _lightsToRemove.clear();
 
+        // Update the world light
+        _frame->csc.worldLight = _worldLight->Copy();
+
         // Now go through and update all lights that have changed in some way
         for (auto& entry : _lights) {
             auto  light = entry.first;
@@ -700,10 +695,6 @@ namespace stratus {
         };
 
         std::unordered_set<EntityView> visible(16);
-
-        _frame->csc.worldLightingEnabled = _worldLight.enabled;
-        _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
-
         const size_t numCascades = _frame->csc.cascades.size();
         const float maxDist = _params.zfar;
         

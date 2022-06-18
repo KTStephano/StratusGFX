@@ -70,10 +70,9 @@ namespace stratus {
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
-        glm::vec3 worldLightColor;
+        InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
-        bool regenerateFbo;
-        bool worldLightingEnabled;
+        bool regenerateFbo;    
     };
 
     // Represents data for current active frame

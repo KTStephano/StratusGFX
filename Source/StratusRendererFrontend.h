@@ -34,13 +34,6 @@ namespace stratus {
             bool dirty = true;
         };
 
-        struct WorldLightData {
-            bool enabled = false;
-            glm::vec3 color = glm::vec3(1.0f);
-            float intensity = 1.0f;
-            Rotation rotation;
-        };
-
         struct EntityStateData {
             glm::vec3 lastPosition;
             glm::vec3 lastScale;
@@ -58,10 +51,8 @@ namespace stratus {
         void AddLight(const LightPtr&);
         void RemoveLight(const LightPtr&);
         void ClearLights();
-        void SetWorldLightingEnabled(const bool);
-        void SetWorldLightColor(const glm::vec3&);
-        void SetWorldLightIntensity(float);
-        void SetWorldLightRotation(const Rotation&);
+        void SetWorldLight(const InfiniteLightPtr&);
+        void ClearWorldLight();
 
         void SetCamera(const CameraPtr&);
         void SetViewportDims(const uint32_t width, const uint32_t height);
@@ -105,9 +96,9 @@ namespace stratus {
         std::unordered_map<EntityView, EntityStateData> _dynamicPbrEntities;
         std::unordered_map<EntityView, EntityStateData> _flatEntities;
         std::unordered_map<LightPtr, LightData> _lights;
+        InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
         CameraPtr _camera;
-        WorldLightData _worldLight;
         glm::mat4 _projection = glm::mat4(1.0f);
         bool _staticPbrDirty = true;
         bool _dynamicPbrDirty = true;

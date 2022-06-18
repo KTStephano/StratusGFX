@@ -49,7 +49,7 @@ namespace stratus {
 
     const std::vector<EntityComponentPtr>& Entity::GetComponents() const {
         throw std::runtime_error("Implement");
-
+        
     }
 
     const glm::vec3& Entity::GetLocalPosition() const {

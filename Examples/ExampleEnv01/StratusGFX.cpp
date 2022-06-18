@@ -1,4 +1,5 @@
 #include "StratusCommon.h"
+#include "StratusMath.h"
 #include "glm/glm.hpp"
 #include <iostream>
 #include <StratusPipeline.h>
@@ -97,6 +98,8 @@ public:
 
         camera = stratus::CameraPtr(new stratus::Camera());
         stratus::RendererFrontend::Instance()->SetCamera(camera);
+
+        worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
 
         // For textures see https://3dtextures.me/
         textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg", true));
@@ -209,7 +212,7 @@ public:
             stratus::RendererFrontend::Instance()->AddLight(cameraLight);
         }
 
-        worldLight.setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
+        worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
 
         return true;
     }
@@ -217,7 +220,8 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        float value = 1.0f;
+        const float value = 3.0f;
+        const float maxAmbientIntensity = 0.03;
         if (stratus::Engine::Instance()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
@@ -282,7 +286,7 @@ public:
                             break;
                         case SDL_SCANCODE_I:
                             if (released) {
-                                worldLightEnabled = !worldLightEnabled;
+                                worldLight->setEnabled( !worldLight->getEnabled() );
                             }
                             break;
                         case SDL_SCANCODE_P:
@@ -290,16 +294,19 @@ public:
                                 worldLightPaused = !worldLightPaused;
                             }
                             break;
-                        case SDL_SCANCODE_UP:
-                            worldLightBrightness += lightIncreaseSpeed * deltaSeconds;
-                            worldLightBrightness = std::min(maxLightBrightness, worldLightBrightness);
-                            STRATUS_LOG << "Brightness: " << worldLightBrightness << std::endl;
+                        case SDL_SCANCODE_UP: {
+                            float brightness = worldLight->getIntensity() + lightIncreaseSpeed * deltaSeconds;
+                            brightness = std::min(maxLightBrightness, brightness);
+                            worldLight->setIntensity(brightness);
+                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
                             break;
-                        case SDL_SCANCODE_DOWN:
-                            worldLightBrightness -= lightIncreaseSpeed * deltaSeconds;
-                            worldLightBrightness = std::max(0.0f, worldLightBrightness);
-                            STRATUS_LOG << "Brightness: " << worldLightBrightness << std::endl;
+                        }
+                        case SDL_SCANCODE_DOWN: {
+                            float brightness = worldLight->getIntensity() - lightIncreaseSpeed * deltaSeconds;
+                            worldLight->setIntensity(brightness);
+                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
                             break;
+                        }
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
@@ -422,21 +429,18 @@ public:
         // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         if (!worldLightPaused) {
-            worldLight.offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
+            STRATUS_LOG << worldLight->getAmbientIntensity() << std::endl;
+            worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
         }
 
         //renderer->toggleWorldLighting(worldLightEnabled);
-        stratus::RendererFrontend::Instance()->SetWorldLightingEnabled(worldLightEnabled);
+        stratus::RendererFrontend::Instance()->SetWorldLight(worldLight);
         // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        worldLight.setColor(glm::vec3(1.0f));
-        worldLight.setIntensity(worldLightBrightness);
-        worldLight.setPosition(camera->getPosition());
+        worldLight->setColor(glm::vec3(1.0f));
+        worldLight->setPosition(camera->getPosition());
         //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
-        stratus::RendererFrontend::Instance()->SetWorldLightColor(worldLight.getColor());
-        stratus::RendererFrontend::Instance()->SetWorldLightIntensity(worldLightBrightness);
-        stratus::RendererFrontend::Instance()->SetWorldLightRotation(worldLight.getRotation());
 
         // Check mouse state
         uint32_t buttonState = stratus::RendererFrontend::Instance()->GetMouseState().mask;
@@ -544,12 +548,10 @@ private:
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
     stratus::LightPtr cameraLight;
-    stratus::InfiniteLight worldLight;
+    stratus::InfiniteLightPtr worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
     bool camLightEnabled = true;
-    bool worldLightEnabled = true;
     bool worldLightPaused = true;
-    float worldLightBrightness = 5.0f;
 };
 
 STRATUS_ENTRY_POINT(StratusGFX)

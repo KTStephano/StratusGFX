@@ -494,7 +494,7 @@ void RendererBackend::_InitAllInstancedData() {
     }
 
     // Cascades
-    if (_frame->csc.worldLightingEnabled) {
+    if (_frame->csc.worldLight->getEnabled()) {
         INIT_INST_DATA(_frame->csc.visible)
     }
 
@@ -971,7 +971,7 @@ void RendererBackend::RenderScene() {
     _UnbindShader();
 
     // Perform world light depth pass if enabled
-    if (_frame->csc.worldLightingEnabled) {
+    if (_frame->csc.worldLight->getEnabled()) {
         _RenderCSMDepth();
     }
 
@@ -1271,11 +1271,12 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
-    s->setBool("infiniteLightingEnabled", _frame->csc.worldLightingEnabled);
+    s->setBool("infiniteLightingEnabled", _frame->csc.worldLight->getEnabled());
     s->setVec3("infiniteLightDirection", &direction[0]);
-    lightColor = _frame->csc.worldLightColor;
+    lightColor = _frame->csc.worldLight->getLuminance();
     s->setVec3("infiniteLightColor", &lightColor[0]);
-
+    s->setFloat("worldLightAmbientIntensity", _frame->csc.worldLight->getAmbientIntensity());
+    
     s->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
     for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
