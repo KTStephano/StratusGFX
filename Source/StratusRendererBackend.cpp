@@ -841,7 +841,7 @@ void RendererBackend::_RenderSsaoOcclude() {
     const float g         = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
     const float w         = _frame->viewportWidth;
     // Gets fed into sigma value
-    const float intensity = 3.5f;
+    const float intensity = 5.0f;
 
     _BindShader(_state.ssaoOcclude.get());
     _state.ssaoOcclusionBuffer.bind();
