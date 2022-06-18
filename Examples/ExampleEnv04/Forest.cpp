@@ -83,12 +83,12 @@ struct StationaryLight : public RandomLightMover {
     }
 };
 
-class Interrogation : public stratus::Application {
+class Forest : public stratus::Application {
 public:
-    virtual ~Interrogation() = default;
+    virtual ~Forest() = default;
 
     std::string GetAppName() const override {
-        return "Interrogation";
+        return "Forest";
     }
 
     // Perform first-time initialization - true if success, false otherwise
@@ -99,8 +99,8 @@ public:
         stratus::RendererFrontend::Instance()->SetCamera(camera);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { interrogationRoom = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(interrogationRoom); });
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/forest/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { forest = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(forest); });
 
         bool running = true;
 
@@ -364,9 +364,9 @@ public:
         cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-        if (interrogationRoom) {
-           interrogationRoom->SetLocalPosition(glm::vec3(0.0f));
-           interrogationRoom->SetLocalScale(glm::vec3(0.125f));
+        if (forest) {
+           forest->SetLocalPosition(glm::vec3(0.0f));
+           forest->SetLocalScale(glm::vec3(10.0f));
         }
 
         //renderer->addDrawable(rocks);
@@ -395,7 +395,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr interrogationRoom;
+    stratus::EntityPtr forest;
     std::vector<stratus::EntityPtr> entities;
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
@@ -405,10 +405,10 @@ private:
     stratus::LightPtr cameraLight;
     stratus::InfiniteLight worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    bool camLightEnabled = true;
-    bool worldLightEnabled = false;
+    bool camLightEnabled = false;
+    bool worldLightEnabled = true;
     bool worldLightPaused = true;
     float worldLightBrightness = 5.0f;
 };
 
-STRATUS_ENTRY_POINT(Interrogation)
+STRATUS_ENTRY_POINT(Forest)
