@@ -1,4 +1,5 @@
 #include "StratusTexture.h"
+#include "StratusLog.h"
 #include <GL/gl3w.h>
 #include <exception>
 #include <unordered_set>
@@ -23,8 +24,8 @@ namespace stratus {
             _config = config;
 
             bind();
-            if (config.type == TextureType::TEXTURE_2D) {
-                glTexImage2D(GL_TEXTURE_2D, // target
+            if (config.type == TextureType::TEXTURE_2D || config.type == TextureType::TEXTURE_RECTANGLE) {
+                glTexImage2D(_convertTexture(config.type), // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, 
@@ -50,7 +51,7 @@ namespace stratus {
                     data
                 );
             }
-            else {
+            else if (config.type == TextureType::TEXTURE_3D) {
                 for (int face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 
@@ -64,7 +65,12 @@ namespace stratus {
                     );
                 }
             }
-            if (config.generateMipMaps) glGenerateMipmap(_convertTexture(_config.type));
+            else {
+                throw std::runtime_error("Unknown texture type specified");
+            }
+
+            // Mipmaps aren't generated for rectangle textures
+            if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateMipmap(_convertTexture(_config.type));
             unbind();
         }
 
@@ -85,6 +91,11 @@ namespace stratus {
         TextureImpl & operator=(TextureImpl &&) = delete;
 
         void setCoordinateWrapping(TextureCoordinateWrapping wrap) {
+            if (_config.type == TextureType::TEXTURE_RECTANGLE && (wrap != TextureCoordinateWrapping::CLAMP_TO_BORDER && wrap != TextureCoordinateWrapping::CLAMP_TO_EDGE)) {
+                STRATUS_ERROR << "Texture_Rectangle ONLY supports clamp to edge and clamp to border" << std::endl;
+                throw std::runtime_error("Invalid Texture_Rectangle coordinate wrapping");
+            }
+
             bind();
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
@@ -148,6 +159,7 @@ namespace stratus {
             case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
             case TextureType::TEXTURE_2D_ARRAY: return GL_TEXTURE_2D_ARRAY;
             case TextureType::TEXTURE_3D: return GL_TEXTURE_CUBE_MAP;
+            case TextureType::TEXTURE_RECTANGLE: return GL_TEXTURE_RECTANGLE;
             default: throw std::runtime_error("Unknown texture type");
             }
         }
@@ -316,6 +328,7 @@ namespace stratus {
                 case TextureCoordinateWrapping::LINEAR: return GL_LINEAR;
                 case TextureCoordinateWrapping::MIRRORED_REPEAT: return GL_MIRRORED_REPEAT;
                 case TextureCoordinateWrapping::CLAMP_TO_EDGE: return GL_CLAMP_TO_EDGE;
+                case TextureCoordinateWrapping::CLAMP_TO_BORDER: return GL_CLAMP_TO_BORDER;
                 case TextureCoordinateWrapping::MIRROR_CLAMP_TO_EDGE: return GL_MIRROR_CLAMP_TO_EDGE;
                 default: throw std::runtime_error("Unknown coordinate wrapping");
             }

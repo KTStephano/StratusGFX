@@ -317,7 +317,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
-    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
     buffer.structure.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     buffer.structure.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -834,7 +834,7 @@ void RendererBackend::_RenderSsaoOcclude() {
     const float g         = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
     const float w         = _frame->viewportWidth;
     // Gets fed into sigma value
-    const float intensity = 1.0f;
+    const float intensity = 5.0f;
 
     _BindShader(_state.ssaoOcclude.get());
     _state.ssaoOcclusionBuffer.bind();
@@ -842,6 +842,7 @@ void RendererBackend::_RenderSsaoOcclude() {
     _state.ssaoOcclude->bindTexture("rotationLookup", _state.ssaoOffsetLookup);
     _state.ssaoOcclude->setFloat("aspectRatio", ar);
     _state.ssaoOcclude->setFloat("projPlaneZDist", g);
+    _state.ssaoOcclude->setFloat("windowHeight", _frame->viewportHeight);
     _state.ssaoOcclude->setFloat("windowWidth", w);
     _state.ssaoOcclude->setFloat("intensity", intensity);
     _RenderQuad();

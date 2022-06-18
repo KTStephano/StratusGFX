@@ -20,7 +20,7 @@ uniform mat4 view;
 uniform vec3 viewPosition;
 
 smooth out vec3 fsPosition;
-out vec3 fsViewSpacePos;
+smooth out vec3 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 

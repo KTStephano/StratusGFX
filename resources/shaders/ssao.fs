@@ -3,11 +3,12 @@
 smooth in vec2 fsTexCoords;
 
 // Structure buffer containing dFdx, dFdy, and z (split into 2 16-bit parts)
-uniform sampler2D structureBuffer;
+uniform sampler2DRect structureBuffer;
 // Allows us to add variation to the pixels we sample to help avoid poor quality
 uniform sampler2D rotationLookup;
 uniform float aspectRatio;    // s
 uniform float projPlaneZDist; // g
+uniform float windowHeight;
 uniform float windowWidth;    // w
 uniform float intensity;      // sigma
 
@@ -23,6 +24,8 @@ float saturate(float value) {
     return clamp(value, 0.0, 1.0);
 }
 
+// Note we are using pixel coords (ranged [0, w-1], [0, h-1]) and not tex coords which are ranged [0, 1]
+// see https://stackoverflow.com/questions/25157306/gl-texture-2d-vs-gl-texture-rectangle
 float calculateAmbientOcclusion(vec2 pixelCoords) {
     // In glsl, const refers to constant expression
     const float tau   = 1.0 / 32.0;
@@ -80,5 +83,6 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
 }
 
 void main() {
-    gLightFactor = vec3(calculateAmbientOcclusion(fsTexCoords));
+    // TODO: Change this back to single channel - greyscale is just nicer to look at for debugging this in RenderDoc
+    gLightFactor = vec3(calculateAmbientOcclusion(fsTexCoords * vec2(windowWidth, windowHeight)));
 }

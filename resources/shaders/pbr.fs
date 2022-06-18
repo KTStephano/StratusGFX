@@ -347,7 +347,7 @@ void main() {
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
-    float ambient = texture(ssao, texCoords).r;//texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords).r;
+    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 color = vec3(0.0);

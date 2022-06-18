@@ -10,7 +10,9 @@ namespace stratus {
     enum class TextureType : int {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
-        TEXTURE_3D
+        TEXTURE_3D,
+        // Indexed in pixel coordinates instead of texture coordinates
+        TEXTURE_RECTANGLE
     };
 
     enum class TextureComponentFormat : int {
@@ -44,6 +46,7 @@ namespace stratus {
         LINEAR,
         MIRRORED_REPEAT,
         CLAMP_TO_EDGE,
+        CLAMP_TO_BORDER,
         MIRROR_CLAMP_TO_EDGE
     };
 

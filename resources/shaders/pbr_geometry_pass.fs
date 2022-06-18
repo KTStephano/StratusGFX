@@ -129,5 +129,6 @@ void main() {
     gAlbedo = baseColor;
     gBaseReflectivity = fsBaseReflectivity;
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
-    gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
+    //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
+    gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
 }
