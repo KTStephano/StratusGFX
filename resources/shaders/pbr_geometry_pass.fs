@@ -64,6 +64,8 @@ vec4 calculateStructureOutput(float z) {
     // When h and z - h are later recombined, the result will have at least 21 of the original
     // 23 floating point mantissa.
     float h = uintBitsToFloat(floatBitsToUint(z) & 0xFFFFE000U);
+    // See https://stackoverflow.com/questions/16365385/explanation-of-dfdx for an explanation of dFd(x|y)
+    // They are effectively calculating change in depth between nearest neighbors
     return vec4(dFdx(z), dFdy(z), h, z - h);
 }
 

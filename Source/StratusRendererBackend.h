@@ -370,6 +370,7 @@ namespace stratus {
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSsaoOcclude();
+        void _RenderSsaoBlur();
         TextureHandle _GetShadowMapHandleForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);
