@@ -11,7 +11,7 @@ uniform float windowWidth;
 uniform float windowHeight;
 
 // GBuffer output
-layout (location = 0) out vec3 gLightFactor;
+layout (location = 0) out float gLightFactor;
 
 // This function averages 4 adjacent pixels. If bilinear filtering is turned on (GL_LINEAR) for the
 // occlusion texture, this average becomes 16 total pixels with hardware averaging.
@@ -60,5 +60,5 @@ float blurAmbientOcclusion(vec2 pixelCoords) {
 }
 
 void main() {
-    gLightFactor = vec3(blurAmbientOcclusion(fsTexCoords * vec2(windowWidth, windowHeight)));
+    gLightFactor = blurAmbientOcclusion(fsTexCoords * vec2(windowWidth, windowHeight));
 }

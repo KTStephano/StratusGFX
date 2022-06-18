@@ -164,26 +164,9 @@ namespace stratus {
     }
 
     void Entity::_RecalcTransform() {
-        // This is doing a lot of extra operations that can eventually be simplified. Plus it is using
-        // too much storage compared to what it really should be.
-        glm::mat4 scale(1.0f);
-        glm::mat4 rotate(1.0f);
-        glm::mat4 translate(1.0f);
-        matScale(scale, _scale);
-        matRotate(rotate, _rotation);
-        matTranslate(translate, _position);
-        _localTransform = translate * rotate * scale;
-        _worldScale = scale;
-        _worldRotate = rotate;
-        _worldTranslate = translate;
-        _worldTransform = _localTransform;
-        if (_parent != nullptr) {
-            _worldScale = _parent->_worldScale * scale;
-            _worldRotate = _parent->_worldRotate * rotate;
-            _worldTranslate = _parent->_worldTranslate * translate;
-            _worldTransform = _parent->_worldTransform * _localTransform;
-            _worldPosition = glm::vec3(_worldTransform[3].x, _worldTransform[3].y, _worldTransform[3].z);
-        }
+        _localTransform = constructTransformMat(_rotation, _position, _scale);
+        _worldTransform = _parent != nullptr ? _parent->_worldTransform * _localTransform : _localTransform;
+        _worldPosition = glm::vec3(_worldTransform[3].x, _worldTransform[3].y, _worldTransform[3].z);
 
         if (_renderNode != nullptr) {
             _renderNode->SetWorldTransform(_worldTransform);

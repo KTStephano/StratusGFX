@@ -13,7 +13,7 @@ uniform float windowWidth;    // w
 uniform float intensity;      // sigma
 
 // GBuffer output
-layout (location = 0) out vec3 gLightFactor;
+layout (location = 0) out float gLightFactor;
 
 // See https://community.khronos.org/t/saturate/53155
 vec3 saturate(vec3 value) {
@@ -83,6 +83,5 @@ float calculateAmbientOcclusion(vec2 pixelCoords) {
 }
 
 void main() {
-    // TODO: Change this back to single channel - greyscale is just nicer to look at for debugging this in RenderDoc
-    gLightFactor = vec3(calculateAmbientOcclusion(fsTexCoords * vec2(windowWidth, windowHeight)));
+    gLightFactor = calculateAmbientOcclusion(fsTexCoords * vec2(windowWidth, windowHeight));
 }

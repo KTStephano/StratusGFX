@@ -252,8 +252,8 @@ namespace stratus {
     static glm::mat4 constructTransformMat(const Rotation& rotation, const glm::vec3& translation, const glm::vec3& scale) {
         glm::mat4 id(1.0f);
         matRotate(id, rotation);
-        matTranslate(id, translation);
         matScale(id, scale);
+        matTranslate(id, translation);
         return id;
     }
 
