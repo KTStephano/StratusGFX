@@ -87,7 +87,7 @@ class Interrogation : public stratus::Application {
 public:
     virtual ~Interrogation() = default;
 
-    std::string GetAppName() const override {
+    const char * GetAppName() const override {
         return "Interrogation";
     }
 

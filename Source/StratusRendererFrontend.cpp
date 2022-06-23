@@ -247,7 +247,7 @@ namespace stratus {
         // Create the renderer on the renderer thread only
         _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
 
-        return true;
+        return _renderer->Valid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -330,7 +330,7 @@ namespace stratus {
         const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float znear = _params.znear; //0.001f; //_params.znear;
-        // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
+        // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = std::min(800.0f, _params.zfar);
 
@@ -488,6 +488,11 @@ namespace stratus {
             //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
+                // See page 187, eq. 8.82
+                // Ck = Mk_shadow * (M0_shadow) ^ -1
+                glm::mat4 Ck = _frame->csc.cascades[i].projectionViewSample * glm::inverse(_frame->csc.cascades[0].projectionViewSample);
+                _frame->csc.cascades[i].sampleCascade0ToCurrent = Ck;
+
                 // This will allow us to calculate the cascade blending weights in the vertex shader and then
                 // the cascade indices in the pixel shader
                 const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);

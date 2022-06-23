@@ -134,6 +134,10 @@ namespace stratus {
         MaterialPtr CreateDefault();
 
         // SystemModule inteface
+        virtual const char * Name() const {
+            return "MaterialManager";
+        }
+        
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

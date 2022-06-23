@@ -65,6 +65,10 @@ namespace stratus {
         RendererMouseState GetMouseState() const;
 
         // SystemModule inteface
+        virtual const char * Name() const {
+            return "Renderer";
+        }
+        
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

@@ -5,7 +5,7 @@ class ExampleApp : public stratus::Application {
 public:
     virtual ~ExampleApp() = default;
 
-    std::string GetAppName() const override {
+    const char * GetAppName() const override {
         return "ExampleApp00";
     }
 

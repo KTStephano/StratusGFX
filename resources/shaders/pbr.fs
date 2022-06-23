@@ -216,7 +216,9 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
-        // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
+        // cascadeProjViews[i] * fragPos puts the coordinates into clip space which are on the range of [-1, 1].
+        // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
+        // and then perform * 0.5 + vec3(0.5).
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
         cascadeCoords[i].xyz = cascadeCoords[i].xyz * 0.5 + vec3(0.5);

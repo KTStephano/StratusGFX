@@ -88,7 +88,7 @@ class StratusGFX : public stratus::Application {
 public:
     virtual ~StratusGFX() = default;
 
-    std::string GetAppName() const override {
+    const char * GetAppName() const override {
         return "StratusGFX";
     }
 

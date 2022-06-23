@@ -57,6 +57,8 @@ namespace stratus {
         glm::mat4 projectionViewRender;
         // Use during shadow map sampling
         glm::mat4 projectionViewSample;
+        // Transforms from a cascade 0 sampling coordinate to the current cascade
+        glm::mat4 sampleCascade0ToCurrent;
         glm::vec4 cascadePlane;
         glm::vec3 cascadePosition;
         float cascadeRadius;

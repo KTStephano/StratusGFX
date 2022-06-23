@@ -8,6 +8,7 @@ namespace stratus {
     struct SystemModule {
         virtual ~SystemModule() = default;
         
+        virtual const char * Name() const = 0;
         // Return true for success, false for failure
         virtual bool Initialize() = 0;
         // SystemStatus return tells the engine how to proceed

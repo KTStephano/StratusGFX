@@ -87,7 +87,7 @@ class Sponza : public stratus::Application {
 public:
     virtual ~Sponza() = default;
 
-    std::string GetAppName() const override {
+    const char * GetAppName() const override {
         return "Sponza";
     }
 

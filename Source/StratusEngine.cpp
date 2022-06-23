@@ -63,6 +63,7 @@ namespace stratus {
                 running = false;
                 break;
             case SystemStatus::SYSTEM_PANIC:
+                std::cerr << "Critical error - exiting immediately" << std::endl;
                 exit(-1);
             default:
                 continue;
@@ -110,6 +111,24 @@ namespace stratus {
         _main = ApplicationThread::Instance()->_thread.get();
     }
 
+    template<typename E>
+    void _InitializeEngineModule(E * instance, const bool log) {
+        if (log) {
+            STRATUS_LOG << "Initializing " << instance->Name() << std::endl;
+        }
+
+        if (!instance->Initialize()) {
+            std::cerr << instance->Name() << " failed to load" << std::endl;
+            exit(-1);
+        }
+    }
+
+    template<typename E>
+    void _InitializeEngineModule(E *& ptr, E * instance, const bool log) {
+        _InitializeEngineModule<E>(instance, log);
+        ptr = instance;
+    }
+
     void Engine::Initialize() {
         // We need to initialize everything on renderer thread
         CHECK_IS_APPLICATION_THREAD();
@@ -126,15 +145,14 @@ namespace stratus {
         _InitRenderer();
 
         // Initialize application last
-        _params.application->Initialize();
+        _InitializeEngineModule(_params.application, true);
 
         STRATUS_LOG << "Initialization complete" << std::endl;
         _isInitializing.store(false);
     }
 
     void Engine::_InitLog() {
-        Log::_instance = new Log();
-        Log::Instance()->Initialize();
+        _InitializeEngineModule(Log::_instance, new Log(), false);
     }
 
     void Engine::_InitApplicationThread() {
@@ -142,13 +160,11 @@ namespace stratus {
     }
 
     void Engine::_InitMaterialManager() {
-        MaterialManager::_instance = new MaterialManager();
-        MaterialManager::Instance()->Initialize();
+        _InitializeEngineModule(MaterialManager::_instance, new MaterialManager(), true);
     }
 
     void Engine::_InitResourceManager() {
-        ResourceManager::_instance = new ResourceManager();
-        ResourceManager::Instance()->Initialize();
+        _InitializeEngineModule(ResourceManager::_instance, new ResourceManager(), true);
     }
 
     void Engine::_InitRenderer() {
@@ -159,8 +175,7 @@ namespace stratus {
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
-        RendererFrontend::_instance = new RendererFrontend(params);
-        RendererFrontend::Instance()->Initialize();
+        _InitializeEngineModule(RendererFrontend::_instance, new RendererFrontend(params), true);
     }
 
     // Should be called before Shutdown()

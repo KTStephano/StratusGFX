@@ -87,7 +87,7 @@ class Forest : public stratus::Application {
 public:
     virtual ~Forest() = default;
 
-    std::string GetAppName() const override {
+    const char * GetAppName() const override {
         return "Forest";
     }
 
