@@ -69,7 +69,7 @@ namespace stratus {
 
     struct RendererAtmosphericData {
         int numSamples = 64;
-        float fogDensity = 1.0f;
+        float fogDensity = 0.2f;
         // If > 1, then backscattered light will be greater than forwardscattered light
         float scatterControl = 0.5f;
     };

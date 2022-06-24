@@ -49,7 +49,7 @@ void calculateShadowSpaceMinMaxRayPoints(vec2 camSpaceRayDir, vec3 shadowSpaceRa
     invLength = 1.0 / length(vec3(camSpaceRayDir, minAtmosphereDepth));
     scale = minAtmosphereDepth * invLength;
 
-    p1 = vec4(scale * shadowSpaceRayDir, 1.0);
+    p1 = vec4(scale * shadowSpaceRayDir, 0.0);
     p2 = shadowSpaceCameraPos + atmosphereDepthRatio * p1;
     p1 += shadowSpaceCameraPos;
 }
@@ -65,14 +65,15 @@ void calculateCameraSpaceMinMaxDepths(float invLength, float scale, out float z1
 }
 
 // Uses the normalized Henyey-Greenstein phase function from page 348, eq. 10.79
-float calculateNormalizedAnisotropicScatteringIntensity(vec2 camSpaceRayDir, float invLengthCamSpaceRayDir) {
+void calculateNormalizedAnisotropicScatteringIntensity(vec2 camSpaceRayDir, float invLengthCamSpaceRayDir, out float atmosphereBrightness, out float anisotropicScattering, out float intensity) {
     // Page 345, eq. 10.73
-    float atmosphereBrightness = atmosphereFogDensity * atmosphereDepthDiff / (numSamples + 1);
+    atmosphereBrightness = atmosphereFogDensity * atmosphereDepthDiff / (numSamples + 1);
     // Page 348, eq. 10.77
     float cosA = dot(normalizedCameraLightDirection, vec3(camSpaceRayDir, minAtmosphereDepth)) * invLengthCamSpaceRayDir;
     float nhg = anisotropyConstants.x * inversesqrt(anisotropyConstants.y - anisotropyConstants.z * cosA);
-
-    return atmosphereBrightness * nhg * nhg * nhg;
+    
+    anisotropicScattering = nhg * nhg * nhg;
+    intensity = atmosphereBrightness * anisotropicScattering;
 }
 
 // u(t) from page 343, eq. 10.67
@@ -165,7 +166,14 @@ void main() {
 
     calculateShadowSpaceMinMaxRayPoints(fsCamSpaceRay, fsShadowSpaceRay, invLength, scale, p1, p2);
     calculateCameraSpaceMinMaxDepths(invLength, scale, z1, z2);
-    float intensity = calculateNormalizedAnisotropicScatteringIntensity(fsCamSpaceRay, invLength);
 
-    gAtmosphere = vec3(calculateFinalBrightness(fsTexCoords * vec2(windowWidth, windowHeight), z1, z2, p1, p2, intensity));
+    float atmosphereBrightness;
+    float atmosphereScattering;
+    float intensity;
+    calculateNormalizedAnisotropicScatteringIntensity(fsCamSpaceRay, invLength, atmosphereBrightness, atmosphereScattering, intensity);
+
+    float finalBrightness = calculateFinalBrightness(fsTexCoords * vec2(windowWidth, windowHeight), z1, z2, p1, p2, intensity);
+
+    gAtmosphere = vec3(finalBrightness);
+    //gAtmosphere = vec3(atmosphereBrightness, atmosphereScattering, intensity);
 }
