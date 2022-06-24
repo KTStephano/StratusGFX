@@ -82,6 +82,7 @@ namespace stratus {
         uint32_t cascadeResolutionXY;
         InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
+        glm::vec3 worldLightDirectionCameraSpace;
         bool regenerateFbo;    
     };
 

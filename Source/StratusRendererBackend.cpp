@@ -388,7 +388,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Atmospheric fbo
-    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
@@ -938,7 +938,7 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     const glm::mat4 shadowMatrix = _frame->csc.cascades[0].projectionViewSample * _frame->camera->getWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
     const glm::vec4 shadowSpaceCameraPos = _frame->csc.cascades[0].projectionViewSample * glm::vec4(_frame->camera->getPosition(), 1.0f);
-    const glm::vec3 normalizedCameraLightDirection = glm::normalize(_frame->csc.cascades[0].cascadePositionCameraSpace);
+    const glm::vec3 normalizedCameraLightDirection = _frame->csc.worldLightDirectionCameraSpace;
 
     _BindShader(_state.atmospheric.get());
     _state.atmosphericFbo.bind();

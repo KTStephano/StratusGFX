@@ -322,7 +322,13 @@ namespace stratus {
         const glm::mat4& lightWorldTransform = light.getWorldTransform();
         const glm::mat4& lightViewTransform = light.getViewTransform();
         const glm::mat4& cameraWorldTransform = c.getWorldTransform();
+        const glm::mat4& cameraViewTransform = c.getViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
+
+        // See page 152, eq. 8.21
+        const glm::vec3 worldLightDirWorldSpace = -lightWorldTransform[2];
+        const glm::vec3 worldLightDirCamSpace = glm::normalize(glm::mat3(cameraViewTransform) * worldLightDirWorldSpace);
+        _frame->csc.worldLightDirectionCameraSpace = worldLightDirCamSpace;
 
         const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
@@ -451,7 +457,7 @@ namespace stratus {
             // STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);
             _frame->csc.cascades[i].cascadePositionLightSpace = sk;
-            _frame->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(c.getViewTransform() * lightWorldTransform * glm::vec4(sk, 1.0f));
+            _frame->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
 
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0

@@ -15,7 +15,7 @@ uniform float atmosphereDepthRatio;          // dmax / dmin
 uniform float atmosphereFogDensity;          // lambda
 uniform vec3 anisotropyConstants;            // 1 - g, 1 + g * g, 2 * g
 uniform vec4 shadowSpaceCameraPos;           // M_shadow(0) * M_camera[3]
-uniform vec3 normalizedCameraLightDirection; // This is in camera space and is the direction from the camera to the light
+uniform vec3 normalizedCameraLightDirection; // This is in camera space and is the direction to the light source (see page 152, eq. 8.21)
 uniform vec2 noiseShift;                     // Should be randomized each frame on the range [0, 1 / numSamples]
 uniform float numSamples = 64.0;             // Number of samples to take along each ray we cast
 uniform float windowWidth;
@@ -27,7 +27,7 @@ smooth in vec2 fsCamSpaceRay;
 smooth in vec3 fsShadowSpaceRay;
 
 // GBuffer output
-layout (location = 0) out vec3 gAtmosphere;
+layout (location = 0) out vec4 gAtmosphere;
 
 // Linear interpolate
 vec4 lerp(vec4 x, vec4 y, float a) {
@@ -95,7 +95,11 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float cascad
 
 // Calculates the final brightness of this pixel which is Brightness * Normalized Anisotropic Scattering Intensity,
 // which is a combination of page 345, eq. 10.74 and page 348, eq. 10.79
-float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, vec4 p2, float anisotropicScatteringIntensity) {
+float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, vec4 p2, float anisotropicScatteringIntensity, out float count, out float sampled, out float zdepths) {
+    count = 0.0;
+    sampled = 0.0;
+    zdepths = z2;
+
     const float m = 0.25; // slope (first sample)
     float deltaT  = 1.0 / numSamples;
     // Page 345
@@ -118,7 +122,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
     float cascadeDepthSwitch = 0.0;
     float zmax = min(depth, maxCascadeDepth[0]);
     float bias = 2e-19;
-    for (; t <= tmax; t += deltaT) {
+    for (; t <= tmax; t += deltaT, count += 1) {
         float u = UofT(t, m);
         float z = lerp(z1, z2, u);
         // Never exceed max depth in structure buffer
@@ -128,6 +132,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
                                                         
         // Calculate sampling location - remember p1 and p2 are in cascade 0 space
         vec4 shadowCoords = lerp(p1, p2, u);
+        sampled += sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
         atmosphere += weight * sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
         weight += deltaW;
     }
@@ -137,7 +142,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         cascadeDepthSwitch = float(cascade);
         zmax = min(depth, maxCascadeDepth[cascade]);
 
-        for (; t <= zmax; t += deltaT) {
+        for (; t <= zmax; t += deltaT, count += 1) {
             float u = UofT(t, m);
             float z = lerp(z1, z2, u);
             // Never exceed max depth in structure buffer
@@ -148,6 +153,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
             // Calculate sampling location - remember p1 and p2 are in cascade 0 space so we need to transform
             // them to cascade current space
             vec4 shadowCoords = cascade0ToCascadeK[cascade - 1] * lerp(p1, p2, u);
+            sampled += sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
             atmosphere += weight * sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
             weight += deltaW;
         }
@@ -172,8 +178,11 @@ void main() {
     float intensity;
     calculateNormalizedAnisotropicScatteringIntensity(fsCamSpaceRay, invLength, atmosphereBrightness, atmosphereScattering, intensity);
 
-    float finalBrightness = calculateFinalBrightness(fsTexCoords * vec2(windowWidth, windowHeight), z1, z2, p1, p2, intensity);
+    float count;
+    float sampled;
+    float zdepths;
+    float finalBrightness = calculateFinalBrightness(fsTexCoords * vec2(windowWidth, windowHeight), z1, z2, p1, p2, intensity, count, sampled, zdepths);
 
-    gAtmosphere = vec3(finalBrightness);
-    //gAtmosphere = vec3(atmosphereBrightness, atmosphereScattering, intensity);
+    //gAtmosphere = vec4(finalBrightness, count, sampled, zdepths);
+    gAtmosphere = vec4(finalBrightness);
 }
