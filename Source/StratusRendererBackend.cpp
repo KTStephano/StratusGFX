@@ -204,6 +204,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"../resources/shaders/ssao_blur.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.ssaoBlur.get());
 
+    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/atmospheric.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/atmospheric.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.atmospheric.get());
+
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
@@ -214,6 +219,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     // Init constant SSAO data
     _InitSSAO();
+
+    // Init constant atmospheric data
+    _InitAtmosphericShadowing();
 
     // Create a pool of shadow maps for point lights to use
     for (int i = 0; i < _state.numShadowMaps; ++i) {
@@ -379,6 +387,16 @@ void RendererBackend::_UpdateWindowDimensions() {
         return;
     }
 
+    // Code to create the Atmospheric fbo
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
+    if (!_state.atmosphericFbo.valid()) {
+        _isValid = false;
+        return;
+    }
+
     _InitializePostFxBuffers();
 }
 
@@ -521,6 +539,23 @@ void RendererBackend::_InitSSAO() {
     _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, (const void *)&table[0]);
     _state.ssaoOffsetLookup.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.ssaoOffsetLookup.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+}
+
+void RendererBackend::_InitAtmosphericShadowing() {
+    auto re = std::default_random_engine{};
+    // On the range [0.0, 1.0) --> we technically want [0.0, 1.0] but it's close enough
+    std::uniform_real_distribution<float> real(0.0f, 1.0f);
+
+    // Create the 64x64 noise texture
+    const size_t size = 64 * 64;
+    std::vector<float> table(size);
+    for (size_t i = 0; i < size; ++i) {
+        table[i] = real(re);
+    }
+
+    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 64, 64, 0, false}, (const void *)&table[0]);
+    _state.atmosphericNoiseTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -878,6 +913,71 @@ void RendererBackend::_RenderSsaoBlur() {
     glEnable(GL_DEPTH_TEST);
 }
 
+void RendererBackend::_RenderAtmosphericShadowing() {
+    constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    auto re = std::default_random_engine{};
+    const float n = _frame->atmospheric.numSamples;
+    // On the range [0.0, 1/n)
+    std::uniform_real_distribution<float> real(0.0f, 1.0f / n);
+    const glm::vec2 noiseShift(real(re), real(re));
+    const float dmin     = _frame->znear;
+    const float dmax     = _frame->csc.cascades[_frame->csc.cascades.size() - 1].cascadeEnds;
+    const float lambda   = _frame->atmospheric.fogDensity;
+    // cbrt = cube root
+    const float cubeR    = std::cbrt(_frame->atmospheric.scatterControl);
+    const float g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
+    // aspect ratio
+    const float ar       = float(_frame->viewportWidth) / float(_frame->viewportHeight);
+    // g in frustum parameters
+    const float projDist = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
+    const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
+    const glm::mat4 shadowMatrix = _frame->csc.cascades[0].projectionViewSample * _frame->camera->getWorldTransform();
+    const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
+    const glm::vec4 shadowSpaceCameraPos = _frame->csc.cascades[0].projectionViewSample * glm::vec4(_frame->camera->getPosition(), 1.0f);
+    const glm::vec3 normalizedCameraLightDirection = glm::normalize(_frame->csc.cascades[0].cascadePositionCameraSpace);
+
+    _BindShader(_state.atmospheric.get());
+    _state.atmosphericFbo.bind();
+    _state.atmospheric->setVec3("frustumParams", frustumParams);
+    _state.atmospheric->setMat4("shadowMatrix", shadowMatrix);
+    _state.atmospheric->bindTexture("structureBuffer", _state.buffer.structure);
+    _state.atmospheric->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
+    
+    // Set up cascade data
+    for (int i = 0; i < 4; ++i) {
+        const auto& cascade = _frame->csc.cascades[i];
+        const std::string si = "[" + std::to_string(i) + "]";
+        _state.atmospheric->setFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
+        if (i > 0) {
+            const std::string sim1 = "[" + std::to_string(i - 1) + "]";
+            _state.atmospheric->setMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
+        }
+    }
+
+    _state.atmospheric->bindTexture("noiseTexture", _state.atmosphericNoiseTexture);
+    _state.atmospheric->setFloat("minAtmosphereDepth", dmin);
+    _state.atmospheric->setFloat("atmosphereDepthDiff", dmax - dmin);
+    _state.atmospheric->setFloat("atmosphereDepthRatio", dmax / dmin);
+    _state.atmospheric->setFloat("atmosphereFogDensity", lambda);
+    _state.atmospheric->setVec3("anisotropyConstants", anisotropyConstants);
+    _state.atmospheric->setVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
+    _state.atmospheric->setVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
+    _state.atmospheric->setVec2("noiseShift", noiseShift);
+    _state.atmospheric->setFloat("windowWidth", float(_frame->viewportWidth));
+    _state.atmospheric->setFloat("windowHeight", float(_frame->viewportHeight));
+
+    _RenderQuad();
+    _state.atmosphericFbo.unbind();
+    _UnbindShader();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void RendererBackend::RenderScene() {
     CHECK_IS_APPLICATION_THREAD();
 
@@ -1001,6 +1101,9 @@ void RendererBackend::RenderScene() {
 
     // Begin second SSAO pass (blurring)
     _RenderSsaoBlur();
+
+    // Begin atmospheric pass
+    _RenderAtmosphericShadowing();
 
     // Begin deferred lighting pass
     glDisable(GL_CULL_FACE);

@@ -7,6 +7,7 @@
 #include <vector>
 #include "StratusTexture.h"
 #include <unordered_map>
+#include "glm/glm.hpp"
 
 namespace stratus {
     enum class ShaderType {
@@ -99,6 +100,13 @@ public:
      void setMat2(const std::string & uniform, const float * mat, int num = 1) const;
      void setMat3(const std::string & uniform, const float * mat, int num = 1) const;
      void setMat4(const std::string & uniform, const float * mat, int num = 1) const;
+
+     void setVec2(const std::string & uniform, const glm::vec2&) const;
+     void setVec3(const std::string & uniform, const glm::vec3&) const;
+     void setVec4(const std::string & uniform, const glm::vec4&) const;
+     void setMat2(const std::string & uniform, const glm::mat2&) const;
+     void setMat3(const std::string & uniform, const glm::mat3&) const;
+     void setMat4(const std::string & uniform, const glm::mat4&) const;
 
      // Texture management
      void bindTexture(const std::string & uniform, const Texture & tex);

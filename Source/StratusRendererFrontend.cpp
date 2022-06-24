@@ -284,6 +284,8 @@ namespace stratus {
             _params.zfar
         );
 
+        _frame->znear          = _params.znear;
+        _frame->zfar           = _params.zfar;
         _frame->projection     = _projection;
         _frame->viewportWidth  = _params.viewportWidth;
         _frame->viewportHeight = _params.viewportHeight;
@@ -327,8 +329,9 @@ namespace stratus {
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
         const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
-        const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
-        const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+        //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
+        //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+        const float projPlaneDist = 1.0f / glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float znear = _params.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
@@ -374,10 +377,10 @@ namespace stratus {
             bks.push_back(bk);
 
             // These base values are in camera space and define our frustum corners
-            const float xn = ak * tanHalfHFov;
-            const float xf = bk * tanHalfHFov;
-            const float yn = ak * tanHalfVFov;
-            const float yf = bk * tanHalfVFov;
+            const float xn = ak * ar / projPlaneDist;
+            const float xf = bk * ar / projPlaneDist;
+            const float yn = ak / projPlaneDist;
+            const float yf = bk / projPlaneDist;
             // Keep all of these in camera space for now
             std::vector<glm::vec4> frustumCorners = {
                 // Near corners
@@ -447,7 +450,8 @@ namespace stratus {
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             // STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);
-            _frame->csc.cascades[i].cascadePosition = sk;
+            _frame->csc.cascades[i].cascadePositionLightSpace = sk;
+            _frame->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(c.getViewTransform() * lightWorldTransform * glm::vec4(sk, 1.0f));
 
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
@@ -462,20 +466,20 @@ namespace stratus {
             // so it enables us to use the simplified Orthographic Projection matrix below
             //
             // This results in values between [-1, 1]
-            // const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (dk), 0.0f, 0.0f, 0.0f), 
-            //                                        glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
-            //                                        glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-            //                                        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
-                                                   glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
+            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                                   glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
                                                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
+            //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
+            //                                       glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+            //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // // // Gives us x, y values between [0, 1]
-            // const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
-            //                                             glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
-            //                                             glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-            //                                             glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+            //const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+            //                                            glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+            //                                            glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+            //                                            glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
             const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView

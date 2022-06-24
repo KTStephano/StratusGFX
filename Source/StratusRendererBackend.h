@@ -60,10 +60,18 @@ namespace stratus {
         // Transforms from a cascade 0 sampling coordinate to the current cascade
         glm::mat4 sampleCascade0ToCurrent;
         glm::vec4 cascadePlane;
-        glm::vec3 cascadePosition;
+        glm::vec3 cascadePositionLightSpace;
+        glm::vec3 cascadePositionCameraSpace;
         float cascadeRadius;
         float cascadeBegins;
         float cascadeEnds;
+    };
+
+    struct RendererAtmosphericData {
+        int numSamples = 64;
+        float fogDensity = 1.0f;
+        // If > 1, then backscattered light will be greater than forwardscattered light
+        float scatterControl = 0.5f;
     };
 
     struct RendererCascadeContainer {
@@ -84,9 +92,12 @@ namespace stratus {
         Radians fovy;
         CameraPtr camera;
         RendererCascadeContainer csc;
+        RendererAtmosphericData atmospheric;
         InstancedData instancedPbrMeshes;
         InstancedData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
+        float znear;
+        float zfar;
         glm::mat4 projection;
         glm::vec4 clearColor;
         bool viewportDirty;
@@ -169,6 +180,10 @@ namespace stratus {
             FrameBuffer ssaoOcclusionBuffer;        // Contains light factors computed per pixel
             Texture ssaoOcclusionBlurredTexture;
             FrameBuffer ssaoOcclusionBlurredBuffer; // Counteracts low sample count of occlusion buffer by depth-aware blurring
+            // Used for atmospheric shadowing
+            FrameBuffer atmosphericFbo;
+            Texture atmosphericTexture;
+            Texture atmosphericNoiseTexture;
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -196,6 +211,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> ssaoOcclude;
             // Handles second SSAO pass (blurring)
             std::unique_ptr<Pipeline> ssaoBlur;
+            // Handles the atmospheric shadowing stage
+            std::unique_ptr<Pipeline> atmospheric;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
             std::unique_ptr<Pipeline> bloom;
@@ -360,6 +377,7 @@ namespace stratus {
         void _InitAllInstancedData();
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
+        void _InitAtmosphericShadowing();
         void _InitInstancedData(RendererEntityData &);
         void _ClearInstancedData();
         void _BindShader(Pipeline *);
@@ -372,6 +390,7 @@ namespace stratus {
         void _RenderQuad();
         void _RenderSsaoOcclude();
         void _RenderSsaoBlur();
+        void _RenderAtmosphericShadowing();
         TextureHandle _GetShadowMapHandleForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);

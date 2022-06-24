@@ -1,6 +1,6 @@
 #version 410 core
 
-uniform vec3 frustumParams; // aspect ratio / projection dist, 1.0 / projection dist, dmin (znear)
+uniform vec3 frustumParams; // aspect ratio / projection dist, 1.0 / projection dist, dmin
 uniform mat4 shadowMatrix;  // M_shadow(0) * M_camera, aka transform from camera space -> shadow space for cascade 0
 
 layout (location = 0)  in vec3 position;
@@ -18,6 +18,7 @@ vec3 calculateCameraSpaceRayDirection(vec3 ndcVertex) {
 
 // Calculates r from page 342, eq 10.62
 vec3 calculateShadowSpaceRayDirection(vec3 cameraSpaceRayDirection) {
+    // We want r to be a direction vector in shadow space
     mat3 shadowMatNoTransform = mat3(shadowMatrix);
     return shadowMatNoTransform * cameraSpaceRayDirection;
 }
