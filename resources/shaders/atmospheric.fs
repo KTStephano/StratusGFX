@@ -27,7 +27,7 @@ smooth in vec2 fsCamSpaceRay;
 smooth in vec3 fsShadowSpaceRay;
 
 // GBuffer output
-layout (location = 0) out vec4 gAtmosphere;
+layout (location = 0) out vec3 gAtmosphere;
 
 // Linear interpolate
 vec4 lerp(vec4 x, vec4 y, float a) {
@@ -184,5 +184,5 @@ void main() {
     float finalBrightness = calculateFinalBrightness(fsTexCoords * vec2(windowWidth, windowHeight), z1, z2, p1, p2, intensity, count, sampled, zdepths);
 
     //gAtmosphere = vec4(finalBrightness, count, sampled, zdepths);
-    gAtmosphere = vec4(finalBrightness);
+    gAtmosphere = vec3(finalBrightness);
 }

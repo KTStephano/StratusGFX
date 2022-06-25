@@ -209,6 +209,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"../resources/shaders/atmospheric.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmospheric.get());
 
+    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/atmospheric_postfx.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.atmosphericPostFx.get());
+
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
@@ -388,7 +393,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Atmospheric fbo
-    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
@@ -456,6 +461,17 @@ void RendererBackend::_InitializePostFxBuffers() {
         }
         _state.postFxBuffers.push_back(buffer);
     }
+
+    // Create the atmospheric post fx buffer
+    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
+    if (!_state.atmosphericPostFxBuffer.fbo.valid()) {
+        _isValid = false;
+        STRATUS_ERROR << "Unable to initialize atmospheric post fx buffer" << std::endl;
+        return;
+    }
 }
 
 void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
@@ -469,6 +485,7 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         _state.buffer.fbo.clear(color);
         _state.ssaoOcclusionBuffer.clear(color);
         _state.ssaoOcclusionBlurredBuffer.clear(color);
+        _state.atmosphericFbo.clear(glm::vec4(0.0f));
         _state.lightingFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
@@ -483,6 +500,8 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         for (auto& postFx : _state.postFxBuffers) {
             postFx.fbo.clear(glm::vec4(0.0f));
         }
+
+        _state.atmosphericPostFxBuffer.fbo.clear(glm::vec4(0.0f));
     }
 }
 
@@ -1148,7 +1167,7 @@ void RendererBackend::_PerformPostFxProcessing() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     //glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
 
     // We use this so that we can avoid a final copy between the downsample and blurring stages
     std::vector<PostFXBuffer> finalizedPostFxFrames(_state.numDownsampleIterations + _state.numUpsampleIterations);
@@ -1239,6 +1258,34 @@ void RendererBackend::_PerformPostFxProcessing() {
     }
 
     _UnbindShader();
+
+    _PerformAtmosphericPostFx();
+}
+
+void RendererBackend::_PerformAtmosphericPostFx() {
+    const glm::mat4& projection = _frame->projection;
+    // See page 354, eqs. 10.81 and 10.82
+    const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
+    const float w = _frame->viewportWidth;
+    const float h = _frame->viewportHeight;
+    const float xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
+                               projection[0][1] * normalizedLightDirCamSpace.y + 
+                               projection[0][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
+    const float ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
+                               projection[1][1] * normalizedLightDirCamSpace.y + 
+                               projection[1][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
+    const glm::vec3 lightPosition = 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+
+    _BindShader(_state.atmosphericPostFx.get());
+    _state.atmosphericPostFxBuffer.fbo.bind();
+    _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
+    _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
+    _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
+    _RenderQuad();
+    _state.atmosphericPostFxBuffer.fbo.unbind();
+    _UnbindShader();
+
+    _state.finalScreenTexture = _state.atmosphericPostFxBuffer.fbo.getColorAttachments()[0];
 }
 
 void RendererBackend::_FinalizeFrame() {

@@ -194,6 +194,8 @@ namespace stratus {
             int numUpsampleIterations = 0;
             std::vector<PostFXBuffer> gaussianBuffers;
             std::vector<PostFXBuffer> postFxBuffers;
+            // Handles atmospheric post processing
+            PostFXBuffer atmosphericPostFxBuffer;
             // End of the pipeline should write to this
             Texture finalScreenTexture;
             // Used for a call to glBlendFunc
@@ -214,6 +216,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> ssaoBlur;
             // Handles the atmospheric shadowing stage
             std::unique_ptr<Pipeline> atmospheric;
+            // Handles atmospheric post fx stage
+            std::unique_ptr<Pipeline> atmosphericPostFx;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
             std::unique_ptr<Pipeline> bloom;
@@ -384,6 +388,7 @@ namespace stratus {
         void _BindShader(Pipeline *);
         void _UnbindShader();
         void _PerformPostFxProcessing();
+        void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
