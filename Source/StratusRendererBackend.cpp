@@ -464,7 +464,7 @@ void RendererBackend::_InitializePostFxBuffers() {
 
     // Create the atmospheric post fx buffer
     Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
-    atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    atmosphericTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
     if (!_state.atmosphericPostFxBuffer.fbo.valid()) {

@@ -46,7 +46,7 @@ float lerp(float x, float y, float a) {
 // invLength = 1.0 / length(camSpaceRayDir)
 // scale = minAtmosphereDepth * invLength
 void calculateShadowSpaceMinMaxRayPoints(vec2 camSpaceRayDir, vec3 shadowSpaceRayDir, out float invLength, out float scale, out vec4 p1, out vec4 p2) {
-    invLength = 1.0 / length(vec3(camSpaceRayDir, minAtmosphereDepth));
+    invLength = 1.0 / length(vec3(camSpaceRayDir, -minAtmosphereDepth));
     scale = minAtmosphereDepth * invLength;
 
     p1 = vec4(scale * shadowSpaceRayDir, 0.0);
@@ -69,7 +69,7 @@ void calculateNormalizedAnisotropicScatteringIntensity(vec2 camSpaceRayDir, floa
     // Page 345, eq. 10.73
     atmosphereBrightness = atmosphereFogDensity * atmosphereDepthDiff / (numSamples + 1);
     // Page 348, eq. 10.77
-    float cosA = dot(normalizedCameraLightDirection, vec3(camSpaceRayDir, minAtmosphereDepth)) * invLengthCamSpaceRayDir;
+    float cosA = dot(normalizedCameraLightDirection, vec3(camSpaceRayDir, -minAtmosphereDepth)) * invLengthCamSpaceRayDir;
     float nhg = anisotropyConstants.x * inversesqrt(anisotropyConstants.y - anisotropyConstants.z * cosA);
     
     anisotropicScattering = nhg * nhg * nhg;

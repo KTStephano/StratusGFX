@@ -13,7 +13,7 @@ smooth out vec3 fsShadowSpaceRay;
 
 // Calculates q from page 342, eq. 10.61
 vec3 calculateCameraSpaceRayDirection(vec3 ndcVertex) {
-    return frustumParams.z * vec3(frustumParams.x * ndcVertex.x, frustumParams.y * ndcVertex.y, 1.0);
+    return frustumParams.z * vec3(frustumParams.x * ndcVertex.x, frustumParams.y * ndcVertex.y, -1.0);
 }
 
 // Calculates r from page 342, eq 10.62
