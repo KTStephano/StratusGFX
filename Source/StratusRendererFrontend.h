@@ -61,6 +61,11 @@ namespace stratus {
         void SetVsyncEnabled(const bool);
         void SetClearColor(const glm::vec4&);
 
+        // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
+        void SetAtmosphericShadowing(float fogDensity, float scatterControl);
+        float GetAtmosphericFogDensity() const;
+        float GetAtmosphericScatterControl() const;
+
         std::vector<SDL_Event> PollInputEvents();
         RendererMouseState GetMouseState() const;
 
@@ -68,7 +73,7 @@ namespace stratus {
         virtual const char * Name() const {
             return "Renderer";
         }
-        
+
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

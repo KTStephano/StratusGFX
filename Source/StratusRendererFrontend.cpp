@@ -184,6 +184,22 @@ namespace stratus {
         return _mouse;
     }
 
+    void RendererFrontend::SetAtmosphericShadowing(float fogDensity, float scatterControl) {
+        auto ul = _LockWrite();
+        _frame->atmospheric.fogDensity = std::max(0.0f, std::min(fogDensity, 1.0f));
+        _frame->atmospheric.scatterControl = scatterControl;
+    }
+
+    float RendererFrontend::GetAtmosphericFogDensity() const {
+        auto sl = _LockRead();
+        return _frame->atmospheric.fogDensity;
+    }
+
+    float RendererFrontend::GetAtmosphericScatterControl() const {
+        auto sl = _LockRead();
+        return _frame->atmospheric.scatterControl;
+    }
+
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;

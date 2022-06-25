@@ -99,6 +99,8 @@ public:
         stratus::RendererFrontend::Instance()->SetCamera(camera);
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
 
+        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.08f, 0.1f);
+
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
@@ -128,6 +130,10 @@ public:
         const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
+        const float atmosphericIncreaseSpeed = 1.0f;
+
+        float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
+        float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -195,16 +201,23 @@ public:
                             }
                             break;
                         case SDL_SCANCODE_UP: {
-                            float brightness = worldLight->getIntensity() + lightIncreaseSpeed * deltaSeconds;
-                            brightness = std::min(maxLightBrightness, brightness);
-                            worldLight->setIntensity(brightness);
-                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
+                            scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             break;
                         }
                         case SDL_SCANCODE_DOWN: {
-                            float brightness = worldLight->getIntensity() - lightIncreaseSpeed * deltaSeconds;
-                            worldLight->setIntensity(brightness);
-                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
+                            scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
+                            break;
+                        }
+                        case SDL_SCANCODE_LEFT: {
+                            fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                            break;
+                        }
+                        case SDL_SCANCODE_RIGHT: {
+                            fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
                             break;
                         }
                         case SDL_SCANCODE_1: {
@@ -325,6 +338,8 @@ public:
                 default: break;
             }
         }
+
+        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(fogDensity, scatterControl);
 
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));

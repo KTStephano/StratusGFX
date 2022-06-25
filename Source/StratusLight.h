@@ -21,7 +21,7 @@ namespace stratus {
     };
 
     constexpr float maxLightColor = 10000.0f;
-    constexpr float maxAmbientIntensity = 0.03;
+    constexpr float maxAmbientIntensity = 0.02;
     constexpr float minAmbientIntensity = 0.001;
 
     // Serves as a global world light
