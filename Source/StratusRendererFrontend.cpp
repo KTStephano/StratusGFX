@@ -126,25 +126,16 @@ namespace stratus {
         _lightsDirty = true;
     }
 
-    void RendererFrontend::SetWorldLightingEnabled(const bool enabled) {
+    void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
+        if (light == nullptr) return;
         auto ul = _LockWrite();
-        _worldLight.enabled = enabled;
+        _worldLight = light;
     }
 
-    void RendererFrontend::SetWorldLightColor(const glm::vec3& color) {
+    void RendererFrontend::ClearWorldLight() {
         auto ul = _LockWrite();
-        _worldLight.color = color;
-    }
-
-    void RendererFrontend::SetWorldLightIntensity(float intensity) {
-        if (intensity < 0.0f) return;
-        auto ul = _LockWrite();
-        _worldLight.intensity = intensity;
-    }
-
-    void RendererFrontend::SetWorldLightRotation(const Rotation& rot) {
-        auto ul = _LockWrite();
-        _worldLight.rotation = rot;
+        // Create a dummy world light that is disabled
+        _worldLight = InfiniteLightPtr(new InfiniteLight(false));
     }
 
     void RendererFrontend::SetCamera(const CameraPtr& camera) {
@@ -191,6 +182,22 @@ namespace stratus {
     RendererMouseState RendererFrontend::GetMouseState() const {
         auto sl = _LockRead();
         return _mouse;
+    }
+
+    void RendererFrontend::SetAtmosphericShadowing(float fogDensity, float scatterControl) {
+        auto ul = _LockWrite();
+        _frame->atmospheric.fogDensity = std::max(0.0f, std::min(fogDensity, 1.0f));
+        _frame->atmospheric.scatterControl = scatterControl;
+    }
+
+    float RendererFrontend::GetAtmosphericFogDensity() const {
+        auto sl = _LockRead();
+        return _frame->atmospheric.fogDensity;
+    }
+
+    float RendererFrontend::GetAtmosphericScatterControl() const {
+        auto sl = _LockRead();
+        return _frame->atmospheric.scatterControl;
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
@@ -245,9 +252,10 @@ namespace stratus {
 
         // 4 cascades total
         _frame->csc.cascades.resize(4);
-        _frame->csc.cascadeResolutionXY = 2048;
+        _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
-        _frame->csc.worldLightingEnabled = _worldLight.enabled;
+
+        ClearWorldLight();
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
@@ -255,7 +263,7 @@ namespace stratus {
         // Create the renderer on the renderer thread only
         _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
 
-        return true;
+        return _renderer->Valid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -292,9 +300,12 @@ namespace stratus {
             _params.zfar
         );
 
+        _frame->znear          = _params.znear;
+        _frame->zfar           = _params.zfar;
         _frame->projection     = _projection;
         _frame->viewportWidth  = _params.viewportWidth;
         _frame->viewportHeight = _params.viewportHeight;
+        _frame->fovy           = Radians(_params.fovy);
     }
 
     void RendererFrontend::_UpdateCascadeTransforms() {
@@ -304,7 +315,7 @@ namespace stratus {
 
         _frame->csc.worldLightCamera = CameraPtr(new Camera(false));
         auto worldLightCamera = _frame->csc.worldLightCamera;
-        worldLightCamera->setAngle(_worldLight.rotation);
+        worldLightCamera->setAngle(_worldLight->getRotation());
 
         // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
         //
@@ -327,17 +338,24 @@ namespace stratus {
         const glm::mat4& lightWorldTransform = light.getWorldTransform();
         const glm::mat4& lightViewTransform = light.getViewTransform();
         const glm::mat4& cameraWorldTransform = c.getWorldTransform();
+        const glm::mat4& cameraViewTransform = c.getViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
+
+        // See page 152, eq. 8.21
+        const glm::vec3 worldLightDirWorldSpace = -lightWorldTransform[2];
+        const glm::vec3 worldLightDirCamSpace = glm::normalize(glm::mat3(cameraViewTransform) * worldLightDirWorldSpace);
+        _frame->csc.worldLightDirectionCameraSpace = worldLightDirCamSpace;
 
         const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
         const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
-        const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
-        const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+        //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
+        //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+        const float projPlaneDist = 1.0f / glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float znear = _params.znear; //0.001f; //_params.znear;
-        // We don't want zfar to be unbounded, so we constrain it to at most 600 which also has the nice bonus
+        // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = std::min(800.0f, _params.zfar);
 
@@ -381,10 +399,10 @@ namespace stratus {
             bks.push_back(bk);
 
             // These base values are in camera space and define our frustum corners
-            const float xn = ak * tanHalfHFov;
-            const float xf = bk * tanHalfHFov;
-            const float yn = ak * tanHalfVFov;
-            const float yf = bk * tanHalfVFov;
+            const float xn = ak * ar / projPlaneDist;
+            const float xf = bk * ar / projPlaneDist;
+            const float yn = ak / projPlaneDist;
+            const float yf = bk / projPlaneDist;
             // Keep all of these in camera space for now
             std::vector<glm::vec4> frustumCorners = {
                 // Near corners
@@ -454,7 +472,8 @@ namespace stratus {
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             // STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);
-            _frame->csc.cascades[i].cascadePosition = sk;
+            _frame->csc.cascades[i].cascadePositionLightSpace = sk;
+            _frame->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
 
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
@@ -469,20 +488,20 @@ namespace stratus {
             // so it enables us to use the simplified Orthographic Projection matrix below
             //
             // This results in values between [-1, 1]
-            // const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (dk), 0.0f, 0.0f, 0.0f), 
-            //                                        glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
-            //                                        glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-            //                                        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
-                                                   glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
+            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
+                                                   glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
                                                    glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
                                                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
+            //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
+            //                                       glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+            //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // // // Gives us x, y values between [0, 1]
-            // const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
-            //                                             glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
-            //                                             glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-            //                                             glm::vec4(0.5f, 0.5f, 0.0f, 1.0f));
+            //const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+            //                                            glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
+            //                                            glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
+            //                                            glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
             const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
@@ -495,6 +514,11 @@ namespace stratus {
             //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
+                // See page 187, eq. 8.82
+                // Ck = Mk_shadow * (M0_shadow) ^ -1
+                glm::mat4 Ck = _frame->csc.cascades[i].projectionViewSample * glm::inverse(_frame->csc.cascades[0].projectionViewSample);
+                _frame->csc.cascades[i].sampleCascade0ToCurrent = Ck;
+
                 // This will allow us to calculate the cascade blending weights in the vertex shader and then
                 // the cascade indices in the pixel shader
                 const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);
@@ -621,6 +645,9 @@ namespace stratus {
         }
         _lightsToRemove.clear();
 
+        // Update the world light
+        _frame->csc.worldLight = _worldLight->Copy();
+
         // Now go through and update all lights that have changed in some way
         for (auto& entry : _lights) {
             auto  light = entry.first;
@@ -699,10 +726,6 @@ namespace stratus {
         };
 
         std::unordered_set<EntityView> visible(16);
-
-        _frame->csc.worldLightingEnabled = _worldLight.enabled;
-        _frame->csc.worldLightColor = _worldLight.color * _worldLight.intensity;
-
         const size_t numCascades = _frame->csc.cascades.size();
         const float maxDist = _params.zfar;
         

@@ -74,6 +74,7 @@ void Pipeline::_compile() {
     _isValid = true;
     std::vector<GLuint> shaderBinaries;
     for (Shader & s : this->_shaders) {
+        STRATUS_LOG << "Loading shader: " << s.filename << std::endl;
         std::string buffer = Filesystem::readAscii(s.filename);
         if (buffer.empty()) {
             _isValid = false;
@@ -179,6 +180,30 @@ void Pipeline::setMat3(const std::string &uniform, const float *mat, int num) co
 
 void Pipeline::setMat4(const std::string &uniform, const float *mat, int num) const {
     glUniformMatrix4fv(getUniformLocation(uniform), num, GL_FALSE, mat);
+}
+
+void Pipeline::setVec2(const std::string & uniform, const glm::vec2& v) const {
+    setVec2(uniform, (const float *)&v[0]);
+}
+
+void Pipeline::setVec3(const std::string & uniform, const glm::vec3& v) const {
+    setVec3(uniform, (const float *)&v[0]);
+}
+
+void Pipeline::setVec4(const std::string & uniform, const glm::vec4& v) const {
+    setVec4(uniform, (const float *)&v[0]);
+}
+
+void Pipeline::setMat2(const std::string & uniform, const glm::mat2& m) const {
+    setMat2(uniform, (const float *)&m[0][0]);
+}
+
+void Pipeline::setMat3(const std::string & uniform, const glm::mat3& m) const {
+    setMat3(uniform, (const float *)&m[0][0]);
+}
+
+void Pipeline::setMat4(const std::string & uniform, const glm::mat4& m) const {
+    setMat4(uniform, (const float *)&m[0][0]);
 }
 
 GLint Pipeline::getUniformLocation(const std::string &uniform) const {

@@ -11,6 +11,10 @@ namespace stratus {
         virtual ~Application() = default;
 
         // Sets the name of the window
-        virtual std::string GetAppName() const = 0;
+        virtual const char * GetAppName() const = 0;
+
+        virtual const char * Name() const {
+            return GetAppName();
+        }
     };
 }

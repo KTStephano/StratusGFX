@@ -1,4 +1,5 @@
 #include "StratusEntity.h"
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace stratus {
     EntityPtr Entity::Create() {
@@ -48,7 +49,7 @@ namespace stratus {
 
     const std::vector<EntityComponentPtr>& Entity::GetComponents() const {
         throw std::runtime_error("Implement");
-
+        
     }
 
     const glm::vec3& Entity::GetLocalPosition() const {
@@ -164,9 +165,8 @@ namespace stratus {
 
     void Entity::_RecalcTransform() {
         _localTransform = constructTransformMat(_rotation, _position, _scale);
-        _worldTransform = _parent != nullptr ? _parent->_worldTransform : glm::mat4(1.0f);
-        _worldPosition = glm::vec3(_worldTransform * glm::vec4(_position, 1.0f));
-        _worldTransform = _worldTransform * _localTransform;
+        _worldTransform = _parent != nullptr ? _parent->_worldTransform * _localTransform : _localTransform;
+        _worldPosition = glm::vec3(_worldTransform[3].x, _worldTransform[3].y, _worldTransform[3].z);
 
         if (_renderNode != nullptr) {
             _renderNode->SetWorldTransform(_worldTransform);

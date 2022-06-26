@@ -43,7 +43,11 @@ namespace stratus {
         EntityPtr CreateCube();
         EntityPtr CreateQuad();
 
-                // SystemModule inteface
+        // SystemModule inteface
+        virtual const char * Name() const {
+            return "ResourceManager";
+        }
+
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

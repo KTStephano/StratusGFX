@@ -31,6 +31,10 @@ namespace stratus {
         static Log * Instance() { return _instance; }
 
         // SystemModule inteface
+        virtual const char * Name() const {
+            return "Log";
+        }
+        
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

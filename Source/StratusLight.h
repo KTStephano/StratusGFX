@@ -9,7 +9,10 @@
 #include <memory>
 
 namespace stratus {
+    class InfiniteLight;
     class Light;
+
+    typedef std::shared_ptr<InfiniteLight> InfiniteLightPtr;
     typedef std::shared_ptr<Light> LightPtr;
 
     enum class LightType {
@@ -17,16 +20,33 @@ namespace stratus {
         SPOTLIGHT
     };
 
-    const float maxLightColor = 10000.0f;
+    constexpr float maxLightColor = 10000.0f;
+    constexpr float maxAmbientIntensity = 0.02;
+    constexpr float minAmbientIntensity = 0.001;
 
     // Serves as a global world light
     class InfiniteLight {
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _position = glm::vec3(0.0f);
         Rotation _rotation;
-        float _intensity = 1.0f;
+        float _intensity = 6.0f;
+        float _ambientIntensity = minAmbientIntensity;
+        bool _enabled = true;
 
     public:
+        InfiniteLight(const bool enabled = true)
+            : _enabled(enabled) {}
+
+        ~InfiniteLight() = default;
+
+        InfiniteLight(const InfiniteLight&) = default;
+        InfiniteLight(InfiniteLight&&) = default;
+        InfiniteLight& operator=(const InfiniteLight&) = default;
+        InfiniteLight& operator=(InfiniteLight&&) = default;
+
+        // Get light color * intensity for use with lighting equations
+        glm::vec3 getLuminance() const { return getColor() * getIntensity(); }
+
         const glm::vec3 & getColor() const { return _color; }
         void setColor(const glm::vec3 & color) { _color = glm::max(color, glm::vec3(0.0f)); }
 
@@ -44,6 +64,18 @@ namespace stratus {
 
         float getIntensity() const { return _intensity; }
         void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
+
+        float getAmbientIntensity() const { 
+            const float ambient = stratus::sine(stratus::Radians(_rotation.x)).value() * maxAmbientIntensity;
+            return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
+        }
+
+        bool getEnabled() const { return _enabled; }
+        void setEnabled(const bool e) { _enabled = e; }
+
+        virtual InfiniteLightPtr Copy() const {
+            return InfiniteLightPtr(new InfiniteLight(*this));
+        }
     };
 
     class Light {

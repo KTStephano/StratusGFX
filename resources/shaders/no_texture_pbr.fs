@@ -34,6 +34,9 @@ layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec3 gAlbedo;
 layout (location = 3) out vec3 gBaseReflectivity;
 layout (location = 4) out vec3 gRoughnessMetallicAmbient;
+// The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
+// and atmospheric shadowing.
+layout (location = 5) out vec4 gStructureBuffer;
 
 void main() {
     vec3 viewDir = normalize(viewPosition - fsPosition);
@@ -53,4 +56,5 @@ void main() {
     gAlbedo = baseColor;
     gBaseReflectivity = fsBaseReflectivity;
     gRoughnessMetallicAmbient = vec3(fsRoughness, fsMetallic, 1.0);
+    gStructureBuffer = vec4(1.0);
 }

@@ -57,11 +57,21 @@ namespace stratus {
         glm::mat4 projectionViewRender;
         // Use during shadow map sampling
         glm::mat4 projectionViewSample;
+        // Transforms from a cascade 0 sampling coordinate to the current cascade
+        glm::mat4 sampleCascade0ToCurrent;
         glm::vec4 cascadePlane;
-        glm::vec3 cascadePosition;
+        glm::vec3 cascadePositionLightSpace;
+        glm::vec3 cascadePositionCameraSpace;
         float cascadeRadius;
         float cascadeBegins;
         float cascadeEnds;
+    };
+
+    struct RendererAtmosphericData {
+        int numSamples = 64;
+        float fogDensity = 0.05f;
+        // If > 1, then backscattered light will be greater than forwardscattered light
+        float scatterControl = 0.05f;
     };
 
     struct RendererCascadeContainer {
@@ -70,21 +80,25 @@ namespace stratus {
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
-        glm::vec3 worldLightColor;
+        InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
-        bool regenerateFbo;
-        bool worldLightingEnabled;
+        glm::vec3 worldLightDirectionCameraSpace;
+        bool regenerateFbo;    
     };
 
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
         uint32_t viewportHeight;
+        Radians fovy;
         CameraPtr camera;
         RendererCascadeContainer csc;
+        RendererAtmosphericData atmospheric;
         InstancedData instancedPbrMeshes;
         InstancedData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
+        float znear;
+        float zfar;
         glm::mat4 projection;
         glm::vec4 clearColor;
         bool viewportDirty;
@@ -131,11 +145,12 @@ namespace stratus {
     class RendererBackend {
         struct GBuffer {
             FrameBuffer fbo;
-            Texture position;                 // RGBA32F (rgba instead of rgb due to possible alignment issues)
-            Texture normals;                  // RGBA32F
-            Texture albedo;                   // RGBA32F
-            Texture baseReflectivity;         // RGBA32F
-            Texture roughnessMetallicAmbient; // RGBA32F
+            Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
+            Texture normals;                  // RGB16F
+            Texture albedo;                   // RGB16F
+            Texture baseReflectivity;         // RGB16F
+            Texture roughnessMetallicAmbient; // RGB16F
+            Texture structure;                // RGBA16F
             Texture depth;                    // R16F
         };
 
@@ -146,6 +161,10 @@ namespace stratus {
         struct RenderState {
             int numShadowMaps = 20;
             int shadowCubeMapX = 1024, shadowCubeMapY = 1024;
+            int maxShadowCastingLights = 8; // per frame
+            int maxTotalLights = 256; // active in a frame
+            // How many shadow maps can be rebuilt each frame
+            int maxShadowUpdatesPerFrame = maxShadowCastingLights;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -156,6 +175,16 @@ namespace stratus {
             // Used for effects like bloom
             Texture lightingHighBrightnessBuffer;
             Texture lightingDepthBuffer;
+            // Used for Screen Space Ambient Occlusion (SSAO)
+            Texture ssaoOffsetLookup;               // 4x4 table where each pixel is (16-bit, 16-bit)
+            Texture ssaoOcclusionTexture;
+            FrameBuffer ssaoOcclusionBuffer;        // Contains light factors computed per pixel
+            Texture ssaoOcclusionBlurredTexture;
+            FrameBuffer ssaoOcclusionBlurredBuffer; // Counteracts low sample count of occlusion buffer by depth-aware blurring
+            // Used for atmospheric shadowing
+            FrameBuffer atmosphericFbo;
+            Texture atmosphericTexture;
+            Texture atmosphericNoiseTexture;
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -165,6 +194,8 @@ namespace stratus {
             int numUpsampleIterations = 0;
             std::vector<PostFXBuffer> gaussianBuffers;
             std::vector<PostFXBuffer> postFxBuffers;
+            // Handles atmospheric post processing
+            PostFXBuffer atmosphericPostFxBuffer;
             // End of the pipeline should write to this
             Texture finalScreenTexture;
             // Used for a call to glBlendFunc
@@ -179,6 +210,14 @@ namespace stratus {
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass
             std::unique_ptr<Pipeline> forward;
+            // Handles first SSAO pass (no blurring)
+            std::unique_ptr<Pipeline> ssaoOcclude;
+            // Handles second SSAO pass (blurring)
+            std::unique_ptr<Pipeline> ssaoBlur;
+            // Handles the atmospheric shadowing stage
+            std::unique_ptr<Pipeline> atmospheric;
+            // Handles atmospheric post fx stage
+            std::unique_ptr<Pipeline> atmosphericPostFx;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
             std::unique_ptr<Pipeline> bloom;
@@ -342,16 +381,22 @@ namespace stratus {
         void _ClearFramebufferData(const bool);
         void _InitAllInstancedData();
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
+        void _InitSSAO();
+        void _InitAtmosphericShadowing();
         void _InitInstancedData(RendererEntityData &);
         void _ClearInstancedData();
         void _BindShader(Pipeline *);
         void _UnbindShader();
         void _PerformPostFxProcessing();
+        void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _RenderCSMDepth();
         void _RenderQuad();
+        void _RenderSsaoOcclude();
+        void _RenderSsaoBlur();
+        void _RenderAtmosphericShadowing();
         TextureHandle _GetShadowMapHandleForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);

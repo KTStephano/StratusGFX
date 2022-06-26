@@ -1,5 +1,4 @@
 #include "StratusCommon.h"
-#include "StratusMath.h"
 #include "glm/glm.hpp"
 #include <iostream>
 #include <StratusPipeline.h>
@@ -84,123 +83,27 @@ struct StationaryLight : public RandomLightMover {
     }
 };
 
-class StratusGFX : public stratus::Application {
+class Sponza : public stratus::Application {
 public:
-    virtual ~StratusGFX() = default;
+    virtual ~Sponza() = default;
 
     const char * GetAppName() const override {
-        return "StratusGFX";
+        return "Sponza";
     }
 
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
-        STRATUS_LOG << "Initializing StratusGFX" << std::endl;
+        STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
         camera = stratus::CameraPtr(new stratus::Camera());
         stratus::RendererFrontend::Instance()->SetCamera(camera);
-
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
 
-        // For textures see https://3dtextures.me/
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg", true));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_basecolor.jpg", true));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg", true));
-        textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg", true));
-
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Normal.jpg", false));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_normal.jpg", false));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_normal.jpg", false));
-        normalMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_normal.jpg", false));
-
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Height.png", false));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_height.png", false));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_height.png", false));
-        depthMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_height.png", false));
-
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_Roughness.jpg", false));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_roughness.jpg", false));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_roughness.jpg", false));
-        roughnessMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_roughness.jpg", false));
-
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg", true));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg", true));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg", true));
-        environmentMaps.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg", true));
-
-        stratus::Async<stratus::Entity> e;
-        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
-
-        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
-
-        e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/boubin_stump.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
-
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/hintze-hall-1m.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
-
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/model.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
-
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
+        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.08f, 0.1f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
-
-        for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
-            auto cube = stratus::ResourceManager::Instance()->CreateCube();
-            auto quad = stratus::ResourceManager::Instance()->CreateQuad();
-            stratus::MaterialPtr mat = stratus::MaterialManager::Instance()->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
-            mat->SetDiffuseTexture(textures[texIndex]);
-            mat->SetNormalMap(normalMaps[texIndex]);
-            mat->SetDepthMap(depthMaps[texIndex]);
-            mat->SetRoughnessMap(roughnessMaps[texIndex]);
-            mat->SetAmbientTexture(environmentMaps[texIndex]);
-            cube->GetRenderNode()->SetMaterial(mat);
-            quad->GetRenderNode()->SetMaterial(mat);
-            cubeMeshes.push_back(cube);
-            quadMeshes.push_back(quad);
-        }
-
-        //quadMat.texture = stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/volcanic_rock_texture.png");
-        srand(time(nullptr));
-        for (int i = 0; i < 100; ++i) {
-            size_t texIndex = rand() % textures.size();
-            auto mesh = quadMeshes[texIndex]->Copy();
-            mesh->SetLocalPosition(glm::vec3(rand() % 50, rand() % 50, rand() % 50));
-            entities.push_back(mesh);
-            mesh->SetLocalScale(glm::vec3(float(rand() % 5)));
-            textureIndices.push_back(texIndex);
-            stratus::RendererFrontend::Instance()->AddStaticEntity(mesh);
-        }
-        //std::vector<std::unique_ptr<Cube>> cubes;
-        //cubeMat.texture = stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/wood_texture.jpg");
-        for (int i = 0; i < 5000; ++i) {
-            size_t texIndex = rand() % textures.size();
-            auto mesh = cubeMeshes[texIndex]->Copy();
-            entities.push_back(mesh);
-            mesh->SetLocalPosition(glm::vec3(rand() % 3000, rand() % 50, rand() % 3000));
-            mesh->SetLocalScale(glm::vec3(float(rand() % 25)));
-            textureIndices.push_back(texIndex);
-            stratus::RendererFrontend::Instance()->AddStaticEntity(mesh);
-        }
-
-        // Create the light movers
-        // for (int x = 0; x < 3000; x += 150) {
-        //     for (int y = 0; y < 3000; y += 150) {
-        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-        //         mover->light->setIntensity(500.0f);
-        //         mover->position = glm::vec3(float(x),
-        //                                     0.0f, // float(rand() % 200),
-        //                                     float(y));
-        //         lightMovers.push_back(std::move(mover));
-        //     }
-        // }
-
-        persp = glm::perspective(glm::radians(90.0f), 640 / 480.0f, 0.25f, 1000.0f);
 
         bool running = true;
 
@@ -220,14 +123,17 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        const float value = 3.0f;
-        const float maxAmbientIntensity = 0.03;
+        float value = 3.0f;
         if (stratus::Engine::Instance()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
         const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
+        const float atmosphericIncreaseSpeed = 1.0f;
+
+        float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
+        float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -295,16 +201,23 @@ public:
                             }
                             break;
                         case SDL_SCANCODE_UP: {
-                            float brightness = worldLight->getIntensity() + lightIncreaseSpeed * deltaSeconds;
-                            brightness = std::min(maxLightBrightness, brightness);
-                            worldLight->setIntensity(brightness);
-                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
+                            scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             break;
                         }
                         case SDL_SCANCODE_DOWN: {
-                            float brightness = worldLight->getIntensity() - lightIncreaseSpeed * deltaSeconds;
-                            worldLight->setIntensity(brightness);
-                            STRATUS_LOG << "Brightness: " << brightness << std::endl;
+                            scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
+                            break;
+                        }
+                        case SDL_SCANCODE_LEFT: {
+                            fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                            break;
+                        }
+                        case SDL_SCANCODE_RIGHT: {
+                            fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
+                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
                             break;
                         }
                         case SDL_SCANCODE_1: {
@@ -426,20 +339,21 @@ public:
             }
         }
 
-        // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
-        //worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(fogDensity, scatterControl);
+
+        // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
+        //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         if (!worldLightPaused) {
-            STRATUS_LOG << worldLight->getAmbientIntensity() << std::endl;
             worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
         }
 
         //renderer->toggleWorldLighting(worldLightEnabled);
         stratus::RendererFrontend::Instance()->SetWorldLight(worldLight);
-        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
-        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
+        // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
+        // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
         worldLight->setColor(glm::vec3(1.0f));
         worldLight->setPosition(camera->getPosition());
-        //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
+        //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
         // Check mouse state
@@ -458,47 +372,8 @@ public:
         cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-        if (outhouse) {
-            outhouse->SetLocalScale(glm::vec3(10.0f));
-            outhouse->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
-        }
-        //renderer->addDrawable(outhouse);
-
-        //clay.scale = glm::vec3(1.0f);
-        //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        if (clay) {
-            clay->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
-        }
-        //clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        //renderer->addDrawable(clay);
-
-        if (stump) {
-            stump->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            stump->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
-        }
-        //renderer->addDrawable(stump);
-
-        if (hall) {
-            hall->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            hall->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
-            hall->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
-        }
-        //renderer->addDrawable(hall);
-
-        if (ramparts) {
-            ramparts->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
-            ramparts->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            ramparts->SetLocalScale(glm::vec3(10.0f));
-        }
-        //renderer->addDrawable(ramparts);
-
-        if (rocks) {
-            rocks->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
-            rocks->SetLocalScale(glm::vec3(15.0f));
-        }
-
         if (sponza) {
-           sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
+           sponza->SetLocalPosition(glm::vec3(0.0f));
            sponza->SetLocalScale(glm::vec3(15.0f));
         }
 
@@ -528,23 +403,8 @@ public:
     }
 
 private:
-    std::vector<stratus::TextureHandle> textures;
-    std::vector<stratus::TextureHandle> normalMaps;
-    std::vector<stratus::TextureHandle> depthMaps;
-    std::vector<stratus::TextureHandle> roughnessMaps;
-    std::vector<stratus::TextureHandle> environmentMaps;
-    stratus::EntityPtr outhouse;
-    stratus::EntityPtr clay;
-    stratus::EntityPtr stump;
-    stratus::EntityPtr hall;
-    stratus::EntityPtr ramparts;
-    stratus::EntityPtr rocks;
     stratus::EntityPtr sponza;
-    std::vector<stratus::EntityPtr> cubeMeshes;
-    std::vector<stratus::EntityPtr> quadMeshes;
     std::vector<stratus::EntityPtr> entities;
-    std::vector<size_t> textureIndices;
-    glm::mat4 persp;
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
     stratus::LightPtr cameraLight;
@@ -554,4 +414,4 @@ private:
     bool worldLightPaused = true;
 };
 
-STRATUS_ENTRY_POINT(StratusGFX)
+STRATUS_ENTRY_POINT(Sponza)

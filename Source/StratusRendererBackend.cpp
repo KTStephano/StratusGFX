@@ -5,6 +5,9 @@
 #include "StratusRendererBackend.h"
 #include <math.h>
 #include <cmath>
+#include <algorithm>
+#include <random>
+#include <numeric>
 #include "StratusUtils.h"
 #include "StratusMath.h"
 #include "StratusLog.h"
@@ -73,7 +76,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         return;
     }
 
-    // Set the profile to core as opposed to immediate mode
+    // Set the profile to core as opposed to compatibility mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // Set max/min version
     //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -190,6 +193,27 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.csmDepth.get());
 
+    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/ssao.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.ssaoOcclude.get());
+
+    _state.ssaoBlur = std::unique_ptr<Pipeline>(new Pipeline({
+        // Intentionally reuse ssao.vs since it works for both this and ssao.fs
+        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/ssao_blur.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.ssaoBlur.get());
+
+    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/atmospheric.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/atmospheric.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.atmospheric.get());
+
+    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline({
+        Shader{"../resources/shaders/atmospheric_postfx.vs", ShaderType::VERTEX},
+        Shader{"../resources/shaders/atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.atmosphericPostFx.get());
+
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
@@ -197,6 +221,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _ValidateAllShaders();
 
     _state.dummyCubeMap = CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+
+    // Init constant SSAO data
+    _InitSSAO();
+
+    // Init constant atmospheric data
+    _InitAtmosphericShadowing();
 
     // Create a pool of shadow maps for point lights to use
     for (int i = 0; i < _state.numShadowMaps; ++i) {
@@ -305,12 +335,17 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
+    // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
+    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.structure.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    buffer.structure.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
     // Create the depth buffer
     buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
     buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the frame buffer with all its texture attachments
-    buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.depth});
+    buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
     if (!buffer.fbo.valid()) {
         _isValid = false;
         return;
@@ -333,6 +368,36 @@ void RendererBackend::_UpdateWindowDimensions() {
     // Attach the textures to the FBO
     _state.lightingFbo = FrameBuffer({_state.lightingColorBuffer, _state.lightingHighBrightnessBuffer, _state.lightingDepthBuffer});
     if (!_state.lightingFbo.valid()) {
+        _isValid = false;
+        return;
+    }
+
+    // Code to create the SSAO fbo
+    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.ssaoOcclusionTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.ssaoOcclusionBuffer = FrameBuffer({_state.ssaoOcclusionTexture});
+    if (!_state.ssaoOcclusionBuffer.valid()) {
+        _isValid = false;
+        return;
+    }
+
+    // Code to create the SSAO blurred fbo
+    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionBlurredTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.ssaoOcclusionBlurredTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.ssaoOcclusionBlurredBuffer = FrameBuffer({_state.ssaoOcclusionBlurredTexture});
+    if (!_state.ssaoOcclusionBlurredBuffer.valid()) {
+        _isValid = false;
+        return;
+    }
+
+    // Code to create the Atmospheric fbo
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
+    if (!_state.atmosphericFbo.valid()) {
         _isValid = false;
         return;
     }
@@ -396,6 +461,17 @@ void RendererBackend::_InitializePostFxBuffers() {
         }
         _state.postFxBuffers.push_back(buffer);
     }
+
+    // Create the atmospheric post fx buffer
+    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    atmosphericTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
+    if (!_state.atmosphericPostFxBuffer.fbo.valid()) {
+        _isValid = false;
+        STRATUS_ERROR << "Unable to initialize atmospheric post fx buffer" << std::endl;
+        return;
+    }
 }
 
 void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
@@ -407,6 +483,9 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     if (clearScreen) {
         const glm::vec4& color = _frame->clearColor;
         _state.buffer.fbo.clear(color);
+        _state.ssaoOcclusionBuffer.clear(color);
+        _state.ssaoOcclusionBlurredBuffer.clear(color);
+        _state.atmosphericFbo.clear(glm::vec4(0.0f));
         _state.lightingFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
@@ -421,6 +500,8 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         for (auto& postFx : _state.postFxBuffers) {
             postFx.fbo.clear(glm::vec4(0.0f));
         }
+
+        _state.atmosphericPostFxBuffer.fbo.clear(glm::vec4(0.0f));
     }
 }
 
@@ -450,11 +531,50 @@ void RendererBackend::_InitAllInstancedData() {
     }
 
     // Cascades
-    if (_frame->csc.worldLightingEnabled) {
+    if (_frame->csc.worldLight->getEnabled()) {
         INIT_INST_DATA(_frame->csc.visible)
     }
 
 #undef INIT_INST_DATA
+}
+
+void RendererBackend::_InitSSAO() {
+    // Create k values 0 to 15 and randomize them
+    std::vector<float> ks(16);
+    std::iota(ks.begin(), ks.end(), 0.0f);
+    std::shuffle(ks.begin(), ks.end(), std::default_random_engine{});
+
+    // Create the data for the 4x4 lookup table
+    float table[16 * 3]; // RGB
+    for (size_t i = 0; i < ks.size(); ++i) {
+        const float k = ks[i];
+        const Radians r(2.0f * float(STRATUS_PI) * k / 16.0f);
+        table[i * 3    ] = cosine(r).value();
+        table[i * 3 + 1] = sine(r).value();
+        table[i * 3 + 2] = 0.0f;
+    }
+
+    // Create the lookup texture
+    _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, (const void *)&table[0]);
+    _state.ssaoOffsetLookup.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.ssaoOffsetLookup.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+}
+
+void RendererBackend::_InitAtmosphericShadowing() {
+    auto re = std::default_random_engine{};
+    // On the range [0.0, 1.0) --> we technically want [0.0, 1.0] but it's close enough
+    std::uniform_real_distribution<float> real(0.0f, 1.0f);
+
+    // Create the 64x64 noise texture
+    const size_t size = 64 * 64;
+    std::vector<float> table(size);
+    for (size_t i = 0; i < size; ++i) {
+        table[i] = real(re);
+    }
+
+    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 64, 64, 0, false}, (const void *)&table[0]);
+    _state.atmosphericNoiseTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -765,15 +885,122 @@ void RendererBackend::_RenderCSMDepth() {
     glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
+void RendererBackend::_RenderSsaoOcclude() {
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    // Aspect ratio
+    const float ar        = float(_frame->viewportWidth) / float(_frame->viewportHeight);
+    // Distance to the view projection plane
+    const float g         = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
+    const float w         = _frame->viewportWidth;
+    // Gets fed into sigma value
+    const float intensity = 5.0f;
+
+    _BindShader(_state.ssaoOcclude.get());
+    _state.ssaoOcclusionBuffer.bind();
+    _state.ssaoOcclude->bindTexture("structureBuffer", _state.buffer.structure);
+    _state.ssaoOcclude->bindTexture("rotationLookup", _state.ssaoOffsetLookup);
+    _state.ssaoOcclude->setFloat("aspectRatio", ar);
+    _state.ssaoOcclude->setFloat("projPlaneZDist", g);
+    _state.ssaoOcclude->setFloat("windowHeight", _frame->viewportHeight);
+    _state.ssaoOcclude->setFloat("windowWidth", w);
+    _state.ssaoOcclude->setFloat("intensity", intensity);
+    _RenderQuad();
+    _state.ssaoOcclusionBuffer.unbind();
+    _UnbindShader();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void RendererBackend::_RenderSsaoBlur() {
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    _BindShader(_state.ssaoBlur.get());
+    _state.ssaoOcclusionBlurredBuffer.bind();
+    _state.ssaoBlur->bindTexture("structureBuffer", _state.buffer.structure);
+    _state.ssaoBlur->bindTexture("occlusionBuffer", _state.ssaoOcclusionTexture);
+    _state.ssaoBlur->setFloat("windowWidth", _frame->viewportWidth);
+    _state.ssaoBlur->setFloat("windowHeight", _frame->viewportHeight);
+    _RenderQuad();
+    _state.ssaoOcclusionBlurredBuffer.unbind();
+    _UnbindShader();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void RendererBackend::_RenderAtmosphericShadowing() {
+    constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+
+    auto re = std::default_random_engine{};
+    const float n = _frame->atmospheric.numSamples;
+    // On the range [0.0, 1/n)
+    std::uniform_real_distribution<float> real(0.0f, 1.0f / n);
+    const glm::vec2 noiseShift(real(re), real(re));
+    const float dmin     = _frame->znear;
+    const float dmax     = _frame->csc.cascades[_frame->csc.cascades.size() - 1].cascadeEnds;
+    const float lambda   = _frame->atmospheric.fogDensity;
+    // cbrt = cube root
+    const float cubeR    = std::cbrt(_frame->atmospheric.scatterControl);
+    const float g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
+    // aspect ratio
+    const float ar       = float(_frame->viewportWidth) / float(_frame->viewportHeight);
+    // g in frustum parameters
+    const float projDist = 1.0f / glm::tan(_frame->fovy.value() / 2.0f);
+    const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
+    const glm::mat4 shadowMatrix = _frame->csc.cascades[0].projectionViewSample * _frame->camera->getWorldTransform();
+    const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
+    const glm::vec4 shadowSpaceCameraPos = _frame->csc.cascades[0].projectionViewSample * glm::vec4(_frame->camera->getPosition(), 1.0f);
+    const glm::vec3 normalizedCameraLightDirection = _frame->csc.worldLightDirectionCameraSpace;
+
+    _BindShader(_state.atmospheric.get());
+    _state.atmosphericFbo.bind();
+    _state.atmospheric->setVec3("frustumParams", frustumParams);
+    _state.atmospheric->setMat4("shadowMatrix", shadowMatrix);
+    _state.atmospheric->bindTexture("structureBuffer", _state.buffer.structure);
+    _state.atmospheric->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
+    
+    // Set up cascade data
+    for (int i = 0; i < 4; ++i) {
+        const auto& cascade = _frame->csc.cascades[i];
+        const std::string si = "[" + std::to_string(i) + "]";
+        _state.atmospheric->setFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
+        if (i > 0) {
+            const std::string sim1 = "[" + std::to_string(i - 1) + "]";
+            _state.atmospheric->setMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
+        }
+    }
+
+    _state.atmospheric->bindTexture("noiseTexture", _state.atmosphericNoiseTexture);
+    _state.atmospheric->setFloat("minAtmosphereDepth", dmin);
+    _state.atmospheric->setFloat("atmosphereDepthDiff", dmax - dmin);
+    _state.atmospheric->setFloat("atmosphereDepthRatio", dmax / dmin);
+    _state.atmospheric->setFloat("atmosphereFogDensity", lambda);
+    _state.atmospheric->setVec3("anisotropyConstants", anisotropyConstants);
+    _state.atmospheric->setVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
+    _state.atmospheric->setVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
+    _state.atmospheric->setVec2("noiseShift", noiseShift);
+    _state.atmospheric->setFloat("windowWidth", float(_frame->viewportWidth));
+    _state.atmospheric->setFloat("windowHeight", float(_frame->viewportHeight));
+
+    _RenderQuad();
+    _state.atmosphericFbo.unbind();
+    _UnbindShader();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void RendererBackend::RenderScene() {
     CHECK_IS_APPLICATION_THREAD();
 
     const Camera& c = *_frame->camera;
-
-    const int maxInstances = 250;
-    const int maxShadowCastingLights = 8;
-    const int maxTotalLights = 256;
-    const int maxShadowUpdatesPerFrame = maxShadowCastingLights;
 
     std::unordered_map<LightPtr, bool> perLightIsDirty;
     std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
@@ -800,13 +1027,13 @@ void RendererBackend::RenderScene() {
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > maxTotalLights) {
-        perLightDistToViewer.resize(maxTotalLights);
+    if (perLightDistToViewer.size() > _state.maxTotalLights) {
+        perLightDistToViewer.resize(_state.maxTotalLights);
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > maxShadowCastingLights) {
-        perLightShadowCastingDistToViewer.resize(maxShadowCastingLights);
+    if (perLightShadowCastingDistToViewer.size() > _state.maxShadowCastingLights) {
+        perLightShadowCastingDistToViewer.resize(_state.maxShadowCastingLights);
     }
 
     // Set blend func just for shadow pass
@@ -816,7 +1043,7 @@ void RendererBackend::RenderScene() {
     _BindShader(_state.shadows.get());
     int shadowUpdates = 0;
     for (auto&[light, d] : perLightShadowCastingDistToViewer) {
-        if (shadowUpdates > maxShadowUpdatesPerFrame) break;
+        if (shadowUpdates > _state.maxShadowUpdatesPerFrame) break;
         ++shadowUpdates;
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
@@ -863,7 +1090,7 @@ void RendererBackend::RenderScene() {
     _UnbindShader();
 
     // Perform world light depth pass if enabled
-    if (_frame->csc.worldLightingEnabled) {
+    if (_frame->csc.worldLight->getEnabled()) {
         _RenderCSMDepth();
     }
 
@@ -879,7 +1106,6 @@ void RendererBackend::RenderScene() {
     glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
 
     // Begin geometry pass
-    //glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
         const RenderNodeView& e = entityObservers.first;
@@ -887,20 +1113,32 @@ void RendererBackend::RenderScene() {
     }
     _state.buffer.fbo.unbind();
 
-    glDisable(GL_CULL_FACE);
     //glEnable(GL_BLEND);
 
+    // Begin first SSAO pass (occlusion)
+    _RenderSsaoOcclude();
+
+    // Begin second SSAO pass (blurring)
+    _RenderSsaoBlur();
+
+    // Begin atmospheric pass
+    _RenderAtmosphericShadowing();
+
     // Begin deferred lighting pass
-    _state.lightingFbo.bind();
+    glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
+    _state.lightingFbo.bind();
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
-    _InitLights(_state.lighting.get(), perLightDistToViewer, maxShadowCastingLights);
+    _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
     _state.lighting->bindTexture("gPosition", _state.buffer.position);
     _state.lighting->bindTexture("gNormal", _state.buffer.normals);
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
     _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
+    _state.lighting->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
+    _state.lighting->setFloat("windowWidth", _frame->viewportWidth);
+    _state.lighting->setFloat("windowHeight", _frame->viewportHeight);
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();
@@ -929,7 +1167,7 @@ void RendererBackend::_PerformPostFxProcessing() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
     //glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
 
     // We use this so that we can avoid a final copy between the downsample and blurring stages
     std::vector<PostFXBuffer> finalizedPostFxFrames(_state.numDownsampleIterations + _state.numUpsampleIterations);
@@ -1020,6 +1258,34 @@ void RendererBackend::_PerformPostFxProcessing() {
     }
 
     _UnbindShader();
+
+    _PerformAtmosphericPostFx();
+}
+
+void RendererBackend::_PerformAtmosphericPostFx() {
+    const glm::mat4& projection = _frame->projection;
+    // See page 354, eqs. 10.81 and 10.82
+    const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
+    const float w = _frame->viewportWidth;
+    const float h = _frame->viewportHeight;
+    const float xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
+                               projection[0][1] * normalizedLightDirCamSpace.y + 
+                               projection[0][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
+    const float ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
+                               projection[1][1] * normalizedLightDirCamSpace.y + 
+                               projection[1][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
+    const glm::vec3 lightPosition = 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+
+    _BindShader(_state.atmosphericPostFx.get());
+    _state.atmosphericPostFxBuffer.fbo.bind();
+    _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
+    _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
+    _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
+    _RenderQuad();
+    _state.atmosphericPostFxBuffer.fbo.unbind();
+    _UnbindShader();
+
+    _state.finalScreenTexture = _state.atmosphericPostFxBuffer.fbo.getColorAttachments()[0];
 }
 
 void RendererBackend::_FinalizeFrame() {
@@ -1155,11 +1421,12 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
-    s->setBool("infiniteLightingEnabled", _frame->csc.worldLightingEnabled);
+    s->setBool("infiniteLightingEnabled", _frame->csc.worldLight->getEnabled());
     s->setVec3("infiniteLightDirection", &direction[0]);
-    lightColor = _frame->csc.worldLightColor;
+    lightColor = _frame->csc.worldLight->getLuminance();
     s->setVec3("infiniteLightColor", &lightColor[0]);
-
+    s->setFloat("worldLightAmbientIntensity", _frame->csc.worldLight->getAmbientIntensity());
+    
     s->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
     for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());

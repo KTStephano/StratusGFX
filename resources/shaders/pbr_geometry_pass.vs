@@ -20,6 +20,7 @@ uniform mat4 view;
 uniform vec3 viewPosition;
 
 smooth out vec3 fsPosition;
+smooth out vec3 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 
@@ -35,10 +36,15 @@ out vec3 fsDiffuseColor;
 void main() {
     //mat4 model = modelMats[gl_InstanceID];
     vec4 pos = model * vec4(position, 1.0);
+
+    vec4 viewSpacePos = view * pos;
     fsPosition = pos.xyz;
+    fsViewSpacePos = viewSpacePos.xyz;
     fsTexCoords = texCoords;
+
     fsModelNoTranslate = mat3(model);
     fsNormal = normalize(fsModelNoTranslate * normal);
+
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // tbn matrix transforms from normal map space to world space
     mat3 normalMatrix = mat3(model);
@@ -50,10 +56,12 @@ void main() {
     // then retrieve perpendicular vector B with the cross product of T and N
     vec3 b = normalize(cross(n, t));
     fsTbnMatrix = mat3(t, b, n);
+
     fsRoughness = roughness;
     fsModel = model;
     fsBaseReflectivity = baseReflectivity;
     fsMetallic = metallic;
     fsDiffuseColor = diffuseColor;
-    gl_Position = projection * view * pos;
+    
+    gl_Position = projection * viewSpacePos;
 }

@@ -52,12 +52,12 @@
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 10
 #define SPECULAR_MULTIPLIER 128.0
-#define WORLD_LIGHT_AMBIENT_INTENSITY 0.009
-#define POINT_LIGHT_AMBIENT_INTENSITY 0.03
 //#define AMBIENT_INTENSITY 0.00025
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 
+uniform float worldLightAmbientIntensity = 0.003;
+uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
 uniform sampler2D gPosition;
@@ -65,6 +65,10 @@ uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
+uniform sampler2DRect ssao;
+
+uniform float windowWidth;
+uniform float windowHeight;
 
 /**
  * Information about the camera
@@ -212,7 +216,9 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
-        // cascadeCoords[i] = cascadeCoord0 * cascadeScale[i - 1] + cascadeOffset[i - 1];
+        // cascadeProjViews[i] * fragPos puts the coordinates into clip space which are on the range of [-1, 1].
+        // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
+        // and then perform * 0.5 + vec3(0.5).
         vec4 coords = cascadeProjViews[i] * fragPos;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
         cascadeCoords[i].xyz = cascadeCoords[i].xyz * 0.5 + vec3(0.5);
@@ -291,7 +297,7 @@ vec3 calculatePointAmbient(vec3 fragPosition, vec3 baseColor, int lightIndex, co
     vec3 lightDir   = lightPos - fragPosition;
     float lightDist = length(lightDir);
     float attenuationFactor = 1.0 / (1.0 + lightDist * lightDist);
-    vec3 ambient = baseColor * ao * lightColor * POINT_LIGHT_AMBIENT_INTENSITY;
+    vec3 ambient = baseColor * ao * lightColor * pointLightAmbientIntensity;
     return attenuationFactor * ambient;
 }
 
@@ -333,7 +339,7 @@ vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3
     vec3 lightColor = lightColors[lightIndex];
     vec3 lightDir   = lightPos - fragPosition;
 
-    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), POINT_LIGHT_AMBIENT_INTENSITY);
+    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
 }
 
 void main() {
@@ -345,7 +351,9 @@ void main() {
     vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b;
+    // Note that we take the AO that may have been packed into a texture and augment it by SSAO
+    // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coor
+    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 color = vec3(0.0);
@@ -384,7 +392,7 @@ void main() {
                                   dot(cascadePlanes[2], vec4(fragPos, 1.0)));
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
-        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, WORLD_LIGHT_AMBIENT_INTENSITY);
+        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, worldLightAmbientIntensity);
     }
     else {
         color = color + baseColor * ambient * ambientIntensity;
