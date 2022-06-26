@@ -1,0 +1,11 @@
+Model Information:
+* title:	Forest
+* source:	https://sketchfab.com/3d-models/forest-9153c2b370934758bf14c395abe36b27
+* author:	rhfqcntrkf (https://sketchfab.com/rhfqcntrkf)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Forest" (https://sketchfab.com/3d-models/forest-9153c2b370934758bf14c395abe36b27) by rhfqcntrkf (https://sketchfab.com/rhfqcntrkf) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

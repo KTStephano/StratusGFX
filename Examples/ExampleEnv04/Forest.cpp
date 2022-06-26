@@ -98,9 +98,12 @@ public:
         camera = stratus::CameraPtr(new stratus::Camera());
         stratus::RendererFrontend::Instance()->SetCamera(camera);
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
+        //worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(-90.0f), stratus::Degrees(0.0f)));
+
+        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.1f, 0.15f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/stylized_hunters_lodge/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/southern_railway_stables_weighbridge/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { forest = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(forest); });
 
         bool running = true;
@@ -362,11 +365,15 @@ public:
         camera->update(deltaSeconds);
 
         cameraLight->position = camera->getPosition();
-        stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(90.0f, 0.0f, 0.0f, 1.0f));
 
         if (forest) {
            forest->SetLocalPosition(glm::vec3(0.0f));
-           forest->SetLocalScale(glm::vec3(1.0f));
+           forest->SetLocalScale(glm::vec3(4.0f));
+           auto rot = forest->GetLocalRotation();
+           rot.y = stratus::Degrees(-90.0f);
+           //forest->SetLocalRotation(rot);
+           //forest->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         }
 
         //renderer->addDrawable(rocks);
