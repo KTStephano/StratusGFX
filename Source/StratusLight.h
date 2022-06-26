@@ -29,7 +29,7 @@ namespace stratus {
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _position = glm::vec3(0.0f);
         Rotation _rotation;
-        float _intensity = 6.0f;
+        float _intensity = 3.0f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
 
