@@ -21,7 +21,7 @@ namespace stratus {
         SPOTLIGHT
     };
 
-    constexpr float maxLightColor = 10.0f;
+    constexpr float maxLightColor = 10000.0f;
     constexpr float minLightColor = 0.25f;
     constexpr float maxAmbientIntensity = 0.02;
     constexpr float minAmbientIntensity = 0.001;
