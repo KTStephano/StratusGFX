@@ -153,7 +153,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         }
     }
 
-    return anisotropicScatteringIntensity * atmosphere;
+    return min(5.0, anisotropicScatteringIntensity * atmosphere);
 }
 
 void main() {

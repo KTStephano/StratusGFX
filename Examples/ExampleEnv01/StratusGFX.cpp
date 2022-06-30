@@ -100,6 +100,7 @@ public:
         stratus::RendererFrontend::Instance()->SetCamera(camera);
 
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
+        //stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.3f, 0.8f);
 
         // For textures see https://3dtextures.me/
         textures.push_back(stratus::ResourceManager::Instance()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg", true));

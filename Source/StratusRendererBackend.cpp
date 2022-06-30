@@ -933,6 +933,8 @@ void RendererBackend::_RenderSsaoBlur() {
 }
 
 void RendererBackend::_RenderAtmosphericShadowing() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
     constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
 
     glDisable(GL_CULL_FACE);
@@ -1263,6 +1265,8 @@ void RendererBackend::_PerformPostFxProcessing() {
 }
 
 void RendererBackend::_PerformAtmosphericPostFx() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
     const glm::mat4& projection = _frame->projection;
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
