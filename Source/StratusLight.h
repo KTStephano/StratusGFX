@@ -61,7 +61,6 @@ namespace stratus {
         void setRotation(const Rotation & rotation) { 
             _rotation = rotation;
             _rotSine = stratus::sine(_rotation.x);
-            STRATUS_LOG << _rotSine.value() << ", " << _rotation.x.value() << std::endl;
         }
 
         void offsetRotation(const glm::vec3& offsets) {

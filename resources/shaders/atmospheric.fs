@@ -109,7 +109,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
 
     float inverseNoiseDim = 1.0 / textureSize(noiseTexture, 0).x;
     // Page 346, eq. 10.75
-    float t = deltaT * texture(noiseTexture, pixelCoords * inverseNoiseDim * 0.5 + noiseShift).x;
+    float t = deltaT * texture(noiseTexture, pixelCoords * inverseNoiseDim + noiseShift).x;
     float tmax = t + 1.0;
     float atmosphere = 0.0; // Accumulates atmosphere value
     float weight = m; // First weight always starts with m
