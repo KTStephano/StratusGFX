@@ -5,6 +5,7 @@ uniform sampler2DRect atmosphereBuffer;
 uniform sampler2D screenBuffer;
 // Contains 2*Lz*(Xlight, Ylight, 1) -- see page 354, eq. 10.81 and page 355, listing 10.14
 uniform vec3 lightPosition;
+uniform vec3 lightColor;
 
 smooth in vec2 fsTexCoords;
 

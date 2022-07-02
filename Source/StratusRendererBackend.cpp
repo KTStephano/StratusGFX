@@ -1288,6 +1288,7 @@ void RendererBackend::_PerformAtmosphericPostFx() {
     _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
     _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
+    _state.atmosphericPostFx->setVec3("lightColor", _frame->csc.worldLight->getColor());
     _RenderQuad();
     _state.atmosphericPostFxBuffer.fbo.unbind();
     _UnbindShader();
