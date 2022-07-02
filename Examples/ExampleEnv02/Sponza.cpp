@@ -134,8 +134,8 @@ public:
         const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
-        const float atmosphericIncreaseSpeed = 1.0f;
 
+        const float atmosphericIncreaseSpeed = 1.0f;
         float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
         float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
 

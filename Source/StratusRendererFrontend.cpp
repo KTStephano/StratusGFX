@@ -353,7 +353,7 @@ namespace stratus {
         const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
-        const float projPlaneDist = 1.0f / glm::tan(Radians(_params.fovy).value() / 2.0f);
+        const float projPlaneDist = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float znear = _params.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
@@ -399,10 +399,10 @@ namespace stratus {
             bks.push_back(bk);
 
             // These base values are in camera space and define our frustum corners
-            const float xn = ak * ar / projPlaneDist;
-            const float xf = bk * ar / projPlaneDist;
-            const float yn = ak / projPlaneDist;
-            const float yf = bk / projPlaneDist;
+            const float xn = ak * ar * projPlaneDist;
+            const float xf = bk * ar * projPlaneDist;
+            const float yn = ak * projPlaneDist;
+            const float yf = bk * projPlaneDist;
             // Keep all of these in camera space for now
             std::vector<glm::vec4> frustumCorners = {
                 // Near corners
@@ -433,8 +433,8 @@ namespace stratus {
             }
             
             // This tells us the maximum diameter for the cascade bounding box
-            // const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
-            //                                             glm::length(frustumCorners[4] - frustumCorners[6])));
+            //const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
             const float dk = ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
@@ -442,25 +442,30 @@ namespace stratus {
             _frame->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
-            float minX = std::numeric_limits<float>::max();
-            float maxX = std::numeric_limits<float>::min();
-            float minY = minX;
-            float maxY = maxX;
-            float minZ = minX;
-            float maxZ = maxX;
+            glm::vec3 minVec;
+            glm::vec3 maxVec;
             for (int j = 0; j < frustumCorners.size(); ++j) {
                 // First make sure to transform frustumCorners[j] from camera space to light space
                 frustumCorners[j] = L * frustumCorners[j];
-
-                minX = std::min(minX, frustumCorners[j].x);
-                maxX = std::max(maxX, frustumCorners[j].x);
-
-                minY = std::min(minY, frustumCorners[j].y);
-                maxY = std::max(maxY, frustumCorners[j].y);
-
-                minZ = std::min(minZ, frustumCorners[j].z);
-                maxZ = std::max(maxZ, frustumCorners[j].z);
+                const glm::vec3 frustumVec = frustumCorners[j];
+                if (j == 0) {
+                    minVec = frustumVec;
+                    maxVec = frustumVec;
+                }
+                else {
+                    minVec = glm::min(minVec, frustumVec);
+                    maxVec = glm::max(maxVec, frustumVec);
+                }
             }
+
+            const float minX = minVec.x;
+            const float maxX = maxVec.x;
+
+            const float minY = minVec.y;
+            const float maxY = maxVec.y;
+
+            const float minZ = minVec.z;
+            const float maxZ = maxVec.z;
 
             zmins.push_back(minZ);
             zmaxs.push_back(maxZ);

@@ -23,15 +23,17 @@ float getAtmosphericIntensity(vec2 pixelCoords) {
     float d = texture(atmosphereBuffer, pixelCoords + 2 * direction).x;
     float e = texture(atmosphereBuffer, pixelCoords - 2 * direction).x;
     // See page 354, eq. 10.83
-    //return min(max(min(a, b), c), max(a, b));
-    return max(a, max(b, max(c, max(d, e))));
+    return min(max(min(a, b), c), max(a, b));
+    //return max(a, max(b, max(c, max(d, e))));
     //return (a + b + c) / 3.0;
 }
 
 void main() {
     vec2 widthHeight = textureSize(atmosphereBuffer, 0).xy;
     vec3 screenColor = texture(screenBuffer, fsTexCoords).rgb;
+    vec3 atmosphereColor = screenColor;
     float intensity = getAtmosphericIntensity(fsTexCoords * widthHeight);
 
-    color = vec4(screenColor + intensity * screenColor, 1.0);
+
+    color = vec4(screenColor + intensity * atmosphereColor, 1.0);
 }
