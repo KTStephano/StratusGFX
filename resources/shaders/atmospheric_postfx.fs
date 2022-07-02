@@ -19,9 +19,12 @@ float getAtmosphericIntensity(vec2 pixelCoords) {
     float a = texture(atmosphereBuffer, pixelCoords).x;
     float b = texture(atmosphereBuffer, pixelCoords + direction).x;
     float c = texture(atmosphereBuffer, pixelCoords - direction).x;
+    float d = texture(atmosphereBuffer, pixelCoords + 2 * direction).x;
+    float e = texture(atmosphereBuffer, pixelCoords - 2 * direction).x;
     // See page 354, eq. 10.83
     //return min(max(min(a, b), c), max(a, b));
-    return (a + b + c) / 3.0;
+    return max(a, max(b, max(c, max(d, e))));
+    //return (a + b + c) / 3.0;
 }
 
 void main() {
