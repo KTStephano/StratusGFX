@@ -5,6 +5,7 @@ uniform sampler2DRect atmosphereBuffer;
 uniform sampler2D screenBuffer;
 // Contains 2*Lz*(Xlight, Ylight, 1) -- see page 354, eq. 10.81 and page 355, listing 10.14
 uniform vec3 lightPosition;
+uniform vec3 lightColor;
 
 smooth in vec2 fsTexCoords;
 
@@ -19,14 +20,20 @@ float getAtmosphericIntensity(vec2 pixelCoords) {
     float a = texture(atmosphereBuffer, pixelCoords).x;
     float b = texture(atmosphereBuffer, pixelCoords + direction).x;
     float c = texture(atmosphereBuffer, pixelCoords - direction).x;
+    float d = texture(atmosphereBuffer, pixelCoords + 2 * direction).x;
+    float e = texture(atmosphereBuffer, pixelCoords - 2 * direction).x;
     // See page 354, eq. 10.83
     return min(max(min(a, b), c), max(a, b));
+    //return max(a, max(b, max(c, max(d, e))));
+    //return (a + b + c) / 3.0;
 }
 
 void main() {
     vec2 widthHeight = textureSize(atmosphereBuffer, 0).xy;
     vec3 screenColor = texture(screenBuffer, fsTexCoords).rgb;
+    vec3 atmosphereColor = screenColor;
     float intensity = getAtmosphericIntensity(fsTexCoords * widthHeight);
 
-    color = vec4(screenColor + intensity * screenColor, 1.0);
+
+    color = vec4(screenColor + intensity * atmosphereColor, 1.0);
 }

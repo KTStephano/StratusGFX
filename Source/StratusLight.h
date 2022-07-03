@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include "StratusLog.h"
 
 namespace stratus {
     class InfiniteLight;
@@ -21,6 +22,7 @@ namespace stratus {
     };
 
     constexpr float maxLightColor = 10000.0f;
+    constexpr float minLightColor = 0.25f;
     constexpr float maxAmbientIntensity = 0.02;
     constexpr float minAmbientIntensity = 0.001;
 
@@ -29,6 +31,8 @@ namespace stratus {
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _position = glm::vec3(0.0f);
         Rotation _rotation;
+        // Used to calculate ambient intensity based on sun orientation
+        stratus::Radians _rotSine;
         float _intensity = 3.0f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
@@ -54,19 +58,31 @@ namespace stratus {
         void setPosition(const glm::vec3 & position) { _position = position; }
 
         const Rotation & getRotation() const { return _rotation; }
-        void setRotation(const Rotation & rotation) { _rotation = rotation; }
-
-        void offsetRotation(const glm::vec3& offsets) {
-            _rotation.x += Degrees(offsets.x);
-            _rotation.y += Degrees(offsets.y);
-            _rotation.z += Degrees(offsets.z);
+        void setRotation(const Rotation & rotation) { 
+            _rotation = rotation;
+            _rotSine = stratus::sine(_rotation.x);
         }
 
-        float getIntensity() const { return _intensity; }
+        void offsetRotation(const glm::vec3& offsets) {
+            Rotation rot = _rotation;
+            rot.x += Degrees(offsets.x);
+            rot.y += Degrees(offsets.y);
+            rot.z += Degrees(offsets.z);
+            setRotation(rot);
+        }
+
+        float getIntensity() const { 
+            // Reduce light intensity as sun goes down
+            if (_rotSine.value() < 0.0f) {
+                return std::max(minLightColor, _intensity * (1.0f + _rotSine.value()));
+            }
+            return _intensity; 
+        }
+
         void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
 
         float getAmbientIntensity() const { 
-            const float ambient = stratus::sine(stratus::Radians(_rotation.x)).value() * maxAmbientIntensity;
+            const float ambient = _rotSine.value() * maxAmbientIntensity;
             return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
         }
 

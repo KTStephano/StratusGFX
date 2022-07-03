@@ -933,6 +933,8 @@ void RendererBackend::_RenderSsaoBlur() {
 }
 
 void RendererBackend::_RenderAtmosphericShadowing() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
     constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
 
     glDisable(GL_CULL_FACE);
@@ -1154,6 +1156,7 @@ void RendererBackend::RenderScene() {
         _Render(e);
     }
     _state.lightingFbo.unbind();
+    _state.finalScreenTexture = _state.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Enable post-FX effects such as bloom
@@ -1190,7 +1193,7 @@ void RendererBackend::_PerformPostFxProcessing() {
         buffer.fbo.bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
-            bloom->bindTexture("mainTexture", _state.lightingColorBuffer);
+            bloom->bindTexture("mainTexture", _state.finalScreenTexture);
         }
         else {
             bloom->bindTexture("mainTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
@@ -1263,6 +1266,10 @@ void RendererBackend::_PerformPostFxProcessing() {
 }
 
 void RendererBackend::_PerformAtmosphericPostFx() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
+    
     const glm::mat4& projection = _frame->projection;
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
@@ -1281,6 +1288,7 @@ void RendererBackend::_PerformAtmosphericPostFx() {
     _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
     _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
+    _state.atmosphericPostFx->setVec3("lightColor", _frame->csc.worldLight->getColor());
     _RenderQuad();
     _state.atmosphericPostFxBuffer.fbo.unbind();
     _UnbindShader();
