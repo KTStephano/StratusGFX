@@ -113,6 +113,8 @@ namespace stratus {
     struct GFXConfig {
         std::string renderer;
         std::string version;
+        int32_t minorVersion;
+        int32_t majorVersion;
         int32_t maxDrawBuffers;
         int32_t maxCombinedTextures;
         int32_t maxCubeMapTextureSize;

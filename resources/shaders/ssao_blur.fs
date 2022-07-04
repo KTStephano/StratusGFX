@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 smooth in vec2 fsTexCoords;
 

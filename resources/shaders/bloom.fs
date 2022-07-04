@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 #define PREVENT_DIV_BY_ZERO 0.00001
 

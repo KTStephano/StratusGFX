@@ -2,10 +2,13 @@
 #include <StratusFilesystem.h>
 #include <iostream>
 #include "StratusLog.h"
+#include <unordered_set>
+#include "StratusUtils.h"
 
 namespace stratus {
-Pipeline::Pipeline(const std::vector<Shader> & shaders)
-    : _shaders(shaders) {
+Pipeline::Pipeline(const std::filesystem::path& rootPath, const ShaderApiVersion& version, const std::vector<Shader> & shaders)
+    : _shaders(shaders), _rootPath(rootPath), _version(version) {
+
     this->_compile();
 }
 
@@ -70,16 +73,55 @@ static bool checkProgramError(GLuint program, const std::vector<Shader> & shader
     return true;
 }
 
+static std::unordered_set<std::string> BuildFileList(const std::filesystem::path& root) {
+    std::unordered_set<std::string> result;
+    std::string rootReformatted = root.string();
+    ReplaceAll(rootReformatted, "\\", "/");
+
+    for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root)) {
+        if (entry.is_regular_file()) {
+            std::string file = entry.path().string();
+            ReplaceAll(file, "\\", "/");
+            ReplaceFirst(file, rootReformatted + "/", "");
+            result.insert(file);
+        }
+    }
+
+    return result;
+}
+
+static std::string BuildShaderApiVersion(const ShaderApiVersion& version) {
+    std::string result = "#version ";
+
+    if (version.major <= 3 && version.minor < 3) {
+        result += "GL_VERSION_UNSUPPORTED_TOO_OLD";
+        return result;
+    }
+
+    result += std::to_string(version.major) + std::to_string(version.minor) + "0 core";
+    return result;
+}
+
+static void PreprocessShaderSource(std::string& source, const std::string& versionTag, const std::unordered_set<std::string>& allShaders) {
+    ReplaceFirst(source, "STRATUS_GLSL_VERSION", versionTag);
+}
+
 void Pipeline::_compile() {
+    const std::unordered_set<std::string> allShaders = BuildFileList(_rootPath);
+    const std::string versionTag = BuildShaderApiVersion(_version);
+
     _isValid = true;
     std::vector<GLuint> shaderBinaries;
     for (Shader & s : this->_shaders) {
-        STRATUS_LOG << "Loading shader: " << s.filename << std::endl;
-        std::string buffer = Filesystem::ReadAscii(s.filename);
+        const std::string shaderFile = _rootPath.string() + "/" + s.filename;
+        STRATUS_LOG << "Loading shader: " << shaderFile << std::endl;
+        std::string buffer = Filesystem::ReadAscii(shaderFile);
         if (buffer.empty()) {
             _isValid = false;
             return;
         }
+
+        PreprocessShaderSource(buffer, versionTag, allShaders);
 
         GLenum type;
         switch (s.type) {

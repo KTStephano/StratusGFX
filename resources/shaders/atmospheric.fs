@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 #define NUM_CASCADES 4
 

@@ -20,6 +20,7 @@ static void printGLInfo(const GFXConfig & config) {
     log << "==================== OpenGL Information ====================" << std::endl;
     log << "\tRenderer: "                               << config.renderer << std::endl;
     log << "\tVersion: "                                << config.version << std::endl;
+    log << "\tMajor, minor Version: "                   << config.majorVersion << ", " << config.minorVersion << std::endl;
     log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
     log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
     log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
@@ -110,6 +111,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     // Query OpenGL about various different hardware capabilities
     _config.renderer = (const char *)glGetString(GL_RENDERER);
     _config.version = (const char *)glGetString(GL_VERSION);
+    glGetIntegerv(GL_MINOR_VERSION, &_config.minorVersion);
+    glGetIntegerv(GL_MAJOR_VERSION, &_config.majorVersion);
     glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &_config.maxCombinedTextures);
     glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &_config.maxCubeMapTextureSize);
     glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &_config.maxFragmentUniformVectors);
@@ -124,6 +127,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
+
+    if (_config.majorVersion < 4 || _config.minorVersion < 3) {
+        STRATUS_ERROR << "OpenGL version LOWER than 4.3 - this is not supported" << std::endl;
+        _isValid = false;
+    }
 
     const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
     for (int i = 0; i < internalFormats.size(); ++i) {
@@ -151,67 +159,71 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     printGLInfo(_config);
     _isValid = true;
 
+    const std::filesystem::path shaderRoot("../resources/shaders");
+    const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
+
     // Initialize the pipelines
-    _state.geometry = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/pbr_geometry_pass.vs", ShaderType::VERTEX}, 
-        Shader{"../resources/shaders/pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
+    _state.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr_geometry_pass.vs", ShaderType::VERTEX}, 
+        Shader{"pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.geometry.get());
 
-    _state.forward = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/flat_forward_pass.vs", ShaderType::VERTEX}, 
-        Shader{"../resources/shaders/flat_forward_pass.fs", ShaderType::FRAGMENT}}));
+    _state.forward = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"flat_forward_pass.vs", ShaderType::VERTEX}, 
+        Shader{"flat_forward_pass.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.forward.get());
 
     using namespace std;
 
     // Set up the hdr/gamma postprocessing shader
-    _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/hdr.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/hdr.fs", ShaderType::FRAGMENT}}));
+
+    _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"hdr.vs", ShaderType::VERTEX},
+        Shader{"hdr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.hdrGamma.get());
 
     // Set up the shadow preprocessing shader
-    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/shadow.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/shadow.gs", ShaderType::GEOMETRY},
-        Shader{"../resources/shaders/shadow.fs", ShaderType::FRAGMENT}}));
+    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"shadow.vs", ShaderType::VERTEX},
+        Shader{"shadow.gs", ShaderType::GEOMETRY},
+        Shader{"shadow.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.shadows.get());
 
-    _state.lighting = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/pbr.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/pbr.fs", ShaderType::FRAGMENT}}));
+    _state.lighting = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr.vs", ShaderType::VERTEX},
+        Shader{"pbr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.lighting.get());
 
-    _state.bloom = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/bloom.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/bloom.fs", ShaderType::FRAGMENT}}));
+    _state.bloom = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"bloom.vs", ShaderType::VERTEX},
+        Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
-    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/csm.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/csm.gs", ShaderType::GEOMETRY},
-        Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
+    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"csm.vs", ShaderType::VERTEX},
+        Shader{"csm.gs", ShaderType::GEOMETRY},
+        Shader{"csm.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.csmDepth.get());
 
-    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/ssao.fs", ShaderType::FRAGMENT}}));
+    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"ssao.vs", ShaderType::VERTEX},
+        Shader{"ssao.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.ssaoOcclude.get());
 
-    _state.ssaoBlur = std::unique_ptr<Pipeline>(new Pipeline({
+    _state.ssaoBlur = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         // Intentionally reuse ssao.vs since it works for both this and ssao.fs
-        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/ssao_blur.fs", ShaderType::FRAGMENT}}));
+        Shader{"ssao.vs", ShaderType::VERTEX},
+        Shader{"ssao_blur.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.ssaoBlur.get());
 
-    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/atmospheric.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/atmospheric.fs", ShaderType::FRAGMENT}}));
+    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"atmospheric.vs", ShaderType::VERTEX},
+        Shader{"atmospheric.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmospheric.get());
 
-    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/atmospheric_postfx.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
+    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"atmospheric_postfx.vs", ShaderType::VERTEX},
+        Shader{"atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmosphericPostFx.get());
 
     // Create the screen quad

@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 uniform sampler2DRect atmosphereBuffer;
 // Holds color values after lighting has been applied
