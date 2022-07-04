@@ -75,7 +75,7 @@ void Pipeline::_compile() {
     std::vector<GLuint> shaderBinaries;
     for (Shader & s : this->_shaders) {
         STRATUS_LOG << "Loading shader: " << s.filename << std::endl;
-        std::string buffer = Filesystem::readAscii(s.filename);
+        std::string buffer = Filesystem::ReadAscii(s.filename);
         if (buffer.empty()) {
             _isValid = false;
             return;

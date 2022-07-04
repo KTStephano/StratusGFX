@@ -1,4 +1,5 @@
 #include "StratusUtils.h"
+#include <sstream>
 
 std::ostream& operator<<(std::ostream& os, const glm::vec2& v) {
     return os << "[" << v.x << ", " << v.y << "]";
@@ -80,5 +81,27 @@ namespace stratus {
 
     std::ostream& operator<<(std::ostream& os, const glm::mat4& m) {
         return ::operator<<(os, m);
+    }
+
+    // See https://stackoverflow.com/questions/5878775/how-to-find-and-replace-string
+	bool ReplaceFirst(std::string& src, const std::string& oldstr, const std::string& newstr) {
+        const std::size_t pos = src.find(oldstr);
+        if (pos == std::string::npos) {
+            return false;
+        }
+        src.replace(pos, oldstr.size(), newstr);
+        return true;
+    }
+
+	bool ReplaceAll(std::string& src, const std::string& oldstr, const std::string& newstr) {
+        size_t pos = 0;
+        bool replaced = false;
+        while ((pos = src.find(oldstr, pos)) != std::string::npos) {
+            replaced = true;
+            src.replace(pos, oldstr.size(), newstr);
+            pos += newstr.length();
+        }
+    
+        return replaced;
     }
 }
