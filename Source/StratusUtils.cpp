@@ -104,4 +104,14 @@ namespace stratus {
     
         return replaced;
     }
+
+    bool BeginsWith(const std::string& src, const std::string& phrase) {
+        if (phrase.size() > src.size()) return false;
+
+        for (size_t i = 0; i < phrase.size(); ++i) {
+            if (src[i] != phrase[i]) return false;
+        }
+
+        return true;
+    }
 }

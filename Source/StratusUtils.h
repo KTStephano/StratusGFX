@@ -32,4 +32,6 @@ namespace stratus {
 	// Replace all instances of oldstr with newstr
 	// @return true if any replacements were made and false otherwise
 	bool ReplaceAll(std::string& src, const std::string& oldstr, const std::string& newstr);
+
+	bool BeginsWith(const std::string& src, const std::string& phrase);
 }
