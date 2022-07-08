@@ -48,7 +48,11 @@ STRATUS_GLSL_VERSION
  * wi = normalize(light_pos - world_pos)
  */
 
-#include "common.h"
+#include "common.glsl"
+#include "atmospheric_postfx.glsl"
+
+uniform sampler2DRect atmosphereBuffer;
+uniform vec3 atmosphericLightPos;
 
 #define MAX_LIGHTS 200
 // Apple limits us to 16 total samplers active in the pipeline :(
@@ -308,10 +312,13 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 diffuse   = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
+    //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
+
     vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
+    vec3 finalBrightnes = (kD * baseColor / PI + specular) * diffuse * NdotWi;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + shadowFactor * ((kD * baseColor / PI + specular) * diffuse * NdotWi));  
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);  
 }
 
 vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {

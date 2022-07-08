@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#include "common.glsl"
+
 #define NUM_CASCADES 4
 
 // Structure buffer containing dFdx, dFdy, and z (split into 2 16-bit parts)
@@ -28,19 +30,6 @@ smooth in vec3 fsShadowSpaceRay;
 
 // GBuffer output
 layout (location = 0) out float gAtmosphere;
-
-// Linear interpolate
-vec4 lerp(vec4 x, vec4 y, float a) {
-    return mix(x, y, a);
-}
-
-vec3 lerp(vec3 x, vec3 y, float a) {
-    return mix(x, y, a);
-}
-
-float lerp(float x, float y, float a) {
-    return mix(x, y, a);
-}
 
 // Calculates p1, p1 from page 342, eq. 10.64
 // invLength = 1.0 / length(camSpaceRayDir)
@@ -132,7 +121,8 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         weight += deltaW;
     }
 
-    for (int cascade = 1; cascade < NUM_CASCADES; ++cascade) {
+    const int totalCascades = NUM_CASCADES;
+    for (int cascade = 1; cascade < totalCascades; ++cascade) {
         // This is the switch determining which texture segment of the shadow map we sample from
         cascadeDepthSwitch = float(cascade);
         zmax = min(depth, maxCascadeDepth[cascade]);
@@ -153,7 +143,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         }
     }
 
-    return min(5.0, anisotropicScatteringIntensity * atmosphere);
+    return anisotropicScatteringIntensity * atmosphere;
     //return anisotropicScatteringIntensity * atmosphere;
 }
 

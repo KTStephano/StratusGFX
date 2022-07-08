@@ -1145,6 +1145,7 @@ void RendererBackend::RenderScene() {
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
     _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
+    _state.lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.lighting->bindTexture("gPosition", _state.buffer.position);
     _state.lighting->bindTexture("gNormal", _state.buffer.normals);
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
@@ -1156,6 +1157,7 @@ void RendererBackend::RenderScene() {
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();
+    _state.finalScreenTexture = _state.lightingColorBuffer;
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
     _state.lightingFbo.copyFrom(_state.buffer.fbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
@@ -1277,11 +1279,7 @@ void RendererBackend::_PerformPostFxProcessing() {
     _PerformAtmosphericPostFx();
 }
 
-void RendererBackend::_PerformAtmosphericPostFx() {
-    if (!_frame->csc.worldLight->getEnabled()) return;
-
-    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
-    
+glm::vec3 RendererBackend::_CalculateAtmosphericLightPosition() const {
     const glm::mat4& projection = _frame->projection;
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
@@ -1293,14 +1291,26 @@ void RendererBackend::_PerformAtmosphericPostFx() {
     const float ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
                                projection[1][1] * normalizedLightDirCamSpace.y + 
                                projection[1][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
-    const glm::vec3 lightPosition = 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+    
+    return 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+}
+
+void RendererBackend::_PerformAtmosphericPostFx() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
+
+    const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
+    //const float sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
+    //const float cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
+    const glm::vec3 lightColor = _frame->csc.worldLight->getColor();// * glm::vec3(cosX, cosX, sinX);
 
     _BindShader(_state.atmosphericPostFx.get());
     _state.atmosphericPostFxBuffer.fbo.bind();
     _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
     _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
-    _state.atmosphericPostFx->setVec3("lightColor", _frame->csc.worldLight->getColor());
+    _state.atmosphericPostFx->setVec3("lightColor", lightColor);
     _RenderQuad();
     _state.atmosphericPostFxBuffer.fbo.unbind();
     _UnbindShader();
@@ -1430,6 +1440,8 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
+    const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
+    s->setVec3("atmosphericLightPos", lightPosition);
 
     // Set up world light if enabled
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());

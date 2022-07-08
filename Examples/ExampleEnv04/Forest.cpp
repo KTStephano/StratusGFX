@@ -100,7 +100,7 @@ public:
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(-90.0f), stratus::Degrees(0.0f)));
 
-        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.1f, 0.15f);
+        //stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.1f, 0.15f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/southern_railway_stables_weighbridge/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);

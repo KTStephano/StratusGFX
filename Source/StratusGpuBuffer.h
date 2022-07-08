@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 #include <memory>
 #include <vector>
+#include "StratusCommon.h"
 
 namespace stratus {
     enum class GpuBufferType : int {
@@ -11,6 +12,17 @@ namespace stratus {
         PRIMITIVE_BUFFER,
         // Specifically holds indices for describing access patterns into PRIMITIVE_BUFFER
         INDEX_BUFFER
+    };
+
+    enum class GpuBindingPoint : int {
+        // Good for things like vertices and normals
+        ARRAY_BUFFER            = BITMASK64_POW2(1),
+        // Good for indices
+        ELEMENT_ARRAY_BUFFER    = BITMASK64_POW2(2),
+        // Allows read-only uniform buffer access
+        UNIFORM_BUFFER          = BITMASK64_POW2(3),
+        // Allows read and write shader buffer access
+        SHADER_STORAGE_BUFFER   = BITMASK64_POW2(4)
     };
 
     enum class GpuStorageType : int {

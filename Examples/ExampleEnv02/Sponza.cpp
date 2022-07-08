@@ -103,7 +103,7 @@ public:
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
         //worldLight->setIntensity(0.5f);
 
-        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.2f, 0.3f);
+        //stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);

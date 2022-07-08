@@ -28,3 +28,16 @@ vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
     return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
 }
+
+// Linear interpolate
+vec4 lerp(vec4 x, vec4 y, float a) {
+    return mix(x, y, saturate(a));
+}
+
+vec3 lerp(vec3 x, vec3 y, float a) {
+    return mix(x, y, saturate(a));
+}
+
+float lerp(float x, float y, float a) {
+    return mix(x, y, saturate(a));
+}

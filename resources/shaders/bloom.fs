@@ -1,6 +1,6 @@
 STRATUS_GLSL_VERSION
 
-#include "common.h"
+#include "common.glsl"
 
 uniform bool downsamplingStage = true;
 uniform bool gaussianStage     = false;
@@ -11,7 +11,7 @@ uniform bool finalStage        = false;
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
-uniform float bloomThreshold = 0.45;
+uniform float bloomThreshold = 0.40;
 uniform float upsampleRadiusScale = 0.5;
 
 uniform float viewportX;
