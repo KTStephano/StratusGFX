@@ -15,10 +15,8 @@ namespace stratus {
             _bind = [this](){ glBindBuffer(_bufferType, _buffer); };
             _unbind = [this](){ glBindBuffer(_bufferType, 0); };
 
-            glGenBuffers(1, &_buffer);
-            _bind();
-            glBufferData(_bufferType, sizeBytes, data, GL_STATIC_DRAW);
-            _unbind();
+            glCreateBuffers(1, &_buffer);
+            glNamedBufferStorage(_buffer, sizeBytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
         }
 
         ~GpuBufferImpl() {
@@ -91,16 +89,12 @@ namespace stratus {
 
     void * MapReadWrite() const {
         _isMemoryMapped = true;
-        _bind();
-        void * ptr = glMapBuffer(_bufferType, GL_READ_WRITE);
-        _unbind();
+        void * ptr = glMapNamedBuffer(_buffer, GL_READ_WRITE);
         return ptr;
     }
     
     void UnmapReadWrite() const {
-        _bind();
-        glUnmapBuffer(_bufferType);
-        _unbind();
+        glUnmapNamedBuffer(_buffer);
         _isMemoryMapped = false;
     }
 
