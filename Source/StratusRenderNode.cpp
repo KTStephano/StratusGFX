@@ -143,13 +143,13 @@ namespace stratus {
         if (_numIndices > 0) {
             buffer = GpuBuffer(GpuBufferType::INDEX_BUFFER, nullptr, _indices.size() * sizeof(uint32_t));
             _buffers.AddBuffer(buffer);
-            _indicesMapped = buffer.MapReadWrite();
+            _indicesMapped = buffer.MapMemory();
         }
 
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
         buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, nullptr, _data.size() * sizeof(float));
         _buffers.AddBuffer(buffer);
-        _primitiveMapped = buffer.MapReadWrite();
+        _primitiveMapped = buffer.MapMemory();
         
         const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
 
@@ -199,7 +199,7 @@ namespace stratus {
     }
 
     void RenderMesh::UnmapAllGpuBuffers() const {
-        _buffers.UnmapAllReadWrite();
+        _buffers.UnmapAllMemory();
     }
 
     bool RenderMesh::IsCpuDirty() const {

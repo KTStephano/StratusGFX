@@ -87,13 +87,13 @@ namespace stratus {
         _unbind();
     }
 
-    void * MapReadWrite() const {
+    void * MapMemory() const {
         _isMemoryMapped = true;
         void * ptr = glMapNamedBuffer(_buffer, GL_READ_WRITE);
         return ptr;
     }
     
-    void UnmapReadWrite() const {
+    void UnmapMemory() const {
         glUnmapNamedBuffer(_buffer);
         _isMemoryMapped = false;
     }
@@ -184,12 +184,12 @@ namespace stratus {
         _impl->Unbind();
     }
 
-    void * GpuBuffer::MapReadWrite() const {
-        return _impl->MapReadWrite();
+    void * GpuBuffer::MapMemory() const {
+        return _impl->MapMemory();
     }
 
-    void GpuBuffer::UnmapReadWrite() const {
-        _impl->UnmapReadWrite();
+    void GpuBuffer::UnmapMemory() const {
+        _impl->UnmapMemory();
     }
 
     bool GpuBuffer::IsMemoryMapped() const {
@@ -227,8 +227,8 @@ namespace stratus {
         return (*_buffers)[index];
     }
 
-    void GpuArrayBuffer::UnmapAllReadWrite() const {
-        for (auto& buffer : *_buffers) buffer.UnmapReadWrite();
+    void GpuArrayBuffer::UnmapAllMemory() const {
+        for (auto& buffer : *_buffers) buffer.UnmapMemory();
     }
 
     bool GpuArrayBuffer::IsMemoryMapped() const {

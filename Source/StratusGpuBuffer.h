@@ -25,6 +25,13 @@ namespace stratus {
         SHADER_STORAGE_BUFFER   = BITMASK64_POW2(4)
     };
 
+    // A more restrictive set of bindings good for things like floating point (vertex, normal, etc.)
+    // and integer (index) buffers
+    enum class GpuPrimitiveBindingPoint : int {
+        ARRAY_BUFFER            = int(GpuBindingPoint::ARRAY_BUFFER),
+        ELEMENT_ARRAY_BUFFER    = int(GpuBindingPoint::ELEMENT_ARRAY_BUFFER)
+    };
+
     enum class GpuStorageType : int {
         BYTE,
         UNSIGNED_BYTE,
@@ -66,8 +73,8 @@ namespace stratus {
         void Unbind() const;
 
         // Maps the GPU memory into system memory
-        void * MapReadWrite() const;
-        void UnmapReadWrite() const;
+        void * MapMemory() const;
+        void UnmapMemory() const;
         bool IsMemoryMapped() const;
 
     private:
@@ -83,7 +90,7 @@ namespace stratus {
         size_t GetNumBuffers() const;
         GpuBuffer& GetBuffer(size_t);
         const GpuBuffer& GetBuffer(size_t) const;
-        void UnmapAllReadWrite() const;
+        void UnmapAllMemory() const;
         bool IsMemoryMapped() const;
         void Bind() const;
         void Unbind() const;
