@@ -8,7 +8,7 @@ namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
 
     struct GpuBufferImpl {
-        GpuBufferImpl(GpuBufferType type, const void * data, const size_t sizeBytes) 
+        GpuBufferImpl(GpuBufferType type, const void * data, const size_t sizeBytes, const Bitfield usage) 
             : _type(type),
               _bufferType(_ConvertBufferType(type)) {
 
@@ -16,7 +16,7 @@ namespace stratus {
             _unbind = [this](){ glBindBuffer(_bufferType, 0); };
 
             glCreateBuffers(1, &_buffer);
-            glNamedBufferStorage(_buffer, sizeBytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
+            glNamedBufferStorage(_buffer, sizeBytes, data, _ConvertUsageType(usage));
         }
 
         ~GpuBufferImpl() {
@@ -103,6 +103,23 @@ namespace stratus {
     }
 
     private:
+        static GLbitfield _ConvertUsageType(Bitfield type) {
+            GLbitfield usage = 0;
+            if (type & GPU_DYNAMIC_DATA) {
+                usage |= GL_DYNAMIC_STORAGE_BIT;
+            }
+            if (type & GPU_MAP_READ) {
+                usage |= GL_MAP_READ_BIT;
+            }
+            if (type & GPU_MAP_WRITE) {
+                usage |= GL_MAP_WRITE_BIT;
+            }
+            if (type & GPU_MAP_PERSISTENT) {
+                usage |= GL_MAP_PERSISTENT_BIT;
+            }
+            return usage;
+        }
+
         static GLenum _ConvertBufferType(GpuBufferType type) {
             switch (type) {
             case GpuBufferType::PRIMITIVE_BUFFER: return GL_ARRAY_BUFFER;
@@ -152,8 +169,8 @@ namespace stratus {
         std::vector<GpuBufferCommand> _enableAttributes;
     };
 
-    GpuBuffer::GpuBuffer(GpuBufferType type, const void * data, const size_t sizeBytes)
-        : _impl(std::make_shared<GpuBufferImpl>(type, data, sizeBytes)) {}
+    GpuBuffer::GpuBuffer(GpuBufferType type, const void * data, const size_t sizeBytes, const Bitfield usage)
+        : _impl(std::make_shared<GpuBufferImpl>(type, data, sizeBytes, usage)) {}
 
     void GpuBuffer::EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType storage, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor) {
         _impl->EnableAttribute(attribute, sizePerElem, storage, normalized, stride, offset, divisor);

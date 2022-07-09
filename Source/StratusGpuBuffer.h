@@ -35,6 +35,22 @@ namespace stratus {
         FLOAT
     };
 
+    typedef int Bitfield;
+
+    // Describes how the data will likely be used, meaning whether it will be changed
+    // frequently, mapped for read/write or mapped persistently
+
+    // Data will be set at creation and never touched again
+    constexpr Bitfield GPU_STATIC_DATA = BITMASK64_POW2(0);
+    // Data will be copied directly through the copy API often
+    constexpr Bitfield GPU_DYNAMIC_DATA = BITMASK64_POW2(1);
+    // Memory will be mapped for reading
+    constexpr Bitfield GPU_MAP_READ = BITMASK64_POW2(2);
+    // Memory will be mapped for writing outside of the API copy calls
+    constexpr Bitfield GPU_MAP_WRITE = BITMASK64_POW2(3);
+    // Memory will be mapped and continuously read from and written to without unmapping
+    constexpr Bitfield GPU_MAP_PERSISTENT = BITMASK64_POW2(4);
+
     struct GpuBufferImpl;
     struct GpuArrayBufferImpl;
 
@@ -42,13 +58,14 @@ namespace stratus {
     // TODO: Look into use cases for things other than STATIC_DRAW
     struct GpuBuffer {
         GpuBuffer() {}
-        GpuBuffer(GpuBufferType, const void * data, const size_t sizeBytes);
-        ~GpuBuffer() = default;
+        GpuBuffer(GpuBufferType, const void * data, const size_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        virtual ~GpuBuffer() = default;
 
         void EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor = 0);
         void Bind() const;
         void Unbind() const;
 
+        // Maps the GPU memory into system memory
         void * MapReadWrite() const;
         void UnmapReadWrite() const;
         bool IsMemoryMapped() const;
