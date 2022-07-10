@@ -663,33 +663,33 @@ void RendererBackend::_InitInstancedData(RendererEntityData & c) {
     buffers.Clear();
     _state.gpuBuffers.push_back(buffers);
 
-    GpuBuffer buffer;
+    GpuPrimitiveBuffer buffer;
 
     // First the model matrices
 
     // All shaders should use the same location for model, so this should work
     int pos = pbr->getAttribLocation("model");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
     buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("diffuseColor");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("baseReflectivity");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("metallic");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, metallic.data(), metallic.size() * sizeof(float));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("roughness");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, roughness.data(), roughness.size() * sizeof(float));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 

@@ -4,16 +4,10 @@
 #include "glm/glm.hpp"
 #include <memory>
 #include <vector>
+#include <cstdint>
 #include "StratusCommon.h"
 
 namespace stratus {
-    enum class GpuBufferType : int {
-        // Holds data for streaming through the graphics pipeline
-        PRIMITIVE_BUFFER,
-        // Specifically holds indices for describing access patterns into PRIMITIVE_BUFFER
-        INDEX_BUFFER
-    };
-
     enum class GpuBindingPoint : int {
         // Good for things like vertices and normals
         ARRAY_BUFFER            = BITMASK64_POW2(1),
@@ -30,6 +24,11 @@ namespace stratus {
     enum class GpuPrimitiveBindingPoint : int {
         ARRAY_BUFFER            = int(GpuBindingPoint::ARRAY_BUFFER),
         ELEMENT_ARRAY_BUFFER    = int(GpuBindingPoint::ELEMENT_ARRAY_BUFFER)
+    };
+
+    enum class GpuBaseBindingPoint : int {
+        UNIFORM_BUFFER          = int(GpuBindingPoint::UNIFORM_BUFFER),
+        SHADER_STORAGE_BUFFER   = int(GpuBindingPoint::SHADER_STORAGE_BUFFER)
     };
 
     enum class GpuStorageType : int {
@@ -65,31 +64,49 @@ namespace stratus {
     // TODO: Look into use cases for things other than STATIC_DRAW
     struct GpuBuffer {
         GpuBuffer() {}
-        GpuBuffer(GpuBufferType, const void * data, const size_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         virtual ~GpuBuffer() = default;
 
         void EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor = 0);
-        void Bind() const;
-        void Unbind() const;
+        virtual void Bind(const GpuBindingPoint) const;
+        virtual void Unbind(const GpuBindingPoint) const;
+        // From what I can tell there shouldn't be a need to unbind UBOs
+        virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index);
 
-        // Maps the GPU memory into system memory
+        // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
         void * MapMemory() const;
         void UnmapMemory() const;
         bool IsMemoryMapped() const;
 
-    private:
+        uintptr_t SizeBytes() const;
+        // Make sure GPU_DYNAMIC_DATA is set
+        void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data);
+
+    protected:
         std::shared_ptr<GpuBufferImpl> _impl;
     };
 
+    struct GpuPrimitiveBuffer final : public GpuBuffer {
+        GpuPrimitiveBuffer() : GpuBuffer() {}
+        GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        virtual ~GpuPrimitiveBuffer() = default;
+
+        void Bind() const;
+        void Unbind() const;
+
+    private:
+        GpuPrimitiveBindingPoint _type;
+    };
+
     // Holds different gpu buffers and can bind/unbind them all as a group
-    struct GpuArrayBuffer {
+    struct GpuArrayBuffer final {
         GpuArrayBuffer();
         ~GpuArrayBuffer() = default;
 
-        void AddBuffer(const GpuBuffer&);
+        void AddBuffer(const GpuPrimitiveBuffer&);
         size_t GetNumBuffers() const;
-        GpuBuffer& GetBuffer(size_t);
-        const GpuBuffer& GetBuffer(size_t) const;
+        GpuPrimitiveBuffer& GetBuffer(size_t);
+        const GpuPrimitiveBuffer& GetBuffer(size_t) const;
         void UnmapAllMemory() const;
         bool IsMemoryMapped() const;
         void Bind() const;
@@ -97,6 +114,6 @@ namespace stratus {
         void Clear();
 
     private:
-        std::shared_ptr<std::vector<GpuBuffer>> _buffers;
+        std::shared_ptr<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>> _buffers;
     };
 }

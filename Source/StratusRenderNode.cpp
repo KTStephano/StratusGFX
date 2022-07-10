@@ -139,15 +139,15 @@ namespace stratus {
         if (!_isGpuDirty) return;
 
         _buffers = GpuArrayBuffer();
-        GpuBuffer buffer;
+        GpuPrimitiveBuffer buffer;
         if (_numIndices > 0) {
-            buffer = GpuBuffer(GpuBufferType::INDEX_BUFFER, nullptr, _indices.size() * sizeof(uint32_t));
+            buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, nullptr, _indices.size() * sizeof(uint32_t));
             _buffers.AddBuffer(buffer);
             _indicesMapped = buffer.MapMemory();
         }
 
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
-        buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, nullptr, _data.size() * sizeof(float));
+        buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, nullptr, _data.size() * sizeof(float));
         _buffers.AddBuffer(buffer);
         _primitiveMapped = buffer.MapMemory();
         

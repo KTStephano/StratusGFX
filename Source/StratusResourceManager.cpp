@@ -60,13 +60,13 @@ namespace stratus {
 
     void ResourceManager::_ClearAsyncTextureData() {
         std::vector<TextureHandle> toDelete;
-        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
         std::vector<TextureHandle> handles;
         std::vector<std::shared_ptr<RawTextureData>> rawTexData;
         for (auto& tpair : _asyncLoadedTextureData) {
-            if (totalBytes > maxBytes) break;
+            //if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
                 TextureHandle handle = tpair.first;
@@ -99,7 +99,7 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
-        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : _pendingFinalize) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
@@ -125,7 +125,7 @@ namespace stratus {
                 FinalizeModelMemory(mesh);
             });
             meshesToDelete.push_back(mesh);
-            if (totalBytes >= maxBytes) break;
+            //if (totalBytes >= maxBytes) break;
         }
 
         ApplicationThread::Instance()->QueueMany(functions);
@@ -389,7 +389,7 @@ namespace stratus {
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
-                                                       aiProcess_SplitLargeMeshes | 
+                                                       //aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
                                                     //    aiProcess_OptimizeGraph |
