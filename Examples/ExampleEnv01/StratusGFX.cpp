@@ -130,26 +130,62 @@ public:
 
         stratus::Async<stratus::Entity> e;
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { outhouse = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            outhouse = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(outhouse); 
+            outhouse->SetLocalScale(glm::vec3(10.0f));
+            outhouse->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
+        });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { clay = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(clay); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            clay = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(clay); 
+            clay->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
+        });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../resources/models/boubin_stump.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { stump = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(stump); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            stump = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(stump); 
+            stump->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            stump->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
+        });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/hintze-hall-1m.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { hall = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(hall); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            hall = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(hall); 
+            hall->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            hall->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
+            hall->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
+        });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/model.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { ramparts = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            ramparts = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(ramparts); 
+            ramparts->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
+            ramparts->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            ramparts->SetLocalScale(glm::vec3(10.0f));
+        });
 
         e = stratus::ResourceManager::Instance()->LoadModel("../local/Rock_Terrain_SF.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { rocks = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            rocks = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(rocks); 
+            rocks->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
+            rocks->SetLocalScale(glm::vec3(15.0f));
+        });
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            sponza = e.GetPtr(); 
+            stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); 
+            sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
+            sponza->SetLocalScale(glm::vec3(15.0f));
+        });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
             auto cube = stratus::ResourceManager::Instance()->CreateCube();
@@ -486,50 +522,6 @@ public:
 
         cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-        if (outhouse) {
-            outhouse->SetLocalScale(glm::vec3(10.0f));
-            outhouse->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
-        }
-        //renderer->addDrawable(outhouse);
-
-        //clay.scale = glm::vec3(1.0f);
-        //clay.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-        if (clay) {
-            clay->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
-        }
-        //clay.rotation = stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f));
-        //renderer->addDrawable(clay);
-
-        if (stump) {
-            stump->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            stump->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
-        }
-        //renderer->addDrawable(stump);
-
-        if (hall) {
-            hall->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            hall->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
-            hall->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
-        }
-        //renderer->addDrawable(hall);
-
-        if (ramparts) {
-            ramparts->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
-            ramparts->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-            ramparts->SetLocalScale(glm::vec3(10.0f));
-        }
-        //renderer->addDrawable(ramparts);
-
-        if (rocks) {
-            rocks->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
-            rocks->SetLocalScale(glm::vec3(15.0f));
-        }
-
-        if (sponza) {
-           sponza->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
-           sponza->SetLocalScale(glm::vec3(15.0f));
-        }
 
         //renderer->addDrawable(rocks);
 
