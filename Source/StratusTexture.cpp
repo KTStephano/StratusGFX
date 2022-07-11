@@ -122,6 +122,32 @@ namespace stratus {
             _handle = handle;
         }
 
+        void clear(const int mipLevel, const void * clearValue) {
+            glClearTexImage(_texture, mipLevel,
+                _convertFormat(_config.format), // format (e.g. RGBA)
+                _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
+                clearValue); 
+        }
+
+        // See https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glClearTexSubImage.xhtml
+        // for information about how to handle different texture types.
+        //
+        // This does not work for compressed textures or texture buffers.
+        void clearLayer(const int mipLevel, const int layer, const void * clearValue) {
+            if (type() == TextureType::TEXTURE_2D || type() == TextureType::TEXTURE_RECTANGLE) {
+                clear(mipLevel, clearValue);
+            }
+            else {
+                const int xoffset = 0, yoffset = 0;
+                const int zoffset = layer;
+                const int depth = 1; // number of layers to clear
+                glClearTexSubImage(_texture, mipLevel, xoffset, yoffset, zoffset, width(), height(), depth,
+                    _convertFormat(_config.format), // format (e.g. RGBA)
+                    _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
+                    clearValue);
+            }
+        }
+
         TextureType type() const              { return _config.type; }
         TextureComponentFormat format() const { return _config.format; }
         TextureHandle handle() const         { return _handle; }
@@ -399,6 +425,9 @@ namespace stratus {
     void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
     void Texture::unbind() const { _impl->unbind(); }
     bool Texture::valid() const { return _impl != nullptr; }
+
+    void Texture::clear(const int mipLevel, const void * clearValue) { _impl->clear(mipLevel, clearValue); }
+    void Texture::clearLayer(const int mipLevel, const int layer, const void * clearValue) { _impl->clearLayer(mipLevel, layer, clearValue); }
 
     const void * Texture::underlying() const { return _impl->underlying(); }
 

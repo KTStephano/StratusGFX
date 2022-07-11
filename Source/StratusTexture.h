@@ -128,6 +128,9 @@ namespace stratus {
 
         bool valid() const;
 
+        void clear(const int mipLevel, const void * clearValue);
+        void clearLayer(const int mipLevel, const int layer, const void * clearValue);
+
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * underlying() const;
 

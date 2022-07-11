@@ -502,7 +502,8 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
-            _frame->csc.fbo.clear(glm::vec4(0.0f));
+            //_frame->csc.fbo.clear(glm::vec4(0.0f));
+            for (int i = 0; i < 4; ++i) _frame->csc.fbo.ClearDepthStencilLayer(i);
         }
 
         for (auto& gaussian : _state.gaussianBuffers) {
@@ -1071,7 +1072,7 @@ void RendererBackend::RenderScene() {
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
         PointLight * point = (PointLight *)light.get();
-        const ShadowMap3D & smap = this->_shadowMap3DHandles.find(_GetShadowMapHandleForLight(light))->second;
+        ShadowMap3D & smap = this->_shadowMap3DHandles.find(_GetShadowMapHandleForLight(light))->second;
 
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.width()) / smap.shadowCubeMap.height(), point->getNearPlane(), point->getFarPlane());
 
