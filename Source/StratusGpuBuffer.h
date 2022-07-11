@@ -64,7 +64,7 @@ namespace stratus {
     // TODO: Look into use cases for things other than STATIC_DRAW
     struct GpuBuffer {
         GpuBuffer() {}
-        GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_MAP_READ | GPU_MAP_WRITE);
         virtual ~GpuBuffer() = default;
 
         void EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor = 0);
@@ -82,13 +82,16 @@ namespace stratus {
         // Make sure GPU_DYNAMIC_DATA is set
         void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data);
 
+        // Memory mapping and data copying won't work after this
+        void FinalizeMemory();
+
     protected:
         std::shared_ptr<GpuBufferImpl> _impl;
     };
 
     struct GpuPrimitiveBuffer final : public GpuBuffer {
         GpuPrimitiveBuffer() : GpuBuffer() {}
-        GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage = 0);
         virtual ~GpuPrimitiveBuffer() = default;
 
         void Bind() const;
@@ -109,6 +112,7 @@ namespace stratus {
         const GpuPrimitiveBuffer& GetBuffer(size_t) const;
         void UnmapAllMemory() const;
         bool IsMemoryMapped() const;
+        void FinalizeAllMemory();
         void Bind() const;
         void Unbind() const;
         void Clear();

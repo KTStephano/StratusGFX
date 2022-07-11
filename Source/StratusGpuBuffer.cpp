@@ -64,12 +64,15 @@ namespace stratus {
         throw std::invalid_argument("Unable to calculate size in bytes");
     }
 
+    static void _CreateBuffer(GLuint & buffer, const void * data, const uintptr_t sizeBytes, const Bitfield usage) {
+        glCreateBuffers(1, &buffer);
+        glNamedBufferStorage(buffer, sizeBytes, data, _ConvertUsageType(usage));
+    }
+
     struct GpuBufferImpl {
         GpuBufferImpl(const void * data, const uintptr_t sizeBytes, const Bitfield usage) 
             : _sizeBytes(sizeBytes) {
-
-            glCreateBuffers(1, &_buffer);
-            glNamedBufferStorage(_buffer, sizeBytes, data, _ConvertUsageType(usage));
+            _CreateBuffer(_buffer, data, sizeBytes, usage);
         }
 
         ~GpuBufferImpl() {
@@ -162,6 +165,18 @@ namespace stratus {
         glNamedBufferSubData(_buffer, offset, size, data);
     }
 
+    void FinalizeMemory() {
+        /*
+        VV does not work
+        const void * data = MapMemory();
+        GLuint old = _buffer;
+        const Bitfield usage = 0;
+        _buffer = 0;
+        _CreateBuffer(_buffer, data, SizeBytes(), usage);
+        glDeleteBuffers(1, &old);
+        */
+    }
+
     private:
         GLuint _buffer;
         uintptr_t _sizeBytes;
@@ -207,6 +222,10 @@ namespace stratus {
 
     void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
         _impl->CopyDataToBuffer(offset, size, data);
+    }
+
+    void GpuBuffer::FinalizeMemory() {
+        _impl->FinalizeMemory();
     }
 
     GpuPrimitiveBuffer::GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage)
@@ -261,5 +280,11 @@ namespace stratus {
             if (buffer->IsMemoryMapped()) return true;
         }
         return false;
+    }
+
+    void GpuArrayBuffer::FinalizeAllMemory() {
+        for (auto& buffer : *_buffers) {
+            buffer->FinalizeMemory();
+        }
     }
 }

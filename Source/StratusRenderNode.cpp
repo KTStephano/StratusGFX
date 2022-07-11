@@ -141,15 +141,15 @@ namespace stratus {
         _buffers = GpuArrayBuffer();
         GpuPrimitiveBuffer buffer;
         if (_numIndices > 0) {
-            buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, nullptr, _indices.size() * sizeof(uint32_t));
+            buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _indices.data(), _indices.size() * sizeof(uint32_t));
             _buffers.AddBuffer(buffer);
-            _indicesMapped = buffer.MapMemory();
+            //_indicesMapped = buffer.MapMemory();
         }
 
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
-        buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, nullptr, _data.size() * sizeof(float));
+        buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, _data.data(), _data.size() * sizeof(float));
         _buffers.AddBuffer(buffer);
-        _primitiveMapped = buffer.MapMemory();
+        //_primitiveMapped = buffer.MapMemory();
         
         const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
 
@@ -174,19 +174,18 @@ namespace stratus {
     void RenderMesh::FinalizeGpuData() const {
         if (!_isGpuDataDirty) return;
 
-        if (_numIndices > 0) {
-            memcpy(_indicesMapped, (const void *)_indices.data(), _indices.size() * sizeof(uint32_t));
-
-        }
-
-        memcpy(_primitiveMapped, (const void *)_data.data(), _data.size() * sizeof(float));
+        //if (_numIndices > 0) {
+        //    memcpy(_indicesMapped, (const void *)_indices.data(), _indices.size() * sizeof(uint32_t));
+        //}
+//
+        //memcpy(_primitiveMapped, (const void *)_data.data(), _data.size() * sizeof(float));
 
         // Clear out existing buffers to conserve system memory
-        _indices.clear();
-        _data.clear();
+        _indices = std::vector<uint32_t>();
+        _data = std::vector<float>();
 
-        _indicesMapped = nullptr;
-        _primitiveMapped = nullptr;
+        //_indicesMapped = nullptr;
+        //_primitiveMapped = nullptr;
 
         _isGpuDataDirty = false;
 
@@ -200,6 +199,10 @@ namespace stratus {
 
     void RenderMesh::UnmapAllGpuBuffers() const {
         _buffers.UnmapAllMemory();
+    }
+
+    void RenderMesh::_UnmapAllGpuBuffersAndFinalizeData() const {
+        _buffers.FinalizeAllMemory();
     }
 
     bool RenderMesh::IsCpuDirty() const {
