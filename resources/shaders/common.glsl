@@ -31,13 +31,13 @@ vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
 
 // Linear interpolate
 vec4 lerp(vec4 x, vec4 y, float a) {
-    return mix(x, y, saturate(a));
+    return mix(x, y, a);
 }
 
 vec3 lerp(vec3 x, vec3 y, float a) {
-    return mix(x, y, saturate(a));
+    return mix(x, y, a);
 }
 
 float lerp(float x, float y, float a) {
-    return mix(x, y, saturate(a));
+    return mix(x, y, a);
 }
