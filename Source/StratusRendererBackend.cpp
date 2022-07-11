@@ -13,6 +13,7 @@
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
 #include "StratusApplicationThread.h"
+#include "StratusEngine.h"
 
 namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
@@ -502,8 +503,9 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
-            //_frame->csc.fbo.clear(glm::vec4(0.0f));
-            for (int i = 0; i < 4; ++i) _frame->csc.fbo.ClearDepthStencilLayer(i);
+            _frame->csc.fbo.clear(glm::vec4(0.0f));
+            //const int index = Engine::Instance()->FrameCount() % 4;
+            //_frame->csc.fbo.ClearDepthStencilLayer(index);
         }
 
         for (auto& gaussian : _state.gaussianBuffers) {
@@ -873,6 +875,10 @@ void RendererBackend::_RenderCSMDepth() {
         auto& csm = _frame->csc.cascades[i];
         _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
     }
+
+    // Select face (one per frame)
+    //const int face = Engine::Instance()->FrameCount() % 4;
+    //_state.csmDepth->setInt("face", face);
 
     // Render everything in a single pass
     _frame->csc.fbo.bind();
