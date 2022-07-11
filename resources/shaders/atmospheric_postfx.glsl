@@ -5,12 +5,13 @@ STRATUS_GLSL_VERSION
 // the median value of the set of samples taken.
 float getAtmosphericIntensity(sampler2DRect atmosphere, vec3 lightPosition, vec2 pixelCoords) {
     // Remember that lightPosition.z contains 2*Lz
-    vec2 direction = normalize(lightPosition.xy - pixelCoords * lightPosition.z);
-    float a = texture(atmosphere, pixelCoords).x;
-    float b = texture(atmosphere, pixelCoords + direction).x;
-    float c = texture(atmosphere, pixelCoords - direction).x;
-    float d = texture(atmosphere, pixelCoords + 2 * direction).x;
-    float e = texture(atmosphere, pixelCoords - 2 * direction).x;
+    vec2 center = pixelCoords;
+    vec2 direction = normalize(lightPosition.xy - center * lightPosition.z);
+    float a = texture(atmosphere, center).x;
+    float b = texture(atmosphere, center + direction).x;
+    float c = texture(atmosphere, center - direction).x;
+    //float d = texture(atmosphere, center + 2 * direction).x;
+    //float e = texture(atmosphere, center - 2 * direction).x;
     // See page 354, eq. 10.83
     return min(max(min(a, b), c), max(a, b));
     //return max(a, max(b, max(c, max(d, e))));

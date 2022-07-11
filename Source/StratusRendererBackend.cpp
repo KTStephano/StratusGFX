@@ -406,7 +406,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Atmospheric fbo
-    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth / 2, _frame->viewportHeight / 2, 0, false}, nullptr);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
@@ -581,13 +581,13 @@ void RendererBackend::_InitAtmosphericShadowing() {
     std::uniform_real_distribution<float> real(0.0f, 1.0f);
 
     // Create the 64x64 noise texture
-    const size_t size = 64 * 64;
+    const size_t size = 32 * 32;
     std::vector<float> table(size);
     for (size_t i = 0; i < size; ++i) {
         table[i] = real(re);
     }
 
-    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 64, 64, 0, false}, (const void *)&table[0]);
+    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 32, 32, 0, false}, (const void *)&table[0]);
     _state.atmosphericNoiseTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
@@ -1007,13 +1007,16 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     _state.atmospheric->setVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
     _state.atmospheric->setVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
     _state.atmospheric->setVec2("noiseShift", noiseShift);
-    _state.atmospheric->setFloat("windowWidth", float(_frame->viewportWidth));
-    _state.atmospheric->setFloat("windowHeight", float(_frame->viewportHeight));
+    const Texture& colorTex = _state.atmosphericFbo.getColorAttachments()[0];
+    _state.atmospheric->setFloat("windowWidth", float(colorTex.width()));
+    _state.atmospheric->setFloat("windowHeight", float(colorTex.height()));
 
+    glViewport(0, 0, colorTex.width(), colorTex.height());
     _RenderQuad();
     _state.atmosphericFbo.unbind();
     _UnbindShader();
 
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 }
@@ -1290,8 +1293,9 @@ glm::vec3 RendererBackend::_CalculateAtmosphericLightPosition() const {
     const glm::mat4& projection = _frame->projection;
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
-    const float w = _frame->viewportWidth;
-    const float h = _frame->viewportHeight;
+    const Texture& colorTex = _state.atmosphericTexture;
+    const float w = colorTex.width();
+    const float h = colorTex.height();
     const float xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
                                projection[0][1] * normalizedLightDirCamSpace.y + 
                                projection[0][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
