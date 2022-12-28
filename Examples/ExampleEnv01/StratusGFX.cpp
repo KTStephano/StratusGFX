@@ -35,8 +35,10 @@ public:
     stratus::LightPtr light;
     glm::vec3 position;
     glm::vec3 speed;
+    bool spawnPhysicalMarker;
 
-    RandomLightMover() {
+    RandomLightMover(const bool spawnPhysicalMarker = true) 
+        : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
@@ -47,7 +49,9 @@ public:
     }
 
     void addToScene() const {
-        stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
+        if (spawnPhysicalMarker) {
+            stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
+        }
         //r.addPointLight(light.get());
         stratus::RendererFrontend::Instance()->AddLight(light);
     }
@@ -74,7 +78,7 @@ public:
 };
 
 struct StationaryLight : public RandomLightMover {
-    StationaryLight() : RandomLightMover() {}
+    StationaryLight(const bool spawnPhysicalMarker = true) : RandomLightMover(spawnPhysicalMarker) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -243,7 +247,7 @@ public:
 
         cameraLight = stratus::LightPtr(new stratus::PointLight());
         cameraLight->setCastsShadows(false);
-        cameraLight->setIntensity(1200.0f);
+        cameraLight->setIntensity(400.0f);
 
         if (camLightEnabled) {
             stratus::RendererFrontend::Instance()->AddLight(cameraLight);
@@ -374,9 +378,10 @@ public:
                         }
                         case SDL_SCANCODE_1: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1200.0f);
-                                mover->light->setColor(1.0f, 1.0f, 0.5f);
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 100);
+                                const auto worldLightColor = worldLight->getColor();
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
