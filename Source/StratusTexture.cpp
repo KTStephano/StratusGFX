@@ -9,8 +9,7 @@
 namespace stratus {
     const void * CastDataVPPtoVP(const void ** data, const size_t offset) {
         if (!data) return (const void *)nullptr;
-        const unsigned char ** pptr = (const unsigned char **)data;
-        return (const void *)pptr[offset];
+        return data[offset];
     }
 
     class TextureImpl {
