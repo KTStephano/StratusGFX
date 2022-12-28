@@ -10,6 +10,7 @@ namespace stratus {
     enum class TextureType : int {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
+        // Corresponds to GL_TEXTURE_CUBE_MAP
         TEXTURE_3D,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
@@ -103,7 +104,7 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const void * data, bool initHandle = true);
+        Texture(const TextureConfig & config, const void ** data, bool initHandle = true);
         ~Texture();
 
         Texture(const Texture &) = default;

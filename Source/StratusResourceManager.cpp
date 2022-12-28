@@ -483,7 +483,7 @@ namespace stratus {
     }
 
     Texture * ResourceManager::_FinalizeTexture(const RawTextureData& data) {
-        Texture * texture = new Texture(data.config, data.data, false);
+        Texture * texture = new Texture(data.config, (const void **)&data.data, false);
         texture->_setHandle(data.handle);
         texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
         texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
