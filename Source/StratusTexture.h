@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 #include "StratusHandle.h"
 
 namespace stratus {    
@@ -94,6 +95,14 @@ namespace stratus {
         bool generateMipMaps;
     };
 
+    struct TextureData {
+        const void * data;
+        TextureData(const void * data = nullptr) : data(data) {}
+    };
+
+    typedef std::vector<TextureData> TextureArrayData;
+    const TextureArrayData NoTextureData = TextureArrayData{};
+
     class TextureImpl;
     class Texture {
         friend class ResourceManager;
@@ -104,7 +113,7 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const void ** data, bool initHandle = true);
+        Texture(const TextureConfig & config, const TextureArrayData& data, bool initHandle = true);
         ~Texture();
 
         Texture(const Texture &) = default;

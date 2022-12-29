@@ -7,9 +7,9 @@
 #include "StratusApplicationThread.h"
 
 namespace stratus {
-    const void * CastDataVPPtoVP(const void ** data, const size_t offset) {
-        if (!data) return (const void *)nullptr;
-        return data[offset];
+    static const void * CastTexDataToPtr(const TextureArrayData& data, const size_t offset) {
+        if (!data.size()) return nullptr;
+        return data[offset].data;
     }
 
     class TextureImpl {
@@ -19,7 +19,7 @@ namespace stratus {
         TextureHandle _handle;
 
     public:
-        TextureImpl(const TextureConfig & config, const void ** data, bool initHandle) {
+        TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
             if (initHandle) {
                 _handle = TextureHandle::NextHandle();
             }
@@ -38,7 +38,7 @@ namespace stratus {
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    CastDataVPPtoVP(data, 0)
+                    CastTexDataToPtr(data, 0)
                 );
             }
             else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
@@ -53,7 +53,7 @@ namespace stratus {
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    CastDataVPPtoVP(data, 0)
+                    CastTexDataToPtr(data, 0)
                 );
             }
             else if (config.type == TextureType::TEXTURE_3D) {
@@ -66,7 +66,7 @@ namespace stratus {
                         0, 
                         _convertFormat(config.format),
                         _convertType(config.dataType, config.storage), 
-                        CastDataVPPtoVP(data, (const size_t)face)
+                        CastTexDataToPtr(data, (const size_t)face)
                     );
                 }
             }
@@ -409,7 +409,7 @@ namespace stratus {
     };
 
     Texture::Texture() {}
-    Texture::Texture(const TextureConfig & config, const void ** data, bool initHandle) {
+    Texture::Texture(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
         _impl = std::make_shared<TextureImpl>(config, data, initHandle);
     }
 
