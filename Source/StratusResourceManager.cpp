@@ -435,6 +435,14 @@ namespace stratus {
             // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
             uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
             if (data) {
+                // Make sure the width/height match what is already there
+                if (texdata->data.size() > 0 &&
+                    (texdata->config.width != width || texdata->config.height != height)) {
+                        STRATUS_ERROR << "Texture file width/height does not match rest for " << file << std::endl;
+                        FREE_ALL_STBI_IMAGE_DATA
+                        return nullptr;
+                }
+
                 TextureConfig config;
                 config.type = type;
                 config.storage = TextureComponentSize::BITS_DEFAULT;
@@ -469,6 +477,13 @@ namespace stratus {
                         STRATUS_ERROR << "Unknown texture loading error - format may be invalid" << std::endl;
                         FREE_ALL_STBI_IMAGE_DATA
                         return nullptr;
+                }
+
+                // Make sure the format type matches what is already there
+                if (texdata->data.size() > 0 && texdata->config.format != config.format) {
+                    STRATUS_ERROR << "Texture file format does not match rest for " << file << std::endl;
+                    FREE_ALL_STBI_IMAGE_DATA
+                    return nullptr;
                 }
 
                 texdata->config = config;
