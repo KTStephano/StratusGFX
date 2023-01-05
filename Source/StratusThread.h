@@ -96,7 +96,10 @@ namespace stratus {
     };
 
     // Thread for managing Async operations (Note: only safe to use within the context of a valid stratus::Thread,
-    // so a raw pthread or std::thread are not useable)
+    // so a raw pthread or std::thread are not useable).
+    //
+    // It's important to know that whatever thread calls AddCallback will be the same thread that is executes
+    // the callback to let you know it completed.
     template<typename E>
     class __AsyncImpl : public std::enable_shared_from_this<__AsyncImpl<E>> {
     public:        

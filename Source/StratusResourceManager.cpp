@@ -468,7 +468,7 @@ namespace stratus {
             texdata->config = config;
             texdata->handle = handle;
             texdata->sizeBytes = width * height * numChannels * sizeof(uint8_t);
-            texdata->data = data;
+            texdata->data = {data};
         } 
         else {
             STRATUS_ERROR << "Could not load texture: " << file << std::endl;
@@ -483,11 +483,19 @@ namespace stratus {
     }
 
     Texture * ResourceManager::_FinalizeTexture(const RawTextureData& data) {
-        Texture* texture = new Texture(data.config, stratus::TextureArrayData{ data.data }, false);
+        stratus::TextureArrayData texArrayData(data.data.size());
+        for (size_t i = 0; i < texArrayData.size(); ++i) {
+            texArrayData[i].data = (const void *)data.data[i];
+        }
+        Texture* texture = new Texture(data.config, texArrayData, false);
         texture->_setHandle(data.handle);
         texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
         texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
-        stbi_image_free(data.data);
+        
+        for (uint8_t * ptr : data.data) {
+            stbi_image_free((void *)ptr);
+        }
+        
         return texture;
     }
 

@@ -21,7 +21,7 @@ namespace stratus {
             TextureConfig config;
             TextureHandle handle;
             size_t sizeBytes;
-            uint8_t * data;
+            std::vector<uint8_t *> data;
         };
 
     public:
