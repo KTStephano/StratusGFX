@@ -61,7 +61,11 @@ namespace stratus {
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
         EntityPtr _LoadModel(const std::string&, RenderFaceCulling);
-        std::shared_ptr<RawTextureData> _LoadTexture(const std::string&, const TextureHandle, const bool srgb);
+        // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
+        std::shared_ptr<RawTextureData> _LoadTexture(const std::vector<std::string>&, 
+                                                     const TextureHandle, 
+                                                     const bool srgb,
+                                                     const TextureType type = TextureType::TEXTURE_2D);
         Texture * _FinalizeTexture(const RawTextureData&);
         uint32_t _NextResourceIndex();
 
