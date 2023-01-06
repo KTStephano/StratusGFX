@@ -34,8 +34,10 @@ public:
     stratus::LightPtr light;
     glm::vec3 position;
     glm::vec3 speed;
+    bool spawnPhysicalMarker;
 
-    RandomLightMover() {
+    RandomLightMover(const bool spawnPhysicalMarker = true) 
+        : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
@@ -46,7 +48,9 @@ public:
     }
 
     void addToScene() const {
-        stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
+        if (spawnPhysicalMarker) {
+            stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
+        }
         //r.addPointLight(light.get());
         stratus::RendererFrontend::Instance()->AddLight(light);
     }
@@ -73,7 +77,7 @@ public:
 };
 
 struct StationaryLight : public RandomLightMover {
-    StationaryLight() : RandomLightMover() {}
+    StationaryLight(const bool spawnPhysicalMarker = true) : RandomLightMover(spawnPhysicalMarker) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -237,8 +241,10 @@ public:
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1000.0);
+                                std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 100);
+                                const auto worldLightColor = worldLight->getColor();
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
