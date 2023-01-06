@@ -40,7 +40,9 @@ namespace stratus {
         FrameBuffer & operator=(FrameBuffer &&) = default;
 
         // Clears the color, depth and stencil buffers using rgba
-        void clear(const glm::vec4 & rgba) const;
+        void clear(const glm::vec4 & rgba);
+        void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer);
+        void ClearDepthStencilLayer(const int layer);
         // from = rectangular region in *other* to copy from
         // to = rectangular region in *this* to copy to
         void copyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);

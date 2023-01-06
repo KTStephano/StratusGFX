@@ -1,4 +1,6 @@
-#version 410 core
+STRATUS_GLSL_VERSION
+
+#include "common.glsl"
 
 #define NUM_CASCADES 4
 
@@ -28,19 +30,6 @@ smooth in vec3 fsShadowSpaceRay;
 
 // GBuffer output
 layout (location = 0) out float gAtmosphere;
-
-// Linear interpolate
-vec4 lerp(vec4 x, vec4 y, float a) {
-    return mix(x, y, a);
-}
-
-vec3 lerp(vec3 x, vec3 y, float a) {
-    return mix(x, y, a);
-}
-
-float lerp(float x, float y, float a) {
-    return mix(x, y, a);
-}
 
 // Calculates p1, p1 from page 342, eq. 10.64
 // invLength = 1.0 / length(camSpaceRayDir)
@@ -102,14 +91,14 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
     float deltaW  = 2 * (1 - m) * deltaT;
 
     // Combine zw into approximate depth from structure buffer
-    // Note that here we are assuming that the atmosphere buffer is the same dimensions as the structure buffer!
-    // If they are less (ex: half size like in the book) then the pixelCoords will need to be multiplied by some constant
-    vec2 structure = texture(structureBuffer, pixelCoords).zw;
+    // Note that we are multiplying pixel coords by 2.0 since we are assuming the atmosphere buffer is half the
+    // resolution of the structure buffer in both the x and y dimensions
+    vec2 structure = texture(structureBuffer, pixelCoords * 2.0).zw;
     float depth = structure.x + structure.y;
 
     float inverseNoiseDim = 1.0 / textureSize(noiseTexture, 0).x;
     // Page 346, eq. 10.75
-    float t = deltaT * texture(noiseTexture, pixelCoords * inverseNoiseDim * 0.5 + noiseShift).x;
+    float t = deltaT * texture(noiseTexture, pixelCoords * inverseNoiseDim + noiseShift).x;
     float tmax = t + 1.0;
     float atmosphere = 0.0; // Accumulates atmosphere value
     float weight = m; // First weight always starts with m
@@ -132,7 +121,8 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         weight += deltaW;
     }
 
-    for (int cascade = 1; cascade < NUM_CASCADES; ++cascade) {
+    const int totalCascades = NUM_CASCADES;
+    for (int cascade = 1; cascade < totalCascades; ++cascade) {
         // This is the switch determining which texture segment of the shadow map we sample from
         cascadeDepthSwitch = float(cascade);
         zmax = min(depth, maxCascadeDepth[cascade]);
@@ -154,6 +144,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
     }
 
     return anisotropicScatteringIntensity * atmosphere;
+    //return anisotropicScatteringIntensity * atmosphere;
 }
 
 void main() {

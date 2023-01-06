@@ -54,6 +54,9 @@ namespace stratus {
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
     private:
+        void _UnmapAllGpuBuffersAndFinalizeData() const;
+
+    private:
         mutable GpuArrayBuffer _buffers;
         mutable std::vector<glm::vec3> _vertices;
         mutable std::vector<glm::vec2> _uvs;
@@ -68,8 +71,8 @@ namespace stratus {
         mutable bool _isCpuDirty = true;
         mutable bool _isGpuDirty = true;
         mutable bool _isGpuDataDirty = true;
-        mutable void * _primitiveMapped = nullptr;
-        mutable void * _indicesMapped = nullptr;
+        //mutable void * _primitiveMapped = nullptr;
+        //mutable void * _indicesMapped = nullptr;
         mutable RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
     };
 

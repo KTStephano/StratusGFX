@@ -9,7 +9,7 @@ namespace stratus {
 /**
  * @see http://insanecoding.blogspot.com/2011/11/how-to-read-in-file-in-c.html
  */
-std::vector <char> Filesystem::readBinary(const std::string &file) {
+std::vector <char> Filesystem::ReadBinary(const std::string &file) {
     std::ifstream binaryFile(file, std::ios::in | std::ios::binary);
     if (!binaryFile.is_open()) {
         STRATUS_ERROR << "[error] Unable to open " << file << std::endl;
@@ -34,7 +34,7 @@ std::vector <char> Filesystem::readBinary(const std::string &file) {
 /**
  * @see https://stackoverflow.com/questions/2602013/read-whole-ascii-file-into-c-stdstring
  */
-std::string Filesystem::readAscii(const std::string &file) {
+std::string Filesystem::ReadAscii(const std::string &file) {
     std::ifstream asciiFile(file, std::ios::in);
     if (!asciiFile.is_open()) {
         STRATUS_ERROR << "[error] Unable to open " << file << std::endl;
@@ -44,5 +44,9 @@ std::string Filesystem::readAscii(const std::string &file) {
             std::istreambuf_iterator<char>());
     asciiFile.close();
     return s;
+}
+
+std::filesystem::path Filesystem::CurrentPath() {
+    return std::filesystem::current_path();
 }
 }

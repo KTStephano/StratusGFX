@@ -1,6 +1,6 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
-#define PREVENT_DIV_BY_ZERO 0.00001
+#include "common.glsl"
 
 uniform bool downsamplingStage = true;
 uniform bool gaussianStage     = false;
@@ -11,7 +11,7 @@ uniform bool finalStage        = false;
 uniform sampler2D mainTexture;
 uniform sampler2D bloomTexture;
 
-uniform float bloomThreshold = 1.5;
+uniform float bloomThreshold = 0.40;
 uniform float upsampleRadiusScale = 0.5;
 
 uniform float viewportX;
@@ -28,19 +28,8 @@ uniform float weights[WEIGHT_LENGTH] = float[] (41.0 / 200.0, 26.0 / 200.0, 7.0 
 in vec2 fsTexCoords;
 out vec3 fsColor;
 
-// Prevents HDR color values from exceeding 16-bit color buffer range
-vec3 boundHDR(vec3 value) {
-    return min(value, 65500.0);
-}
-
 vec2 convertTexCoords(vec2 uv) {
     return uv; //(uv + 1.0) * 0.5;
-}
-
-vec2 computeTexelWidth(sampler2D tex, int miplevel) {
-    // This will give us the size of a single texel in (x, y) directions
-    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
-    return (1.0 / textureSize(tex, miplevel));// * vec2(2.0, 1.0);
 }
 
 vec2 screenTransformTexCoords(vec2 uv) {

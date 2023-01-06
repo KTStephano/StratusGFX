@@ -7,18 +7,72 @@
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
 
+    static GLbitfield _ConvertUsageType(Bitfield type) {
+        GLbitfield usage = 0;
+        if (type & GPU_DYNAMIC_DATA) {
+            usage |= GL_DYNAMIC_STORAGE_BIT;
+        }
+        if (type & GPU_MAP_READ) {
+            usage |= GL_MAP_READ_BIT;
+        }
+        if (type & GPU_MAP_WRITE) {
+            usage |= GL_MAP_WRITE_BIT;
+        }
+        if (type & GPU_MAP_PERSISTENT) {
+            usage |= GL_MAP_PERSISTENT_BIT;
+        }
+        return usage;
+    }
+
+    static GLenum _ConvertBufferType(int type) {
+        GpuBindingPoint type_ = static_cast<GpuBindingPoint>(type);
+        switch (type_) {
+        case GpuBindingPoint::ARRAY_BUFFER: return GL_ARRAY_BUFFER;
+        case GpuBindingPoint::ELEMENT_ARRAY_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
+        case GpuBindingPoint::UNIFORM_BUFFER: return GL_UNIFORM_BUFFER;
+        case GpuBindingPoint::SHADER_STORAGE_BUFFER: return GL_SHADER_STORAGE_BUFFER;
+        }
+
+        throw std::invalid_argument("Unknown buffer type");
+    }
+
+    static GLenum _ConvertStorageType(GpuStorageType type) {
+        switch (type) {
+        case GpuStorageType::BYTE: return GL_BYTE;
+        case GpuStorageType::UNSIGNED_BYTE: return GL_UNSIGNED_BYTE;
+        case GpuStorageType::SHORT: return GL_SHORT;
+        case GpuStorageType::UNSIGNED_SHORT: return GL_UNSIGNED_SHORT;
+        case GpuStorageType::INT: return GL_INT;
+        case GpuStorageType::UNSIGNED_INT: return GL_UNSIGNED_INT;
+        case GpuStorageType::FLOAT: return GL_FLOAT;
+        }
+
+        throw std::invalid_argument("Unknown storage type");
+    }
+
+    static uint32_t _CalculateSizeBytes(int32_t sizePerElem, GpuStorageType type) {
+        switch (type) {
+        case GpuStorageType::BYTE:
+        case GpuStorageType::UNSIGNED_BYTE: return sizePerElem * sizeof(uint8_t);
+        case GpuStorageType::SHORT:
+        case GpuStorageType::UNSIGNED_SHORT: return sizePerElem * sizeof(uint16_t);
+        case GpuStorageType::INT:
+        case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(uint32_t);
+        case GpuStorageType::FLOAT: return sizePerElem * sizeof(float);
+        }
+
+        throw std::invalid_argument("Unable to calculate size in bytes");
+    }
+
+    static void _CreateBuffer(GLuint & buffer, const void * data, const uintptr_t sizeBytes, const Bitfield usage) {
+        glCreateBuffers(1, &buffer);
+        glNamedBufferStorage(buffer, sizeBytes, data, _ConvertUsageType(usage));
+    }
+
     struct GpuBufferImpl {
-        GpuBufferImpl(GpuBufferType type, const void * data, const size_t sizeBytes) 
-            : _type(type),
-              _bufferType(_ConvertBufferType(type)) {
-
-            _bind = [this](){ glBindBuffer(_bufferType, _buffer); };
-            _unbind = [this](){ glBindBuffer(_bufferType, 0); };
-
-            glGenBuffers(1, &_buffer);
-            _bind();
-            glBufferData(_bufferType, sizeBytes, data, GL_STATIC_DRAW);
-            _unbind();
+        GpuBufferImpl(const void * data, const uintptr_t sizeBytes, const Bitfield usage) 
+            : _sizeBytes(sizeBytes) {
+            _CreateBuffer(_buffer, data, sizeBytes, usage);
         }
 
         ~GpuBufferImpl() {
@@ -72,35 +126,27 @@ namespace stratus {
         _enableAttributes.push_back(enable);
     }
 
-    void Bind() const {
-        if (IsMemoryMapped()) {
-            STRATUS_WARN << "GpuBuffer::Bind called while memory is still mapped for read/write" << std::endl;
-            return;
-        }
-        _bind();
+    void Bind(const GpuBindingPoint point) const {
+        glBindBuffer(_ConvertBufferType(int(point)), _buffer);
         for (auto& enable : _enableAttributes) enable();
     }
 
-    void Unbind() const {
-        if (IsMemoryMapped()) {
-            STRATUS_WARN << "GpuBuffer::Unbind called while memory is still mapped for read/write" << std::endl;
-            return;
-        }
-        _unbind();
+    void Unbind(const GpuBindingPoint point) const {
+        glBindBuffer(_ConvertBufferType(int(point)), 0);
     }
 
-    void * MapReadWrite() const {
+    void BindBase(const GpuBaseBindingPoint point, const uint32_t index) {
+        glBindBufferBase(_ConvertBufferType(int(point)), index, _buffer);
+    }
+
+    void * MapMemory() const {
         _isMemoryMapped = true;
-        _bind();
-        void * ptr = glMapBuffer(_bufferType, GL_READ_WRITE);
-        _unbind();
+        void * ptr = glMapNamedBuffer(_buffer, GL_READ_WRITE);
         return ptr;
     }
     
-    void UnmapReadWrite() const {
-        _bind();
-        glUnmapBuffer(_bufferType);
-        _unbind();
+    void UnmapMemory() const {
+        glUnmapNamedBuffer(_buffer);
         _isMemoryMapped = false;
     }
 
@@ -108,96 +154,105 @@ namespace stratus {
         return _isMemoryMapped;
     }
 
-    private:
-        static GLenum _ConvertBufferType(GpuBufferType type) {
-            switch (type) {
-            case GpuBufferType::PRIMITIVE_BUFFER: return GL_ARRAY_BUFFER;
-            case GpuBufferType::INDEX_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
-            }
+    uintptr_t SizeBytes() const {
+        return _sizeBytes;
+    }
 
-            throw std::invalid_argument("Unknown buffer type");
+    void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
+        if (offset + size > SizeBytes()) {
+            throw std::runtime_error("offset+size exceeded maximum GPU buffer size");
         }
+        glNamedBufferSubData(_buffer, offset, size, data);
+    }
 
-        static GLenum _ConvertStorageType(GpuStorageType type) {
-            switch (type) {
-            case GpuStorageType::BYTE: return GL_BYTE;
-            case GpuStorageType::UNSIGNED_BYTE: return GL_UNSIGNED_BYTE;
-            case GpuStorageType::SHORT: return GL_SHORT;
-            case GpuStorageType::UNSIGNED_SHORT: return GL_UNSIGNED_SHORT;
-            case GpuStorageType::INT: return GL_INT;
-            case GpuStorageType::UNSIGNED_INT: return GL_UNSIGNED_INT;
-            case GpuStorageType::FLOAT: return GL_FLOAT;
-            }
-
-            throw std::invalid_argument("Unknown storage type");
-        }
-
-        static uint32_t _CalculateSizeBytes(int32_t sizePerElem, GpuStorageType type) {
-            switch (type) {
-            case GpuStorageType::BYTE:
-            case GpuStorageType::UNSIGNED_BYTE: return sizePerElem * sizeof(uint8_t);
-            case GpuStorageType::SHORT:
-            case GpuStorageType::UNSIGNED_SHORT: return sizePerElem * sizeof(uint16_t);
-            case GpuStorageType::INT:
-            case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(uint32_t);
-            case GpuStorageType::FLOAT: return sizePerElem * sizeof(float);
-            }
-
-            throw std::invalid_argument("Unable to calculate size in bytes");
-        }
+    void FinalizeMemory() {
+        /*
+        VV does not work
+        const void * data = MapMemory();
+        GLuint old = _buffer;
+        const Bitfield usage = 0;
+        _buffer = 0;
+        _CreateBuffer(_buffer, data, SizeBytes(), usage);
+        glDeleteBuffers(1, &old);
+        */
+    }
 
     private:
-        const GpuBufferType _type;
-        const GLenum _bufferType;
         GLuint _buffer;
+        uintptr_t _sizeBytes;
         mutable bool _isMemoryMapped = false;
 
-        // Cached functions
-        GpuBufferCommand _bind;
-        GpuBufferCommand _unbind;
         std::vector<GpuBufferCommand> _enableAttributes;
     };
 
-    GpuBuffer::GpuBuffer(GpuBufferType type, const void * data, const size_t sizeBytes)
-        : _impl(std::make_shared<GpuBufferImpl>(type, data, sizeBytes)) {}
+    GpuBuffer::GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage)
+        : _impl(std::make_shared<GpuBufferImpl>(data, sizeBytes, usage)) {}
 
     void GpuBuffer::EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType storage, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor) {
         _impl->EnableAttribute(attribute, sizePerElem, storage, normalized, stride, offset, divisor);
     }
 
-    void GpuBuffer::Bind() const {
-        _impl->Bind();
+    void GpuBuffer::Bind(const GpuBindingPoint point) const {
+        _impl->Bind(point);
     }
 
-    void GpuBuffer::Unbind() const {
-        _impl->Unbind();
+    void GpuBuffer::Unbind(const GpuBindingPoint point) const {
+        _impl->Unbind(point);
     }
 
-    void * GpuBuffer::MapReadWrite() const {
-        return _impl->MapReadWrite();
+    void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const uint32_t index) {
+        _impl->BindBase(point, index);
     }
 
-    void GpuBuffer::UnmapReadWrite() const {
-        _impl->UnmapReadWrite();
+    void * GpuBuffer::MapMemory() const {
+        return _impl->MapMemory();
+    }
+
+    void GpuBuffer::UnmapMemory() const {
+        _impl->UnmapMemory();
     }
 
     bool GpuBuffer::IsMemoryMapped() const {
         return _impl->IsMemoryMapped();
     }
 
-    GpuArrayBuffer::GpuArrayBuffer()
-        : _buffers(std::make_shared<std::vector<GpuBuffer>>()) {}
+    uintptr_t GpuBuffer::SizeBytes() const {
+        return _impl->SizeBytes();
+    }
 
-    void GpuArrayBuffer::AddBuffer(const GpuBuffer& buffer) {
-        _buffers->push_back(buffer);
+    void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
+        _impl->CopyDataToBuffer(offset, size, data);
+    }
+
+    void GpuBuffer::FinalizeMemory() {
+        _impl->FinalizeMemory();
+    }
+
+    GpuPrimitiveBuffer::GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage)
+        : GpuBuffer(data, sizeBytes, usage),
+          _type(type) {}
+
+    void GpuPrimitiveBuffer::Bind() const {
+        GpuBuffer::Bind(static_cast<GpuBindingPoint>(_type));
+    }
+
+    void GpuPrimitiveBuffer::Unbind() const {
+        GpuBuffer::Unbind(static_cast<GpuBindingPoint>(_type));
+    }
+
+    GpuArrayBuffer::GpuArrayBuffer()
+        : _buffers(std::make_shared<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>>()) {}
+
+    void GpuArrayBuffer::AddBuffer(const GpuPrimitiveBuffer& buffer) {
+        _buffers->push_back(std::make_unique<GpuPrimitiveBuffer>(buffer));
     }
 
     void GpuArrayBuffer::Bind() const {
-        for (auto& buffer : *_buffers) buffer.Bind();
+        for (auto& buffer : *_buffers) buffer->Bind();
     }
 
     void GpuArrayBuffer::Unbind() const {
-        for (auto& buffer : *_buffers) buffer.Unbind();
+        for (auto& buffer : *_buffers) buffer->Unbind();
     }
 
     void GpuArrayBuffer::Clear() {
@@ -208,22 +263,28 @@ namespace stratus {
         return _buffers->size();
     }
 
-    GpuBuffer& GpuArrayBuffer::GetBuffer(size_t index) {
-        return (*_buffers)[index];
+    GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) {
+        return *(*_buffers)[index];
     }
 
-    const GpuBuffer& GpuArrayBuffer::GetBuffer(size_t index) const {
-        return (*_buffers)[index];
+    const GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) const {
+        return *(*_buffers)[index];
     }
 
-    void GpuArrayBuffer::UnmapAllReadWrite() const {
-        for (auto& buffer : *_buffers) buffer.UnmapReadWrite();
+    void GpuArrayBuffer::UnmapAllMemory() const {
+        for (auto& buffer : *_buffers) buffer->UnmapMemory();
     }
 
     bool GpuArrayBuffer::IsMemoryMapped() const {
         for (auto& buffer : *_buffers) {
-            if (buffer.IsMemoryMapped()) return true;
+            if (buffer->IsMemoryMapped()) return true;
         }
         return false;
+    }
+
+    void GpuArrayBuffer::FinalizeAllMemory() {
+        for (auto& buffer : *_buffers) {
+            buffer->FinalizeMemory();
+        }
     }
 }

@@ -6,6 +6,10 @@
 #include <iostream>
 #include <ostream>
 #include "glm/glm.hpp"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <glm/gtc/quaternion.hpp> 
+#include <glm/gtx/quaternion.hpp>
 
 #define STRATUS_PI (M_PI)
 
@@ -117,6 +121,8 @@ namespace stratus {
         //}
 	};
 
+    // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
+    // for more info on quaternions
 	struct Rotation {
 		Degrees x;
 		Degrees y;
@@ -125,15 +131,13 @@ namespace stratus {
         Rotation() : Rotation(Degrees(0.0f), Degrees(0.0f), Degrees(0.0f)) {}
 		Rotation(const Degrees& x, const Degrees& y, const Degrees& z)
 			: x(x), y(y), z(z) {}
+        
 
         glm::vec3 asVec3() const {
             return glm::vec3(x.value(), y.value(), z.value());
         }
 
-        // Printing helper functions
-        //friend std::ostream& operator<<(std::ostream& os, const Rotation& r) {
-        //    return os << "[" << r.x << ", " << r.y << ", " << r.z << "]";
-        //}
+
 	};
 
 	inline Radians cosine(const Radians& r) { return Radians(cosf(r.value())); }
@@ -266,6 +270,16 @@ namespace stratus {
         glm::mat4 invTranslation = glm::mat4(1.0f);
         invTranslation[3] = glm::vec4(-translation, 1.0f);
         return worldTranspose * invTranslation;
+    }
+
+    static glm::mat4 ToMat4(const aiMatrix4x4& aim) {
+        glm::mat4 gm(1.0f);
+        for (size_t i = 0; i < 4; ++i) {
+            for (size_t j = 0; j < 4; ++j) {
+                gm[i][j] = aim[i][j];
+            }
+        }
+        return gm;
     }
 }
 

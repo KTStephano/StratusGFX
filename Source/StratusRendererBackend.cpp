@@ -13,6 +13,7 @@
 #include "StratusLog.h"
 #include "StratusResourceManager.h"
 #include "StratusApplicationThread.h"
+#include "StratusEngine.h"
 
 namespace stratus {
 static void printGLInfo(const GFXConfig & config) {
@@ -20,6 +21,7 @@ static void printGLInfo(const GFXConfig & config) {
     log << "==================== OpenGL Information ====================" << std::endl;
     log << "\tRenderer: "                               << config.renderer << std::endl;
     log << "\tVersion: "                                << config.version << std::endl;
+    log << "\tMajor, minor Version: "                   << config.majorVersion << ", " << config.minorVersion << std::endl;
     log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
     log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
     log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
@@ -110,6 +112,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     // Query OpenGL about various different hardware capabilities
     _config.renderer = (const char *)glGetString(GL_RENDERER);
     _config.version = (const char *)glGetString(GL_VERSION);
+    glGetIntegerv(GL_MINOR_VERSION, &_config.minorVersion);
+    glGetIntegerv(GL_MAJOR_VERSION, &_config.majorVersion);
     glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &_config.maxCombinedTextures);
     glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &_config.maxCubeMapTextureSize);
     glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &_config.maxFragmentUniformVectors);
@@ -124,6 +128,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
+
+    if (_config.majorVersion < 4 || _config.minorVersion < 3) {
+        STRATUS_ERROR << "OpenGL version LOWER than 4.3 - this is not supported" << std::endl;
+        _isValid = false;
+    }
 
     const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
     for (int i = 0; i < internalFormats.size(); ++i) {
@@ -151,67 +160,71 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     printGLInfo(_config);
     _isValid = true;
 
+    const std::filesystem::path shaderRoot("../resources/shaders");
+    const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
+
     // Initialize the pipelines
-    _state.geometry = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/pbr_geometry_pass.vs", ShaderType::VERTEX}, 
-        Shader{"../resources/shaders/pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
+    _state.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr_geometry_pass.vs", ShaderType::VERTEX}, 
+        Shader{"pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.geometry.get());
 
-    _state.forward = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/flat_forward_pass.vs", ShaderType::VERTEX}, 
-        Shader{"../resources/shaders/flat_forward_pass.fs", ShaderType::FRAGMENT}}));
+    _state.forward = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"flat_forward_pass.vs", ShaderType::VERTEX}, 
+        Shader{"flat_forward_pass.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.forward.get());
 
     using namespace std;
 
     // Set up the hdr/gamma postprocessing shader
-    _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/hdr.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/hdr.fs", ShaderType::FRAGMENT}}));
+
+    _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"hdr.vs", ShaderType::VERTEX},
+        Shader{"hdr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.hdrGamma.get());
 
     // Set up the shadow preprocessing shader
-    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/shadow.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/shadow.gs", ShaderType::GEOMETRY},
-        Shader{"../resources/shaders/shadow.fs", ShaderType::FRAGMENT}}));
+    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"shadow.vs", ShaderType::VERTEX},
+        Shader{"shadow.gs", ShaderType::GEOMETRY},
+        Shader{"shadow.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.shadows.get());
 
-    _state.lighting = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/pbr.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/pbr.fs", ShaderType::FRAGMENT}}));
+    _state.lighting = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr.vs", ShaderType::VERTEX},
+        Shader{"pbr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.lighting.get());
 
-    _state.bloom = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/bloom.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/bloom.fs", ShaderType::FRAGMENT}}));
+    _state.bloom = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"bloom.vs", ShaderType::VERTEX},
+        Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
-    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/csm.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/csm.gs", ShaderType::GEOMETRY},
-        Shader{"../resources/shaders/csm.fs", ShaderType::FRAGMENT}}));
+    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"csm.vs", ShaderType::VERTEX},
+        Shader{"csm.gs", ShaderType::GEOMETRY},
+        Shader{"csm.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.csmDepth.get());
 
-    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/ssao.fs", ShaderType::FRAGMENT}}));
+    _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"ssao.vs", ShaderType::VERTEX},
+        Shader{"ssao.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.ssaoOcclude.get());
 
-    _state.ssaoBlur = std::unique_ptr<Pipeline>(new Pipeline({
+    _state.ssaoBlur = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         // Intentionally reuse ssao.vs since it works for both this and ssao.fs
-        Shader{"../resources/shaders/ssao.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/ssao_blur.fs", ShaderType::FRAGMENT}}));
+        Shader{"ssao.vs", ShaderType::VERTEX},
+        Shader{"ssao_blur.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.ssaoBlur.get());
 
-    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/atmospheric.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/atmospheric.fs", ShaderType::FRAGMENT}}));
+    _state.atmospheric = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"atmospheric.vs", ShaderType::VERTEX},
+        Shader{"atmospheric.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmospheric.get());
 
-    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline({
-        Shader{"../resources/shaders/atmospheric_postfx.vs", ShaderType::VERTEX},
-        Shader{"../resources/shaders/atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
+    _state.atmosphericPostFx = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"atmospheric_postfx.vs", ShaderType::VERTEX},
+        Shader{"atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmosphericPostFx.get());
 
     // Create the screen quad
@@ -285,7 +298,7 @@ void RendererBackend::_RecalculateCascadeData() {
     if (_frame->csc.regenerateFbo || !_frame->csc.fbo.valid()) {
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-        Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, numCascades, false }, nullptr);
+        Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, numCascades, false }, NoTextureData);
         tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
         // We need to set this when using sampler2DShadow in the GLSL shader
@@ -314,34 +327,34 @@ void RendererBackend::_UpdateWindowDimensions() {
     // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.normals.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
-    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.structure.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     buffer.structure.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
-    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the frame buffer with all its texture attachments
@@ -352,17 +365,17 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
-    _state.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingDepthBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Attach the textures to the FBO
@@ -373,7 +386,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the SSAO fbo
-    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.ssaoOcclusionTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.ssaoOcclusionTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBuffer = FrameBuffer({_state.ssaoOcclusionTexture});
@@ -383,7 +396,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the SSAO blurred fbo
-    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.ssaoOcclusionBlurredTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.ssaoOcclusionBlurredTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBlurredBuffer = FrameBuffer({_state.ssaoOcclusionBlurredTexture});
@@ -393,7 +406,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Atmospheric fbo
-    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth / 2, _frame->viewportHeight / 2, 0, false}, NoTextureData);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericFbo = FrameBuffer({_state.atmosphericTexture});
@@ -417,7 +430,7 @@ void RendererBackend::_InitializePostFxBuffers() {
         currHeight /= 2;
         if (currWidth < 8 || currHeight < 8) break;
         PostFXBuffer buffer;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, 0, false }, nullptr);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, 0, false }, NoTextureData);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -432,7 +445,7 @@ void RendererBackend::_InitializePostFxBuffers() {
         PostFXBuffer dualBlurFbos[2];
         for (int i = 0; i < 2; ++i) {
             FrameBuffer& blurFbo = dualBlurFbos[i].fbo;
-            Texture tex = Texture(color.getConfig(), nullptr);
+            Texture tex = Texture(color.getConfig(), NoTextureData);
             tex.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             tex.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
             blurFbo = FrameBuffer({tex});
@@ -450,7 +463,7 @@ void RendererBackend::_InitializePostFxBuffers() {
     for (auto&[width, height] : sizes) {
         PostFXBuffer buffer;
         ++_state.numUpsampleIterations;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, 0, false }, nullptr);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, 0, false }, NoTextureData);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -463,7 +476,7 @@ void RendererBackend::_InitializePostFxBuffers() {
     }
 
     // Create the atmospheric post fx buffer
-    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, nullptr);
+    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     atmosphericTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
@@ -491,6 +504,8 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
             _frame->csc.fbo.clear(glm::vec4(0.0f));
+            //const int index = Engine::Instance()->FrameCount() % 4;
+            //_frame->csc.fbo.ClearDepthStencilLayer(index);
         }
 
         for (auto& gaussian : _state.gaussianBuffers) {
@@ -555,7 +570,7 @@ void RendererBackend::_InitSSAO() {
     }
 
     // Create the lookup texture
-    _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, (const void *)&table[0]);
+    _state.ssaoOffsetLookup = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 4, 4, 0, false}, TextureArrayData{(const void *)table});
     _state.ssaoOffsetLookup.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.ssaoOffsetLookup.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
@@ -566,13 +581,14 @@ void RendererBackend::_InitAtmosphericShadowing() {
     std::uniform_real_distribution<float> real(0.0f, 1.0f);
 
     // Create the 64x64 noise texture
-    const size_t size = 64 * 64;
+    const size_t size = 32 * 32;
     std::vector<float> table(size);
     for (size_t i = 0; i < size; ++i) {
         table[i] = real(re);
     }
 
-    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 64, 64, 0, false}, (const void *)&table[0]);
+    const void* ptr = (const void *)table.data();
+    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 32, 32, 0, false}, TextureArrayData{ptr});
     _state.atmosphericNoiseTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
@@ -651,33 +667,33 @@ void RendererBackend::_InitInstancedData(RendererEntityData & c) {
     buffers.Clear();
     _state.gpuBuffers.push_back(buffers);
 
-    GpuBuffer buffer;
+    GpuPrimitiveBuffer buffer;
 
     // First the model matrices
 
     // All shaders should use the same location for model, so this should work
     int pos = pbr->getAttribLocation("model");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
     buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("diffuseColor");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("baseReflectivity");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("metallic");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, metallic.data(), metallic.size() * sizeof(float));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
     pos = pbr->getAttribLocation("roughness");
-    buffer = GpuBuffer(GpuBufferType::PRIMITIVE_BUFFER, roughness.data(), roughness.size() * sizeof(float));
+    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
     buffers.AddBuffer(buffer);
 
@@ -861,6 +877,10 @@ void RendererBackend::_RenderCSMDepth() {
         _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
     }
 
+    // Select face (one per frame)
+    //const int face = Engine::Instance()->FrameCount() % 4;
+    //_state.csmDepth->setInt("face", face);
+
     // Render everything in a single pass
     _frame->csc.fbo.bind();
     const Texture * depth = _frame->csc.fbo.getDepthStencilAttachment();
@@ -933,6 +953,8 @@ void RendererBackend::_RenderSsaoBlur() {
 }
 
 void RendererBackend::_RenderAtmosphericShadowing() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
     constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
 
     glDisable(GL_CULL_FACE);
@@ -986,13 +1008,16 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     _state.atmospheric->setVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
     _state.atmospheric->setVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
     _state.atmospheric->setVec2("noiseShift", noiseShift);
-    _state.atmospheric->setFloat("windowWidth", float(_frame->viewportWidth));
-    _state.atmospheric->setFloat("windowHeight", float(_frame->viewportHeight));
+    const Texture& colorTex = _state.atmosphericFbo.getColorAttachments()[0];
+    _state.atmospheric->setFloat("windowWidth", float(colorTex.width()));
+    _state.atmospheric->setFloat("windowHeight", float(colorTex.height()));
 
+    glViewport(0, 0, colorTex.width(), colorTex.height());
     _RenderQuad();
     _state.atmosphericFbo.unbind();
     _UnbindShader();
 
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 }
@@ -1057,7 +1082,7 @@ void RendererBackend::RenderScene() {
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
         PointLight * point = (PointLight *)light.get();
-        const ShadowMap3D & smap = this->_shadowMap3DHandles.find(_GetShadowMapHandleForLight(light))->second;
+        ShadowMap3D & smap = this->_shadowMap3DHandles.find(_GetShadowMapHandleForLight(light))->second;
 
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.width()) / smap.shadowCubeMap.height(), point->getNearPlane(), point->getFarPlane());
 
@@ -1131,6 +1156,7 @@ void RendererBackend::RenderScene() {
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
     _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
+    _state.lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.lighting->bindTexture("gPosition", _state.buffer.position);
     _state.lighting->bindTexture("gNormal", _state.buffer.normals);
     _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
@@ -1142,6 +1168,7 @@ void RendererBackend::RenderScene() {
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();
+    _state.finalScreenTexture = _state.lightingColorBuffer;
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
     _state.lightingFbo.copyFrom(_state.buffer.fbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
@@ -1154,6 +1181,7 @@ void RendererBackend::RenderScene() {
         _Render(e);
     }
     _state.lightingFbo.unbind();
+    _state.finalScreenTexture = _state.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Enable post-FX effects such as bloom
@@ -1190,7 +1218,7 @@ void RendererBackend::_PerformPostFxProcessing() {
         buffer.fbo.bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
-            bloom->bindTexture("mainTexture", _state.lightingColorBuffer);
+            bloom->bindTexture("mainTexture", _state.finalScreenTexture);
         }
         else {
             bloom->bindTexture("mainTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
@@ -1262,25 +1290,39 @@ void RendererBackend::_PerformPostFxProcessing() {
     _PerformAtmosphericPostFx();
 }
 
-void RendererBackend::_PerformAtmosphericPostFx() {
+glm::vec3 RendererBackend::_CalculateAtmosphericLightPosition() const {
     const glm::mat4& projection = _frame->projection;
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = _frame->csc.worldLightDirectionCameraSpace;
-    const float w = _frame->viewportWidth;
-    const float h = _frame->viewportHeight;
+    const Texture& colorTex = _state.atmosphericTexture;
+    const float w = colorTex.width();
+    const float h = colorTex.height();
     const float xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
                                projection[0][1] * normalizedLightDirCamSpace.y + 
                                projection[0][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
     const float ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
                                projection[1][1] * normalizedLightDirCamSpace.y + 
                                projection[1][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
-    const glm::vec3 lightPosition = 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+    
+    return 2.0f * normalizedLightDirCamSpace.z * glm::vec3(xlight, ylight, 1.0f);
+}
+
+void RendererBackend::_PerformAtmosphericPostFx() {
+    if (!_frame->csc.worldLight->getEnabled()) return;
+
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
+
+    const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
+    //const float sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
+    //const float cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
+    const glm::vec3 lightColor = _frame->csc.worldLight->getColor();// * glm::vec3(cosX, cosX, sinX);
 
     _BindShader(_state.atmosphericPostFx.get());
     _state.atmosphericPostFxBuffer.fbo.bind();
     _state.atmosphericPostFx->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.atmosphericPostFx->bindTexture("screenBuffer", _state.finalScreenTexture);
     _state.atmosphericPostFx->setVec3("lightPosition", lightPosition);
+    _state.atmosphericPostFx->setVec3("lightColor", lightColor);
     _RenderQuad();
     _state.atmosphericPostFxBuffer.fbo.unbind();
     _UnbindShader();
@@ -1329,7 +1371,7 @@ void RendererBackend::_RenderQuad() {
 
 TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
     ShadowMap3D smap;
-    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, nullptr);
+    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
     smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     // We need to set this when using sampler2DShadow in the GLSL shader
@@ -1410,6 +1452,8 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
     s->setVec3("viewPosition", &c.getPosition()[0]);
+    const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
+    s->setVec3("atmosphericLightPos", lightPosition);
 
     // Set up world light if enabled
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
