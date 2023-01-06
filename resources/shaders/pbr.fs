@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 /**
  * @see https://learnopengl.com/PBR/Theory
@@ -48,13 +48,17 @@
  * wi = normalize(light_pos - world_pos)
  */
 
+#include "common.glsl"
+#include "atmospheric_postfx.glsl"
+
+uniform sampler2DRect atmosphereBuffer;
+uniform vec3 atmosphericLightPos;
+
 #define MAX_LIGHTS 200
 // Apple limits us to 16 total samplers active in the pipeline :(
 #define MAX_SHADOW_LIGHTS 10
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
-#define PI 3.14159265359
-#define PREVENT_DIV_BY_ZERO 0.00001
 
 uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;
@@ -115,26 +119,6 @@ uniform mat4 cascadeProjViews[4];
 in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
-
-// Prevents HDR color values from exceeding 16-bit color buffer range
-vec3 boundHDR(vec3 value) {
-    return min(value, 65500.0);
-}
-
-// See https://community.khronos.org/t/saturate/53155
-vec3 saturate(vec3 value) {
-    return clamp(value, 0.0, 1.0);
-}
-
-float saturate(float value) {
-    return clamp(value, 0.0, 1.0);
-}
-
-vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
-    // This will give us the size of a single texel in (x, y) directions
-    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
-    return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
-}
 
 #define PCF_SAMPLES 2.5;
 #define PCF_SAMPLES_CUBED 16.0; // Not exactly... constrained it to 16 for Mac
@@ -249,15 +233,16 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
 
     vec2 wh = computeTexelWidth(infiniteLightShadowMap, 0);
-
+                         
     float light1 = 0.0;
     float light2 = 0.0;
     float samples = 0.0;
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    for (float y = -1.5; y <= 1.5; y += 1.0) {
-        for (float x = -1.5; x <= 1.5; x += 1.0) {
+    const float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    for (float y = -bound; y <= bound; y += 1.0) {
+        for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
             light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, vec2(x, y) * wh, bias);
             ++samples;
@@ -328,10 +313,13 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 diffuse   = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
+    //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
+
     vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
+    vec3 finalBrightnes = (kD * baseColor / PI + specular) * diffuse * NdotWi;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + shadowFactor * ((kD * baseColor / PI + specular) * diffuse * NdotWi));  
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);  
 }
 
 vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {

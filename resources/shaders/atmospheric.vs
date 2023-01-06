@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 uniform vec3 frustumParams; // aspect ratio / projection dist, 1.0 / projection dist, dmin
 uniform mat4 shadowMatrix;  // M_shadow(0) * M_camera, aka transform from camera space -> shadow space for cascade 0

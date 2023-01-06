@@ -8,6 +8,7 @@
 #include "StratusTexture.h"
 #include <unordered_map>
 #include "glm/glm.hpp"
+#include <filesystem>
 
 namespace stratus {
     enum class ShaderType {
@@ -20,6 +21,11 @@ namespace stratus {
     struct Shader {
         std::string filename;
         ShaderType type;
+    };
+
+    struct ShaderApiVersion {
+        int major;
+        int minor;
     };
 
 class Pipeline {
@@ -45,13 +51,23 @@ class Pipeline {
      */
     bool _isValid = false;
 
+    /**
+     * Specifies the top level directory where all shaders are located.
+     */
+    std::filesystem::path _rootPath;
+
+    /**
+     * Contains information about the graphics API version.
+     */
+    ShaderApiVersion _version;
+
 public:
     /**
      * @param vertexPipeline file for the vertex Pipeline
      * @param geomPipeline file for the geometry Pipeline (optional)
      * @param fragPipeline file for the fragment Pipeline
      */
-    Pipeline(const std::vector<Shader>& shaders);
+    Pipeline(const std::filesystem::path& rootPath, const ShaderApiVersion& version, const std::vector<Shader>& shaders);
     ~Pipeline();
 
     /**

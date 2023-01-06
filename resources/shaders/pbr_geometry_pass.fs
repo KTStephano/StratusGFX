@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;

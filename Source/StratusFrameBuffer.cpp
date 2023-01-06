@@ -1,16 +1,17 @@
 #include "StratusFrameBuffer.h"
 #include "GL/gl3w.h"
 #include <iostream>
+#include "StratusLog.h"
 #include "StratusApplicationThread.h"
 
 namespace stratus {
-   class FrameBufferImpl {
-       GLuint _fbo;
-       std::vector<Texture> _colorAttachments;
-       Texture _depthStencilAttachment;
-       mutable GLenum _currentBindingPoint = 0;
-       bool _valid = false;
-    
+    class FrameBufferImpl {
+        GLuint _fbo;
+        std::vector<Texture> _colorAttachments;
+        Texture _depthStencilAttachment;
+        mutable GLenum _currentBindingPoint = 0;
+        bool _valid = false;
+
     public:
         FrameBufferImpl() {
             glGenFramebuffers(1, &_fbo);
@@ -32,12 +33,30 @@ namespace stratus {
         FrameBufferImpl & operator=(const FrameBufferImpl &) = delete;
         FrameBufferImpl & operator=(FrameBufferImpl &&) = delete;
 
-        void clear(const glm::vec4 & rgba) const {
+        void clear(const glm::vec4 & rgba) {
             if (_currentBindingPoint != 0) std::cerr << "Warning: clear() called after bind()" << std::endl;
             bind();
             glClearColor(rgba.r, rgba.g, rgba.b, rgba.a);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             unbind();
+        }
+
+        void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {
+            if (_colorAttachments.size() < colorIndex) {
+                throw std::runtime_error("Color index exceeds maximum total bound color buffers");
+            }
+            
+            Texture& color = _colorAttachments[colorIndex];
+            color.clearLayer(0, layer, (const void *)&rgba[0]);
+        }
+
+        void ClearDepthStencilLayer(const int layer) {
+            if (_depthStencilAttachment == Texture()) {
+                throw std::runtime_error("Attempt to clear null depth/stencil attachment");
+            }
+
+            float val = 1.0f;
+            _depthStencilAttachment.clearLayer(0, layer, (const void *)&val);
         }
 
         void bind() const {
@@ -171,8 +190,16 @@ namespace stratus {
     FrameBuffer::~FrameBuffer() {}
 
     // Clears the color, depth and stencil buffers using rgba
-    void FrameBuffer::clear(const glm::vec4 & rgba) const {
+    void FrameBuffer::clear(const glm::vec4 & rgba) {
         _fbo->clear(rgba);
+    }
+
+    void FrameBuffer::ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {
+        _fbo->ClearColorLayer(rgba, colorIndex, layer);
+    }
+
+    void FrameBuffer::ClearDepthStencilLayer(const int layer) {
+        _fbo->ClearDepthStencilLayer(layer);
     }
 
     // from = rectangular region in *other* to copy from
@@ -180,7 +207,7 @@ namespace stratus {
     void FrameBuffer::copyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter) {
         _fbo->copyFrom(*other._fbo, from, to, bit, filter);
     }
-    
+
     const std::vector<Texture> & FrameBuffer::getColorAttachments() const { return _fbo->getColorAttachments(); }
     const Texture * FrameBuffer::getDepthStencilAttachment() const        { return _fbo->getDepthStencilAttachment(); }
 

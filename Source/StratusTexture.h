@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 #include "StratusHandle.h"
 
 namespace stratus {    
@@ -10,6 +11,7 @@ namespace stratus {
     enum class TextureType : int {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
+        // Corresponds to GL_TEXTURE_CUBE_MAP
         TEXTURE_3D,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
@@ -93,6 +95,14 @@ namespace stratus {
         bool generateMipMaps;
     };
 
+    struct TextureData {
+        const void * data;
+        TextureData(const void * data = nullptr) : data(data) {}
+    };
+
+    typedef std::vector<TextureData> TextureArrayData;
+    const TextureArrayData NoTextureData = TextureArrayData{};
+
     class TextureImpl;
     class Texture {
         friend class ResourceManager;
@@ -103,7 +113,7 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const void * data, bool initHandle = true);
+        Texture(const TextureConfig & config, const TextureArrayData& data, bool initHandle = true);
         ~Texture();
 
         Texture(const Texture &) = default;
@@ -127,6 +137,9 @@ namespace stratus {
         void unbind() const;
 
         bool valid() const;
+
+        void clear(const int mipLevel, const void * clearValue);
+        void clearLayer(const int mipLevel, const int layer, const void * clearValue);
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * underlying() const;

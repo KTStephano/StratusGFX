@@ -1,4 +1,4 @@
-#version 410 core
+STRATUS_GLSL_VERSION
 
 // Cascaded Shadow Maps
 // See https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping

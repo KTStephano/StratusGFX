@@ -60,13 +60,13 @@ namespace stratus {
 
     void ResourceManager::_ClearAsyncTextureData() {
         std::vector<TextureHandle> toDelete;
-        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
         std::vector<TextureHandle> handles;
         std::vector<std::shared_ptr<RawTextureData>> rawTexData;
         for (auto& tpair : _asyncLoadedTextureData) {
-            if (totalBytes > maxBytes) break;
+            //if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
                 TextureHandle handle = tpair.first;
@@ -99,7 +99,7 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
-        constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : _pendingFinalize) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
@@ -125,7 +125,7 @@ namespace stratus {
                 FinalizeModelMemory(mesh);
             });
             meshesToDelete.push_back(mesh);
-            if (totalBytes >= maxBytes) break;
+            //if (totalBytes >= maxBytes) break;
         }
 
         ApplicationThread::Instance()->QueueMany(functions);
@@ -188,7 +188,7 @@ namespace stratus {
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
         Async<RawTextureData> as(*_threads[index].get(), [this, name, handle, srgb]() {
-            return _LoadTexture(name, handle, srgb);
+            return _LoadTexture({name}, handle, srgb);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
@@ -389,7 +389,7 @@ namespace stratus {
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
-                                                       aiProcess_SplitLargeMeshes | 
+                                                       //aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
                                                     //    aiProcess_OptimizeGraph |
@@ -421,59 +421,84 @@ namespace stratus {
         return e;
     }
 
-    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::string& file, const TextureHandle handle, const bool srgb) {
-        STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
-        std::shared_ptr<RawTextureData> texdata;
-        int width, height, numChannels;
-        // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
-        uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
-        if (data) {
-            TextureConfig config;
-            config.type = TextureType::TEXTURE_2D;
-            config.storage = TextureComponentSize::BITS_DEFAULT;
-            config.generateMipMaps = true;
-            config.dataType = TextureComponentType::UINT;
-            config.width = (uint32_t)width;
-            config.height = (uint32_t)height;
-            // This loads the textures with sRGB in mind so that they get converted back
-            // to linear color space. Warning: if the texture was not actually specified as an
-            // sRGB texture (common for normal/specular maps), this will cause problems.
-            switch (numChannels) {
-                case 1:
-                    config.format = TextureComponentFormat::RED;
-                    break;
-                case 3:
-                    if (srgb) {
-                        config.format = TextureComponentFormat::SRGB;
-                    }
-                    else {
-                        config.format = TextureComponentFormat::RGB;
-                    }
-                    break;
-                case 4:
-                    if (srgb) {
-                        config.format = TextureComponentFormat::SRGB_ALPHA;
-                    }
-                    else {
-                        config.format = TextureComponentFormat::RGBA;
-                    }
-                    break;
-                default:
-                    STRATUS_ERROR << "Unknown texture loading error - format may be invalid" << std::endl;
-                    stbi_image_free(data);
-                    return nullptr;
-            }
+    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 
+                                                                                   const TextureHandle handle, 
+                                                                                   const bool srgb,
+                                                                                   const TextureType type) {
+        std::shared_ptr<RawTextureData> texdata = std::make_shared<RawTextureData>();
+        #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
-            texdata = std::make_shared<RawTextureData>();
-            texdata->config = config;
-            texdata->handle = handle;
-            texdata->sizeBytes = width * height * numChannels * sizeof(uint8_t);
-            texdata->data = data;
-        } 
-        else {
-            STRATUS_ERROR << "Could not load texture: " << file << std::endl;
-            return nullptr;
+        for (const std::string& file : files) {
+            STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
+
+            int width, height, numChannels;
+            // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
+            uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+            if (data) {
+                // Make sure the width/height match what is already there
+                if (texdata->data.size() > 0 &&
+                    (texdata->config.width != width || texdata->config.height != height)) {
+                        STRATUS_ERROR << "Texture file width/height does not match rest for " << file << std::endl;
+                        FREE_ALL_STBI_IMAGE_DATA
+                        return nullptr;
+                }
+
+                TextureConfig config;
+                config.type = type;
+                config.storage = TextureComponentSize::BITS_DEFAULT;
+                config.generateMipMaps = true;
+                config.dataType = TextureComponentType::UINT;
+                config.width = (uint32_t)width;
+                config.height = (uint32_t)height;
+                // This loads the textures with sRGB in mind so that they get converted back
+                // to linear color space. Warning: if the texture was not actually specified as an
+                // sRGB texture (common for normal/specular maps), this will cause problems.
+                switch (numChannels) {
+                    case 1:
+                        config.format = TextureComponentFormat::RED;
+                        break;
+                    case 3:
+                        if (srgb) {
+                            config.format = TextureComponentFormat::SRGB;
+                        }
+                        else {
+                            config.format = TextureComponentFormat::RGB;
+                        }
+                        break;
+                    case 4:
+                        if (srgb) {
+                            config.format = TextureComponentFormat::SRGB_ALPHA;
+                        }
+                        else {
+                            config.format = TextureComponentFormat::RGBA;
+                        }
+                        break;
+                    default:
+                        STRATUS_ERROR << "Unknown texture loading error - format may be invalid" << std::endl;
+                        FREE_ALL_STBI_IMAGE_DATA
+                        return nullptr;
+                }
+
+                // Make sure the format type matches what is already there
+                if (texdata->data.size() > 0 && texdata->config.format != config.format) {
+                    STRATUS_ERROR << "Texture file format does not match rest for " << file << std::endl;
+                    FREE_ALL_STBI_IMAGE_DATA
+                    return nullptr;
+                }
+
+                texdata->config = config;
+                texdata->handle = handle;
+                texdata->sizeBytes = width * height * numChannels * sizeof(uint8_t);
+                texdata->data.push_back(data);
+            } 
+            else {
+                STRATUS_ERROR << "Could not load texture: " << file << std::endl;
+                FREE_ALL_STBI_IMAGE_DATA
+                return nullptr;
+            }
         }
+
+        #undef FREE_ALL_STBI_IMAGE_DATA
     
         // auto ul = _LockWrite();
         // _loadedTextures.insert(std::make_pair(handle, Async<Texture>(*Engine::Instance()->GetMainThread(), [this, texdata]() {
@@ -483,11 +508,19 @@ namespace stratus {
     }
 
     Texture * ResourceManager::_FinalizeTexture(const RawTextureData& data) {
-        Texture * texture = new Texture(data.config, data.data, false);
+        stratus::TextureArrayData texArrayData(data.data.size());
+        for (size_t i = 0; i < texArrayData.size(); ++i) {
+            texArrayData[i].data = (const void *)data.data[i];
+        }
+        Texture* texture = new Texture(data.config, texArrayData, false);
         texture->_setHandle(data.handle);
         texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
         texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
-        stbi_image_free(data.data);
+        
+        for (uint8_t * ptr : data.data) {
+            stbi_image_free((void *)ptr);
+        }
+        
         return texture;
     }
 
