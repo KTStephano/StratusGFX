@@ -1427,6 +1427,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
+            s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->getBrightensWithSun());
             ++shadowLightIndex;
         }
         ++lightIndex;

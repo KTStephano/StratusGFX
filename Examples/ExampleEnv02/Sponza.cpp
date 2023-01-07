@@ -36,14 +36,15 @@ public:
     glm::vec3 speed;
     bool spawnPhysicalMarker;
 
-    RandomLightMover(const bool spawnPhysicalMarker = true) 
+    RandomLightMover(const bool spawnPhysicalMarker = true,
+                     const bool brightensWithSun = false) 
         : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->SetLocalScale(glm::vec3(1.0f));
-        light = stratus::LightPtr(new stratus::PointLight());
+        light = stratus::LightPtr(new stratus::PointLight(brightensWithSun));
         _changeDirection();
     }
 
@@ -78,6 +79,18 @@ public:
 
 struct StationaryLight : public RandomLightMover {
     StationaryLight(const bool spawnPhysicalMarker = true) : RandomLightMover(spawnPhysicalMarker) {}
+
+    void update(double deltaSeconds) override {
+        cube->SetLocalPosition(position);
+        light->position = position;
+        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
+        m->SetDiffuseColor(light->getColor());
+    }
+};
+
+struct FakeRTGILight : public RandomLightMover {
+    FakeRTGILight(const bool spawnPhysicalMarker = true)
+        : RandomLightMover(spawnPhysicalMarker, /* brightensWithSun = */ true) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -241,7 +254,7 @@ public:
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
                                 const auto worldLightColor = worldLight->getColor();
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
