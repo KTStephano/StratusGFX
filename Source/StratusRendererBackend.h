@@ -161,12 +161,12 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 20;
-            int shadowCubeMapX = 1024, shadowCubeMapY = 1024;
+            int numShadowMaps = 48;
+            int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLights = 256; // active in a frame
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = maxShadowCastingLights;
+            int maxShadowUpdatesPerFrame = 12;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written

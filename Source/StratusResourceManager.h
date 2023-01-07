@@ -20,6 +20,9 @@ namespace stratus {
         struct RawTextureData {
             TextureConfig config;
             TextureHandle handle;
+            TextureCoordinateWrapping wrap;
+            TextureMinificationFilter min;
+            TextureMagnificationFilter mag;
             size_t sizeBytes;
             std::vector<uint8_t *> data;
         };
@@ -65,7 +68,10 @@ namespace stratus {
         std::shared_ptr<RawTextureData> _LoadTexture(const std::vector<std::string>&, 
                                                      const TextureHandle, 
                                                      const bool srgb,
-                                                     const TextureType type = TextureType::TEXTURE_2D);
+                                                     const TextureType type = TextureType::TEXTURE_2D,
+                                                     const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
+                                                     const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
+                                                     const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
         Texture * _FinalizeTexture(const RawTextureData&);
         uint32_t _NextResourceIndex();
 

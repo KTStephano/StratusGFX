@@ -424,8 +424,15 @@ namespace stratus {
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 
                                                                                    const TextureHandle handle, 
                                                                                    const bool srgb,
-                                                                                   const TextureType type) {
+                                                                                   const TextureType type,
+                                                                                   const TextureCoordinateWrapping wrap,
+                                                                                   const TextureMinificationFilter min,
+                                                                                   const TextureMagnificationFilter mag) {
         std::shared_ptr<RawTextureData> texdata = std::make_shared<RawTextureData>();
+        texdata->wrap = wrap;
+        texdata->min = min;
+        texdata->mag = mag;
+
         #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
         for (const std::string& file : files) {
@@ -514,8 +521,8 @@ namespace stratus {
         }
         Texture* texture = new Texture(data.config, texArrayData, false);
         texture->_setHandle(data.handle);
-        texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
-        texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
+        texture->setCoordinateWrapping(data.wrap);
+        texture->setMinMagFilter(data.min, data.mag);
         
         for (uint8_t * ptr : data.data) {
             stbi_image_free((void *)ptr);
