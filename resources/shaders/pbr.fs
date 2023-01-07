@@ -373,7 +373,7 @@ void main() {
                     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPositions[i], 1.0)),
                                       dot(cascadePlanes[1], vec4(lightPositions[i], 1.0)),
                                       dot(cascadePlanes[2], vec4(lightPositions[i], 1.0)));
-                    shadowFactor = max(0.0, 1.0 - calculateInfiniteShadowValue(vec4(lightPositions[i], 1.0), cascadeBlends, vec3(0.0, 1.0, 0.0)));
+                    shadowFactor = max(shadowFactor, 1.0 - calculateInfiniteShadowValue(vec4(lightPositions[i], 1.0), cascadeBlends, vec3(0.0, 1.0, 0.0)));
                 }
             }
             color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
