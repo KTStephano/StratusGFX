@@ -126,7 +126,7 @@ public:
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
-        stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg");
+        stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
 
         bool running = true;
 

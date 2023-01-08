@@ -176,6 +176,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     using namespace std;
 
+    _state.skybox = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"skybox.vs", ShaderType::VERTEX}, 
+        Shader{"skybox.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.skybox.get());
+
     // Set up the hdr/gamma postprocessing shader
 
     _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -226,6 +231,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"atmospheric_postfx.vs", ShaderType::VERTEX},
         Shader{"atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmosphericPostFx.get());
+
+    // Create skybox cube
+    _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
 
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
@@ -859,6 +867,26 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
     _UnbindShader();
 }
 
+void RendererBackend::_RenderSkybox() {
+    _BindShader(_state.skybox.get());
+    glDepthMask(GL_FALSE);
+
+    Async<Texture> sky = _LookupTexture(_frame->skybox);
+    if (ValidateTexture(sky)) {
+        const glm::mat4& projection = _frame->projection;
+        const glm::mat4 view = glm::mat4(glm::mat3(_frame->camera->getViewTransform()));
+
+        _state.skybox->setMat4("projection", projection);
+        _state.skybox->setMat4("view", view);
+        _state.skybox->bindTexture("skybox", sky.Get());
+
+        _state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+    }
+
+    _UnbindShader();
+    glDepthMask(GL_TRUE);
+}
+
 void RendererBackend::_RenderCSMDepth() {
     _BindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
@@ -1132,6 +1160,7 @@ void RendererBackend::RenderScene() {
 
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
+
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
         const RenderNodeView& e = entityObservers.first;
         _Render(e);
@@ -1153,6 +1182,7 @@ void RendererBackend::RenderScene() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     _state.lightingFbo.bind();
+
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
     _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
@@ -1176,6 +1206,10 @@ void RendererBackend::RenderScene() {
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
     _state.lightingFbo.bind();
+    
+    // Skybox is one that does not interact with light at all
+    _RenderSkybox();
+
     for (auto & entityObservers : _frame->instancedFlatMeshes) {
         const RenderNodeView& e = entityObservers.first;
         _Render(e);

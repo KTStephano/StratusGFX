@@ -174,6 +174,11 @@ namespace stratus {
         _frame->clearColor = color;
     }
 
+    void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
+        auto ul = _LockWrite();
+        _frame->skybox = skybox;
+    }
+
     std::vector<SDL_Event> RendererFrontend::PollInputEvents() {
         auto ul = _LockWrite();
         return std::move(_events);

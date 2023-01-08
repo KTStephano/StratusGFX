@@ -186,10 +186,20 @@ namespace stratus {
                                  prefix + "top." + fileExt,
                                  prefix + "bottom." + fileExt,
                                  prefix + "front." + fileExt,
-                                 prefix + "back." + fileExt}, srgb);
+                                 prefix + "back." + fileExt}, 
+                                srgb,
+                                TextureType::TEXTURE_3D,
+                                TextureCoordinateWrapping::CLAMP_TO_EDGE,
+                                TextureMinificationFilter::LINEAR,
+                                TextureMagnificationFilter::LINEAR);
     }
 
-    TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, const bool srgb) {
+    TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, 
+                                                    const bool srgb,
+                                                    const TextureType type,
+                                                    const TextureCoordinateWrapping wrap,
+                                                    const TextureMinificationFilter min,
+                                                    const TextureMagnificationFilter mag) {
         if (files.size() == 0) return TextureHandle::Null();
 
         // Generate a lookup name by combining all texture files into a single string
@@ -209,8 +219,8 @@ namespace stratus {
         auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as(*_threads[index].get(), [this, files, handle, srgb]() {
-            return _LoadTexture(files, handle, srgb);
+        Async<RawTextureData> as(*_threads[index].get(), [this, files, handle, srgb, type, wrap, min, mag]() {
+            return _LoadTexture(files, handle, srgb, type, wrap, min, mag);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
