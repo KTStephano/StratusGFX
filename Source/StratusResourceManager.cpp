@@ -176,7 +176,23 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const bool srgb) {
+        return _LoadTextureImpl({name}, srgb);
+    }
+
+    TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt) {
+        return TextureHandle::Null();
+    }
+
+    TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, const bool srgb) {
+        if (files.size() == 0) return TextureHandle::Null();
+
+        // Generate a lookup name by combining all texture files into a single string
+        std::stringstream lookup;
+        for (const std::string& file : files) lookup << file;
+        const std::string name = lookup.str();
+
         {
+            // Check if we have already loaded this texture file combination before
             auto sl = _LockRead();
             if (_loadedTexturesByFile.find(name) != _loadedTexturesByFile.end()) {
                 return _loadedTexturesByFile.find(name)->second;
@@ -187,8 +203,8 @@ namespace stratus {
         auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as(*_threads[index].get(), [this, name, handle, srgb]() {
-            return _LoadTexture({name}, handle, srgb);
+        Async<RawTextureData> as(*_threads[index].get(), [this, files, handle, srgb]() {
+            return _LoadTexture(files, handle, srgb);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
