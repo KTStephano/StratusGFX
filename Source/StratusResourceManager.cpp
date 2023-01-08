@@ -71,6 +71,7 @@ namespace stratus {
                 toDelete.push_back(tpair.first);
                 TextureHandle handle = tpair.first;
                 auto texdata = tpair.second.GetPtr();
+                if (!texdata) continue;
                 totalBytes += texdata->sizeBytes;
                 ++totalTex;
 
@@ -180,7 +181,12 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt) {
-        return TextureHandle::Null();
+        return _LoadTextureImpl({prefix + "right." + fileExt,
+                                 prefix + "left." + fileExt,
+                                 prefix + "top." + fileExt,
+                                 prefix + "bottom." + fileExt,
+                                 prefix + "front." + fileExt,
+                                 prefix + "back." + fileExt}, srgb);
     }
 
     TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, const bool srgb) {
