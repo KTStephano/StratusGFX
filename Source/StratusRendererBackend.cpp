@@ -1097,13 +1097,13 @@ void RendererBackend::RenderScene() {
     int shadowUpdates = 0;
     for (auto&[light, d] : perLightShadowCastingDistToViewer) {
         if (shadowUpdates > _state.maxShadowUpdatesPerFrame) break;
-        ++shadowUpdates;
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
         const bool dirty = perLightIsDirty.find(light)->second;
         //if (distance > 2 * light->getRadius() || !dirty) continue;
         if (!dirty) continue;
+        ++shadowUpdates;
 
         auto & instancedMeshes = _frame->lights.find(light)->second.visible;
     

@@ -347,11 +347,14 @@ public:
             worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
         }
 
+        #define LERP(x, v1, v2) (x * v1 + (1.0f - x) * v2)
+
         //renderer->toggleWorldLighting(worldLightEnabled);
         stratus::RendererFrontend::Instance()->SetWorldLight(worldLight);
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        worldLight->setColor(glm::vec3(1.0f));
+        const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
+        worldLight->setColor(LERP(x, glm::vec3(1.0f), glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f)));
         worldLight->setPosition(camera->getPosition());
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
