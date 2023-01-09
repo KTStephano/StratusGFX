@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "StratusThread.h"
+#include "StratusAsync.h"
 
 struct S {};
 

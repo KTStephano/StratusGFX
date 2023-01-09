@@ -11,6 +11,7 @@
 #include "StratusRendererFrontend.h"
 #include <StratusLight.h>
 #include <StratusUtils.h>
+#include "StratusAsync.h"
 #include <memory>
 #include <filesystem>
 

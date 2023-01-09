@@ -18,6 +18,7 @@
 #include "StratusMath.h"
 #include "StratusGpuBuffer.h"
 #include "StratusThread.h"
+#include "StratusAsync.h"
 
 namespace stratus {
     class Pipeline;

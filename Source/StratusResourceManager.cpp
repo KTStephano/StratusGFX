@@ -6,6 +6,7 @@
 #include <assimp/pbrmaterial.h>
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
+#include "StratusAsync.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"

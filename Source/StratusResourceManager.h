@@ -7,6 +7,7 @@
 #include "StratusTexture.h"
 #include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
+#include "StratusAsync.h"
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>

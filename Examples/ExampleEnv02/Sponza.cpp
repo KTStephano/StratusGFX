@@ -3,6 +3,7 @@
 #include <iostream>
 #include <StratusPipeline.h>
 #include <StratusCamera.h>
+#include "StratusAsync.h"
 #include <chrono>
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
