@@ -16,7 +16,7 @@ namespace stratus {
 
         for (unsigned int i = 0; i < concurrency; ++i) {
             Thread * ptr = new Thread("TaskThread#" + std::to_string(i + 1), true);
-            _taskThreads.push_back(std::unique_ptr<Thread>(std::move(ptr)));
+            _taskThreads.push_back(ThreadPtr(std::move(ptr)));
         }
 
         _nextTaskThread = 0;
@@ -25,6 +25,12 @@ namespace stratus {
     }
 
     SystemStatus TaskSystem::Update(const double) {
+        for (ThreadPtr& thread : _taskThreads) {
+            if (thread->Idle()) {
+                thread->Dispatch();
+            }
+        }
+        
         return SystemStatus::SYSTEM_CONTINUE;
     }
 

@@ -15,6 +15,7 @@ namespace stratus {
     class Thread;
     typedef Handle<Thread> ThreadHandle;
     typedef std::unique_ptr<Thread> ThreadPtr;
+    typedef std::shared_ptr<Thread> ThreadSharedPtr;
 
     // A stratus thread represents a reusable thread of execution. To use it, small
     // functions should be queued for execution on it, and these functions should have
