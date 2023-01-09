@@ -34,7 +34,7 @@ namespace stratus {
         ResourceManager& operator=(const ResourceManager&) = delete;
         ResourceManager& operator=(ResourceManager&&) = delete;
 
-        ~ResourceManager();
+        virtual ~ResourceManager();
 
         static ResourceManager * Instance() { return _instance; }
 

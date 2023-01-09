@@ -85,6 +85,7 @@ namespace stratus {
     private:
         void _InitLog();
         void _InitApplicationThread();
+        void _InitTaskSystem();
         void _InitMaterialManager();
         void _InitResourceManager();
         void _InitRenderer();

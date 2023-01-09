@@ -5,6 +5,7 @@
 #include "StratusResourceManager.h"
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
+#include "StratusTaskSystem.h"
 #include <atomic>
 #include <mutex>
 
@@ -140,6 +141,7 @@ namespace stratus {
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
+        _InitTaskSystem();
         _InitMaterialManager();
         _InitResourceManager();
         _InitRenderer();
@@ -157,6 +159,10 @@ namespace stratus {
 
     void Engine::_InitApplicationThread() {
         ApplicationThread::_instance = new ApplicationThread();
+    }
+
+    void Engine::_InitTaskSystem() {
+        _InitializeEngineModule(TaskSystem::_instance, new TaskSystem(), true);
     }
 
     void Engine::_InitMaterialManager() {
@@ -198,6 +204,7 @@ namespace stratus {
         MaterialManager::Instance()->Shutdown();
         RendererFrontend::Instance()->Shutdown();
         Log::Instance()->Shutdown();
+        TaskSystem::Instance()->Shutdown();
 
         _DeleteResource(_params.application);
         _DeleteResource(ResourceManager::_instance);
@@ -205,6 +212,7 @@ namespace stratus {
         _DeleteResource(RendererFrontend::_instance);
         _DeleteResource(ApplicationThread::Instance()->_instance);
         _DeleteResource(Log::_instance);
+        _DeleteResource(TaskSystem::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only
@@ -238,6 +246,7 @@ namespace stratus {
 
         // Update core modules
         Log::Instance()->Update(deltaSeconds);
+        TaskSystem::Instance()->Update(deltaSeconds);
         MaterialManager::Instance()->Update(deltaSeconds);
         ResourceManager::Instance()->Update(deltaSeconds);
         

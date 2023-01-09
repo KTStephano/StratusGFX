@@ -97,6 +97,10 @@ namespace stratus {
             }
         }
 
+        void WaitOneCycle() const {
+            _context->Synchronize();
+        }
+
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
@@ -158,6 +162,12 @@ namespace stratus {
         bool Failed()                  const { return _impl == nullptr || _impl->Failed(); }
         bool Completed()               const { return _impl == nullptr || _impl->Completed(); }
         std::string ExceptionMessage() const { return _impl == nullptr ? "" : _impl->ExceptionMessage(); }
+
+        void WaitForCompletion() const {
+            if (!Completed()) {
+                _impl->WaitOneCycle();
+            }
+        }
 
         // Getters for retrieving result
         const E& Get()              const { return _impl->Get(); }
