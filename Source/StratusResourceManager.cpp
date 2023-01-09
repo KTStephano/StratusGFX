@@ -71,6 +71,7 @@ namespace stratus {
                 toDelete.push_back(tpair.first);
                 TextureHandle handle = tpair.first;
                 auto texdata = tpair.second.GetPtr();
+                if (!texdata) continue;
                 totalBytes += texdata->sizeBytes;
                 ++totalTex;
 
@@ -176,7 +177,38 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const bool srgb) {
+        return _LoadTextureImpl({name}, srgb);
+    }
+
+    TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt) {
+        return _LoadTextureImpl({prefix + "right." + fileExt,
+                                 prefix + "left." + fileExt,
+                                 prefix + "top." + fileExt,
+                                 prefix + "bottom." + fileExt,
+                                 prefix + "front." + fileExt,
+                                 prefix + "back." + fileExt}, 
+                                srgb,
+                                TextureType::TEXTURE_3D,
+                                TextureCoordinateWrapping::CLAMP_TO_EDGE,
+                                TextureMinificationFilter::LINEAR,
+                                TextureMagnificationFilter::LINEAR);
+    }
+
+    TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, 
+                                                    const bool srgb,
+                                                    const TextureType type,
+                                                    const TextureCoordinateWrapping wrap,
+                                                    const TextureMinificationFilter min,
+                                                    const TextureMagnificationFilter mag) {
+        if (files.size() == 0) return TextureHandle::Null();
+
+        // Generate a lookup name by combining all texture files into a single string
+        std::stringstream lookup;
+        for (const std::string& file : files) lookup << file;
+        const std::string name = lookup.str();
+
         {
+            // Check if we have already loaded this texture file combination before
             auto sl = _LockRead();
             if (_loadedTexturesByFile.find(name) != _loadedTexturesByFile.end()) {
                 return _loadedTexturesByFile.find(name)->second;
@@ -187,8 +219,8 @@ namespace stratus {
         auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as(*_threads[index].get(), [this, name, handle, srgb]() {
-            return _LoadTexture({name}, handle, srgb);
+        Async<RawTextureData> as(*_threads[index].get(), [this, files, handle, srgb, type, wrap, min, mag]() {
+            return _LoadTexture(files, handle, srgb, type, wrap, min, mag);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
@@ -424,8 +456,15 @@ namespace stratus {
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 
                                                                                    const TextureHandle handle, 
                                                                                    const bool srgb,
-                                                                                   const TextureType type) {
+                                                                                   const TextureType type,
+                                                                                   const TextureCoordinateWrapping wrap,
+                                                                                   const TextureMinificationFilter min,
+                                                                                   const TextureMagnificationFilter mag) {
         std::shared_ptr<RawTextureData> texdata = std::make_shared<RawTextureData>();
+        texdata->wrap = wrap;
+        texdata->min = min;
+        texdata->mag = mag;
+
         #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
         for (const std::string& file : files) {
@@ -514,8 +553,8 @@ namespace stratus {
         }
         Texture* texture = new Texture(data.config, texArrayData, false);
         texture->_setHandle(data.handle);
-        texture->setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
-        texture->setMinMagFilter(TextureMinificationFilter::LINEAR_MIPMAP_LINEAR, TextureMagnificationFilter::LINEAR);
+        texture->setCoordinateWrapping(data.wrap);
+        texture->setMinMagFilter(data.min, data.mag);
         
         for (uint8_t * ptr : data.data) {
             stbi_image_free((void *)ptr);

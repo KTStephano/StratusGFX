@@ -56,7 +56,7 @@ uniform vec3 atmosphericLightPos;
 
 #define MAX_LIGHTS 200
 // Apple limits us to 16 total samplers active in the pipeline :(
-#define MAX_SHADOW_LIGHTS 10
+#define MAX_SHADOW_LIGHTS 48
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
 
@@ -89,6 +89,10 @@ uniform float lightRadii[MAX_LIGHTS];
 uniform bool lightCastsShadows[MAX_LIGHTS];
 uniform samplerCube shadowCubeMaps[MAX_SHADOW_LIGHTS];
 uniform float lightFarPlanes[MAX_SHADOW_LIGHTS];
+// If true then the light will be invisible when the sun is not overhead - 
+// useful for brightening up directly-lit scenes without Static or RT GI
+uniform bool lightBrightensWithSun[MAX_SHADOW_LIGHTS];
+//uniform bool lightIsLightProbe[MAX_HAD]
 // Since max lights is an upper bound, this can
 // tell us how many lights are actually present
 uniform int numLights = 0;
@@ -363,6 +367,14 @@ void main() {
         if(distance < lightRadii[i]) {
             if (shadowCubeMapIndex < MAX_LIGHTS) {
                 shadowFactor = calculateShadowValue(fragPos, lightPositions[i], shadowCubeMapIndex, dot(lightPositions[i] - fragPos, normal));
+                // If true then the light will be invisible when the sun is not overhead - 
+                // useful for brightening up directly-lit scenes without Static or RT GI
+                if (lightBrightensWithSun[i] && infiniteLightingEnabled) {
+                    vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPositions[i], 1.0)),
+                                      dot(cascadePlanes[1], vec4(lightPositions[i], 1.0)),
+                                      dot(cascadePlanes[2], vec4(lightPositions[i], 1.0)));
+                    shadowFactor = max(shadowFactor, 1.0 - calculateInfiniteShadowValue(vec4(lightPositions[i], 1.0), cascadeBlends, vec3(0.0, 1.0, 0.0)));
+                }
             }
             color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }

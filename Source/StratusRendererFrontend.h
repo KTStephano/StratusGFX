@@ -60,6 +60,7 @@ namespace stratus {
         void SetNearFar(const float znear, const float zfar);
         void SetVsyncEnabled(const bool);
         void SetClearColor(const glm::vec4&);
+        void SetSkybox(const TextureHandle&);
 
         // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
         void SetAtmosphericShadowing(float fogDensity, float scatterControl);

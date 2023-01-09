@@ -36,14 +36,15 @@ public:
     glm::vec3 speed;
     bool spawnPhysicalMarker;
 
-    RandomLightMover(const bool spawnPhysicalMarker = true) 
+    RandomLightMover(const bool spawnPhysicalMarker = true,
+                     const bool brightensWithSun = false) 
         : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->SetLocalScale(glm::vec3(1.0f));
-        light = stratus::LightPtr(new stratus::PointLight());
+        light = stratus::LightPtr(new stratus::PointLight(brightensWithSun));
         _changeDirection();
     }
 
@@ -87,6 +88,18 @@ struct StationaryLight : public RandomLightMover {
     }
 };
 
+struct FakeRTGILight : public RandomLightMover {
+    FakeRTGILight(const bool spawnPhysicalMarker = true)
+        : RandomLightMover(spawnPhysicalMarker, /* brightensWithSun = */ true) {}
+
+    void update(double deltaSeconds) override {
+        cube->SetLocalPosition(position);
+        light->position = position;
+        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
+        m->SetDiffuseColor(light->getColor());
+    }
+};
+
 class Sponza : public stratus::Application {
 public:
     virtual ~Sponza() = default;
@@ -113,6 +126,8 @@ public:
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
 
+        stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
+
         bool running = true;
 
         cameraLight = stratus::LightPtr(new stratus::PointLight());
@@ -135,6 +150,7 @@ public:
         if (stratus::Engine::Instance()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
+
         const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
@@ -162,6 +178,14 @@ public:
                         case SDL_SCANCODE_ESCAPE:
                             if (released) {
                                 return stratus::SystemStatus::SYSTEM_SHUTDOWN;
+                            }
+                            break;
+                        case SDL_SCANCODE_SPACE:
+                            if (!released) {
+                                camSpeedDivide = 1.0f;
+                            }
+                            else {
+                                camSpeedDivide = 0.25f;
                             }
                             break;
                         case SDL_SCANCODE_W:
@@ -241,7 +265,7 @@ public:
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
                                 const auto worldLightColor = worldLight->getColor();
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
@@ -253,8 +277,10 @@ public:
                         }
                         case SDL_SCANCODE_3: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1500.0f);
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 50);
+                                const auto worldLightColor = worldLight->getColor();
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -263,8 +289,10 @@ public:
                         }
                         case SDL_SCANCODE_4: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(2000.0f);
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 10);
+                                const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -273,8 +301,10 @@ public:
                         }
                         case SDL_SCANCODE_5: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(3000.0f);
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 10);
+                                const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -283,51 +313,10 @@ public:
                         }
                         case SDL_SCANCODE_6: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(6000.0f);
-                                mover->position = camera->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_7: {
-                            if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(12000.0f);
-                                mover->position = camera->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_8: {
-                            if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(24000.0f);
-                                mover->light->setColor(1.0f, 0.75f, 0.5);
-                                mover->position = camera->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_9: {
-                            if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(48000.0f);
-                                mover->light->setColor(1.0f, 0.75f, 0.5);
-                                mover->position = camera->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_0: {
-                            if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(65000.0f);
-                                mover->light->setColor(1.0f, 1.0f, 1.0f);
+                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
+                                mover->light->setIntensity(worldLight->getIntensity() * 10);
+                                const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
+                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -376,7 +365,8 @@ public:
             cameraSpeed.z = camSpeed;
         }
 
-        camera->setSpeed(cameraSpeed.y, cameraSpeed.z, cameraSpeed.x);
+        glm::vec3 tmpCamSpeed = cameraSpeed * camSpeedDivide;
+        camera->setSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
         camera->update(deltaSeconds);
 
         cameraLight->position = camera->getPosition();
@@ -417,6 +407,7 @@ private:
     std::vector<stratus::EntityPtr> entities;
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
+    float camSpeedDivide = 0.25f; // For slowing camera down
     stratus::LightPtr cameraLight;
     stratus::InfiniteLightPtr worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
