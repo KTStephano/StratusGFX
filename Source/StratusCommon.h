@@ -12,20 +12,4 @@
 
 #define BITMASK64_POW2(offset) (1ull << offset)
 
-namespace stratus {
-// typedef int TextureHandle;
-// typedef int ShadowMapHandle;
-// typedef void * RenderDataHandle;
-
-/**
- * This class includes all of the most common functions
- * that need to be references from everywhere. This includes
- * things like print/error print or logging messages to
- * the log file.
- */
-struct Common {
-
-};
-}
-
 #endif //STRATUSGFX_COMMON_H
