@@ -1451,19 +1451,22 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
         //if (distance > (2 * light->getRadius())) continue;
-        lightColor = point->getBaseColor() * point->getIntensity();
-        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &point->position[0]);
-        s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
-        s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
-        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());
-        //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
-        if (point->castsShadows() && shadowLightIndex < maxShadowLights) {
+
+        if (point->castsShadows()) {
+            if (shadowLightIndex >= maxShadowLights) continue;
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
             s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->getBrightensWithSun());
             ++shadowLightIndex;
         }
+
+        lightColor = point->getBaseColor() * point->getIntensity();
+        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &point->position[0]);
+        s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
+        s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
+        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());
+        //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         ++lightIndex;
     }
 

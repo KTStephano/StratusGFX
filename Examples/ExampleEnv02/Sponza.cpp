@@ -225,6 +225,11 @@ public:
                             break;
                         case SDL_SCANCODE_I:
                             if (released) {
+                                worldLightMoveDirection = -worldLightMoveDirection;
+                            }
+                            break;
+                        case SDL_SCANCODE_L:
+                            if (released) {
                                 worldLight->setEnabled( !worldLight->getEnabled() );
                             }
                             break;
@@ -331,6 +336,13 @@ public:
                             lightMovers.clear();
                             break;
                         }
+                        case SDL_SCANCODE_Z:
+                            if (released) {
+                                if (lightMovers.size() > 0) {
+                                    lightMovers[lightMovers.size() - 1]->removeFromScene();
+                                    lightMovers.pop_back();
+                                }
+                            }
                         default: break;
                     }
                     break;
@@ -344,7 +356,7 @@ public:
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         if (!worldLightPaused) {
-            worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
+            worldLight->offsetRotation(glm::vec3(worldLightMoveDirection * value * deltaSeconds, 0.0f, 0.0f));
         }
 
         #define LERP(x, v1, v2) (x * v1 + (1.0f - x) * v2)
@@ -411,6 +423,7 @@ private:
     std::vector<stratus::EntityPtr> entities;
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
+    float worldLightMoveDirection = 1.0; // -1.0 reverses it
     float camSpeedDivide = 0.25f; // For slowing camera down
     stratus::LightPtr cameraLight;
     stratus::InfiniteLightPtr worldLight;

@@ -33,7 +33,7 @@ namespace stratus {
         Rotation _rotation;
         // Used to calculate ambient intensity based on sun orientation
         stratus::Radians _rotSine;
-        float _intensity = 3.0f;
+        float _intensity = 4.5f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
 
@@ -204,7 +204,7 @@ namespace stratus {
     public:
         PointLight(const bool brightensWithSun = false) 
             : Light(brightensWithSun) {}
-            
+
         ~PointLight() override = default;
 
         LightType getType() const override {
