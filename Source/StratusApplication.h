@@ -12,7 +12,11 @@ namespace stratus {
     // Special interface class which the engine knows is the entry point
     // for the application (e.g. editor or game)
     class Application : public SystemModule {
+        friend class Engine;
+
     public:
+        static Application * Instance() { return _instance; }
+
         virtual ~Application() = default;
 
         // Sets the name of the window
@@ -27,5 +31,8 @@ namespace stratus {
         static RendererFrontend * World();
         static MaterialManager * Materials();
         static Engine * Stratus();
+
+    private:
+        static Application * _instance;
     };
 }

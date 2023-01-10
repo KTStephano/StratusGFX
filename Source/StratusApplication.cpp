@@ -7,6 +7,8 @@
 namespace stratus {
     #define INSTANCE(type) stratus::##type::Instance()
 
+    Application * Application::_instance = nullptr;
+
     ResourceManager * Application::Resources() {
         return INSTANCE(ResourceManager);
     }

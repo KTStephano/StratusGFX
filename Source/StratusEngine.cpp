@@ -23,7 +23,7 @@ namespace stratus {
         EngineInitParams params;
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
-        params.application = app;
+        Application::_instance = app;
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
@@ -147,7 +147,7 @@ namespace stratus {
         _InitRenderer();
 
         // Initialize application last
-        _InitializeEngineModule(_params.application, true);
+        _InitializeEngineModule(Application::Instance(), true);
 
         STRATUS_LOG << "Initialization complete" << std::endl;
         _isInitializing.store(false);
@@ -177,7 +177,7 @@ namespace stratus {
         RendererParams params;
         params.viewportWidth = 1920;
         params.viewportHeight = 1080;
-        params.appName = _params.application->GetAppName();
+        params.appName = Application::Instance()->GetAppName();
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
@@ -199,14 +199,14 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        _params.application->Shutdown();
+        Application::Instance()->Shutdown();
         ResourceManager::Instance()->Shutdown();
         MaterialManager::Instance()->Shutdown();
         RendererFrontend::Instance()->Shutdown();
         Log::Instance()->Shutdown();
         TaskSystem::Instance()->Shutdown();
 
-        _DeleteResource(_params.application);
+        _DeleteResource(Application::_instance);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
         _DeleteResource(RendererFrontend::_instance);
@@ -254,7 +254,7 @@ namespace stratus {
         RendererFrontend::Instance()->Update(deltaSeconds);
 
         // Finish with update to application
-        return _params.application->Update(deltaSeconds);
+        return Application::Instance()->Update(deltaSeconds);
     }
 
     // Main thread is where both engine + application run

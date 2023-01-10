@@ -29,7 +29,6 @@ namespace stratus {
         uint32_t           numCmdArgs;
         const char **      cmdArgs;
         uint32_t           maxFrameRate = 1000;
-        Application *      application;
     };
 
     struct EngineStatistics {
