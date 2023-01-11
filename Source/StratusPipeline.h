@@ -104,6 +104,14 @@ public:
     void print() const;
 
     /**
+     * Functions for use with compute programs.
+     */
+    // Here x/y/zGroups specify work group units, so if they are defined by (local_size_x = 32)
+    // then passing 2 for xGroups would result in 2 * 32 = 64 invokations
+    void dispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups);
+    void synchronizeCompute();
+
+    /**
      * Various setters to make it easy to set various uniforms
      * such as bool, int, float, vector, matrix.
      */

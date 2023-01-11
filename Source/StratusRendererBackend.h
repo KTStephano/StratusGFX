@@ -383,6 +383,8 @@ namespace stratus {
         RendererMouseState GetMouseState() const;
 
     private:
+        void RunCSTest();
+
         void _ClearGBuffer();
         void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();

@@ -344,7 +344,7 @@ void main() {
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
-    // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coor
+    // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 

@@ -56,6 +56,8 @@ namespace stratus {
     constexpr Bitfield GPU_MAP_WRITE = BITMASK64_POW2(3);
     // Memory will be mapped and continuously read from and written to without unmapping
     constexpr Bitfield GPU_MAP_PERSISTENT = BITMASK64_POW2(4);
+    // Memory writes between client and server will be seen
+    constexpr Bitfield GPU_MAP_COHERENT = BITMASK64_POW2(5);
 
     struct GpuBufferImpl;
     struct GpuArrayBufferImpl;
@@ -74,7 +76,7 @@ namespace stratus {
         virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index);
 
         // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
-        void * MapMemory() const;
+        void * MapMemory(const Bitfield access = GPU_MAP_READ | GPU_MAP_WRITE) const;
         void UnmapMemory() const;
         bool IsMemoryMapped() const;
 

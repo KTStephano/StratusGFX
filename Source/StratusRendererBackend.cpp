@@ -1139,8 +1139,33 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     _UnbindShader();
 }
 
+void RendererBackend::RunCSTest() {
+    const std::filesystem::path shaderRoot("../resources/shaders");
+    const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
+
+    // Initialize the compute shader
+    auto cs = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
+
+    size_t dataSize = 4;
+    GpuBuffer buffer(nullptr, dataSize * sizeof(float));
+    buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+
+    cs->bind();
+    cs->dispatchCompute(dataSize, 1, 1);
+    cs->synchronizeCompute();
+    cs->unbind();
+
+    float* mem = (float *)buffer.MapMemory();
+    for (int i = 0; i < dataSize; ++i) {
+        std::cout << ">> " << mem[i] << std::endl;
+    }
+}
+
 void RendererBackend::RenderScene() {
     CHECK_IS_APPLICATION_THREAD();
+
+    RunCSTest();
 
     const Camera& c = *_frame->camera;
 

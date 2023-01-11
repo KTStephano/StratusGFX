@@ -352,6 +352,17 @@ void Pipeline::print() const {
     log << std::endl;
 }
 
+void Pipeline::dispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups) {
+    glDispatchCompute(xGroups, yGroups, zGroups);
+}
+
+void Pipeline::synchronizeCompute() {
+    // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferStorage.xhtml regarding GL_MAP_COHERENT_BIT
+    // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFenceSync.xhtml
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
 void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
     if (!tex.valid()) {
         STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;

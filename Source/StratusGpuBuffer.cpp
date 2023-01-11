@@ -21,6 +21,9 @@ namespace stratus {
         if (type & GPU_MAP_PERSISTENT) {
             usage |= GL_MAP_PERSISTENT_BIT;
         }
+        if (type & GPU_MAP_COHERENT) {
+            usage |= GL_MAP_COHERENT_BIT;
+        }
         return usage;
     }
 
@@ -139,9 +142,9 @@ namespace stratus {
         glBindBufferBase(_ConvertBufferType(int(point)), index, _buffer);
     }
 
-    void * MapMemory() const {
+    void * MapMemory(const Bitfield access) const {
         _isMemoryMapped = true;
-        void * ptr = glMapNamedBuffer(_buffer, GL_READ_WRITE);
+        void * ptr = glMapNamedBufferRange(_buffer, 0, _sizeBytes, _ConvertUsageType(access));
         return ptr;
     }
     
@@ -204,8 +207,8 @@ namespace stratus {
         _impl->BindBase(point, index);
     }
 
-    void * GpuBuffer::MapMemory() const {
-        return _impl->MapMemory();
+    void * GpuBuffer::MapMemory(const Bitfield access) const {
+        return _impl->MapMemory(access);
     }
 
     void GpuBuffer::UnmapMemory() const {
