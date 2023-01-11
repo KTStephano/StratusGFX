@@ -33,7 +33,7 @@ namespace stratus {
         Rotation _rotation;
         // Used to calculate ambient intensity based on sun orientation
         stratus::Radians _rotSine;
-        float _intensity = 4.5f;
+        float _intensity = 4.0f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
 

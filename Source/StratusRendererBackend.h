@@ -168,7 +168,7 @@ namespace stratus {
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLights = 256; // active in a frame
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = 12;
+            int maxShadowUpdatesPerFrame = 6;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
