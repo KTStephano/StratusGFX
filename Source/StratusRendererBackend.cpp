@@ -1050,15 +1050,11 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     glEnable(GL_DEPTH_TEST);
 }
 
-void RendererBackend::RenderScene() {
-    CHECK_IS_APPLICATION_THREAD();
-
+void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>>& perLightDistToViewer, 
+                                         std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer) {
     const Camera& c = *_frame->camera;
-
     std::unordered_map<LightPtr, bool> perLightIsDirty;
-    std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
-    // This one is just for shadow-casting lights
-    std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
+
     // Init per light instance data
     for (auto& entry : _frame->lights) {
         LightPtr light = entry.first;
@@ -1141,6 +1137,19 @@ void RendererBackend::RenderScene() {
         smap.frameBuffer.unbind();
     }
     _UnbindShader();
+}
+
+void RendererBackend::RenderScene() {
+    CHECK_IS_APPLICATION_THREAD();
+
+    const Camera& c = *_frame->camera;
+
+    std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
+    // This one is just for shadow-casting lights
+    std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
+
+    // Perform point light pass
+    _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer);
 
     // Perform world light depth pass if enabled
     if (_frame->csc.worldLight->getEnabled()) {
@@ -1457,7 +1466,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
-            s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->getBrightensWithSun());
+            s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->IsVirtualLight());
             ++shadowLightIndex;
         }
 

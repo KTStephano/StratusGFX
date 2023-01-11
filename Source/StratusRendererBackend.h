@@ -163,7 +163,7 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 128;
+            int numShadowMaps = 256;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLights = 256; // active in a frame
@@ -400,6 +400,7 @@ namespace stratus {
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
+        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();

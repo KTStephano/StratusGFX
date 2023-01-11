@@ -82,8 +82,9 @@ namespace stratus {
         void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
 
         float getAmbientIntensity() const { 
-            const float ambient = _rotSine.value() * maxAmbientIntensity;
-            return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
+            //const float ambient = _rotSine.value() * maxAmbientIntensity;
+            //return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
+            return minAmbientIntensity;
         }
 
         bool getEnabled() const { return _enabled; }
@@ -100,13 +101,15 @@ namespace stratus {
         float _intensity = 1.0f;
         float _radius = 1.0f;
         bool _castsShadows = true;
-        bool _brightensWithSun = false;
+        // If virtual we intend to use it less as a natural light and more
+        // as a way of simulating bounce lighting
+        bool _virtualLight = false;
 
     public:
         glm::vec3 position = glm::vec3(0.0f);
 
-        Light(const bool brightensWithSun = false)
-            : _brightensWithSun(brightensWithSun) {}
+        Light(const bool virtualLight = false)
+            : _virtualLight(virtualLight) {}
         
         virtual ~Light() = default;
 
@@ -171,8 +174,7 @@ namespace stratus {
 
         // If true then the light will be invisible when the sun is not overhead - 
         // useful for brightening up directly-lit scenes without Static or RT GI
-        bool getBrightensWithSun() const { return _brightensWithSun; }
-        void setBrightensWithSun(const bool brightensWithSun) { _brightensWithSun = brightensWithSun; }
+        bool IsVirtualLight() const { return _virtualLight; }
 
         virtual LightPtr Copy() const = 0;
 
@@ -202,10 +204,10 @@ namespace stratus {
         float lightFarPlane = 500.0f;
 
     public:
-        PointLight(const bool brightensWithSun = false) 
-            : Light(brightensWithSun) {}
+        PointLight(const bool virtualLight = false) 
+            : Light(virtualLight) {}
 
-        ~PointLight() override = default;
+        virtual ~PointLight() = default;
 
         LightType getType() const override {
             return LightType::POINTLIGHT;
@@ -237,6 +239,14 @@ namespace stratus {
         // void _setShadowMapHandle(ShadowMapHandle handle) {
         //     this->_shadowHap = handle;
         // }
+    };
+
+    class VirtualPointLight : PointLight {
+        friend class Renderer;
+
+    public:
+        VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
+        virtual ~VirtualPointLight() = default;
     };
 }
 
