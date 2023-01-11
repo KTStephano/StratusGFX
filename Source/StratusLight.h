@@ -33,7 +33,7 @@ namespace stratus {
         Rotation _rotation;
         // Used to calculate ambient intensity based on sun orientation
         stratus::Radians _rotSine;
-        float _intensity = 3.0f;
+        float _intensity = 4.5f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
 
@@ -100,9 +100,14 @@ namespace stratus {
         float _intensity = 1.0f;
         float _radius = 1.0f;
         bool _castsShadows = true;
+        bool _brightensWithSun = false;
 
     public:
         glm::vec3 position = glm::vec3(0.0f);
+
+        Light(const bool brightensWithSun = false)
+            : _brightensWithSun(brightensWithSun) {}
+        
         virtual ~Light() = default;
 
         /**
@@ -164,6 +169,11 @@ namespace stratus {
             return this->_castsShadows;
         }
 
+        // If true then the light will be invisible when the sun is not overhead - 
+        // useful for brightening up directly-lit scenes without Static or RT GI
+        bool getBrightensWithSun() const { return _brightensWithSun; }
+        void setBrightensWithSun(const bool brightensWithSun) { _brightensWithSun = brightensWithSun; }
+
         virtual LightPtr Copy() const = 0;
 
     private:
@@ -192,6 +202,9 @@ namespace stratus {
         float lightFarPlane = 500.0f;
 
     public:
+        PointLight(const bool brightensWithSun = false) 
+            : Light(brightensWithSun) {}
+
         ~PointLight() override = default;
 
         LightType getType() const override {

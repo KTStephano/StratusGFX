@@ -12,6 +12,7 @@
 #include <StratusUtils.h>
 #include <memory>
 #include <filesystem>
+#include "StratusAsync.h"
 
 class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);

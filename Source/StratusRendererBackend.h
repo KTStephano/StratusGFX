@@ -18,6 +18,7 @@
 #include "StratusMath.h"
 #include "StratusGpuBuffer.h"
 #include "StratusThread.h"
+#include "StratusAsync.h"
 
 namespace stratus {
     class Pipeline;
@@ -99,6 +100,7 @@ namespace stratus {
         std::unordered_map<LightPtr, RendererLightData> lights;
         float znear;
         float zfar;
+        TextureHandle skybox = TextureHandle::Null();
         glm::mat4 projection;
         glm::vec4 clearColor;
         bool viewportDirty;
@@ -161,12 +163,12 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 20;
-            int shadowCubeMapX = 1024, shadowCubeMapY = 1024;
-            int maxShadowCastingLights = 8; // per frame
+            int numShadowMaps = 128;
+            int shadowCubeMapX = 512, shadowCubeMapY = 512;
+            int maxShadowCastingLights = 48; // per frame
             int maxTotalLights = 256; // active in a frame
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = maxShadowCastingLights;
+            int maxShadowUpdatesPerFrame = 12;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -203,6 +205,8 @@ namespace stratus {
             // Used for a call to glBlendFunc
             GLenum blendSFactor = GL_ONE;
             GLenum blendDFactor = GL_ZERO;
+            // Skybox
+            std::unique_ptr<Pipeline> skybox;
             // Postprocessing shader which allows for application
             // of hdr and gamma correction
             std::unique_ptr<Pipeline> hdrGamma;
@@ -226,6 +230,8 @@ namespace stratus {
             // Handles cascading shadow map depth buffer rendering
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
+            // Generic unit cube to render as skybox
+            RenderNodePtr skyboxCube;
             // Generic screen quad so we can render the screen
             // from a separate frame buffer
             RenderNodePtr screenQuad;
@@ -396,6 +402,7 @@ namespace stratus {
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _RenderCSMDepth();
         void _RenderQuad();
+        void _RenderSkybox();
         void _RenderSsaoOcclude();
         void _RenderSsaoBlur();
         glm::vec3 _CalculateAtmosphericLightPosition() const;

@@ -176,6 +176,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     using namespace std;
 
+    _state.skybox = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"skybox.vs", ShaderType::VERTEX}, 
+        Shader{"skybox.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.skybox.get());
+
     // Set up the hdr/gamma postprocessing shader
 
     _state.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -226,6 +231,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"atmospheric_postfx.vs", ShaderType::VERTEX},
         Shader{"atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmosphericPostFx.get());
+
+    // Create skybox cube
+    _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
 
     // Create the screen quad
     _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
@@ -859,6 +867,26 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
     _UnbindShader();
 }
 
+void RendererBackend::_RenderSkybox() {
+    _BindShader(_state.skybox.get());
+    glDepthMask(GL_FALSE);
+
+    Async<Texture> sky = _LookupTexture(_frame->skybox);
+    if (ValidateTexture(sky)) {
+        const glm::mat4& projection = _frame->projection;
+        const glm::mat4 view = glm::mat4(glm::mat3(_frame->camera->getViewTransform()));
+
+        _state.skybox->setMat4("projection", projection);
+        _state.skybox->setMat4("view", view);
+        _state.skybox->bindTexture("skybox", sky.Get());
+
+        _state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+    }
+
+    _UnbindShader();
+    glDepthMask(GL_TRUE);
+}
+
 void RendererBackend::_RenderCSMDepth() {
     _BindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
@@ -1069,13 +1097,13 @@ void RendererBackend::RenderScene() {
     int shadowUpdates = 0;
     for (auto&[light, d] : perLightShadowCastingDistToViewer) {
         if (shadowUpdates > _state.maxShadowUpdatesPerFrame) break;
-        ++shadowUpdates;
         const double distance = glm::distance(c.getPosition(), light->position);
         // We want to compute shadows at least once for each light source before we enable the option of skipping it 
         // due to it being too far away
         const bool dirty = perLightIsDirty.find(light)->second;
         //if (distance > 2 * light->getRadius() || !dirty) continue;
         if (!dirty) continue;
+        ++shadowUpdates;
 
         auto & instancedMeshes = _frame->lights.find(light)->second.visible;
     
@@ -1132,6 +1160,7 @@ void RendererBackend::RenderScene() {
 
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
+
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
         const RenderNodeView& e = entityObservers.first;
         _Render(e);
@@ -1153,6 +1182,7 @@ void RendererBackend::RenderScene() {
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     _state.lightingFbo.bind();
+
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
     _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
@@ -1176,6 +1206,10 @@ void RendererBackend::RenderScene() {
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
     _state.lightingFbo.bind();
+    
+    // Skybox is one that does not interact with light at all
+    _RenderSkybox();
+
     for (auto & entityObservers : _frame->instancedFlatMeshes) {
         const RenderNodeView& e = entityObservers.first;
         _Render(e);
@@ -1417,18 +1451,22 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
         //if (distance > (2 * light->getRadius())) continue;
+
+        if (point->castsShadows()) {
+            if (shadowLightIndex >= maxShadowLights) continue;
+            s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
+            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
+            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
+            s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->getBrightensWithSun());
+            ++shadowLightIndex;
+        }
+
         lightColor = point->getBaseColor() * point->getIntensity();
         s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &point->position[0]);
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
         s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
         s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
-        if (point->castsShadows() && shadowLightIndex < maxShadowLights) {
-            s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
-            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
-            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
-            ++shadowLightIndex;
-        }
         ++lightIndex;
     }
 
