@@ -25,9 +25,14 @@ layout (std430, binding = 1) buffer numVisibleVPLs {
     int numVisible;
 };
 
-layout (std430, binding = 1) buffer outputBlock {
+layout (std430, binding = 2) buffer outputBlock1 {
     float shadowFactors[];
 };
+
+layout (std430, binding = 3) buffer outputBlock2 {
+    int vplVisibleIndex[];
+};
+
 
 void main() {
     int index = int(gl_GlobalInvocationID.x);
@@ -36,4 +41,9 @@ void main() {
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
+    if (shadowFactor < 0.95) {
+        int next = atomicAdd(numVisible, 1);
+        shadowFactors[next] = shadowFactor;
+        vplVisibleIndex[next] = index;
+    }
 }

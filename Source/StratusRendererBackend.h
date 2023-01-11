@@ -170,6 +170,9 @@ namespace stratus {
             int maxTotalLightsPerFrame = 256; // active in a frame
             int maxTotalVirtualPointLights = 2048;
             GpuBuffer virtualPointLightCache;
+            GpuBuffer virtualPointLightVisibleIndices;
+            GpuBuffer virtualPointLightShadowFactors;
+            int virtualPointLightNumVisible = 0;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;
             //std::shared_ptr<Camera> camera;
@@ -393,6 +396,7 @@ namespace stratus {
         void _UpdateWindowDimensions();
         void _ClearFramebufferData(const bool);
         void _InitAllInstancedData();
+        void _InitCoreCSMData(Pipeline *);
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
         void _InitAtmosphericShadowing();
@@ -405,8 +409,8 @@ namespace stratus {
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
-        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
-        void _PerformVirtualPointLightCulling();
+        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
+        void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();

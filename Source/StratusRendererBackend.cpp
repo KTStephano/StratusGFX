@@ -260,6 +260,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     // Virtual point lights
     _state.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights);
+    _state.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights);
+    _state.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -1058,7 +1060,8 @@ void RendererBackend::_RenderAtmosphericShadowing() {
 }
 
 void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>>& perLightDistToViewer, 
-                                         std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer) {
+                                         std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer,
+                                         std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     const Camera& c = *_frame->camera;
     std::unordered_map<LightPtr, bool> perLightIsDirty;
 
@@ -1068,6 +1071,9 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         auto& lightData = entry.second;
         const double distance = glm::distance(c.getPosition(), light->position);
         perLightDistToViewer.push_back(std::make_pair(light, distance));
+        if (light->IsVirtualLight()) {
+            perVPLDistToViewer.push_back(std::make_pair(light, distance));
+        }
         //if (distance > 2 * light->getRadius()) continue;
         perLightIsDirty.insert(std::make_pair(light, lightData.dirty || !_ShadowMapExistsForLight(light)));
         if (light->castsShadows()) {
@@ -1146,15 +1152,50 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     _UnbindShader();
 }
 
-void RendererBackend::_PerformVirtualPointLightCulling() {
-    size_t dataSize = 4;
-    GpuBuffer buffer(nullptr, dataSize * sizeof(float));
-    buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    if (perVPLDistToViewer.size() == 0) return;
+    
+    glm::vec4 * gpuVPLs = (glm::vec4 *)_state.virtualPointLightCache.MapMemory();
+    // Sort lights based on distance to viewer
+    const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
+        return a.second < b.second;
+    };
+    std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
+
+    // Check if we have too many lights for a single frame
+    if (perVPLDistToViewer.size() > _state.maxTotalVirtualPointLights) {
+        perVPLDistToViewer.resize(_state.maxTotalVirtualPointLights);
+    }
+
+    // Pack data into GPU memory
+    for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
+        gpuVPLs[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
+    }
+
+    // Unmap so OpenGL knows we're done
+    _state.virtualPointLightCache.UnmapMemory();
+
+    // Bind positions
+    _state.virtualPointLightCache.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+
+    // Set up # visible atomic counter
+    int numVisible = 0;
+    GpuBuffer vplsVisible((const void *)&numVisible, sizeof(int));
+    vplsVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+
+    // Bind shadow factors and visibility indices
+    _state.virtualPointLightShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    _state.virtualPointLightVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     _state.vplCulling->bind();
-    _state.vplCulling->dispatchCompute(dataSize, 1, 1);
+    _InitCoreCSMData(_state.vplCulling.get());
+    _state.vplCulling->dispatchCompute((unsigned int)perVPLDistToViewer.size(), 1, 1);
     _state.vplCulling->synchronizeCompute();
     _state.vplCulling->unbind();
+
+    int * visible = (int *)vplsVisible.MapMemory();
+    //std::cout << "Num visible VPLs: " << *v << std::endl;
+    vplsVisible.UnmapMemory();
 }
 
 void RendererBackend::RenderScene() {
@@ -1165,16 +1206,16 @@ void RendererBackend::RenderScene() {
     std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
     // This one is just for shadow-casting lights
     std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
+    std::vector<std::pair<LightPtr, double>> perVPLDistToViewer;
 
     // Perform point light pass
-    _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer);
-
-    // Handle VPLs for global illumination
-    _PerformVirtualPointLightCulling();
+    _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer);
 
     // Perform world light depth pass if enabled
     if (_frame->csc.worldLight->getEnabled()) {
         _RenderCSMDepth();
+        // Handle VPLs for global illumination
+        _PerformVirtualPointLightCulling(perVPLDistToViewer);
     }
 
     // TEMP: Set up the light source
@@ -1467,6 +1508,31 @@ Texture RendererBackend::_LookupShadowmapTexture(TextureHandle handle) const {
     return _shadowMap3DHandles.find(handle)->second.shadowCubeMap;
 }
 
+// This handles everything that's in pbr.glsl
+void RendererBackend::_InitCoreCSMData(Pipeline * s) {
+    const Camera & lightCam = *_frame->csc.worldLightCamera;
+    // glm::mat4 lightView = lightCam.getViewTransform();
+    const glm::vec3 direction = lightCam.getDirection();
+
+    s->setVec3("infiniteLightDirection", &direction[0]);    
+    s->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
+    for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
+        //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
+        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_frame->csc.cascades[i].projectionViewSample[0][0]);
+        // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        s->setVec4("shadowOffset[" + std::to_string(i) + "]", &_frame->csc.cascadeShadowOffsets[i][0]);
+    }
+
+    for (int i = 0; i < _frame->csc.cascades.size() - 1; ++i) {
+        // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
+        // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
+        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_frame->csc.cascades[i + 1].cascadePlane[0]);
+    }
+}
+
 void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights) {
     // Set up point lights
 
@@ -1534,27 +1600,11 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _frame->csc.worldLight->getEnabled());
-    s->setVec3("infiniteLightDirection", &direction[0]);
     lightColor = _frame->csc.worldLight->getLuminance();
     s->setVec3("infiniteLightColor", &lightColor[0]);
     s->setFloat("worldLightAmbientIntensity", _frame->csc.worldLight->getAmbientIntensity());
-    
-    s->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
-    for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-        //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
-        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_frame->csc.cascades[i].projectionViewSample[0][0]);
-        // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
-    }
 
-    for (int i = 0; i < 2; ++i) {
-        s->setVec4("shadowOffset[" + std::to_string(i) + "]", &_frame->csc.cascadeShadowOffsets[i][0]);
-    }
-
-    for (int i = 0; i < _frame->csc.cascades.size() - 1; ++i) {
-        // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
-        // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
-        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_frame->csc.cascades[i + 1].cascadePlane[0]);
-    }
+    _InitCoreCSMData(s);
 
     // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
