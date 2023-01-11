@@ -106,6 +106,7 @@ namespace stratus {
         std::unordered_map<EntityView, EntityStateData> _dynamicPbrEntities;
         std::unordered_map<EntityView, EntityStateData> _flatEntities;
         std::unordered_map<LightPtr, LightData> _lights;
+        std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
         CameraPtr _camera;

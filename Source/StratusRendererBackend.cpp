@@ -232,6 +232,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"atmospheric_postfx.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.atmosphericPostFx.get());
 
+    _state.vplCulling = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
+    _state.shaders.push_back(_state.vplCulling.get());
+
     // Create skybox cube
     _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
 
@@ -253,6 +257,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     for (int i = 0; i < _state.numShadowMaps; ++i) {
         CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
     }
+
+    // Virtual point lights
+    _state.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -1076,8 +1083,8 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > _state.maxTotalLights) {
-        perLightDistToViewer.resize(_state.maxTotalLights);
+    if (perLightDistToViewer.size() > _state.maxTotalLightsPerFrame) {
+        perLightDistToViewer.resize(_state.maxTotalLightsPerFrame);
     }
 
     // Remove shadow-casting lights that exceed our max count
@@ -1139,33 +1146,19 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     _UnbindShader();
 }
 
-void RendererBackend::RunCSTest() {
-    const std::filesystem::path shaderRoot("../resources/shaders");
-    const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
-
-    // Initialize the compute shader
-    auto cs = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
-
+void RendererBackend::_PerformVirtualPointLightCulling() {
     size_t dataSize = 4;
     GpuBuffer buffer(nullptr, dataSize * sizeof(float));
     buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    cs->bind();
-    cs->dispatchCompute(dataSize, 1, 1);
-    cs->synchronizeCompute();
-    cs->unbind();
-
-    float* mem = (float *)buffer.MapMemory();
-    for (int i = 0; i < dataSize; ++i) {
-        std::cout << ">> " << mem[i] << std::endl;
-    }
+    _state.vplCulling->bind();
+    _state.vplCulling->dispatchCompute(dataSize, 1, 1);
+    _state.vplCulling->synchronizeCompute();
+    _state.vplCulling->unbind();
 }
 
 void RendererBackend::RenderScene() {
     CHECK_IS_APPLICATION_THREAD();
-
-    RunCSTest();
 
     const Camera& c = *_frame->camera;
 
@@ -1175,6 +1168,9 @@ void RendererBackend::RenderScene() {
 
     // Perform point light pass
     _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer);
+
+    // Handle VPLs for global illumination
+    _PerformVirtualPointLightCulling();
 
     // Perform world light depth pass if enabled
     if (_frame->csc.worldLight->getEnabled()) {

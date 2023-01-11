@@ -98,6 +98,7 @@ namespace stratus {
         InstancedData instancedPbrMeshes;
         InstancedData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
+        std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         float znear;
         float zfar;
         TextureHandle skybox = TextureHandle::Null();
@@ -166,7 +167,9 @@ namespace stratus {
             int numShadowMaps = 256;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
-            int maxTotalLights = 256; // active in a frame
+            int maxTotalLightsPerFrame = 256; // active in a frame
+            int maxTotalVirtualPointLights = 2048;
+            GpuBuffer virtualPointLightCache;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;
             //std::shared_ptr<Camera> camera;
@@ -227,6 +230,8 @@ namespace stratus {
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
             std::unique_ptr<Pipeline> bloom;
+            // Handles virtual point light culling
+            std::unique_ptr<Pipeline> vplCulling;
             // Handles cascading shadow map depth buffer rendering
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
@@ -383,8 +388,6 @@ namespace stratus {
         RendererMouseState GetMouseState() const;
 
     private:
-        void RunCSTest();
-
         void _ClearGBuffer();
         void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
@@ -403,6 +406,7 @@ namespace stratus {
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
+        void _PerformVirtualPointLightCulling();
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();
