@@ -103,7 +103,6 @@ uniform int numShadowLights = 0;
  * Information about the directional infinite light (if there is one)
  */
 uniform bool infiniteLightingEnabled = false;
-uniform vec3 infiniteLightDirection;
 uniform vec3 infiniteLightColor;
 // uniform float cascadeSplits[4];
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0

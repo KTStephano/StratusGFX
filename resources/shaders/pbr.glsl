@@ -1,5 +1,8 @@
 STRATUS_GLSL_VERSION
 
+#include "common.glsl"
+
+uniform vec3 infiniteLightDirection;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
