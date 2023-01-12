@@ -33,7 +33,6 @@ layout (std430, binding = 3) buffer outputBlock2 {
     int vplVisibleIndex[];
 };
 
-
 void main() {
     int index = int(gl_GlobalInvocationID.x);
     vec3 lightPos = lightPositions[index].xyz;

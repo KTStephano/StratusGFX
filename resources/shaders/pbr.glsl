@@ -11,6 +11,55 @@ uniform vec4 shadowOffset[2];
 uniform vec4 cascadePlanes[3];
 uniform mat4 cascadeProjViews[4];
 
+// Example for numSamples: 27, 64, or some other value that can be cleanly cube-rooted
+float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, int numSamples) {
+    // Not required for fragDir to be normalized
+    vec3 fragDir = fragPos - lightPos;
+    float currentDepth = length(fragDir);
+    // It's very important to multiply by lightFarPlane. The recorded depth
+    // is on the range [0, 1] so we need to convert it back to what it was originally
+    // or else our depth comparison will fail.
+    float calculatedDepth = texture(shadowMap, fragDir).r * lightFarPlane;
+    // This bias was found through trial and error... it was originally
+    // 0.05 * (1.0 - max...)
+    // Part of this came from GPU Gems
+    // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
+    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    //float bias = max(0.75 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05);
+    //float bias = max(0.85 * (1.0 - lightNormalDotProduct), 0.05);
+    //bias = bias < 0.0 ? bias * -1.0 : bias;
+    // Now we use a sampling-based method to look around the current pixel
+    // and blend the values for softer shadows (introduces some blur). This falls
+    // under the category of Percentage-Closer Filtering (PCF) algorithms.
+    float iterationsPerLoop = pow(numSamples, 1.0 / 3.0);
+    float shadow = 0.0;
+    float totalSamples = 0.0;//PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
+    if (iterationsPerLoop > 2) {
+        float offset = 0.2;
+        float increment = (2 * offset) / (iterationsPerLoop - 1);
+        for (float x = -offset, i = 0; i < iterationsPerLoop; i += 1, x += increment) {
+            for (float y = -offset, j = 0; j < iterationsPerLoop; j += 1, y += increment) {
+                for (float z = -offset, k = 0; k < iterationsPerLoop; k += 1, z += increment) {
+                    float depth = texture(shadowMap, fragDir + vec3(x, y, z)).r;
+                    // Perform this operation to go from [0, 1] to
+                    // the original value
+                    //totalSamples = totalSamples + 1.0;
+                    depth = depth * lightFarPlane;
+                    if ((currentDepth - bias) > depth) {
+                        totalSamples = totalSamples + 1.0;
+                        shadow = shadow + 1.0;
+                    }
+                }
+            }
+        }
+    }
+
+    //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
+    //bias = clamp(bias, 0, 0.01);
+    //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
+    return shadow / (totalSamples + 1.0);
+}
+
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
 float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
     coords.w = depth - bias;

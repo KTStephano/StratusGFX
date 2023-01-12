@@ -112,54 +112,6 @@ in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
 
-#define PCF_SAMPLES 2.5;
-#define PCF_SAMPLES_CUBED 16.0; // Not exactly... constrained it to 16 for Mac
-#define PCF_SAMPLES_HALF 1;
-
-float calculateShadowValue(vec3 fragPos, vec3 lightPos, int lightIndex, float lightNormalDotProduct) {
-    // Not required for fragDir to be normalized
-    vec3 fragDir = fragPos - lightPos;
-    float currentDepth = length(fragDir);
-    // It's very important to multiply by lightFarPlane. The recorded depth
-    // is on the range [0, 1] so we need to convert it back to what it was originally
-    // or else our depth comparison will fail.
-    float calculatedDepth = texture(shadowCubeMaps[lightIndex], fragDir).r * lightFarPlanes[lightIndex];
-    // This bias was found through trial and error... it was originally
-    // 0.05 * (1.0 - max...)
-    // Part of this came from GPU Gems
-    // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
-    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
-    //float bias = max(0.75 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05);
-    //float bias = max(0.85 * (1.0 - lightNormalDotProduct), 0.05);
-    //bias = bias < 0.0 ? bias * -1.0 : bias;
-    // Now we use a sampling-based method to look around the current pixel
-    // and blend the values for softer shadows (introduces some blur). This falls
-    // under the category of Percentage-Closer Filtering (PCF) algorithms.
-    float shadow = 0.0;
-    float samples = PCF_SAMPLES;
-    float totalSamples = PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
-    float offset = 0.1;
-    float increment = offset / PCF_SAMPLES_HALF;
-    for (float x = -offset; x < offset; x += increment) {
-        for (float y = -offset; y < offset; y += increment) {
-            for (float z = -offset; z < offset; z += increment) {
-                float depth = texture(shadowCubeMaps[lightIndex], fragDir + vec3(x, y, z)).r;
-                // Perform this operation to go from [0, 1] to
-                // the original value
-                depth = depth * lightFarPlanes[lightIndex];
-                if ((currentDepth - bias) > depth) {
-                    shadow = shadow + 1.0;
-                }
-            }
-        }
-    }
-
-    //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
-    //bias = clamp(bias, 0, 0.01);
-    //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
-    return shadow / totalSamples;
-}
-
 float normalDistribution(const float NdotH, const float roughness) {
     float roughnessSquared = roughness * roughness;
     float denominator = (NdotH * NdotH) * (roughnessSquared - 1) + 1;
@@ -269,7 +221,7 @@ void main() {
         float distance = length(lightPositions[i] - fragPos);
         if(distance < lightRadii[i]) {
             if (shadowCubeMapIndex < MAX_LIGHTS) {
-                shadowFactor = calculateShadowValue(fragPos, lightPositions[i], shadowCubeMapIndex, dot(lightPositions[i] - fragPos, normal));
+                shadowFactor = calculateShadowValue(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal), 27);
                 // If true then the light will be invisible when the sun is not overhead - 
                 // useful for brightening up directly-lit scenes without Static or RT GI
                 if (lightBrightensWithSun[i] && infiniteLightingEnabled) {
