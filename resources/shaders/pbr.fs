@@ -141,14 +141,6 @@ void main() {
         if(distance < lightRadii[i]) {
             if (shadowCubeMapIndex < MAX_LIGHTS) {
                 shadowFactor = calculateShadowValue(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal), 27);
-                // If true then the light will be invisible when the sun is not overhead - 
-                // useful for brightening up directly-lit scenes without Static or RT GI
-                if (lightBrightensWithSun[i] && infiniteLightingEnabled) {
-                    vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPositions[i], 1.0)),
-                                      dot(cascadePlanes[1], vec4(lightPositions[i], 1.0)),
-                                      dot(cascadePlanes[2], vec4(lightPositions[i], 1.0)));
-                    shadowFactor = max(shadowFactor, 1.0 - calculateInfiniteShadowValue(vec4(lightPositions[i], 1.0), cascadeBlends, infiniteLightDirection));
-                }
             }
             color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPositions[i], lightColors[i], roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }

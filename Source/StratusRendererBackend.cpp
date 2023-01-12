@@ -16,6 +16,13 @@
 #include "StratusEngine.h"
 
 namespace stratus {
+void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
+                         GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
+    if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
+        std::cout << "[OpenGL] " << message << std::endl;
+    }
+}
+
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
     log << "==================== OpenGL Information ====================" << std::endl;
@@ -189,6 +196,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     printGLInfo(_config);
     _isValid = true;
 
+    // Set up OpenGL debug logging
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(OpenGLDebugCallback, nullptr);
+
     const std::filesystem::path shaderRoot("../resources/shaders");
     const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
 
@@ -265,6 +276,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
     _state.shaders.push_back(_state.vplCulling.get());
 
+    _state.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr_vpl_gi.cs", ShaderType::COMPUTE}}));
+    _state.shaders.push_back(_state.vplGlobalIllumination.get());
+
     // Create skybox cube
     _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
 
@@ -288,9 +303,9 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     }
 
     // Virtual point lights
-    _state.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights);
-    _state.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights);
-    _state.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights);
+    _state.vpls.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights);
+    _state.vpls.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights);
+    _state.vpls.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -411,12 +426,12 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -1184,7 +1199,7 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     if (perVPLDistToViewer.size() == 0) return;
     
-    glm::vec4 * gpuVPLs = (glm::vec4 *)_state.virtualPointLightCache.MapMemory();
+    glm::vec4 * gpuVPLs = (glm::vec4 *)_state.vpls.virtualPointLightCache.MapMemory();
     // Sort lights based on distance to viewer
     const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
         return a.second < b.second;
@@ -1202,10 +1217,10 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     }
 
     // Unmap so OpenGL knows we're done
-    _state.virtualPointLightCache.UnmapMemory();
+    _state.vpls.virtualPointLightCache.UnmapMemory();
 
     // Bind positions
-    _state.virtualPointLightCache.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.virtualPointLightCache.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     // Set up # visible atomic counter
     int numVisible = 0;
@@ -1213,8 +1228,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     vplsVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind shadow factors and visibility indices
-    _state.virtualPointLightShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    _state.virtualPointLightVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    _state.vpls.virtualPointLightShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    _state.vpls.virtualPointLightVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     _state.vplCulling->bind();
     _InitCoreCSMData(_state.vplCulling.get());
@@ -1518,6 +1533,8 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     }
     TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
+    // These will be resident in GPU memory for the entire life cycle of the renderer
+    smap.shadowCubeMap.makeResident();
     return handle;
 }
 

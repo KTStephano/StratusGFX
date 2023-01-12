@@ -172,16 +172,20 @@ namespace stratus {
             FrameBuffer fbo;
         };
 
+        struct VirtualPointLightData {
+            GpuBuffer virtualPointLightCache;
+            GpuBuffer virtualPointLightVisibleIndices;
+            GpuBuffer virtualPointLightShadowFactors;
+            int virtualPointLightNumVisible = 0;
+        };
+
         struct RenderState {
             int numShadowMaps = 256;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLightsPerFrame = 256; // active in a frame
             int maxTotalVirtualPointLights = 2048;
-            GpuBuffer virtualPointLightCache;
-            GpuBuffer virtualPointLightVisibleIndices;
-            GpuBuffer virtualPointLightShadowFactors;
-            int virtualPointLightNumVisible = 0;
+            VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;
             //std::shared_ptr<Camera> camera;
@@ -241,6 +245,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> atmosphericPostFx;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
+            // Handles global illuminatino stage
+            std::unique_ptr<Pipeline> vplGlobalIllumination;
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;

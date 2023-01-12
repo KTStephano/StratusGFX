@@ -22,6 +22,8 @@ namespace stratus {
         _nextTaskThread = 0;
 
         STRATUS_LOG << "Started " << Name() << " with " << concurrency << " threads" << std::endl;
+
+        return true;
     }
 
     SystemStatus TaskSystem::Update(const double) {
