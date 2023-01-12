@@ -61,10 +61,6 @@ uniform vec3 atmosphericLightPos;
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
 
-uniform float worldLightAmbientIntensity = 0.003;
-uniform float pointLightAmbientIntensity = 0.003;
-uniform float ambientIntensity = 0.00025;
-
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
@@ -112,83 +108,6 @@ in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
 
-float normalDistribution(const float NdotH, const float roughness) {
-    float roughnessSquared = roughness * roughness;
-    float denominator = (NdotH * NdotH) * (roughnessSquared - 1) + 1;
-    denominator = PI * (denominator * denominator);
-    return roughnessSquared / max(denominator, PREVENT_DIV_BY_ZERO);
-}
-
-vec3 fresnel(vec3 albedo, float HdotV, vec3 baseReflectivity, float metallic) {
-    vec3 F0 = mix(baseReflectivity, albedo, metallic);
-    return F0 + (1.0 - F0) * pow(1.0 - HdotV, 5);
-}
-
-float geometrySchlickGGX(float NdotX, float k) {
-    return NdotX / max(NdotX * (1 - k) + k, PREVENT_DIV_BY_ZERO);
-}
-
-float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, const float roughness) {
-    float k = pow(roughness + 1, 2) / 8.0;
-    float NdotV = max(dot(normal, viewDir), 0.0);
-    float NdotL = max(dot(normal, lightDir), 0.0);
-    return geometrySchlickGGX(NdotV, k) * geometrySchlickGGX(NdotL, k);
-}
-
-vec3 calculatePointAmbient(vec3 fragPosition, vec3 baseColor, int lightIndex, const float ao) {
-    vec3 lightPos   = lightPositions[lightIndex];
-    vec3 lightColor = lightColors[lightIndex];
-    vec3 lightDir   = lightPos - fragPosition;
-    float lightDist = length(lightDir);
-    float attenuationFactor = 1.0 / (1.0 + lightDist * lightDist);
-    vec3 ambient = baseColor * ao * lightColor * pointLightAmbientIntensity;
-    return attenuationFactor * ambient;
-}
-
-float quadraticAttenuation(vec3 lightDir) {
-    float lightDist = length(lightDir);
-    return 1.0 / (1.0 + lightDist * lightDist);
-}
-
-vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
-    const float attenuationFactor, const float ambientIntensity) {
-    
-    vec3 V = viewDir;
-    vec3 L = normalize(lightDir);
-    vec3 H = normalize(V + L);
-    vec3 N = normal;
-
-    float NdotH    = max(dot(N, H), 0.0);
-    float HdotV    = max(dot(H, V), 0.0);
-    float W0dotN   = max(dot(V, N), 0.0);
-    float WidotN   = max(dot(L, N), 0.0);
-    float NdotWi   = max(dot(N, L), 0.0);
-    vec3 F         = fresnel(baseColor, clamp(HdotV, 0.0, 1.0), baseReflectivity, metallic);
-    vec3 kS        = F;
-    // We multiply by inverse of metallic since we only want non-metals to have diffuse lighting
-    vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
-    float D        = normalDistribution(NdotH, roughness);
-    float G        = geometry(N, V, L, roughness);
-    vec3 diffuse   = lightColor; // * attenuationFactor;
-    vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
-
-    //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
-
-    vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
-    vec3 finalBrightnes = (kD * baseColor / PI + specular) * diffuse * NdotWi;
-
-    //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);  
-}
-
-vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, int lightIndex, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
-    vec3 lightPos   = lightPositions[lightIndex];
-    vec3 lightColor = lightColors[lightIndex];
-    vec3 lightDir   = lightPos - fragPosition;
-
-    return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
-}
-
 void main() {
     vec2 texCoords = fsTexCoords;
     vec3 fragPos = texture(gPosition, texCoords).rgb;
@@ -231,11 +150,8 @@ void main() {
                     shadowFactor = max(shadowFactor, 1.0 - calculateInfiniteShadowValue(vec4(lightPositions[i], 1.0), cascadeBlends, infiniteLightDirection));
                 }
             }
-            color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, i, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+            color = color + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPositions[i], lightColors[i], roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }
-        // else if (distance < 2 * lightRadii[i]) {
-        //     color = color + calculatePointAmbient(fragPos, baseColor, i, ambient);
-        // }
     }
 
     if (infiniteLightingEnabled) {

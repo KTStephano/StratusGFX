@@ -3,11 +3,11 @@ STRATUS_GLSL_VERSION
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 // GBuffer information
-layout(binding = 0) readonly uniform image2D sampler2D gPosition;
-layout(binding = 1) readonly uniform image2D sampler2D gNormal;
-layout(binding = 2) readonly uniform image2D sampler2D gAlbedo;
-layout(binding = 3) readonly uniform image2D sampler2D gBaseReflectivity;
-layout(binding = 4) readonly uniform image2D sampler2D gRoughnessMetallicAmbient;
+layout (binding = 0) readonly uniform image2D sampler2D gPosition;
+layout (binding = 1) readonly uniform image2D sampler2D gNormal;
+layout (binding = 2) readonly uniform image2D sampler2D gAlbedo;
+layout (binding = 3) readonly uniform image2D sampler2D gBaseReflectivity;
+layout (binding = 4) readonly uniform image2D sampler2D gRoughnessMetallicAmbient;
 
 // Camera information
 uniform vec3 viewPosition;
@@ -18,6 +18,26 @@ layout (binding = 5) uniform image2D screen;
 // Resident shadow maps
 layout (std430, binding = 6) buffer vplShadowMaps {
     samplerCube shadowCubeMaps[];
+};
+
+// Shadow factors for infinite light
+layout (std430, binding = 7) buffer vplShadowFactors {
+    float shadowFactors[];
+};
+
+// Light positions
+layout (std430, binding = 8) buffer vplPositions {
+    vec4 lightPositions[];
+};
+
+// Light colors
+layout (std430, binding = 9) buffer vplColors {
+    vec4 lightColors[];
+};
+
+// Light far planes
+layout (std430, binding = 10) buffer vplLightFarPlanes {
+    float lightFarPlanes[];
 };
 
 void main() {
@@ -38,5 +58,5 @@ void main() {
     float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-    
+    float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal), 27);
 }
