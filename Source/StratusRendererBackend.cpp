@@ -37,7 +37,24 @@ static void printGLInfo(const GFXConfig & config) {
     log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
     log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
     log << "\tMax viewport dims: "                      << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+
+    log << std::endl << "\t==> Compute Information" << std::endl;
+    log << "\tMax compute shader storage blocks: "      << config.maxComputeShaderStorageBlocks << std::endl;
+    log << "\tMax compute uniform blocks: "             << config.maxComputeUniformBlocks << std::endl;
+    log << "\tMax compute uniform texture image units: "<< config.maxComputeTexImageUnits << std::endl;
+    log << "\tMax compute uniform components: "         << config.maxComputeUniformComponents << std::endl;
+    log << "\tMax compute atomic counters: "            << config.maxComputeAtomicCounters << std::endl;
+    log << "\tMax compute atomic counter buffers: "     << config.maxComputeAtomicCounterBuffers << std::endl;
+    log << "\tMax compute work group invocations: "     << config.maxComputeWorkGroupInvocations << std::endl;
+    log << "\tMax compute work group count: "           << config.maxComputeWorkGroupCount[0] << "x" 
+                                                        << config.maxComputeWorkGroupCount[1] << "x" 
+                                                        << config.maxComputeWorkGroupCount[2] << std::endl;
+    log << "\tMax compute work group size: "            << config.maxComputeWorkGroupSize[0] << "x" 
+                                                        << config.maxComputeWorkGroupSize[1] << "x" 
+                                                        << config.maxComputeWorkGroupSize[2] << std::endl;
+
     log << std::boolalpha;
+    log << std::endl << "\t==> Virtual/Sparse Texture Information" << std::endl;
     const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
     const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
     for (int i = 0; i < internalFormats.size(); ++i) {
@@ -128,6 +145,18 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
     glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
+    glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &_config.maxComputeShaderStorageBlocks);
+    glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, &_config.maxComputeUniformBlocks);
+    glGetIntegerv(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, &_config.maxComputeTexImageUnits);
+    glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, &_config.maxComputeUniformComponents);
+    glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTERS, &_config.maxComputeAtomicCounters);
+    glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS, &_config.maxComputeAtomicCounterBuffers);
+    glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &_config.maxComputeWorkGroupInvocations);
+    // 0, 1, 2 count for x, y and z dims
+    for (int i = 0; i < 3; ++i) {
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &_config.maxComputeWorkGroupCount[i]);
+        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &_config.maxComputeWorkGroupSize[i]);
+    }
 
     if (_config.majorVersion < 4 || _config.minorVersion < 3) {
         STRATUS_ERROR << "OpenGL version LOWER than 4.3 - this is not supported" << std::endl;

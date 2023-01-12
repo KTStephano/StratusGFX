@@ -145,6 +145,15 @@ namespace stratus {
         int32_t preferredPageSizeX3D[3];
         int32_t preferredPageSizeY3D[3];
         int32_t preferredPageSizeZ3D[3];
+        int32_t maxComputeShaderStorageBlocks;
+        int32_t maxComputeUniformBlocks;
+        int32_t maxComputeTexImageUnits;
+        int32_t maxComputeUniformComponents;
+        int32_t maxComputeAtomicCounters;
+        int32_t maxComputeAtomicCounterBuffers;
+        int32_t maxComputeWorkGroupInvocations;
+        int32_t maxComputeWorkGroupCount[3];
+        int32_t maxComputeWorkGroupSize[3];
     };
 
     class RendererBackend {
