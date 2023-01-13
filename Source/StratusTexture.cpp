@@ -17,7 +17,7 @@ namespace stratus {
         TextureConfig _config;
         mutable int _activeTexture = -1;
         TextureHandle _handle;
-        GpuTexturePtr _ptr;
+        GpuResidentTextureHandle _ptr;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -155,18 +155,18 @@ namespace stratus {
             }
         }
 
-        TextureType type() const              { return _config.type; }
-        TextureComponentFormat format() const { return _config.format; }
-        TextureHandle handle() const          { return _handle; }
-        GpuTexturePtr gpuPtr() const          { return _ptr; }
+        TextureType type() const               { return _config.type; }
+        TextureComponentFormat format() const  { return _config.format; }
+        TextureHandle handle() const           { return _handle; }
+        GpuResidentTextureHandle gpuHandle() const { return _ptr; }
 
-        void makeResident()                   { glMakeTextureHandleResidentARB((GLuint64)_ptr); }
-        void makeNonResident()                { glMakeTextureHandleNonResidentARB((GLuint64)_ptr); }
+        void makeResident()                    { glMakeTextureHandleResidentARB((GLuint64)_ptr); }
+        void makeNonResident()                 { glMakeTextureHandleNonResidentARB((GLuint64)_ptr); }
 
-        uint32_t width() const                { return _config.width; }
-        uint32_t height() const               { return _config.height; }
-        uint32_t depth() const                { return _config.depth; }
-        void * underlying() const             { return (void *)&_texture; }
+        uint32_t width() const                 { return _config.width; }
+        uint32_t height() const                { return _config.height; }
+        uint32_t depth() const                 { return _config.depth; }
+        void * underlying() const              { return (void *)&_texture; }
 
     public:
         void bind(int activeTexture = 0) const {
@@ -429,7 +429,7 @@ namespace stratus {
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
     TextureHandle Texture::handle() const { return _impl->handle(); }
-    GpuTexturePtr Texture::gpuPtr() const { return _impl->gpuPtr(); }
+    GpuResidentTextureHandle Texture::gpuHandle() const { return _impl->gpuHandle(); }
 
     void Texture::makeResident() { _impl->makeResident(); }
     void Texture::makeNonResident() { _impl->makeNonResident(); }

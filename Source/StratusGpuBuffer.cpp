@@ -168,6 +168,13 @@ namespace stratus {
         glNamedBufferSubData(_buffer, offset, size, data);
     }
 
+    void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
+        if (offset + size > SizeBytes()) {
+            throw std::runtime_error("offset+size exceeded maximum GPU buffer size");
+        }
+        glGetNamedBufferSubData(_buffer, offset, size, data);
+    }
+
     void FinalizeMemory() {
         /*
         VV does not work
@@ -225,6 +232,10 @@ namespace stratus {
 
     void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
         _impl->CopyDataToBuffer(offset, size, data);
+    }
+
+    void GpuBuffer::CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
+        _impl->CopyDataFromBufferToSysMem(offset, size, data);
     }
 
     void GpuBuffer::FinalizeMemory() {

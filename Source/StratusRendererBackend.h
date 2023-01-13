@@ -406,6 +406,7 @@ namespace stratus {
         RendererMouseState GetMouseState() const;
 
     private:
+        void _InitializeVplData();
         void _ClearGBuffer();
         void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
@@ -426,6 +427,7 @@ namespace stratus {
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
+        void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();

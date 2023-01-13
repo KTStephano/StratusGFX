@@ -16,6 +16,7 @@
 #include "StratusEngine.h"
 
 namespace stratus {
+// See https://www.khronos.org/opengl/wiki/Debug_Output
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
@@ -303,9 +304,14 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     }
 
     // Virtual point lights
-    _state.vpls.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights);
-    _state.vpls.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights);
-    _state.vpls.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights);
+    _InitializeVplData();
+}
+
+void RendererBackend::_InitializeVplData() {
+    const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+    _state.vpls.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -1198,8 +1204,18 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 
 void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     if (perVPLDistToViewer.size() == 0) return;
-    
-    glm::vec4 * gpuVPLs = (glm::vec4 *)_state.vpls.virtualPointLightCache.MapMemory();
+
+    std::vector<std::pair<LightPtr, double>> availableVPLs;
+    availableVPLs.reserve(perVPLDistToViewer.size());
+    for (auto& entry : perVPLDistToViewer) {
+        // Only add lights we have shadow maps for
+        if (_ShadowMapExistsForLight(entry.first)) {
+            availableVPLs.push_back(entry);
+        }
+    }
+
+    perVPLDistToViewer = std::move(availableVPLs);
+
     // Sort lights based on distance to viewer
     const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
         return a.second < b.second;
@@ -1211,13 +1227,14 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
         perVPLDistToViewer.resize(_state.maxTotalVirtualPointLights);
     }
 
-    // Pack data into GPU memory
+    // Pack data into system memory
+    std::vector<glm::vec4> gpuVpls(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
-        gpuVPLs[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
+        gpuVpls[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
     }
 
-    // Unmap so OpenGL knows we're done
-    _state.vpls.virtualPointLightCache.UnmapMemory();
+    // Move data to GPU memory
+    _state.vpls.virtualPointLightCache.CopyDataToBuffer(0, gpuVpls.size() * sizeof(glm::vec4), (const void *)gpuVpls.data());
 
     // Bind positions
     _state.vpls.virtualPointLightCache.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
@@ -1237,9 +1254,13 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplCulling->synchronizeCompute();
     _state.vplCulling->unbind();
 
-    int * visible = (int *)vplsVisible.MapMemory();
-    //std::cout << "Num visible VPLs: " << *v << std::endl;
-    vplsVisible.UnmapMemory();
+    // See how many visible vpls were recorded by the GPU
+    vplsVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&_state.vpls.virtualPointLightNumVisible);
+    std::cout << "Num visible VPLs: " << _state.vpls.virtualPointLightNumVisible << std::endl;
+}
+
+void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    
 }
 
 void RendererBackend::RenderScene() {
@@ -1586,20 +1607,21 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     glm::vec3 lightColor;
     int lightIndex = 0;
     int shadowLightIndex = 0;
-    int i = 0;
-    for (; i < lights.size(); ++i) {
+    for (int i = 0; i < lights.size(); ++i) {
         LightPtr light = lights[i].first;
         PointLight * point = (PointLight *)light.get();
         const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
         // Skip lights too far from camera
         //if (distance > (2 * light->getRadius())) continue;
 
+        // VPLs are handled as part of the global illumination compute pipeline
+        if (point->IsVirtualLight()) continue;
+
         if (point->castsShadows()) {
             if (shadowLightIndex >= maxShadowLights) continue;
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
-            s->setBool("lightBrightensWithSun[" + std::to_string(shadowLightIndex) + "]", light->IsVirtualLight());
             ++shadowLightIndex;
         }
 

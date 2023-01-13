@@ -83,6 +83,7 @@ namespace stratus {
         uintptr_t SizeBytes() const;
         // Make sure GPU_DYNAMIC_DATA is set
         void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data);
+        void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data);
 
         // Memory mapping and data copying won't work after this
         void FinalizeMemory();

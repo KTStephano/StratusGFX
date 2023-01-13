@@ -86,9 +86,6 @@ uniform float lightRadii[MAX_LIGHTS];
 uniform bool lightCastsShadows[MAX_LIGHTS];
 uniform samplerCube shadowCubeMaps[MAX_SHADOW_LIGHTS];
 uniform float lightFarPlanes[MAX_SHADOW_LIGHTS];
-// If true then the light will be invisible when the sun is not overhead - 
-// useful for brightening up directly-lit scenes without Static or RT GI
-uniform bool lightBrightensWithSun[MAX_SHADOW_LIGHTS];
 //uniform bool lightIsLightProbe[MAX_HAD]
 // Since max lights is an upper bound, this can
 // tell us how many lights are actually present

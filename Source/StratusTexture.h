@@ -7,7 +7,7 @@
 namespace stratus {    
     class Texture;
     typedef Handle<Texture> TextureHandle;
-    typedef uint64_t GpuTexturePtr;
+    typedef uint64_t GpuResidentTextureHandle;
 
     enum class TextureType : int {
         TEXTURE_2D,
@@ -129,7 +129,7 @@ namespace stratus {
         TextureType type() const;
         TextureComponentFormat format() const;
         TextureHandle handle() const;
-        GpuTexturePtr gpuPtr() const;
+        GpuResidentTextureHandle gpuHandle() const;
         
         // Makes the texture resident in GPU memory for bindless use
         void makeResident();
