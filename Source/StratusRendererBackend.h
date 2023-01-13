@@ -173,9 +173,12 @@ namespace stratus {
         };
 
         struct VirtualPointLightData {
-            GpuBuffer virtualPointLightCache;
-            GpuBuffer virtualPointLightVisibleIndices;
-            GpuBuffer virtualPointLightShadowFactors;
+            GpuBuffer vplPositions;
+            GpuBuffer vplColors;
+            GpuBuffer vplFarPlanes;
+            GpuBuffer vplVisibleIndices;
+            GpuBuffer vplShadowFactors;
+            GpuBuffer vplResidentShadowMapHandles;
             int virtualPointLightNumVisible = 0;
         };
 
@@ -435,7 +438,8 @@ namespace stratus {
         void _RenderSsaoBlur();
         glm::vec3 _CalculateAtmosphericLightPosition() const;
         void _RenderAtmosphericShadowing();
-        TextureHandle _GetShadowMapHandleForLight(LightPtr);
+        TextureHandle _GetOrAllocateShadowMapHandleForLight(LightPtr);
+        ShadowMap3D _GetOrAllocateShadowMapForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);
         void _AddLightToShadowMapCache(LightPtr);

@@ -81,7 +81,7 @@ void main() {
     }
 
     // Wait until other threads in the work group have finished
-    barrier();
+    //barrier();
     memoryBarrierShared();
 
     // If we're the first in the local work group, add up all light contributions

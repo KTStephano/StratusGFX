@@ -309,9 +309,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    _state.vpls.virtualPointLightCache = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.virtualPointLightVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.virtualPointLightShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplResidentShadowMapHandles = GpuBuffer(nullptr, sizeof(GpuResidentTextureHandle) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -1169,7 +1172,7 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
         PointLight * point = (PointLight *)light.get();
-        ShadowMap3D & smap = this->_shadowMap3DHandles.find(_GetShadowMapHandleForLight(light))->second;
+        ShadowMap3D smap = _GetOrAllocateShadowMapForLight(light);
 
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.width()) / smap.shadowCubeMap.height(), point->getNearPlane(), point->getFarPlane());
 
@@ -1229,15 +1232,26 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Pack data into system memory
     std::vector<glm::vec4> gpuVpls(perVPLDistToViewer.size());
+    std::vector<GpuResidentTextureHandle> gpuResTexHandles(perVPLDistToViewer.size());
+    std::vector<glm::vec4> gpuLightColors(perVPLDistToViewer.size());
+    std::vector<float> gpuFarPlanes(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
+        PointLight * point = (PointLight *)perVPLDistToViewer[i].first.get();
         gpuVpls[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
+        // We made these resident in GPU memory when the renderer was initialized
+        gpuResTexHandles[i] = _GetOrAllocateShadowMapForLight(perVPLDistToViewer[i].first).shadowCubeMap.gpuHandle();
+        gpuLightColors[i] = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
+        gpuFarPlanes[i] = point->getFarPlane();
     }
 
     // Move data to GPU memory
-    _state.vpls.virtualPointLightCache.CopyDataToBuffer(0, gpuVpls.size() * sizeof(glm::vec4), (const void *)gpuVpls.data());
+    _state.vpls.vplPositions.CopyDataToBuffer(0, gpuVpls.size() * sizeof(glm::vec4), (const void *)gpuVpls.data());
+    _state.vpls.vplResidentShadowMapHandles.CopyDataToBuffer(0, gpuResTexHandles.size() * sizeof(GpuResidentTextureHandle), (const void *)gpuResTexHandles.data());
+    _state.vpls.vplColors.CopyDataToBuffer(0, gpuLightColors.size() * sizeof(glm::vec4), (const void *)gpuLightColors.data());
+    _state.vpls.vplFarPlanes.CopyDataToBuffer(0, gpuFarPlanes.size() * sizeof(float), (const void *)gpuFarPlanes.data());
 
     // Bind positions
-    _state.vpls.virtualPointLightCache.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     // Set up # visible atomic counter
     int numVisible = 0;
@@ -1245,8 +1259,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     vplsVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind shadow factors and visibility indices
-    _state.vpls.virtualPointLightShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    _state.vpls.virtualPointLightVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     _state.vplCulling->bind();
     _InitCoreCSMData(_state.vplCulling.get());
@@ -1255,8 +1269,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplCulling->unbind();
 
     // See how many visible vpls were recorded by the GPU
-    vplsVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&_state.vpls.virtualPointLightNumVisible);
-    std::cout << "Num visible VPLs: " << _state.vpls.virtualPointLightNumVisible << std::endl;
+    //vplsVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&_state.vpls.vplNumVisible);
+    //std::cout << "Num visible VPLs: " << _state.vpls.vplNumVisible << std::endl;
 }
 
 void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
@@ -1620,8 +1634,8 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         if (point->castsShadows()) {
             if (shadowLightIndex >= maxShadowLights) continue;
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
-            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _getShadowMapHandleForLight(light));
-            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetShadowMapHandleForLight(light)));
+            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _GetOrAllocateShadowMapHandleForLight(light));
+            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
             ++shadowLightIndex;
         }
 
@@ -1677,7 +1691,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
 
-TextureHandle RendererBackend::_GetShadowMapHandleForLight(LightPtr light) {
+TextureHandle RendererBackend::_GetOrAllocateShadowMapHandleForLight(LightPtr light) {
     assert(_shadowMap3DHandles.size() > 0);
 
     auto it = _lightsToShadowMap.find(light);
@@ -1707,6 +1721,10 @@ TextureHandle RendererBackend::_GetShadowMapHandleForLight(LightPtr light) {
     // Update the LRU cache
     _AddLightToShadowMapCache(light);
     return it->second;
+}
+
+RendererBackend::ShadowMap3D RendererBackend::_GetOrAllocateShadowMapForLight(LightPtr light) {
+    return this->_shadowMap3DHandles.find(_GetOrAllocateShadowMapHandleForLight(light))->second;
 }
 
 void RendererBackend::_SetLightShadowMapHandle(LightPtr light, TextureHandle handle) {
