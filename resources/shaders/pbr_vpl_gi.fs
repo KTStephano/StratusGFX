@@ -2,9 +2,11 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-
 #include "pbr.glsl"
+
+// Input from vertex shader
+in vec2 fsTexCoords;
+out vec3 color;
 
 // GBuffer information
 uniform sampler2D gPosition;
@@ -19,13 +21,15 @@ uniform sampler2DRect ssao;
 // Camera information
 uniform vec3 viewPosition;
 
+// Shadow information
+uniform samplerCube shadowCubeMaps[128];
+
 // Window information
 uniform int viewportWidth;
 uniform int viewportHeight;
 
 // in/out frame texture
-uniform sampler2D screenInput;
-layout (binding = 0) writeonly uniform image2D screenOutput;
+uniform sampler2D screen;
 
 layout (binding = 21) buffer vplActiveLights {
     int numActiveVPLs;
@@ -34,11 +38,6 @@ layout (binding = 21) buffer vplActiveLights {
 // Active light indices into main buffer
 layout (binding = 22) buffer vplIndices {
     int activeLightIndices[];
-};
-
-// Resident shadow maps
-layout (binding = 23) buffer vplShadowMaps {
-    samplerCube shadowCubeMaps[];
 };
 
 // Shadow factors for infinite light
@@ -61,15 +60,12 @@ layout (std430, binding = 27) buffer vplLightFarPlanes {
     float lightFarPlanes[];
 };
 
-#define MAX_VPLS_PER_SCENE 2048
-shared vec3 vplPerPixelColorValues[MAX_VPLS_PER_SCENE];
-
-void performLightingCalculations(ivec2 pixelCoords, vec2 texCoords) {
-    uint baseLightIndex = gl_LocalInvocationID.z;
+vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
     vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
 
-    for ( ; baseLightIndex < numActiveVPLs; baseLightIndex += gl_WorkGroupSize.z) {
+    vec3 vplColor = vec3(0.0);
+    for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndices[baseLightIndex];
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
@@ -85,26 +81,13 @@ void performLightingCalculations(ivec2 pixelCoords, vec2 texCoords) {
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 
-        vplPerPixelColorValues[lightIndex] = calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPositions[lightIndex].xyz, lightColors[lightIndex].xyz, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPositions[lightIndex].xyz, lightColors[lightIndex].xyz, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
-    // Wait until other threads in the work group have finished
-    //barrier();
-    memoryBarrierShared();
+    return vplColor;
 }
 
 void main() {
-    // If we're the first in the local work group, add up all light contributions
-    for (uint x = gl_GlobalInvocationID.x; x < viewportWidth; x += gl_NumWorkGroups.x) {
-        for (uint y = gl_GlobalInvocationID.y; y < viewportHeight; y += gl_NumWorkGroups.y) {
-            ivec2 pixelCoords = ivec2(x, y);
-            vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
-            vec3 finalLightColor = texture(screenInput, texCoords).rgb;
-            imageStore(screenOutput, pixelCoords, vec4(finalLightColor, 1.0));
-        }
-    }
-
-    if (gl_LocalInvocationID.z == 0) {
-
-    }
+    color = texture(screen, fsTexCoords).rgb;
+    color = boundHDR(color + performLightingCalculations(fsTexCoords * vec2(viewportWidth, viewportHeight), fsTexCoords));
 }

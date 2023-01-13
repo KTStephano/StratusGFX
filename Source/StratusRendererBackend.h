@@ -178,16 +178,17 @@ namespace stratus {
             GpuBuffer vplFarPlanes;
             GpuBuffer vplVisibleIndices;
             GpuBuffer vplShadowFactors;
-            GpuBuffer vplResidentShadowMapHandles;
             GpuBuffer vplNumVisible;
+            FrameBuffer vplGIFbo;
+            Texture vplGIColorBuffer;
         };
 
         struct RenderState {
-            int numShadowMaps = 256;
+            int numShadowMaps = 384;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLightsPerFrame = 256; // active in a frame
-            int maxTotalVirtualPointLights = 2048;
+            int maxTotalVirtualPointLightsPerFrame = 128;
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;
@@ -430,7 +431,7 @@ namespace stratus {
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
-        void _ComputeVirtualPointLightGlobalIllumination();
+        void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();

@@ -20,7 +20,7 @@ namespace stratus {
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
-        std::cout << "[OpenGL] " << message << std::endl;
+       //std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -278,7 +278,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _state.shaders.push_back(_state.vplCulling.get());
 
     _state.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"pbr_vpl_gi.cs", ShaderType::COMPUTE}}));
+        Shader{"pbr_vpl_gi.vs", ShaderType::VERTEX},
+        Shader{"pbr_vpl_gi.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
     // Create skybox cube
@@ -309,12 +310,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.vplVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.vplShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.vplResidentShadowMapHandles = GpuBuffer(nullptr, sizeof(GpuResidentTextureHandle) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
-    _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -476,6 +476,16 @@ void RendererBackend::_UpdateWindowDimensions() {
         return;
     }
 
+    // Code to create the Virtual Point Light Global Illumination fbo
+    _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.vpls.vplGIColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.vpls.vplGIFbo = FrameBuffer({_state.vpls.vplGIColorBuffer});
+    if (!_state.vpls.vplGIFbo.valid()) {
+        _isValid = false;
+        return;
+    }
+
     // Code to create the Atmospheric fbo
     _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth / 2, _frame->viewportHeight / 2, 0, false}, NoTextureData);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
@@ -571,6 +581,7 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         _state.ssaoOcclusionBlurredBuffer.clear(color);
         _state.atmosphericFbo.clear(glm::vec4(0.0f));
         _state.lightingFbo.clear(color);
+        _state.vpls.vplGIFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
@@ -1227,8 +1238,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
 
     // Check if we have too many lights for a single frame
-    if (perVPLDistToViewer.size() > _state.maxTotalVirtualPointLights) {
-        perVPLDistToViewer.resize(_state.maxTotalVirtualPointLights);
+    if (perVPLDistToViewer.size() > _state.maxTotalVirtualPointLightsPerFrame) {
+        perVPLDistToViewer.resize(_state.maxTotalVirtualPointLightsPerFrame);
     }
 
     // Pack data into system memory
@@ -1247,7 +1258,6 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Move data to GPU memory
     _state.vpls.vplPositions.CopyDataToBuffer(0, gpuVpls.size() * sizeof(glm::vec4), (const void *)gpuVpls.data());
-    _state.vpls.vplResidentShadowMapHandles.CopyDataToBuffer(0, gpuResTexHandles.size() * sizeof(GpuResidentTextureHandle), (const void *)gpuResTexHandles.data());
     _state.vpls.vplColors.CopyDataToBuffer(0, gpuLightColors.size() * sizeof(glm::vec4), (const void *)gpuLightColors.data());
     _state.vpls.vplFarPlanes.CopyDataToBuffer(0, gpuFarPlanes.size() * sizeof(float), (const void *)gpuFarPlanes.data());
 
@@ -1269,24 +1279,28 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplCulling->synchronizeCompute();
     _state.vplCulling->unbind();
 
+    _state.vpls.vplNumVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&numVisible);
+    std::cout << "Num Visible VPLs: " << numVisible << std::endl;
+
     // See how many visible vpls were recorded by the GPU
     //vplsVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&_state.vpls.vplNumVisible);
     //std::cout << "Num visible VPLs: " << _state.vpls.vplNumVisible << std::endl;
 }
 
-void RendererBackend::_ComputeVirtualPointLightGlobalIllumination() {
-    _state.vplGlobalIllumination->bind();
+void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    glDisable(GL_DEPTH_TEST);
+    _state.vpls.vplGIFbo.bind();
+    _BindShader(_state.vplGlobalIllumination.get());
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 21);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 22);
-    _state.vpls.vplResidentShadowMapHandles.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 23);
     _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 24);
     _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 25);
     _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 26);
     _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 27);
 
-    _state.vplGlobalIllumination->bindTexture("screenInput", _state.lightingColorBuffer);
+    _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
     _state.vplGlobalIllumination->bindTexture("gNormal", _state.buffer.normals);
     _state.vplGlobalIllumination->bindTexture("gAlbedo", _state.buffer.albedo);
@@ -1299,11 +1313,17 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination() {
     _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("viewportHeight", _frame->viewportHeight);
 
-    _state.lightingColorBuffer.bindAsImageTexture(0, false, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+    // Set up the shadow maps
+    for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
+        LightPtr light = perVPLDistToViewer[i].first;
+        _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+    }
 
-    _state.vplGlobalIllumination->dispatchCompute(_frame->viewportWidth / 4, _frame->viewportHeight / 4, 1);
-    _state.vplGlobalIllumination->synchronizeCompute();
-    _state.vplGlobalIllumination->unbind();
+    _RenderQuad();
+    
+    _state.vpls.vplGIFbo.unbind();
+    _state.lightingFbo.copyFrom(_state.vpls.vplGIFbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
+    _UnbindShader();
 }
 
 void RendererBackend::RenderScene() {
@@ -1381,7 +1401,7 @@ void RendererBackend::RenderScene() {
 
     // If world light is enabled perform VPL Global Illumination pass
     if (_frame->csc.worldLight->getEnabled()) {
-        //_ComputeVirtualPointLightGlobalIllumination();
+        _ComputeVirtualPointLightGlobalIllumination(perVPLDistToViewer);
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
@@ -1603,7 +1623,7 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     // These will be resident in GPU memory for the entire life cycle of the renderer
-    smap.shadowCubeMap.makeResident();
+    //smap.shadowCubeMap.makeResident();
     return handle;
 }
 

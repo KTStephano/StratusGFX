@@ -77,7 +77,7 @@ namespace stratus {
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateMipmap(_convertTexture(_config.type));
-            _ptr = glGetTextureHandleARB(_texture);
+            //_ptr = glGetTextureHandleARB(_texture);
             unbind();
         }
 
@@ -160,8 +160,9 @@ namespace stratus {
         TextureHandle handle() const           { return _handle; }
         GpuResidentTextureHandle gpuHandle() const { return _ptr; }
 
-        void makeResident()                    { glMakeTextureHandleResidentARB((GLuint64)_ptr); }
-        void makeNonResident()                 { glMakeTextureHandleNonResidentARB((GLuint64)_ptr); }
+        // These cause RenderDoc to disable frame capture... super unfortunate
+        void makeResident()                    { throw std::runtime_error("Not implemented"); }// glMakeTextureHandleResidentARB((GLuint64)_ptr); }
+        void makeNonResident()                 { throw std::runtime_error("Not implemented"); }// ((GLuint64)_ptr); }
 
         uint32_t width() const                 { return _config.width; }
         uint32_t height() const                { return _config.height; }
