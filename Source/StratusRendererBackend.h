@@ -179,7 +179,7 @@ namespace stratus {
             GpuBuffer vplVisibleIndices;
             GpuBuffer vplShadowFactors;
             GpuBuffer vplResidentShadowMapHandles;
-            int virtualPointLightNumVisible = 0;
+            GpuBuffer vplNumVisible;
         };
 
         struct RenderState {

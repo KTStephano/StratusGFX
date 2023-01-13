@@ -176,6 +176,17 @@ namespace stratus {
             _activeTexture = activeTexture;
         }
 
+        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+            GLenum accessMode = _convertImageAccessMode(access);
+            glBindImageTexture(unit, 
+                               _texture, 
+                               0, 
+                               layered ? GL_TRUE : GL_FALSE,
+                               layer,
+                               accessMode,
+                               _convertInternalFormat(_config.format, _config.storage, _config.dataType));
+        }
+
         void unbind() const {
             if (_activeTexture == -1) return;
             glActiveTexture(GL_TEXTURE0 + _activeTexture);
@@ -192,6 +203,15 @@ namespace stratus {
         }
 
     private:
+        static GLenum _convertImageAccessMode(ImageTextureAccessMode access) {
+            switch (access) {
+                case ImageTextureAccessMode::IMAGE_READ_ONLY: return GL_READ_ONLY;
+                case ImageTextureAccessMode::IMAGE_WRITE_ONLY: return GL_WRITE_ONLY;
+                case ImageTextureAccessMode::IMAGE_READ_WRITE: return GL_READ_WRITE;
+                default: throw std::runtime_error("Unknown image access mode");
+            }
+        }
+
         static GLenum _convertTexture(TextureType type) {
             switch (type) {
             case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
@@ -439,6 +459,9 @@ namespace stratus {
     uint32_t Texture::depth() const { return _impl->depth(); }
 
     void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
+    void Texture::bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+        _impl->bindAsImageTexture(unit, layered, layer, access);
+    }
     void Texture::unbind() const { _impl->unbind(); }
     bool Texture::valid() const { return _impl != nullptr; }
 

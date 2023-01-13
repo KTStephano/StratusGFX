@@ -85,6 +85,12 @@ namespace stratus {
         NOTEQUAL
     };
 
+    enum class ImageTextureAccessMode : int {
+        IMAGE_READ_ONLY,
+        IMAGE_WRITE_ONLY,
+        IMAGE_READ_WRITE
+    };
+
     struct TextureConfig {
         TextureType type;
         TextureComponentFormat format;
@@ -142,6 +148,8 @@ namespace stratus {
 
         void bind(int activeTexture = 0) const;
         void unbind() const;
+
+        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
 
         bool valid() const;
 

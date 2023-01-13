@@ -6,8 +6,6 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 64) in;
 
 #include "pbr.glsl"
 
-uniform int numActiveVPLs;
-
 // GBuffer information
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
@@ -22,7 +20,16 @@ uniform sampler2DRect ssao;
 uniform vec3 viewPosition;
 
 // in/out frame texture
-layout (rgba16f) uniform image2D screen;
+layout (binding = 0, rgba16f) uniform image2D screen;
+
+layout (binding = 21) buffer vplActiveLights {
+    int numActiveVPLs;
+};
+
+// Active light indices into main buffer
+layout (binding = 22) buffer vplIndices {
+    int activeLightIndices[];
+};
 
 // Resident shadow maps
 layout (binding = 23) buffer vplShadowMaps {
@@ -61,9 +68,11 @@ void main() {
     vec3 viewDir = normalize(viewPosition - fragPos);
     // gl_NumWorkGroups.xy contains the screen width/height but
     // gl_NumWorkGroups.z contains one invocation per light
-    uint lightIndex = int(gl_LocalInvocationID.z);
+    uint baseLightIndex = gl_LocalInvocationID.z;
 
-    for ( ; lightIndex < numActiveVPLs; lightIndex += gl_WorkGroupSize.z) {
+    for ( ; baseLightIndex < numActiveVPLs; baseLightIndex += gl_WorkGroupSize.z) {
+        // Calculate true light index via lookup into active light table
+        int lightIndex = activeLightIndices[baseLightIndex];
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
         vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
         float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;

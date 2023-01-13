@@ -315,6 +315,7 @@ void RendererBackend::_InitializeVplData() {
     _state.vpls.vplResidentShadowMapHandles = GpuBuffer(nullptr, sizeof(GpuResidentTextureHandle) * _state.maxTotalVirtualPointLights, flags);
     _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.maxTotalVirtualPointLights, flags);
     _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.maxTotalVirtualPointLights, flags);
+    _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
 void RendererBackend::_ValidateAllShaders() {
@@ -1255,8 +1256,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Set up # visible atomic counter
     int numVisible = 0;
-    GpuBuffer vplsVisible((const void *)&numVisible, sizeof(int));
-    vplsVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    _state.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
+    _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind shadow factors and visibility indices
     _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
@@ -1274,7 +1275,27 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 }
 
 void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
-    
+    // All relevant rendering data is moved to the GPU during the light cull phase
+    _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 21);
+    _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 22);
+    _state.vpls.vplResidentShadowMapHandles.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 23);
+    _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 24);
+    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 25);
+    _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 26);
+    _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 27);
+
+    _state.vplGlobalIllumination->bind();
+    _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
+    _state.vplGlobalIllumination->bindTexture("gNormal", _state.buffer.normals);
+    _state.vplGlobalIllumination->bindTexture("gAlbedo", _state.buffer.albedo);
+    _state.vplGlobalIllumination->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
+    _state.vplGlobalIllumination->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
+    _state.vplGlobalIllumination->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
+
+    Camera* camera = _frame->camera.get();
+    _state.vplGlobalIllumination->setVec3("viewPosition", &camera->getPosition()[0]);
+
+    _state.lightingColorBuffer.bindAsImageTexture(0, false, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
 }
 
 void RendererBackend::RenderScene() {
