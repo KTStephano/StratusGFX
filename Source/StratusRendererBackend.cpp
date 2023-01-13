@@ -20,7 +20,7 @@ namespace stratus {
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
-       //std::cout << "[OpenGL] " << message << std::endl;
+       std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -1279,12 +1279,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplCulling->synchronizeCompute();
     _state.vplCulling->unbind();
 
-    _state.vpls.vplNumVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&numVisible);
-    std::cout << "Num Visible VPLs: " << numVisible << std::endl;
-
-    // See how many visible vpls were recorded by the GPU
-    //vplsVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&_state.vpls.vplNumVisible);
-    //std::cout << "Num visible VPLs: " << _state.vpls.vplNumVisible << std::endl;
+    //_state.vpls.vplNumVisible.CopyDataFromBufferToSysMem(0, sizeof(int), (void *)&numVisible);
+    //std::cout << "Num Visible VPLs: " << numVisible << std::endl;
 }
 
 void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
@@ -1313,10 +1309,12 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("viewportHeight", _frame->viewportHeight);
 
-    // Set up the shadow maps
+    // Set up the shadow maps and radius information
     for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
         LightPtr light = perVPLDistToViewer[i].first;
+        PointLight * point = (PointLight *)light.get();
         _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+        _state.vplGlobalIllumination->setFloat("lightRadii[" + std::to_string(i) + "]", point->getRadius());
     }
 
     _RenderQuad();
@@ -1343,7 +1341,7 @@ void RendererBackend::RenderScene() {
     if (_frame->csc.worldLight->getEnabled()) {
         _RenderCSMDepth();
         // Handle VPLs for global illumination
-        _PerformVirtualPointLightCulling(perVPLDistToViewer);
+        if (_frame->globalIlluminationEnabled) _PerformVirtualPointLightCulling(perVPLDistToViewer);
     }
 
     // TEMP: Set up the light source
@@ -1400,7 +1398,7 @@ void RendererBackend::RenderScene() {
     _state.finalScreenTexture = _state.lightingColorBuffer;
 
     // If world light is enabled perform VPL Global Illumination pass
-    if (_frame->csc.worldLight->getEnabled()) {
+    if (_frame->csc.worldLight->getEnabled() && _frame->globalIlluminationEnabled) {
         _ComputeVirtualPointLightGlobalIllumination(perVPLDistToViewer);
     }
 

@@ -21,8 +21,10 @@ uniform sampler2DRect ssao;
 // Camera information
 uniform vec3 viewPosition;
 
-// Shadow information
-uniform samplerCube shadowCubeMaps[128];
+// Shadow and radius information
+#define MAX_LIGHTS 128
+uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
+uniform float lightRadii[MAX_LIGHTS];
 
 // Window information
 uniform int viewportWidth;
@@ -68,6 +70,10 @@ vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndices[baseLightIndex];
+        vec3 lightPosition = lightPositions[lightIndex].xyz;
+        float distance = length(lightPosition - fragPos);
+        //if(distance > lightRadii[baseLightIndex]) continue;
+
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
         vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
         float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
@@ -77,11 +83,11 @@ vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
         float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
         vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPositions[lightIndex].xyz, dot(lightPositions[lightIndex].xyz - fragPos, normal), 27);
+        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), 9);
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 
-        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPositions[lightIndex].xyz, lightColors[lightIndex].xyz, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColors[lightIndex].xyz, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
     return vplColor;

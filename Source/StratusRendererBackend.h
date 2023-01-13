@@ -106,6 +106,7 @@ namespace stratus {
         glm::vec4 clearColor;
         bool viewportDirty;
         bool vsyncEnabled;
+        bool globalIlluminationEnabled = true;
     };
 
     /**

@@ -329,6 +329,13 @@ public:
                             }
                             break;
                         }
+                        case SDL_SCANCODE_G: {
+                            if (released) {
+                                const bool enabled = World()->GetGlobalIlluminationEnabled();
+                                World()->SetGlobalIlluminationEnabled( !enabled );
+                            }
+                            break;
+                        }
                         case SDL_SCANCODE_C: {
                             for (auto& light : lightMovers) {
                                 light->removeFromScene();

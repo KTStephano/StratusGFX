@@ -38,7 +38,7 @@ float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 frag
     float iterationsPerLoop = pow(numSamples, 1.0 / 3.0);
     float shadow = 0.0;
     float totalSamples = 0.0;//PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
-    if (iterationsPerLoop > 2) {
+    if (iterationsPerLoop > 1) {
         float offset = 0.2;
         float increment = (2 * offset) / (iterationsPerLoop - 1);
         for (float x = -offset, i = 0; i < iterationsPerLoop; i += 1, x += increment) {

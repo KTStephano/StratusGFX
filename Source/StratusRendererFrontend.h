@@ -62,6 +62,9 @@ namespace stratus {
         void SetClearColor(const glm::vec4&);
         void SetSkybox(const TextureHandle&);
 
+        void SetGlobalIlluminationEnabled(const bool);
+        bool GetGlobalIlluminationEnabled() const;
+
         // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
         void SetAtmosphericShadowing(float fogDensity, float scatterControl);
         float GetAtmosphericFogDensity() const;

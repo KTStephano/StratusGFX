@@ -209,6 +209,16 @@ namespace stratus {
         return _frame->atmospheric.scatterControl;
     }
 
+    void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
+        auto ul = _LockWrite();
+        _frame->globalIlluminationEnabled = enabled;
+    }
+
+    bool RendererFrontend::GetGlobalIlluminationEnabled() const {
+        auto sl = _LockRead();
+        return _frame->globalIlluminationEnabled;
+    }
+
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
