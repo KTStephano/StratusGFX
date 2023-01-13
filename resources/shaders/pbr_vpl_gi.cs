@@ -2,7 +2,7 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 64) in;
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 #include "pbr.glsl"
 
@@ -19,8 +19,13 @@ uniform sampler2DRect ssao;
 // Camera information
 uniform vec3 viewPosition;
 
+// Window information
+uniform int viewportWidth;
+uniform int viewportHeight;
+
 // in/out frame texture
-layout (binding = 0, rgba16f) uniform image2D screen;
+uniform sampler2D screenInput;
+layout (binding = 0) writeonly uniform image2D screenOutput;
 
 layout (binding = 21) buffer vplActiveLights {
     int numActiveVPLs;
@@ -59,16 +64,10 @@ layout (std430, binding = 27) buffer vplLightFarPlanes {
 #define MAX_VPLS_PER_SCENE 2048
 shared vec3 vplPerPixelColorValues[MAX_VPLS_PER_SCENE];
 
-void main() {
-    ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
-    // We set all the local sizes to 1 so gl_NumWorkGroups.xy contains
-    // screen width/height
-    vec2 texCoords = vec2(pixelCoords) / vec2(gl_NumWorkGroups.xy);
+void performLightingCalculations(ivec2 pixelCoords, vec2 texCoords) {
+    uint baseLightIndex = gl_LocalInvocationID.z;
     vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
-    // gl_NumWorkGroups.xy contains the screen width/height but
-    // gl_NumWorkGroups.z contains one invocation per light
-    uint baseLightIndex = gl_LocalInvocationID.z;
 
     for ( ; baseLightIndex < numActiveVPLs; baseLightIndex += gl_WorkGroupSize.z) {
         // Calculate true light index via lookup into active light table
@@ -92,14 +91,20 @@ void main() {
     // Wait until other threads in the work group have finished
     //barrier();
     memoryBarrierShared();
+}
 
+void main() {
     // If we're the first in the local work group, add up all light contributions
-    if (gl_LocalInvocationID.z == 0) {
-        vec3 finalLightColor = imageLoad(screen, pixelCoords).xyz;
-        for (int i = 0; i < numActiveVPLs; ++i) {
-            finalLightColor = boundHDR(finalLightColor + vplPerPixelColorValues[i]);
+    for (uint x = gl_GlobalInvocationID.x; x < viewportWidth; x += gl_NumWorkGroups.x) {
+        for (uint y = gl_GlobalInvocationID.y; y < viewportHeight; y += gl_NumWorkGroups.y) {
+            ivec2 pixelCoords = ivec2(x, y);
+            vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
+            vec3 finalLightColor = texture(screenInput, texCoords).rgb;
+            imageStore(screenOutput, pixelCoords, vec4(finalLightColor, 1.0));
         }
+    }
 
-        imageStore(screen, pixelCoords, vec4(finalLightColor, 1.0));
+    if (gl_LocalInvocationID.z == 0) {
+
     }
 }

@@ -430,7 +430,7 @@ namespace stratus {
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
-        void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
+        void _ComputeVirtualPointLightGlobalIllumination();
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();

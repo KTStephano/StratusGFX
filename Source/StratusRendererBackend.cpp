@@ -1274,7 +1274,9 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     //std::cout << "Num visible VPLs: " << _state.vpls.vplNumVisible << std::endl;
 }
 
-void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+void RendererBackend::_ComputeVirtualPointLightGlobalIllumination() {
+    _state.vplGlobalIllumination->bind();
+
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 21);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 22);
@@ -1284,7 +1286,7 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 26);
     _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 27);
 
-    _state.vplGlobalIllumination->bind();
+    _state.vplGlobalIllumination->bindTexture("screenInput", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
     _state.vplGlobalIllumination->bindTexture("gNormal", _state.buffer.normals);
     _state.vplGlobalIllumination->bindTexture("gAlbedo", _state.buffer.albedo);
@@ -1294,8 +1296,14 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
 
     Camera* camera = _frame->camera.get();
     _state.vplGlobalIllumination->setVec3("viewPosition", &camera->getPosition()[0]);
+    _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
+    _state.vplGlobalIllumination->setInt("viewportHeight", _frame->viewportHeight);
 
-    _state.lightingColorBuffer.bindAsImageTexture(0, false, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    _state.lightingColorBuffer.bindAsImageTexture(0, false, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+
+    _state.vplGlobalIllumination->dispatchCompute(_frame->viewportWidth / 4, _frame->viewportHeight / 4, 1);
+    _state.vplGlobalIllumination->synchronizeCompute();
+    _state.vplGlobalIllumination->unbind();
 }
 
 void RendererBackend::RenderScene() {
@@ -1370,6 +1378,11 @@ void RendererBackend::RenderScene() {
     _state.lightingFbo.unbind();
     _UnbindShader();
     _state.finalScreenTexture = _state.lightingColorBuffer;
+
+    // If world light is enabled perform VPL Global Illumination pass
+    if (_frame->csc.worldLight->getEnabled()) {
+        //_ComputeVirtualPointLightGlobalIllumination();
+    }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
     _state.lightingFbo.copyFrom(_state.buffer.fbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
