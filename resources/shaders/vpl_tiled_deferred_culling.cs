@@ -65,11 +65,11 @@ void main() {
     // Wait for the rest
     barrier();
 
-    // For example, 1920x1080 would result in 12x12 tiles
+    // For example, 1920x1080 would result in 120x120 tiles
     uvec2 numTiles = gl_NumWorkGroups.xy;
-    uvec2 pixelCoords = gl_GlobalInvocationID.xy;
-    vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
     uvec2 tileCoords = gl_WorkGroupID.xy;
+    uvec2 pixelCoords = tileCoords * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy;
+    vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
     int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
     vec3 fragPos = texture(gPosition, texCoords).rgb;
 
