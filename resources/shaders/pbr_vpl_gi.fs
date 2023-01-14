@@ -72,7 +72,7 @@ vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
         int lightIndex = activeLightIndices[baseLightIndex];
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
-        //if(distance > lightRadii[baseLightIndex]) continue;
+        if(distance > lightRadii[baseLightIndex]) continue;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
         vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));

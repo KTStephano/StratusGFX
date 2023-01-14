@@ -20,7 +20,7 @@ namespace stratus {
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
-       std::cout << "[OpenGL] " << message << std::endl;
+       //std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -1244,14 +1244,11 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Pack data into system memory
     std::vector<glm::vec4> gpuVpls(perVPLDistToViewer.size());
-    std::vector<GpuResidentTextureHandle> gpuResTexHandles(perVPLDistToViewer.size());
     std::vector<glm::vec4> gpuLightColors(perVPLDistToViewer.size());
     std::vector<float> gpuFarPlanes(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         PointLight * point = (PointLight *)perVPLDistToViewer[i].first.get();
         gpuVpls[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
-        // We made these resident in GPU memory when the renderer was initialized
-        gpuResTexHandles[i] = _GetOrAllocateShadowMapForLight(perVPLDistToViewer[i].first).shadowCubeMap.gpuHandle();
         gpuLightColors[i] = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
         gpuFarPlanes[i] = point->getFarPlane();
     }
@@ -1284,9 +1281,20 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 }
 
 void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    if (perVPLDistToViewer.size() == 0) return;
+
     glDisable(GL_DEPTH_TEST);
     _state.vpls.vplGIFbo.bind();
     _BindShader(_state.vplGlobalIllumination.get());
+
+    // Set up the shadow maps and radius information
+    for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
+        int lightIndex = i;
+        LightPtr light = perVPLDistToViewer[lightIndex].first;
+        PointLight * point = (PointLight *)light.get();
+        _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+        _state.vplGlobalIllumination->setFloat("lightRadii[" + std::to_string(i) + "]", point->getRadius());
+    }
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 21);
@@ -1308,14 +1316,6 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->setVec3("viewPosition", &camera->getPosition()[0]);
     _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("viewportHeight", _frame->viewportHeight);
-
-    // Set up the shadow maps and radius information
-    for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
-        LightPtr light = perVPLDistToViewer[i].first;
-        PointLight * point = (PointLight *)light.get();
-        _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
-        _state.vplGlobalIllumination->setFloat("lightRadii[" + std::to_string(i) + "]", point->getRadius());
-    }
 
     _RenderQuad();
     
