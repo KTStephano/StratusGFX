@@ -75,7 +75,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
         if (distance > lightRadii[baseLightIndex]) continue;
-        if (length(vplColor) > (length(infiniteLightColor) / 100)) break;
+        //if (length(vplColor) > (length(infiniteLightColor) / 25)) break;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
         vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
@@ -86,7 +86,11 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
         vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), 2);
+        int numSamples = 2;
+        float distToCamera = length(lightPosition - viewPosition);
+        if (distToCamera < 100) numSamples = 6;
+
+        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 
