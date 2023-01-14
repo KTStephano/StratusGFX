@@ -83,7 +83,7 @@ vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
         float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
         vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), 6);
+        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), 2);
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 

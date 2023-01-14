@@ -57,6 +57,9 @@ float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 frag
             }
         }
     }
+    else {
+        shadow = texture(shadowMap, fragDir).r;
+    }
 
     //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
     //bias = clamp(bias, 0, 0.01);
