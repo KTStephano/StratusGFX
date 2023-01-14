@@ -77,7 +77,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
     // numActiveVPLsPerTile only has one int per entry
     int numActiveVPLs = numActiveVPLsPerTile[tileCoords.x + tileCoords.y * numTiles.x];
-    if (numActiveVPLs > 64) return screenColor;
+    if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
 
     vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
@@ -89,7 +89,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[lightIndex]) continue;
+        if (distance > lightRadii[lightIndex] / 2.0) continue;
         //if (length(vplColor) > (length(infiniteLightColor) / 25)) break;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
@@ -101,7 +101,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
         vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-        int numSamples = 3;
+        int numSamples = 2;
         float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);

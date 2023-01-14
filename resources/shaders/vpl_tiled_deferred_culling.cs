@@ -64,7 +64,6 @@ void main() {
 
     // Wait for the rest
     barrier();
-    memoryBarrierShared();
 
     // For example, 1920x1080 would result in 12x12 tiles
     uvec2 numTiles = gl_NumWorkGroups.xy;
@@ -77,13 +76,12 @@ void main() {
     for (int i = 0; i < numVisible; ++i) {
         int lightIndex = vplVisibleIndex[i];
         float distance = length(lightPositions[lightIndex].xyz - fragPos);
-        if (distance > lightRadii[lightIndex]) continue;
+        if (distance > lightRadii[lightIndex] / 2.0) continue;
         activeLightBitmask[lightIndex] = 1;
     }
 
     // Wait for work group to finish
     barrier();
-    memoryBarrierShared();
 
     // If we're the first in the work group update num visible
     if (gl_LocalInvocationIndex == 0) {

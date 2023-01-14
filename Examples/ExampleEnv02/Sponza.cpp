@@ -171,6 +171,8 @@ public:
         float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
         float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
 
+        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
+
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
         // Check for key/mouse events
@@ -284,7 +286,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
-                                const auto worldLightColor = worldLight->getColor();
+                                const auto worldLightColor = warmMorningColor;
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
@@ -296,7 +298,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
-                                const auto worldLightColor = worldLight->getColor();
+                                const auto worldLightColor = warmMorningColor;
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
@@ -384,7 +386,7 @@ public:
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
         const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
-        worldLight->setColor(LERP(x, glm::vec3(1.0f), glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f)));
+        worldLight->setColor(LERP(x, glm::vec3(1.0f), warmMorningColor));
         worldLight->setPosition(camera->getPosition());
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
