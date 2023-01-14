@@ -21,10 +21,9 @@ uniform sampler2DRect ssao;
 // Camera information
 uniform vec3 viewPosition;
 
-// Shadow and radius information
+// Shadow information
 #define MAX_LIGHTS 128
 uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
-uniform float lightRadii[MAX_LIGHTS];
 uniform vec3 infiniteLightColor;
 
 // Window information
@@ -34,33 +33,38 @@ uniform int viewportHeight;
 // in/out frame texture
 uniform sampler2D screen;
 
-layout (binding = 21) buffer vplActiveLights {
+layout (binding = 21) readonly buffer vplActiveLights {
     int numActiveVPLs;
 };
 
 // Active light indices into main buffer
-layout (binding = 22) buffer vplIndices {
+layout (binding = 22) readonly buffer vplIndices {
     int activeLightIndices[];
 };
 
 // Shadow factors for infinite light
-layout (std430, binding = 24) buffer vplShadowFactors {
+layout (std430, binding = 24) readonly buffer vplShadowFactors {
     float shadowFactors[];
 };
 
 // Light positions
-layout (std430, binding = 25) buffer vplPositions {
+layout (std430, binding = 25) readonly buffer vplPositions {
     vec4 lightPositions[];
 };
 
 // Light colors
-layout (std430, binding = 26) buffer vplColors {
+layout (std430, binding = 26) readonly buffer vplColors {
     vec4 lightColors[];
 };
 
 // Light far planes
-layout (std430, binding = 27) buffer vplLightFarPlanes {
+layout (std430, binding = 27) readonly buffer vplLightFarPlanes {
     float lightFarPlanes[];
+};
+
+// Light radii
+layout (std430, binding = 28) readonly buffer vplLightRadii {
+    float lightRadii[];
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
@@ -74,7 +78,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[baseLightIndex]) continue;
+        if (distance > lightRadii[lightIndex]) continue;
         //if (length(vplColor) > (length(infiniteLightColor) / 25)) break;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;

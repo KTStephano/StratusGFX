@@ -174,7 +174,12 @@ namespace stratus {
         };
 
         struct VirtualPointLightData {
+            int maxTotalVirtualPointLightsPerFrame = 128;
+            int maxTotalVirtualLightsPerTile = maxTotalVirtualPointLightsPerFrame;
+            GpuBuffer vplLightIndicesVisiblePerTile;
+            GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;
+            GpuBuffer vplLightRadii;
             GpuBuffer vplColors;
             GpuBuffer vplFarPlanes;
             GpuBuffer vplVisibleIndices;
@@ -185,11 +190,10 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 384;
+            int numShadowMaps = 256;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLightsPerFrame = 256; // active in a frame
-            int maxTotalVirtualPointLightsPerFrame = 128;
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;
@@ -255,6 +259,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;
+            std::unique_ptr<Pipeline> vplTileDeferredCulling;
             // Handles cascading shadow map depth buffer rendering
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
