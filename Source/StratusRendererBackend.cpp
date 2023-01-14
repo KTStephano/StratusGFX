@@ -1318,13 +1318,12 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // int * v = (int *)_state.vpls.vplNumLightsVisiblePerTile.MapMemory();
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
-    // std::cout << "Total visible: " << *tv << std::endl;
+    // int m = 0;
+    // std::cout << "Total Visible: " << *tv << std::endl;
     // for (int i = 0; i < 120 * 120; ++i) {
-    //     if (v[i] != 0) {
-    //         std::cout << "Found one: " << v[i] << std::endl;
-    //         break;
-    //     }
+    //     m = std::max(m, v[i]);
     // }
+    // std::cout << "M VPL: " << m << std::endl;
     // _state.vpls.vplNumLightsVisiblePerTile.UnmapMemory();
     // _state.vpls.vplNumVisible.UnmapMemory();
 

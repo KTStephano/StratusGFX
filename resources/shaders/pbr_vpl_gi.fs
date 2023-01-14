@@ -89,7 +89,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[lightIndex] / 2.0) continue;
+        if (distance > lightRadii[lightIndex]) continue;
         //if (length(vplColor) > (length(infiniteLightColor) / 25)) break;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;

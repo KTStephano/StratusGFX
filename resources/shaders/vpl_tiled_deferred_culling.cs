@@ -76,7 +76,8 @@ void main() {
     for (int i = 0; i < numVisible; ++i) {
         int lightIndex = vplVisibleIndex[i];
         float distance = length(lightPositions[lightIndex].xyz - fragPos);
-        if (distance > lightRadii[lightIndex] / 2.0) continue;
+        float radius = lightRadii[lightIndex];
+        if (distance > radius) continue;
         activeLightBitmask[lightIndex] = 1;
     }
 
