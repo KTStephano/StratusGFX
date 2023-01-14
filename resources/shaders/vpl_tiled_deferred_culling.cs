@@ -11,6 +11,8 @@ STRATUS_GLSL_VERSION
 // 16:9 aspect ratio
 layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 
+#include "vpl_tiled_deferred_culling.glsl"
+
 // GBuffer information
 uniform sampler2D gPosition;
 
@@ -41,44 +43,61 @@ layout (std430, binding = 4) readonly buffer radiusInformation {
 
 uniform int viewportWidth;
 uniform int viewportHeight;
-uniform int maxLightsPerTile = 128;
 
 layout (std430, binding = 5) writeonly buffer outputBlock1 {
     int vplIndicesVisiblePerTile[];
 };
 
-layout (std430, binding = 5) writeonly buffer outputBlock2 {
+layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
 };
 
-shared int nextLightIndex = 0;
+shared int activeLightBitmask[MAX_TOTAL_VPLS_PER_FRAME];
 
 void main() {
-    // For example, 1920x1080 would result in 120x120 tiles
+    // If we're the first in the work group initialize the bitmask
+    if (gl_LocalInvocationIndex == 0) {
+        for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
+           activeLightBitmask[i] = 0;
+        }
+    }
+
+    // Wait for the rest
+    barrier();
+    memoryBarrierShared();
+
+    // For example, 1920x1080 would result in 12x12 tiles
     uvec2 numTiles = gl_NumWorkGroups.xy;
     uvec2 pixelCoords = gl_GlobalInvocationID.xy;
     vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
-    uvec2 tileCoords = uvec2(ceil(texCoords * vec2(numTiles)));
-    int baseTileIndex = int(tileCoords.x * maxLightsPerTile + tileCoords.y * numTiles.x * maxLightsPerTile);
+    uvec2 tileCoords = gl_WorkGroupID.xy;
+    int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
     vec3 fragPos = texture(gPosition, texCoords).rgb;
 
     for (int i = 0; i < numVisible; ++i) {
         int lightIndex = vplVisibleIndex[i];
         float distance = length(lightPositions[lightIndex].xyz - fragPos);
         if (distance > lightRadii[lightIndex]) continue;
-        int next = atomicAdd(nextLightIndex, 1);
-        if (next >= maxLightsPerTile) {
-            atomicAdd(nextLightIndex, -1);
-            break;
-        }
-        vplIndicesVisiblePerTile[baseTileIndex + next] = lightIndex;
+        activeLightBitmask[lightIndex] = 1;
     }
 
     // Wait for work group to finish
     barrier();
+    memoryBarrierShared();
 
-    // If we're the very first in the work group update num visible
-    if (gl_LocalInvocationID.x == 0 && gl_LocalInvocationID.y == 0) {
-        vplNumVisiblePerTile[baseTileIndex] = nextLightIndex;
+    // If we're the first in the work group update num visible
+    if (gl_LocalInvocationIndex == 0) {
+        int numVisible = 0;
+        int next = 0;
+        for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
+            int bitmaskVal = activeLightBitmask[i];
+            numVisible += bitmaskVal;
+            if (bitmaskVal > 0) {
+                vplIndicesVisiblePerTile[baseTileIndex + next] = i;
+                next += 1;
+            }
+            if (numVisible >= MAX_VPLS_PER_TILE) break;
+        }
+        vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = numVisible;
     }
 }

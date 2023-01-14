@@ -174,8 +174,12 @@ namespace stratus {
         };
 
         struct VirtualPointLightData {
-            int maxTotalVirtualPointLightsPerFrame = 128;
-            int maxTotalVirtualLightsPerTile = maxTotalVirtualPointLightsPerFrame;
+            // For splitting viewport into tiles
+            const int tileXDivisor = 16;
+            const int tileYDivisor = 9;
+            // This needs to match what is in the vpl tiled deferred shader compute header!
+            int maxTotalVirtualPointLightsPerFrame = 256;
+            int maxTotalVirtualLightsPerTile = 128;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;
