@@ -143,6 +143,10 @@ namespace stratus {
             _recalcRadius();
         }
 
+        void setColor(const glm::vec3& color) {
+            setColor(color.r, color.g, color.b);
+        }
+
         /**
          * A light's color values can all be on the range of
          * [0.0, 1.0], but the intensity specifies how strong it
@@ -204,9 +208,12 @@ namespace stratus {
         float lightNearPlane = 0.1f;
         float lightFarPlane = 500.0f;
 
-    public:
-        PointLight(const bool virtualLight = false) 
+    protected:
+        PointLight(const bool virtualLight) 
             : Light(virtualLight) {}
+
+    public:
+        PointLight() : PointLight(false) {}
 
         virtual ~PointLight() = default;
 
@@ -242,7 +249,7 @@ namespace stratus {
         // }
     };
 
-    class VirtualPointLight : PointLight {
+    class VirtualPointLight : public PointLight {
         friend class Renderer;
 
     public:

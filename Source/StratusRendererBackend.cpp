@@ -1287,6 +1287,10 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplGIFbo.bind();
     _BindShader(_state.vplGlobalIllumination.get());
 
+    // Set up infinite light color
+    const glm::vec3 lightColor = _frame->csc.worldLight->getLuminance();
+    _state.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
+
     // Set up the shadow maps and radius information
     for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
         int lightIndex = i;

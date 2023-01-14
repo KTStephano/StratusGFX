@@ -37,15 +37,14 @@ public:
     glm::vec3 speed;
     bool spawnPhysicalMarker;
 
-    RandomLightMover(const bool spawnPhysicalMarker = true,
-                     const bool brightensWithSun = false) 
+    RandomLightMover(const bool spawnPhysicalMarker = true, stratus::LightPtr ptr = nullptr) 
         : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->SetLocalScale(glm::vec3(1.0f));
-        light = stratus::LightPtr(new stratus::PointLight(brightensWithSun));
+        light = ptr ? ptr : stratus::LightPtr(new stratus::PointLight());
         _changeDirection();
     }
 
@@ -79,7 +78,8 @@ public:
 };
 
 struct StationaryLight : public RandomLightMover {
-    StationaryLight(const bool spawnPhysicalMarker = true) : RandomLightMover(spawnPhysicalMarker) {}
+    StationaryLight(const bool spawnPhysicalMarker = true) 
+        : RandomLightMover(spawnPhysicalMarker) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -91,7 +91,7 @@ struct StationaryLight : public RandomLightMover {
 
 struct FakeRTGILight : public RandomLightMover {
     FakeRTGILight(const bool spawnPhysicalMarker = true)
-        : RandomLightMover(spawnPhysicalMarker, /* brightensWithSun = */ true) {}
+        : RandomLightMover(spawnPhysicalMarker, stratus::LightPtr(new stratus::VirtualPointLight())) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -140,6 +140,17 @@ public:
         }
 
         worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
+
+        // for (int i = 0; i < 64; ++i) {
+        //     float x = rand() % 600;
+        //     float y = rand() % 600;
+        //     float z = rand() % 200;
+        //     stratus::VirtualPointLight * vpl = new stratus::VirtualPointLight();
+        //     vpl->setIntensity(worldLight->getIntensity() * 50.0f);
+        //     vpl->position = glm::vec3(x, y, z);
+        //     vpl->setColor(worldLight->getColor());
+        //     World()->AddLight(stratus::LightPtr((stratus::Light *)vpl));
+        // }
 
         return true;
     }

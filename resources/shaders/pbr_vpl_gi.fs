@@ -25,6 +25,7 @@ uniform vec3 viewPosition;
 #define MAX_LIGHTS 128
 uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
 uniform float lightRadii[MAX_LIGHTS];
+uniform vec3 infiniteLightColor;
 
 // Window information
 uniform int viewportWidth;
@@ -62,17 +63,19 @@ layout (std430, binding = 27) buffer vplLightFarPlanes {
     float lightFarPlanes[];
 };
 
-vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
+vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
 
-    vec3 vplColor = vec3(0.0);
+    vec3 vplColor = screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndices[baseLightIndex];
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
-        if(distance > lightRadii[baseLightIndex]) continue;
+        vec3 lightColor = lightColors[lightIndex].xyz;
+        if (distance > lightRadii[baseLightIndex]) continue;
+        if (length(vplColor) > (length(infiniteLightColor) / 100)) break;
 
         vec3 baseColor = texture(gAlbedo, texCoords).rgb;
         vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
@@ -87,13 +90,12 @@ vec3 performLightingCalculations(vec2 pixelCoords, vec2 texCoords) {
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 
-        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColors[lightIndex].xyz, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
-    return vplColor;
+    return boundHDR(vplColor);
 }
 
 void main() {
-    color = texture(screen, fsTexCoords).rgb;
-    color = boundHDR(color + performLightingCalculations(fsTexCoords * vec2(viewportWidth, viewportHeight), fsTexCoords));
+    color = performLightingCalculations(texture(screen, fsTexCoords).rgb, fsTexCoords * vec2(viewportWidth, viewportHeight), fsTexCoords);
 }
