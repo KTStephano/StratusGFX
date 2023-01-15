@@ -111,27 +111,27 @@ void main() {
 
     int activeLightsThisTile = 0;
 
-    const float distOffset = 25.0;
+    const float distOffset = 10.0;
     float minDist = 0.0;
-    float maxDist = 100.0;
+    float maxDist = distOffset;
 
     // If we don't have many VPLs, just check against the entire distance range right away
     if (numVisible < MAX_VPLS_PER_TILE) {
         maxDist = 100.0;
     }
 
-    while (maxDist < 105.0 && activeLightsThisTile < MAX_VPLS_PER_TILE) {
+    while (maxDist < 105.0 && activeLightsThisTile < MAX_VPLS_PER_TILE && activeLightsThisTile < numVisible) {
         for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
             int lightIndex = vplVisibleIndex[i];
             VirtualPointLight vpl = lightData[lightIndex];
             vec3 lightPosition = vpl.lightPosition.xyz;
             float lightRadius = vpl.lightRadius;
             float distance = (length(lightPosition - fragPos) / lightRadius) * 100.0;
-            //if (distance >= minDist && distance < maxDist) {
+            if (distance >= minDist && distance < maxDist) {
                 //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
                 vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
                 activeLightsThisTile += 1;
-            //}
+            }
         }
         minDist += distOffset;
         maxDist += distOffset;
