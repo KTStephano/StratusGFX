@@ -104,29 +104,30 @@ void main() {
     uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
     uvec2 tileCoords = gl_GlobalInvocationID.xy;
     uvec2 pixelCoords = tileCoords;
-    vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
+    // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
+    vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
     int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    vec3 fragPos = texture(gPosition, texCoords).xyz;
 
     int activeLightsThisTile = 0;
 
-    const float distOffset = 10.0;
+    const float distOffset = 0.1;
     float minDist = 0.0;
     float maxDist = distOffset;
 
     // If we don't have many VPLs, just check against the entire distance range right away
     if (numVisible < MAX_VPLS_PER_TILE) {
-        maxDist = 100.0;
+        maxDist = 1.0;
     }
 
-    while (maxDist < 105.0 && activeLightsThisTile < MAX_VPLS_PER_TILE && activeLightsThisTile < numVisible) {
+    while (maxDist < 1.05 && activeLightsThisTile < MAX_VPLS_PER_TILE && activeLightsThisTile < numVisible) {
         for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
             int lightIndex = vplVisibleIndex[i];
             VirtualPointLight vpl = lightData[lightIndex];
             vec3 lightPosition = vpl.lightPosition.xyz;
             float lightRadius = vpl.lightRadius;
-            float distance = (length(lightPosition - fragPos) / lightRadius) * 100.0;
+            float distance = length(lightPosition - fragPos) / lightRadius;
             if (distance >= minDist && distance < maxDist) {
                 //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
                 vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
