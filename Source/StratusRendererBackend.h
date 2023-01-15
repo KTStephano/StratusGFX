@@ -99,6 +99,7 @@ namespace stratus {
         InstancedData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
+        std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
         TextureHandle skybox = TextureHandle::Null();
@@ -178,23 +179,19 @@ namespace stratus {
             const int tileXDivisor = 16;
             const int tileYDivisor = 9;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int maxTotalVirtualPointLightsPerFrame = 256;
-            int maxTotalVirtualLightsPerTile = 16;
+            int maxTotalVirtualPointLightsPerFrame = 300;
+            int maxTotalVirtualLightsPerTile = 4;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
-            GpuBuffer vplPositions;
-            GpuBuffer vplLightRadii;
-            GpuBuffer vplColors;
-            GpuBuffer vplFarPlanes;
+            GpuBuffer vplLightData;
             GpuBuffer vplVisibleIndices;
-            GpuBuffer vplShadowFactors;
             GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             Texture vplGIColorBuffer;
         };
 
         struct RenderState {
-            int numShadowMaps = 256;
+            int numShadowMaps = 300;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
             int maxTotalLightsPerFrame = 256; // active in a frame
@@ -432,6 +429,7 @@ namespace stratus {
         void _InitAtmosphericShadowing();
         void _InitInstancedData(RendererEntityData &);
         void _ClearInstancedData();
+        void _ClearRemovedLightData();
         void _BindShader(Pipeline *);
         void _UnbindShader();
         void _PerformPostFxProcessing();
@@ -454,6 +452,7 @@ namespace stratus {
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);
         void _AddLightToShadowMapCache(LightPtr);
+        void _RemoveLightFromShadowMapCache(LightPtr);
         bool _ShadowMapExistsForLight(LightPtr);
         Async<Texture> _LookupTexture(TextureHandle handle) const;
         Texture _LookupShadowmapTexture(TextureHandle handle) const;

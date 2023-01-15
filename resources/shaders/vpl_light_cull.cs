@@ -7,6 +7,7 @@ STRATUS_GLSL_VERSION
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 #include "pbr.glsl"
+#include "vpl_tiled_deferred_culling.glsl"
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -17,16 +18,12 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) buffer lightPositionInputs {
-    vec4 lightPositions[];
+layout (std430, binding = 0) buffer vplLightData {
+    VirtualPointLight lightData[];
 };
 
 layout (std430, binding = 1) buffer numVisibleVPLs {
     int numVisible;
-};
-
-layout (std430, binding = 2) buffer outputBlock1 {
-    float shadowFactors[];
 };
 
 layout (std430, binding = 3) buffer outputBlock2 {
@@ -35,14 +32,15 @@ layout (std430, binding = 3) buffer outputBlock2 {
 
 void main() {
     int index = int(gl_GlobalInvocationID.x);
-    vec3 lightPos = lightPositions[index].xyz;
+    VirtualPointLight vpl = lightData[index];
+    vec3 lightPos = vpl.lightPosition.xyz;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
     if (shadowFactor < 0.95) {
         int next = atomicAdd(numVisible, 1);
-        shadowFactors[next] = shadowFactor;
+        vpl.shadowFactor = shadowFactor;
         vplVisibleIndex[next] = index;
     }
 }

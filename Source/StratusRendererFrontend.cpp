@@ -663,10 +663,12 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateLights() {
+        _frame->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
         for (auto& light : _lightsToRemove) {
             _frame->lights.erase(light);
             _frame->virtualPointLights.erase(light);
+            _frame->lightsToRemove.insert(light);
         }
         _lightsToRemove.clear();
 

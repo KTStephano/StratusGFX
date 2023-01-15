@@ -24,6 +24,17 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
+// Matches the definition in vpl_tiled_deferred_culling.glsl
+struct GpuVirtualPointLightData {
+    glm::vec4 lightPosition;
+    glm::vec4 lightColor;
+    float shadowFactor;
+    float lightFarPlane;
+    float lightRadius;
+    float _1;
+    glm::vec4 _padding;
+};
+
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
     log << "==================== OpenGL Information ====================" << std::endl;
@@ -314,12 +325,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplLightRadii = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(glm::vec4) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplLightData = GpuBuffer(nullptr, sizeof(GpuVirtualPointLightData) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -397,7 +404,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Set up VPL tile data
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    const int totalTiles = (_frame->viewportWidth / _state.vpls.tileXDivisor) * (_frame->viewportHeight / _state.vpls.tileYDivisor);
+    const int totalTiles = _frame->viewportWidth * _frame->viewportHeight;
     const int totalTileEntries = totalTiles * _state.vpls.maxTotalVirtualLightsPerTile;
     _state.vpls.vplLightIndicesVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTileEntries, flags);
     _state.vpls.vplNumLightsVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTiles, flags);
@@ -687,6 +694,16 @@ void RendererBackend::_InitAtmosphericShadowing() {
     _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
 
+void RendererBackend::_ClearRemovedLightData() {
+    int lightsCleared = 0;
+    for (auto ptr : _frame->lightsToRemove) {
+        _RemoveLightFromShadowMapCache(ptr);
+        ++lightsCleared;
+    }
+
+    if (lightsCleared > 0) STRATUS_LOG << "Cleared " << lightsCleared << " lights this frame" << std::endl;
+}
+
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
     CHECK_IS_APPLICATION_THREAD();
 
@@ -697,6 +714,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // Clear out instanced data from previous frame
     _ClearInstancedData();
+
+    // Clear out light data for lights that were removed
+    _ClearRemovedLightData();
 
     // Checks to see if any framebuffers need to be generated or re-generated
     _RecalculateCascadeData();
@@ -1255,42 +1275,32 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     }
 
     // Pack data into system memory
-    std::vector<glm::vec4> gpuVpls(perVPLDistToViewer.size());
-    std::vector<float> gpuVplRadii(perVPLDistToViewer.size());
-    std::vector<glm::vec4> gpuLightColors(perVPLDistToViewer.size());
-    std::vector<float> gpuFarPlanes(perVPLDistToViewer.size());
-    const glm::vec3 worldLightColor = _frame->csc.worldLight->getColor();
+    GpuVirtualPointLightData * vplData = (GpuVirtualPointLightData *)_state.vpls.vplLightData.MapMemory();
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
+        GpuVirtualPointLightData data;
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
-        gpuVpls[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
-        gpuVplRadii[i] = point->getRadius();
-        glm::vec3 lightColor = point->getColor();
-        if (point->IsManualColor()) {
-            lightColor = worldLightColor * point->getIntensity();
-        }
-        gpuLightColors[i] = glm::vec4(lightColor, 1.0f);
-        gpuFarPlanes[i] = point->getFarPlane();
+        data.lightPosition = glm::vec4(point->position, 1.0f);
+        data.lightRadius = point->getRadius();
+        data.lightColor = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
+        data.lightFarPlane = point->getFarPlane();
+        vplData[i] = std::move(data);
     }
+    _state.vpls.vplLightData.UnmapMemory();
+
+    _state.vplCulling->bind();
 
     // Move data to GPU memory
-    _state.vpls.vplPositions.CopyDataToBuffer(0, gpuVpls.size() * sizeof(glm::vec4), (const void *)gpuVpls.data());
-    _state.vpls.vplColors.CopyDataToBuffer(0, gpuLightColors.size() * sizeof(glm::vec4), (const void *)gpuLightColors.data());
-    _state.vpls.vplFarPlanes.CopyDataToBuffer(0, gpuFarPlanes.size() * sizeof(float), (const void *)gpuFarPlanes.data());
-    _state.vpls.vplLightRadii.CopyDataToBuffer(0, gpuVplRadii.size() * sizeof(float), (const void *)gpuVplRadii.data());
-
-    // Bind positions
-    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    //_state.vpls.vplLightData.CopyDataToBuffer(0, sizeof(GpuVirtualPointLightData) * vplData.size(), (const void *)vplData.data());
 
     // Set up # visible atomic counter
     int numVisible = 0;
     _state.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    // Bind shadow factors and visibility indices
-    _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    // Bind light data and visibility indices
+    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
-    _state.vplCulling->bind();
     _InitCoreCSMData(_state.vplCulling.get());
     _state.vplCulling->dispatchCompute((unsigned int)perVPLDistToViewer.size(), 1, 1);
     _state.vplCulling->synchronizeCompute();
@@ -1301,10 +1311,9 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Bind inputs
     _state.vplTileDeferredCulling->bindTexture("gPosition", _state.buffer.position);
-    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    _state.vpls.vplLightRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
     _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
@@ -1325,10 +1334,13 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
     // int m = 0;
     // std::cout << "Total Visible: " << *tv << std::endl;
-    // for (int i = 0; i < 120 * 120; ++i) {
+    // int numNonZero = 0;
+    // for (int i = 0; i < 1920 * 1080; ++i) {
     //     m = std::max(m, v[i]);
+    //     if (v[i] > 0) ++numNonZero;
     // }
     // std::cout << "M VPL: " << m << std::endl;
+    // std::cout << "NNZ: " << numNonZero << std::endl;
     // _state.vpls.vplNumLightsVisiblePerTile.UnmapMemory();
     // _state.vpls.vplNumVisible.UnmapMemory();
 
@@ -1340,8 +1352,8 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     if (perVPLDistToViewer.size() == 0) return;
 
     glDisable(GL_DEPTH_TEST);
-    _state.vpls.vplGIFbo.bind();
     _BindShader(_state.vplGlobalIllumination.get());
+    _state.vpls.vplGIFbo.bind();
 
     // Set up infinite light color
     const glm::vec3 lightColor = _frame->csc.worldLight->getLuminance();
@@ -1351,21 +1363,17 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
         int lightIndex = i;
         LightPtr light = perVPLDistToViewer[lightIndex].first;
-        PointLight * point = (PointLight *)light.get();
+        //VirtualPointLight * point = (VirtualPointLight *)light.get();
         _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
     }
 
-    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth / _state.vpls.tileXDivisor);
-    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight / _state.vpls.tileYDivisor);
+    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
+    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    _state.vpls.vplNumLightsVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 21);
-    _state.vpls.vplLightIndicesVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 22);
-    _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 24);
-    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 25);
-    _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 26);
-    _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 27);
-    _state.vpls.vplLightRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 28);
+    _state.vpls.vplNumLightsVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    _state.vpls.vplLightIndicesVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
 
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
@@ -1375,16 +1383,15 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
     _state.vplGlobalIllumination->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
 
-    Camera* camera = _frame->camera.get();
-    _state.vplGlobalIllumination->setVec3("viewPosition", &camera->getPosition()[0]);
+    const Camera& camera = _frame->camera.get();
+    _state.vplGlobalIllumination->setVec3("viewPosition", camera.getPosition());
     _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("viewportHeight", _frame->viewportHeight);
 
     _RenderQuad();
     
-    _state.vpls.vplGIFbo.unbind();
-    _state.lightingFbo.copyFrom(_state.vpls.vplGIFbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
     _UnbindShader();
+    _state.lightingFbo.copyFrom(_state.vpls.vplGIFbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 }
 
 void RendererBackend::RenderScene() {
@@ -1865,5 +1872,18 @@ void RendererBackend::_AddLightToShadowMapCache(LightPtr light) {
     _EvictLightFromShadowMapCache(light);
     // Push to back so that it is seen as most recently used
     _lruLightCache.push_back(light);
+}
+
+void RendererBackend::_RemoveLightFromShadowMapCache(LightPtr light) {
+    if ( !_ShadowMapExistsForLight(light) ) return;
+
+    // Deallocate its map
+    TextureHandle handle = _lightsToShadowMap.find(light)->second;
+    _lightsToShadowMap.erase(light);
+    _usedShadowMaps.erase(handle);
+
+    // Remove from LRU cache
+    _EvictLightFromShadowMapCache(light);
+
 }
 }

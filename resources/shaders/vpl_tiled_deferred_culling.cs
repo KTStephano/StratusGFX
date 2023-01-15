@@ -25,8 +25,8 @@ uniform sampler2D gPosition;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer lightPositionInputs {
-    vec4 lightPositions[];
+layout (std430, binding = 0) readonly buffer vplLightData {
+    VirtualPointLight lightData[];
 };
 
 layout (std430, binding = 1) readonly buffer numVisibleVPLs {
@@ -35,10 +35,6 @@ layout (std430, binding = 1) readonly buffer numVisibleVPLs {
 
 layout (std430, binding = 3) readonly buffer visibleVplTable {
     int vplVisibleIndex[];
-};
-
-layout (std430, binding = 4) readonly buffer radiusInformation {
-    float lightRadii[];
 };
 
 uniform int viewportWidth;
@@ -52,6 +48,7 @@ layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
 };
 
+/*
 shared int activeLightBitmask[MAX_TOTAL_VPLS_PER_FRAME];
 
 void main() {
@@ -75,8 +72,9 @@ void main() {
 
     for (int i = 0; i < numVisible; ++i) {
         int lightIndex = vplVisibleIndex[i];
-        float distance = length(lightPositions[lightIndex].xyz - fragPos);
-        float radius = lightRadii[lightIndex];
+        VirtualPointLight vpl = lightData[lightIndex];
+        float distance = length(vpl.lightPosition.xyz - fragPos);
+        float radius = vpl.lightRadius;
         if (distance > radius) continue;
         activeLightBitmask[lightIndex] = 1;
     }
@@ -99,4 +97,46 @@ void main() {
         }
         vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = numVisible;
     }
+}
+*/
+
+void main() {
+    uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
+    uvec2 tileCoords = gl_GlobalInvocationID.xy;
+    uvec2 pixelCoords = tileCoords;
+    vec2 texCoords = vec2(pixelCoords) / vec2(viewportWidth, viewportHeight);
+    int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
+    int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
+    vec3 fragPos = texture(gPosition, texCoords).rgb;
+
+    int activeLightsThisTile = 0;
+
+    const float distOffset = 25.0;
+    float minDist = 0.0;
+    float maxDist = 100.0;
+
+    // If we don't have many VPLs, just check against the entire distance range right away
+    if (numVisible < MAX_VPLS_PER_TILE) {
+        maxDist = 100.0;
+    }
+
+    while (maxDist < 105.0 && activeLightsThisTile < MAX_VPLS_PER_TILE) {
+        for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
+            int lightIndex = vplVisibleIndex[i];
+            VirtualPointLight vpl = lightData[lightIndex];
+            vec3 lightPosition = vpl.lightPosition.xyz;
+            float lightRadius = vpl.lightRadius;
+            float distance = (length(lightPosition - fragPos) / lightRadius) * 100.0;
+            //if (distance >= minDist && distance < maxDist) {
+                //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
+                vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
+                activeLightsThisTile += 1;
+            //}
+        }
+        minDist += distOffset;
+        maxDist += distOffset;
+    }
+
+    vplNumVisiblePerTile[tileIndex] = activeLightsThisTile;
+    barrier();
 }

@@ -286,6 +286,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
+                                mover->light->setColor(warmMorningColor);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -296,6 +297,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
+                                mover->light->setColor(warmMorningColor);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));

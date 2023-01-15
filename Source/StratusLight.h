@@ -134,7 +134,7 @@ namespace stratus {
          * number > 0.0 for each color component. To make this
          * work, HDR support is required.
          */
-        virtual void setColor(float r, float g, float b) {
+        void setColor(float r, float g, float b) {
             r = std::max(0.0f, r);
             g = std::max(0.0f, g);
             b = std::max(0.0f, b);
@@ -144,7 +144,7 @@ namespace stratus {
             _recalcRadius();
         }
 
-        virtual void setColor(const glm::vec3& color) {
+        void setColor(const glm::vec3& color) {
             setColor(color.r, color.g, color.b);
         }
 
@@ -259,20 +259,6 @@ namespace stratus {
     public:
         VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
         virtual ~VirtualPointLight() = default;
-
-        virtual void setColor(float r, float g, float b) override {
-            _isManualColorSet = true;
-            PointLight::setColor(r, g, b);
-        }
-
-        virtual void setColor(const glm::vec3& color) override {
-            setColor(color.r, color.g, color.b);
-        }
-
-        bool IsManualColor() const { return _isManualColorSet; }
-
-    private:
-        bool _isManualColorSet = false;
     };
 }
 

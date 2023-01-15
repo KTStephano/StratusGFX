@@ -21,7 +21,7 @@ uniform sampler2DRect ssao;
 uniform vec3 viewPosition;
 
 // Shadow information
-#define MAX_LIGHTS 128
+#define MAX_LIGHTS 64
 uniform samplerCube shadowCubeMaps[MAX_LIGHTS];
 uniform vec3 infiniteLightColor;
 
@@ -36,75 +36,54 @@ uniform sampler2D screen;
 uniform int numTilesX;
 uniform int numTilesY;
 
-layout (binding = 21) readonly buffer vplActiveLights {
-    int numActiveVPLsPerTile[];
+layout (std430, binding = 3) readonly buffer vplActiveLights {
+    int numActiveLightsPerTile[];
 };
 
 // Active light indices into main buffer
-layout (binding = 22) readonly buffer vplIndices {
+layout (std430, binding = 4) readonly buffer vplIndices {
     int activeLightIndicesPerTile[];
 };
 
-// Shadow factors for infinite light
-layout (std430, binding = 24) readonly buffer vplShadowFactors {
-    float shadowFactors[];
-};
-
 // Light positions
-layout (std430, binding = 25) readonly buffer vplPositions {
-    vec4 lightPositions[];
-};
-
-// Light colors
-layout (std430, binding = 26) readonly buffer vplColors {
-    vec4 lightColors[];
-};
-
-// Light far planes
-layout (std430, binding = 27) readonly buffer vplLightFarPlanes {
-    float lightFarPlanes[];
-};
-
-// Light radii
-layout (std430, binding = 28) readonly buffer vplLightRadii {
-    float lightRadii[];
+layout (std430, binding = 5) readonly buffer vplData {
+    VirtualPointLight lightData[];
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     ivec2 numTiles = ivec2(numTilesX, numTilesY);
-    uvec2 tileCoords = uvec2(ceil(texCoords * vec2(numTiles)));
-    // Each entry in the activeLightIndicesPerTile buffer has MAX_VPLS_PER_TILE entries
-    int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
-    // numActiveVPLsPerTile only has one int per entry
-    int numActiveVPLs = numActiveVPLsPerTile[tileCoords.x + tileCoords.y * numTiles.x];
-    if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
+    ivec2 tileCoords = ivec2(pixelCoords);
+    int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
+    int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
+    int numActiveVPLs = numActiveLightsPerTile[tileIndex];
 
     vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
+
+    vec3 baseColor = texture(gAlbedo, texCoords).rgb;
+    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
+    float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
+    float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
+    // Note that we take the AO that may have been packed into a texture and augment it by SSAO
+    // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
+    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
+    vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 vplColor = screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndicesPerTile[baseTileIndex + baseLightIndex];
-        vec3 lightPosition = lightPositions[lightIndex].xyz;
+        VirtualPointLight vpl = lightData[lightIndex];
+        vec3 lightPosition = vpl.lightPosition.xyz;
         float distance = length(lightPosition - fragPos);
-        vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[lightIndex]) continue;
+        vec3 lightColor = vpl.lightColor.rgb;
+        if (distance > vpl.lightRadius) continue;
         //if (length(vplColor) > (length(infiniteLightColor) / 25)) break;
 
-        vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-        vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
-        float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
-        float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
-        // Note that we take the AO that may have been packed into a texture and augment it by SSAO
-        // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-        float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
-        vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
-
-        int numSamples = 3;
-        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
+        int numSamples = 27;
+        float shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], vpl.lightFarPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
-        shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
+        //shadowFactor = lerp(shadowFactor, 0.0, shadowFactors[lightIndex]);
 
         vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
