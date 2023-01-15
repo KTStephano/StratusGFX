@@ -98,6 +98,7 @@ namespace stratus {
         InstancedData instancedPbrMeshes;
         InstancedData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
+        std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         float znear;
         float zfar;
         TextureHandle skybox = TextureHandle::Null();
@@ -105,6 +106,7 @@ namespace stratus {
         glm::vec4 clearColor;
         bool viewportDirty;
         bool vsyncEnabled;
+        bool globalIlluminationEnabled = true;
     };
 
     /**
@@ -144,6 +146,15 @@ namespace stratus {
         int32_t preferredPageSizeX3D[3];
         int32_t preferredPageSizeY3D[3];
         int32_t preferredPageSizeZ3D[3];
+        int32_t maxComputeShaderStorageBlocks;
+        int32_t maxComputeUniformBlocks;
+        int32_t maxComputeTexImageUnits;
+        int32_t maxComputeUniformComponents;
+        int32_t maxComputeAtomicCounters;
+        int32_t maxComputeAtomicCounterBuffers;
+        int32_t maxComputeWorkGroupInvocations;
+        int32_t maxComputeWorkGroupCount[3];
+        int32_t maxComputeWorkGroupSize[3];
     };
 
     class RendererBackend {
@@ -162,13 +173,34 @@ namespace stratus {
             FrameBuffer fbo;
         };
 
+        struct VirtualPointLightData {
+            // For splitting viewport into tiles
+            const int tileXDivisor = 16;
+            const int tileYDivisor = 9;
+            // This needs to match what is in the vpl tiled deferred shader compute header!
+            int maxTotalVirtualPointLightsPerFrame = 256;
+            int maxTotalVirtualLightsPerTile = 16;
+            GpuBuffer vplLightIndicesVisiblePerTile;
+            GpuBuffer vplNumLightsVisiblePerTile;
+            GpuBuffer vplPositions;
+            GpuBuffer vplLightRadii;
+            GpuBuffer vplColors;
+            GpuBuffer vplFarPlanes;
+            GpuBuffer vplVisibleIndices;
+            GpuBuffer vplShadowFactors;
+            GpuBuffer vplNumVisible;
+            FrameBuffer vplGIFbo;
+            Texture vplGIColorBuffer;
+        };
+
         struct RenderState {
-            int numShadowMaps = 128;
+            int numShadowMaps = 256;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
-            int maxTotalLights = 256; // active in a frame
+            int maxTotalLightsPerFrame = 256; // active in a frame
+            VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = 12;
+            int maxShadowUpdatesPerFrame = 6;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -226,7 +258,12 @@ namespace stratus {
             std::unique_ptr<Pipeline> atmosphericPostFx;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
+            // Handles global illuminatino stage
+            std::unique_ptr<Pipeline> vplGlobalIllumination;
             std::unique_ptr<Pipeline> bloom;
+            // Handles virtual point light culling
+            std::unique_ptr<Pipeline> vplCulling;
+            std::unique_ptr<Pipeline> vplTileDeferredCulling;
             // Handles cascading shadow map depth buffer rendering
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
@@ -383,11 +420,13 @@ namespace stratus {
         RendererMouseState GetMouseState() const;
 
     private:
+        void _InitializeVplData();
         void _ClearGBuffer();
         void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
         void _ClearFramebufferData(const bool);
         void _InitAllInstancedData();
+        void _InitCoreCSMData(Pipeline *);
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
         void _InitAtmosphericShadowing();
@@ -400,6 +439,9 @@ namespace stratus {
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _Render(const RenderNodeView &, bool removeViewTranslation = false);
+        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
+        void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
+        void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();
         void _RenderSkybox();
@@ -407,7 +449,8 @@ namespace stratus {
         void _RenderSsaoBlur();
         glm::vec3 _CalculateAtmosphericLightPosition() const;
         void _RenderAtmosphericShadowing();
-        TextureHandle _GetShadowMapHandleForLight(LightPtr);
+        TextureHandle _GetOrAllocateShadowMapHandleForLight(LightPtr);
+        ShadowMap3D _GetOrAllocateShadowMapForLight(LightPtr);
         void _SetLightShadowMapHandle(LightPtr, TextureHandle);
         void _EvictLightFromShadowMapCache(LightPtr);
         void _AddLightToShadowMapCache(LightPtr);

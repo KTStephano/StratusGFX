@@ -62,6 +62,9 @@ namespace stratus {
         void SetClearColor(const glm::vec4&);
         void SetSkybox(const TextureHandle&);
 
+        void SetGlobalIlluminationEnabled(const bool);
+        bool GetGlobalIlluminationEnabled() const;
+
         // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
         void SetAtmosphericShadowing(float fogDensity, float scatterControl);
         float GetAtmosphericFogDensity() const;
@@ -106,6 +109,7 @@ namespace stratus {
         std::unordered_map<EntityView, EntityStateData> _dynamicPbrEntities;
         std::unordered_map<EntityView, EntityStateData> _flatEntities;
         std::unordered_map<LightPtr, LightData> _lights;
+        std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
         CameraPtr _camera;

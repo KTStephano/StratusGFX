@@ -7,6 +7,7 @@
 namespace stratus {    
     class Texture;
     typedef Handle<Texture> TextureHandle;
+    typedef uint64_t GpuResidentTextureHandle;
 
     enum class TextureType : int {
         TEXTURE_2D,
@@ -84,6 +85,12 @@ namespace stratus {
         NOTEQUAL
     };
 
+    enum class ImageTextureAccessMode : int {
+        IMAGE_READ_ONLY,
+        IMAGE_WRITE_ONLY,
+        IMAGE_READ_WRITE
+    };
+
     struct TextureConfig {
         TextureType type;
         TextureComponentFormat format;
@@ -128,6 +135,12 @@ namespace stratus {
         TextureType type() const;
         TextureComponentFormat format() const;
         TextureHandle handle() const;
+        GpuResidentTextureHandle gpuHandle() const;
+        
+        // Makes the texture resident in GPU memory for bindless use
+        void makeResident();
+        // Removes residency
+        void makeNonResident();
 
         uint32_t width() const;
         uint32_t height() const;
@@ -135,6 +148,8 @@ namespace stratus {
 
         void bind(int activeTexture = 0) const;
         void unbind() const;
+
+        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
 
         bool valid() const;
 
