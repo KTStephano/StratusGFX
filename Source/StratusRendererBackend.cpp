@@ -1259,11 +1259,16 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     std::vector<float> gpuVplRadii(perVPLDistToViewer.size());
     std::vector<glm::vec4> gpuLightColors(perVPLDistToViewer.size());
     std::vector<float> gpuFarPlanes(perVPLDistToViewer.size());
+    const glm::vec3 worldLightColor = _frame->csc.worldLight->getColor();
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
         gpuVpls[i] = glm::vec4(perVPLDistToViewer[i].first->position, 1.0f);
         gpuVplRadii[i] = point->getRadius();
-        gpuLightColors[i] = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
+        glm::vec3 lightColor = point->getColor();
+        if (point->IsManualColor()) {
+            lightColor = worldLightColor * point->getIntensity();
+        }
+        gpuLightColors[i] = glm::vec4(lightColor, 1.0f);
         gpuFarPlanes[i] = point->getFarPlane();
     }
 

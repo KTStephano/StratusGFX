@@ -96,6 +96,7 @@ namespace stratus {
     };
 
     class Light {
+    protected:
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _baseColor = _color;
         float _intensity = 1.0f;
@@ -133,7 +134,7 @@ namespace stratus {
          * number > 0.0 for each color component. To make this
          * work, HDR support is required.
          */
-        void setColor(float r, float g, float b) {
+        virtual void setColor(float r, float g, float b) {
             r = std::max(0.0f, r);
             g = std::max(0.0f, g);
             b = std::max(0.0f, b);
@@ -143,7 +144,7 @@ namespace stratus {
             _recalcRadius();
         }
 
-        void setColor(const glm::vec3& color) {
+        virtual void setColor(const glm::vec3& color) {
             setColor(color.r, color.g, color.b);
         }
 
@@ -249,12 +250,29 @@ namespace stratus {
         // }
     };
 
+    // If you create a VPL and do not set a color for it, it will automatically
+    // inherit the color of the sun at each frame. Once a manual color is set this automatic
+    // changing will be disabled.
     class VirtualPointLight : public PointLight {
         friend class Renderer;
 
     public:
         VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
         virtual ~VirtualPointLight() = default;
+
+        virtual void setColor(float r, float g, float b) override {
+            _isManualColorSet = true;
+            PointLight::setColor(r, g, b);
+        }
+
+        virtual void setColor(const glm::vec3& color) override {
+            setColor(color.r, color.g, color.b);
+        }
+
+        bool IsManualColor() const { return _isManualColorSet; }
+
+    private:
+        bool _isManualColorSet = false;
     };
 }
 

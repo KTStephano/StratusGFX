@@ -286,8 +286,6 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
-                                const auto worldLightColor = warmMorningColor;
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -298,8 +296,6 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
-                                const auto worldLightColor = warmMorningColor;
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -386,7 +382,7 @@ public:
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
         const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
-        worldLight->setColor(LERP(x, glm::vec3(1.0f), warmMorningColor));
+        worldLight->setColor(warmMorningColor);
         worldLight->setPosition(camera->getPosition());
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
