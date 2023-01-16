@@ -48,7 +48,6 @@ layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
 };
 
-/*
 shared int activeLightBitmask[MAX_TOTAL_VPLS_PER_FRAME];
 
 void main() {
@@ -98,8 +97,8 @@ void main() {
         vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = numVisible;
     }
 }
-*/
 
+/*
 void main() {
     uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
     uvec2 tileCoords = gl_GlobalInvocationID.xy;
@@ -112,7 +111,7 @@ void main() {
 
     int activeLightsThisTile = 0;
 
-    const float distOffset = 0.1;
+    const float distOffset = 0.25;
     float minDist = 0.0;
     float maxDist = distOffset;
 
@@ -141,3 +140,64 @@ void main() {
     vplNumVisiblePerTile[tileIndex] = activeLightsThisTile;
     barrier();
 }
+*/
+
+/*
+void main() {
+    uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
+    uvec2 tileCoords = gl_GlobalInvocationID.xy;
+    uvec2 pixelCoords = tileCoords;
+    // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
+    vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
+    int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
+    int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
+    vec3 fragPos = texture(gPosition, texCoords).xyz;
+
+    int activeLightsThisTile = 0;
+    for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
+        int lightIndex = vplVisibleIndex[i];
+        VirtualPointLight vpl = lightData[lightIndex];
+        vec3 lightPosition = vpl.lightPosition.xyz;
+        float distance = length(lightPosition - fragPos);
+        if (distance < vpl.lightRadius) {
+            //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
+            vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
+            activeLightsThisTile += 1;
+        }
+    }
+
+    vplNumVisiblePerTile[tileIndex] = activeLightsThisTile;
+    barrier();
+}
+*/
+
+/*
+void main() {
+    uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
+    uvec2 tileCoords = gl_GlobalInvocationID.xy;
+    uvec2 pixelCoords = tileCoords;
+    // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
+    vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
+    int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
+    int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
+    vec3 fragPos = texture(gPosition, texCoords).xyz;
+
+    int activeLightsThisTile = 0;
+
+    for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
+        int lightIndex = vplVisibleIndex[i];
+        VirtualPointLight vpl = lightData[lightIndex];
+        vec3 lightPosition = vpl.lightPosition.xyz;
+        float lightRadius = vpl.lightRadius / 2.0;
+        float distance = length(lightPosition - fragPos) / lightRadius;
+        if (distance >= 0.0 && distance < 1.0) {
+            //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
+            vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
+            activeLightsThisTile += 1;
+        }
+    }
+
+    vplNumVisiblePerTile[tileIndex] = activeLightsThisTile;
+    barrier();
+}
+*/

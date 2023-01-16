@@ -179,8 +179,8 @@ namespace stratus {
             const int tileXDivisor = 16;
             const int tileYDivisor = 9;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int maxTotalVirtualPointLightsPerFrame = 300;
-            int maxTotalVirtualLightsPerTile = 8;
+            int maxTotalVirtualPointLightsPerFrame = 128;
+            int maxTotalVirtualLightsPerTile = maxTotalVirtualPointLightsPerFrame;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplLightData;

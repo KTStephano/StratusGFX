@@ -404,7 +404,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Set up VPL tile data
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    const int totalTiles = _frame->viewportWidth * _frame->viewportHeight;
+    const int totalTiles = (_frame->viewportWidth / _state.vpls.tileXDivisor) * (_frame->viewportHeight / _state.vpls.tileYDivisor);
     const int totalTileEntries = totalTiles * _state.vpls.maxTotalVirtualLightsPerTile;
     _state.vpls.vplLightIndicesVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTileEntries, flags);
     _state.vpls.vplNumLightsVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTiles, flags);
@@ -1367,8 +1367,8 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
         _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
     }
 
-    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
-    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);
+    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth / _state.vpls.tileXDivisor);
+    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight / _state.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumLightsVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
