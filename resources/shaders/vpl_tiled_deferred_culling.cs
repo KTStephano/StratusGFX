@@ -73,7 +73,7 @@ void main() {
         int lightIndex = vplVisibleIndex[i];
         VirtualPointLight vpl = lightData[lightIndex];
         float distance = length(vpl.lightPosition.xyz - fragPos);
-        float radius = vpl.lightRadius;
+        float radius = vpl.lightRadius / 2.0;
         if (distance > radius) continue;
         activeLightBitmask[lightIndex] = 1;
     }
