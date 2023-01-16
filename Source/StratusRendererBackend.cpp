@@ -25,14 +25,12 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
 }
 
 // Matches the definition in vpl_tiled_deferred_culling.glsl
+// See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
 struct GpuVirtualPointLightData {
-    glm::vec4 lightPosition;
-    glm::vec4 lightColor;
-    float shadowFactor;
-    float lightFarPlane;
-    float lightRadius;
-    float distToCamera;
-    glm::vec4 _padding;
+    alignas(16) glm::vec4 lightPosition = glm::vec4(0.0f);
+    alignas(16) glm::vec4 lightColor = glm::vec4(0.0f);
+    alignas(16) glm::vec4 shadowFarPlaneRadius = glm::vec4(0.0f); // last element padding
+    alignas(16) glm::vec4 numShadowSamples = glm::vec4(0.0f); // last 3 elements padding
 };
 
 static void printGLInfo(const GFXConfig & config) {
@@ -325,8 +323,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    _state.vpls.vplVisibleIndices = GpuBuffer(nullptr, sizeof(int) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplLightData = GpuBuffer(nullptr, sizeof(GpuVirtualPointLightData) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    std::vector<int> visibleIndicesData(_state.vpls.maxTotalVirtualPointLightsPerFrame, 0);
+    _state.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
+    std::vector<GpuVirtualPointLightData> vplData(_state.vpls.maxTotalVirtualPointLightsPerFrame, GpuVirtualPointLightData());
+    _state.vpls.vplLightData = GpuBuffer((const void *)vplData.data(), sizeof(GpuVirtualPointLightData) * vplData.size(), flags);
     _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -406,8 +406,10 @@ void RendererBackend::_UpdateWindowDimensions() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     const int totalTiles = (_frame->viewportWidth / _state.vpls.tileXDivisor) * (_frame->viewportHeight / _state.vpls.tileYDivisor);
     const int totalTileEntries = totalTiles * _state.vpls.maxTotalVirtualLightsPerTile;
-    _state.vpls.vplLightIndicesVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTileEntries, flags);
-    _state.vpls.vplNumLightsVisiblePerTile = GpuBuffer(nullptr, sizeof(int) * totalTiles, flags);
+    std::vector<int> indicesPerTileData(totalTileEntries, 0);
+    _state.vpls.vplLightIndicesVisiblePerTile = GpuBuffer((const void *)indicesPerTileData.data(), sizeof(int) * totalTileEntries, flags);
+    std::vector<int> totalTilesData(totalTiles, 0);
+    _state.vpls.vplNumLightsVisiblePerTile = GpuBuffer((const void *)totalTilesData.data(), sizeof(int) * totalTiles, flags);
 
     // Regenerate the main frame buffer
     _ClearGBuffer();
@@ -1275,24 +1277,21 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     }
 
     // Pack data into system memory
-    GpuVirtualPointLightData * vplData = (GpuVirtualPointLightData *)_state.vpls.vplLightData.MapMemory();
+    std::vector<GpuVirtualPointLightData> vplData(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         GpuVirtualPointLightData data;
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
         data.lightPosition = glm::vec4(point->position, 1.0f);
-        data.lightRadius = point->getRadius();
+        data.shadowFarPlaneRadius = glm::vec4(0.0f, point->getFarPlane(), point->getRadius(), 0.0f);
         data.lightColor = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
-        data.lightFarPlane = point->getFarPlane();
+        data.numShadowSamples = glm::vec4(point->GetNumShadowSamples(), 0.0f, 0.0f, 0.0f);
         vplData[i] = std::move(data);
     }
-    _state.vpls.vplLightData.UnmapMemory();
 
     _state.vplCulling->bind();
 
-    _state.vplCulling->setVec3("viewPosition", _frame->camera->getPosition());
-
     // Move data to GPU memory
-    //_state.vpls.vplLightData.CopyDataToBuffer(0, sizeof(GpuVirtualPointLightData) * vplData.size(), (const void *)vplData.data());
+    _state.vpls.vplLightData.CopyDataToBuffer(0, sizeof(GpuVirtualPointLightData) * vplData.size(), (const void *)vplData.data());
 
     // Set up # visible atomic counter
     int numVisible = 0;

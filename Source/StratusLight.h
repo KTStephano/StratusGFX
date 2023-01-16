@@ -99,7 +99,7 @@ namespace stratus {
     protected:
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _baseColor = _color;
-        float _intensity = 1.0f;
+        float _intensity = 200.0f;
         float _radius = 1.0f;
         bool _castsShadows = true;
         // If virtual we intend to use it less as a natural light and more
@@ -189,8 +189,9 @@ namespace stratus {
             static const float lightMin = 256.0 / 5;
             const glm::vec3 intensity = getIntensity() * getColor();
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
-            //this->_radius = sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
-            this->_radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
+            //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
+            _radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
+            _radius = std::max(200.0f, _radius);
         }
 
         void _recalcColorWithIntensity() {
@@ -259,6 +260,12 @@ namespace stratus {
     public:
         VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
         virtual ~VirtualPointLight() = default;
+
+        void SetNumShadowSamples(uint32_t samples) { _numShadowSamples = samples; }
+        uint32_t GetNumShadowSamples() const { return _numShadowSamples; }
+
+    private:
+        uint32_t _numShadowSamples = 3;
     };
 }
 

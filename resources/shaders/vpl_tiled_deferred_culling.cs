@@ -73,7 +73,7 @@ void main() {
         int lightIndex = vplVisibleIndex[i];
         VirtualPointLight vpl = lightData[lightIndex];
         float distance = length(vpl.lightPosition.xyz - fragPos);
-        float radius = vpl.lightRadius / 2.0;
+        float radius = vpl.shadowFarPlaneRadius.z;
         if (distance > radius) continue;
         
         int prev = atomicAdd(activeLightMarker[lightIndex], 1);

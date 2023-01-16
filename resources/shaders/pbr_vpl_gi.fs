@@ -51,7 +51,11 @@ layout (std430, binding = 5) readonly buffer vplData {
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     ivec2 numTiles = ivec2(numTilesX, numTilesY);
-    uvec2 tileCoords = uvec2(ceil(texCoords * vec2(numTiles)));
+    // For example: 16, 9
+    ivec2 multiplier = ivec2(viewportWidth, viewportHeight) / numTiles;
+    uvec2 tileCoords = uvec2(pixelCoords / vec2(multiplier));
+    if (tileCoords.x >= numTiles.x || tileCoords.y >= numTiles.y) return screenColor;
+
     // Each entry in the activeLightIndicesPerTile buffer has MAX_VPLS_PER_TILE entries
     int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
     // numActiveVPLsPerTile only has one int per entry
@@ -78,13 +82,16 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightPosition = vpl.lightPosition.xyz;
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = vpl.lightColor.xyz;
-        if (distance > (vpl.lightRadius / 2.0)) continue;
+        if (distance > vpl.shadowFarPlaneRadius.z) continue;
         if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
 
-        int numSamples = 2;
-        float shadowFactor = 0.0;
+        int numSamples = 3;//int(vpl.numShadowSamples.x);
+        // This solves an error where sometimes numShadowSamples seems to be uninitialized to some huge
+        // value - must fix
+        //numSamples = numSamples > 64 ? 3 : numSamples;
+        //float shadowFactor = 0.0;
         if (length(lightPosition - viewPosition) < 135) {
-            shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], vpl.lightFarPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
+            shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], vpl.shadowFarPlaneRadius.y, fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);

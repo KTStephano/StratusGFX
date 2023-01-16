@@ -8,9 +8,6 @@ STRATUS_GLSL_VERSION
 struct VirtualPointLight {
     vec4 lightPosition;
     vec4 lightColor;
-    float shadowFactor;
-    float lightFarPlane;
-    float lightRadius;
-    float distToCamera;
-    vec4 _padding;
+    vec4 shadowFarPlaneRadius; // last element padding
+    vec4 numShadowSamples; // last 3 elements padding
 };

@@ -310,6 +310,7 @@ public:
                                 mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(27);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
