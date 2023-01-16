@@ -93,5 +93,5 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 }
 
 void main() {
-    color = performLightingCalculations(texture(screen, fsTexCoords).rgb, fsTexCoords * vec2(viewportWidth, viewportHeight), fsTexCoords);
+    color = performLightingCalculations(texture(screen, fsTexCoords).rgb, gl_FragCoord.xy, fsTexCoords);
 }
