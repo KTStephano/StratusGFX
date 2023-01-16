@@ -11,6 +11,6 @@ struct VirtualPointLight {
     float shadowFactor;
     float lightFarPlane;
     float lightRadius;
-    float _1;
+    float distToCamera;
     vec4 _padding;
 };

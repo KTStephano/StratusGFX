@@ -9,6 +9,8 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #include "pbr.glsl"
 #include "vpl_tiled_deferred_culling.glsl"
 
+uniform vec3 viewPosition;
+
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
 
@@ -40,6 +42,7 @@ void main() {
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
     if (shadowFactor < 0.95) {
         int next = atomicAdd(numVisible, 1);
+        vpl.distToCamera = length(lightPos - viewPosition);
         vpl.shadowFactor = shadowFactor;
         vplVisibleIndex[next] = index;
     }

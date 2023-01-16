@@ -31,7 +31,7 @@ struct GpuVirtualPointLightData {
     float shadowFactor;
     float lightFarPlane;
     float lightRadius;
-    float _1;
+    float distToCamera;
     glm::vec4 _padding;
 };
 
@@ -1288,6 +1288,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vpls.vplLightData.UnmapMemory();
 
     _state.vplCulling->bind();
+
+    _state.vplCulling->setVec3("viewPosition", _frame->camera->getPosition());
 
     // Move data to GPU memory
     //_state.vpls.vplLightData.CopyDataToBuffer(0, sizeof(GpuVirtualPointLightData) * vplData.size(), (const void *)vplData.data());
