@@ -48,14 +48,14 @@ layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
 };
 
-shared int activeLightBitmask[MAX_TOTAL_VPLS_PER_FRAME];
+shared int activeLightMarker[MAX_TOTAL_VPLS_PER_FRAME];
+shared int totalNumVisibleThisTile = 0;
 
 void main() {
-    // If we're the first in the work group initialize the bitmask
-    if (gl_LocalInvocationIndex == 0) {
-        for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
-           activeLightBitmask[i] = 0;
-        }
+    // Initialize the marker array
+    uint workGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
+    for (uint i = gl_LocalInvocationIndex; i < MAX_TOTAL_VPLS_PER_FRAME; i += workGroupSize) {
+        activeLightMarker[i] = 0;
     }
 
     // Wait for the rest
@@ -75,26 +75,64 @@ void main() {
         float distance = length(vpl.lightPosition.xyz - fragPos);
         float radius = vpl.lightRadius / 2.0;
         if (distance > radius) continue;
-        activeLightBitmask[lightIndex] = 1;
+        
+        int prev = atomicAdd(activeLightMarker[lightIndex], 1);
+        // If we're the first to increment for this light, add to visible light set
+        if (prev == 0) {
+            prev = atomicAdd(totalNumVisibleThisTile, 1);
+            // If we exceeded, break and end
+            if (prev >= MAX_VPLS_PER_TILE) {
+                atomicAdd(totalNumVisibleThisTile, -1);
+                break;
+            }
+            vplIndicesVisiblePerTile[baseTileIndex + prev] = lightIndex;
+        }
     }
 
     // Wait for work group to finish
     barrier();
 
     // If we're the first in the work group update num visible
+    /*
     if (gl_LocalInvocationIndex == 0) {
         int numVisible = 0;
         int next = 0;
         for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
-            int bitmaskVal = activeLightBitmask[i];
+            int bitmaskVal = activeLightMarker[i];
             numVisible += bitmaskVal;
             if (bitmaskVal > 0) {
-                vplIndicesVisiblePerTile[baseTileIndex + next] = i;
+                vplIndicesVisiblePerTile[baseTileIndex + next] = should not be i;
                 next += 1;
             }
             if (numVisible >= MAX_VPLS_PER_TILE) break;
         }
         vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = numVisible;
+    }
+    */
+
+    // Update the total number visible
+    /*
+    for (uint i = gl_LocalInvocationIndex; i < MAX_TOTAL_VPLS_PER_FRAME; i += workGroupSize) {
+        int bitmaskVal = activeLightMarker[i];
+        if (bitmaskVal > 0) {
+            int prev = atomicAdd(totalNumVisibleThisTile, 1);
+            if (prev >= MAX_VPLS_PER_TILE) {
+                // Undo and quit
+                atomicAdd(totalNumVisibleThisTile, -1);
+                break;
+            }
+            // Add light index
+            vplIndicesVisiblePerTile[baseTileIndex + prev] = int(should not be i);
+        }
+    }
+    */
+
+    // Wait for the group to finish
+    barrier();
+
+    // If we're the first in the group update the total number visible
+    if (gl_LocalInvocationIndex == 0) {
+        vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = totalNumVisibleThisTile;
     }
 }
 
