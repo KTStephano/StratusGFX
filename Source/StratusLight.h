@@ -106,12 +106,13 @@ namespace stratus {
         // as a way of simulating bounce lighting
         bool _virtualLight = false;
 
+        Light(const bool virtualLight)
+            : _virtualLight(virtualLight) {}
+
     public:
         glm::vec3 position = glm::vec3(0.0f);
-
-        Light(const bool virtualLight = false)
-            : _virtualLight(virtualLight) {}
         
+        Light() : Light(false) {}
         virtual ~Light() = default;
 
         /**
@@ -263,6 +264,12 @@ namespace stratus {
 
         void SetNumShadowSamples(uint32_t samples) { _numShadowSamples = samples; }
         uint32_t GetNumShadowSamples() const { return _numShadowSamples; }
+
+        // This MUST be done or else the engine makes copies and it will defer
+        // to PointLight instead of this and then cause horrible strange errors
+        LightPtr Copy() const override {
+            return LightPtr(new VirtualPointLight(*this));
+        }
 
     private:
         uint32_t _numShadowSamples = 3;

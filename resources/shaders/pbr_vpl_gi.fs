@@ -94,16 +94,15 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndicesPerTile[baseTileIndex + baseLightIndex];
+        if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
+
         vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
         if (distance > lightRadii[lightIndex]) continue;
         if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
 
-        int numSamples = 3;//int(lightNumSamples[lightIndex]);
-        // This solves an error where sometimes numShadowSamples seems to be uninitialized to some huge
-        // value - must fix
-        //if (numSamples > 64) continue;
+        int numSamples = int(lightNumSamples[lightIndex]);
         float shadowFactor = 0.0;
         if (length(lightPosition - viewPosition) < 135) {
             shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
