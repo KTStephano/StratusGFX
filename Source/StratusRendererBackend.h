@@ -183,7 +183,12 @@ namespace stratus {
             int maxTotalVirtualLightsPerTile = maxTotalVirtualPointLightsPerFrame;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
-            GpuBuffer vplLightData;
+            GpuBuffer vplPositions;
+            GpuBuffer vplColors;
+            GpuBuffer vplShadowFactors;
+            GpuBuffer vplFarPlanes;
+            GpuBuffer vplRadii;
+            GpuBuffer vplShadowSamples;
             GpuBuffer vplVisibleIndices;
             GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;

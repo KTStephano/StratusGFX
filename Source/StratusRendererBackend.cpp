@@ -26,11 +26,20 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
 
 // Matches the definition in vpl_tiled_deferred_culling.glsl
 // See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
-struct GpuVirtualPointLightData {
-    alignas(16) glm::vec4 lightPosition = glm::vec4(0.0f);
-    alignas(16) glm::vec4 lightColor = glm::vec4(0.0f);
-    alignas(16) glm::vec4 shadowFarPlaneRadius = glm::vec4(0.0f); // last element padding
-    alignas(16) glm::vec4 numShadowSamples = glm::vec4(0.0f); // last 3 elements padding
+struct alignas(16) GpuVec {
+    float v[4];
+
+    GpuVec(float x, float y, float z, float w) {
+        v[0] = x;
+        v[1] = y;
+        v[2] = z;
+        v[3] = w;
+    }
+
+    GpuVec(float xyzw) : GpuVec(xyzw, xyzw, xyzw, xyzw) {}
+    GpuVec(const glm::vec4& v) : GpuVec(v[0], v[1], v[2], v[3]) {}
+    GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
+    GpuVec() : GpuVec(0.0f) {}
 };
 
 static void printGLInfo(const GFXConfig & config) {
@@ -93,6 +102,8 @@ static void printGLInfo(const GFXConfig & config) {
 }
 
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
+    static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
+
     STRATUS_LOG << "Initializing SDL video" << std::endl;
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
@@ -325,8 +336,12 @@ void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     std::vector<int> visibleIndicesData(_state.vpls.maxTotalVirtualPointLightsPerFrame, 0);
     _state.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
-    std::vector<GpuVirtualPointLightData> vplData(_state.vpls.maxTotalVirtualPointLightsPerFrame, GpuVirtualPointLightData());
-    _state.vpls.vplLightData = GpuBuffer((const void *)vplData.data(), sizeof(GpuVirtualPointLightData) * vplData.size(), flags);
+    _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplShadowFactors = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplFarPlanes = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplRadii = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplShadowSamples = GpuBuffer(nullptr, sizeof(float) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -1277,21 +1292,28 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     }
 
     // Pack data into system memory
-    std::vector<GpuVirtualPointLightData> vplData(perVPLDistToViewer.size());
+    std::vector<GpuVec> lightPositions(perVPLDistToViewer.size());
+    std::vector<GpuVec> lightColors(perVPLDistToViewer.size());
+    std::vector<float> lightFarPlanes(perVPLDistToViewer.size());
+    std::vector<float> lightRadii(perVPLDistToViewer.size());
+    std::vector<float> lightShadowSamples(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
-        GpuVirtualPointLightData data;
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
-        data.lightPosition = glm::vec4(point->position, 1.0f);
-        data.shadowFarPlaneRadius = glm::vec4(0.0f, point->getFarPlane(), point->getRadius(), 0.0f);
-        data.lightColor = glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f);
-        data.numShadowSamples = glm::vec4(point->GetNumShadowSamples(), 0.0f, 0.0f, 0.0f);
-        vplData[i] = std::move(data);
+        lightPositions[i] = GpuVec(glm::vec4(point->position, 1.0f));
+        lightFarPlanes[i] = point->getFarPlane();
+        lightRadii[i] = point->getRadius();
+        lightColors[i] = GpuVec(glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f));
+        lightShadowSamples[i] = float(point->GetNumShadowSamples());
     }
 
-    _state.vplCulling->bind();
-
     // Move data to GPU memory
-    _state.vpls.vplLightData.CopyDataToBuffer(0, sizeof(GpuVirtualPointLightData) * vplData.size(), (const void *)vplData.data());
+    _state.vpls.vplPositions.CopyDataToBuffer(0, sizeof(GpuVec) * lightPositions.size(), (const void *)lightPositions.data());
+    _state.vpls.vplColors.CopyDataToBuffer(0, sizeof(GpuVec) * lightColors.size(), (const void *)lightColors.data());
+    _state.vpls.vplFarPlanes.CopyDataToBuffer(0, sizeof(float) * lightFarPlanes.size(), (const void *)lightFarPlanes.data());
+    _state.vpls.vplRadii.CopyDataToBuffer(0, sizeof(float) * lightRadii.size(), (const void *)lightRadii.data());
+    _state.vpls.vplShadowSamples.CopyDataToBuffer(0, sizeof(float) * lightShadowSamples.size(), (const void *)lightShadowSamples.data());
+
+    _state.vplCulling->bind();
 
     // Set up # visible atomic counter
     int numVisible = 0;
@@ -1299,7 +1321,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
-    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplShadowFactors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     _InitCoreCSMData(_state.vplCulling.get());
@@ -1312,7 +1335,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Bind inputs
     _state.vplTileDeferredCulling->bindTexture("gPosition", _state.buffer.position);
-    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
@@ -1374,7 +1398,11 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumLightsVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     _state.vpls.vplLightIndicesVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-    _state.vpls.vplLightData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+    _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+    _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
+    _state.vpls.vplRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
+    _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
+    _state.vpls.vplShadowSamples.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
 
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);

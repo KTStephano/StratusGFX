@@ -45,8 +45,24 @@ layout (std430, binding = 4) readonly buffer vplIndices {
 };
 
 // Light positions
-layout (std430, binding = 5) readonly buffer vplData {
-    VirtualPointLight lightData[];
+layout (std430, binding = 5) readonly buffer vplPositions {
+    vec4 lightPositions[];
+};
+
+layout (std430, binding = 6) readonly buffer vplColors {
+    vec4 lightColors[];
+};
+
+layout (std430, binding = 7) readonly buffer vplRadii {
+    float lightRadii[];
+};
+
+layout (std430, binding = 8) readonly buffer vplFarPlanes {
+    float lightFarPlanes[];
+};
+
+layout (std430, binding = 9) readonly buffer vplNumSamples {
+    float lightNumSamples[];
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
@@ -78,20 +94,19 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndicesPerTile[baseTileIndex + baseLightIndex];
-        VirtualPointLight vpl = lightData[lightIndex];
-        vec3 lightPosition = vpl.lightPosition.xyz;
+        vec3 lightPosition = lightPositions[lightIndex].xyz;
         float distance = length(lightPosition - fragPos);
-        vec3 lightColor = vpl.lightColor.xyz;
-        if (distance > vpl.shadowFarPlaneRadius.z) continue;
+        vec3 lightColor = lightColors[lightIndex].xyz;
+        if (distance > lightRadii[lightIndex]) continue;
         if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
 
-        int numSamples = 3;//int(vpl.numShadowSamples.x);
+        int numSamples = 3;//int(lightNumSamples[lightIndex]);
         // This solves an error where sometimes numShadowSamples seems to be uninitialized to some huge
         // value - must fix
-        //numSamples = numSamples > 64 ? 3 : numSamples;
-        //float shadowFactor = 0.0;
+        //if (numSamples > 64) continue;
+        float shadowFactor = 0.0;
         if (length(lightPosition - viewPosition) < 135) {
-            shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], vpl.shadowFarPlaneRadius.y, fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
+            shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);

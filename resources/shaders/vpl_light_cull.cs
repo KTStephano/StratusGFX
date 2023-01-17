@@ -20,7 +20,11 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
 layout (std430, binding = 0) buffer vplLightData {
-    VirtualPointLight lightData[];
+    float shadowFactors[];
+};
+
+layout (std430, binding = 4) buffer vplPositions {
+    vec4 lightPositions[];
 };
 
 layout (std430, binding = 1) buffer numVisibleVPLs {
@@ -33,15 +37,14 @@ layout (std430, binding = 3) buffer outputBlock2 {
 
 void main() {
     int index = int(gl_GlobalInvocationID.x);
-    VirtualPointLight vpl = lightData[index];
-    vec3 lightPos = vpl.lightPosition.xyz;
+    vec3 lightPos = lightPositions[index].xyz;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
     if (shadowFactor < 0.95) {
         int next = atomicAdd(numVisible, 1);
-        vpl.shadowFarPlaneRadius.x = shadowFactor;
+        shadowFactors[index] = shadowFactor;
         vplVisibleIndex[next] = index;
     }
 }

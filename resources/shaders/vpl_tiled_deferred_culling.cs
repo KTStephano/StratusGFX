@@ -25,8 +25,12 @@ uniform sampler2D gPosition;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer vplLightData {
-    VirtualPointLight lightData[];
+layout (std430, binding = 0) readonly buffer vplLightPositions {
+    vec4 lightPositions[];
+};
+
+layout (std430, binding = 7) readonly buffer vplLightRadii {
+    float lightRadii[];
 };
 
 layout (std430, binding = 1) readonly buffer numVisibleVPLs {
@@ -71,9 +75,8 @@ void main() {
 
     for (int i = 0; i < numVisible; ++i) {
         int lightIndex = vplVisibleIndex[i];
-        VirtualPointLight vpl = lightData[lightIndex];
-        float distance = length(vpl.lightPosition.xyz - fragPos);
-        float radius = vpl.shadowFarPlaneRadius.z;
+        float distance = length(lightPositions[lightIndex].xyz - fragPos);
+        float radius = lightRadii[lightIndex];
         if (distance > radius) continue;
         
         int prev = atomicAdd(activeLightMarker[lightIndex], 1);
