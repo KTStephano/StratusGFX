@@ -29,7 +29,6 @@ namespace stratus {
         uint32_t           numCmdArgs;
         const char **      cmdArgs;
         uint32_t           maxFrameRate = 1000;
-        Application *      application;
     };
 
     struct EngineStatistics {
@@ -85,6 +84,7 @@ namespace stratus {
     private:
         void _InitLog();
         void _InitApplicationThread();
+        void _InitTaskSystem();
         void _InitMaterialManager();
         void _InitResourceManager();
         void _InitRenderer();

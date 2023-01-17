@@ -6,6 +6,8 @@
 #include <assimp/pbrmaterial.h>
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
+#include "StratusTaskSystem.h"
+#include "StratusAsync.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -26,20 +28,10 @@ namespace stratus {
             _ClearAsyncModelData();
         }
 
-        for (auto& thread : _threads) {
-            if (thread->Idle()) {
-                thread->Dispatch();
-            }
-        }
-
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
     bool ResourceManager::Initialize() {
-        for (int i = 0; i < 8; ++i) {
-            _threads.push_back(ThreadPtr(new Thread("StreamingThread#" + std::to_string(i + 1), true)));
-        }
-
         _InitCube();
         _InitQuad();
 
@@ -47,8 +39,6 @@ namespace stratus {
     }
 
     void ResourceManager::Shutdown() {
-        _threads.clear();
-
         auto ul = _LockWrite();
         _loadedModels.clear();
         _pendingFinalize.clear();
@@ -160,20 +150,14 @@ namespace stratus {
         }
 
         auto ul = _LockWrite();
-        auto index = _NextResourceIndex();
-        Async<Entity> e(*_threads[index].get(), [this, name, defaultCullMode]() {
+        TaskSystem * tasks = TaskSystem::Instance();
+        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode]() {
             return _LoadModel(name, defaultCullMode);
         });
 
         _loadedModels.insert(std::make_pair(name, e));
         _pendingFinalize.insert(std::make_pair(name, e));
         return e;
-    }
-
-    uint32_t ResourceManager::_NextResourceIndex() {
-        uint32_t index = _nextResourceVector % _threads.size();
-        ++_nextResourceVector;
-        return index;
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const bool srgb) {
@@ -216,10 +200,10 @@ namespace stratus {
         }
 
         auto ul = _LockWrite();
-        auto index = _NextResourceIndex();
         auto handle = TextureHandle::NextHandle();
+        TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as(*_threads[index].get(), [this, files, handle, srgb, type, wrap, min, mag]() {
+        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, srgb, type, wrap, min, mag]() {
             return _LoadTexture(files, handle, srgb, type, wrap, min, mag);
         });
 
@@ -231,8 +215,8 @@ namespace stratus {
 
     void ResourceManager::FinalizeModelMemory(const RenderMeshPtr& ptr) {
         auto sl = _LockWrite();
-        auto index = _NextResourceIndex();
-        Async<bool> as(*_threads[index].get(), [ptr]() {
+        TaskSystem * tasks = TaskSystem::Instance();
+        Async<bool> as = tasks->ScheduleTask<bool>([ptr]() {
             ptr->FinalizeGpuData();
             return (bool *)nullptr;
         });

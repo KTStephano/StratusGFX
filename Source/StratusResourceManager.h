@@ -7,6 +7,7 @@
 #include "StratusTexture.h"
 #include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
+#include "StratusAsync.h"
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>
@@ -33,7 +34,7 @@ namespace stratus {
         ResourceManager& operator=(const ResourceManager&) = delete;
         ResourceManager& operator=(ResourceManager&&) = delete;
 
-        ~ResourceManager();
+        virtual ~ResourceManager();
 
         static ResourceManager * Instance() { return _instance; }
 
@@ -85,15 +86,12 @@ namespace stratus {
                                                      const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                                      const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
         Texture * _FinalizeTexture(const RawTextureData&);
-        uint32_t _NextResourceIndex();
 
         void _InitCube();
         void _InitQuad();
 
     private:
         static ResourceManager * _instance;
-        std::vector<ThreadPtr> _threads;
-        uint32_t _nextResourceVector = 0;
         EntityPtr _cube;
         EntityPtr _quad;
         std::unordered_map<std::string, Async<Entity>> _loadedModels;

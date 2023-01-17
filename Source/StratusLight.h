@@ -33,7 +33,7 @@ namespace stratus {
         Rotation _rotation;
         // Used to calculate ambient intensity based on sun orientation
         stratus::Radians _rotSine;
-        float _intensity = 3.0f;
+        float _intensity = 4.0f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
 
@@ -82,8 +82,9 @@ namespace stratus {
         void setIntensity(float intensity) { _intensity = std::max(intensity, 0.0f); }
 
         float getAmbientIntensity() const { 
-            const float ambient = _rotSine.value() * maxAmbientIntensity;
-            return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
+            //const float ambient = _rotSine.value() * maxAmbientIntensity;
+            //return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
+            return minAmbientIntensity;
         }
 
         bool getEnabled() const { return _enabled; }
@@ -95,19 +96,23 @@ namespace stratus {
     };
 
     class Light {
+    protected:
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _baseColor = _color;
-        float _intensity = 1.0f;
+        float _intensity = 200.0f;
         float _radius = 1.0f;
         bool _castsShadows = true;
-        bool _brightensWithSun = false;
+        // If virtual we intend to use it less as a natural light and more
+        // as a way of simulating bounce lighting
+        bool _virtualLight = false;
+
+        Light(const bool virtualLight)
+            : _virtualLight(virtualLight) {}
 
     public:
         glm::vec3 position = glm::vec3(0.0f);
-
-        Light(const bool brightensWithSun = false)
-            : _brightensWithSun(brightensWithSun) {}
         
+        Light() : Light(false) {}
         virtual ~Light() = default;
 
         /**
@@ -138,6 +143,10 @@ namespace stratus {
             _baseColor = _color;
             _recalcColorWithIntensity();
             _recalcRadius();
+        }
+
+        void setColor(const glm::vec3& color) {
+            setColor(color.r, color.g, color.b);
         }
 
         /**
@@ -171,8 +180,7 @@ namespace stratus {
 
         // If true then the light will be invisible when the sun is not overhead - 
         // useful for brightening up directly-lit scenes without Static or RT GI
-        bool getBrightensWithSun() const { return _brightensWithSun; }
-        void setBrightensWithSun(const bool brightensWithSun) { _brightensWithSun = brightensWithSun; }
+        bool IsVirtualLight() const { return _virtualLight; }
 
         virtual LightPtr Copy() const = 0;
 
@@ -182,7 +190,9 @@ namespace stratus {
             static const float lightMin = 256.0 / 5;
             const glm::vec3 intensity = getIntensity() * getColor();
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
-            this->_radius = sqrtf(-4 * (1.0 - Imax * lightMin)) / 2;
+            //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
+            _radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
+            _radius = std::max(200.0f, _radius);
         }
 
         void _recalcColorWithIntensity() {
@@ -201,11 +211,14 @@ namespace stratus {
         float lightNearPlane = 0.1f;
         float lightFarPlane = 500.0f;
 
+    protected:
+        PointLight(const bool virtualLight) 
+            : Light(virtualLight) {}
+
     public:
-        PointLight(const bool brightensWithSun = false) 
-            : Light(brightensWithSun) {}
-            
-        ~PointLight() override = default;
+        PointLight() : PointLight(false) {}
+
+        virtual ~PointLight() = default;
 
         LightType getType() const override {
             return LightType::POINTLIGHT;
@@ -237,6 +250,29 @@ namespace stratus {
         // void _setShadowMapHandle(ShadowMapHandle handle) {
         //     this->_shadowHap = handle;
         // }
+    };
+
+    // If you create a VPL and do not set a color for it, it will automatically
+    // inherit the color of the sun at each frame. Once a manual color is set this automatic
+    // changing will be disabled.
+    class VirtualPointLight : public PointLight {
+        friend class Renderer;
+
+    public:
+        VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
+        virtual ~VirtualPointLight() = default;
+
+        void SetNumShadowSamples(uint32_t samples) { _numShadowSamples = samples; }
+        uint32_t GetNumShadowSamples() const { return _numShadowSamples; }
+
+        // This MUST be done or else the engine makes copies and it will defer
+        // to PointLight instead of this and then cause horrible strange errors
+        LightPtr Copy() const override {
+            return LightPtr(new VirtualPointLight(*this));
+        }
+
+    private:
+        uint32_t _numShadowSamples = 3;
     };
 }
 

@@ -17,6 +17,7 @@ namespace stratus {
         TextureConfig _config;
         mutable int _activeTexture = -1;
         TextureHandle _handle;
+        GpuResidentTextureHandle _ptr;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -76,6 +77,7 @@ namespace stratus {
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateMipmap(_convertTexture(_config.type));
+            //_ptr = glGetTextureHandleARB(_texture);
             unbind();
         }
 
@@ -153,13 +155,19 @@ namespace stratus {
             }
         }
 
-        TextureType type() const              { return _config.type; }
-        TextureComponentFormat format() const { return _config.format; }
-        TextureHandle handle() const         { return _handle; }
-        uint32_t width() const                { return _config.width; }
-        uint32_t height() const               { return _config.height; }
-        uint32_t depth() const                { return _config.depth; }
-        void * underlying() const             { return (void *)&_texture; }
+        TextureType type() const               { return _config.type; }
+        TextureComponentFormat format() const  { return _config.format; }
+        TextureHandle handle() const           { return _handle; }
+        GpuResidentTextureHandle gpuHandle() const { return _ptr; }
+
+        // These cause RenderDoc to disable frame capture... super unfortunate
+        void makeResident()                    { throw std::runtime_error("Not implemented"); }// glMakeTextureHandleResidentARB((GLuint64)_ptr); }
+        void makeNonResident()                 { throw std::runtime_error("Not implemented"); }// ((GLuint64)_ptr); }
+
+        uint32_t width() const                 { return _config.width; }
+        uint32_t height() const                { return _config.height; }
+        uint32_t depth() const                 { return _config.depth; }
+        void * underlying() const              { return (void *)&_texture; }
 
     public:
         void bind(int activeTexture = 0) const {
@@ -167,6 +175,17 @@ namespace stratus {
             glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(_config.type), _texture);
             _activeTexture = activeTexture;
+        }
+
+        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+            GLenum accessMode = _convertImageAccessMode(access);
+            glBindImageTexture(unit, 
+                               _texture, 
+                               0, 
+                               layered ? GL_TRUE : GL_FALSE,
+                               layer,
+                               accessMode,
+                               _convertInternalFormat(_config.format, _config.storage, _config.dataType));
         }
 
         void unbind() const {
@@ -185,6 +204,15 @@ namespace stratus {
         }
 
     private:
+        static GLenum _convertImageAccessMode(ImageTextureAccessMode access) {
+            switch (access) {
+                case ImageTextureAccessMode::IMAGE_READ_ONLY: return GL_READ_ONLY;
+                case ImageTextureAccessMode::IMAGE_WRITE_ONLY: return GL_WRITE_ONLY;
+                case ImageTextureAccessMode::IMAGE_READ_WRITE: return GL_READ_WRITE;
+                default: throw std::runtime_error("Unknown image access mode");
+            }
+        }
+
         static GLenum _convertTexture(TextureType type) {
             switch (type) {
             case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
@@ -422,12 +450,19 @@ namespace stratus {
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
     TextureHandle Texture::handle() const { return _impl->handle(); }
+    GpuResidentTextureHandle Texture::gpuHandle() const { return _impl->gpuHandle(); }
+
+    void Texture::makeResident() { _impl->makeResident(); }
+    void Texture::makeNonResident() { _impl->makeNonResident(); }
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
     uint32_t Texture::depth() const { return _impl->depth(); }
 
     void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
+    void Texture::bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+        _impl->bindAsImageTexture(unit, layered, layer, access);
+    }
     void Texture::unbind() const { _impl->unbind(); }
     bool Texture::valid() const { return _impl != nullptr; }
 

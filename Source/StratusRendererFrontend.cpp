@@ -102,6 +102,8 @@ namespace stratus {
         data.dirty = true;
         data.lightCopy = light->Copy();
 
+        if ( light->IsVirtualLight() ) _virtualPointLights.insert(light);
+
         if ( !light->castsShadows() ) return;
 
         _AttemptAddEntitiesForLight(light, data, _staticPbrEntities);
@@ -113,6 +115,7 @@ namespace stratus {
         if (_lights.find(light) == _lights.end()) return;
         auto copy = _lights.find(light)->second.lightCopy;
         _lights.erase(light);
+        _virtualPointLights.erase(light);
         _lightsToRemove.insert(copy);
         _lightsDirty = true;
     }
@@ -123,6 +126,7 @@ namespace stratus {
             _lightsToRemove.insert(light.second.lightCopy);
         }
         _lights.clear();
+        _virtualPointLights.clear();
         _lightsDirty = true;
     }
 
@@ -203,6 +207,16 @@ namespace stratus {
     float RendererFrontend::GetAtmosphericScatterControl() const {
         auto sl = _LockRead();
         return _frame->atmospheric.scatterControl;
+    }
+
+    void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
+        auto ul = _LockWrite();
+        _frame->globalIlluminationEnabled = enabled;
+    }
+
+    bool RendererFrontend::GetGlobalIlluminationEnabled() const {
+        auto sl = _LockRead();
+        return _frame->globalIlluminationEnabled;
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
@@ -649,9 +663,12 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateLights() {
+        _frame->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
         for (auto& light : _lightsToRemove) {
             _frame->lights.erase(light);
+            _frame->virtualPointLights.erase(light);
+            _frame->lightsToRemove.insert(light);
         }
         _lightsToRemove.clear();
 

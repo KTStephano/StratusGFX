@@ -3,6 +3,7 @@
 #include <iostream>
 #include <StratusPipeline.h>
 #include <StratusCamera.h>
+#include "StratusAsync.h"
 #include <chrono>
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
@@ -36,15 +37,14 @@ public:
     glm::vec3 speed;
     bool spawnPhysicalMarker;
 
-    RandomLightMover(const bool spawnPhysicalMarker = true,
-                     const bool brightensWithSun = false) 
+    RandomLightMover(const bool spawnPhysicalMarker = true, stratus::LightPtr ptr = nullptr) 
         : spawnPhysicalMarker(spawnPhysicalMarker) {
         cube = stratus::ResourceManager::Instance()->CreateCube();
         cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
         cube->GetRenderNode()->EnableLightInteraction(false);
         //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
         cube->SetLocalScale(glm::vec3(1.0f));
-        light = stratus::LightPtr(new stratus::PointLight(brightensWithSun));
+        light = ptr ? ptr : stratus::LightPtr(new stratus::PointLight());
         _changeDirection();
     }
 
@@ -78,7 +78,8 @@ public:
 };
 
 struct StationaryLight : public RandomLightMover {
-    StationaryLight(const bool spawnPhysicalMarker = true) : RandomLightMover(spawnPhysicalMarker) {}
+    StationaryLight(const bool spawnPhysicalMarker = true) 
+        : RandomLightMover(spawnPhysicalMarker) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -90,7 +91,7 @@ struct StationaryLight : public RandomLightMover {
 
 struct FakeRTGILight : public RandomLightMover {
     FakeRTGILight(const bool spawnPhysicalMarker = true)
-        : RandomLightMover(spawnPhysicalMarker, /* brightensWithSun = */ true) {}
+        : RandomLightMover(spawnPhysicalMarker, stratus::LightPtr(new stratus::VirtualPointLight())) {}
 
     void update(double deltaSeconds) override {
         cube->SetLocalPosition(position);
@@ -140,6 +141,17 @@ public:
 
         worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
 
+        // for (int i = 0; i < 64; ++i) {
+        //     float x = rand() % 600;
+        //     float y = rand() % 600;
+        //     float z = rand() % 200;
+        //     stratus::VirtualPointLight * vpl = new stratus::VirtualPointLight();
+        //     vpl->setIntensity(worldLight->getIntensity() * 50.0f);
+        //     vpl->position = glm::vec3(x, y, z);
+        //     vpl->setColor(worldLight->getColor());
+        //     World()->AddLight(stratus::LightPtr((stratus::Light *)vpl));
+        // }
+
         return true;
     }
 
@@ -158,6 +170,8 @@ public:
         const float atmosphericIncreaseSpeed = 1.0f;
         float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
         float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
+
+        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -224,6 +238,11 @@ public:
                             break;
                         case SDL_SCANCODE_I:
                             if (released) {
+                                worldLightMoveDirection = -worldLightMoveDirection;
+                            }
+                            break;
+                        case SDL_SCANCODE_L:
+                            if (released) {
                                 worldLight->setEnabled( !worldLight->getEnabled() );
                             }
                             break;
@@ -267,8 +286,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
-                                const auto worldLightColor = worldLight->getColor();
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                mover->light->setColor(warmMorningColor);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -279,8 +297,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
-                                const auto worldLightColor = worldLight->getColor();
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                mover->light->setColor(warmMorningColor);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -293,6 +310,7 @@ public:
                                 mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -305,6 +323,7 @@ public:
                                 mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -317,9 +336,17 @@ public:
                                 mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
+                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
                                 mover->position = camera->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_G: {
+                            if (released) {
+                                const bool enabled = World()->GetGlobalIlluminationEnabled();
+                                World()->SetGlobalIlluminationEnabled( !enabled );
                             }
                             break;
                         }
@@ -330,6 +357,13 @@ public:
                             lightMovers.clear();
                             break;
                         }
+                        case SDL_SCANCODE_Z:
+                            if (released) {
+                                if (lightMovers.size() > 0) {
+                                    lightMovers[lightMovers.size() - 1]->removeFromScene();
+                                    lightMovers.pop_back();
+                                }
+                            }
                         default: break;
                     }
                     break;
@@ -343,14 +377,17 @@ public:
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         if (!worldLightPaused) {
-            worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
+            worldLight->offsetRotation(glm::vec3(worldLightMoveDirection * value * deltaSeconds, 0.0f, 0.0f));
         }
+
+        #define LERP(x, v1, v2) (x * v1 + (1.0f - x) * v2)
 
         //renderer->toggleWorldLighting(worldLightEnabled);
         stratus::RendererFrontend::Instance()->SetWorldLight(worldLight);
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        worldLight->setColor(glm::vec3(1.0f));
+        const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
+        worldLight->setColor(warmMorningColor);
         worldLight->setPosition(camera->getPosition());
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
@@ -407,6 +444,7 @@ private:
     std::vector<stratus::EntityPtr> entities;
     stratus::CameraPtr camera;
     glm::vec3 cameraSpeed;
+    float worldLightMoveDirection = 1.0; // -1.0 reverses it
     float camSpeedDivide = 0.25f; // For slowing camera down
     stratus::LightPtr cameraLight;
     stratus::InfiniteLightPtr worldLight;
