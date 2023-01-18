@@ -8,6 +8,7 @@ namespace stratus {
     class RendererFrontend;
     class MaterialManager;
     class Engine;
+    class Window;
 
     // Special interface class which the engine knows is the entry point
     // for the application (e.g. editor or game)
@@ -31,6 +32,7 @@ namespace stratus {
         static RendererFrontend * World();
         static MaterialManager * Materials();
         static Engine * Stratus();
+        static Window * Window();
 
     private:
         static Application * _instance;

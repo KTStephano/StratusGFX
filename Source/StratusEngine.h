@@ -87,6 +87,7 @@ namespace stratus {
         void _InitTaskSystem();
         void _InitMaterialManager();
         void _InitResourceManager();
+        void _InitWindow();
         void _InitRenderer();
 
         template<typename E>

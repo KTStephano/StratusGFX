@@ -13,8 +13,6 @@
 
 namespace stratus {
     struct RendererParams {
-        uint32_t viewportWidth;
-        uint32_t viewportHeight;
         std::string appName;
         Degrees fovy;
         float znear = 0.1f;
@@ -55,7 +53,6 @@ namespace stratus {
         void ClearWorldLight();
 
         void SetCamera(const CameraPtr&);
-        void SetViewportDims(const uint32_t width, const uint32_t height);
         void SetFovY(const Degrees&);
         void SetNearFar(const float znear, const float zfar);
         void SetVsyncEnabled(const bool);
@@ -70,8 +67,8 @@ namespace stratus {
         float GetAtmosphericFogDensity() const;
         float GetAtmosphericScatterControl() const;
 
-        std::vector<SDL_Event> PollInputEvents();
-        RendererMouseState GetMouseState() const;
+        // std::vector<SDL_Event> PollInputEvents();
+        // RendererMouseState GetMouseState() const;
 
         // SystemModule inteface
         virtual const char * Name() const {
@@ -122,8 +119,6 @@ namespace stratus {
         std::shared_ptr<RendererFrame> _frame;
         std::shared_ptr<RendererFrame> _prevFrame;
         std::unique_ptr<RendererBackend> _renderer;
-        std::vector<SDL_Event> _events;
-        RendererMouseState _mouse;
         mutable std::shared_mutex _mutex;
     };
 }

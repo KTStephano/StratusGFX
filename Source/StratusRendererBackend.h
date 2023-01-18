@@ -276,10 +276,6 @@ namespace stratus {
             RenderNodePtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
-            // Window events
-            std::vector<SDL_Event> events;
-            // For keeping track of mouse location/button status
-            RendererMouseState mouse;
         };
 
         struct TextureCache {
@@ -299,14 +295,6 @@ namespace stratus {
             FrameBuffer frameBuffer;
             Texture shadowCubeMap;
         };
-
-        /**
-         * This is needed to create the gl context and to
-         * perform a gl context switch. This pointer is
-         * NOT managed by this class and should not be deleted
-         * by the Renderer.
-         */
-        SDL_Window * _window;
 
         /**
          * The rendering context is defined as the window +
@@ -416,10 +404,10 @@ namespace stratus {
         void End();
 
         // Returns window events since the last time this was called
-        std::vector<SDL_Event> PollInputEvents();
+        // std::vector<SDL_Event> PollInputEvents();
 
-        // Returns the mouse status as of the most recent frame
-        RendererMouseState GetMouseState() const;
+        // // Returns the mouse status as of the most recent frame
+        // RendererMouseState GetMouseState() const;
 
     private:
         void _InitializeVplData();

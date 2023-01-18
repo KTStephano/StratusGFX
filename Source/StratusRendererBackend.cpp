@@ -14,6 +14,7 @@
 #include "StratusResourceManager.h"
 #include "StratusApplicationThread.h"
 #include "StratusEngine.h"
+#include "StratusWindow.h"
 
 namespace stratus {
 // See https://www.khronos.org/opengl/wiki/Debug_Output
@@ -104,24 +105,7 @@ static void printGLInfo(const GFXConfig & config) {
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
     static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
 
-    STRATUS_LOG << "Initializing SDL video" << std::endl;
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
-        STRATUS_ERROR << SDL_GetError() << std::endl;
-        return;
-    }
-
-    STRATUS_LOG << "Initializing SDL window" << std::endl;
-    _window = SDL_CreateWindow(appName.c_str(),
-            100, 100, // location x/y on screen
-            width, height, // width/height of window
-            SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
-    if (_window == nullptr) {
-        STRATUS_ERROR << "Failed to create sdl window" << std::endl;
-        STRATUS_ERROR << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return;
-    }
+    SDL_Window * window = (SDL_Window *)Window::Instance()->GetWindowObject();
 
     // Set the profile to core as opposed to compatibility mode
     SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -133,7 +117,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     // Create the gl context
     STRATUS_LOG << "Creating OpenGL context" << std::endl;
-    _context = SDL_GL_CreateContext(_window);
+    _context = SDL_GL_CreateContext(window);
     if (_context == nullptr) {
         STRATUS_ERROR << "Unable to create a valid OpenGL context" << std::endl;
         STRATUS_ERROR << SDL_GetError() << std::endl;
@@ -356,12 +340,6 @@ RendererBackend::~RendererBackend() {
     if (_context) {
         SDL_GL_DeleteContext(_context);
         _context = nullptr;
-    }
-
-    if (_window) {
-        SDL_DestroyWindow(_window);
-        _window = nullptr;
-        SDL_Quit();
     }
 
     for (Pipeline * shader : _shaders) delete shader;
@@ -727,7 +705,8 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     _frame = frame;
 
     // Make sure we set our context as the active one
-    SDL_GL_MakeCurrent(_window, _context);
+    SDL_Window* window = (SDL_Window*)Window::Instance()->GetWindowObject();
+    SDL_GL_MakeCurrent(window, _context);
 
     // Clear out instanced data from previous frame
     _ClearInstancedData();
@@ -747,14 +726,14 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     // Generate the GPU data for all instanced entities
     _InitAllInstancedData();
 
-    // Collect window input events
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        _state.events.push_back(e);
-    }
+    // // Collect window input events
+    // SDL_Event e;
+    // while (SDL_PollEvent(&e)) {
+    //     _state.events.push_back(e);
+    // }
 
-    // Update mouse
-    _state.mouse.mask = SDL_GetMouseState(&_state.mouse.x, &_state.mouse.y);
+    // // Update mouse
+    // _state.mouse.mask = SDL_GetMouseState(&_state.mouse.x, &_state.mouse.y);
 
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1687,17 +1666,10 @@ void RendererBackend::End() {
     }
 
     // Swap front and back buffer
-    SDL_GL_SwapWindow(_window);
+    SDL_Window* window = (SDL_Window *)Window::Instance()->GetWindowObject();
+    SDL_GL_SwapWindow(window);
 
     _frame.reset();
-}
-
-std::vector<SDL_Event> RendererBackend::PollInputEvents() {
-    return std::move(_state.events);
-}
-
-RendererMouseState RendererBackend::GetMouseState() const {
-    return _state.mouse;
 }
 
 void RendererBackend::_RenderQuad() {

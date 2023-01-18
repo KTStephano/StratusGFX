@@ -1,6 +1,7 @@
 #include "StratusRendererFrontend.h"
 #include "StratusUtils.h"
 #include "StratusLog.h"
+#include "StratusWindow.h"
 
 namespace stratus {
     RendererFrontend * RendererFrontend::_instance = nullptr;
@@ -147,13 +148,6 @@ namespace stratus {
         _camera = camera;
     }
 
-    void RendererFrontend::SetViewportDims(const uint32_t width, const uint32_t height) {
-        auto ul = _LockWrite();
-        _params.viewportWidth = width;
-        _params.viewportHeight = height;
-        _viewportDirty = true;
-    }
-
     void RendererFrontend::SetFovY(const Degrees& fovy) {
         auto ul = _LockWrite();
         _params.fovy = fovy;
@@ -181,16 +175,6 @@ namespace stratus {
     void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
         auto ul = _LockWrite();
         _frame->skybox = skybox;
-    }
-
-    std::vector<SDL_Event> RendererFrontend::PollInputEvents() {
-        auto ul = _LockWrite();
-        return std::move(_events);
-    }
-
-    RendererMouseState RendererFrontend::GetMouseState() const {
-        auto sl = _LockRead();
-        return _mouse;
     }
 
     void RendererFrontend::SetAtmosphericShadowing(float fogDensity, float scatterControl) {
@@ -234,14 +218,6 @@ namespace stratus {
 
         //_SwapFrames();
 
-        // Update events
-        for (auto e : _renderer->PollInputEvents()) {
-            _events.push_back(e);
-        }
-
-        // Update mouse
-        _mouse = _renderer->GetMouseState();
-
         // Check for shader recompile request
         if (_recompileShaders) {
             _renderer->RecompileShaders();
@@ -280,7 +256,7 @@ namespace stratus {
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
         // Create the renderer on the renderer thread only
-        _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
+        _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
 
         return _renderer->Valid();
     }
@@ -303,15 +279,11 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateViewport() {
-        if (_viewportDirty) {
-            _frame->viewportDirty  = true;
-            _viewportDirty = false;
-        }
-        else {
-            _frame->viewportDirty = false;
-        }
+        _viewportDirty = _viewportDirty || Window::Instance()->WindowResizedWithinLastFrame();
+        _frame->viewportDirty = _viewportDirty;
+        _viewportDirty = false;
 
-        const float aspect = _params.viewportWidth / float(_params.viewportHeight);
+        const float aspect = Window::Instance()->GetWindowDims().first / float(Window::Instance()->GetWindowDims().second);
         _projection        = glm::perspective(
             Radians(_params.fovy).value(),
             aspect,
@@ -322,8 +294,8 @@ namespace stratus {
         _frame->znear          = _params.znear;
         _frame->zfar           = _params.zfar;
         _frame->projection     = _projection;
-        _frame->viewportWidth  = _params.viewportWidth;
-        _frame->viewportHeight = _params.viewportHeight;
+        _frame->viewportWidth  = Window::Instance()->GetWindowDims().first;
+        _frame->viewportHeight = Window::Instance()->GetWindowDims().second;
         _frame->fovy           = Radians(_params.fovy);
     }
 
@@ -369,7 +341,7 @@ namespace stratus {
 
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
-        const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
+        const float ar = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float projPlaneDist = glm::tan(Radians(_params.fovy).value() / 2.0f);
