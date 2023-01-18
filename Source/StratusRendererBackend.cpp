@@ -726,15 +726,6 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     // Generate the GPU data for all instanced entities
     _InitAllInstancedData();
 
-    // // Collect window input events
-    // SDL_Event e;
-    // while (SDL_PollEvent(&e)) {
-    //     _state.events.push_back(e);
-    // }
-
-    // // Update mouse
-    // _state.mouse.mask = SDL_GetMouseState(&_state.mouse.x, &_state.mouse.y);
-
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);

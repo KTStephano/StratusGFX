@@ -22,7 +22,7 @@ namespace stratus {
         return INSTANCE(MaterialManager);
     }
 
-    Engine * Application::Stratus() {
+    Engine * Application::Engine() {
         return INSTANCE(Engine);
     }
 

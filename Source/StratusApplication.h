@@ -31,7 +31,7 @@ namespace stratus {
         static ResourceManager * Resources();
         static RendererFrontend * World();
         static MaterialManager * Materials();
-        static Engine * Stratus();
+        static Engine * Engine();
         static Window * Window();
 
     private:

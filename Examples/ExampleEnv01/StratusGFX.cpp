@@ -265,7 +265,7 @@ public:
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         const float value = 3.0f;
         const float maxAmbientIntensity = 0.03;
-        if (Stratus()->FrameCount() % 100 == 0) {
+        if (Engine()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
         const float camSpeed = 100.0f;

@@ -123,7 +123,7 @@ public:
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         float value = 1.0f;
-        if (stratus::Engine::Instance()->FrameCount() % 100 == 0) {
+        if (Engine()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
         const float lightIncreaseSpeed = 5.0f;
