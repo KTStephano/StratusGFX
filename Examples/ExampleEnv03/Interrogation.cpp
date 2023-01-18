@@ -102,7 +102,11 @@ public:
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { interrogationRoom = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(interrogationRoom); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            interrogationRoom = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(interrogationRoom); 
+            interrogationRoom->SetLocalPosition(glm::vec3(0.0f));
+            interrogationRoom->SetLocalScale(glm::vec3(0.125f));
+        });
 
         bool running = true;
 
@@ -365,11 +369,6 @@ public:
 
         cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-        if (interrogationRoom) {
-           interrogationRoom->SetLocalPosition(glm::vec3(0.0f));
-           interrogationRoom->SetLocalScale(glm::vec3(0.125f));
-        }
 
         //renderer->addDrawable(rocks);
 

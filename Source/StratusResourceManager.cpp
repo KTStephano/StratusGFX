@@ -356,21 +356,18 @@ namespace stratus {
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity,
+                            MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
-        auto mat = node->mTransformation;
+        aiMatrix4x4 mat = node->mTransformation;
         aiVector3t<float> scale;
         aiQuaterniont<float> quat;
         aiVector3t<float> position;
         mat.Decompose(scale, quat, position);
 
-        auto rotation = quat.GetMatrix();
-        // @see https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
-        const Radians angleX = Radians(atan2f(rotation.c2, rotation.c3));
-        const Radians angleY = Radians(atan2f(-rotation.c1, sqrtf(rotation.c2 * rotation.c2 + rotation.c3 * rotation.c3)));
-        const Radians angleZ = Radians(atan2f(rotation.b1, rotation.a1));
+        auto rotation = ToMat4(quat.GetMatrix());
 
-        entity->SetLocalPosRotScale(glm::vec3(position.x, position.y, position.z), Rotation(angleX, angleY, angleZ), glm::vec3(scale.x, scale.y, scale.z));
+        entity->SetLocalPosRotScale(glm::vec3(position.x, position.y, position.z), rotation, glm::vec3(scale.x, scale.y, scale.z));
         RenderNodePtr rnode = RenderNodePtr(new RenderNode());
         entity->SetRenderNode(rnode);
 
