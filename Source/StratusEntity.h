@@ -110,18 +110,20 @@ namespace stratus {
         virtual const std::vector<EntityComponentPtr>& GetComponents() const;
 
         // Functions for getting and setting transform
-        virtual const glm::vec3& GetLocalPosition() const;
+        virtual glm::vec3 GetLocalPosition() const;
         virtual void SetLocalPosition(const glm::vec3&);
 
-        virtual const Rotation& GetLocalRotation() const;
+        virtual const glm::mat4& GetLocalRotation() const;
         virtual void SetLocalRotation(const Rotation&);
+        virtual void SetLocalRotation(const glm::mat4&);
 
-        virtual const glm::vec3& GetLocalScale() const;
+        virtual glm::vec3 GetLocalScale() const;
         virtual void SetLocalScale(const glm::vec3&);
 
         virtual void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
+        virtual void SetLocalPosRotScale(const glm::vec3&, const glm::mat4&, const glm::vec3&);
 
-        virtual const glm::vec3& GetWorldPosition() const;
+        virtual glm::vec3 GetWorldPosition() const;
 
         // World transform is relative to the entity's parent
         virtual const glm::mat4& GetWorldTransform() const;
@@ -155,6 +157,8 @@ namespace stratus {
         RenderNodePtr GetRenderNode() const;
         void SetRenderNode(const RenderNodePtr&);
 
+        bool ChangedWithinLastFrame() const;
+
         // Creates a deep copy of this entity, its components, and all other nodes
         // (if copyHandle == false it will generated a new handle)
         virtual EntityPtr Copy(bool copyHandle = false) const;
@@ -182,12 +186,12 @@ namespace stratus {
         std::shared_ptr<std::atomic<uint64_t>> _refCount;
         std::unordered_set<EntityPtr> _children;
         RenderNodePtr _renderNode;
-        glm::vec3 _position = glm::vec3(0.0f);
-        glm::vec3 _worldPosition;
-        Rotation _rotation;
-        glm::vec3 _scale = glm::vec3(1.0f);
+        glm::mat4 _localScale = glm::mat4(1.0f);
+        glm::mat4 _localRotate = glm::mat4(1.0f);
+        glm::mat4 _localTranslate = glm::mat4(1.0f);
         glm::mat4 _localTransform = glm::mat4(1.0f);
         glm::mat4 _worldTransform = glm::mat4(1.0f);
+        uint64_t _lastFrameChanged = 0;
     };
 
     // Allows for entity to be inserted into hash map

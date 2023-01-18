@@ -100,16 +100,18 @@ namespace stratus {
         // Transform info
         void SetLocalPosition(const glm::vec3&);
         void SetLocalRotation(const Rotation&);
+        // Offsets local rotation rather than overwrite
+        void UpdateLocalRotation(const Rotation&);
         void SetLocalScale(const glm::vec3&);
         void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
         // Called by Entity when its transform info changes
-        void SetWorldTransform(const glm::mat4&);
+        void SetGlobalTransform(const glm::mat4&);
 
-        const glm::vec3& GetLocalPosition() const;
-        const Rotation& GetLocalRotation() const;
-        const glm::vec3& GetLocalScale() const;
+        glm::vec3 GetLocalPosition() const;
+        const glm::mat4& GetLocalRotation() const;
+        glm::vec3 GetLocalScale() const;
 
-        const glm::vec3& GetWorldPosition() const;
+        glm::vec3 GetWorldPosition() const;
 
         // This will be entity world transform * node transform
         const glm::mat4& GetWorldTransform() const;
@@ -132,12 +134,11 @@ namespace stratus {
     private:
         std::vector<RenderMeshContainer> _meshes;
         mutable bool _transformIsDirty = true;
-        glm::vec3 _position = glm::vec3(0.0f);
-        mutable glm::vec3 _worldPosition = glm::vec3(0.0f);
-        Rotation _rotation;
-        glm::vec3 _scale = glm::vec3(1.0f);
-        mutable glm::mat4 _worldTransform = glm::mat4(1.0f);
-        glm::mat4 _worldEntityTransform = glm::mat4(1.0f);
+        mutable glm::mat4 _globalTransform = glm::mat4(1.0f);
+        mutable glm::mat4 _localTransform = glm::mat4(1.0f);
+        glm::mat4 _localScale = glm::mat4(1.0f);
+        glm::mat4 _localRotation = glm::mat4(1.0f);
+        glm::mat4 _localTranslate = glm::mat4(1.0f);
         bool _lightInteractionEnabled = true;
         bool _invisible = false;
         std::shared_ptr<Entity> _owner;

@@ -1,4 +1,5 @@
 #include "StratusEntity.h"
+#include "StratusEngine.h"
 #include <glm/gtx/matrix_decompose.hpp>
 
 namespace stratus {
@@ -49,45 +50,56 @@ namespace stratus {
 
     const std::vector<EntityComponentPtr>& Entity::GetComponents() const {
         throw std::runtime_error("Implement");
-        
+
     }
 
-    const glm::vec3& Entity::GetLocalPosition() const {
-        return _position;
+    glm::vec3 Entity::GetLocalPosition() const {
+        return glm::vec3(_localTranslate[3].x, _localTranslate[3].y, _localTranslate[3].z);
     }
 
     void Entity::SetLocalPosition(const glm::vec3& pos) {
-        _position = pos;
+        matTranslate(_localTranslate, pos);
         _RecalcTransform();
     }
 
-    const Rotation& Entity::GetLocalRotation() const {
-        return _rotation;
+    const glm::mat4& Entity::GetLocalRotation() const {
+        return _localRotate;
     }
 
     void Entity::SetLocalRotation(const Rotation& rot) {
-        _rotation = rot;
+        SetLocalRotation(rot.asMat4());
+    }
+
+    void Entity::SetLocalRotation(const glm::mat4& rot) {
+        _localRotate = rot;
         _RecalcTransform();
     }
 
-    const glm::vec3& Entity::GetLocalScale() const {
-        return _scale;
+    glm::vec3 Entity::GetLocalScale() const {
+        return glm::vec3(_localScale[0].x, _localScale[1].y, _localScale[2].z);
     }
 
     void Entity::SetLocalScale(const glm::vec3& scale) {
-        _scale = scale;
+        glm::mat4 m(1.0f);
+        matScale(m, scale);
+        _localScale = std::move(m);
         _RecalcTransform();
     }
 
     void Entity::SetLocalPosRotScale(const glm::vec3& pos, const Rotation& rot, const glm::vec3& scale) {
-        _position = pos;
-        _rotation = rot;
-        _scale = scale;
+        SetLocalPosRotScale(pos, rot.asMat4(), scale);
+    }
+
+    void Entity::SetLocalPosRotScale(const glm::vec3& pos, const glm::mat4& rot, const glm::vec3& scale) {
+        matTranslate(_localTranslate, pos);
+        _localRotate = rot;
+        _localScale = glm::mat4(1.0f);
+        matScale(_localScale, scale);
         _RecalcTransform();
     }
 
-    const glm::vec3& Entity::GetWorldPosition() const {
-        return _worldPosition;
+    glm::vec3 Entity::GetWorldPosition() const {
+        return glm::vec3(_worldTransform[3].x, _worldTransform[3].y, _worldTransform[3].z);
     }
 
     const glm::mat4& Entity::GetWorldTransform() const {
@@ -164,17 +176,23 @@ namespace stratus {
     }
 
     void Entity::_RecalcTransform() {
-        _localTransform = constructTransformMat(_rotation, _position, _scale);
+        _localTransform = _localTranslate * _localRotate * _localScale;
         _worldTransform = _parent != nullptr ? _parent->_worldTransform * _localTransform : _localTransform;
-        _worldPosition = glm::vec3(_worldTransform[3].x, _worldTransform[3].y, _worldTransform[3].z);
 
         if (_renderNode != nullptr) {
-            _renderNode->SetWorldTransform(_worldTransform);
+            _renderNode->SetGlobalTransform(_worldTransform);
         }
 
         for (auto& child : _children) {
             child->_RecalcTransform();
         }
+
+        _lastFrameChanged = Engine::Instance()->FrameCount();
+    }
+
+    bool Entity::ChangedWithinLastFrame() const {
+        auto offset = Engine::Instance()->FrameCount() - _lastFrameChanged;
+        return offset < 2;
     }
 
     RenderNodePtr Entity::GetRenderNode() const {
@@ -183,7 +201,7 @@ namespace stratus {
 
     void Entity::SetRenderNode(const RenderNodePtr& node) {
         _renderNode = node;
-        _renderNode->SetWorldTransform(_worldTransform);
+        _renderNode->SetGlobalTransform(_worldTransform);
         _renderNode->SetOwner(shared_from_this());
     }
 
@@ -203,10 +221,9 @@ namespace stratus {
         ptr->_refCount = _refCount;
         ptr->IncrRefCount();
 
-        ptr->_position = GetLocalPosition();
-        ptr->_rotation = GetLocalRotation();
-        ptr->_scale = GetLocalScale();
-        ptr->_worldPosition = GetWorldPosition();
+        ptr->_localTranslate = _localTranslate;
+        ptr->_localScale = _localScale;
+        ptr->_localRotate = _localRotate;
         ptr->_localTransform = GetLocalTransform();
         ptr->_worldTransform = GetWorldTransform();
 

@@ -32,12 +32,6 @@ namespace stratus {
             bool dirty = true;
         };
 
-        struct EntityStateData {
-            glm::vec3 lastPosition;
-            glm::vec3 lastScale;
-            glm::vec3 lastRotation;
-        };
-
     public:
         static RendererFrontend * Instance() { return _instance; }
 
@@ -84,10 +78,10 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        static void _AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_map<EntityView, EntityStateData>& pbr, std::unordered_map<EntityView, EntityStateData>& flat, std::unordered_map<LightPtr, LightData>& lights);
-        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_map<EntityView, EntityStateData>& entities);
-        static bool _EntityChanged(const EntityView&, const EntityStateData&);
-        void _CheckEntitySetForChanges(std::unordered_map<EntityView, EntityStateData>&, bool&);
+        static void _AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_set<EntityView>& pbr, std::unordered_set<EntityView>& flat, std::unordered_map<LightPtr, LightData>& lights);
+        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_set<EntityView>& entities);
+        static bool _EntityChanged(const EntityView&);
+        void _CheckEntitySetForChanges(std::unordered_set<EntityView>&, bool&);
 
     private:
         void _UpdateViewport();
@@ -102,9 +96,9 @@ namespace stratus {
         static RendererFrontend * _instance;
 
         RendererParams _params;
-        std::unordered_map<EntityView, EntityStateData> _staticPbrEntities;
-        std::unordered_map<EntityView, EntityStateData> _dynamicPbrEntities;
-        std::unordered_map<EntityView, EntityStateData> _flatEntities;
+        std::unordered_set<EntityView> _staticPbrEntities;
+        std::unordered_set<EntityView> _dynamicPbrEntities;
+        std::unordered_set<EntityView> _flatEntities;
         std::unordered_map<LightPtr, LightData> _lights;
         std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;

@@ -10,12 +10,11 @@ namespace stratus {
         : _params(p) {
     }
 
-    void RendererFrontend::_AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_map<EntityView, EntityStateData>& pbr, std::unordered_map<EntityView, EntityStateData>& flat, std::unordered_map<LightPtr, LightData>& lights) {
+    void RendererFrontend::_AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_set<EntityView>& pbr, std::unordered_set<EntityView>& flat, std::unordered_map<LightPtr, LightData>& lights) {
         if (p == nullptr || p->GetRenderNode() == nullptr) return;
-        EntityStateData state = EntityStateData{p->GetWorldPosition(), p->GetLocalScale(), p->GetLocalRotation().asVec3()};
         if (p->GetRenderNode()->GetLightInteractionEnabled()) {
             const size_t size = pbr.size();
-            pbr.insert(std::make_pair(EntityView(p), state));
+            pbr.insert(EntityView(p));
             pbrDirty = pbrDirty || size != pbr.size();
 
             for (auto& entry : lights) {
@@ -27,7 +26,7 @@ namespace stratus {
             }
         }
         else {
-            flat.insert(std::make_pair(EntityView(p), state));
+            flat.insert(EntityView(p));
         }
 
         for (auto& child : p->GetChildren()) {
@@ -82,11 +81,11 @@ namespace stratus {
         _dynamicPbrDirty = true;
     }
 
-    void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_map<EntityView, EntityStateData>& entities) {
+    void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_set<EntityView>& entities) {
         auto pos = light->position;
         for (auto& e : entities) {
-            if (glm::distance(pos, e.first.Get()->GetWorldPosition()) < light->getRadius()) {
-                data.visible.insert(e.first);
+            if (glm::distance(pos, e.Get()->GetWorldPosition()) < light->getRadius()) {
+                data.visible.insert(e);
                 data.dirty = true;
             }
         }
@@ -529,25 +528,13 @@ namespace stratus {
         }
     }
 
-    bool RendererFrontend::_EntityChanged(const EntityView& view, const EntityStateData& data) {
-        auto position = view.Get()->GetWorldPosition();
-        auto scale = view.Get()->GetLocalScale();
-        auto rotation = view.Get()->GetLocalRotation().asVec3();
-
-        return glm::distance(position, data.lastPosition) > 0.01f ||
-               glm::distance(scale, data.lastScale)       > 0.01f ||
-               glm::distance(rotation, data.lastRotation) > 0.01f;
+    bool RendererFrontend::_EntityChanged(const EntityView& view) {
+        return view.Get()->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_map<EntityView, EntityStateData>& map, bool& flag) {
-        for (auto& entry : map) {
-            EntityView view = entry.first;
-            EntityStateData& data = entry.second;
-            if (_EntityChanged(view, data)) {                 
-                // Update the cached info
-                data.lastPosition = view.Get()->GetWorldPosition();
-                data.lastScale = view.Get()->GetLocalScale();
-                data.lastRotation = view.Get()->GetLocalRotation().asVec3();
+    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityView>& map, bool& flag) {
+        for (EntityView view : map) {
+            if (_EntityChanged(view)) {                 
                 flag = true;
 
                 RenderNodePtr rnode = view.Get()->GetRenderNode();
@@ -559,14 +546,14 @@ namespace stratus {
                         // If the EntityView is in the light's visible set, its shadows are now out of date
                         if (entry.second.visible.find(view) != entry.second.visible.end()) {
                             // If the EntityView has moved out of the light radius, remove it
-                            if (glm::distance(data.lastPosition, lightPos) > lightRadius) {
+                            if (glm::distance(view.Get()->GetWorldPosition(), lightPos) > lightRadius) {
                                 entry.second.visible.erase(view);
                             }
                             entry.second.dirty = true;
                         }
 
                         // If the EntityView has moved inside the light's radius, add it
-                        else if (glm::distance(data.lastPosition, lightPos) < lightRadius) {
+                        else if (glm::distance(view.Get()->GetWorldPosition(), lightPos) < lightRadius) {
                             entry.second.visible.insert(view);
                             entry.second.dirty = true;
                         }
@@ -682,12 +669,12 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateCameraVisibility() {
-        const auto pbrEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
+        const auto pbrEntitySets = std::vector<const std::unordered_set<EntityView> *>{
             &_staticPbrEntities,
             &_dynamicPbrEntities
         };
 
-        const auto flatEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
+        const auto flatEntitySets = std::vector<const std::unordered_set<EntityView> *>{
             &_flatEntities
         };
 
@@ -698,18 +685,18 @@ namespace stratus {
         _frame->instancedFlatMeshes.clear();
         auto position = _camera->getPosition();
 
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
+        for (const std::unordered_set<EntityView> * entities : pbrEntitySets) {
             for (auto& entityView : *entities) {
-                if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < _params.zfar) {
-                    visiblePbr.insert(entityView.first);
+                if (glm::distance(position, entityView.Get()->GetWorldPosition()) < _params.zfar) {
+                    visiblePbr.insert(entityView);
                 }
             }
         }
 
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : flatEntitySets) {
+        for (const std::unordered_set<EntityView> * entities : flatEntitySets) {
             for (auto& entityView : *entities) {
-                if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < _params.zfar) {
-                    visibleFlat.insert(entityView.first);
+                if (glm::distance(position, entityView.Get()->GetWorldPosition()) < _params.zfar) {
+                    visibleFlat.insert(entityView);
                 }
             }
         }
@@ -719,7 +706,7 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateCascadeVisibility() {
-        const auto pbrEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
+        const auto pbrEntitySets = std::vector<const std::unordered_set<EntityView> *>{
             &_staticPbrEntities,
             &_dynamicPbrEntities
         };
@@ -728,10 +715,10 @@ namespace stratus {
         const size_t numCascades = _frame->csc.cascades.size();
         const float maxDist = _params.zfar;
         
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
+        for (const std::unordered_set<EntityView> * entities : pbrEntitySets) {
             for (auto& entityView : *entities) {
-                if (glm::distance(_camera->getPosition(), entityView.first.Get()->GetWorldPosition()) < maxDist) {
-                    visible.insert(entityView.first);
+                if (glm::distance(_camera->getPosition(), entityView.Get()->GetWorldPosition()) < maxDist) {
+                    visible.insert(entityView);
                 }
             }
         }

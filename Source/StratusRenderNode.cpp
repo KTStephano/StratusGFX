@@ -289,17 +289,24 @@ namespace stratus {
     }
 
     void RenderNode::SetLocalPosition(const glm::vec3& pos) {
-        _position = pos;
+        matTranslate(_localTranslate, pos);
         _transformIsDirty = true;
     }
 
     void RenderNode::SetLocalRotation(const Rotation& rot) {
-        _rotation = rot;
+        _localRotation = rot.asMat4();
+        _transformIsDirty = true;
+    }
+
+    void RenderNode::UpdateLocalRotation(const Rotation& rot) {
+        glm::mat4 m = rot.asMat4();
+        _localRotation = m * _localRotation;
         _transformIsDirty = true;
     }
 
     void RenderNode::SetLocalScale(const glm::vec3& scale) {
-        _scale = scale;
+        _localScale = glm::mat4(1.0f);
+        matScale(_localScale, scale);
         _transformIsDirty = true;
     }
 
@@ -309,38 +316,42 @@ namespace stratus {
         SetLocalScale(scale);
     }
 
-    void RenderNode::SetWorldTransform(const glm::mat4& mat) {
-        _worldEntityTransform = mat;
+    void RenderNode::SetGlobalTransform(const glm::mat4& mat) {
+        _globalTransform = mat;
         _transformIsDirty = true;
     }
 
-    const glm::vec3& RenderNode::GetLocalPosition() const {
-        return _position;
+    glm::vec3 RenderNode::GetLocalPosition() const {
+        return glm::vec3(_localTranslate[3].x, _localTranslate[3].y, _localTranslate[3].z);
     }
 
-    const Rotation& RenderNode::GetLocalRotation() const {
-        return _rotation;
+    const glm::mat4& RenderNode::GetLocalRotation() const {
+        return _localRotation;
     }
 
-    const glm::vec3& RenderNode::GetLocalScale() const {
-        return _scale;
+    glm::vec3 RenderNode::GetLocalScale() const {
+        return glm::vec3(_localScale[0].x, _localScale[1].y, _localScale[2].z);
     }
 
-    const glm::vec3& RenderNode::GetWorldPosition() const {
+    glm::vec3 RenderNode::GetWorldPosition() const {
         if (_transformIsDirty) {
             auto& mat = GetWorldTransform();
         }
-        return _worldPosition;
+        return glm::vec3(_globalTransform[3].x, _globalTransform[3].y, _globalTransform[3].z);
     }
 
     const glm::mat4& RenderNode::GetWorldTransform() const {
         if (_transformIsDirty) {
+            /*
             _worldTransform = constructTransformMat(_rotation, _position, _scale);
             _worldTransform = _worldEntityTransform * _worldTransform;
             _worldPosition = glm::vec3(_worldTransform * glm::vec4(_position, 1.0f));
+            */
+            _localTransform = _localTranslate * _localRotation * _localScale;
+            _globalTransform = _globalTransform * _localTransform;
             _transformIsDirty = false;
         }
-        return _worldTransform;
+        return _globalTransform;
     }
 
     void RenderNode::EnableLightInteraction(bool enabled) {

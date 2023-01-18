@@ -121,7 +121,7 @@ namespace stratus {
         //}
 	};
 
-    // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
+        // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
     // for more info on quaternions
 	struct Rotation {
 		Degrees x;
@@ -137,7 +137,8 @@ namespace stratus {
             return glm::vec3(x.value(), y.value(), z.value());
         }
 
-
+        glm::mat4 asMat4() const;
+        glm::mat3 asMat3() const;
 	};
 
 	inline Radians cosine(const Radians& r) { return Radians(cosf(r.value())); }
@@ -276,6 +277,16 @@ namespace stratus {
         glm::mat4 gm(1.0f);
         for (size_t i = 0; i < 4; ++i) {
             for (size_t j = 0; j < 4; ++j) {
+                gm[i][j] = aim[i][j];
+            }
+        }
+        return gm;
+    }
+
+    static glm::mat4 ToMat4(const aiMatrix3x3& aim) {
+        glm::mat4 gm(1.0f);
+        for (size_t i = 0; i < 3; ++i) {
+            for (size_t j = 0; j < 3; ++j) {
                 gm[i][j] = aim[i][j];
             }
         }
