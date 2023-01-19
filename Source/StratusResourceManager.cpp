@@ -356,8 +356,8 @@ namespace stratus {
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity,
-                            MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, 
+                            const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
         aiMatrix4x4 mat = node->mTransformation;
         aiVector3t<float> scale;
