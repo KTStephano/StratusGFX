@@ -7,6 +7,7 @@
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
 #include "StratusTaskSystem.h"
+#include "StratusEntityManager.h"
 #include <atomic>
 #include <mutex>
 
@@ -144,6 +145,7 @@ namespace stratus {
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
+        _InitEntityManager();
         _InitTaskSystem();
         _InitMaterialManager();
         _InitResourceManager();
@@ -159,6 +161,10 @@ namespace stratus {
 
     void Engine::_InitLog() {
         EngineModuleInit::InitializeEngineModule(Log::_instance, new Log(), false);
+    }
+
+    void Engine::_InitEntityManager() {
+        EngineModuleInit::InitializeEngineModule(EntityManager::_instance, new EntityManager(), true);
     }
 
     void Engine::_InitApplicationThread() {
@@ -210,17 +216,19 @@ namespace stratus {
         MaterialManager::Instance()->Shutdown();
         RendererFrontend::Instance()->Shutdown();
         Window::Instance()->Shutdown();
-        Log::Instance()->Shutdown();
         TaskSystem::Instance()->Shutdown();
+        EntityManager::Instance()->Shutdown();
+        Log::Instance()->Shutdown();
 
         _DeleteResource(Application::_instance);
         _DeleteResource(ResourceManager::_instance);
         _DeleteResource(MaterialManager::_instance);
         _DeleteResource(RendererFrontend::_instance);
         _DeleteResource(Window::_instance);
-        _DeleteResource(ApplicationThread::Instance()->_instance);
-        _DeleteResource(Log::_instance);
+        _DeleteResource(ApplicationThread::_instance);
         _DeleteResource(TaskSystem::_instance);
+        _DeleteResource(EntityManager::_instance);
+        _DeleteResource(Log::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only
@@ -259,6 +267,7 @@ namespace stratus {
 
         // Update core modules
         UPDATE_MODULE(Log)
+        UPDATE_MODULE(EntityManager)
         UPDATE_MODULE(TaskSystem)
         UPDATE_MODULE(MaterialManager)
         UPDATE_MODULE(ResourceManager)

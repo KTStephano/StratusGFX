@@ -11,12 +11,7 @@
 namespace stratus { 
     // Enables easy access to asynchronous processing by providing its own Task
     // Threads which are used under the hood to support Async<E>.
-    class TaskSystem : public SystemModule {
-        friend class Engine;
-
-        TaskSystem();
-
-    public:
+    SYSTEM_MODULE_CLASS(TaskSystem)
         TaskSystem(const TaskSystem&) = delete;
         TaskSystem(TaskSystem&&) = delete;
         TaskSystem& operator=(const TaskSystem&) = delete;
@@ -31,6 +26,7 @@ namespace stratus {
             return "TaskSystem";
         }
 
+    private:
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();

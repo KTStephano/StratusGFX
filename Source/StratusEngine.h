@@ -83,6 +83,7 @@ namespace stratus {
 
     private:
         void _InitLog();
+        void _InitEntityManager();
         void _InitApplicationThread();
         void _InitTaskSystem();
         void _InitMaterialManager();

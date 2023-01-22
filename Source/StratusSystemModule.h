@@ -3,6 +3,14 @@
 #include "StratusSystemStatus.h"
 
 namespace stratus {
+
+    #define SYSTEM_MODULE_CLASS(name)       \
+        class name : public SystemModule {  \
+            friend class Engine;            \
+            friend struct EngineModuleInit; \
+            name();                         \
+        public:
+
     // Interface for consistent initialize/shutdown behavior for modules such as
     // log, resource manager, renderer frontend, etc.
     struct SystemModule {
