@@ -58,6 +58,8 @@ namespace stratus {
         std::unordered_set<Entity2Ptr> _entitiesToAdd;
         // Entities which are pending removal (removed during Update)
         std::unordered_set<Entity2Ptr> _entitiesToRemove;
+        // Processes added within last frame
+        std::vector<EntityProcessPtr> _processesToAdd;
         // Systems which operate on entities
         std::vector<EntityProcessPtr> _processes;
     };

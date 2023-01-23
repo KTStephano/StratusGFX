@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
 #include "StratusEntityCommon.h"
 
 namespace stratus {
@@ -20,7 +21,7 @@ namespace stratus {
         // Called when an entity is added or removed from the world directly,
         // or when it is attached or detached from a parent entity who is
         // part of the world
-        virtual void EntityAdded(const Entity2Ptr&) = 0;
-        virtual void EntityRemoved(const Entity2Ptr&) = 0;
+        virtual void EntitiesAdded(const std::unordered_set<Entity2Ptr>&) = 0;
+        virtual void EntitiesRemoved(const std::unordered_set<Entity2Ptr>&) = 0;
     };
 }

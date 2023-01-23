@@ -73,7 +73,33 @@ namespace stratus {
         return true;
     }
     
-    SystemStatus EntityManager::Update(const double) {
+    SystemStatus EntityManager::Update(const double deltaSeconds) {
+        // Notify processes of added/removed entities and allow them to
+        // perform their process routine
+        for (EntityProcessPtr& ptr : _processes) {
+            ptr->EntitiesAdded(_entitiesToAdd);
+            ptr->EntitiesRemoved(_entitiesToRemove);
+            ptr->Process(deltaSeconds);
+        }
+
+        // Commit added/removed entities
+        _entities.insert(_entitiesToAdd.begin(), _entitiesToAdd.end());
+        _entities.erase(_entitiesToRemove.begin(), _entitiesToRemove.end());
+        _entitiesToAdd.clear();
+        _entitiesToRemove.clear();
+
+        // If any processes have been added, tell them about all available entities
+        // and allow them to perform their process routine for the first time
+        auto processesToAdd = std::move(_processesToAdd);
+        for (EntityProcessPtr& ptr : processesToAdd) {
+            ptr->EntitiesAdded(_entities);
+            ptr->Process(deltaSeconds);
+
+            // Commit process to list
+            _processes.push_back(std::move(ptr));
+        }
+        _processesToAdd.clear();
+
         return SystemStatus::SYSTEM_CONTINUE;
     }
     
@@ -81,8 +107,9 @@ namespace stratus {
 
     }
     
-    void EntityManager::_RegisterEntityProcess(EntityProcessPtr&) {
-
+    void EntityManager::_RegisterEntityProcess(EntityProcessPtr& ptr) {
+        std::unique_lock<std::shared_mutex> ul(_m);
+        _processesToAdd.push_back(std::move(ptr));
     }
     
     void EntityManager::_NotifyComponentsAdded(const Entity2Ptr&, const std::string&) {
