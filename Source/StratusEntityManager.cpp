@@ -61,11 +61,11 @@ namespace stratus {
 
     EntityManager::EntityManager() {}
 
-    void EntityManager::AddEntity(Entity2Ptr&) {
-
+    void EntityManager::AddEntity(Entity2Ptr& e) {
+        _entitiesToAdd.insert(std::move(e));
     }
 
-    void EntityManager::RemoveEntity(const Entity2Ptr&) {
+    void EntityManager::RemoveEntity(const Entity2Ptr& e) {
 
     }
 
@@ -91,6 +91,7 @@ namespace stratus {
         // If any processes have been added, tell them about all available entities
         // and allow them to perform their process routine for the first time
         auto processesToAdd = std::move(_processesToAdd);
+        _processesToAdd.clear();
         for (EntityProcessPtr& ptr : processesToAdd) {
             ptr->EntitiesAdded(_entities);
             ptr->Process(deltaSeconds);
@@ -98,7 +99,6 @@ namespace stratus {
             // Commit process to list
             _processes.push_back(std::move(ptr));
         }
-        _processesToAdd.clear();
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
