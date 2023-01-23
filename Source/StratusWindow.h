@@ -21,6 +21,45 @@ namespace stratus {
 
     typedef std::shared_ptr<InputHandler> InputHandlerPtr;
 
+    SYSTEM_MODULE_CLASS(InputManager)
+        friend class Window;
+
+        virtual ~InputManager() = default;
+
+        static InputManager * Instance() { return _instance; }
+
+        void AddInputHandler(const InputHandlerPtr&);
+        void RemoveInputHandler(const InputHandlerPtr&);
+        std::vector<SDL_Event> GetInputEventsLastFrame() const;
+        // See SDL_GetMouseState
+        MouseState GetMouseStateLastFrame() const;
+
+        // begin SystemModule interface
+        const char * Name() const override {
+            return "InputManager";
+        }
+
+    private:
+        bool Initialize() override;
+        SystemStatus Update(const double deltaSeconds) override;
+        void Shutdown() override;
+
+        // end SystemModule interface
+
+        void _SetInputData(std::vector<SDL_Event>&, const MouseState&);
+
+    private:
+        static InputManager * _instance;
+
+    private:
+        mutable std::shared_mutex _m;
+        std::vector<SDL_Event> _inputEvents;
+        MouseState _mouse;
+        std::unordered_set<InputHandlerPtr> _inputHandlers;
+        std::unordered_set<InputHandlerPtr> _inputHandlersToAdd;
+        std::unordered_set<InputHandlerPtr> _inputHandlersToRemove;
+    };
+
     class Window : public SystemModule {
         friend class Engine;
         friend class EngineModuleInit;
@@ -46,13 +85,6 @@ namespace stratus {
         void SetWindowDims(const uint32_t width, const uint32_t height);
         bool WindowResizedWithinLastFrame() const;
 
-        // Input events
-        void AddInputHandler(const InputHandlerPtr&);
-        void RemoveInputHandler(const InputHandlerPtr&);
-        std::vector<SDL_Event> GetInputEventsLastFrame() const;
-        // See SDL_GetMouseState
-        MouseState GetMouseStateLastFrame() const;
-
         // Only useful to internal engine code
         void * GetWindowObject() const;
 
@@ -61,15 +93,11 @@ namespace stratus {
 
         mutable std::shared_mutex _m;
         SDL_Window * _window;
-        std::vector<SDL_Event> _inputEvents;
-        std::unordered_set<InputHandlerPtr> _inputHandlers;
-        std::unordered_set<InputHandlerPtr> _inputHandlersToAdd;
-        std::unordered_set<InputHandlerPtr> _inputHandlersToRemove;
+        MouseState _mouse;
         uint32_t _width = 0;
         uint32_t _height = 0;
         uint32_t _prevWidth = 0;
         uint32_t _prevHeight = 0;
-        MouseState _mouse;
         bool _resized = false;
     };
 }

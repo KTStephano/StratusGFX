@@ -26,13 +26,10 @@ struct CameraController : public stratus::InputHandler {
     // been taken offline. The check is for if the camera controller is removed while the engine
     // is still running.
     virtual ~CameraController() {
-        stratus::RendererFrontend * renderer = stratus::RendererFrontend::Instance();
-        if (renderer) {
-            stratus::RendererFrontend::Instance()->SetCamera(nullptr);
+        INSTANCE(RendererFrontend)->SetCamera(nullptr);
 
-            if (_cameraLightEnabled) {
-                stratus::RendererFrontend::Instance()->RemoveLight(_cameraLight);
-            }
+        if (_cameraLightEnabled) {
+            INSTANCE(RendererFrontend)->RemoveLight(_cameraLight);
         }
     }
 

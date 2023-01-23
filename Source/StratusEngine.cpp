@@ -145,6 +145,7 @@ namespace stratus {
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
+        _InitInput();
         _InitEntityManager();
         _InitTaskSystem();
         _InitMaterialManager();
@@ -161,6 +162,10 @@ namespace stratus {
 
     void Engine::_InitLog() {
         EngineModuleInit::InitializeEngineModule(Log::_instance, new Log(), false);
+    }
+
+    void Engine::_InitInput() {
+        EngineModuleInit::InitializeEngineModule(InputManager::_instance, new InputManager(), true);
     }
 
     void Engine::_InitEntityManager() {
@@ -212,6 +217,7 @@ namespace stratus {
 
         // Application should shut down first
         _ShutdownResourceAndDelete(Application::_instance);
+        _ShutdownResourceAndDelete(InputManager::_instance);
         _ShutdownResourceAndDelete(ResourceManager::_instance);
         _ShutdownResourceAndDelete(MaterialManager::_instance);
         _ShutdownResourceAndDelete(RendererFrontend::_instance);
@@ -259,6 +265,7 @@ namespace stratus {
 
         // Update core modules
         UPDATE_MODULE(Log)
+        UPDATE_MODULE(InputManager)
         UPDATE_MODULE(EntityManager)
         UPDATE_MODULE(TaskSystem)
         UPDATE_MODULE(MaterialManager)

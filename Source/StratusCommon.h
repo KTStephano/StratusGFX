@@ -11,5 +11,6 @@
 #include <stdexcept>
 
 #define BITMASK64_POW2(offset) (1ull << offset)
+#define INSTANCE(type) stratus::##type::Instance()
 
 #endif //STRATUSGFX_COMMON_H

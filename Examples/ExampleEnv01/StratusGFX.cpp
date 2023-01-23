@@ -279,7 +279,7 @@ public:
         float scatterControl = World()->GetAtmosphericScatterControl();
 
         // Check for key/mouse events
-        auto events = Window()->GetInputEventsLastFrame();
+        auto events = Input()->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -516,7 +516,7 @@ public:
         //renderer->setWorldLight(worldLight);
 
         // Check mouse state
-        uint32_t buttonState = Window()->GetMouseStateLastFrame().mask;
+        uint32_t buttonState = Input()->GetMouseStateLastFrame().mask;
         cameraSpeed.z = 0.0f;
         if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
             cameraSpeed.z = -camSpeed;

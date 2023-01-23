@@ -4,10 +4,9 @@
 #include "StratusMaterial.h"
 #include "StratusEngine.h"
 #include "StratusWindow.h"
+#include "StratusCommon.h"
 
 namespace stratus {
-    #define INSTANCE(type) stratus::##type::Instance()
-
     Application * Application::_instance = nullptr;
 
     ResourceManager * Application::Resources() {
@@ -24,6 +23,10 @@ namespace stratus {
 
     Engine * Application::Engine() {
         return INSTANCE(Engine);
+    }
+
+    InputManager * Application::Input() {
+        return INSTANCE(InputManager);
     }
 
     Window * Application::Window() {

@@ -116,7 +116,7 @@ public:
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
         stratus::InputHandlerPtr controller(new CameraController());
-        Window()->AddInputHandler(controller);
+        Input()->AddInputHandler(controller);
 
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
 
@@ -170,7 +170,7 @@ public:
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
         // Check for key/mouse events
-        auto events = Window()->GetInputEventsLastFrame();
+        auto events = Input()->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:
