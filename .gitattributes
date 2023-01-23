@@ -7,3 +7,6 @@
 *.bin filter=lfs diff=lfs merge=lfs -text
 *.gltf filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
+resources/textures/*.jpg filter=lfs diff=lfs merge=lfs -text
+resources/textures/*.png filter=lfs diff=lfs merge=lfs -text
+resources/textures/*.jpeg filter=lfs diff=lfs merge=lfs -text

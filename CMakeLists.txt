@@ -21,4 +21,4 @@ add_subdirectory(Examples/)
 include(CTest)
 enable_testing()
 
-add_subdirectory(Tests)
+add_subdirectory(UnitTests)

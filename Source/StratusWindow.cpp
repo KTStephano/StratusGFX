@@ -42,6 +42,12 @@ namespace stratus {
         // graphics backend to some extent
         CHECK_IS_APPLICATION_THREAD();
 
+        // Commit input handler changes
+        _inputHandlers.insert(_inputHandlersToAdd.begin(), _inputHandlersToAdd.end());
+        _inputHandlers.erase(_inputHandlersToRemove.begin(), _inputHandlersToRemove.end());
+        _inputHandlersToAdd.clear();
+        _inputHandlersToRemove.clear();
+
         // Check for window dims change
         _resized = false;
         if (_width != _prevWidth || _height != _prevHeight) {
@@ -75,6 +81,13 @@ namespace stratus {
         // Check mouse
         _mouse.mask = SDL_GetMouseState(&_mouse.x, &_mouse.y);
 
+        // Update input handlers if num events > 0
+        if (_inputEvents.size() > 0) {
+            for (const InputHandlerPtr& ptr : _inputHandlers) {
+                ptr->HandleInput(_inputEvents, deltaSeconds);
+            }
+        }
+
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
@@ -107,6 +120,16 @@ namespace stratus {
         return _resized;
     }
 
+    void Window::AddInputHandler(const InputHandlerPtr& ptr) {
+        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        _inputHandlersToAdd.insert(ptr);
+    }
+
+    void Window::RemoveInputHandler(const InputHandlerPtr& ptr) {
+        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        _inputHandlersToRemove.insert(ptr);
+    }
+    
     std::vector<SDL_Event> Window::GetInputEventsLastFrame() const {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         return _inputEvents;

@@ -7,5 +7,5 @@ namespace stratus {
     struct EntityProcess;
 
     typedef std::shared_ptr<Entity2> Entity2Ptr;
-    typedef std::unique_ptr<EntityProcess> EntityProcessPtr;
+    typedef std::shared_ptr<EntityProcess> EntityProcessPtr;
 }

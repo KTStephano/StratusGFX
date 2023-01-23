@@ -2,7 +2,9 @@
 
 #include "StratusSystemModule.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <shared_mutex>
+#include <memory>
 #include "StratusCommon.h"
 
 namespace stratus {
@@ -11,6 +13,13 @@ namespace stratus {
         int y;
         uint32_t mask;
     };
+
+    struct InputHandler : public std::enable_shared_from_this<InputHandler> {
+        virtual ~InputHandler() = default;
+        virtual void HandleInput(const std::vector<SDL_Event>& input, const double deltaSeconds) = 0;
+    };
+
+    typedef std::shared_ptr<InputHandler> InputHandlerPtr;
 
     class Window : public SystemModule {
         friend class Engine;
@@ -38,6 +47,8 @@ namespace stratus {
         bool WindowResizedWithinLastFrame() const;
 
         // Input events
+        void AddInputHandler(const InputHandlerPtr&);
+        void RemoveInputHandler(const InputHandlerPtr&);
         std::vector<SDL_Event> GetInputEventsLastFrame() const;
         // See SDL_GetMouseState
         MouseState GetMouseStateLastFrame() const;
@@ -51,6 +62,9 @@ namespace stratus {
         mutable std::shared_mutex _m;
         SDL_Window * _window;
         std::vector<SDL_Event> _inputEvents;
+        std::unordered_set<InputHandlerPtr> _inputHandlers;
+        std::unordered_set<InputHandlerPtr> _inputHandlersToAdd;
+        std::unordered_set<InputHandlerPtr> _inputHandlersToRemove;
         uint32_t _width = 0;
         uint32_t _height = 0;
         uint32_t _prevWidth = 0;

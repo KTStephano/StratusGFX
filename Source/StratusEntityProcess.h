@@ -7,7 +7,7 @@
 namespace stratus {
     // An entity system process signals to the engine that it wants to be called once
     // per frame in order to operate on certain entity data lists
-    struct EntityProcess {
+    struct EntityProcess : public std::enable_shared_from_this<EntityProcess> {
         virtual ~EntityProcess() = default;
 
         // Gives the system a change to do whatever processing it needs
