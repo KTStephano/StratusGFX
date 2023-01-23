@@ -211,24 +211,16 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        Application::Instance()->Shutdown();
-        ResourceManager::Instance()->Shutdown();
-        MaterialManager::Instance()->Shutdown();
-        RendererFrontend::Instance()->Shutdown();
-        Window::Instance()->Shutdown();
-        TaskSystem::Instance()->Shutdown();
-        EntityManager::Instance()->Shutdown();
-        Log::Instance()->Shutdown();
-
-        _DeleteResource(Application::_instance);
-        _DeleteResource(ResourceManager::_instance);
-        _DeleteResource(MaterialManager::_instance);
-        _DeleteResource(RendererFrontend::_instance);
-        _DeleteResource(Window::_instance);
+        _ShutdownResourceAndDelete(Application::_instance);
+        _ShutdownResourceAndDelete(ResourceManager::_instance);
+        _ShutdownResourceAndDelete(MaterialManager::_instance);
+        _ShutdownResourceAndDelete(RendererFrontend::_instance);
+        _ShutdownResourceAndDelete(Window::_instance);
+        // This one does not have a shutdown routine
         _DeleteResource(ApplicationThread::_instance);
-        _DeleteResource(TaskSystem::_instance);
-        _DeleteResource(EntityManager::_instance);
-        _DeleteResource(Log::_instance);
+        _ShutdownResourceAndDelete(TaskSystem::_instance);
+        _ShutdownResourceAndDelete(EntityManager::_instance);
+        _ShutdownResourceAndDelete(Log::_instance);
     }
 
     // Processes the next full system frame, including rendering. Returns false only

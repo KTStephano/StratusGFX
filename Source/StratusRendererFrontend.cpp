@@ -147,6 +147,11 @@ namespace stratus {
         _camera = camera;
     }
 
+    CameraPtr RendererFrontend::GetCamera() const {
+        auto sl = _LockRead();
+        return _camera;
+    }
+
     void RendererFrontend::SetFovY(const Degrees& fovy) {
         auto ul = _LockWrite();
         _params.fovy = fovy;
@@ -206,6 +211,7 @@ namespace stratus {
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
+        if (_camera) _camera->update(deltaSeconds);
         _frame->camera = _camera->Copy();
 
         _UpdateViewport();

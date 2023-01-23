@@ -97,6 +97,12 @@ namespace stratus {
             ptr = nullptr;
         }
 
+        template<typename E>
+        void _ShutdownResourceAndDelete(E *& ptr) {
+            ptr->Shutdown();
+            _DeleteResource(ptr);
+        }
+
     private:
         // Global engine instance - should only be set by EngineMain function
         static Engine * _instance;

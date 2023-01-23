@@ -526,7 +526,6 @@ public:
         }
 
         camera->setSpeed(cameraSpeed.y, cameraSpeed.z, cameraSpeed.x);
-        camera->update(deltaSeconds);
 
         cameraLight->position = camera->getPosition();
         World()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));

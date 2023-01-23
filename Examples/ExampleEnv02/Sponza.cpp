@@ -14,6 +14,7 @@
 #include <StratusUtils.h>
 #include <memory>
 #include <filesystem>
+#include "CameraController.h"
 
 class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -114,8 +115,9 @@ public:
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
-        camera = stratus::CameraPtr(new stratus::Camera());
-        stratus::RendererFrontend::Instance()->SetCamera(camera);
+        stratus::InputHandlerPtr controller(new CameraController());
+        Window()->AddInputHandler(controller);
+
         worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
 
         // Moonlight
@@ -131,14 +133,6 @@ public:
         stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
 
         bool running = true;
-
-        cameraLight = stratus::LightPtr(new stratus::PointLight());
-        cameraLight->setCastsShadows(false);
-        cameraLight->setIntensity(1200.0f);
-
-        if (camLightEnabled) {
-            stratus::RendererFrontend::Instance()->AddLight(cameraLight);
-        }
 
         worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
 
@@ -164,7 +158,6 @@ public:
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
-        const float camSpeed = 100.0f;
         const float lightIncreaseSpeed = 5.0f;
         const float maxLightBrightness = 30.0f;
 
@@ -182,10 +175,6 @@ public:
             switch (e.type) {
                 case SDL_QUIT:
                     return stratus::SystemStatus::SYSTEM_SHUTDOWN;
-                case SDL_MOUSEMOTION:
-                    camera->modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(-e.motion.xrel), stratus::Degrees(0.0f));
-                    //STRATUS_LOG << camera.getRotation() << std::endl;
-                    break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
                     bool released = e.type == SDL_KEYUP;
@@ -195,43 +184,6 @@ public:
                             if (released) {
                                 return stratus::SystemStatus::SYSTEM_SHUTDOWN;
                             }
-                            break;
-                        case SDL_SCANCODE_SPACE:
-                            if (!released) {
-                                camSpeedDivide = 1.0f;
-                            }
-                            else {
-                                camSpeedDivide = 0.25f;
-                            }
-                            break;
-                        case SDL_SCANCODE_W:
-                        case SDL_SCANCODE_S:
-                            if (!released) {
-                                cameraSpeed.x = key == SDL_SCANCODE_W ? camSpeed : -camSpeed;
-                            } else {
-                                cameraSpeed.x = 0.0f;
-                            }
-                            break;
-                        case SDL_SCANCODE_A:
-                        case SDL_SCANCODE_D:
-                            if (!released) {
-                                cameraSpeed.y = key == SDL_SCANCODE_D ? camSpeed : -camSpeed;
-                            } else {
-                                cameraSpeed.y = 0.0f;
-                            }
-                            break;
-                        case SDL_SCANCODE_F:
-                            if (released) {
-                                camLightEnabled = !camLightEnabled;
-                                
-                                if (camLightEnabled) {
-                                    stratus::RendererFrontend::Instance()->AddLight(cameraLight);
-                                }
-                                else {
-                                    stratus::RendererFrontend::Instance()->RemoveLight(cameraLight);
-                                }
-                            }
-
                             break;
                         case SDL_SCANCODE_R:
                             if (released) {
@@ -278,7 +230,7 @@ public:
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
                                 mover->light->setIntensity(1200.0f);
                                 mover->light->setColor(1.0f, 1.0f, 0.5f);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -289,7 +241,7 @@ public:
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
                                 mover->light->setColor(warmMorningColor);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -300,7 +252,7 @@ public:
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
                                 mover->light->setColor(warmMorningColor);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -313,7 +265,7 @@ public:
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -326,7 +278,7 @@ public:
                                 const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -339,7 +291,7 @@ public:
                                 const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
                                 mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
                                 ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = camera->getPosition();
+                                mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
                             }
@@ -390,25 +342,10 @@ public:
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
         const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
         worldLight->setColor(warmMorningColor);
-        worldLight->setPosition(camera->getPosition());
+        worldLight->setPosition(World()->GetCamera()->getPosition());
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
-        // Check mouse state
-        uint32_t buttonState = Window()->GetMouseStateLastFrame().mask;
-        cameraSpeed.z = 0.0f;
-        if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
-            cameraSpeed.z = -camSpeed;
-        }
-        else if ((buttonState & SDL_BUTTON_RMASK) != 0) { // right mouse button
-            cameraSpeed.z = camSpeed;
-        }
-
-        glm::vec3 tmpCamSpeed = cameraSpeed * camSpeedDivide;
-        camera->setSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
-        camera->update(deltaSeconds);
-
-        cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         if (sponza) {
@@ -444,14 +381,9 @@ public:
 private:
     stratus::EntityPtr sponza;
     std::vector<stratus::EntityPtr> entities;
-    stratus::CameraPtr camera;
-    glm::vec3 cameraSpeed;
     float worldLightMoveDirection = 1.0; // -1.0 reverses it
-    float camSpeedDivide = 0.25f; // For slowing camera down
-    stratus::LightPtr cameraLight;
     stratus::InfiniteLightPtr worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    bool camLightEnabled = true;
     bool worldLightPaused = true;
 };
 

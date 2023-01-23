@@ -47,6 +47,7 @@ namespace stratus {
         void ClearWorldLight();
 
         void SetCamera(const CameraPtr&);
+        CameraPtr GetCamera() const;
         void SetFovY(const Degrees&);
         void SetNearFar(const float znear, const float zfar);
         void SetVsyncEnabled(const bool);

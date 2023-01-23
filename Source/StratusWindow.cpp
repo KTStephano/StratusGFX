@@ -82,10 +82,8 @@ namespace stratus {
         _mouse.mask = SDL_GetMouseState(&_mouse.x, &_mouse.y);
 
         // Update input handlers if num events > 0
-        if (_inputEvents.size() > 0) {
-            for (const InputHandlerPtr& ptr : _inputHandlers) {
-                ptr->HandleInput(_inputEvents, deltaSeconds);
-            }
+        for (const InputHandlerPtr& ptr : _inputHandlers) {
+            ptr->HandleInput(_mouse, _inputEvents, deltaSeconds);
         }
 
         return SystemStatus::SYSTEM_CONTINUE;

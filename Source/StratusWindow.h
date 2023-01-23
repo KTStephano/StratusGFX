@@ -16,7 +16,7 @@ namespace stratus {
 
     struct InputHandler : public std::enable_shared_from_this<InputHandler> {
         virtual ~InputHandler() = default;
-        virtual void HandleInput(const std::vector<SDL_Event>& input, const double deltaSeconds) = 0;
+        virtual void HandleInput(const MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) = 0;
     };
 
     typedef std::shared_ptr<InputHandler> InputHandlerPtr;

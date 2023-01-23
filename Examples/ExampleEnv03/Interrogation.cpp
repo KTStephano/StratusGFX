@@ -365,7 +365,6 @@ public:
         }
 
         camera->setSpeed(cameraSpeed.y, cameraSpeed.z, cameraSpeed.x);
-        camera->update(deltaSeconds);
 
         cameraLight->position = camera->getPosition();
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
