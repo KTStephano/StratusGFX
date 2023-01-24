@@ -44,8 +44,7 @@ namespace stratus {
 
     private:
         // Meant to be called by Entity
-        void _NotifyComponentsAdded(const Entity2Ptr&, const std::string&);
-        void _NotifyComponentsRemoved(const Entity2Ptr&, const std::string&);
+        void _NotifyComponentsAdded(const Entity2Ptr&, Entity2Component *);
 
     private:
         static EntityManager * _instance;

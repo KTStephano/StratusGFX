@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <typeinfo>
+#include <vector>
 #include <string>
 #include <memory>
 #include <shared_mutex>
@@ -31,10 +32,16 @@ namespace stratus {
         virtual bool operator==(const Entity2Component *) const = 0;
 
         void MarkChanged();
+        bool ChangedWithinLastFrame() const;
+
+        void SetEnabled(const bool);
+        bool IsEnabled() const;
 
     protected:
         // Last engine frame this component was modified
         uint64_t _lastFrameChanged = 0;
+        // Whether component should be used or not
+        bool _enabled = true;
     };
 
     // Enables an entity component pointer to be inserted into hash set/map
@@ -86,25 +93,33 @@ namespace stratus {
         template<typename E, typename ... Types>
         void AttachComponent(Types ... args);
         template<typename E>
-        void RemoveComponent();
-
-        template<typename E>
         bool ContainsComponent() const;
         template<typename E>
-        Entity2Component * GetComponent();
+        Entity2Component * GetComponent() const;
+        std::vector<Entity2Component *> GetAllComponents() const;
 
         bool IsInWorld() const;
+
+        // This is supported when the entity is not part of the world
+        // Once added its tree structure becomes immutable
+        void AttachChildNode(const Entity2Ptr&);
+        void DetachChildNode(const Entity2Ptr&);
+        Entity2Ptr GetParentNode() const;
+        const std::vector<Entity2Ptr>& GetChildNodes() const;
+        bool ContainsChildNode(const Entity2Ptr&) const;
 
     private:
         // Called by EntityManager class
         void _AddToWorld();
         void _RemoveFromWorld();
-        void _CommitChanges();
 
     private:
+        template<typename E, typename ... Types>
+        void _AttachComponent(Types ... args);
+        template<typename E>
+        bool _ContainsComponent() const;
         void _AttachComponent(Entity2ComponentView);
-        void _RemoveComponent(Entity2ComponentView);
-        void _RemoveComponentImmediate(Entity2ComponentView);
+        bool _ContainsChildNode(const Entity2Ptr&) const;
 
     private:
         mutable std::shared_mutex _m;
@@ -112,8 +127,8 @@ namespace stratus {
         std::unordered_set<Entity2ComponentView> _components;
         // List of components by type name
         std::unordered_map<std::string, Entity2ComponentView> _componentTypeNames;
-        // Pending
-        std::unordered_set<Entity2ComponentView> _pendingRemove;
+        Entity2WeakPtr _parent;
+        std::vector<Entity2Ptr> _childNodes;
         // Keeps track of added/removed from world
         bool _partOfWorld = false;
     };
@@ -121,31 +136,32 @@ namespace stratus {
     template<typename E, typename ... Types>
     void Entity2::AttachComponent(Types ... args) {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        if (ContainsComponent<E>()) return;
         auto ul = std::unique_lock<std::shared_mutex>(_m);
+        return _AttachComponent<E>(std::forward<Types>(args)...);
+    }
+
+    template<typename E>
+    bool Entity2::ContainsComponent() const {
+        static_assert(std::is_base_of<Entity2Component, E>::value);
+        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        return _ContainsComponent<E>();
+    }
+
+    template<typename E, typename ... Types>
+    void Entity2::_AttachComponent(Types ... args) {
+        if (_ContainsComponent<E>()) return;
         Entity2ComponentView view(new E(std::forward<Types>(args)...));
         _AttachComponent(view);
     }
 
     template<typename E>
-    void Entity2::RemoveComponent() {
-        static_assert(std::is_base_of<Entity2Component, E>::value);
-        constexpr std::string name = typeid(E).name();
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        auto it = _componentTypeNames.find(name);
-        if (it != _componentTypeNames.end()) {
-            _RemoveComponent(it->second);
-        }
-    }
-
-    template<typename E>
-    bool Entity2::ContainsComponent() const {
+    bool Entity2::_ContainsComponent() const {
         constexpr std::string name = typeid(E).name();
         return _componentTypeNames.find(name) != _componentTypeNames.end();
     }
 
     template<typename E>
-    Entity2Component * Entity2::GetComponent() {
+    Entity2Component * Entity2::GetComponent() const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
         constexpr std::string name = typeid(E).name();
         auto it = _componentTypeNames.find(name);

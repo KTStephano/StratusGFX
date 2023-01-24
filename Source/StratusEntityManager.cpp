@@ -1,4 +1,5 @@
 #include "StratusEntityManager.h"
+#include "StratusEntity2.h"
 
 /*
     class EntityManager : public SystemModule {
@@ -112,11 +113,7 @@ namespace stratus {
         _processesToAdd.push_back(std::move(ptr));
     }
     
-    void EntityManager::_NotifyComponentsAdded(const Entity2Ptr&, const std::string&) {
-
-    }
-    
-    void EntityManager::_NotifyComponentsRemoved(const Entity2Ptr&, const std::string&) {
+    void EntityManager::_NotifyComponentsAdded(const Entity2Ptr& ptr, Entity2Component * component) {
 
     }
 }
