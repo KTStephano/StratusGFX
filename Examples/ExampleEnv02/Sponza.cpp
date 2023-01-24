@@ -205,6 +205,11 @@ public:
                                 worldLightPaused = !worldLightPaused;
                             }
                             break;
+                        case SDL_SCANCODE_E:
+                            if (released) {
+                                worldLight->setEnabled( !worldLight->getEnabled() );
+                            }
+                            break;
                         case SDL_SCANCODE_UP: {
                             scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
                             STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;

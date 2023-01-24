@@ -46,6 +46,9 @@ namespace stratus {
                 throw std::runtime_error("Color index exceeds maximum total bound color buffers");
             }
             
+            // TODO: There is a much better way to do this
+            // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFramebufferTextureLayer.xhtml
+            // Followed by a regular glClear of the color attachment
             Texture& color = _colorAttachments[colorIndex];
             color.clearLayer(0, layer, (const void *)&rgba[0]);
         }
@@ -56,7 +59,11 @@ namespace stratus {
             }
 
             float val = 1.0f;
-            _depthStencilAttachment.clearLayer(0, layer, (const void *)&val);
+            // TODO: There is a much better way to do this
+            // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFramebufferTextureLayer.xhtml
+            // Followed by a regular glClear of the depth stencil attachment
+            std::vector<float> data(_depthStencilAttachment.width() * _depthStencilAttachment.height(), val);
+            _depthStencilAttachment.clearLayer(0, layer, (const void *)data.data());
         }
 
         void bind() const {
