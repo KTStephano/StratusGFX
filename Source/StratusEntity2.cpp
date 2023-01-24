@@ -66,20 +66,24 @@ namespace stratus {
         if (IsInWorld()) throw std::runtime_error("Entity2 is part of world - tree is immutable");
         auto self = shared_from_this();
         if (ptr == self) return;
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        // If there is already a parent then don't attempt to overwrite
+        if (GetParentNode() != nullptr) return;
+        //auto ul = std::unique_lock<std::shared_mutex>(_m);
         if (_ContainsChildNode(ptr) || ptr->ContainsChildNode(self)) return;
         _childNodes.push_back(ptr);
+        ptr->_parent = self;
     }
 
     void Entity2::DetachChildNode(const Entity2Ptr& ptr) {
         if (IsInWorld()) throw std::runtime_error("Entity2 is part of world - tree is immutable");
         std::vector<Entity2Ptr> visited;
         {
-            auto ul = std::unique_lock<std::shared_mutex>(_m);
+            //auto ul = std::unique_lock<std::shared_mutex>(_m);
             for (auto it = _childNodes.begin(); it != _childNodes.end(); ++it) {
                 Entity2Ptr c = *it;
                 if (c == ptr) {
                     _childNodes.erase(it);
+                    c->_parent.reset();
                     return;
                 }
                 visited.push_back(c);
@@ -87,6 +91,10 @@ namespace stratus {
         }
         // If we get here we still have to try removing the node further down
         for (Entity2Ptr v : visited) v->DetachChildNode(ptr);
+    }
+
+    Entity2Ptr Entity2::GetParentNode() const {
+        return _parent.lock();
     }
 
     const std::vector<Entity2Ptr>& Entity2::GetChildNodes() const {

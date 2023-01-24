@@ -89,7 +89,7 @@ namespace stratus {
     public:
         ~Entity2();
 
-        // Manipulate components
+        // Manipulate components - thread safe
         template<typename E, typename ... Types>
         void AttachComponent(Types ... args);
         template<typename E>
@@ -102,6 +102,8 @@ namespace stratus {
 
         // This is supported when the entity is not part of the world
         // Once added its tree structure becomes immutable
+        //
+        // Attaching/Detaching nodes is NOT thread safe
         void AttachChildNode(const Entity2Ptr&);
         void DetachChildNode(const Entity2Ptr&);
         Entity2Ptr GetParentNode() const;
