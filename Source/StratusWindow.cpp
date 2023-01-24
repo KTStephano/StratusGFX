@@ -4,9 +4,6 @@
 #include "StratusApplication.h"
 
 namespace stratus {
-    InputManager * InputManager::_instance = nullptr;
-    Window * Window::_instance = nullptr;
-
     InputManager::InputManager() {}
 
     void InputManager::AddInputHandler(const InputHandlerPtr& ptr) {
@@ -57,6 +54,8 @@ namespace stratus {
         _inputEvents = std::move(events);
         _mouse = mouse;
     }
+
+    Window::Window() : Window(1920, 1080) {}
     
     Window::Window(uint32_t width, uint32_t height) {
         SetWindowDims(width, height);

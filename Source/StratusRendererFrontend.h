@@ -22,8 +22,8 @@ namespace stratus {
 
     // Public interface of the renderer - manages frame to frame state and manages
     // the backend
-    class RendererFrontend : public SystemModule {
-        friend class Engine;
+    SYSTEM_MODULE_CLASS(RendererFrontend)
+    private:
         RendererFrontend(const RendererParams&);
 
         struct LightData {
@@ -33,8 +33,6 @@ namespace stratus {
         };
 
     public:
-        static RendererFrontend * Instance() { return _instance; }
-
         void AddStaticEntity(const EntityPtr&);
         void AddDynamicEntity(const EntityPtr&);
         void RemoveEntity(const EntityPtr&);
@@ -65,16 +63,13 @@ namespace stratus {
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;
 
-        // SystemModule inteface
-        virtual const char * Name() const {
-            return "Renderer";
-        }
+        void RecompileShaders();
 
+    private:
+        // SystemModule inteface
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
-
-        void RecompileShaders();
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
@@ -94,8 +89,6 @@ namespace stratus {
         void _SwapFrames();
 
     private:
-        static RendererFrontend * _instance;
-
         RendererParams _params;
         std::unordered_set<EntityView> _staticPbrEntities;
         std::unordered_set<EntityView> _dynamicPbrEntities;

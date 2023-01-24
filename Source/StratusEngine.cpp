@@ -25,7 +25,7 @@ namespace stratus {
         EngineInitParams params;
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
-        Application::_instance = app;
+        Application::_Instance() = app;
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
@@ -161,35 +161,35 @@ namespace stratus {
     }
 
     void Engine::_InitLog() {
-        EngineModuleInit::InitializeEngineModule(Log::_instance, new Log(), false);
+        EngineModuleInit::InitializeEngineModule(Log::_Instance(), new Log(), false);
     }
 
     void Engine::_InitInput() {
-        EngineModuleInit::InitializeEngineModule(InputManager::_instance, new InputManager(), true);
+        EngineModuleInit::InitializeEngineModule(InputManager::_Instance(), new InputManager(), true);
     }
 
     void Engine::_InitEntityManager() {
-        EngineModuleInit::InitializeEngineModule(EntityManager::_instance, new EntityManager(), true);
+        EngineModuleInit::InitializeEngineModule(EntityManager::_Instance(), new EntityManager(), true);
     }
 
     void Engine::_InitApplicationThread() {
-        ApplicationThread::_instance = new ApplicationThread();
+        ApplicationThread::_Instance() = new ApplicationThread();
     }
 
     void Engine::_InitTaskSystem() {
-        EngineModuleInit::InitializeEngineModule(TaskSystem::_instance, new TaskSystem(), true);
+        EngineModuleInit::InitializeEngineModule(TaskSystem::_Instance(), new TaskSystem(), true);
     }
 
     void Engine::_InitMaterialManager() {
-        EngineModuleInit::InitializeEngineModule(MaterialManager::_instance, new MaterialManager(), true);
+        EngineModuleInit::InitializeEngineModule(MaterialManager::_Instance(), new MaterialManager(), true);
     }
 
     void Engine::_InitResourceManager() {
-        EngineModuleInit::InitializeEngineModule(ResourceManager::_instance, new ResourceManager(), true);
+        EngineModuleInit::InitializeEngineModule(ResourceManager::_Instance(), new ResourceManager(), true);
     }
 
     void Engine::_InitWindow() {
-        EngineModuleInit::InitializeEngineModule(Window::_instance, new Window(1920, 1080), true);
+        EngineModuleInit::InitializeEngineModule(Window::_Instance(), new Window(1920, 1080), true);
     }
 
     void Engine::_InitRenderer() {
@@ -198,7 +198,7 @@ namespace stratus {
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
-        EngineModuleInit::InitializeEngineModule(RendererFrontend::_instance, new RendererFrontend(params), true);
+        EngineModuleInit::InitializeEngineModule(RendererFrontend::_Instance(), new RendererFrontend(params), true);
     }
 
     // Should be called before Shutdown()
@@ -216,17 +216,17 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        _ShutdownResourceAndDelete(Application::_instance);
-        _ShutdownResourceAndDelete(InputManager::_instance);
-        _ShutdownResourceAndDelete(ResourceManager::_instance);
-        _ShutdownResourceAndDelete(MaterialManager::_instance);
-        _ShutdownResourceAndDelete(RendererFrontend::_instance);
-        _ShutdownResourceAndDelete(Window::_instance);
+        _ShutdownResourceAndDelete(Application::_Instance());
+        _ShutdownResourceAndDelete(InputManager::_Instance());
+        _ShutdownResourceAndDelete(ResourceManager::_Instance());
+        _ShutdownResourceAndDelete(MaterialManager::_Instance());
+        _ShutdownResourceAndDelete(RendererFrontend::_Instance());
+        _ShutdownResourceAndDelete(Window::_Instance());
         // This one does not have a shutdown routine
-        _DeleteResource(ApplicationThread::_instance);
-        _ShutdownResourceAndDelete(TaskSystem::_instance);
-        _ShutdownResourceAndDelete(EntityManager::_instance);
-        _ShutdownResourceAndDelete(Log::_instance);
+        _DeleteResource(ApplicationThread::_Instance());
+        _ShutdownResourceAndDelete(TaskSystem::_Instance());
+        _ShutdownResourceAndDelete(EntityManager::_Instance());
+        _ShutdownResourceAndDelete(Log::_Instance());
     }
 
     // Processes the next full system frame, including rendering. Returns false only

@@ -4,8 +4,6 @@
 #include "StratusWindow.h"
 
 namespace stratus {
-    RendererFrontend * RendererFrontend::_instance = nullptr;
-
     RendererFrontend::RendererFrontend(const RendererParams& p)
         : _params(p) {
     }

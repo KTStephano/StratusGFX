@@ -4,12 +4,20 @@
 
 namespace stratus {
 
-    #define SYSTEM_MODULE_CLASS(name)       \
-        class name : public SystemModule {  \
-            friend class Engine;            \
-            friend struct EngineModuleInit; \
-            name();                         \
-        public:
+    #define SYSTEM_MODULE_CLASS(name)                        \
+        class name : public SystemModule {                   \
+            friend class Engine;                             \
+            friend struct EngineModuleInit;                  \
+            name();                                          \
+            static name *& _Instance() {                     \
+                static name * instance = nullptr;            \
+                return instance;                             \
+            }                                                \
+        public:                                              \
+            const char * Name() const override {             \
+                return #name;                                \
+            }                                                \
+            static name * Instance() { return _Instance(); }
 
     // Interface for consistent initialize/shutdown behavior for modules such as
     // log, resource manager, renderer frontend, etc.

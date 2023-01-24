@@ -17,8 +17,6 @@ namespace stratus {
 
         ~EntityManager() = default;
 
-        static EntityManager * Instance() { return _instance; }
-
         // Add/Remove entities
         // Add will cause the pointer to be set to null as EntityManager
         // takes full ownership
@@ -30,10 +28,6 @@ namespace stratus {
         void RegisterEntityProcess(Types ... args);
 
         // SystemModule inteface
-        const char * Name() const override {
-            return "EntityManager";
-        }
-
     private:
         bool Initialize() override;
         SystemStatus Update(const double) override;
@@ -45,9 +39,6 @@ namespace stratus {
     private:
         // Meant to be called by Entity
         void _NotifyComponentsAdded(const Entity2Ptr&, Entity2Component *);
-
-    private:
-        static EntityManager * _instance;
 
     private:
         mutable std::shared_mutex _m;

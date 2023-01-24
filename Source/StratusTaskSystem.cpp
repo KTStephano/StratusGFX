@@ -3,8 +3,6 @@
 #include <string>
 
 namespace stratus {
-    TaskSystem * TaskSystem::_instance = nullptr;
-
     TaskSystem::TaskSystem() {}
             
     bool TaskSystem::Initialize() {

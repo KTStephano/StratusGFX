@@ -58,8 +58,6 @@
 */
 
 namespace stratus {
-    EntityManager * EntityManager::_instance = nullptr;
-
     EntityManager::EntityManager() {}
 
     void EntityManager::AddEntity(Entity2Ptr& e) {

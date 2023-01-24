@@ -1,8 +1,6 @@
 #include "StratusMaterial.h"
 
 namespace stratus {
-    MaterialManager * MaterialManager::_instance = nullptr;
-
     Material::Material(const std::string& name, bool registerSelf)
         : _name(name), _registerSelf(registerSelf) {}
 

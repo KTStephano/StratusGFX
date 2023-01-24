@@ -13,8 +13,6 @@
 #include "STBImage.h"
 
 namespace stratus {
-    ResourceManager * ResourceManager::_instance = nullptr;
-
     ResourceManager::ResourceManager() {}
 
     ResourceManager::~ResourceManager() {

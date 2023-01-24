@@ -19,13 +19,6 @@ namespace stratus {
 
         virtual ~TaskSystem() {}
 
-        static TaskSystem * Instance() { return _instance; }
-
-        // SystemModule inteface
-        virtual const char * Name() const {
-            return "TaskSystem";
-        }
-
     private:
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
@@ -54,8 +47,6 @@ namespace stratus {
         }
 
     private:
-        static TaskSystem * _instance;
-
         mutable std::mutex _m;
         std::vector<ThreadPtr> _taskThreads;
         size_t _nextTaskThread;

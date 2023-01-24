@@ -3,8 +3,6 @@
 #include "StratusUtils.h"
 
 namespace stratus {
-    Log * Log::_instance = nullptr;
-
     static void EmbedLogData(const std::string & tagline, const std::string& function, const int line, std::ostream & out) {
         auto& thread = Thread::Current();
         out << tagline << " Thread::(" << thread.Name() << ") " << function << ":" << line << " -> ";

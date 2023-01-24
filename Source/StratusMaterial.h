@@ -108,16 +108,8 @@ namespace stratus {
         std::vector<MaterialPtr> _subMats;
     };
 
-    class MaterialManager : public SystemModule {
-        friend class Engine;
-
-        // Only engine should create
-        MaterialManager();
-
-    public:
-        static MaterialManager * Instance() { return _instance; }
-
-        ~MaterialManager();
+    SYSTEM_MODULE_CLASS(MaterialManager)
+        virtual ~MaterialManager();
 
         // Creating and querying materials
         MaterialPtr CreateMaterial(const std::string& name);
@@ -133,17 +125,13 @@ namespace stratus {
 
         MaterialPtr CreateDefault();
 
+    private:
         // SystemModule inteface
-        virtual const char * Name() const {
-            return "MaterialManager";
-        }
-        
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
 
     private:
-        static MaterialManager * _instance;
         ConcurrentHashMap<std::string, MaterialPtr> _materials;
     };
 }

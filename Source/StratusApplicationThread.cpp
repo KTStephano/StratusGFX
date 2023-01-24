@@ -7,8 +7,6 @@ void EnsureIsApplicationThread() {
 }
 
 namespace stratus {
-    ApplicationThread * ApplicationThread::_instance;
-
     ApplicationThread::ApplicationThread() 
         // Don't create a new thread context - use current to prevent issues with UI
         : _thread(new Thread("Renderer", false)) {}

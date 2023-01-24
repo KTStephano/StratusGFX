@@ -7,8 +7,6 @@
 #include "StratusCommon.h"
 
 namespace stratus {
-    Application * Application::_instance = nullptr;
-
     ResourceManager * Application::Resources() {
         return INSTANCE(ResourceManager);
     }

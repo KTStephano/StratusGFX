@@ -13,11 +13,8 @@
 #include <unordered_map>
 
 namespace stratus {
-    class ResourceManager : public SystemModule {
-        friend class Engine;
-
-        ResourceManager();
-
+    SYSTEM_MODULE_CLASS(ResourceManager)
+    private:
         struct RawTextureData {
             TextureConfig config;
             TextureHandle handle;
@@ -36,8 +33,6 @@ namespace stratus {
 
         virtual ~ResourceManager();
 
-        static ResourceManager * Instance() { return _instance; }
-
         Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const bool srgb);
         // prefix is used to select all faces with one string. It ends up expanding to:
@@ -53,11 +48,8 @@ namespace stratus {
         EntityPtr CreateCube();
         EntityPtr CreateQuad();
 
+    private:
         // SystemModule inteface
-        virtual const char * Name() const {
-            return "ResourceManager";
-        }
-
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
@@ -91,7 +83,6 @@ namespace stratus {
         void _InitQuad();
 
     private:
-        static ResourceManager * _instance;
         EntityPtr _cube;
         EntityPtr _quad;
         std::unordered_map<std::string, Async<Entity>> _loadedModels;

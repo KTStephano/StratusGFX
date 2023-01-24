@@ -14,8 +14,13 @@ namespace stratus {
         friend class Engine;
         ApplicationThread();
 
+        static ApplicationThread *& _Instance() {
+            static ApplicationThread * instance = nullptr;
+            return instance;
+        }
+
     public:
-        static ApplicationThread * Instance() { return _instance; }
+        static ApplicationThread * Instance() { return _Instance(); }
 
         virtual ~ApplicationThread();
 
@@ -43,7 +48,6 @@ namespace stratus {
         void _DispatchAndSynchronize();
 
     private:
-        static ApplicationThread * _instance;
         mutable std::mutex _mutex;
         std::list<Thread::ThreadFunction> _queue;
         std::unique_ptr<Thread> _thread;

@@ -26,18 +26,11 @@ namespace stratus {
 
         virtual ~InputManager() = default;
 
-        static InputManager * Instance() { return _instance; }
-
         void AddInputHandler(const InputHandlerPtr&);
         void RemoveInputHandler(const InputHandlerPtr&);
         std::vector<SDL_Event> GetInputEventsLastFrame() const;
         // See SDL_GetMouseState
         MouseState GetMouseStateLastFrame() const;
-
-        // begin SystemModule interface
-        const char * Name() const override {
-            return "InputManager";
-        }
 
     private:
         bool Initialize() override;
@@ -49,9 +42,6 @@ namespace stratus {
         void _SetInputData(std::vector<SDL_Event>&, const MouseState&);
 
     private:
-        static InputManager * _instance;
-
-    private:
         mutable std::shared_mutex _m;
         std::vector<SDL_Event> _inputEvents;
         MouseState _mouse;
@@ -60,10 +50,8 @@ namespace stratus {
         std::unordered_set<InputHandlerPtr> _inputHandlersToRemove;
     };
 
-    class Window : public SystemModule {
-        friend class Engine;
-        friend class EngineModuleInit;
-
+    SYSTEM_MODULE_CLASS(Window)
+    private:
         Window(uint32_t width, uint32_t height);
 
         bool Initialize() override;
@@ -71,13 +59,6 @@ namespace stratus {
         void Shutdown() override;
 
     public:
-        static Window * Instance() { return _instance; }
-
-        // begin SystemModule interface
-        const char * Name() const override {
-            return "Window";
-        }
-
         // end SystemModule interface
 
         // Window dimensions
@@ -89,8 +70,6 @@ namespace stratus {
         void * GetWindowObject() const;
 
     private:
-        static Window * _instance;
-
         mutable std::shared_mutex _m;
         SDL_Window * _window;
         MouseState _mouse;
