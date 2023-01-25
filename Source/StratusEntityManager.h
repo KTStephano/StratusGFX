@@ -14,6 +14,7 @@
 
 namespace stratus {
     SYSTEM_MODULE_CLASS(EntityManager)
+        friend struct Entity2ComponentSet;
         friend class Entity2;
 
         ~EntityManager() = default;

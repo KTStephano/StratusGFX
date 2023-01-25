@@ -44,7 +44,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
         void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override {
             numEntitiesAdded += e.size();
             for (stratus::Entity2Ptr ptr : e) {
-                ptr->AttachComponent<ExampleComponent>((const void *)this);
+                ptr->Components().AttachComponent<ExampleComponent>((const void *)this);
             }
         }
 
@@ -59,9 +59,9 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
                 seen.insert(entry.first);
                 auto components = entry.second;
                 // If it doesn't have our component then don't process
-                if (!entry.first->ContainsComponent<ExampleComponent>()) continue;
+                if (!entry.first->Components().ContainsComponent<ExampleComponent>()) continue;
                 // If the ptr we set is invalid then don't process
-                if (entry.first->GetComponent<ExampleComponent>()->ptr != (const void *)this) continue;
+                if (entry.first->Components().GetComponent<ExampleComponent>()->ptr != (const void *)this) continue;
                 // Make sure the component we added actually shows up in the array
                 for (stratus::Entity2Component * c : components) {
                     if (c->TypeName() == ExampleComponent::STypeName()) {

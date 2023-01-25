@@ -20,16 +20,23 @@ namespace stratus {
         return _enabled;
     }
 
-    Entity2::Entity2() {
-
-    }
-
-    Entity2::~Entity2() {
+    Entity2ComponentSet::~Entity2ComponentSet() {
         for (Entity2ComponentView view : _components) {
             delete view.component;
         }
         _components.clear();
         _componentTypeNames.clear();
+    }
+
+    void Entity2ComponentSet::_SetOwner(Entity2 * owner) {
+        _owner = owner;
+    }
+
+    Entity2::Entity2() {
+        _components._SetOwner(this);
+    }
+
+    Entity2::~Entity2() {
         _childNodes.clear();
     }
 
@@ -38,19 +45,35 @@ namespace stratus {
         return _partOfWorld;
     }
 
-    void Entity2::_AttachComponent(Entity2ComponentView view) {
+    void Entity2ComponentSet::_AttachComponent(Entity2ComponentView view) {
         const std::string name = view.component->TypeName();
         _components.insert(view);
         _componentTypeNames.insert(std::make_pair(name, view));
-        INSTANCE(EntityManager)->_NotifyComponentsAdded(shared_from_this(), view.component);
+        INSTANCE(EntityManager)->_NotifyComponentsAdded(_owner->shared_from_this(), view.component);
     }
 
-    std::vector<Entity2Component *> Entity2::GetAllComponents() const {
+    std::vector<Entity2Component *> Entity2ComponentSet::GetAllComponents() {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<Entity2Component *> v;
         v.reserve(_components.size());
         for (Entity2ComponentView view : _components) v.push_back(view.component);
         return v;
+    }
+
+    std::vector<const Entity2Component *> Entity2ComponentSet::GetAllComponents() const {
+        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        std::vector<const Entity2Component *> v;
+        v.reserve(_components.size());
+        for (Entity2ComponentView view : _components) v.push_back(view.component);
+        return v;
+    }
+
+    Entity2ComponentSet& Entity2::Components() {
+        return _components;
+    }
+
+    const Entity2ComponentSet& Entity2::Components() const {
+        return _components;
     }
 
     // Called by World class
