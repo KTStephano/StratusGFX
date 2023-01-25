@@ -25,9 +25,11 @@ namespace stratus {
         // Notify processes of added/removed entities and allow them to
         // perform their process routine
         auto entitiesToAdd = std::move(_entitiesToAdd);
+        auto addedComponents = std::move(_addedComponents);
         auto entitiesToRemove = std::move(_entitiesToRemove);
         for (EntityProcessPtr& ptr : _processes) {
             if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
+            if (addedComponents.size() > 0) ptr->EntityComponentsAdded(addedComponents);
             if (entitiesToRemove.size() > 0) ptr->EntitiesRemoved(entitiesToRemove);
             ptr->Process(deltaSeconds);
         }
@@ -39,7 +41,6 @@ namespace stratus {
         // If any processes have been added, tell them about all available entities
         // and allow them to perform their process routine for the first time
         auto processesToAdd = std::move(_processesToAdd);
-        _processesToAdd.clear();
         for (EntityProcessPtr& ptr : processesToAdd) {
             if (_entities.size() > 0) ptr->EntitiesAdded(_entities);
             ptr->Process(deltaSeconds);
@@ -57,6 +58,7 @@ namespace stratus {
         _entitiesToRemove.clear();
         _processes.clear();
         _processesToAdd.clear();
+        _addedComponents.clear();
     }
     
     void EntityManager::_RegisterEntityProcess(EntityProcessPtr& ptr) {
@@ -65,6 +67,13 @@ namespace stratus {
     }
     
     void EntityManager::_NotifyComponentsAdded(const Entity2Ptr& ptr, Entity2Component * component) {
-
+        std::unique_lock<std::shared_mutex> ul(_m);
+        auto it = _addedComponents.find(ptr);
+        if (it == _addedComponents.end()) {
+            _addedComponents.insert(std::make_pair(ptr, std::vector<Entity2Component *>{component}));
+        }
+        else {
+            it->second.push_back(component);
+        }
     }
 }

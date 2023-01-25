@@ -4,6 +4,7 @@
 #include "StratusSystemModule.h"
 #include <memory>
 #include <unordered_set>
+#include <unordered_map>
 #include <shared_mutex>
 #include <cstdint>
 #include <string>
@@ -50,6 +51,8 @@ namespace stratus {
         std::vector<EntityProcessPtr> _processesToAdd;
         // Systems which operate on entities
         std::vector<EntityProcessPtr> _processes;
+        // Component change lists
+        std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _addedComponents;
     };
 
     template<typename E, typename ... Types>

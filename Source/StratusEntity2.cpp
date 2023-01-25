@@ -39,7 +39,7 @@ namespace stratus {
     }
 
     void Entity2::_AttachComponent(Entity2ComponentView view) {
-        const std::string name = view.component->TypeInfo().name();
+        const std::string name = view.component->TypeName();
         _components.insert(view);
         _componentTypeNames.insert(std::make_pair(name, view));
         INSTANCE(EntityManager)->_NotifyComponentsAdded(shared_from_this(), view.component);

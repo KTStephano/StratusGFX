@@ -10,24 +10,35 @@
 #include <shared_mutex>
 #include "StratusEntityCommon.h"
 
+template<typename E>
+std::string ClassName() {
+    return typeid(E).name();
+}
+
+template<typename E>
+size_t ClassHashCode() {
+    return typeid(E).hash_code();
+}
+
+#define ENTITY_COMPONENT_STRUCT(name)                                                       \
+    struct name : public stratus::Entity2Component {                                        \
+        static std::string STypeName() { return ClassName<name>(); }                        \
+        static size_t SHashCode() { return ClassHashCode<name>(); }                         \
+        std::string TypeName() const override { return STypeName(); }                       \
+        size_t HashCode() const override { return SHashCode(); }                            \
+        bool operator==(const stratus::Entity2Component * other) const override {           \
+            if (*this == other) return true;                                                \
+            if (!other) return false;                                                       \
+            return TypeName() == std::string(other->TypeName());                            \
+        }                                                                                   
+
 namespace stratus {
-    #define ENTITY_COMPONENT_STRUCT(name)                                                       \
-        struct name : public Entity2Component {                                                 \
-            static constexpr std::type_info STypeInfo() { return typeid(name); }                \
-            static constexpr size_t SHashCode() { return TypeInfo().hash_code(); }              \
-            std::type_info TypeInfo() const override { STypeInfo(); }                           \
-            size_t HashCode() const override { return SHashCode(); }                            \
-            bool operator==(const Entity2Component * other) const override {                    \
-                if (*this == other) return true;                                                \
-                if (!other) return false;                                                       \
-                return std::string(TypeInfo().name()) == std::string(other->TypeInfo().name()); \
-            }                                                                                   \
             
     // Meant to store any relevant data that will be manipulated by the engine + application
     // at runtime
     struct Entity2Component {
         virtual ~Entity2Component() = default;
-        virtual std::type_info TypeInfo() const = 0;
+        virtual std::string TypeName() const = 0;
         virtual size_t HashCode() const = 0;
         virtual bool operator==(const Entity2Component *) const = 0;
 
@@ -95,7 +106,7 @@ namespace stratus {
         template<typename E>
         bool ContainsComponent() const;
         template<typename E>
-        Entity2Component * GetComponent() const;
+        E * GetComponent() const;
         std::vector<Entity2Component *> GetAllComponents() const;
 
         bool IsInWorld() const;
@@ -152,21 +163,21 @@ namespace stratus {
     template<typename E, typename ... Types>
     void Entity2::_AttachComponent(Types ... args) {
         if (_ContainsComponent<E>()) return;
-        Entity2ComponentView view(new E(std::forward<Types>(args)...));
+        Entity2ComponentView view(dynamic_cast<Entity2Component *>(new E(std::forward<Types>(args)...)));
         _AttachComponent(view);
     }
 
     template<typename E>
     bool Entity2::_ContainsComponent() const {
-        constexpr std::string name = typeid(E).name();
+        std::string name = E::STypeName();
         return _componentTypeNames.find(name) != _componentTypeNames.end();
     }
 
     template<typename E>
-    Entity2Component * Entity2::GetComponent() const {
+    E * Entity2::GetComponent() const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        constexpr std::string name = typeid(E).name();
+        std::string name = E::STypeName();
         auto it = _componentTypeNames.find(name);
-        return it != _componentTypeNames.end() ? it->second.component : nullptr;
+        return it != _componentTypeNames.end() ? dynamic_cast<E *>(it->second.component) : nullptr;
     }
 }
