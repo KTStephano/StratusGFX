@@ -18,9 +18,7 @@ namespace stratus {
         ~EntityManager() = default;
 
         // Add/Remove entities
-        // Add will cause the pointer to be set to null as EntityManager
-        // takes full ownership
-        void AddEntity(Entity2Ptr&);
+        void AddEntity(const Entity2Ptr&);
         void RemoveEntity(const Entity2Ptr&);
 
         // Registers an EntityProcess type
@@ -57,7 +55,8 @@ namespace stratus {
     template<typename E, typename ... Types>
     void EntityManager::RegisterEntityProcess(Types ... args) {
         static_assert(std::is_base_of<EntityProcess, E>::value);
-        EntityProcessPtr ptr(new E(std::forward<Types>(args)...));
+        EntityProcess * p = dynamic_cast<EntityProcess *>(new E(std::forward<Types>(args)...));
+        EntityProcessPtr ptr(p);
         _RegisterEntityProcess(ptr);
     }
 }

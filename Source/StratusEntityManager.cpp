@@ -5,9 +5,9 @@
 namespace stratus {
     EntityManager::EntityManager() {}
 
-    void EntityManager::AddEntity(Entity2Ptr& e) {
+    void EntityManager::AddEntity(const Entity2Ptr& e) {
         std::unique_lock<std::shared_mutex> ul(_m);
-        _entitiesToAdd.insert(std::move(e));
+        _entitiesToAdd.insert(e);
     }
 
     void EntityManager::RemoveEntity(const Entity2Ptr& e) {
@@ -27,8 +27,8 @@ namespace stratus {
         auto entitiesToAdd = std::move(_entitiesToAdd);
         auto entitiesToRemove = std::move(_entitiesToRemove);
         for (EntityProcessPtr& ptr : _processes) {
-            ptr->EntitiesAdded(entitiesToAdd);
-            ptr->EntitiesRemoved(entitiesToRemove);
+            if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
+            if (entitiesToRemove.size() > 0) ptr->EntitiesRemoved(entitiesToRemove);
             ptr->Process(deltaSeconds);
         }
 
@@ -41,7 +41,7 @@ namespace stratus {
         auto processesToAdd = std::move(_processesToAdd);
         _processesToAdd.clear();
         for (EntityProcessPtr& ptr : processesToAdd) {
-            ptr->EntitiesAdded(_entities);
+            if (_entities.size() > 0) ptr->EntitiesAdded(_entities);
             ptr->Process(deltaSeconds);
 
             // Commit process to list
