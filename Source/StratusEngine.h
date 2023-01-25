@@ -15,9 +15,14 @@
 #include <chrono>
 //#include "Renderer.h"
 
+// Useful within an existing main function
+#define STRATUS_INLINE_ENTRY_POINT(ApplicationClass, numArgs, argList)     \
+    stratus::EngineBoot<ApplicationClass>(numArgs, (const char **)argList)
+
+// Defines both the main function and the engine startup function
 #define STRATUS_ENTRY_POINT(ApplicationClass)                              \
     int main(int nargs, char ** args) {                                    \
-        stratus::EngineBoot<ApplicationClass>(nargs, (const char **)args); \
+        STRATUS_INLINE_ENTRY_POINT(ApplicationClass, nargs, args);         \
         return 0;                                                          \
     }
 

@@ -1,71 +1,18 @@
 #include "StratusEntityManager.h"
 #include "StratusEntity2.h"
-
-/*
-    class EntityManager : public SystemModule {
-        friend class Engine;
-        friend class Entity2;
-
-        EntityManager() {}
-
-    public:
-        ~EntityManager() = default;
-
-        static EntityManager * Instance() { return _instance; }
-
-        // Add/Remove entities
-        // Add will cause the pointer to be set to null as EntityManager
-        // takes full ownership
-        void AddEntity(Entity2Ptr&);
-        void RemoveEntity(const Entity2Ptr&);
-
-        // Registers an EntityProcess type
-        template<typename E, typename ... Types>
-        void RegisterEntityProcess(Types ... args);
-
-        // SystemModule inteface
-        const char * Name() const {
-            return "EntityManager";
-        }
-
-    private:
-        bool Initialize();
-        SystemStatus Update(const double);
-        void Shutdown();
-
-    private:
-        void _RegisterEntityProcess(EntityProcessPtr&);
-
-    private:
-        // Meant to be called by Entity
-        void NotifyComponentsAdded(const Entity2Ptr&, const std::string&);
-        void NotifyComponentsRemoved(const Entity2Ptr&, const std::string&);
-
-    private:
-        static EntityManager * _instance;
-
-    private:
-        mutable std::shared_mutex _m;
-        // All entities currently tracked
-        std::unordered_set<Entity2Ptr> _entities;
-        // Entities added within the last frame
-        std::unordered_set<Entity2Ptr> _entitiesToAdd;
-        // Entities which are pending removal (removed during Update)
-        std::unordered_set<Entity2Ptr> _entitiesToRemove;
-        // Systems which operate on entities
-        std::vector<EntityProcessPtr> _processes;
-    };
-*/
+#include "StratusApplicationThread.h"
 
 namespace stratus {
     EntityManager::EntityManager() {}
 
     void EntityManager::AddEntity(Entity2Ptr& e) {
+        std::unique_lock<std::shared_mutex> ul(_m);
         _entitiesToAdd.insert(std::move(e));
     }
 
     void EntityManager::RemoveEntity(const Entity2Ptr& e) {
-
+        std::unique_lock<std::shared_mutex> ul(_m);
+        _entitiesToRemove.insert(e);
     }
 
     bool EntityManager::Initialize() {
@@ -73,19 +20,21 @@ namespace stratus {
     }
     
     SystemStatus EntityManager::Update(const double deltaSeconds) {
+        CHECK_IS_APPLICATION_THREAD();
+
         // Notify processes of added/removed entities and allow them to
         // perform their process routine
+        auto entitiesToAdd = std::move(_entitiesToAdd);
+        auto entitiesToRemove = std::move(_entitiesToRemove);
         for (EntityProcessPtr& ptr : _processes) {
-            ptr->EntitiesAdded(_entitiesToAdd);
-            ptr->EntitiesRemoved(_entitiesToRemove);
+            ptr->EntitiesAdded(entitiesToAdd);
+            ptr->EntitiesRemoved(entitiesToRemove);
             ptr->Process(deltaSeconds);
         }
 
         // Commit added/removed entities
-        _entities.insert(_entitiesToAdd.begin(), _entitiesToAdd.end());
-        _entities.erase(_entitiesToRemove.begin(), _entitiesToRemove.end());
-        _entitiesToAdd.clear();
-        _entitiesToRemove.clear();
+        _entities.insert(entitiesToAdd.begin(), entitiesToAdd.end());
+        _entities.erase(entitiesToRemove.begin(), entitiesToRemove.end());
 
         // If any processes have been added, tell them about all available entities
         // and allow them to perform their process routine for the first time
@@ -103,7 +52,11 @@ namespace stratus {
     }
     
     void EntityManager::Shutdown() {
-
+        _entities.clear();
+        _entitiesToAdd.clear();
+        _entitiesToRemove.clear();
+        _processes.clear();
+        _processesToAdd.clear();
     }
     
     void EntityManager::_RegisterEntityProcess(EntityProcessPtr& ptr) {

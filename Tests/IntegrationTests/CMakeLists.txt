@@ -1,9 +1,9 @@
 find_package(Catch2 REQUIRED)
 find_package(OpenGL REQUIRED)
 
-set(TEST_EXE StratusEngineTests)
+set(TEST_EXE StratusEngineIntegrationTests)
 file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../)
+set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 
 link_directories(${ROOT_DIRECTORY}/Bin)
 
