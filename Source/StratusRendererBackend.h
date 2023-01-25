@@ -196,10 +196,10 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 300;
+            int numShadowMaps = 200;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
-            int maxTotalLightsPerFrame = 256; // active in a frame
+            int maxTotalLightsPerFrame = 128; // active in a frame
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
             int maxShadowUpdatesPerFrame = 6;

@@ -13,7 +13,6 @@
 #include "StratusEntityCommon.h"
 
 ENTITY_COMPONENT_STRUCT(ExampleComponent)
-    friend class Entity2;
     const void * ptr = nullptr;
 
     ExampleComponent(const void * ptr) : ptr(ptr) {
@@ -30,9 +29,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
     static size_t numComponentsAdded = 0;
     static bool processCalled = false;
 
-    class ProcessTest : public stratus::EntityProcess {
-        friend class stratus::EntityManager;
-
+    struct ProcessTest : public stratus::EntityProcess {
         ProcessTest() {
             STRATUS_LOG << "ProcessTest registered successfully" << std::endl;
         }
