@@ -4,10 +4,10 @@
 
 #include "StratusPoolAllocator.h"
 
-TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
-    std::cout << "StratusPoolAllocatorsTest" << std::endl;
-    std::cout << stratus::ThreadSafePoolAllocator<int>::BytesPerElem << std::endl;
-    auto pool = stratus::ThreadSafePoolAllocator<int>();
+static void ThreadUnsafePoolAllocatorTest() {
+    std::cout << "ThreadUnsafePoolAllocatorTest" << std::endl;
+    std::cout << stratus::ThreadUnsafePoolAllocator<int>::BytesPerElem << std::endl;
+    auto pool = stratus::ThreadUnsafePoolAllocator<int>();
 
     int * ptr = pool.Allocate(25);
     REQUIRE(*ptr == 25);
@@ -26,4 +26,33 @@ TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
     }
 
     std::cout << pool.NumChunks() << ", " << pool.NumElems() << std::endl;
+}
+
+static void ThreadSafePoolAllocatorTest() {
+    std::cout << "ThreadSafePoolAllocatorTest" << std::endl;
+    typedef stratus::ThreadSafePoolAllocator<int> Allocator;
+    std::cout << Allocator::BytesPerElem << std::endl;
+    auto pool = Allocator();
+
+    Allocator::Pointer ptr = pool.Allocate(25);
+    REQUIRE(*ptr == 25);
+    std::cout << *ptr << std::endl;
+
+    std::vector<Allocator::Pointer> ptrs;
+    constexpr int count = 1000000;
+    for (int i = 0; i < count; ++i) {
+        ptr = pool.Allocate(i);
+        ptrs.push_back(std::move(ptr));
+    }
+
+    for (int i = 0; i < count; ++i) {
+        REQUIRE(*ptrs[i] == i);
+    }
+
+    std::cout << pool.NumChunks() << ", " << pool.NumElems() << std::endl;
+}
+
+TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
+    ThreadUnsafePoolAllocatorTest();
+    ThreadSafePoolAllocatorTest();
 }

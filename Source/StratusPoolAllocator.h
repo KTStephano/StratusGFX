@@ -165,6 +165,7 @@ namespace stratus {
         }
         
         value_type LockWrite() const {
+            // Allowing the owner to always lock read gives a performance increase
             if (std::this_thread::get_id() == owner) {
                 return LockRead();
             }
@@ -191,8 +192,21 @@ namespace stratus {
 
     template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
-        static constexpr size_t BytesPerElem = __PoolAllocator<E, Lock, ElemsPerChunk, Chunks>::BytesPerElem;
-        static constexpr size_t BytesPerChunk = __PoolAllocator<E, Lock, ElemsPerChunk, Chunks>::BytesPerChunk;
+        typedef __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> Allocator;
+        static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
+        static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
+
+        struct ThreadSafePoolDeleter {
+            std::shared_ptr<Allocator> allocator;
+            ThreadSafePoolDeleter(const std::shared_ptr<Allocator>& allocator)
+                : allocator(allocator) {}
+
+            void operator()(E * ptr) {
+                allocator->Deallocate(ptr);
+            }
+        };
+
+        typedef std::unique_ptr<E, ThreadSafePoolDeleter> Pointer;
 
         ThreadSafePoolAllocator() {}
 
@@ -203,23 +217,19 @@ namespace stratus {
         ThreadSafePoolAllocator& operator=(const ThreadSafePoolAllocator&) = delete;
 
         template<typename ... Types>
-        E * Allocate(Types ... args) {
-            return _allocator.Allocate(std::forward<Types>(args)...);
-        }
-
-        void Deallocate(E * ptr) {
-            _allocator.Deallocate(ptr);
+        Pointer Allocate(Types ... args) {
+            return Pointer(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
         }
 
         size_t NumChunks() const {
-            return _allocator.NumChunks();
+            return _allocator->NumChunks();
         }
 
         size_t NumElems() const {
-            return _allocator.NumElems();
+            return _allocator->NumElems();
         }
 
     private:
-        __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> _allocator;
+        inline static thread_local std::shared_ptr<Allocator> _allocator = std::make_shared<Allocator>();
     };
 }
