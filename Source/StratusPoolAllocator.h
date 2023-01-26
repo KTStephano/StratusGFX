@@ -2,15 +2,18 @@
 
 #include <memory>
 #include <algorithm>
+#include <thread>
+#include <shared_mutex>
+#include <functional>
+
+// See https://www.qt.io/blog/a-fast-and-thread-safe-pool-allocator-for-qt-part-1
+// for some more information
 
 namespace stratus {
     // Allocates memory of a pre-defined size provide optimal data locality
-    // with zero fragmentation.
-    //
-    // This is not designed for fast allocation speed, so try to keep
-    // that to a minimum per frame.
-    template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
-    struct ThreadUnsafePoolAllocator {
+    // with zero fragmentation
+    template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks>
+    struct __PoolAllocator {
         static_assert(ElemsPerChunk > 0);
         static_assert(Chunks > 0);
 
@@ -18,13 +21,19 @@ namespace stratus {
         static constexpr size_t BytesPerElem = std::max<size_t>(sizeof(void *), sizeof(E));
         static constexpr size_t BytesPerChunk = BytesPerElem * ElemsPerChunk;
 
-        ThreadUnsafePoolAllocator() {
+        __PoolAllocator() {
             for (size_t i = 0; i < Chunks; ++i) {
                 _InitChunk();
             }
         }
 
-        ~ThreadUnsafePoolAllocator() {
+        // Copying is not supported at all
+        __PoolAllocator(__PoolAllocator&&) = delete;
+        __PoolAllocator(const __PoolAllocator&) = delete;
+        __PoolAllocator& operator=(__PoolAllocator&&) = delete;
+        __PoolAllocator& operator=(const __PoolAllocator&) = delete;
+
+        virtual ~__PoolAllocator() {
             _Chunk * c = _chunks;
             for (size_t i = 0; i < Chunks; ++i) {
                 _Chunk * tmp = c;
@@ -38,18 +47,23 @@ namespace stratus {
 
         template<typename ... Types>
         E * Allocate(Types ... args) {
-            if (!_freeList) {
-                _InitChunk();
-            }
+            uint8_t * bytes = nullptr;
+            {
+                auto wl = _lock.LockWrite();
+                if (!_freeList) {
+                    _InitChunk();
+                }
 
-            _MemBlock * next = _freeList;
-            _freeList = _freeList->next;
-            uint8_t * bytes = reinterpret_cast<uint8_t *>(next);
+                _MemBlock * next = _freeList;
+                _freeList = _freeList->next;
+                bytes = reinterpret_cast<uint8_t *>(next);
+            }
             return new (bytes) E(std::forward<Types>(args)...);
         }
 
         void Deallocate(E * ptr) {
             ptr->~E();
+            auto wl = _lock.LockWrite();
             uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
             _MemBlock * b = reinterpret_cast<_MemBlock *>(bytes);
             b->next = _freeList;
@@ -57,10 +71,12 @@ namespace stratus {
         }
 
         size_t NumChunks() const {
+            auto sl = _lock.LockRead();
             return _numChunks;
         }
 
         size_t NumElems() const {
+            auto sl = _lock.LockRead();
             return _numElems;
         }
 
@@ -75,6 +91,7 @@ namespace stratus {
             _Chunk * next = nullptr;
         };
 
+        Lock _lock;
         _MemBlock * _freeList = nullptr;
         _Chunk * _chunks = nullptr;
         size_t _numChunks = 0;
@@ -97,5 +114,112 @@ namespace stratus {
             c->next = _chunks;
             _chunks = c;
         }
+    };
+
+    struct NoOpLock {
+        struct NoOpLockHeld{};
+        typedef NoOpLockHeld value_type;
+
+        value_type LockRead() const {
+            return value_type();
+        }
+
+        value_type LockWrite() const {
+            return value_type();
+        }
+    };
+
+    template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
+    struct ThreadUnsafePoolAllocator : public __PoolAllocator<E, NoOpLock, ElemsPerChunk, Chunks> {
+        virtual ~ThreadUnsafePoolAllocator() = default;
+    };
+
+    struct Lock {
+        struct LockHeld {
+            const std::thread::id owner;
+            std::function<void(std::shared_mutex&)> lock;
+            std::function<void(std::shared_mutex&)> unlock;
+            mutable std::shared_mutex m;
+
+            LockHeld(const std::thread::id& owner,
+                     const std::function<void(std::shared_mutex&)>& lock,
+                     const std::function<void(std::shared_mutex&)>& unlock)
+                : owner(owner), lock(lock), unlock(unlock) {
+                lock(m);
+            }
+
+            ~LockHeld() {
+                unlock(m);
+            }
+        };
+
+        typedef LockHeld value_type;
+
+        const std::thread::id owner;
+
+        Lock(const std::thread::id& owner = std::this_thread::get_id())
+            : owner(owner) {}
+
+        value_type LockRead() const {
+            return value_type(owner, _LockShared, _UnlockShared);
+        }
+        
+        value_type LockWrite() const {
+            if (std::this_thread::get_id() == owner) {
+                return LockRead();
+            }
+            return value_type(owner, _LockUnique, _UnlockUnique);
+        }
+
+    private:
+        static void _LockShared(std::shared_mutex& m) {
+            m.lock_shared();
+        }
+
+        static void _UnlockShared(std::shared_mutex& m) {
+            m.unlock_shared();
+        }
+
+        static void _LockUnique(std::shared_mutex& m) {
+            m.lock();
+        }
+
+        static void _UnlockUnique(std::shared_mutex& m) {
+            m.unlock();
+        }
+    };
+
+    template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
+    struct ThreadSafePoolAllocator {
+        static constexpr size_t BytesPerElem = __PoolAllocator<E, Lock, ElemsPerChunk, Chunks>::BytesPerElem;
+        static constexpr size_t BytesPerChunk = __PoolAllocator<E, Lock, ElemsPerChunk, Chunks>::BytesPerChunk;
+
+        ThreadSafePoolAllocator() {}
+
+        // Copying is not supported at all
+        ThreadSafePoolAllocator(ThreadSafePoolAllocator&&) = delete;
+        ThreadSafePoolAllocator(const ThreadSafePoolAllocator&) = delete;
+        ThreadSafePoolAllocator& operator=(ThreadSafePoolAllocator&&) = delete;
+        ThreadSafePoolAllocator& operator=(const ThreadSafePoolAllocator&) = delete;
+
+        template<typename ... Types>
+        E * Allocate(Types ... args) {
+            return _allocator.Allocate(std::forward<Types>(args)...);
+        }
+
+        void Deallocate(E * ptr) {
+            _allocator.Deallocate(ptr);
+        }
+
+        size_t NumChunks() const {
+            return _allocator.NumChunks();
+        }
+
+        size_t NumElems() const {
+            return _allocator.NumElems();
+        }
+
+    private:
+        __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> _allocator;
     };
 }

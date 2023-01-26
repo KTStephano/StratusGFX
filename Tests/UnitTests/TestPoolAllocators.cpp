@@ -6,8 +6,8 @@
 
 TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
     std::cout << "StratusPoolAllocatorsTest" << std::endl;
-    std::cout << stratus::ThreadUnsafePoolAllocator<int>::BytesPerElem << std::endl;
-    auto pool = stratus::ThreadUnsafePoolAllocator<int>();
+    std::cout << stratus::ThreadSafePoolAllocator<int>::BytesPerElem << std::endl;
+    auto pool = stratus::ThreadSafePoolAllocator<int>();
 
     int * ptr = pool.Allocate(25);
     REQUIRE(*ptr == 25);
