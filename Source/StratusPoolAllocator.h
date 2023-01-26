@@ -206,26 +206,26 @@ namespace stratus {
             }
         };
 
-        typedef std::unique_ptr<E, ThreadSafePoolDeleter> Pointer;
+        typedef std::unique_ptr<E, ThreadSafePoolDeleter> UniquePtr;
+        typedef std::shared_ptr<E> SharedPtr;
 
         ThreadSafePoolAllocator() {}
 
-        // Copying is not supported at all
-        ThreadSafePoolAllocator(ThreadSafePoolAllocator&&) = delete;
-        ThreadSafePoolAllocator(const ThreadSafePoolAllocator&) = delete;
-        ThreadSafePoolAllocator& operator=(ThreadSafePoolAllocator&&) = delete;
-        ThreadSafePoolAllocator& operator=(const ThreadSafePoolAllocator&) = delete;
-
         template<typename ... Types>
-        Pointer Allocate(Types ... args) {
-            return Pointer(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
+        static UniquePtr Allocate(Types ... args) {
+            return UniquePtr(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
         }
 
-        size_t NumChunks() const {
+        template<typename ... Types>
+        static SharedPtr AllocateShared(Types ... args) {
+            return SharedPtr(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
+        }
+
+        static size_t NumChunks() {
             return _allocator->NumChunks();
         }
 
-        size_t NumElems() const {
+        static size_t NumElems() {
             return _allocator->NumElems();
         }
 

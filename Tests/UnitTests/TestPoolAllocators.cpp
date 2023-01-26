@@ -34,15 +34,15 @@ static void ThreadSafePoolAllocatorTest() {
     std::cout << Allocator::BytesPerElem << std::endl;
     auto pool = Allocator();
 
-    Allocator::Pointer ptr = pool.Allocate(25);
+    Allocator::SharedPtr ptr = pool.AllocateShared(25);
     REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
 
-    std::vector<Allocator::Pointer> ptrs;
+    std::vector<Allocator::SharedPtr> ptrs;
     constexpr int count = 1000000;
     for (int i = 0; i < count; ++i) {
-        ptr = pool.Allocate(i);
-        ptrs.push_back(std::move(ptr));
+        ptr = pool.AllocateShared(i);
+        ptrs.push_back(ptr);
     }
 
     for (int i = 0; i < count; ++i) {
