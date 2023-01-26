@@ -36,20 +36,21 @@ namespace stratus {
             _chunks = nullptr;
         }
 
-        E * Malloc() {
+        template<typename ... Types>
+        E * Allocate(Types ... args) {
             if (!_freeList) {
                 _InitChunk();
-                return Malloc();
             }
 
             _MemBlock * next = _freeList;
             _freeList = _freeList->next;
-            return reinterpret_cast<E *>(next);
+            uint8_t * bytes = reinterpret_cast<uint8_t *>(next);
+            return new (bytes) E(std::forward<Types>(args)...);
         }
 
-        void Free(const E * ptr) {
-            E * nonconst = const_cast<E *>(ptr);
-            uint8_t * bytes = reinterpret_cast<uint8_t *>(nonconst);
+        void Deallocate(E * ptr) {
+            ptr->~E();
+            uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
             _MemBlock * b = reinterpret_cast<_MemBlock *>(bytes);
             b->next = _freeList;
             _freeList = b;

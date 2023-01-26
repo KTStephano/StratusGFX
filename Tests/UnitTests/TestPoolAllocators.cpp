@@ -9,16 +9,15 @@ TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
     std::cout << stratus::ThreadUnsafePoolAllocator<int>::BytesPerElem << std::endl;
     auto pool = stratus::ThreadUnsafePoolAllocator<int>();
 
-    int * ptr = pool.Malloc();
-    *ptr = 25;
+    int * ptr = pool.Allocate(25);
+    REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
-    pool.Free(ptr);
+    pool.Deallocate(ptr);
 
     std::vector<int *> ptrs;
     constexpr int count = 1000000;
     for (int i = 0; i < count; ++i) {
-        ptr = pool.Malloc();
-        *ptr = i;
+        ptr = pool.Allocate(i);
         ptrs.push_back(ptr);
     }
 
