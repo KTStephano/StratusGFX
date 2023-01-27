@@ -152,16 +152,13 @@ namespace stratus {
 
     struct Lock {
         struct LockHeld {
-            typedef void (*LockUnlockFunction)(std::shared_mutex *);
-            LockUnlockFunction lock;
-            LockUnlockFunction unlock;
+            typedef void (*UnlockFunction)(std::shared_mutex *);
+            UnlockFunction unlock;
             std::shared_mutex * m;
 
-            LockHeld(LockUnlockFunction lock,
-                     LockUnlockFunction unlock,
+            LockHeld(UnlockFunction unlock,
                      std::shared_mutex * m)
-                : lock(lock), unlock(unlock), m(m) {
-                lock(m);
+                : unlock(unlock), m(m) {
             }
 
             ~LockHeld() {
@@ -178,7 +175,8 @@ namespace stratus {
             : owner(owner) {}
 
         value_type LockRead() const {
-            return value_type(_LockShared, _UnlockShared, &m);
+            _LockShared(&m);
+            return value_type(_UnlockShared, &m);
         }
         
         value_type LockWrite() const {
@@ -186,7 +184,8 @@ namespace stratus {
             if (std::this_thread::get_id() == owner) {
                 return LockRead();
             }
-            return value_type(_LockUnique, _UnlockUnique, &m);
+            _LockUnique(&m);
+            return value_type(_UnlockUnique, &m);
         }
 
     private:
