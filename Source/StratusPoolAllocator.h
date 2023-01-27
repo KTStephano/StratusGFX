@@ -209,11 +209,17 @@ namespace stratus {
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
+        // This is a control structure which allows us to keep track of which
+        // thread pool allocators are still in use and which need to be deleted
+        // (lightweight ref counted pointer)
         struct AllocatorData {
             std::atomic<size_t> counter = 0;
             void * allocator = nullptr;
         };
 
+        // This stores the allocator data control structure alongside the element data
+        // for a minimum of 16 bytes per object. 
+        // Exact size per object is sizeof(void *) + min(8, sizeof(E)).
         struct ElementData {
             AllocatorData * allocator;
             E element;
@@ -234,10 +240,12 @@ namespace stratus {
         struct Deleter {
             void operator()(E * ptr) {
                 uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
+                // Back up to the start of ElementData so we can access the allocator data control structure
                 ElementData * data = reinterpret_cast<ElementData *>(bytes - sizeof(AllocatorData *));
                 AllocatorData * allocData = data->allocator;
                 Allocator * allocator = _GetAllocator(allocData);
                 allocator->Deallocate(data);
+                // This will free the allocator if ref count has reached 0
                 _DecrPoolRefCount(allocData);
             }
         };
@@ -321,6 +329,8 @@ namespace stratus {
             }
         };
 
+        // This is the only root reference to the allocator which lives as long as the thread lives.
+        // More references to the allocator are created with each allocation.
         inline thread_local static _PoolManager _manager = _PoolManager(new AllocatorData());
     };
 }
