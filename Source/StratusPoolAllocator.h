@@ -269,24 +269,37 @@ namespace stratus {
 
         template<typename ... Types>
         UniquePtr Allocate(Types ... args) {
-            return UniquePtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), Deleter(_manager));
+            _EnsureValid();
+            return UniquePtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(_alloc));
         }
 
         template<typename ... Types>
         SharedPtr AllocateShared(Types ... args) {
-            return SharedPtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), Deleter(_manager));
+            _EnsureValid();
+            return SharedPtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(_alloc));
         }
 
         size_t NumChunks() {
-            return _manager.allocator->allocator->NumChunks();
+            if (!_alloc) return 0;
+            return _GetAllocator()->NumChunks();
         }
 
         size_t NumElems() {
-            return _manager.allocator->allocator->NumElems();
+            if (!_alloc) return 0;
+            return _GetAllocator()->NumElems();
         }
 
     private:
-        inline thread_local static Deleter _manager = Deleter(new _AllocatorData());
+        static void _EnsureValid() {
+            if (!_alloc) _alloc = new _AllocatorData();
+        }
+
+        static Allocator * _GetAllocator() {
+            return _alloc->allocator;
+        }
+
+    private:
+        inline thread_local static _AllocatorData * _alloc = nullptr;
     };
 
     /* This implementation works but may be slightly less cache efficient due to
