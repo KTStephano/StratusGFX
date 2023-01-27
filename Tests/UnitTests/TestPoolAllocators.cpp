@@ -41,9 +41,8 @@ static void ThreadSafePoolAllocatorTest() {
     std::cout << Allocator::BytesPerElem << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto pool = Allocator();
 
-    Allocator::UniquePtr ptr = pool.Allocate(int64_t(25));
+    Allocator::UniquePtr ptr = Allocator::Allocate(int64_t(25));
     REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
 
@@ -52,11 +51,11 @@ static void ThreadSafePoolAllocatorTest() {
     std::vector<std::thread> threads;
 
     for (int64_t th = 0; th < numThreads; ++th) {
-        threads.push_back(std::thread([&pool, &count]() {
+        threads.push_back(std::thread([&count]() {
             std::vector<Allocator::UniquePtr> ptrs;
             ptrs.reserve(count);
             for (int64_t i = 0; i < count; ++i) {
-                Allocator::UniquePtr ptr = pool.Allocate(i);
+                Allocator::UniquePtr ptr = Allocator::Allocate(i);
                 ptrs.push_back(std::move(ptr));
             }
 
@@ -65,7 +64,7 @@ static void ThreadSafePoolAllocatorTest() {
                 //ptrs[i].reset();
             }
 
-            std::cout << pool.NumChunks() << ", " << pool.NumElems() << std::endl;
+            std::cout << Allocator::NumChunks() << ", " << Allocator::NumElems() << std::endl;
         }));
     }
 

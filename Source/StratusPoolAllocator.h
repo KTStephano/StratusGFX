@@ -36,7 +36,7 @@ namespace stratus {
 
         virtual ~__PoolAllocator() {
             _Chunk * c = _chunks;
-            for (size_t i = 0; i < Chunks; ++i) {
+            while (c != nullptr) {
                 _Chunk * tmp = c;
                 c = c->next;
                 delete tmp;
@@ -97,7 +97,7 @@ namespace stratus {
         };
 
         struct _Chunk {
-            uint8_t memory[BytesPerChunk];
+            alignas(E) uint8_t memory[BytesPerChunk];
             _Chunk * next = nullptr;
         };
 
@@ -234,31 +234,32 @@ namespace stratus {
 
     public:
         struct Deleter {
-            _AllocatorData * allocator;
+            _AllocatorData ** allocator;
 
-            Deleter(_AllocatorData * allocator)
-                : allocator(allocator) { allocator->counter.fetch_add(1); }
+            Deleter(_AllocatorData ** allocator)
+                : allocator(allocator) { (*allocator)->counter.fetch_add(1); }
 
             Deleter(Deleter&& other)
                 : allocator(other.allocator) { other.allocator = nullptr; }
 
             Deleter(const Deleter& other)
-                : allocator(other.allocator) { allocator->counter.fetch_add(1); }
+                : allocator(other.allocator) { (*allocator)->counter.fetch_add(1); }
 
             Deleter& operator=(Deleter&&) = delete;
             Deleter& operator=(const Deleter&) = delete;
 
             ~Deleter() {
                 if (allocator) {
-                    auto prev = allocator->counter.fetch_sub(1);
+                    auto prev = (*allocator)->counter.fetch_sub(1);
                     if (prev <= 1) {
-                        delete allocator;
+                        delete (*allocator);
+                        *allocator = nullptr;
                     }
                 }
             }
 
             void operator()(E * ptr) {
-                allocator->allocator->Deallocate(ptr);
+                (*allocator)->allocator->Deallocate(ptr);
             }
         };
 
@@ -268,23 +269,23 @@ namespace stratus {
         ThreadSafePoolAllocator() {}
 
         template<typename ... Types>
-        UniquePtr Allocate(Types ... args) {
+        static UniquePtr Allocate(Types ... args) {
             _EnsureValid();
-            return UniquePtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(_alloc));
+            return UniquePtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(&_alloc));
         }
 
         template<typename ... Types>
-        SharedPtr AllocateShared(Types ... args) {
+        static SharedPtr AllocateShared(Types ... args) {
             _EnsureValid();
-            return SharedPtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(_alloc));
+            return SharedPtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(&_alloc));
         }
 
-        size_t NumChunks() {
+        static size_t NumChunks() {
             if (!_alloc) return 0;
             return _GetAllocator()->NumChunks();
         }
 
-        size_t NumElems() {
+        static size_t NumElems() {
             if (!_alloc) return 0;
             return _GetAllocator()->NumElems();
         }
