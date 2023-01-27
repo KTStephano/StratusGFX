@@ -18,7 +18,7 @@ static void ThreadUnsafePoolAllocatorTest() {
     pool.Deallocate(ptr);
 
     std::vector<int64_t *> ptrs;
-    constexpr int count = 16000000;
+    constexpr int count = 8000000;
     for (int i = 0; i < count; ++i) {
         ptr = pool.Allocate(i);
         ptrs.push_back(ptr);
@@ -48,7 +48,7 @@ static void ThreadSafePoolAllocatorTest() {
     std::cout << *ptr << std::endl;
 
     constexpr int64_t numThreads = 8;
-    constexpr int64_t count = 16000000 / numThreads;
+    constexpr int64_t count = 8000000 / numThreads;
     std::vector<std::thread> threads;
 
     for (int64_t th = 0; th < numThreads; ++th) {

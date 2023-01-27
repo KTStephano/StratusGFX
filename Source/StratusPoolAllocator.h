@@ -209,80 +209,118 @@ namespace stratus {
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
-        typedef __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> Allocator;
+        struct AllocatorData {
+            std::atomic<size_t> counter = 0;
+            void * allocator = nullptr;
+        };
+
+        struct ElementData {
+            AllocatorData * allocator;
+            E element;
+
+            template<typename ... Types>
+            ElementData(Types ... args)
+                : element(std::forward<Types>(args)...) {}
+
+            ~ElementData() {
+                element.~E();
+            }
+        };
+
+        typedef __PoolAllocator<ElementData, Lock, ElemsPerChunk, Chunks> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
-    private:
-        struct _AllocatorData {
-            std::atomic<size_t> counter;
-            Allocator * allocator;
-
-            _AllocatorData() {
-                counter.store(0);
-                allocator = new Allocator();
-            }
-
-            ~_AllocatorData() {
-                delete allocator;
-                allocator = nullptr;
-            }
-        };
-
-    public:
-        struct ThreadSafePoolDeleter {
-            _AllocatorData * allocator;
-
-            ThreadSafePoolDeleter(_AllocatorData * allocator)
-                : allocator(allocator) { allocator->counter.fetch_add(1); }
-
-            ThreadSafePoolDeleter(ThreadSafePoolDeleter&& other)
-                : allocator(other.allocator) { other.allocator = nullptr; }
-
-            ThreadSafePoolDeleter(const ThreadSafePoolDeleter& other)
-                : allocator(other.allocator) { allocator->counter.fetch_add(1); }
-
-            ThreadSafePoolDeleter& operator=(ThreadSafePoolDeleter&&) = delete;
-            ThreadSafePoolDeleter& operator=(const ThreadSafePoolDeleter&) = delete;
-
-            ~ThreadSafePoolDeleter() {
-                if (allocator) {
-                    auto prev = allocator->counter.fetch_sub(1);
-                    if (prev <= 1) {
-                        delete allocator;
-                    }
-                }
-            }
-
+        struct Deleter {
             void operator()(E * ptr) {
-                allocator->allocator->Deallocate(ptr);
+                uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
+                ElementData * data = reinterpret_cast<ElementData *>(bytes - sizeof(AllocatorData *));
+                AllocatorData * allocData = data->allocator;
+                Allocator * allocator = _GetAllocator(allocData);
+                allocator->Deallocate(data);
+                _DecrPoolRefCount(allocData);
             }
         };
 
-        typedef std::unique_ptr<E, ThreadSafePoolDeleter> UniquePtr;
+        typedef std::unique_ptr<E, Deleter> UniquePtr;
         typedef std::shared_ptr<E> SharedPtr;
 
         ThreadSafePoolAllocator() {}
 
         template<typename ... Types>
         UniquePtr Allocate(Types ... args) {
-            return UniquePtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_manager));
+            ElementData * data = _Allocate(std::forward<Types>(args)...);
+            return UniquePtr(&data->element);
         }
 
         template<typename ... Types>
         SharedPtr AllocateShared(Types ... args) {
-            return SharedPtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_manager));
+            ElementData * data = _Allocate(std::forward<Types>(args)...);
+            return SharedPtr(&data->element, Deleter());
         }
 
         size_t NumChunks() {
-            return _manager.allocator->allocator->NumChunks();
+            return _GetAllocator(_manager.allocator)->NumChunks();
         }
 
         size_t NumElems() {
-            return _manager.allocator->allocator->NumElems();
+            return _GetAllocator(_manager.allocator)->NumElems();
         }
 
     private:
-        inline thread_local static ThreadSafePoolDeleter _manager = ThreadSafePoolDeleter(new _AllocatorData());
+        template<typename ... Types>
+        ElementData * _Allocate(Types ... args) {
+            ElementData * data = _GetAllocator(_manager.allocator)->Allocate(std::forward<Types>(args)...);
+            data->allocator = _manager.allocator;
+            _IncrPoolRefCount(_manager.allocator);
+            return data;
+        }
+
+        static void _IncrPoolRefCount(AllocatorData * a) {
+            a->counter.fetch_add(1);
+        }
+
+        static void _IncrPoolRefCount(void * a) {
+            _IncrPoolRefCount(reinterpret_cast<AllocatorData *>(a));
+        }
+
+        static void _DecrPoolRefCount(AllocatorData * a) {
+            if (a == nullptr) return;
+            auto prev = a->counter.fetch_sub(1);
+            if (prev <= 1) {
+                Allocator * ptr = _GetAllocator(a);
+                delete ptr;
+                delete a;
+            }
+        }
+
+        static Allocator * _GetAllocator(AllocatorData * a) {
+            return reinterpret_cast<Allocator *>(a->allocator);
+        }
+
+        struct _PoolManager {
+            AllocatorData * allocator;
+
+            _PoolManager(AllocatorData * allocator)
+                : allocator(allocator) { 
+                allocator->allocator = reinterpret_cast<void *>(new Allocator());
+                _IncrPoolRefCount(allocator); 
+            }
+
+            _PoolManager(_PoolManager&& other)
+                : allocator(other.allocator) { other.allocator = nullptr; }
+
+            _PoolManager(const _PoolManager& other)
+                : allocator(other.allocator) { _IncrPoolRefCount(allocator); }
+
+            _PoolManager& operator=(_PoolManager&&) = delete;
+            _PoolManager& operator=(const _PoolManager&) = delete;
+
+            ~_PoolManager() {
+                _DecrPoolRefCount(allocator);
+            }
+        };
+
+        inline thread_local static _PoolManager _manager = _PoolManager(new AllocatorData());
     };
 }
