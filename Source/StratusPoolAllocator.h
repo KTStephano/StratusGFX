@@ -209,6 +209,90 @@ namespace stratus {
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
+        typedef __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> Allocator;
+        static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
+        static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
+
+    private:
+        // This is a control structure which allows us to keep track of which
+        // thread pool allocators are still in use and which need to be deleted
+        // (lightweight ref counted pointer)
+        struct _AllocatorData {
+            std::atomic<size_t> counter;
+            Allocator * allocator;
+
+            _AllocatorData() {
+                counter.store(0);
+                allocator = new Allocator();
+            }
+
+            ~_AllocatorData() {
+                delete allocator;
+                allocator = nullptr;
+            }
+        };
+
+    public:
+        struct Deleter {
+            _AllocatorData * allocator;
+
+            Deleter(_AllocatorData * allocator)
+                : allocator(allocator) { allocator->counter.fetch_add(1); }
+
+            Deleter(Deleter&& other)
+                : allocator(other.allocator) { other.allocator = nullptr; }
+
+            Deleter(const Deleter& other)
+                : allocator(other.allocator) { allocator->counter.fetch_add(1); }
+
+            Deleter& operator=(Deleter&&) = delete;
+            Deleter& operator=(const Deleter&) = delete;
+
+            ~Deleter() {
+                if (allocator) {
+                    auto prev = allocator->counter.fetch_sub(1);
+                    if (prev <= 1) {
+                        delete allocator;
+                    }
+                }
+            }
+
+            void operator()(E * ptr) {
+                allocator->allocator->Deallocate(ptr);
+            }
+        };
+
+        typedef std::unique_ptr<E, Deleter> UniquePtr;
+        typedef std::shared_ptr<E> SharedPtr;
+
+        ThreadSafePoolAllocator() {}
+
+        template<typename ... Types>
+        UniquePtr Allocate(Types ... args) {
+            return UniquePtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), Deleter(_manager));
+        }
+
+        template<typename ... Types>
+        SharedPtr AllocateShared(Types ... args) {
+            return SharedPtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), Deleter(_manager));
+        }
+
+        size_t NumChunks() {
+            return _manager.allocator->allocator->NumChunks();
+        }
+
+        size_t NumElems() {
+            return _manager.allocator->allocator->NumElems();
+        }
+
+    private:
+        inline thread_local static Deleter _manager = Deleter(new _AllocatorData());
+    };
+
+    /* This implementation works but may be slightly less cache efficient due to
+       embedding the control structure with the data itself.
+    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
+    struct ThreadSafePoolAllocator {
         // This is a control structure which allows us to keep track of which
         // thread pool allocators are still in use and which need to be deleted
         // (lightweight ref counted pointer)
@@ -333,4 +417,5 @@ namespace stratus {
         // More references to the allocator are created with each allocation.
         inline thread_local static _PoolManager _manager = _PoolManager(new AllocatorData());
     };
+    */
 }
