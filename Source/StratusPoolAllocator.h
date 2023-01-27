@@ -5,6 +5,7 @@
 #include <thread>
 #include <shared_mutex>
 #include <functional>
+#include <atomic>
 
 // See https://www.qt.io/blog/a-fast-and-thread-safe-pool-allocator-for-qt-part-1
 // for some more information
@@ -212,13 +213,49 @@ namespace stratus {
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
+    private:
+        struct _AllocatorData {
+            std::atomic<size_t> counter;
+            Allocator * allocator;
+
+            _AllocatorData() {
+                counter.store(0);
+                allocator = new Allocator();
+            }
+
+            ~_AllocatorData() {
+                delete allocator;
+                allocator = nullptr;
+            }
+        };
+
+    public:
         struct ThreadSafePoolDeleter {
-            std::shared_ptr<Allocator> allocator;
-            ThreadSafePoolDeleter(const std::shared_ptr<Allocator>& allocator)
-                : allocator(allocator) {}
+            _AllocatorData * allocator;
+
+            ThreadSafePoolDeleter(_AllocatorData * allocator)
+                : allocator(allocator) { allocator->counter.fetch_add(1); }
+
+            ThreadSafePoolDeleter(ThreadSafePoolDeleter&& other)
+                : allocator(other.allocator) { other.allocator = nullptr; }
+
+            ThreadSafePoolDeleter(const ThreadSafePoolDeleter& other)
+                : allocator(other.allocator) { allocator->counter.fetch_add(1); }
+
+            ThreadSafePoolDeleter& operator=(ThreadSafePoolDeleter&&) = delete;
+            ThreadSafePoolDeleter& operator=(const ThreadSafePoolDeleter&) = delete;
+
+            ~ThreadSafePoolDeleter() {
+                if (allocator) {
+                    auto prev = allocator->counter.fetch_sub(1);
+                    if (prev <= 1) {
+                        delete allocator;
+                    }
+                }
+            }
 
             void operator()(E * ptr) {
-                allocator->Deallocate(ptr);
+                allocator->allocator->Deallocate(ptr);
             }
         };
 
@@ -228,24 +265,24 @@ namespace stratus {
         ThreadSafePoolAllocator() {}
 
         template<typename ... Types>
-        static UniquePtr Allocate(Types ... args) {
-            return UniquePtr(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
+        UniquePtr Allocate(Types ... args) {
+            return UniquePtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_manager));
         }
 
         template<typename ... Types>
-        static SharedPtr AllocateShared(Types ... args) {
-            return SharedPtr(_allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_allocator));
+        SharedPtr AllocateShared(Types ... args) {
+            return SharedPtr(_manager.allocator->allocator->Allocate(std::forward<Types>(args)...), ThreadSafePoolDeleter(_manager));
         }
 
-        static size_t NumChunks() {
-            return _allocator->NumChunks();
+        size_t NumChunks() {
+            return _manager.allocator->allocator->NumChunks();
         }
 
-        static size_t NumElems() {
-            return _allocator->NumElems();
+        size_t NumElems() {
+            return _manager.allocator->allocator->NumElems();
         }
 
     private:
-        inline static thread_local std::shared_ptr<Allocator> _allocator = std::make_shared<Allocator>();
+        inline thread_local static ThreadSafePoolDeleter _manager = ThreadSafePoolDeleter(new _AllocatorData());
     };
 }
