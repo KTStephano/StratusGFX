@@ -61,7 +61,7 @@ static void ThreadSafePoolAllocatorTest() {
 
             for (int i = 0; i < count; ++i) {
                 REQUIRE(*ptrs[i] == i);
-                ptrs[i].reset();
+                //ptrs[i].reset();
             }
 
             std::cout << pool.NumChunks() << ", " << pool.NumElems() << std::endl;

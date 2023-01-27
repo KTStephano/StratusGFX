@@ -104,6 +104,9 @@ namespace stratus {
         Lock _backBufferLock;
         // Having two allows us to largely decouple allocations from deallocations
         // and only synchronize the two when we run out of free memory
+        //
+        // (we are running with the assumption that only one thread can allocate but many
+        //  can deallocate for the same allocator object)
         _MemBlock * _frontBuffer = nullptr;
         _MemBlock * _backBuffer = nullptr;
         _Chunk * _chunks = nullptr;
@@ -149,15 +152,15 @@ namespace stratus {
 
     struct Lock {
         struct LockHeld {
-            const std::thread::id owner;
-            std::function<void(std::shared_mutex&)> lock;
-            std::function<void(std::shared_mutex&)> unlock;
-            mutable std::shared_mutex m;
+            typedef void (*LockUnlockFunction)(std::shared_mutex *);
+            LockUnlockFunction lock;
+            LockUnlockFunction unlock;
+            std::shared_mutex * m;
 
-            LockHeld(const std::thread::id& owner,
-                     const std::function<void(std::shared_mutex&)>& lock,
-                     const std::function<void(std::shared_mutex&)>& unlock)
-                : owner(owner), lock(lock), unlock(unlock) {
+            LockHeld(LockUnlockFunction lock,
+                     LockUnlockFunction unlock,
+                     std::shared_mutex * m)
+                : lock(lock), unlock(unlock), m(m) {
                 lock(m);
             }
 
@@ -169,12 +172,13 @@ namespace stratus {
         typedef LockHeld value_type;
 
         const std::thread::id owner;
+        mutable std::shared_mutex m;
 
         Lock(const std::thread::id& owner = std::this_thread::get_id())
             : owner(owner) {}
 
         value_type LockRead() const {
-            return value_type(owner, _LockShared, _UnlockShared);
+            return value_type(_LockShared, _UnlockShared, &m);
         }
         
         value_type LockWrite() const {
@@ -182,24 +186,24 @@ namespace stratus {
             if (std::this_thread::get_id() == owner) {
                 return LockRead();
             }
-            return value_type(owner, _LockUnique, _UnlockUnique);
+            return value_type(_LockUnique, _UnlockUnique, &m);
         }
 
     private:
-        static void _LockShared(std::shared_mutex& m) {
-            m.lock_shared();
+        static void _LockShared(std::shared_mutex * m) {
+            m->lock_shared();
         }
 
-        static void _UnlockShared(std::shared_mutex& m) {
-            m.unlock_shared();
+        static void _UnlockShared(std::shared_mutex * m) {
+            m->unlock_shared();
         }
 
-        static void _LockUnique(std::shared_mutex& m) {
-            m.lock();
+        static void _LockUnique(std::shared_mutex * m) {
+            m->lock();
         }
 
-        static void _UnlockUnique(std::shared_mutex& m) {
-            m.unlock();
+        static void _UnlockUnique(std::shared_mutex * m) {
+            m->unlock();
         }
     };
 
