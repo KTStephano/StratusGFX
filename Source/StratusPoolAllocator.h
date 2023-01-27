@@ -41,7 +41,7 @@ namespace stratus {
                 delete tmp;
             }
 
-            _freeList = nullptr;
+            _frontBuffer = nullptr;
             _chunks = nullptr;
         }
 
@@ -49,13 +49,22 @@ namespace stratus {
         E * Allocate(Types ... args) {
             uint8_t * bytes = nullptr;
             {
-                auto wl = _lock.LockWrite();
-                if (!_freeList) {
-                    _InitChunk();
+                //auto wlf = _frontBufferLock.LockWrite();
+                if (!_frontBuffer) {
+                    auto wlb = _backBufferLock.LockWrite();
+                    // If back buffer has free nodes, swap front with back
+                    if (_backBuffer) {
+                        _frontBuffer = _backBuffer;
+                        _backBuffer = nullptr;
+                    }
+                    // If not allocate a new chunk of memory
+                    else {
+                        _InitChunk();
+                    }
                 }
 
-                _MemBlock * next = _freeList;
-                _freeList = _freeList->next;
+                _MemBlock * next = _frontBuffer;
+                _frontBuffer = _frontBuffer->next;
                 bytes = reinterpret_cast<uint8_t *>(next);
             }
             return new (bytes) E(std::forward<Types>(args)...);
@@ -63,20 +72,20 @@ namespace stratus {
 
         void Deallocate(E * ptr) {
             ptr->~E();
-            auto wl = _lock.LockWrite();
+            auto wlb = _backBufferLock.LockWrite();
             uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
             _MemBlock * b = reinterpret_cast<_MemBlock *>(bytes);
-            b->next = _freeList;
-            _freeList = b;
+            b->next = _backBuffer;
+            _backBuffer = b;
         }
 
         size_t NumChunks() const {
-            auto sl = _lock.LockRead();
+            //auto sl = _frontBufferLock.LockRead();
             return _numChunks;
         }
 
         size_t NumElems() const {
-            auto sl = _lock.LockRead();
+            //auto sl = _frontBufferLock.LockRead();
             return _numElems;
         }
 
@@ -91,8 +100,12 @@ namespace stratus {
             _Chunk * next = nullptr;
         };
 
-        Lock _lock;
-        _MemBlock * _freeList = nullptr;
+        //Lock _frontBufferLock;
+        Lock _backBufferLock;
+        // Having two allows us to largely decouple allocations from deallocations
+        // and only synchronize the two when we run out of free memory
+        _MemBlock * _frontBuffer = nullptr;
+        _MemBlock * _backBuffer = nullptr;
         _Chunk * _chunks = nullptr;
         size_t _numChunks = 0;
         size_t _numElems = 0;
@@ -107,8 +120,8 @@ namespace stratus {
             uint8_t * mem = c->memory + BytesPerElem * (ElemsPerChunk - 1);
             for (size_t i = ElemsPerChunk; i > 0; --i, mem -= BytesPerElem) {
                 _MemBlock * b = reinterpret_cast<_MemBlock *>(mem);
-                b->next = _freeList;
-                _freeList = b;
+                b->next = _frontBuffer;
+                _frontBuffer = b;
             }
 
             c->next = _chunks;
@@ -129,7 +142,7 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
+    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadUnsafePoolAllocator : public __PoolAllocator<E, NoOpLock, ElemsPerChunk, Chunks> {
         virtual ~ThreadUnsafePoolAllocator() = default;
     };
@@ -190,7 +203,7 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 512, size_t Chunks = 1>
+    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
         typedef __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
