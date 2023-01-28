@@ -11,6 +11,19 @@
 // for some more information
 
 namespace stratus {
+    struct __NoOpLock {
+        struct NoOpLockHeld{};
+        typedef NoOpLockHeld value_type;
+
+        value_type LockRead() const {
+            return value_type();
+        }
+
+        value_type LockWrite() const {
+            return value_type();
+        }
+    };
+
     // Allocates memory of a pre-defined size provide optimal data locality
     // with zero fragmentation
     template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks>
@@ -133,25 +146,12 @@ namespace stratus {
         }
     };
 
-    struct NoOpLock {
-        struct NoOpLockHeld{};
-        typedef NoOpLockHeld value_type;
-
-        value_type LockRead() const {
-            return value_type();
-        }
-
-        value_type LockWrite() const {
-            return value_type();
-        }
-    };
-
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
-    struct ThreadUnsafePoolAllocator : public __PoolAllocator<E, NoOpLock, ElemsPerChunk, Chunks> {
-        virtual ~ThreadUnsafePoolAllocator() = default;
+    struct PoolAllocator : public __PoolAllocator<E, __NoOpLock, ElemsPerChunk, Chunks> {
+        virtual ~PoolAllocator() = default;
     };
 
-    struct Lock {
+    struct __Lock {
         struct LockHeld {
             typedef void (*UnlockFunction)(std::shared_mutex *);
             UnlockFunction unlock;
@@ -172,7 +172,7 @@ namespace stratus {
         const std::thread::id owner;
         mutable std::shared_mutex m;
 
-        Lock(const std::thread::id& owner = std::this_thread::get_id())
+        __Lock(const std::thread::id& owner = std::this_thread::get_id())
             : owner(owner) {}
 
         value_type LockRead() const {
@@ -209,7 +209,7 @@ namespace stratus {
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
-        typedef __PoolAllocator<E, Lock, ElemsPerChunk, Chunks> Allocator;
+        typedef __PoolAllocator<E, __Lock, ElemsPerChunk, Chunks> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
@@ -263,6 +263,19 @@ namespace stratus {
             }
         };
 
+        // If a pointer is cast to another this deleter is used
+        template<typename Base>
+        struct BaseDeleter {
+            Deleter original;
+
+            BaseDeleter(Deleter original)
+                : original(original) {}
+
+            void operator()(Base * ptr) {
+                original(dynamic_cast<E *>(ptr));
+            }
+        };
+
         typedef std::unique_ptr<E, Deleter> UniquePtr;
         typedef std::shared_ptr<E> SharedPtr;
 
@@ -288,6 +301,14 @@ namespace stratus {
         static size_t NumElems() {
             if (!_alloc) return 0;
             return _GetAllocator()->NumElems();
+        }
+
+        template<typename Base>
+        static std::unique_ptr<Base, BaseDeleter<Base>> UniqueCast(UniquePtr& ptr) {
+            auto deleter = ptr.get_deleter();
+            E * orig = ptr.release();
+            Base * base = dynamic_cast<E *>(orig);
+            return std::unique_ptr<Base, BaseDeleter<Base>>(base, BaseDeleter<Base>(deleter));
         }
 
     private:

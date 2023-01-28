@@ -9,6 +9,7 @@
 #include <memory>
 #include <shared_mutex>
 #include "StratusEntityCommon.h"
+#include "StratusPoolAllocator.h"
 
 template<typename E>
 std::string ClassName() {
@@ -73,6 +74,34 @@ namespace stratus {
             return other.component->operator==(component);
         }
     };
+
+    struct EntityComponentPointerManager {
+        Entity2Component * component = nullptr;
+
+        EntityComponentPointerManager(Entity2Component * c)
+            : component(c) {}
+
+        virtual ~EntityComponentPointerManager() = default;
+    };
+
+    template<typename Component, typename ... Types>
+    std::unique_ptr<EntityComponentPointerManager> ConstructComponent(Types ... args) {
+        static std::mutex m;
+        static PoolAllocator<Component> allocator;
+
+        struct _Pointer : public EntityComponentPointerManager {
+            _Pointer(Entity2Component * c)
+                : EntityComponentPointerManager(c) {}
+
+            virtual ~_Pointer() {
+                auto ul = std::unique_lock<std::mutex>(m);
+                allocator.Deallocate(dynamic_cast<Component *>(component));
+            }
+        };
+
+        auto ul = std::unique_lock<std::mutex>(m);
+        return std::unique_ptr<EntityComponentPointerManager>(new _Pointer(allocator.Allocate(std::forward<Types>(args)...)));
+    }
 }
 
 namespace std {
@@ -124,6 +153,8 @@ namespace stratus {
     private:
         mutable std::shared_mutex _m;
         Entity2 * _owner;
+        // Component pointer managers (allocates and deallocates from shared pool)
+        std::vector<std::unique_ptr<EntityComponentPointerManager>> _componentManagers;
         // List of unique components
         std::unordered_set<Entity2ComponentView> _components;
         // List of components by type name
@@ -195,7 +226,9 @@ namespace stratus {
     template<typename E, typename ... Types>
     void Entity2ComponentSet::_AttachComponent(Types ... args) {
         if (_ContainsComponent<E>()) return;
-        Entity2ComponentView view(dynamic_cast<Entity2Component *>(new E(std::forward<Types>(args)...)));
+        auto ptr = ConstructComponent<E>(std::forward<Types>(args)...);
+        Entity2ComponentView view(dynamic_cast<Entity2Component *>(ptr->component));
+        _componentManagers.push_back(std::move(ptr));
         _AttachComponent(view);
     }
 

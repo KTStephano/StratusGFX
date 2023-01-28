@@ -21,9 +21,7 @@ namespace stratus {
     }
 
     Entity2ComponentSet::~Entity2ComponentSet() {
-        for (Entity2ComponentView view : _components) {
-            delete view.component;
-        }
+        _componentManagers.clear();
         _components.clear();
         _componentTypeNames.clear();
     }

@@ -2,15 +2,16 @@
 #include <iostream>
 #include <unordered_set>
 #include <chrono>
+#include <any>
 
 #include "StratusPoolAllocator.h"
 
-static void ThreadUnsafePoolAllocatorTest() {
-    std::cout << "ThreadUnsafePoolAllocatorTest" << std::endl;
-    std::cout << stratus::ThreadUnsafePoolAllocator<int64_t>::BytesPerElem << std::endl;
+static void PoolAllocatorTest() {
+    std::cout << "PoolAllocatorTest" << std::endl;
+    std::cout << stratus::PoolAllocator<int64_t>::BytesPerElem << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto pool = stratus::ThreadUnsafePoolAllocator<int64_t>();
+    auto pool = stratus::PoolAllocator<int64_t>();
 
     int64_t * ptr = pool.Allocate(25);
     REQUIRE(*ptr == 25);
@@ -120,12 +121,79 @@ static void OneProducerManyConsumers() {
     std::cout << "Elapsed MS: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 }
 
+static bool called1 = false;
+static bool called2 = false;
+
+struct Base {
+    virtual ~Base() {
+        std::cout << "~Base()\n";
+        called2 = true;
+    }
+
+    void Print() {
+        std::cout << "Base::Print()\n";
+    }
+};
+
+struct Derived : public Base {
+    virtual ~Derived() {
+        std::cout << "~Derived()\n";
+        called1 = true;
+    }
+};
+
+static void TestPointerCast() {
+    typedef stratus::ThreadSafePoolAllocator<Derived> Allocator;
+
+    auto base = Allocator::UniqueCast<Base>(Allocator::Allocate());
+    Base * ptr = base.get();
+    ptr->Print();
+    
+    REQUIRE_FALSE(called1);
+    REQUIRE_FALSE(called2);
+    base.reset();
+
+    REQUIRE(called1);
+    REQUIRE(called2);
+}
+
+// struct S {
+//     virtual ~S() = default;
+// };
+
+// struct B : public S {
+//     virtual ~B() = default;
+
+//     static void * operator new(size_t) {
+//         std::cout << "Called new\n";
+//         return (void *)Allocator().Allocate();
+//     }
+
+//     static void operator delete(void * ptr, size_t) {
+//         std::cout << "Called delete\n";
+//         B * p = (B *)ptr;
+
+//     }
+
+//     static stratus::PoolAllocator<B>& Allocator() {
+//         static stratus::PoolAllocator<B> allocator;
+//         return allocator;
+//     }
+// };
+
+// static void TestNewDelete() {
+
+//     S * s = new B();
+//     delete s;
+// }
+
 static void ThreadSafePoolAllocatorTest() {
     ManyProducers();
     OneProducerManyConsumers();
+    TestPointerCast();
 }
 
 TEST_CASE( "Stratus Pool Allocators Test", "[stratus_pool_allocators_test]" ) {
-    ThreadUnsafePoolAllocatorTest();
+    PoolAllocatorTest();
     ThreadSafePoolAllocatorTest();
 }
