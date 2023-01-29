@@ -12,14 +12,6 @@ namespace stratus {
         return diff <= 1;
     }
 
-    void Entity2Component::SetEnabled(const bool enabled) {
-        _enabled = enabled;
-    }
-
-    bool Entity2Component::IsEnabled() const {
-        return _enabled;
-    }
-
     Entity2ComponentSet::~Entity2ComponentSet() {
         _componentManagers.clear();
         _components.clear();
@@ -46,23 +38,31 @@ namespace stratus {
     void Entity2ComponentSet::_AttachComponent(Entity2ComponentView view) {
         const std::string name = view.component->TypeName();
         _components.insert(view);
-        _componentTypeNames.insert(std::make_pair(name, view));
+        _componentTypeNames.insert(std::make_pair(name, std::make_pair(view, EntityComponentStatus::COMPONENT_ENABLED)));
         INSTANCE(EntityManager)->_NotifyComponentsAdded(_owner->shared_from_this(), view.component);
     }
 
-    std::vector<Entity2Component *> Entity2ComponentSet::GetAllComponents() {
+    void Entity2ComponentSet::_NotifyEntityManagerComponentEnabledDisabled() {
+        INSTANCE(EntityManager)->_NotifyComponentsEnabledDisabled(_owner->shared_from_this());
+    }
+
+    std::vector<EntityComponentPair<Entity2Component>> Entity2ComponentSet::GetAllComponents() {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
-        std::vector<Entity2Component *> v;
+        std::vector<EntityComponentPair<Entity2Component>> v;
         v.reserve(_components.size());
-        for (Entity2ComponentView view : _components) v.push_back(view.component);
+        for (auto& component : _componentTypeNames) {
+            v.push_back(EntityComponentPair<Entity2Component>{component.second.first.component, component.second.second});
+        }
         return v;
     }
 
-    std::vector<const Entity2Component *> Entity2ComponentSet::GetAllComponents() const {
+    std::vector<EntityComponentPair<const Entity2Component>> Entity2ComponentSet::GetAllComponents() const {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
-        std::vector<const Entity2Component *> v;
+        std::vector<EntityComponentPair<const Entity2Component>> v;
         v.reserve(_components.size());
-        for (Entity2ComponentView view : _components) v.push_back(view.component);
+        for (const auto& component : _componentTypeNames) {
+            v.push_back(EntityComponentPair<const Entity2Component>{component.second.first.component, component.second.second});
+        }
         return v;
     }
 

@@ -28,5 +28,7 @@ namespace stratus {
 
         // Called when an entity has a component added
         virtual void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&) = 0;
+        // Called when an entity component is enabled or disabled
+        virtual void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) = 0;
     };
 }

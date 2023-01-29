@@ -27,10 +27,12 @@ namespace stratus {
         auto entitiesToAdd = std::move(_entitiesToAdd);
         auto addedComponents = std::move(_addedComponents);
         auto entitiesToRemove = std::move(_entitiesToRemove);
+        auto componentsEnabledDisabled = std::move(_componentsEnabledDisabled);
         for (EntityProcessPtr& ptr : _processes) {
             if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
             if (addedComponents.size() > 0) ptr->EntityComponentsAdded(addedComponents);
             if (entitiesToRemove.size() > 0) ptr->EntitiesRemoved(entitiesToRemove);
+            if (componentsEnabledDisabled.size() > 0) ptr->EntityComponentsEnabledDisabled(componentsEnabledDisabled);
             ptr->Process(deltaSeconds);
         }
 
@@ -75,5 +77,10 @@ namespace stratus {
         else {
             it->second.push_back(component);
         }
+    }
+
+    void EntityManager::_NotifyComponentsEnabledDisabled(const Entity2Ptr& ptr) {
+        std::unique_lock<std::shared_mutex> ul(_m);
+        _componentsEnabledDisabled.insert(ptr);
     }
 }

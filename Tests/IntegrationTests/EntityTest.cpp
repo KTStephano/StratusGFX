@@ -61,7 +61,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
                 // If it doesn't have our component then don't process
                 if (!entry.first->Components().ContainsComponent<ExampleComponent>()) continue;
                 // If the ptr we set is invalid then don't process
-                if (entry.first->Components().GetComponent<ExampleComponent>()->ptr != (const void *)this) continue;
+                if (entry.first->Components().GetComponent<ExampleComponent>().component->ptr != (const void *)this) continue;
                 // Make sure the component we added actually shows up in the array
                 for (stratus::Entity2Component * c : components) {
                     if (c->TypeName() == ExampleComponent::STypeName()) {
@@ -69,6 +69,10 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
                     }
                 }
             }
+        }
+
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) override {
+            
         }
 
         std::unordered_set<stratus::Entity2Ptr> seen;

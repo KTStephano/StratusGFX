@@ -39,6 +39,7 @@ namespace stratus {
     private:
         // Meant to be called by Entity
         void _NotifyComponentsAdded(const Entity2Ptr&, Entity2Component *);
+        void _NotifyComponentsEnabledDisabled(const Entity2Ptr&);
 
     private:
         mutable std::shared_mutex _m;
@@ -54,6 +55,7 @@ namespace stratus {
         std::vector<EntityProcessPtr> _processes;
         // Component change lists
         std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _addedComponents;
+        std::unordered_set<Entity2Ptr> _componentsEnabledDisabled;
     };
 
     template<typename E, typename ... Types>

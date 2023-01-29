@@ -45,14 +45,14 @@ namespace stratus {
         void MarkChanged();
         bool ChangedWithinLastFrame() const;
 
-        void SetEnabled(const bool);
-        bool IsEnabled() const;
-
     protected:
         // Last engine frame this component was modified
         uint64_t _lastFrameChanged = 0;
-        // Whether component should be used or not
-        bool _enabled = true;
+    };
+
+    enum class EntityComponentStatus : int {
+        COMPONENT_ENABLED,
+        COMPONENT_DISABLED
     };
 
     // Enables an entity component pointer to be inserted into hash set/map
@@ -114,6 +114,12 @@ namespace std {
 }
 
 namespace stratus {
+    template<typename E>
+    struct EntityComponentPair {
+        E * component = nullptr;
+        EntityComponentStatus status = EntityComponentStatus::COMPONENT_DISABLED;
+    };
+
     // Keeps track of a unique set of components
     struct Entity2ComponentSet {
         friend class Entity2;
@@ -128,17 +134,23 @@ namespace stratus {
         bool ContainsComponent() const;
 
         template<typename E>
-        E * GetComponent();
+        EntityComponentPair<E> GetComponent();
 
         template<typename E>
-        const E * GetComponent() const;
+        EntityComponentPair<const E> GetComponent() const;
 
-        std::vector<Entity2Component *> GetAllComponents();
-        std::vector<const Entity2Component *> GetAllComponents() const;
+        template<typename E>
+        void EnableComponent();
+        
+        template<typename E>
+        void DisableComponent();
+
+        std::vector<EntityComponentPair<Entity2Component>> GetAllComponents();
+        std::vector<EntityComponentPair<const Entity2Component>> GetAllComponents() const;
 
     private:
         template<typename E>
-        E * _GetComponent() const;
+        EntityComponentPair<E> _GetComponent() const;
 
         template<typename E, typename ... Types>
         void _AttachComponent(Types ... args);
@@ -146,9 +158,12 @@ namespace stratus {
         template<typename E>
         bool _ContainsComponent() const;
 
-        void _AttachComponent(Entity2ComponentView);
+        template<typename E>
+        void _SetComponentStatus(EntityComponentStatus);
 
+        void _AttachComponent(Entity2ComponentView);
         void _SetOwner(Entity2 *);
+        void _NotifyEntityManagerComponentEnabledDisabled();
 
     private:
         mutable std::shared_mutex _m;
@@ -158,7 +173,7 @@ namespace stratus {
         // List of unique components
         std::unordered_set<Entity2ComponentView> _components;
         // List of components by type name
-        std::unordered_map<std::string, Entity2ComponentView> _componentTypeNames;
+        std::unordered_map<std::string, std::pair<Entity2ComponentView, EntityComponentStatus>> _componentTypeNames;
     };
 
     // Collection of unque ID + configurable component data
@@ -239,21 +254,52 @@ namespace stratus {
     }
 
     template<typename E>
-    E * Entity2ComponentSet::GetComponent() {
+    EntityComponentPair<E> Entity2ComponentSet::GetComponent() {
         return _GetComponent<E>();
     }
 
     template<typename E>
-    const E * Entity2ComponentSet::GetComponent() const {
+    EntityComponentPair<const E> Entity2ComponentSet::GetComponent() const {
         return _GetComponent<const E>();
     }
 
     template<typename E>
-    E * Entity2ComponentSet::_GetComponent() const {
+    EntityComponentPair<E> Entity2ComponentSet::_GetComponent() const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::string name = E::STypeName();
         auto it = _componentTypeNames.find(name);
-        return it != _componentTypeNames.end() ? dynamic_cast<E *>(it->second.component) : nullptr;
+        return it != _componentTypeNames.end() ? 
+            EntityComponentPair<E>{dynamic_cast<E *>(it->second.first.component), it->second.second} : 
+            EntityComponentPair<E>();
+    }
+
+    template<typename E>
+    void Entity2ComponentSet::EnableComponent() {
+        static_assert(std::is_base_of<Entity2Component, E>::value);
+        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        std::string name = E::STypeName();
+        auto it = _componentTypeNames.find(name);
+        if (it != _componentTypeNames.end()) {
+
+        }
+    }
+    
+    template<typename E>
+    void Entity2ComponentSet::DisableComponent() {
+        static_assert(std::is_base_of<Entity2Component, E>::value);
+        auto ul = std::unique_lock<std::shared_mutex>(_m);
+    }
+
+    template<typename E>
+    void Entity2ComponentSet::_SetComponentStatus(EntityComponentStatus status) {
+        static_assert(std::is_base_of<Entity2Component, E>::value);
+        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        std::string name = E::STypeName();
+        auto it = _componentTypeNames.find(name);
+        if (it != _componentTypeNames.end()) {
+            it->second.second = status;
+            _NotifyEntityManagerComponentEnabledDisabled();
+        }
     }
 }
