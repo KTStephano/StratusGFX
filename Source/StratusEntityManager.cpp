@@ -48,7 +48,24 @@ namespace stratus {
             ptr->Process(deltaSeconds);
 
             // Commit process to list
-            _processes.push_back(std::move(ptr));
+            _processes.push_back(ptr);
+            _handlesToPtrs.insert(std::make_pair((EntityProcessHandle)ptr.get(), ptr));
+        }
+
+        // If any processes have been removed then remove them now
+        auto processesToRemove = std::move(_processesToRemove);
+        for (EntityProcessHandle handle : processesToRemove) {
+            auto handleIt = _handlesToPtrs.find(handle);
+            if (handleIt == _handlesToPtrs.end()) continue;
+            auto remove = handleIt->second;
+            for (auto it = _processes.begin(); it != _processes.end(); ++it) {
+                EntityProcessPtr process = *it;
+                if (process == remove) {
+                    _processes.erase(it);
+                    break;
+                }
+            }
+            _handlesToPtrs.erase(handle);
         }
 
         return SystemStatus::SYSTEM_CONTINUE;
@@ -66,6 +83,11 @@ namespace stratus {
     void EntityManager::_RegisterEntityProcess(EntityProcessPtr& ptr) {
         std::unique_lock<std::shared_mutex> ul(_m);
         _processesToAdd.push_back(std::move(ptr));
+    }
+
+    void EntityManager::UnregisterEntityProcess(EntityProcessHandle handle) {
+        std::unique_lock<std::shared_mutex> ul(_m);
+        _processesToRemove.insert(handle);
     }
     
     void EntityManager::_NotifyComponentsAdded(const Entity2Ptr& ptr, Entity2Component * component) {

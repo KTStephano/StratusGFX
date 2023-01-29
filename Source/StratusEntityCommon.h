@@ -11,4 +11,7 @@ namespace stratus {
     typedef std::shared_ptr<Entity2> Entity2Ptr;
     typedef std::weak_ptr<Entity2> Entity2WeakPtr;
     typedef std::shared_ptr<EntityProcess> EntityProcessPtr;
+
+    typedef void * EntityProcessHandle;
+    constexpr EntityProcessHandle NullEntityProcessHandle = nullptr;
 }

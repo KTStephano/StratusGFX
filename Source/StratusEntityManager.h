@@ -23,9 +23,10 @@ namespace stratus {
         void AddEntity(const Entity2Ptr&);
         void RemoveEntity(const Entity2Ptr&);
 
-        // Registers an EntityProcess type
+        // Registers or Unregisters an EntityProcess type
         template<typename E, typename ... Types>
-        void RegisterEntityProcess(Types ... args);
+        EntityProcessHandle RegisterEntityProcess(Types ... args);
+        void UnregisterEntityProcess(EntityProcessHandle);
 
         // SystemModule inteface
     private:
@@ -49,20 +50,25 @@ namespace stratus {
         std::unordered_set<Entity2Ptr> _entitiesToAdd;
         // Entities which are pending removal (removed during Update)
         std::unordered_set<Entity2Ptr> _entitiesToRemove;
+        // Processes removed within last frame
+        std::unordered_set<EntityProcessHandle> _processesToRemove;
         // Processes added within last frame
         std::vector<EntityProcessPtr> _processesToAdd;
         // Systems which operate on entities
         std::vector<EntityProcessPtr> _processes;
+        // Convert handle to process ptr
+        std::unordered_map<EntityProcessHandle, EntityProcessPtr> _handlesToPtrs;
         // Component change lists
         std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _addedComponents;
         std::unordered_set<Entity2Ptr> _componentsEnabledDisabled;
     };
 
     template<typename E, typename ... Types>
-    void EntityManager::RegisterEntityProcess(Types ... args) {
+    EntityProcessHandle EntityManager::RegisterEntityProcess(Types ... args) {
         static_assert(std::is_base_of<EntityProcess, E>::value);
         EntityProcess * p = dynamic_cast<EntityProcess *>(new E(std::forward<Types>(args)...));
         EntityProcessPtr ptr(p);
         _RegisterEntityProcess(ptr);
+        return (EntityProcessHandle)p;
     }
 }
