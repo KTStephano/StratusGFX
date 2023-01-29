@@ -154,7 +154,6 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        float value = 3.0f;
         if (Engine()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }

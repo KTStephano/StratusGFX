@@ -15,6 +15,8 @@
 #include "StratusAsync.h"
 #include <memory>
 #include <filesystem>
+#include "CameraController.h"
+#include "WorldLightController.h"
 
 class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -102,10 +104,13 @@ public:
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing StratusGFX" << std::endl;
 
-        camera = stratus::CameraPtr(new stratus::Camera());
-        World()->SetCamera(camera);
+        stratus::InputHandlerPtr controller(new CameraController());
+        Input()->AddInputHandler(controller);
 
-        worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
+        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
+        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
+        Input()->AddInputHandler(controller);
+
         //World()->SetAtmosphericShadowing(0.3f, 0.8f);
 
         // For textures see https://3dtextures.me/
@@ -247,36 +252,21 @@ public:
 
         bool running = true;
 
-        cameraLight = stratus::LightPtr(new stratus::PointLight());
-        cameraLight->setCastsShadows(false);
-        cameraLight->setIntensity(400.0f);
-
-        if (camLightEnabled) {
-            World()->AddLight(cameraLight);
-        }
-
-        worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
-
         return true;
     }
 
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        const float value = 3.0f;
         const float maxAmbientIntensity = 0.03;
         if (Engine()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
-        const float camSpeed = 100.0f;
-        const float lightIncreaseSpeed = 5.0f;
-        const float maxLightBrightness = 30.0f;
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
-        const float atmosphericIncreaseSpeed = 0.25f;
-        float fogDensity = World()->GetAtmosphericFogDensity();
-        float scatterControl = World()->GetAtmosphericScatterControl();
+        auto worldLight = World()->GetWorldLight();
+        auto camera = World()->GetCamera();
 
         // Check for key/mouse events
         auto events = Input()->GetInputEventsLastFrame();
@@ -284,10 +274,6 @@ public:
             switch (e.type) {
                 case SDL_QUIT:
                     return stratus::SystemStatus::SYSTEM_SHUTDOWN;
-                case SDL_MOUSEMOTION:
-                    camera->modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(-e.motion.xrel), stratus::Degrees(0.0f));
-                    //STRATUS_LOG << camera.getRotation() << std::endl;
-                    break;
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
                     bool released = e.type == SDL_KEYUP;
@@ -298,48 +284,9 @@ public:
                                 return stratus::SystemStatus::SYSTEM_SHUTDOWN;
                             }
                             break;
-                        case SDL_SCANCODE_W:
-                        case SDL_SCANCODE_S:
-                            if (!released) {
-                                cameraSpeed.x = key == SDL_SCANCODE_W ? camSpeed : -camSpeed;
-                            } else {
-                                cameraSpeed.x = 0.0f;
-                            }
-                            break;
-                        case SDL_SCANCODE_A:
-                        case SDL_SCANCODE_D:
-                            if (!released) {
-                                cameraSpeed.y = key == SDL_SCANCODE_D ? camSpeed : -camSpeed;
-                            } else {
-                                cameraSpeed.y = 0.0f;
-                            }
-                            break;
-                        case SDL_SCANCODE_F:
-                            if (released) {
-                                camLightEnabled = !camLightEnabled;
-                                
-                                if (camLightEnabled) {
-                                    World()->AddLight(cameraLight);
-                                }
-                                else {
-                                    World()->RemoveLight(cameraLight);
-                                }
-                            }
-
-                            break;
                         case SDL_SCANCODE_R:
                             if (released) {
                                 World()->RecompileShaders();
-                            }
-                            break;
-                        case SDL_SCANCODE_I:
-                            if (released) {
-                                worldLight->setEnabled( !worldLight->getEnabled() );
-                            }
-                            break;
-                        case SDL_SCANCODE_P:
-                            if (released) {
-                                worldLightPaused = !worldLightPaused;
                             }
                             break;
                         // case SDL_SCANCODE_UP: {
@@ -355,30 +302,6 @@ public:
                         //     STRATUS_LOG << "Brightness: " << brightness << std::endl;
                         //     break;
                         // }
-                        case SDL_SCANCODE_UP: {
-                            scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
-                            World()->SetAtmosphericShadowing(fogDensity, scatterControl);
-                            break;
-                        }
-                        case SDL_SCANCODE_DOWN: {
-                            scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
-                            World()->SetAtmosphericShadowing(fogDensity, scatterControl);
-                            break;
-                        }
-                        case SDL_SCANCODE_LEFT: {
-                            fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
-                            World()->SetAtmosphericShadowing(fogDensity, scatterControl);
-                            break;
-                        }
-                        case SDL_SCANCODE_RIGHT: {
-                            fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
-                            World()->SetAtmosphericShadowing(fogDensity, scatterControl);
-                            break;
-                        }
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
@@ -499,35 +422,9 @@ public:
             }
         }
 
-        // worldLight.setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
-        //worldLight.setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        if (!worldLightPaused) {
-            STRATUS_LOG << worldLight->getAmbientIntensity() << std::endl;
-            worldLight->offsetRotation(glm::vec3(value * deltaSeconds, 0.0f, 0.0f));
-        }
-
-        //renderer->toggleWorldLighting(worldLightEnabled);
-        World()->SetWorldLight(worldLight);
-        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.5));
-        // worldLight.setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        worldLight->setColor(glm::vec3(1.0f));
-        worldLight->setPosition(camera->getPosition());
         //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
-        // Check mouse state
-        uint32_t buttonState = Input()->GetMouseStateLastFrame().mask;
-        cameraSpeed.z = 0.0f;
-        if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
-            cameraSpeed.z = -camSpeed;
-        }
-        else if ((buttonState & SDL_BUTTON_RMASK) != 0) { // right mouse button
-            cameraSpeed.z = camSpeed;
-        }
-
-        camera->setSpeed(cameraSpeed.y, cameraSpeed.z, cameraSpeed.x);
-
-        cameraLight->position = camera->getPosition();
         World()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         //renderer->addDrawable(rocks);
@@ -573,13 +470,7 @@ private:
     std::vector<stratus::EntityPtr> entities;
     std::vector<size_t> textureIndices;
     glm::mat4 persp;
-    stratus::CameraPtr camera;
-    glm::vec3 cameraSpeed;
-    stratus::LightPtr cameraLight;
-    stratus::InfiniteLightPtr worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    bool camLightEnabled = true;
-    bool worldLightPaused = true;
 };
 
 STRATUS_ENTRY_POINT(StratusGFX)
