@@ -276,19 +276,12 @@ namespace stratus {
 
     template<typename E>
     void Entity2ComponentSet::EnableComponent() {
-        static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        std::string name = E::STypeName();
-        auto it = _componentTypeNames.find(name);
-        if (it != _componentTypeNames.end()) {
-
-        }
+        _SetComponentStatus<E>(EntityComponentStatus::COMPONENT_ENABLED);
     }
     
     template<typename E>
     void Entity2ComponentSet::DisableComponent() {
-        static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        _SetComponentStatus<E>(EntityComponentStatus::COMPONENT_DISABLED);
     }
 
     template<typename E>
@@ -298,8 +291,10 @@ namespace stratus {
         std::string name = E::STypeName();
         auto it = _componentTypeNames.find(name);
         if (it != _componentTypeNames.end()) {
-            it->second.second = status;
-            _NotifyEntityManagerComponentEnabledDisabled();
+            if (it->second.second != status) {
+                it->second.second = status;
+                _NotifyEntityManagerComponentEnabledDisabled();
+            }
         }
     }
 }

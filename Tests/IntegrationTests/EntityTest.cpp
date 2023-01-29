@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include <iostream>
 #include <unordered_set>
+#include <random>
 
 #include "StratusEngine.h"
 #include "StratusApplication.h"
@@ -24,19 +25,51 @@ ENTITY_COMPONENT_STRUCT(ExampleComponent)
 
 TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
     static constexpr size_t maxEntities = 10;
-    static size_t numEntitiesAdded = 0;
-    static size_t numEntitiesRemoved = 0;
-    static size_t numComponentsAdded = 0;
-    static bool processCalled = false;
+    static size_t numEntitiesAdded;
+    static size_t numEntitiesRemoved;
+    static size_t numComponentsAdded;
+    static bool processCalled;
+    static bool componentsEnabledDisabledCalled;
+    static bool processRanIntoIssues;
+
+    numEntitiesAdded = 0;
+    numEntitiesRemoved = 0;
+    numComponentsAdded = 0;
+    processCalled = false;
+    componentsEnabledDisabledCalled = false;
+    processRanIntoIssues = false;
+
 
     struct ProcessTest : public stratus::EntityProcess {
+        int randomEntityIndex;
+
         ProcessTest() {
             STRATUS_LOG << "ProcessTest registered successfully" << std::endl;
+            std::random_device dev;
+            std::mt19937 rng(dev());
+            std::uniform_int_distribution<std::mt19937::result_type> dist(0, maxEntities - 1); // range [0, maxEntities - 1] inclusive
+            randomEntityIndex = dist(rng);
+            std::cout << "Using " << randomEntityIndex << std::endl;
         }
         
         virtual ~ProcessTest() = default;
 
         void Process(const double deltaSeconds) override {
+            if (ptrs.size() >= randomEntityIndex) {
+                int i = 0;
+                for (auto ptr : ptrs) {
+                    if (i == randomEntityIndex) {
+                        disabledComponent = ptr;
+                        ptr->Components().DisableComponent<ExampleComponent>();
+                    }
+                    else {
+                        if (ptr->Components().GetComponent<ExampleComponent>().status != stratus::EntityComponentStatus::COMPONENT_ENABLED) {
+                            processRanIntoIssues = true;
+                        }
+                    }
+                    ++i;
+                }
+            }
             processCalled = true;
             STRATUS_LOG << "Process " << deltaSeconds << std::endl;
         }
@@ -44,6 +77,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
         void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override {
             numEntitiesAdded += e.size();
             for (stratus::Entity2Ptr ptr : e) {
+                ptrs.push_back(ptr);
                 ptr->Components().AttachComponent<ExampleComponent>((const void *)this);
             }
         }
@@ -71,10 +105,19 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             }
         }
 
-        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) override {
-            
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) override {
+            componentsEnabledDisabledCalled = true;
+            for (auto ptr : changed) {
+                if (ptr != disabledComponent || 
+                    ptr->Components().GetComponent<ExampleComponent>().status != stratus::EntityComponentStatus::COMPONENT_DISABLED) {
+                    
+                    processRanIntoIssues = true;
+                }
+            }
         }
 
+        stratus::Entity2Ptr disabledComponent;
+        std::vector<stratus::Entity2Ptr> ptrs;
         std::unordered_set<stratus::Entity2Ptr> seen;
     };
 
@@ -122,4 +165,6 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
     REQUIRE(numEntitiesRemoved == maxEntities);
     REQUIRE(numComponentsAdded == maxEntities);
     REQUIRE(processCalled);
+    REQUIRE(componentsEnabledDisabledCalled);
+    REQUIRE_FALSE(processRanIntoIssues);
 }
