@@ -1,4 +1,5 @@
 include_directories(${CMAKE_CURRENT_LIST_DIR}/Common)
+file(GLOB COMMON_SOURCES ${CMAKE_CURRENT_LIST_DIR}/Common/*.cpp)
 
 add_subdirectory(ExampleEnv00)
 add_subdirectory(ExampleEnv01)

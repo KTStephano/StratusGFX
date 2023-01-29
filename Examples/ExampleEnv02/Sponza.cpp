@@ -16,6 +16,8 @@
 #include <filesystem>
 #include "CameraController.h"
 #include "WorldLightController.h"
+#include "LightComponents.h"
+#include "LightControllers.h"
 
 class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -80,30 +82,6 @@ public:
     }
 };
 
-struct StationaryLight : public RandomLightMover {
-    StationaryLight(const bool spawnPhysicalMarker = true) 
-        : RandomLightMover(spawnPhysicalMarker) {}
-
-    void update(double deltaSeconds) override {
-        cube->SetLocalPosition(position);
-        light->position = position;
-        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
-        m->SetDiffuseColor(light->getColor());
-    }
-};
-
-struct FakeRTGILight : public RandomLightMover {
-    FakeRTGILight(const bool spawnPhysicalMarker = true)
-        : RandomLightMover(spawnPhysicalMarker, stratus::LightPtr(new stratus::VirtualPointLight())) {}
-
-    void update(double deltaSeconds) override {
-        cube->SetLocalPosition(position);
-        light->position = position;
-        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
-        m->SetDiffuseColor(light->getColor());
-    }
-};
-
 class Sponza : public stratus::Application {
 public:
     virtual ~Sponza() = default;
@@ -115,6 +93,8 @@ public:
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
+
+        LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
@@ -131,7 +111,12 @@ public:
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { sponza = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(sponza); });
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            sponza = e.GetPtr(); 
+            sponza->SetLocalPosition(glm::vec3(0.0f));
+            sponza->SetLocalScale(glm::vec3(15.0f));
+            stratus::RendererFrontend::Instance()->AddStaticEntity(sponza);
+        });
 
         stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
 
@@ -186,90 +171,58 @@ public:
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1200.0f);
-                                mover->light->setColor(1.0f, 1.0f, 0.5f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
-                                mover->light->setIntensity(worldLight->getIntensity() * 100);
-                                mover->light->setColor(worldLightColor);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 100.0f)
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_3: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
-                                mover->light->setIntensity(worldLight->getIntensity() * 50);
-                                mover->light->setColor(worldLightColor);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 50.0f)
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_4: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
-                                mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
-                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                const uint32_t numShadowSamples = 9;
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 10.0f, numShadowSamples)
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_5: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
-                                mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
-                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                const uint32_t numShadowSamples = 9;
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 10.0f, numShadowSamples)
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_6: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
-                                mover->light->setIntensity(worldLight->getIntensity() * 10);
                                 const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
-                                mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
-                                ((stratus::VirtualPointLight *)mover->light.get())->SetNumShadowSamples(9);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                const uint32_t numShadowSamples = 9;
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 10.0f, numShadowSamples)
+                                );
                             }
                             break;
                         }
-                        case SDL_SCANCODE_C: {
-                            for (auto& light : lightMovers) {
-                                light->removeFromScene();
-                            }
-                            lightMovers.clear();
-                            break;
-                        }
-                        case SDL_SCANCODE_Z:
-                            if (released) {
-                                if (lightMovers.size() > 0) {
-                                    lightMovers[lightMovers.size() - 1]->removeFromScene();
-                                    lightMovers.pop_back();
-                                }
-                            }
                         default: break;
                     }
                     break;
@@ -295,11 +248,6 @@ public:
 
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-        if (sponza) {
-           sponza->SetLocalPosition(glm::vec3(0.0f));
-           sponza->SetLocalScale(glm::vec3(15.0f));
-        }
-
         //renderer->addDrawable(rocks);
 
         // Add the camera's light
@@ -308,9 +256,6 @@ public:
         //    renderer->addDrawable(entity);
         //}
 
-        for (auto & mover : lightMovers) {
-            mover->update(deltaSeconds);
-        }
         //renderer->end(camera);
 
         //// 0 lets it run as fast as it can
@@ -323,12 +268,12 @@ public:
 
     // Perform any resource cleanup
     virtual void Shutdown() override {
+        LightCreator::Shutdown();
     }
 
 private:
     stratus::EntityPtr sponza;
     std::vector<stratus::EntityPtr> entities;
-    std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
 };
 
 STRATUS_ENTRY_POINT(Sponza)
