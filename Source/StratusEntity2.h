@@ -242,7 +242,7 @@ namespace stratus {
     void Entity2ComponentSet::_AttachComponent(Types ... args) {
         if (_ContainsComponent<E>()) return;
         auto ptr = ConstructComponent<E>(std::forward<Types>(args)...);
-        Entity2ComponentView view(dynamic_cast<Entity2Component *>(ptr->component));
+        Entity2ComponentView view(ptr->component);
         _componentManagers.push_back(std::move(ptr));
         _AttachComponent(view);
     }

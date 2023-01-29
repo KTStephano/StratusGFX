@@ -134,6 +134,11 @@ namespace stratus {
         _worldLight = light;
     }
 
+    InfiniteLightPtr RendererFrontend::GetWorldLight() {
+        auto sl = _LockRead();
+        return _worldLight;
+    }
+
     void RendererFrontend::ClearWorldLight() {
         auto ul = _LockWrite();
         // Create a dummy world light that is disabled

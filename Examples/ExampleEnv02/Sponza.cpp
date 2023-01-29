@@ -15,6 +15,7 @@
 #include <memory>
 #include <filesystem>
 #include "CameraController.h"
+#include "WorldLightController.h"
 
 class RandomLightMover { //: public stratus::Entity {
     glm::vec3 _direction = glm::vec3(0.0f);
@@ -118,7 +119,9 @@ public:
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
 
-        worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
+        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
+        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
+        Input()->AddInputHandler(controller);
 
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
@@ -133,8 +136,6 @@ public:
         stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
 
         bool running = true;
-
-        worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
 
         // for (int i = 0; i < 64; ++i) {
         //     float x = rand() % 600;
@@ -158,14 +159,8 @@ public:
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
-        const float lightIncreaseSpeed = 5.0f;
-        const float maxLightBrightness = 30.0f;
-
-        const float atmosphericIncreaseSpeed = 1.0f;
-        float fogDensity = stratus::RendererFrontend::Instance()->GetAtmosphericFogDensity();
-        float scatterControl = stratus::RendererFrontend::Instance()->GetAtmosphericScatterControl();
-
-        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
+        auto worldLight = World()->GetWorldLight();
+        const glm::vec3 worldLightColor = worldLight->getColor();
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -190,46 +185,6 @@ public:
                                 stratus::RendererFrontend::Instance()->RecompileShaders();
                             }
                             break;
-                        case SDL_SCANCODE_I:
-                            if (released) {
-                                worldLightMoveDirection = -worldLightMoveDirection;
-                            }
-                            break;
-                        case SDL_SCANCODE_L:
-                            if (released) {
-                                worldLight->setEnabled( !worldLight->getEnabled() );
-                            }
-                            break;
-                        case SDL_SCANCODE_P:
-                            if (released) {
-                                worldLightPaused = !worldLightPaused;
-                            }
-                            break;
-                        case SDL_SCANCODE_E:
-                            if (released) {
-                                worldLight->setEnabled( !worldLight->getEnabled() );
-                            }
-                            break;
-                        case SDL_SCANCODE_UP: {
-                            scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
-                            break;
-                        }
-                        case SDL_SCANCODE_DOWN: {
-                            scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
-                            break;
-                        }
-                        case SDL_SCANCODE_LEFT: {
-                            fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
-                            break;
-                        }
-                        case SDL_SCANCODE_RIGHT: {
-                            fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
-                            STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
-                            break;
-                        }
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new StationaryLight());
@@ -245,7 +200,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 100);
-                                mover->light->setColor(warmMorningColor);
+                                mover->light->setColor(worldLightColor);
                                 mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -256,7 +211,7 @@ public:
                             if (released) {
                                 std::unique_ptr<RandomLightMover> mover(new FakeRTGILight(/*spawnPhysicalMarker = */ false));
                                 mover->light->setIntensity(worldLight->getIntensity() * 50);
-                                mover->light->setColor(warmMorningColor);
+                                mover->light->setColor(worldLightColor);
                                 mover->position = World()->GetCamera()->getPosition();
                                 mover->addToScene();
                                 lightMovers.push_back(std::move(mover));
@@ -302,13 +257,6 @@ public:
                             }
                             break;
                         }
-                        case SDL_SCANCODE_G: {
-                            if (released) {
-                                const bool enabled = World()->GetGlobalIlluminationEnabled();
-                                World()->SetGlobalIlluminationEnabled( !enabled );
-                            }
-                            break;
-                        }
                         case SDL_SCANCODE_C: {
                             for (auto& light : lightMovers) {
                                 light->removeFromScene();
@@ -331,23 +279,18 @@ public:
             }
         }
 
-        stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(fogDensity, scatterControl);
+        
 
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        if (!worldLightPaused) {
-            worldLight->offsetRotation(glm::vec3(worldLightMoveDirection * value * deltaSeconds, 0.0f, 0.0f));
-        }
 
         #define LERP(x, v1, v2) (x * v1 + (1.0f - x) * v2)
 
         //renderer->toggleWorldLighting(worldLightEnabled);
-        stratus::RendererFrontend::Instance()->SetWorldLight(worldLight);
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
         // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
-        worldLight->setColor(warmMorningColor);
-        worldLight->setPosition(World()->GetCamera()->getPosition());
+        //const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
+        
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
@@ -386,10 +329,7 @@ public:
 private:
     stratus::EntityPtr sponza;
     std::vector<stratus::EntityPtr> entities;
-    float worldLightMoveDirection = 1.0; // -1.0 reverses it
-    stratus::InfiniteLightPtr worldLight;
     std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
-    bool worldLightPaused = true;
 };
 
 STRATUS_ENTRY_POINT(Sponza)

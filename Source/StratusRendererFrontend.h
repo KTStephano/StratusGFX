@@ -42,6 +42,7 @@ namespace stratus {
         void RemoveLight(const LightPtr&);
         void ClearLights();
         void SetWorldLight(const InfiniteLightPtr&);
+        InfiniteLightPtr GetWorldLight();
         void ClearWorldLight();
 
         void SetCamera(const CameraPtr&);
