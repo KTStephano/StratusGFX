@@ -19,69 +19,6 @@
 #include "LightComponents.h"
 #include "LightControllers.h"
 
-class RandomLightMover { //: public stratus::Entity {
-    glm::vec3 _direction = glm::vec3(0.0f);
-
-    void _changeDirection() {
-        float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
-        float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
-        float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
-        _direction.x = (rand() % 100) > 50 ? 1.0f : 0.0f;
-        _direction.y = (rand() % 100) > 50 ? 1.0f : 0.0f;
-        _direction.z = (rand() % 100) > 50 ? 1.0f : 0.0f;
-
-        _direction = _direction * glm::vec3(xModifier, yModifier, zModifier);
-    }
-
-    double _elapsedSec = 0.0;
-
-public:
-    stratus::EntityPtr cube;
-    stratus::LightPtr light;
-    glm::vec3 position;
-    glm::vec3 speed;
-    bool spawnPhysicalMarker;
-
-    RandomLightMover(const bool spawnPhysicalMarker = true, stratus::LightPtr ptr = nullptr) 
-        : spawnPhysicalMarker(spawnPhysicalMarker) {
-        cube = stratus::ResourceManager::Instance()->CreateCube();
-        cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
-        cube->GetRenderNode()->EnableLightInteraction(false);
-        //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
-        cube->SetLocalScale(glm::vec3(1.0f));
-        light = ptr ? ptr : stratus::LightPtr(new stratus::PointLight());
-        _changeDirection();
-    }
-
-    void addToScene() const {
-        if (spawnPhysicalMarker) {
-            stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
-        }
-        //r.addPointLight(light.get());
-        stratus::RendererFrontend::Instance()->AddLight(light);
-    }
-
-    void removeFromScene() const {
-        stratus::RendererFrontend::Instance()->RemoveEntity(cube);
-        //r.addPointLight(light.get());
-        stratus::RendererFrontend::Instance()->RemoveLight(light);
-    }
-
-    virtual void update(double deltaSeconds) {
-        position = position + speed * _direction * float(deltaSeconds);
-        cube->SetLocalPosition(position);
-        light->position = position;
-        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
-        m->SetDiffuseColor(light->getColor());
-
-        _elapsedSec += deltaSeconds;
-        if (_elapsedSec > 5.0) {
-            _elapsedSec = 0.0;
-            _changeDirection();
-        }
-    }
-};
-
 class Sponza : public stratus::Application {
 public:
     virtual ~Sponza() = default;
