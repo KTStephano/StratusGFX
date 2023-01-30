@@ -153,6 +153,7 @@ public:
             clay = e.GetPtr(); 
             World()->AddStaticEntity(clay); 
             clay->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
+            clay->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
         });
 
         e = Resources()->LoadModel("../resources/models/boubin_stump.FBX");
