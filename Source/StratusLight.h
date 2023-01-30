@@ -168,7 +168,7 @@ namespace stratus {
 
         // Gets radius but bounded
         float getRadius() const {
-            return std::max(150.0f, _radius);;
+            return std::max(150.0f, _radius);
         }
 
         void setCastsShadows(bool enable) {
