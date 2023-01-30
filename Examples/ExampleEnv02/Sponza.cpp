@@ -133,7 +133,7 @@ public:
                         case SDL_SCANCODE_4: {
                             if (released) {
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
-                                const uint32_t numShadowSamples = 9;
+                                const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
                                 );
@@ -143,7 +143,7 @@ public:
                         case SDL_SCANCODE_5: {
                             if (released) {
                                 const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
-                                const uint32_t numShadowSamples = 9;
+                                const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
                                 );
@@ -153,7 +153,7 @@ public:
                         case SDL_SCANCODE_6: {
                             if (released) {
                                 const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
-                                const uint32_t numShadowSamples = 9;
+                                const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
                                 );

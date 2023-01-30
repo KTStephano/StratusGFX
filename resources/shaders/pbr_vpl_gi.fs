@@ -103,7 +103,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (distance > lightRadii[lightIndex]) continue;
         if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
 
-        int numSamples = int(lightNumSamples[lightIndex]);
+        int numSamples = 1; //int(lightNumSamples[lightIndex]);
         float shadowFactor = 0.0;
         //if (length(lightPosition - viewPosition) < 150) {
         shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
