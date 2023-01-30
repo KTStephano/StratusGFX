@@ -98,9 +98,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightPositions[lightIndex].xyz;
-        float distance = length(lightPosition - fragPos);
+        //float distance = length(lightPosition - fragPos);
         vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[lightIndex]) continue;
+        //if (distance > lightRadii[lightIndex]) continue;
         if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
 
         int numSamples = int(lightNumSamples[lightIndex]);
