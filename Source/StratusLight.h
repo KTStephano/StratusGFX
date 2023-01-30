@@ -166,8 +166,9 @@ namespace stratus {
             return _intensity;
         }
 
+        // Gets radius but bounded
         float getRadius() const {
-            return _radius;
+            return std::max(150.0f, _radius);;
         }
 
         void setCastsShadows(bool enable) {
@@ -192,7 +193,6 @@ namespace stratus {
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
             //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
             _radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
-            _radius = std::max(200.0f, _radius);
         }
 
         void _recalcColorWithIntensity() {

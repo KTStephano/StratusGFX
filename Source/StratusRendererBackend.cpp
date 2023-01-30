@@ -1016,7 +1016,11 @@ void RendererBackend::_RenderCSMDepth() {
             const RenderNodeView& e = viewMesh.first;
             const RenderMeshPtr m = e.Get()->GetMeshContainer(i)->mesh;
             const size_t numInstances = container.size;
-            SetCullState(m->GetFaceCulling());
+            // Override and use ASSIMP default which is CCW
+            // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
+            //  under FlipWindingOrder)
+            //SetCullState(m->GetFaceCulling());
+            SetCullState(RenderFaceCulling::CULLING_CCW);
             m->Render(numInstances, container.buffers);
         }
     }

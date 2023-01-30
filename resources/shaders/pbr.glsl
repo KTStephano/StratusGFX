@@ -180,7 +180,8 @@ float quadraticAttenuation(vec3 lightDir) {
     return 1.0 / (1.0 + lightDist * lightDist);
 }
 
-vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
+vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
+    const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
     const float attenuationFactor, const float ambientIntensity) {
     
     vec3 V = viewDir;
@@ -199,20 +200,54 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
     float D        = normalDistribution(NdotH, roughness);
     float G        = geometry(N, V, L, roughness);
-    vec3 diffuse   = lightColor; // * attenuationFactor;
+    vec3 radiance  = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
     //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
 
     vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
-    vec3 finalBrightnes = (kD * baseColor / PI + specular) * diffuse * NdotWi;
+    vec3 finalBrightnes = (kD * baseColor / PI + specular) * radiance * NdotWi;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);  
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
+}
+
+vec3 calculateDiffuseOnlyLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
+    const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, const float attenuationFactor, const float ambientIntensity) {
+    
+    vec3 V = viewDir;
+    vec3 L = normalize(lightDir);
+    vec3 H = normalize(V + L);
+    vec3 N = normal;
+
+    float NdotH    = max(dot(N, H), 0.0);
+    float HdotV    = max(dot(H, V), 0.0);
+    float NdotWi   = max(dot(N, L), 0.0);
+    vec3 F         = fresnel(baseColor, clamp(HdotV, 0.0, 1.0), baseReflectivity, metallic);
+    vec3 kS        = F;
+    // We multiply by inverse of metallic since we only want non-metals to have diffuse lighting
+    vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
+    vec3 radiance  = lightColor; // * attenuationFactor;
+
+    //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
+
+    vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
+    vec3 finalBrightnes = (kD * baseColor / PI) * radiance * NdotWi;
+
+    //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
 }
 
 vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
     vec3 lightDir   = lightPos - fragPosition;
 
     return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+}
+
+vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor,
+    const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
+
+    vec3 lightDir   = lightPos - fragPosition;
+
+    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
 }

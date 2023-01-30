@@ -58,6 +58,8 @@ void LightCreator::CreateVirtualPointLight(const LightParams& p) {
     InitLight(p, light);
     ((stratus::VirtualPointLight *)light.get())->SetNumShadowSamples(p.numShadowSamples);
 
+    STRATUS_LOG << "VPL Radius: " << light->getRadius() << std::endl;
+
     ptr->Components().AttachComponent<LightComponent>(light);
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
