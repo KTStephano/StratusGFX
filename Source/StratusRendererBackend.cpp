@@ -397,7 +397,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Set up VPL tile data
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    const int totalTiles = (_frame->viewportWidth / _state.vpls.tileXDivisor) * (_frame->viewportHeight / _state.vpls.tileYDivisor);
+    const int totalTiles = (_frame->viewportWidth) * (_frame->viewportHeight);
     const int totalTileEntries = totalTiles * _state.vpls.maxTotalVirtualLightsPerTile;
     std::vector<int> indicesPerTileData(totalTileEntries, 0);
     _state.vpls.vplLightIndicesVisiblePerTile = GpuBuffer((const void *)indicesPerTileData.data(), sizeof(int) * totalTileEntries, flags);
@@ -1019,8 +1019,8 @@ void RendererBackend::_RenderCSMDepth() {
             // Override and use ASSIMP default which is CCW
             // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
             //  under FlipWindingOrder)
-            //SetCullState(m->GetFaceCulling());
-            SetCullState(RenderFaceCulling::CULLING_CCW);
+            SetCullState(m->GetFaceCulling());
+            //SetCullState(RenderFaceCulling::CULLING_CCW);
             m->Render(numInstances, container.buffers);
         }
     }
@@ -1332,13 +1332,16 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     // int * v = (int *)_state.vpls.vplNumLightsVisiblePerTile.MapMemory();
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
     // int m = 0;
+    // int mi = std::numeric_limits<int>::max();
     // std::cout << "Total Visible: " << *tv << std::endl;
     // int numNonZero = 0;
     // for (int i = 0; i < 1920 * 1080; ++i) {
     //     m = std::max(m, v[i]);
+    //     mi = std::min(mi, v[i]);
     //     if (v[i] > 0) ++numNonZero;
     // }
-    // std::cout << "M VPL: " << m << std::endl;
+    // std::cout << "MAX VPL: " << m << std::endl;
+    // std::cout << "MIN VPL: " << mi << std::endl;
     // std::cout << "NNZ: " << numNonZero << std::endl;
     // _state.vpls.vplNumLightsVisiblePerTile.UnmapMemory();
     // _state.vpls.vplNumVisible.UnmapMemory();
@@ -1366,8 +1369,8 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
         _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
     }
 
-    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth / _state.vpls.tileXDivisor);
-    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight / _state.vpls.tileYDivisor);
+    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
+    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplNumLightsVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);

@@ -12,6 +12,7 @@ STRATUS_GLSL_VERSION
 layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 
 #include "vpl_tiled_deferred_culling.glsl"
+#include "common.glsl"
 
 // GBuffer information
 uniform sampler2D gPosition;
@@ -52,6 +53,7 @@ layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
 };
 
+/*
 shared int activeLightMarker[MAX_TOTAL_VPLS_PER_FRAME];
 shared int totalNumVisibleThisTile = 0;
 
@@ -95,41 +97,6 @@ void main() {
     // Wait for work group to finish
     barrier();
 
-    // If we're the first in the work group update num visible
-    /*
-    if (gl_LocalInvocationIndex == 0) {
-        int numVisible = 0;
-        int next = 0;
-        for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
-            int bitmaskVal = activeLightMarker[i];
-            numVisible += bitmaskVal;
-            if (bitmaskVal > 0) {
-                vplIndicesVisiblePerTile[baseTileIndex + next] = should not be i;
-                next += 1;
-            }
-            if (numVisible >= MAX_VPLS_PER_TILE) break;
-        }
-        vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = numVisible;
-    }
-    */
-
-    // Update the total number visible
-    /*
-    for (uint i = gl_LocalInvocationIndex; i < MAX_TOTAL_VPLS_PER_FRAME; i += workGroupSize) {
-        int bitmaskVal = activeLightMarker[i];
-        if (bitmaskVal > 0) {
-            int prev = atomicAdd(totalNumVisibleThisTile, 1);
-            if (prev >= MAX_VPLS_PER_TILE) {
-                // Undo and quit
-                atomicAdd(totalNumVisibleThisTile, -1);
-                break;
-            }
-            // Add light index
-            vplIndicesVisiblePerTile[baseTileIndex + prev] = int(should not be i);
-        }
-    }
-    */
-
     // Wait for the group to finish
     barrier();
 
@@ -138,50 +105,63 @@ void main() {
         vplNumVisiblePerTile[tileCoords.x + tileCoords.y * numTiles.x] = totalNumVisibleThisTile;
     }
 }
+*/
 
-/*
+#define SHUFFLE_DOWN(values, start)                                          \
+    for (int index_ = MAX_VPLS_PER_TILE - 2; index_ >= start; --index_) {    \
+        values[index_ + 1] = values[index_];                                 \
+    }                                                                        \
+    values[start] = 0;                              
+
 void main() {
     uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
     uvec2 tileCoords = gl_GlobalInvocationID.xy;
     uvec2 pixelCoords = tileCoords;
     // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
     vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
+
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
     int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
     vec3 fragPos = texture(gPosition, texCoords).xyz;
 
-    int activeLightsThisTile = 0;
+    int numVisibleThisTile = 0;
+    int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
+    float distancesVisibleThisTile[MAX_VPLS_PER_TILE];
 
-    const float distOffset = 0.25;
-    float minDist = 0.0;
-    float maxDist = distOffset;
-
-    // If we don't have many VPLs, just check against the entire distance range right away
-    if (numVisible < MAX_VPLS_PER_TILE) {
-        maxDist = 1.0;
+    for (int i = 0; i < MAX_VPLS_PER_TILE; ++i) {
+        indicesVisibleThisTile[i] = i;
+        distancesVisibleThisTile[i] = FLOAT_MAX;
     }
 
-    while (maxDist < 1.05 && activeLightsThisTile < MAX_VPLS_PER_TILE && activeLightsThisTile < numVisible) {
-        for (int i = 0; i < numVisible && activeLightsThisTile < MAX_VPLS_PER_TILE; ++i) {
-            int lightIndex = vplVisibleIndex[i];
-            VirtualPointLight vpl = lightData[lightIndex];
-            vec3 lightPosition = vpl.lightPosition.xyz;
-            float lightRadius = vpl.lightRadius;
-            float distance = length(lightPosition - fragPos) / lightRadius;
-            if (distance >= minDist && distance < maxDist) {
-                //vplNumVisiblePerTile[tileIndex] = int(distance * 100);
-                vplIndicesVisiblePerTile[baseTileIndex + activeLightsThisTile] = lightIndex;
-                activeLightsThisTile += 1;
+    for (int i = 0; i < numVisible; ++i) {
+        int lightIndex = vplVisibleIndex[i];
+        float distance = length(lightPositions[lightIndex].xyz - fragPos);
+        float radius = lightRadii[lightIndex];
+        float ratio = distance / radius;
+        if (ratio > 1.0) continue;
+
+        distance = distance * (1.0 - ratio);
+        for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
+            if (distance < distancesVisibleThisTile[ii]) {
+                //shuffleDown(indicesVisibleThisTile, ii);
+                //shuffleDown(distancesVisibleThisTile, ii);
+                SHUFFLE_DOWN(indicesVisibleThisTile, ii)
+                SHUFFLE_DOWN(distancesVisibleThisTile, ii)
+                indicesVisibleThisTile[ii] = lightIndex;
+                distancesVisibleThisTile[ii] = distance;
+                if (numVisibleThisTile < MAX_VPLS_PER_TILE) {
+                    ++numVisibleThisTile;
+                }
+                break;
             }
         }
-        minDist += distOffset;
-        maxDist += distOffset;
     }
 
-    vplNumVisiblePerTile[tileIndex] = activeLightsThisTile;
-    barrier();
+    vplNumVisiblePerTile[tileIndex] = numVisibleThisTile;
+    for (int i = 0; i < numVisibleThisTile; ++i) {
+        vplIndicesVisiblePerTile[baseTileIndex + i] = indicesVisibleThisTile[i];
+    }
 }
-*/
 
 /*
 void main() {

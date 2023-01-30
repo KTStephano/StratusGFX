@@ -2,6 +2,11 @@ STRATUS_GLSL_VERSION
 
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
+// See https://stackoverflow.com/questions/16069959/glsl-how-to-ensure-largest-possible-float-value-without-overflow
+#define FLOAT_MAX 3.402823466e+38
+#define FLOAT_MIN 1.175494351e-38
+#define DOUBLE_MAX 1.7976931348623158e+308
+#define DOUBLE_MIN 2.2250738585072014e-308
 
 // Prevents HDR color values from exceeding 16-bit color buffer range
 vec3 boundHDR(vec3 value) {
