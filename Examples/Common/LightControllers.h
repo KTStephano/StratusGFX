@@ -26,7 +26,7 @@ struct LightCreator {
     static void CreateVirtualPointLight(const LightParams&);
 
 private:
-    static stratus::EntityProcessHandle handle;
+    static std::vector<stratus::EntityProcessHandle> handles;
 };
 
 struct LightProcess : public stratus::EntityProcess {
@@ -40,4 +40,21 @@ struct LightProcess : public stratus::EntityProcess {
     void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) override;
 
     stratus::InputHandlerPtr input;
+};
+
+struct RandomLightMoverProcess : public stratus::EntityProcess {
+    virtual ~RandomLightMoverProcess() = default;
+
+    void Process(const double deltaSeconds) override;
+    void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override;
+    void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) override;
+    void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component*>>& added) override;
+    void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) override;
+
+private:
+    static bool _IsEntityRelevant(const stratus::Entity2Ptr&);
+    static void _ChangeDirection(RandomLightMoverComponent *);
+
+private:
+    std::unordered_set<stratus::Entity2Ptr> _entities;
 };

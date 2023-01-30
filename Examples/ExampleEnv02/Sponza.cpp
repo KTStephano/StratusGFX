@@ -223,6 +223,14 @@ public:
                             }
                             break;
                         }
+                        case SDL_SCANCODE_7: {
+                            if (released) {
+                                LightCreator::CreateRandomLightMover(
+                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                );
+                            }
+                            break;
+                        }
                         default: break;
                     }
                     break;

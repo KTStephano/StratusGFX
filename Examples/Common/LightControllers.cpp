@@ -1,19 +1,20 @@
 #include "LightControllers.h"
 
-stratus::EntityProcessHandle LightCreator::handle = stratus::NullEntityProcessHandle;
+std::vector<stratus::EntityProcessHandle> LightCreator::handles;
 
 void LightCreator::Initialize() {
     Shutdown();
 
-    handle = INSTANCE(EntityManager)->RegisterEntityProcess<LightProcess>();
+    handles.push_back(INSTANCE(EntityManager)->RegisterEntityProcess<LightProcess>());
+    handles.push_back(INSTANCE(EntityManager)->RegisterEntityProcess<RandomLightMoverProcess>());
 }
 
 void LightCreator::Shutdown() {
-    if (handle) {
+    for (auto handle : handles) {
         INSTANCE(EntityManager)->UnregisterEntityProcess(handle);
     }
 
-    handle = stratus::NullEntityProcessHandle;
+    handles.clear();
 }
 
 static void InitLight(const LightParams& p, stratus::LightPtr& light) {
@@ -32,8 +33,23 @@ static void InitCube(const LightParams& p,
     cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
 }
 
-void LightCreator::CreateRandomLightMover(const LightParams&) {
+void LightCreator::CreateRandomLightMover(const LightParams& p) {
+    auto ptr = stratus::Entity2::Create();
+    stratus::LightPtr light(new stratus::PointLight());
+    InitLight(p, light);
 
+    stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
+    InitCube(p, light, cube);
+
+    ptr->Components().AttachComponent<LightComponent>(light);
+    ptr->Components().AttachComponent<LightCubeComponent>(cube);
+    ptr->Components().AttachComponent<RandomLightMoverComponent>();
+    auto mover = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
+    mover->position = p.position;
+
+    INSTANCE(EntityManager)->AddEntity(ptr);
+    INSTANCE(RendererFrontend)->AddLight(light);
+    INSTANCE(RendererFrontend)->AddStaticEntity(cube);
 }
 
 void LightCreator::CreateStationaryLight(const LightParams& p) {
@@ -168,4 +184,63 @@ void LightProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entit
 
 void LightProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) {
     // Do nothing
+}
+
+void RandomLightMoverProcess::Process(const double deltaSeconds) {
+    static const glm::vec3 speed(5.0f);
+    for (auto ptr : _entities) {
+        LightComponent * light = ptr->Components().GetComponent<LightComponent>().component;
+        LightCubeComponent * cube = ptr->Components().GetComponent<LightCubeComponent>().component;
+        RandomLightMoverComponent * c = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
+
+        c->position = c->position + speed * c->direction * float(deltaSeconds);
+        cube->cube->SetLocalPosition(c->position);
+        light->light->position = c->position;
+
+        c->elapsedSeconds += deltaSeconds;
+        if (c->elapsedSeconds > 5.0) {
+            c->elapsedSeconds = 0.0;
+            _ChangeDirection(c);
+        }
+    }
+}
+
+void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) {
+    for (auto ptr : e) {
+        if (_IsEntityRelevant(ptr)) {
+            _entities.insert(ptr);
+            _ChangeDirection(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
+        }
+    }
+}
+
+void RandomLightMoverProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
+    for (auto ptr : e) {
+        _entities.erase(ptr);
+    }
+}
+
+void RandomLightMoverProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component*>>& added) {
+
+}
+
+void RandomLightMoverProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) {
+
+}
+
+bool RandomLightMoverProcess::_IsEntityRelevant(const stratus::Entity2Ptr& e) {
+    return e->Components().ContainsComponent<RandomLightMoverComponent>() &&
+        e->Components().ContainsComponent<LightComponent>() &&
+        e->Components().ContainsComponent<LightCubeComponent>();
+}
+
+void RandomLightMoverProcess::_ChangeDirection(RandomLightMoverComponent * c) {
+        float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
+        float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
+        float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
+        c->direction.x = (rand() % 100) > 50 ? 1.0f : 0.0f;
+        c->direction.y = (rand() % 100) > 50 ? 1.0f : 0.0f;
+        c->direction.z = (rand() % 100) > 50 ? 1.0f : 0.0f;
+
+        c->direction = c->direction * glm::vec3(xModifier, yModifier, zModifier);
 }
