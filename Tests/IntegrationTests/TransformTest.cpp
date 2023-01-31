@@ -19,9 +19,9 @@ static bool CheckEquals(const glm::mat4& m1, const glm::mat4& m2) {
         for (int y = 0; y < 4; ++y) {
             const auto diff = std::fabs(m1[x][y] - m2[x][y]);
             if (diff > std::numeric_limits<float>::epsilon()) {
-                std::cout << "FAILED" << std::endl;
-                std::cout << m1 << std::endl;
-                std::cout << m2 << std::endl;
+                // std::cout << "FAILED" << std::endl;
+                // std::cout << m1 << std::endl;
+                // std::cout << m2 << std::endl;
                 return false;
             }
         }
@@ -59,4 +59,110 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
 
         REQUIRE(CheckEquals(c.GetLocalTransform(), T * R * S));
     }
+
+    static bool failed;
+    failed = false;
+
+    class TransformTest : public stratus::Application {
+    public:
+        virtual ~TransformTest() = default;
+
+        stratus::Entity2Ptr prev;
+
+        const char * GetAppName() const override {
+            return "TransformTest";
+        }
+
+        void CreateEntitiesRecursive(stratus::Entity2Ptr root, int maxDepth) {
+            if (maxDepth < 1) return;
+
+            for (int i = 0; i < 10; ++i) {
+                auto ptr = stratus::CreateTransformEntity();
+                auto local = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
+                auto scale = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
+                auto rotate = stratus::Rotation(
+                    stratus::Degrees(RandFloat(90)), stratus::Degrees(RandFloat(90)), stratus::Degrees(RandFloat(90))  
+                );
+                auto position = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
+
+                local->SetLocalTransform(scale, rotate, position);
+                if (root) root->AttachChildNode(ptr);
+
+                entities.push_back(ptr);
+
+                CreateEntitiesRecursive(ptr, maxDepth - 1);
+            }
+        }
+
+        bool Initialize() override {
+            CreateEntitiesRecursive(nullptr, 4);
+            for (auto ptr : entities) {
+                if (ptr->GetParentNode() == nullptr) {
+                    INSTANCE(EntityManager)->AddEntity(ptr);
+                }
+            }
+            return true; // success
+        }
+
+        stratus::SystemStatus Update(const double deltaSeconds) override {
+            STRATUS_LOG << "Frame #" << Engine()->FrameCount() << std::endl;
+
+            if (Engine()->FrameCount() >= 30) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
+
+            if (previousUpdated) {
+                previousUpdated = false;
+                for (auto ptr : entities) {
+                    auto local = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
+                    auto global = ptr->Components().GetComponent<stratus::GlobalTransformComponent>().component;
+                    if (!local->ChangedWithinLastFrame() || !global->ChangedWithinLastFrame()) failed = true;
+                }
+            }
+
+            if (nextFrameUpdate == Engine()->FrameCount()) {
+                nextFrameUpdate += 2;
+                previousUpdated = true;
+                for (auto ptr : entities) {
+                    auto local = (stratus::LocalTransformComponent *)ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
+                    auto global = (stratus::GlobalTransformComponent *)ptr->Components().GetComponent<stratus::GlobalTransformComponent>().component;
+                    if (local->ChangedThisFrame() || global->ChangedThisFrame()) failed = true;
+
+                    auto parentGlobal = ptr->GetParentNode() != nullptr
+                        ? (stratus::GlobalTransformComponent *)ptr->GetParentNode()->Components().GetComponent<stratus::GlobalTransformComponent>().component
+                        : nullptr;
+                    
+                    if (parentGlobal) {
+                        if (!CheckEquals(global->GetGlobalTransform(), parentGlobal->GetGlobalTransform() * local->GetLocalTransform())) {
+                            failed = true;
+                        }
+                    }
+                    else {
+                        if (!CheckEquals(global->GetGlobalTransform(), local->GetLocalTransform())) {
+                            failed = true;
+                        }
+                    }
+
+                    auto scale = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
+                    auto rotate = stratus::Rotation(
+                        stratus::Degrees(RandFloat(90)), stratus::Degrees(RandFloat(90)), stratus::Degrees(RandFloat(90))  
+                    );
+                    auto position = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
+
+                    local->SetLocalTransform(scale, rotate, position);
+                }
+            }
+
+            return stratus::SystemStatus::SYSTEM_CONTINUE;
+        }
+
+        void Shutdown() override {
+        }
+
+        bool previousUpdated = true;
+        uint64_t nextFrameUpdate = 2;
+        std::vector<stratus::Entity2Ptr> entities;
+    };
+
+    STRATUS_INLINE_ENTRY_POINT(TransformTest, numArgs, argList);
+
+    REQUIRE_FALSE(failed);
 }

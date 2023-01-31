@@ -1,65 +1,5 @@
 #include "StratusTransformComponent.h"
 
-/*
-    // Convenience functions for creating a new entity or initializing existing entity
-    // with transform components
-    extern Entity2Ptr CreateTransformEntity();
-    extern void InitializeTransformEntity(Entity2Ptr);
-
-    // Contains scale, rotate, translate for local coordinate system
-    ENTITY_COMPONENT_STRUCT(LocalTransformComponent)
-        void SetLocalScale(const glm::vec3&);
-        const glm::vec3& GetLocalScale() const;
-
-        void SetLocalRotation(const Rotation&);
-        void SetLocalRotation(const glm::mat3&);
-        const glm::mat3& GetLocalRotation() const;
-
-        void SetLocalPosition(const glm::vec3&);
-        const glm::vec3& GetLocalPosition() const;
-
-        void SetLocalTransform(const glm::vec& scale, const Rotation& rot, const glm::vec3& position);
-        void SetLocalTransform(const glm::vec& scale, const glm::mat3& rot, const glm::vec3& position);
-
-        const glm::mat4& GetLocalTransform() const;
-
-    private:
-        glm::vec3 _scale = glm::vec3(1.0f);
-        glm::mat3 _rotation = glm::mat3(1.0f);
-        glm::vec3 _position = glm::vec3(0.0f);
-        glm::mat4 _transform = glm::mat4(1.0f);
-    };
-
-    ENTITY_COMPONENT_STRUCT(GlobalTransformComponent)
-        friend class TransformProcess;
-
-        const glm::mat4& GetGlobalTransform() const;
-
-    private:
-        void _SetGlobalTransform(const glm::mat4&);
-
-    private:
-        glm::mat4 _transform = glm::mat4(1.0f);
-    };
-
-    class TransformProcess : public EntityProcess {
-        virtual ~TransformProcess();
-
-        void Process(const double deltaSeconds) override;
-        void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>&) override;
-        void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>&) override;
-        void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&) override;
-        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) override;
-
-    private:
-        static bool _IsEntityRelevant(const Entity2Ptr&);
-
-    private:
-        std::unordered_set<Entity2Ptr> _rootNodes;
-        // For quick access without needing to query the component
-        std::unordered_map<Entity2Ptr, std::vector<Entity2Component>> _components;
-    */
-
 namespace stratus {
     Entity2Ptr CreateTransformEntity() {
         auto ptr = Entity2::Create();
@@ -69,7 +9,7 @@ namespace stratus {
 
     void InitializeTransformEntity(Entity2Ptr ptr) {
         ptr->Components().AttachComponent<LocalTransformComponent>();
-        //ptr->Components().AttachComponent<GlobalTransformComponent>();
+        ptr->Components().AttachComponent<GlobalTransformComponent>();
     }
 
     void LocalTransformComponent::SetLocalScale(const glm::vec3& scale) {
@@ -131,5 +71,111 @@ namespace stratus {
         matTranslate(_transform, _position);
         matInset(_transform, RS);
         */
+    }
+
+    const glm::mat4& GlobalTransformComponent::GetGlobalTransform() const {
+        return _transform;
+    }
+
+    void GlobalTransformComponent::_SetGlobalTransform(const glm::mat4& m) {
+        this->MarkChanged();
+        _transform = m;
+    }
+
+    TransformProcess::~TransformProcess() {}
+
+    void TransformProcess::Process(const double deltaSeconds) {
+        for (auto root : _rootNodes) {
+            _ProcessNode(root);
+        }
+    }
+
+    void TransformProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& entities) {
+        for (auto ptr : entities) {
+            if (_IsEntityRelevant(ptr)) {
+                if (ptr->GetParentNode() == nullptr) _rootNodes.insert(ptr);
+                std::vector<Entity2Component *> components{
+                    ptr->Components().GetComponent<LocalTransformComponent>().component,
+                    ptr->Components().GetComponent<GlobalTransformComponent>().component
+                };
+                _components.insert(std::make_pair(ptr, std::move(components)));
+            }
+        }
+    }
+
+    void TransformProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& entities) {
+        for (auto ptr : entities) {
+            _rootNodes.erase(ptr);
+            _components.erase(ptr);
+        }
+    }
+
+    void TransformProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& entities) {
+        std::unordered_set<Entity2Ptr> added;
+        for (auto p : entities) {
+            if (_IsEntityRelevant(p.first)) {
+                added.insert(p.first);
+            }
+        }
+
+        EntitiesAdded(added);
+    }
+
+    void TransformProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& entities) {
+        std::unordered_set<Entity2Ptr> added;
+        std::unordered_set<Entity2Ptr> removed;
+        for (auto ptr : entities) {
+            if (_IsEntityRelevant(ptr)) {
+                added.insert(ptr);
+            }
+            else {
+                removed.insert(ptr);
+            }
+        }
+
+        EntitiesAdded(added);
+        EntitiesRemoved(removed);
+    }
+
+    bool TransformProcess::_IsEntityRelevant(const Entity2Ptr& e) {
+        auto& components = e->Components();
+        auto local = components.GetComponent<LocalTransformComponent>();
+        auto global = components.GetComponent<GlobalTransformComponent>();
+        if (local.component == nullptr || global.component == nullptr) return false;
+        return local.status == EntityComponentStatus::COMPONENT_ENABLED &&
+            global.status == EntityComponentStatus::COMPONENT_ENABLED;
+    }
+
+    void TransformProcess::_ProcessNode(const Entity2Ptr& p) {
+        auto it = _components.find(p);
+        if (it == _components.end()) return;
+
+        bool parentChanged = false;
+        auto parent = p->GetParentNode();
+        GlobalTransformComponent * parentGlobal = nullptr;
+        if (parent != nullptr) {
+            auto itparent = _components.find(parent);
+            if (itparent != _components.end()) {
+                auto local = (LocalTransformComponent *)itparent->second[0];
+                auto global = (GlobalTransformComponent *)itparent->second[1];
+                parentChanged = local->ChangedLastFrame() || global->ChangedThisFrame();
+                parentGlobal = global;
+            }
+        }
+
+        auto local = (LocalTransformComponent *)it->second[0];
+        auto global = (GlobalTransformComponent *)it->second[1];
+
+        // See if local or parent changed requiring recompute of global transform
+        if (parentChanged || local->ChangedLastFrame()) {
+            global->_SetGlobalTransform(
+                (parentGlobal ? parentGlobal->GetGlobalTransform() : glm::mat4(1.0f)) * local->GetLocalTransform()
+            );
+        }
+
+        // Process each child node recursively
+        for (auto c : p->GetChildNodes()) {
+            _ProcessNode(c);
+        }
     }
 }

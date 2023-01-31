@@ -1,6 +1,7 @@
 #include "StratusEntityManager.h"
 #include "StratusEntity2.h"
 #include "StratusApplicationThread.h"
+#include "StratusTransformComponent.h"
 
 namespace stratus {
     EntityManager::EntityManager() {}
@@ -36,6 +37,9 @@ namespace stratus {
     }
 
     bool EntityManager::Initialize() {
+        // Initialize core engine entity processors
+        RegisterEntityProcess<TransformProcess>();
+
         return true;
     }
     
@@ -48,6 +52,10 @@ namespace stratus {
         auto addedComponents = std::move(_addedComponents);
         auto entitiesToRemove = std::move(_entitiesToRemove);
         auto componentsEnabledDisabled = std::move(_componentsEnabledDisabled);
+
+        for (auto ptr : entitiesToAdd) ptr->_AddToWorld();
+        for (auto ptr : entitiesToRemove) ptr->_RemoveFromWorld();
+
         for (EntityProcessPtr& ptr : _processes) {
             if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
             if (addedComponents.size() > 0) ptr->EntityComponentsAdded(addedComponents);

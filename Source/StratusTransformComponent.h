@@ -43,7 +43,6 @@ namespace stratus {
         glm::mat4 _transform = glm::mat4(1.0f);
     };
 
-    /*
     ENTITY_COMPONENT_STRUCT(GlobalTransformComponent)
         friend class TransformProcess;
 
@@ -55,9 +54,7 @@ namespace stratus {
     private:
         glm::mat4 _transform = glm::mat4(1.0f);
     };
-    */
 
-    /*
     class TransformProcess : public EntityProcess {
         virtual ~TransformProcess();
 
@@ -71,9 +68,11 @@ namespace stratus {
         static bool _IsEntityRelevant(const Entity2Ptr&);
 
     private:
+        void _ProcessNode(const Entity2Ptr& p);
+
+    private:
         std::unordered_set<Entity2Ptr> _rootNodes;
         // For quick access without needing to query the entity
         std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _components;
     };
-    */
 }

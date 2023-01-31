@@ -48,6 +48,8 @@ namespace stratus {
         virtual bool operator==(const Entity2Component *) const = 0;
 
         void MarkChanged();
+        bool ChangedLastFrame() const;
+        bool ChangedThisFrame() const;
         bool ChangedWithinLastFrame() const;
 
     protected:
