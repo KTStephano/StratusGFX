@@ -5,22 +5,24 @@
 
 namespace stratus {
     Entity2Ptr Entity2::Create() {
-        static std::mutex m;
-        static PoolAllocator<Entity2> allocator;
-
-        struct Deleter {
-            void operator()(Entity2 * ptr) {
-                std::unique_lock<std::mutex> ul(m);
-                allocator.Deallocate(ptr);
-            }
-        };
-
-        std::unique_lock<std::mutex> ul(m);
-        return Entity2Ptr(allocator.AllocateCustomConstruct(_PlacementNew<>), Deleter());
+        return ThreadSafePoolAllocator<Entity2>::AllocateSharedCustomConstruct(_PlacementNew<>);
+        //return Entity2Ptr(new Entity2());
     }
 
     void Entity2Component::MarkChanged() {
-        _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+        if (INSTANCE(Engine)) {
+            _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+        }
+    }
+
+    bool Entity2Component::ChangedLastFrame() const {
+        uint64_t diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        return diff == 1;
+    }
+
+    bool Entity2Component::ChangedThisFrame() const {
+        uint64_t diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        return diff == 0;
     }
 
     bool Entity2Component::ChangedWithinLastFrame() const {

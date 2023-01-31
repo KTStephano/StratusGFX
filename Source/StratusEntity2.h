@@ -34,6 +34,11 @@ size_t ClassHashCode() {
         }                                                                                   
 
 namespace stratus {
+    enum class EntityComponentStatus : int64_t {
+        COMPONENT_ENABLED,
+        COMPONENT_DISABLED
+    };
+
     // Meant to store any relevant data that will be manipulated by the engine + application
     // at runtime
     struct Entity2Component {
@@ -43,16 +48,14 @@ namespace stratus {
         virtual bool operator==(const Entity2Component *) const = 0;
 
         void MarkChanged();
+        bool ChangedLastFrame() const;
+        bool ChangedThisFrame() const;
         bool ChangedWithinLastFrame() const;
 
     protected:
         // Last engine frame this component was modified
         uint64_t _lastFrameChanged = 0;
-    };
 
-    enum class EntityComponentStatus : int {
-        COMPONENT_ENABLED,
-        COMPONENT_DISABLED
     };
 
     // Enables an entity component pointer to be inserted into hash set/map

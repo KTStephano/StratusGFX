@@ -36,6 +36,8 @@ namespace stratus {
 
     private:
         void _RegisterEntityProcess(EntityProcessPtr&);
+        void _AddEntity(const Entity2Ptr&);
+        void _RemoveEntity(const Entity2Ptr&);
 
     private:
         // Meant to be called by Entity

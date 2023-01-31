@@ -1,24 +1,45 @@
 #include "StratusEntityManager.h"
 #include "StratusEntity2.h"
 #include "StratusApplicationThread.h"
+#include "StratusTransformComponent.h"
 
 namespace stratus {
     EntityManager::EntityManager() {}
 
     void EntityManager::AddEntity(const Entity2Ptr& e) {
+        if (e->GetParentNode() != nullptr) {
+            throw std::runtime_error("Unsupported operation - must add root node");
+        }
         std::unique_lock<std::shared_mutex> ul(_m);
-        _entitiesToAdd.insert(e);
+        _AddEntity(e);
     }
 
     void EntityManager::RemoveEntity(const Entity2Ptr& e) {
-        std::unique_lock<std::shared_mutex> ul(_m);
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - tree structure is immutable after adding to manager");
         }
-        _entitiesToRemove.insert(e);
+        std::unique_lock<std::shared_mutex> ul(_m);
+        _RemoveEntity(e);
+    }
+
+    void EntityManager::_AddEntity(const Entity2Ptr& e) {
+        _entitiesToAdd.insert(e);
+        for (const Entity2Ptr& c : e->GetChildNodes()) {
+            _AddEntity(c);
+        }
+    }
+
+    void EntityManager::_RemoveEntity(const Entity2Ptr& e) {
+        _entitiesToRemove.insert(e);    
+        for (const Entity2Ptr& c : e->GetChildNodes()) {
+            _RemoveEntity(c);
+        }
     }
 
     bool EntityManager::Initialize() {
+        // Initialize core engine entity processors
+        RegisterEntityProcess<TransformProcess>();
+
         return true;
     }
     
@@ -31,6 +52,10 @@ namespace stratus {
         auto addedComponents = std::move(_addedComponents);
         auto entitiesToRemove = std::move(_entitiesToRemove);
         auto componentsEnabledDisabled = std::move(_componentsEnabledDisabled);
+
+        for (auto ptr : entitiesToAdd) ptr->_AddToWorld();
+        for (auto ptr : entitiesToRemove) ptr->_RemoveFromWorld();
+
         for (EntityProcessPtr& ptr : _processes) {
             if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
             if (addedComponents.size() > 0) ptr->EntityComponentsAdded(addedComponents);

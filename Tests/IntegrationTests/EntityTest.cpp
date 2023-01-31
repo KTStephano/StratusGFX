@@ -143,12 +143,18 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             if (Engine()->FrameCount() > (maxEntities + 1)) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
 
             if (prev) {
+                if (!prev->IsInWorld()) {
+                    processRanIntoIssues = true;
+                }
                 INSTANCE(EntityManager)->RemoveEntity(prev);
                 prev.reset();
             }
 
             if (Engine()->FrameCount() <= maxEntities) {
                 prev = stratus::Entity2::Create();
+                if (prev->IsInWorld()) {
+                    processRanIntoIssues = true;
+                }
                 INSTANCE(EntityManager)->AddEntity(prev);
             }
 
