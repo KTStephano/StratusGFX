@@ -234,6 +234,7 @@ namespace stratus {
         out[2].z = in[2].z;
     }
 
+    // Equiv to Out * Mat(Scale)
     static void matScale(glm::mat4& out, const glm::vec3& scale) {
         out[0].x = out[0].x * scale.x;
         out[0].y = out[0].y * scale.y;
@@ -248,10 +249,27 @@ namespace stratus {
         out[2].z = out[2].z * scale.z;
     }
 
+    // Equiv to Out * Mat(Scale)
+    static void matScale(glm::mat3& out, const glm::vec3& scale) {
+        out[0].x = out[0].x * scale.x;
+        out[0].y = out[0].y * scale.y;
+        out[0].z = out[0].z * scale.z;
+
+        out[1].x = out[1].x * scale.x;
+        out[1].y = out[1].y * scale.y;
+        out[1].z = out[1].z * scale.z;
+
+        out[2].x = out[2].x * scale.x;
+        out[2].y = out[2].y * scale.y;
+        out[2].z = out[2].z * scale.z;
+    }
+
+    // Equiv to T * Out
     static void matTranslate(glm::mat4& out, const glm::vec3& translate) {
         out[3].x = translate.x;
         out[3].y = translate.y;
         out[3].z = translate.z;
+        out[3].w = 1.0f;
     }
 
     static glm::mat4 constructTransformMat(const Rotation& rotation, const glm::vec3& translation, const glm::vec3& scale) {

@@ -20,7 +20,9 @@ namespace stratus {
     }
 
     void Entity2Component::MarkChanged() {
-        _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+        if (INSTANCE(Engine)) {
+            _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+        }
     }
 
     bool Entity2Component::ChangedWithinLastFrame() const {
