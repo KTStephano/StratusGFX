@@ -12,6 +12,9 @@ namespace stratus {
 
     void EntityManager::RemoveEntity(const Entity2Ptr& e) {
         std::unique_lock<std::shared_mutex> ul(_m);
+        if (e->GetParentNode() != nullptr) {
+            throw std::runtime_error("Unsupported operation - tree structure is immutable after adding to manager");
+        }
         _entitiesToRemove.insert(e);
     }
 

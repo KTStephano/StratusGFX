@@ -1,8 +1,24 @@
 #include "StratusEntity2.h"
 #include "StratusEntityManager.h"
 #include "StratusEngine.h"
+#include "StratusPoolAllocator.h"
 
 namespace stratus {
+    Entity2Ptr Entity2::Create() {
+        static std::mutex m;
+        static PoolAllocator<Entity2> allocator;
+
+        struct Deleter {
+            void operator()(Entity2 * ptr) {
+                std::unique_lock<std::mutex> ul(m);
+                allocator.Deallocate(ptr);
+            }
+        };
+
+        std::unique_lock<std::mutex> ul(m);
+        return Entity2Ptr(allocator.AllocateCustomConstruct(_PlacementNew<>), Deleter());
+    }
+
     void Entity2Component::MarkChanged() {
         _lastFrameChanged = INSTANCE(Engine)->FrameCount();
     }

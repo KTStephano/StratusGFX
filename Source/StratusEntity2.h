@@ -182,10 +182,15 @@ namespace stratus {
 
         Entity2();
 
-    public:
-        static Entity2Ptr Create() {
-            return Entity2Ptr(new Entity2());
+        // Since our constructor is private we provide the pool allocator with this
+        // function to bypass it
+        template<typename ... Types>
+        static Entity2 * _PlacementNew(uint8_t * memory, Types ... args) {
+            return new (memory) Entity2(std::forward<Types>(args)...);
         }
+
+    public:
+        static Entity2Ptr Create();
 
     public:
         ~Entity2();

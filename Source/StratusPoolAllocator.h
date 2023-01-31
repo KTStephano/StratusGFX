@@ -59,8 +59,20 @@ namespace stratus {
             _chunks = nullptr;
         }
 
+    private:
+        template<typename ... Types>
+        static E * _PlacementNew(uint8_t * memory, Types ... args) {
+            return new (memory) E(std::forward<Types>(args)...);
+        }
+
+    public:
         template<typename ... Types>
         E * Allocate(Types ... args) {
+            return AllocateCustomConstruct(_PlacementNew<Types...>, std::forward<Types>(args)...);
+        }
+
+        template<typename Construct, typename ... Types>
+        E * AllocateCustomConstruct(Construct c, Types ... args) {
             uint8_t * bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
@@ -81,7 +93,7 @@ namespace stratus {
                 _frontBuffer = _frontBuffer->next;
                 bytes = reinterpret_cast<uint8_t *>(next);
             }
-            return new (bytes) E(std::forward<Types>(args)...);
+            return c(bytes, std::forward<Types>(args)...);
         }
 
         void Deallocate(E * ptr) {
@@ -291,6 +303,18 @@ namespace stratus {
         static SharedPtr AllocateShared(Types ... args) {
             _EnsureValid();
             return SharedPtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(&_alloc));
+        }
+
+        template<typename Construct, typename ... Types>
+        static UniquePtr AllocateCustomConstruct(Construct c, Types ... args) {
+            _EnsureValid();
+            return UniquePtr(_GetAllocator()->AllocateCustomConstruct(c, std::forward<Types>(args)...), Deleter(&_alloc));
+        }
+
+        template<typename Construct, typename ... Types>
+        static SharedPtr AllocateSharedCustomConstruct(Construct c, Types ... args) {
+            _EnsureValid();
+            return SharedPtr(_GetAllocator()->AllocateCustomConstruct(c, std::forward<Types>(args)...), Deleter(&_alloc));
         }
 
         static size_t NumChunks() {
