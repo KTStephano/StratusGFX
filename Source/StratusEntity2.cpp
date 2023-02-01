@@ -5,8 +5,15 @@
 
 namespace stratus {
     Entity2Ptr Entity2::Create() {
-        return ThreadSafePoolAllocator<Entity2>::AllocateSharedCustomConstruct(_PlacementNew<>);
+        return Create(nullptr);
         //return Entity2Ptr(new Entity2());
+    }
+
+    Entity2Ptr Entity2::Create(Entity2ComponentSet * ptr) {
+        if (ptr != nullptr) {
+           return ThreadSafePoolAllocator<Entity2>::AllocateSharedCustomConstruct(_PlacementNew<Entity2ComponentSet *>, ptr);
+        }
+        return ThreadSafePoolAllocator<Entity2>::AllocateSharedCustomConstruct(_PlacementNew<>);
     }
 
     void Entity2Component::MarkChanged() {
@@ -40,17 +47,33 @@ namespace stratus {
         _owner = owner;
     }
 
-    Entity2::Entity2() {
-        _components._SetOwner(this);
+    Entity2::Entity2() : Entity2(Entity2ComponentSet::Create()) {}
+
+    Entity2::Entity2(Entity2ComponentSet * ptr) {
+        _components = ptr;
+        _components->_SetOwner(this);
     }
 
     Entity2::~Entity2() {
         _childNodes.clear();
+        Entity2ComponentSet::Destroy(_components);
     }
 
     bool Entity2::IsInWorld() const {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         return _partOfWorld;
+    }
+
+    Entity2ComponentSet * Entity2ComponentSet::Copy() const {
+        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        Entity2ComponentSet * copy = Entity2ComponentSet::Create();
+        for (const auto& manager : _componentManagers) {
+            auto mgrCopy = CopyManager(manager);
+            auto view = Entity2ComponentView(mgrCopy->component);
+            copy->_componentManagers.push_back(std::move(mgrCopy));
+            copy->_AttachComponent(view);
+        }
+        return copy;
     }
 
     void Entity2ComponentSet::_AttachComponent(Entity2ComponentView view) {
@@ -85,11 +108,11 @@ namespace stratus {
     }
 
     Entity2ComponentSet& Entity2::Components() {
-        return _components;
+        return *_components;
     }
 
     const Entity2ComponentSet& Entity2::Components() const {
-        return _components;
+        return *_components;
     }
 
     // Called by World class
@@ -152,5 +175,17 @@ namespace stratus {
             if (nestedCheck) return true;
         }
         return false;
+    }
+
+    Entity2Ptr Entity2::Copy() const {
+        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        auto components = _components->Copy();
+        auto copy = Entity2::Create(components);
+        for (auto& ptr : _childNodes) {
+            auto child = ptr->Copy();
+            copy->_childNodes.push_back(child);
+            child->_parent = copy;
+        }
+        return copy;
     }
 }

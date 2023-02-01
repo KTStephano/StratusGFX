@@ -25,7 +25,7 @@ namespace stratus {
 
         // Registers or Unregisters an EntityProcess type
         template<typename E, typename ... Types>
-        EntityProcessHandle RegisterEntityProcess(Types ... args);
+        EntityProcessHandle RegisterEntityProcess(const Types&... args);
         void UnregisterEntityProcess(EntityProcessHandle);
 
         // SystemModule inteface
@@ -66,9 +66,9 @@ namespace stratus {
     };
 
     template<typename E, typename ... Types>
-    EntityProcessHandle EntityManager::RegisterEntityProcess(Types ... args) {
+    EntityProcessHandle EntityManager::RegisterEntityProcess(const Types&... args) {
         static_assert(std::is_base_of<EntityProcess, E>::value);
-        EntityProcess * p = dynamic_cast<EntityProcess *>(new E(std::forward<Types>(args)...));
+        EntityProcess * p = dynamic_cast<EntityProcess *>(new E(args...));
         EntityProcessPtr ptr(p);
         _RegisterEntityProcess(ptr);
         return (EntityProcessHandle)p;

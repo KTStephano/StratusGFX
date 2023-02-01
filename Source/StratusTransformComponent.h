@@ -18,6 +18,9 @@ namespace stratus {
 
     // Contains scale, rotate, translate for local coordinate system
     ENTITY_COMPONENT_STRUCT(LocalTransformComponent)
+        LocalTransformComponent() = default;
+        LocalTransformComponent(const LocalTransformComponent&) = default;
+
         void SetLocalScale(const glm::vec3&);
         const glm::vec3& GetLocalScale() const;
 
@@ -45,6 +48,9 @@ namespace stratus {
 
     ENTITY_COMPONENT_STRUCT(GlobalTransformComponent)
         friend class TransformProcess;
+
+        GlobalTransformComponent() = default;
+        GlobalTransformComponent(const GlobalTransformComponent&) = default;
 
         const glm::mat4& GetGlobalTransform() const;
 

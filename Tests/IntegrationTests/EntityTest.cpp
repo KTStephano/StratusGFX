@@ -20,6 +20,9 @@ ENTITY_COMPONENT_STRUCT(ExampleComponent)
         STRATUS_LOG << "ExampleComponent created" << std::endl;
     }
 
+    ExampleComponent() {}
+    ExampleComponent(const ExampleComponent&) = default;
+
     virtual ~ExampleComponent() = default;
 };
 

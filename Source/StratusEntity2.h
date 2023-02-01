@@ -21,8 +21,20 @@ size_t ClassHashCode() {
     return typeid(E).hash_code();
 }
 
+template<typename Component>
+struct __ComponentAllocator {
+    std::mutex m;
+    stratus::PoolAllocator<Component> allocator;
+};
+
+template<typename Component>
+__ComponentAllocator<Component>& __GetComponentAllocator() {
+    static __ComponentAllocator<Component> allocator;
+    return allocator;
+}
+
 #define ENTITY_COMPONENT_STRUCT(name)                                                       \
-    struct name : public stratus::Entity2Component {                                        \
+    struct name final : public stratus::Entity2Component {                                  \
         static std::string STypeName() { return ClassName<name>(); }                        \
         static size_t SHashCode() { return ClassHashCode<name>(); }                         \
         std::string TypeName() const override { return STypeName(); }                       \
@@ -31,7 +43,23 @@ size_t ClassHashCode() {
             if (*this == other) return true;                                                \
             if (!other) return false;                                                       \
             return TypeName() == std::string(other->TypeName());                            \
-        }                                                                                   
+        }                                                                                   \
+        stratus::Entity2Component * Copy() const override {                                 \
+            auto ptr = dynamic_cast<stratus::Entity2Component *>(name::Create(*this));      \
+            return ptr;                                                                     \
+        }                                                                                   \
+        template<typename ... Types>                                                        \
+        static name * Create(const Types& ... args) {                                       \
+            auto& allocator = __GetComponentAllocator<name>();                              \
+            auto ul = std::unique_lock(allocator.m);                                        \
+            return allocator.allocator.Allocate(args...);                                   \
+        }                                                                                   \
+        static void Destroy(name * ptr) {                                                   \
+            if (ptr == nullptr) return;                                                     \
+            auto& allocator = __GetComponentAllocator<name>();                              \
+            auto ul = std::unique_lock(allocator.m);                                        \
+            allocator.allocator.Deallocate(ptr);                                            \
+        }
 
 namespace stratus {
     enum class EntityComponentStatus : int64_t {
@@ -46,6 +74,8 @@ namespace stratus {
         virtual std::string TypeName() const = 0;
         virtual size_t HashCode() const = 0;
         virtual bool operator==(const Entity2Component *) const = 0;
+
+        virtual Entity2Component * Copy() const = 0;
 
         void MarkChanged();
         bool ChangedLastFrame() const;
@@ -85,25 +115,30 @@ namespace stratus {
             : component(c) {}
 
         virtual ~EntityComponentPointerManager() = default;
+
+        virtual EntityComponentPointerManager * Copy() const = 0;
     };
 
     template<typename Component, typename ... Types>
-    std::unique_ptr<EntityComponentPointerManager> ConstructComponent(Types ... args) {
-        static std::mutex m;
-        static PoolAllocator<Component> allocator;
-
-        struct _Pointer : public EntityComponentPointerManager {
+    std::unique_ptr<EntityComponentPointerManager> ConstructComponent(const Types& ... args) {
+        struct _Pointer final : public EntityComponentPointerManager {
             _Pointer(Entity2Component * c)
                 : EntityComponentPointerManager(c) {}
 
             virtual ~_Pointer() {
-                auto ul = std::unique_lock<std::mutex>(m);
-                allocator.Deallocate(dynamic_cast<Component *>(component));
+                Component::Destroy(dynamic_cast<Component *>(component));
+            }
+
+            EntityComponentPointerManager * Copy() const override {
+                return new _Pointer(component->Copy());
             }
         };
 
-        auto ul = std::unique_lock<std::mutex>(m);
-        return std::unique_ptr<EntityComponentPointerManager>(new _Pointer(allocator.Allocate(std::forward<Types>(args)...)));
+        return std::unique_ptr<EntityComponentPointerManager>(new _Pointer(Component::Create(args...)));
+    }
+
+    inline std::unique_ptr<EntityComponentPointerManager> CopyManager(const std::unique_ptr<EntityComponentPointerManager>& ptr) {
+        return std::unique_ptr<EntityComponentPointerManager>(ptr->Copy());
     }
 }
 
@@ -124,14 +159,14 @@ namespace stratus {
     };
 
     // Keeps track of a unique set of components
-    struct Entity2ComponentSet {
+    struct Entity2ComponentSet final {
         friend class Entity2;
 
         ~Entity2ComponentSet();
 
         // Manipulate components - thread safe
         template<typename E, typename ... Types>
-        void AttachComponent(Types ... args);
+        void AttachComponent(const Types& ... args);
 
         template<typename E>
         bool ContainsComponent() const;
@@ -151,12 +186,22 @@ namespace stratus {
         std::vector<EntityComponentPair<Entity2Component>> GetAllComponents();
         std::vector<EntityComponentPair<const Entity2Component>> GetAllComponents() const;
 
+        static Entity2ComponentSet * Create() {
+            return new Entity2ComponentSet();
+        }
+
+        static void Destroy(Entity2ComponentSet * ptr) {
+            delete ptr;
+        }
+
+        Entity2ComponentSet * Copy() const;
+
     private:
         template<typename E>
         EntityComponentPair<E> _GetComponent() const;
 
         template<typename E, typename ... Types>
-        void _AttachComponent(Types ... args);
+        void _AttachComponent(const Types& ... args);
 
         template<typename E>
         bool _ContainsComponent() const;
@@ -184,19 +229,25 @@ namespace stratus {
         friend class EntityManager;
 
         Entity2();
+        Entity2(Entity2ComponentSet *);
 
         // Since our constructor is private we provide the pool allocator with this
         // function to bypass it
         template<typename ... Types>
-        static Entity2 * _PlacementNew(uint8_t * memory, Types ... args) {
-            return new (memory) Entity2(std::forward<Types>(args)...);
+        static Entity2 * _PlacementNew(uint8_t * memory, const Types& ... args) {
+            return new (memory) Entity2(args...);
         }
 
     public:
         static Entity2Ptr Create();
 
+    private:
+        static Entity2Ptr Create(Entity2ComponentSet *);
+
     public:
         ~Entity2();
+
+        Entity2Ptr Copy() const;
 
         // Manipulate components - thread safe
         Entity2ComponentSet& Components();
@@ -225,7 +276,7 @@ namespace stratus {
     private:
         mutable std::shared_mutex _m;
         // List of unique components
-        Entity2ComponentSet _components;
+        Entity2ComponentSet * _components;
         Entity2WeakPtr _parent;
         std::vector<Entity2Ptr> _childNodes;
         // Keeps track of added/removed from world
@@ -233,10 +284,10 @@ namespace stratus {
     };
 
     template<typename E, typename ... Types>
-    void Entity2ComponentSet::AttachComponent(Types ... args) {
+    void Entity2ComponentSet::AttachComponent(const Types& ... args) {
         static_assert(std::is_base_of<Entity2Component, E>::value);
         auto ul = std::unique_lock<std::shared_mutex>(_m);
-        return _AttachComponent<E>(std::forward<Types>(args)...);
+        return _AttachComponent<E>(args...);
     }
 
     template<typename E>
@@ -247,9 +298,9 @@ namespace stratus {
     }
 
     template<typename E, typename ... Types>
-    void Entity2ComponentSet::_AttachComponent(Types ... args) {
+    void Entity2ComponentSet::_AttachComponent(const Types& ... args) {
         if (_ContainsComponent<E>()) return;
-        auto ptr = ConstructComponent<E>(std::forward<Types>(args)...);
+        auto ptr = ConstructComponent<E>(args...);
         Entity2ComponentView view(ptr->component);
         _componentManagers.push_back(std::move(ptr));
         _AttachComponent(view);
