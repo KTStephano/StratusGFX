@@ -120,7 +120,7 @@ namespace stratus {
     };
 
     template<typename Component, typename ... Types>
-    std::unique_ptr<EntityComponentPointerManager> ConstructComponent(const Types& ... args) {
+    std::unique_ptr<EntityComponentPointerManager> __ConstructComponent(const Types& ... args) {
         struct _Pointer final : public EntityComponentPointerManager {
             _Pointer(Entity2Component * c)
                 : EntityComponentPointerManager(c) {}
@@ -137,7 +137,7 @@ namespace stratus {
         return std::unique_ptr<EntityComponentPointerManager>(new _Pointer(Component::Create(args...)));
     }
 
-    inline std::unique_ptr<EntityComponentPointerManager> CopyManager(const std::unique_ptr<EntityComponentPointerManager>& ptr) {
+    inline std::unique_ptr<EntityComponentPointerManager> __CopyManager(const std::unique_ptr<EntityComponentPointerManager>& ptr) {
         return std::unique_ptr<EntityComponentPointerManager>(ptr->Copy());
     }
 }
@@ -209,7 +209,7 @@ namespace stratus {
         template<typename E>
         void _SetComponentStatus(EntityComponentStatus);
 
-        void _AttachComponent(Entity2ComponentView);
+        void _AttachComponent(std::unique_ptr<EntityComponentPointerManager>&);
         void _SetOwner(Entity2 *);
         void _NotifyEntityManagerComponentEnabledDisabled();
 
@@ -225,7 +225,7 @@ namespace stratus {
     };
 
     // Collection of unque ID + configurable component data
-    class Entity2 : public std::enable_shared_from_this<Entity2> {
+    class Entity2 final : public std::enable_shared_from_this<Entity2> {
         friend class EntityManager;
 
         Entity2();
@@ -300,10 +300,8 @@ namespace stratus {
     template<typename E, typename ... Types>
     void Entity2ComponentSet::_AttachComponent(const Types& ... args) {
         if (_ContainsComponent<E>()) return;
-        auto ptr = ConstructComponent<E>(args...);
-        Entity2ComponentView view(ptr->component);
-        _componentManagers.push_back(std::move(ptr));
-        _AttachComponent(view);
+        auto ptr = __ConstructComponent<E>(args...);
+        _AttachComponent(ptr);
     }
 
     template<typename E>

@@ -82,6 +82,21 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             for (stratus::Entity2Ptr ptr : e) {
                 ptrs.push_back(ptr);
                 ptr->Components().AttachComponent<ExampleComponent>((const void *)this);
+
+                // Perform a copy of a the object and test that it looks to have gone well
+                auto copy = ptr->Copy();
+                if (copy.get() == ptr.get()) {
+                    processRanIntoIssues = true;
+                }
+                if (ptr->Components().GetComponent<ExampleComponent>().component == copy->Components().GetComponent<ExampleComponent>().component) {
+                    processRanIntoIssues = true;
+                }
+                if (copy->Components().GetComponent<ExampleComponent>().component->ptr != (const void *)this) {
+                    processRanIntoIssues = true;
+                }
+                if (copy->IsInWorld()) {
+                    processRanIntoIssues = true;
+                }
             }
         }
 

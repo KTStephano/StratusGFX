@@ -68,23 +68,28 @@ namespace stratus {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         Entity2ComponentSet * copy = Entity2ComponentSet::Create();
         for (const auto& manager : _componentManagers) {
-            auto mgrCopy = CopyManager(manager);
-            auto view = Entity2ComponentView(mgrCopy->component);
-            copy->_componentManagers.push_back(std::move(mgrCopy));
-            copy->_AttachComponent(view);
+            auto mgrCopy = __CopyManager(manager);
+            copy->_AttachComponent(mgrCopy);
         }
         return copy;
     }
 
-    void Entity2ComponentSet::_AttachComponent(Entity2ComponentView view) {
+    void Entity2ComponentSet::_AttachComponent(std::unique_ptr<EntityComponentPointerManager>& ptr) {
+        Entity2ComponentView view(ptr->component);
         const std::string name = view.component->TypeName();
+        _componentManagers.push_back(std::move(ptr));
         _components.insert(view);
         _componentTypeNames.insert(std::make_pair(name, std::make_pair(view, EntityComponentStatus::COMPONENT_ENABLED)));
-        INSTANCE(EntityManager)->_NotifyComponentsAdded(_owner->shared_from_this(), view.component);
+
+        if (_owner && _owner->IsInWorld()) {
+            INSTANCE(EntityManager)->_NotifyComponentsAdded(_owner->shared_from_this(), view.component);
+        }
     }
 
     void Entity2ComponentSet::_NotifyEntityManagerComponentEnabledDisabled() {
-        INSTANCE(EntityManager)->_NotifyComponentsEnabledDisabled(_owner->shared_from_this());
+        if (_owner && _owner->IsInWorld()) {
+            INSTANCE(EntityManager)->_NotifyComponentsEnabledDisabled(_owner->shared_from_this());
+        }
     }
 
     std::vector<EntityComponentPair<Entity2Component>> Entity2ComponentSet::GetAllComponents() {
