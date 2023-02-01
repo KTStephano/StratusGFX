@@ -177,6 +177,9 @@ namespace stratus {
         template<typename E>
         EntityComponentPair<const E> GetComponent() const;
 
+        EntityComponentPair<Entity2Component> GetComponentByName(const std::string&);
+        EntityComponentPair<const Entity2Component> GetComponentByName(const std::string&) const;
+
         template<typename E>
         void EnableComponent();
         
@@ -199,6 +202,9 @@ namespace stratus {
     private:
         template<typename E>
         EntityComponentPair<E> _GetComponent() const;
+
+        template<typename E>
+        EntityComponentPair<E> _GetComponentByName(const std::string&) const;
 
         template<typename E, typename ... Types>
         void _AttachComponent(const Types& ... args);
@@ -323,8 +329,14 @@ namespace stratus {
     template<typename E>
     EntityComponentPair<E> Entity2ComponentSet::_GetComponent() const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::string name = E::STypeName();
+        return _GetComponentByName<E>(name);
+    }
+
+    template<typename E>
+    EntityComponentPair<E> Entity2ComponentSet::_GetComponentByName(const std::string& name) const {
+        static_assert(std::is_base_of<Entity2Component, E>::value);
+        auto sl = std::shared_lock<std::shared_mutex>(_m);
         auto it = _componentTypeNames.find(name);
         return it != _componentTypeNames.end() ? 
             EntityComponentPair<E>{dynamic_cast<E *>(it->second.first.component), it->second.second} : 

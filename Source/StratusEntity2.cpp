@@ -92,6 +92,14 @@ namespace stratus {
         }
     }
 
+    EntityComponentPair<Entity2Component> Entity2ComponentSet::GetComponentByName(const std::string& name) {
+        return _GetComponentByName<Entity2Component>(name);
+    }
+
+    EntityComponentPair<const Entity2Component> Entity2ComponentSet::GetComponentByName(const std::string& name) const {
+        return _GetComponentByName<const Entity2Component>(name);
+    }
+
     std::vector<EntityComponentPair<Entity2Component>> Entity2ComponentSet::GetAllComponents() {
         auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<EntityComponentPair<Entity2Component>> v;
