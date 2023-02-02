@@ -244,12 +244,14 @@ namespace stratus {
             _recompileShaders = false;
         }
 
+        /*
         // Begin the new frame
         _renderer->Begin(_frame, true);
 
         // Complete the frame
         _renderer->RenderScene();
         _renderer->End();
+        */
 
         // Clear all light dirty flags
         for (auto& entry : _lights) {

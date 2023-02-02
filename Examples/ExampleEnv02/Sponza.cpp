@@ -18,6 +18,7 @@
 #include "WorldLightController.h"
 #include "LightComponents.h"
 #include "LightControllers.h"
+#include "StratusTransformComponent.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -47,11 +48,12 @@ public:
         //stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+        stratus::Async<stratus::Entity2> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
             sponza = e.GetPtr(); 
-            sponza->SetLocalPosition(glm::vec3(0.0f));
-            sponza->SetLocalScale(glm::vec3(15.0f));
+            auto transform = sponza->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            transform->SetLocalPosition(glm::vec3(0.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
             stratus::RendererFrontend::Instance()->AddStaticEntity(sponza);
         });
 
@@ -217,8 +219,8 @@ public:
     }
 
 private:
-    stratus::EntityPtr sponza;
-    std::vector<stratus::EntityPtr> entities;
+    stratus::Entity2Ptr sponza;
+    std::vector<stratus::Entity2Ptr> entities;
 };
 
 STRATUS_ENTRY_POINT(Sponza)

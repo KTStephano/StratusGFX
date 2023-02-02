@@ -6,6 +6,7 @@
 #include "StratusEntity.h"
 #include "StratusEntity2.h"
 #include "StratusEntityCommon.h"
+#include "StratusRenderComponents.h"
 #include "StratusTexture.h"
 #include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
@@ -35,7 +36,7 @@ namespace stratus {
 
         virtual ~ResourceManager();
 
-        Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
+        Async<Entity2> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const bool srgb);
         // prefix is used to select all faces with one string. It ends up expanding to:
         //      prefix + "right." + fileExt
@@ -43,7 +44,6 @@ namespace stratus {
         //      ...
         //      prefix + "back." + fileExt
         TextureHandle LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt = "jpg");
-        void FinalizeModelMemory(const RenderMeshPtr&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
 
         // Default shapes
@@ -59,12 +59,12 @@ namespace stratus {
     private:
         void _ClearAsyncTextureData();
         void _ClearAsyncModelData();
-        void _ClearAsyncModelData(EntityPtr);
+        void _ClearAsyncModelData(Entity2Ptr);
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&, RenderFaceCulling);
+        Entity2Ptr _LoadModel(const std::string&, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
         TextureHandle _LoadTextureImpl(const std::vector<std::string>&, 
                                        const bool srgb,
@@ -87,9 +87,9 @@ namespace stratus {
     private:
         Entity2Ptr _cube;
         Entity2Ptr _quad;
-        std::unordered_map<std::string, Async<Entity>> _loadedModels;
-        std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
-        std::unordered_set<RenderMeshPtr> _meshFinalizeQueue;
+        std::unordered_map<std::string, Async<Entity2>> _loadedModels;
+        std::unordered_map<std::string, Async<Entity2>> _pendingFinalize;
+        std::unordered_set<MeshPtr> _meshFinalizeQueue;
         std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
         std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
         std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;

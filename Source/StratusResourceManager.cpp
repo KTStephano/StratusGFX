@@ -9,6 +9,7 @@
 #include "StratusTaskSystem.h"
 #include "StratusAsync.h"
 #include "StratusRenderComponents.h"
+#include "StratusTransformComponent.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -105,52 +106,46 @@ namespace stratus {
         }
 
         size_t totalBytes = 0;
-        std::vector<Thread::ThreadFunction> functions;
-        std::vector<RenderMeshPtr> meshesToDelete;
+        std::vector<MeshPtr> meshesToDelete;
 
-        for (RenderMeshPtr mesh : _meshFinalizeQueue) {
+        for (MeshPtr mesh : _meshFinalizeQueue) {
+            mesh->FinalizeData();
             totalBytes += mesh->GetGpuSizeBytes();
-            functions.push_back([this, mesh]() {
-                mesh->GenerateGpuData();
-                FinalizeModelMemory(mesh);
-            });
             meshesToDelete.push_back(mesh);
             //if (totalBytes >= maxBytes) break;
         }
 
-        ApplicationThread::Instance()->QueueMany(functions);
-
-        for (RenderMeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
+        for (MeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
 
         if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
     }
 
-    void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
+    void ResourceManager::_ClearAsyncModelData(Entity2Ptr ptr) {
         if (ptr == nullptr) return;
-        for (auto& child : ptr->GetChildren()) {
+        for (auto& child : ptr->GetChildNodes()) {
             _ClearAsyncModelData(child);
         }
 
-        auto rnode = ptr->GetRenderNode();
-        if (rnode == nullptr || rnode->GetNumMeshContainers() == 0) return;
+        auto rnode = ptr->Components().GetComponent<RenderComponent>().component;
+        if (rnode == nullptr) return;
 
-        for (int i = 0; i < rnode->GetNumMeshContainers(); ++i) {
-            _meshFinalizeQueue.insert(rnode->GetMeshContainer(i)->mesh);
+        for (int i = 0; i < rnode->meshes->meshes.size(); ++i) {
+            _meshFinalizeQueue.insert(rnode->meshes->meshes[i]);
         }
     }
 
-    Async<Entity> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    Async<Entity2> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         {
             auto sl = _LockRead();
             if (_loadedModels.find(name) != _loadedModels.end()) {
-                Async<Entity> e = _loadedModels.find(name)->second;
-                return (e.Completed() && !e.Failed()) ? Async<Entity>(e.GetPtr()->Copy()) : e;
+                Async<Entity2> e = _loadedModels.find(name)->second;
+                return (e.Completed() && !e.Failed()) ? Async<Entity2>(e.GetPtr()->Copy()) : e;
             }
         }
 
         auto ul = _LockWrite();
         TaskSystem * tasks = TaskSystem::Instance();
-        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode]() {
+        Async<Entity2> e = tasks->ScheduleTask<Entity2>([this, name, defaultCullMode]() {
             return _LoadModel(name, defaultCullMode);
         });
 
@@ -212,15 +207,6 @@ namespace stratus {
         return handle;
     }
 
-    void ResourceManager::FinalizeModelMemory(const RenderMeshPtr& ptr) {
-        auto sl = _LockWrite();
-        TaskSystem * tasks = TaskSystem::Instance();
-        Async<bool> as = tasks->ScheduleTask<bool>([ptr]() {
-            ptr->FinalizeGpuData();
-            return (bool *)nullptr;
-        });
-    }
-
     bool ResourceManager::GetTexture(const TextureHandle handle, Async<Texture>& tex) const {
         auto sl = _LockRead();
         if (_loadedTextures.find(handle) == _loadedTextures.end()) {
@@ -257,11 +243,11 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    static void ProcessMesh(RenderNodePtr renderNode, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+    static void ProcessMesh(RenderComponent * renderNode, const glm::mat4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         if (mesh->mNumUVComponents[0] == 0) return;
         if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
-        RenderMeshPtr rmesh = RenderMeshPtr(new RenderMesh());
+        MeshPtr rmesh = Mesh::Create();
         // Process core primitive data
         for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
             rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
@@ -350,47 +336,44 @@ namespace stratus {
                 << m->GetMetallicRoughnessMap() << std::endl;
         }
 
-        rmesh->GenerateCpuData();
-        renderNode->AddMeshContainer(RenderMeshContainer{rmesh, m});
+        renderNode->meshes->meshes.push_back(rmesh);
+        renderNode->meshes->transforms.push_back(transform);
+        renderNode->AddMaterial(m);
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, MaterialPtr rootMat, 
+    static void ProcessNode(aiNode * node, const aiScene * scene, Entity2Ptr entity, const glm::mat4& parentTransform, MaterialPtr rootMat, 
                             const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
-        aiMatrix4x4 mat = node->mTransformation;
-        aiVector3t<float> scale;
-        aiQuaterniont<float> quat;
-        aiVector3t<float> position;
-        mat.Decompose(scale, quat, position);
+        aiMatrix4x4 aiMatTransform = node->mTransformation;
+        auto transform = parentTransform * ToMat4(aiMatTransform);
 
-        auto rotation = ToMat4(quat.GetMatrix());
+        if (node->mNumMeshes > 0) {
+            InitializeRenderEntity(entity);
+            auto rnode = entity->Components().GetComponent<RenderComponent>().component;
 
-        entity->SetLocalPosRotScale(glm::vec3(position.x, position.y, position.z), rotation, glm::vec3(scale.x, scale.y, scale.z));
-        RenderNodePtr rnode = RenderNodePtr(new RenderNode());
-        entity->SetRenderNode(rnode);
-
-        // Process all node meshes (if any)
-        for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
-            aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-            ProcessMesh(rnode, mesh, scene, rootMat, directory, extension, defaultCullMode);
+            // Process all node meshes (if any)
+            for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
+                aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
+                ProcessMesh(rnode, transform, mesh, scene, rootMat, directory, extension, defaultCullMode);
+            }
         }
 
         // Now do the same for each child
         for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-            // Create a new container entity
-            EntityPtr centity = Entity::Create();
-            entity->AttachChild(centity);
-            ProcessNode(node->mChildren[i], scene, centity, rootMat, directory, extension, defaultCullMode);
+            // Create a new container Entity2
+            Entity2Ptr centity = Entity2::Create();
+            entity->AttachChildNode(centity);
+            ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode);
         }
     }
 
-    EntityPtr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    Entity2Ptr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
+        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 65000);
+        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65000);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
@@ -419,14 +402,14 @@ namespace stratus {
             return nullptr;
         }
 
-        EntityPtr e = Entity::Create();
+        Entity2Ptr e = CreateTransformEntity();
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, material, directory, extension, defaultCullMode);
+        ProcessNode(scene->mRootNode, scene, e, glm::mat4(1.0f), material, directory, extension, defaultCullMode);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety
-        _loadedModels.insert(std::make_pair(name, Async<Entity>(e->Copy())));
+        _loadedModels.insert(std::make_pair(name, Async<Entity2>(e->Copy())));
 
         STRATUS_LOG << "Model loaded [" << name << "]" << std::endl;
 
@@ -544,11 +527,11 @@ namespace stratus {
     }
 
     Entity2Ptr ResourceManager::CreateCube() {
-        return nullptr;//_cube->Copy();
+        return _cube->Copy();
     }
 
     Entity2Ptr ResourceManager::CreateQuad() {
-        return nullptr;//_quad->Copy();
+        return _quad->Copy();
     }
 
     static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
@@ -608,26 +591,31 @@ namespace stratus {
     };
 
     void ResourceManager::_InitCube() {
-        // _cube = Entity::Create();
-        // RenderNodePtr rnode(new RenderNode());
-        // RenderMeshPtr rmesh(new RenderMesh());
-        // MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        _cube = CreateRenderEntity();
+        RenderComponent * rc = _cube->Components().GetComponent<RenderComponent>().component;
+        MeshPtr mesh = Mesh::Create();
+        rc->meshes->meshes.push_back(mesh);
+        rc->meshes->transforms.push_back(glm::mat4(1.0f));
+        MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        rc->AddMaterial(mat);
 
-        // const size_t cubeStride = 14;
-        // const size_t cubeNumVertices = cubeData.size() / cubeStride;
+        const size_t cubeStride = 14;
+        const size_t cubeNumVertices = cubeData.size() / cubeStride;
 
-        // for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
-        //     rmesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
-        //     rmesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
-        //     rmesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
-        //     // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
-        //     // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
-        // }
+        for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
+            mesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
+            mesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
+            mesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
+            // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
+            // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
+        }
+
+        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity2>(_cube)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_CCW);
-        // _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
+        // _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity2>(_cube)));
         // _cube->SetRenderNode(rnode);
     }
 
@@ -635,24 +623,29 @@ namespace stratus {
         _quad = CreateRenderEntity();
         RenderComponent * rc = _quad->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
-        // rc->meshes->meshes.push_back(mesh);
-        // MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        rc->meshes->meshes.push_back(mesh);
+        rc->meshes->transforms.push_back(glm::mat4(1.0f));
+        MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        rc->AddMaterial(mat);
 
-        // const size_t quadStride = 14;
-        // const size_t quadNumVertices = quadData.size() / quadStride;
+        const size_t quadStride = 14;
+        const size_t quadNumVertices = quadData.size() / quadStride;
 
-        // for (size_t i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
-        //     rmesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
-        //     rmesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
-        //     rmesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
-        //     // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
-        //     // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
-        // }
+        for (size_t i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
+            mesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
+            mesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
+            mesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
+            // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
+            // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
+        }
+
+        mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
+        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity2>(_quad)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        // _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
+        // _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity2>(_quad)));
         // _quad->SetRenderNode(rnode);
     }
 }

@@ -29,7 +29,6 @@ namespace stratus {
     }
 
     void Mesh::Destroy(MeshPtr ptr) {
-        std::cout << "DESTROYING!!!!\n";
         auto& allocator = GetAllocator();
         auto ul = std::unique_lock<std::mutex>(allocator.m);
         allocator.allocator.Deallocate(ptr);
