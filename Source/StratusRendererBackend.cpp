@@ -291,10 +291,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
     // Create skybox cube
-    _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
+    _state.skyboxCube = nullptr;// ResourceManager::Instance()->CreateCube()->GetRenderNode();
 
     // Create the screen quad
-    _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
+    _state.screenQuad = nullptr;// ResourceManager::Instance()->CreateQuad()->GetRenderNode();
 
     // Use the shader isValid() method to determine if everything succeeded
     _ValidateAllShaders();

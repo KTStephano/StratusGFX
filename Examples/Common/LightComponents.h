@@ -26,8 +26,8 @@ ENTITY_COMPONENT_STRUCT(LightComponent)
 };
 
 ENTITY_COMPONENT_STRUCT(LightCubeComponent)
-    stratus::EntityPtr cube;
-    LightCubeComponent(stratus::EntityPtr cube)
+    stratus::Entity2Ptr cube;
+    LightCubeComponent(stratus::Entity2Ptr cube)
         : cube(cube) {}
 
     LightCubeComponent(const LightCubeComponent& other) {

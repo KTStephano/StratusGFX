@@ -25,12 +25,12 @@ static void InitLight(const LightParams& p, stratus::LightPtr& light) {
 
 static void InitCube(const LightParams& p,
                      const stratus::LightPtr& light,
-                     stratus::EntityPtr& cube) {
-    cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
-    cube->GetRenderNode()->EnableLightInteraction(false);
-    cube->SetLocalScale(glm::vec3(1.0f));
-    cube->SetLocalPosition(p.position);
-    cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+                     stratus::Entity2Ptr& cube) {
+    // cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
+    // cube->GetRenderNode()->EnableLightInteraction(false);
+    // cube->SetLocalScale(glm::vec3(1.0f));
+    // cube->SetLocalPosition(p.position);
+    // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
 }
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {
@@ -38,7 +38,7 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
     stratus::LightPtr light(new stratus::PointLight());
     InitLight(p, light);
 
-    stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
+    stratus::Entity2Ptr cube = INSTANCE(ResourceManager)->CreateCube();
     InitCube(p, light, cube);
 
     ptr->Components().AttachComponent<LightComponent>(light);
@@ -57,7 +57,7 @@ void LightCreator::CreateStationaryLight(const LightParams& p) {
     stratus::LightPtr light(new stratus::PointLight());
     InitLight(p, light);
 
-    stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
+    stratus::Entity2Ptr cube = INSTANCE(ResourceManager)->CreateCube();
     InitCube(p, light, cube);
 
     ptr->Components().AttachComponent<LightComponent>(light);
@@ -194,7 +194,7 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         RandomLightMoverComponent * c = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
 
         c->position = c->position + speed * c->direction * float(deltaSeconds);
-        cube->cube->SetLocalPosition(c->position);
+        //cube->cube->SetLocalPosition(c->position);
         light->light->position = c->position;
 
         c->elapsedSeconds += deltaSeconds;

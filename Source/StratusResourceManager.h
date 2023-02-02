@@ -4,6 +4,8 @@
 #include "StratusCommon.h"
 #include "StratusThread.h"
 #include "StratusEntity.h"
+#include "StratusEntity2.h"
+#include "StratusEntityCommon.h"
 #include "StratusTexture.h"
 #include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
@@ -45,8 +47,8 @@ namespace stratus {
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
 
         // Default shapes
-        EntityPtr CreateCube();
-        EntityPtr CreateQuad();
+        Entity2Ptr CreateCube();
+        Entity2Ptr CreateQuad();
 
     private:
         // SystemModule inteface
@@ -83,8 +85,8 @@ namespace stratus {
         void _InitQuad();
 
     private:
-        EntityPtr _cube;
-        EntityPtr _quad;
+        Entity2Ptr _cube;
+        Entity2Ptr _quad;
         std::unordered_map<std::string, Async<Entity>> _loadedModels;
         std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
         std::unordered_set<RenderMeshPtr> _meshFinalizeQueue;

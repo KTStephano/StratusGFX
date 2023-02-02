@@ -64,6 +64,18 @@ namespace stratus {
         for (auto child : p->GetChildren()) RemoveEntity(child);
     }
 
+    void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
+
+    }
+
+    void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
+
+    }
+
+    void RendererFrontend::RemoveEntity(const Entity2Ptr& p) {
+        
+    }
+
     void RendererFrontend::ClearEntities() {
         auto ul = _LockWrite();
         _staticPbrEntities.clear();

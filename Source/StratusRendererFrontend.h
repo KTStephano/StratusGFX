@@ -3,6 +3,8 @@
 #include "StratusCommon.h"
 #include "StratusRendererBackend.h"
 #include "StratusEntity.h"
+#include "StratusEntityCommon.h"
+#include "StratusEntity2.h"
 #include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
 #include "StratusLight.h"
@@ -36,6 +38,9 @@ namespace stratus {
         void AddStaticEntity(const EntityPtr&);
         void AddDynamicEntity(const EntityPtr&);
         void RemoveEntity(const EntityPtr&);
+        void AddStaticEntity(const Entity2Ptr&);
+        void AddDynamicEntity(const Entity2Ptr&);
+        void RemoveEntity(const Entity2Ptr&);
         void ClearEntities();
 
         void AddLight(const LightPtr&);

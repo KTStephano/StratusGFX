@@ -8,6 +8,7 @@
 #include "StratusApplicationThread.h"
 #include "StratusTaskSystem.h"
 #include "StratusAsync.h"
+#include "StratusRenderComponents.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "STBImage.h"
@@ -542,12 +543,12 @@ namespace stratus {
         return texture;
     }
 
-    EntityPtr ResourceManager::CreateCube() {
-        return _cube->Copy();
+    Entity2Ptr ResourceManager::CreateCube() {
+        return nullptr;//_cube->Copy();
     }
 
-    EntityPtr ResourceManager::CreateQuad() {
-        return _quad->Copy();
+    Entity2Ptr ResourceManager::CreateQuad() {
+        return nullptr;//_quad->Copy();
     }
 
     static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
@@ -607,50 +608,49 @@ namespace stratus {
     };
 
     void ResourceManager::_InitCube() {
-        _cube = Entity::Create();
-        RenderNodePtr rnode(new RenderNode());
-        RenderMeshPtr rmesh(new RenderMesh());
-        MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        // _cube = Entity::Create();
+        // RenderNodePtr rnode(new RenderNode());
+        // RenderMeshPtr rmesh(new RenderMesh());
+        // MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
 
-        const size_t cubeStride = 14;
-        const size_t cubeNumVertices = cubeData.size() / cubeStride;
+        // const size_t cubeStride = 14;
+        // const size_t cubeNumVertices = cubeData.size() / cubeStride;
 
-        for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
-            rmesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
-            rmesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
-            rmesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
-            // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
-            // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
-        }
+        // for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
+        //     rmesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
+        //     rmesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
+        //     rmesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
+        //     // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
+        //     // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
+        // }
 
-        rmesh->GenerateCpuData();
-        rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
-        rmesh->SetFaceCulling(RenderFaceCulling::CULLING_CCW);
-        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
-        _cube->SetRenderNode(rnode);
+        // rmesh->GenerateCpuData();
+        // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
+        // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_CCW);
+        // _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
+        // _cube->SetRenderNode(rnode);
     }
 
     void ResourceManager::_InitQuad() {
-        _quad = Entity::Create();
-        RenderNodePtr rnode(new RenderNode());
-        RenderMeshPtr rmesh(new RenderMesh());
-        MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
+        // _quad = CreateRenderEntity();
+        // RenderComponent rc = _quad->
+        // MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
 
-        const size_t quadStride = 14;
-        const size_t quadNumVertices = quadData.size() / quadStride;
+        // const size_t quadStride = 14;
+        // const size_t quadNumVertices = quadData.size() / quadStride;
 
-        for (size_t i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
-            rmesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
-            rmesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
-            rmesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
-            // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
-            // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
-        }
+        // for (size_t i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
+        //     rmesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
+        //     rmesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
+        //     rmesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
+        //     // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
+        //     // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
+        // }
 
-        rmesh->GenerateCpuData();
-        rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
-        rmesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
-        _quad->SetRenderNode(rnode);
+        // rmesh->GenerateCpuData();
+        // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
+        // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
+        // _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
+        // _quad->SetRenderNode(rnode);
     }
 }
