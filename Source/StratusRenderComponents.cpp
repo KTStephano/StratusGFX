@@ -75,27 +75,32 @@ namespace stratus {
     void Mesh::AddVertex(const glm::vec3& v) {
         _EnsureNotFinalized();
         _cpuData->vertices.push_back(v);
+        _cpuData->needsRepacking = true;
         _numVertices = _cpuData->vertices.size();
     }
 
     void Mesh::AddUV(const glm::vec2& uv) {
         _EnsureNotFinalized();
         _cpuData->uvs.push_back(uv);
+        _cpuData->needsRepacking = true;
     }
 
     void Mesh::AddNormal(const glm::vec3& n) {
         _EnsureNotFinalized();
         _cpuData->normals.push_back(n);
+        _cpuData->needsRepacking = true;
     }
 
     void Mesh::AddTangent(const glm::vec3& t) {
         _EnsureNotFinalized();
         _cpuData->tangents.push_back(t);
+        _cpuData->needsRepacking = true;
     }
 
     void Mesh::AddBitangent(const glm::vec3& bt) {
         _EnsureNotFinalized();
         _cpuData->bitangents.push_back(bt);
+        _cpuData->needsRepacking = true;
     }
 
     void Mesh::AddIndex(uint32_t i) {
@@ -106,6 +111,7 @@ namespace stratus {
 
     void Mesh::_CalculateTangentsBitangents() {
         _EnsureNotFinalized();
+        _cpuData->needsRepacking = true;
         _cpuData->tangents.clear();
         _cpuData->bitangents.clear();
 
@@ -151,10 +157,12 @@ namespace stratus {
         }
     }
 
-    void Mesh::_GenerateCpuData() {
+    void Mesh::PackCpuData() {
         _EnsureNotFinalized();
 
         if (_cpuData->tangents.size() == 0 || _cpuData->bitangents.size() == 0) _CalculateTangentsBitangents();
+
+        if (!_cpuData->needsRepacking) return;
 
         // Pack all data into a single buffer
         _cpuData->data.clear();
@@ -178,12 +186,7 @@ namespace stratus {
 
         _dataSizeBytes = _cpuData->data.size() * sizeof(float);
 
-        // Clear out existing buffers to conserve system memory
-        _cpuData->vertices.clear();
-        _cpuData->uvs.clear();
-        _cpuData->normals.clear();
-        _cpuData->tangents.clear();
-        _cpuData->bitangents.clear();
+        _cpuData->needsRepacking = false;
     }
 
     size_t Mesh::GetGpuSizeBytes() const {
@@ -232,7 +235,7 @@ namespace stratus {
     void Mesh::FinalizeData() {
         _EnsureNotFinalized();
 
-        _GenerateCpuData();
+        PackCpuData();
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
             _GenerateGpuData();

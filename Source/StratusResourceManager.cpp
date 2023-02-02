@@ -336,6 +336,7 @@ namespace stratus {
                 << m->GetMetallicRoughnessMap() << std::endl;
         }
 
+        rmesh->PackCpuData();
         renderNode->meshes->meshes.push_back(rmesh);
         renderNode->meshes->transforms.push_back(transform);
         renderNode->AddMaterial(m);
@@ -362,7 +363,7 @@ namespace stratus {
         // Now do the same for each child
         for (uint32_t i = 0; i < node->mNumChildren; ++i) {
             // Create a new container Entity2
-            Entity2Ptr centity = Entity2::Create();
+            Entity2Ptr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
             ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode);
         }
@@ -413,7 +414,7 @@ namespace stratus {
 
         STRATUS_LOG << "Model loaded [" << name << "]" << std::endl;
 
-        return e;
+        return e->Copy();
     }
 
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 

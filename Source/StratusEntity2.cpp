@@ -142,7 +142,7 @@ namespace stratus {
         auto self = shared_from_this();
         if (ptr == self) return;
         // If there is already a parent then don't attempt to overwrite
-        if (GetParentNode() != nullptr) return;
+        if (ptr->GetParentNode() != nullptr) return;
         //auto ul = std::unique_lock<std::shared_mutex>(_m);
         if (_ContainsChildNode(ptr) || ptr->ContainsChildNode(self)) return;
         _childNodes.push_back(ptr);

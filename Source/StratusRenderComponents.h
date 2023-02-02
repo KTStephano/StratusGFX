@@ -56,8 +56,13 @@ namespace stratus {
         void SetFaceCulling(const RenderFaceCulling&);
         RenderFaceCulling GetFaceCulling() const;
 
+        // Before data has been moved to the GPU the Mesh will need to pack
+        // all the data into a single buffer. This function is exposed so the
+        // resource manager can do this asynchronously before moving to the graphics
+        // application thread.
+        void PackCpuData();
+
     private:
-        void _GenerateCpuData();
         void _GenerateGpuData();
         void _CalculateTangentsBitangents();
         void _EnsureFinalized() const;
@@ -72,6 +77,7 @@ namespace stratus {
             std::vector<glm::vec3> bitangents;
             std::vector<uint32_t> indices;
             std::vector<float> data;
+            bool needsRepacking = false;
         };
 
     private:

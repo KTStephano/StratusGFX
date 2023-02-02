@@ -78,6 +78,8 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
 
             for (int i = 0; i < 5; ++i) {
                 auto ptr = stratus::CreateTransformEntity();
+                entities.push_back(ptr);
+
                 auto local = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
                 auto scale = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
                 auto rotate = stratus::Rotation(
@@ -88,14 +90,27 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
                 local->SetLocalTransform(scale, rotate, position);
                 if (root) root->AttachChildNode(ptr);
 
-                entities.push_back(ptr);
-
                 CreateEntitiesRecursive(ptr, maxDepth - 1);
             }
         }
 
+        int CalculateNumNodes(stratus::Entity2Ptr root) {
+            int number = root->GetChildNodes().size();
+            for (auto ptr : root->GetChildNodes()) {
+                number += CalculateNumNodes(ptr);
+            }
+            return number;
+        }
+
         bool Initialize() override {
             CreateEntitiesRecursive(nullptr, 4);
+            int treeSize = 0;
+            for (auto ptr : entities) {
+                if (ptr->GetParentNode() == nullptr) {
+                    treeSize = treeSize + 1 + CalculateNumNodes(ptr);
+                }
+            }
+            STRATUS_LOG << "TREE SIZE: " << treeSize << std::endl;
             for (auto ptr : entities) {
                 if (ptr->GetParentNode() == nullptr) {
                     INSTANCE(EntityManager)->AddEntity(ptr);
