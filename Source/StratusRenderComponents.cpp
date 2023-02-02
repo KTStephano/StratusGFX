@@ -269,4 +269,31 @@ namespace stratus {
     RenderFaceCulling Mesh::GetFaceCulling() const {
         return _cullMode;
     }
+
+    RenderComponent::RenderComponent()
+        : meshes(std::make_shared<MeshData>()) {}
+
+    RenderComponent::RenderComponent(const RenderComponent& other) {
+        this->meshes = other.meshes;
+    }
+
+    size_t RenderComponent::NumMaterials() const {
+        return _materials.size();
+    }
+
+    const std::vector<MaterialPtr>& RenderComponent::GetAllMaterials() const {
+        return _materials;
+    }
+
+    const MaterialPtr& RenderComponent::GetMaterialAt(size_t index) const {
+        return _materials[index];
+    }
+
+    void RenderComponent::AddMaterial(MaterialPtr material) {
+        _materials.push_back(material);
+    }
+
+    void RenderComponent::SetMaterialAt(MaterialPtr material, size_t index) {
+        _materials[index] = material;
+    }
 }

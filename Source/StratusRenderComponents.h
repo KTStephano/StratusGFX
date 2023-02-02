@@ -89,6 +89,7 @@ namespace stratus {
         size_t NumMaterials() const;
         const std::vector<MaterialPtr>& GetAllMaterials() const;
         const MaterialPtr& GetMaterialAt(size_t) const;
+        void AddMaterial(MaterialPtr);
         void SetMaterialAt(MaterialPtr, size_t);
 
     private:
