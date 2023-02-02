@@ -72,10 +72,29 @@ namespace stratus {
         RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
     };
 
-    ENTITY_COMPONENT_STRUCT(RenderComponent) {
+    struct MeshData {
         std::vector<MeshPtr> meshes;
-        std::vector<MaterialPtr> materials;
         std::vector<glm::mat4> transforms;
+    };
+
+    ENTITY_COMPONENT_STRUCT(RenderComponent) {
+        // Mesh data is always shared between components - changing one
+        // changes all the RenderComponents that rely on it
+        const std::shared_ptr<MeshData> meshes;
+
+        RenderComponent();
+        RenderComponent(const RenderComponent&);
+
+        // There will always be 1 material per mesh
+        size_t NumMaterials() const;
+        const std::vector<MaterialPtr>& GetAllMaterials() const;
+        const MaterialPtr& GetMaterialAt(size_t) const;
+        void SetMaterialAt(MaterialPtr, size_t);
+
+    private:
+        // This is per RenderComponent which means the same mesh may end up being
+        // used with multiple different materials
+        std::vector<MaterialPtr> _materials;
     };
 
     ENTITY_COMPONENT_STRUCT(LightInteractionComponent)

@@ -65,7 +65,7 @@ namespace stratus {
     }
 
     Entity2ComponentSet * Entity2ComponentSet::Copy() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        //auto sl = std::shared_lock<std::shared_mutex>(_m);
         Entity2ComponentSet * copy = Entity2ComponentSet::Create();
         for (const auto& manager : _componentManagers) {
             auto mgrCopy = __CopyManager(manager);
@@ -101,7 +101,7 @@ namespace stratus {
     }
 
     std::vector<EntityComponentPair<Entity2Component>> Entity2ComponentSet::GetAllComponents() {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        //auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<EntityComponentPair<Entity2Component>> v;
         v.reserve(_components.size());
         for (auto& component : _componentTypeNames) {
@@ -111,7 +111,7 @@ namespace stratus {
     }
 
     std::vector<EntityComponentPair<const Entity2Component>> Entity2ComponentSet::GetAllComponents() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        //auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<EntityComponentPair<const Entity2Component>> v;
         v.reserve(_components.size());
         for (const auto& component : _componentTypeNames) {

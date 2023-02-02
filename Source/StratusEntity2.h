@@ -159,6 +159,8 @@ namespace stratus {
     };
 
     // Keeps track of a unique set of components
+    // Not thread safe unless doing readonly operations
+    // Guarantee: Component pointers will never move around in memory even when new ones are added
     struct Entity2ComponentSet final {
         friend class Entity2;
 
@@ -220,7 +222,7 @@ namespace stratus {
         void _NotifyEntityManagerComponentEnabledDisabled();
 
     private:
-        mutable std::shared_mutex _m;
+        //mutable std::shared_mutex _m;
         Entity2 * _owner;
         // Component pointer managers (allocates and deallocates from shared pool)
         std::vector<std::unique_ptr<EntityComponentPointerManager>> _componentManagers;
@@ -292,14 +294,14 @@ namespace stratus {
     template<typename E, typename ... Types>
     void Entity2ComponentSet::AttachComponent(const Types& ... args) {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        //auto ul = std::unique_lock<std::shared_mutex>(_m);
         return _AttachComponent<E>(args...);
     }
 
     template<typename E>
     bool Entity2ComponentSet::ContainsComponent() const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        //auto sl = std::shared_lock<std::shared_mutex>(_m);
         return _ContainsComponent<E>();
     }
 
@@ -336,7 +338,7 @@ namespace stratus {
     template<typename E>
     EntityComponentPair<E> Entity2ComponentSet::_GetComponentByName(const std::string& name) const {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
+        //auto sl = std::shared_lock<std::shared_mutex>(_m);
         auto it = _componentTypeNames.find(name);
         return it != _componentTypeNames.end() ? 
             EntityComponentPair<E>{dynamic_cast<E *>(it->second.first.component), it->second.second} : 
@@ -356,7 +358,7 @@ namespace stratus {
     template<typename E>
     void Entity2ComponentSet::_SetComponentStatus(EntityComponentStatus status) {
         static_assert(std::is_base_of<Entity2Component, E>::value);
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
+        //auto ul = std::unique_lock<std::shared_mutex>(_m);
         std::string name = E::STypeName();
         auto it = _componentTypeNames.find(name);
         if (it != _componentTypeNames.end()) {
