@@ -61,18 +61,18 @@ namespace stratus {
 
     private:
         template<typename ... Types>
-        static E * _PlacementNew(uint8_t * memory, Types ... args) {
-            return new (memory) E(std::forward<Types>(args)...);
+        static E * _PlacementNew(uint8_t * memory, const Types&... args) {
+            return new (memory) E(args...);
         }
 
     public:
         template<typename ... Types>
-        E * Allocate(Types ... args) {
-            return AllocateCustomConstruct(_PlacementNew<Types...>, std::forward<Types>(args)...);
+        E * Allocate(const Types&... args) {
+            return AllocateCustomConstruct(_PlacementNew<Types...>, args...);
         }
 
         template<typename Construct, typename ... Types>
-        E * AllocateCustomConstruct(Construct c, Types ... args) {
+        E * AllocateCustomConstruct(Construct c, const Types&... args) {
             uint8_t * bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
@@ -93,7 +93,7 @@ namespace stratus {
                 _frontBuffer = _frontBuffer->next;
                 bytes = reinterpret_cast<uint8_t *>(next);
             }
-            return c(bytes, std::forward<Types>(args)...);
+            return c(bytes, args...);
         }
 
         void Deallocate(E * ptr) {
@@ -294,27 +294,27 @@ namespace stratus {
         ThreadSafePoolAllocator() {}
 
         template<typename ... Types>
-        static UniquePtr Allocate(Types ... args) {
+        static UniquePtr Allocate(const Types&... args) {
             _EnsureValid();
-            return UniquePtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(&_alloc));
+            return UniquePtr(_GetAllocator()->Allocate(args...), Deleter(&_alloc));
         }
 
         template<typename ... Types>
-        static SharedPtr AllocateShared(Types ... args) {
+        static SharedPtr AllocateShared(const Types&... args) {
             _EnsureValid();
-            return SharedPtr(_GetAllocator()->Allocate(std::forward<Types>(args)...), Deleter(&_alloc));
+            return SharedPtr(_GetAllocator()->Allocate(args...), Deleter(&_alloc));
         }
 
         template<typename Construct, typename ... Types>
-        static UniquePtr AllocateCustomConstruct(Construct c, Types ... args) {
+        static UniquePtr AllocateCustomConstruct(Construct c, const Types&... args) {
             _EnsureValid();
-            return UniquePtr(_GetAllocator()->AllocateCustomConstruct(c, std::forward<Types>(args)...), Deleter(&_alloc));
+            return UniquePtr(_GetAllocator()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
         }
 
         template<typename Construct, typename ... Types>
-        static SharedPtr AllocateSharedCustomConstruct(Construct c, Types ... args) {
+        static SharedPtr AllocateSharedCustomConstruct(Construct c, const Types&... args) {
             _EnsureValid();
-            return SharedPtr(_GetAllocator()->AllocateCustomConstruct(c, std::forward<Types>(args)...), Deleter(&_alloc));
+            return SharedPtr(_GetAllocator()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
         }
 
         static size_t NumChunks() {
@@ -368,8 +368,8 @@ namespace stratus {
             E element;
 
             template<typename ... Types>
-            ElementData(Types ... args)
-                : element(std::forward<Types>(args)...) {}
+            ElementData(const Types&... args)
+                : element(args...) {}
 
             ~ElementData() {
                 element.~E();
@@ -399,14 +399,14 @@ namespace stratus {
         ThreadSafePoolAllocator() {}
 
         template<typename ... Types>
-        UniquePtr Allocate(Types ... args) {
-            ElementData * data = _Allocate(std::forward<Types>(args)...);
+        UniquePtr Allocate(const Types&... args) {
+            ElementData * data = _Allocate(args...);
             return UniquePtr(&data->element);
         }
 
         template<typename ... Types>
-        SharedPtr AllocateShared(Types ... args) {
-            ElementData * data = _Allocate(std::forward<Types>(args)...);
+        SharedPtr AllocateShared(const Types&... args) {
+            ElementData * data = _Allocate(args...);
             return SharedPtr(&data->element, Deleter());
         }
 
@@ -420,8 +420,8 @@ namespace stratus {
 
     private:
         template<typename ... Types>
-        ElementData * _Allocate(Types ... args) {
-            ElementData * data = _GetAllocator(_manager.allocator)->Allocate(std::forward<Types>(args)...);
+        ElementData * _Allocate(const Types&... args) {
+            ElementData * data = _GetAllocator(_manager.allocator)->Allocate(args...);
             data->allocator = _manager.allocator;
             _IncrPoolRefCount(_manager.allocator);
             return data;

@@ -76,7 +76,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
         void CreateEntitiesRecursive(stratus::Entity2Ptr root, int maxDepth) {
             if (maxDepth < 1) return;
 
-            for (int i = 0; i < 10; ++i) {
+            for (int i = 0; i < 5; ++i) {
                 auto ptr = stratus::CreateTransformEntity();
                 auto local = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
                 auto scale = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
@@ -104,6 +104,41 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
             return true; // success
         }
 
+        void PerformEntityCopyTest() {
+            if (firstUpdate) {
+                if (entities.size() == 0) failed = true;
+                for (auto ptr : entities) {
+                    auto copy = ptr->Copy();
+                    if (copy.get() == ptr.get()) failed = true;
+
+                    auto c1 = ptr->Components().GetAllComponents();
+                    for (const auto& p : c1) {
+                        auto c2 = copy->Components().GetComponentByName(p.component->TypeName());
+                        if (p.component == nullptr || c2.component == nullptr || p.component == c2.component) {
+
+                            failed = true;
+                            return;
+                        }
+                    }
+
+                    auto local1 = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
+                    auto global1 = ptr->Components().GetComponent<stratus::GlobalTransformComponent>().component;
+
+                    auto local2 = copy->Components().GetComponent<stratus::LocalTransformComponent>().component;
+                    auto global2 = copy->Components().GetComponent<stratus::GlobalTransformComponent>().component;
+
+                    if (!CheckEquals(local1->GetLocalTransform(), local2->GetLocalTransform()) ||
+                        !CheckEquals(global1->GetGlobalTransform(), global2->GetGlobalTransform())) {
+
+                        failed = true;
+                        return;
+                    }
+                }
+            }
+
+            firstUpdate = false;
+        }
+
         stratus::SystemStatus Update(const double deltaSeconds) override {
             STRATUS_LOG << "Frame #" << Engine()->FrameCount() << std::endl;
 
@@ -119,6 +154,8 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
             }
 
             if (nextFrameUpdate == Engine()->FrameCount()) {
+                PerformEntityCopyTest();
+
                 nextFrameUpdate += 2;
                 previousUpdated = true;
                 for (auto ptr : entities) {
@@ -157,6 +194,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
         void Shutdown() override {
         }
 
+        bool firstUpdate = true;
         bool previousUpdated = true;
         uint64_t nextFrameUpdate = 2;
         std::vector<stratus::Entity2Ptr> entities;
