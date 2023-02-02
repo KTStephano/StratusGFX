@@ -5,10 +5,39 @@
 #include "StratusApplicationThread.h"
 #include "StratusLog.h"
 #include "StratusTransformComponent.h"
+#include "StratusPoolAllocator.h"
 
 namespace stratus {
+    struct MeshAllocator {
+        std::mutex m;
+        PoolAllocator<Mesh> allocator;
+    };
+
+    static MeshAllocator& GetAllocator() {
+        static MeshAllocator allocator;
+        return allocator;
+    }
+
+    MeshPtr Mesh::_PlacementNew(uint8_t * memory) {
+        return new (memory) Mesh();
+    }
+
+    MeshPtr Mesh::Create() {
+        auto& allocator = GetAllocator();
+        auto ul = std::unique_lock<std::mutex>(allocator.m);
+        return allocator.allocator.AllocateCustomConstruct(_PlacementNew);
+    }
+
+    void Mesh::Destroy(MeshPtr ptr) {
+        std::cout << "DESTROYING!!!!\n";
+        auto& allocator = GetAllocator();
+        auto ul = std::unique_lock<std::mutex>(allocator.m);
+        allocator.allocator.Deallocate(ptr);
+    }
+
     Entity2Ptr CreateRenderEntity() {
         auto ptr = Entity2::Create();
+        InitializeRenderEntity(ptr);
         return ptr;
     }
 

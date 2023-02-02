@@ -632,8 +632,10 @@ namespace stratus {
     }
 
     void ResourceManager::_InitQuad() {
-        // _quad = CreateRenderEntity();
-        // RenderComponent rc = _quad->
+        _quad = CreateRenderEntity();
+        RenderComponent * rc = _quad->Components().GetComponent<RenderComponent>().component;
+        MeshPtr mesh = Mesh::Create();
+        // rc->meshes->meshes.push_back(mesh);
         // MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
 
         // const size_t quadStride = 14;

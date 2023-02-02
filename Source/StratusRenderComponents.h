@@ -21,13 +21,23 @@ namespace stratus {
 
     struct Mesh;
 
-    typedef std::shared_ptr<Mesh> MeshPtr;
+    typedef Mesh * MeshPtr;
 
     extern Entity2Ptr CreateRenderEntity();
     extern void InitializeRenderEntity(const Entity2Ptr&);
 
     struct Mesh final {
+    private:
         Mesh();
+
+    private:
+        static Mesh * _PlacementNew(uint8_t *);
+
+    public:
+        static MeshPtr Create();
+        static void Destroy(MeshPtr);
+
+    public:
         ~Mesh();
 
         void AddVertex(const glm::vec3&);
@@ -76,6 +86,12 @@ namespace stratus {
     struct MeshData {
         std::vector<MeshPtr> meshes;
         std::vector<glm::mat4> transforms;
+
+        ~MeshData() {
+            for (auto ptr : meshes) {
+                Mesh::Destroy(ptr);
+            }
+        }
     };
 
     ENTITY_COMPONENT_STRUCT(RenderComponent)

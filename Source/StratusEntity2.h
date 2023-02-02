@@ -40,7 +40,7 @@ __ComponentAllocator<Component>& __GetComponentAllocator() {
         std::string TypeName() const override { return STypeName(); }                       \
         size_t HashCode() const override { return SHashCode(); }                            \
         bool operator==(const stratus::Entity2Component * other) const override {           \
-            if (*this == other) return true;                                                \
+            if (this == other) return true;                                                 \
             if (!other) return false;                                                       \
             return TypeName() == std::string(other->TypeName());                            \
         }                                                                                   \
