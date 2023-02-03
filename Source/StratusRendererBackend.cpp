@@ -918,18 +918,21 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
         Async<Texture> tex;
         const RenderMeshContainerPtr c = (*meshContainer)[i];
         s->setMat4("model", GetMeshTransform(c));
+        s->setVec3("diffuseColor", GetMeshMaterial(c)->GetDiffuseColor());
 
         if (GetMeshMaterial(c)->GetDiffuseTexture()) {
             SETUP_TEXTURE("diffuseTexture", "textured", GetMeshMaterial(c)->GetDiffuseTexture())
         }
         else {
-            s->setVec3("diffuseColor", GetMeshMaterial(c)->GetDiffuseColor());
             s->setBool("textured", false);
         }
 
         // Determine which uniforms we should set
         if (IsLightInteracting(e)) {
             s->setVec3("baseReflectivityValue", GetMeshMaterial(c)->GetBaseReflectivity());
+            s->setFloat("metallicValue", GetMeshMaterial(c)->GetMetallic());
+            s->setFloat("roughnessValue", GetMeshMaterial(c)->GetRoughness());
+            s->setFloat("heightScale", 0.01f);
 
             if (GetMeshMaterial(c)->GetNormalMap()) {
                 SETUP_TEXTURE("normalMap", "normalMapped", GetMeshMaterial(c)->GetNormalMap())
@@ -940,7 +943,6 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
 
             if (GetMeshMaterial(c)->GetDepthMap()) {
                 //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-                s->setFloat("heightScale", 0.01f);
                 SETUP_TEXTURE("depthMap", "depthMapped", GetMeshMaterial(c)->GetDepthMap())
             }
             else {
@@ -951,7 +953,6 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
                 SETUP_TEXTURE("roughnessMap", "roughnessMapped", GetMeshMaterial(c)->GetRoughnessMap());
             }
             else {
-                s->setFloat("roughnessValue", GetMeshMaterial(c)->GetRoughness());
                 s->setBool("roughnessMapped", false);
             }
 
@@ -966,7 +967,6 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
                 SETUP_TEXTURE("metalnessMap", "metalnessMapped", GetMeshMaterial(c)->GetMetallicMap())
             }
             else {
-                s->setFloat("metallicValue", GetMeshMaterial(c)->GetMetallic());
                 s->setBool("metalnessMapped", false);
             }
 
@@ -1048,6 +1048,7 @@ void RendererBackend::_RenderCSMDepth() {
             const Entity2Ptr& e = viewMesh.first;
             const MeshPtr m = GetMesh(container);
             const size_t numInstances = 1;
+            _state.csmDepth->setMat4("model", GetMeshTransform(container));
             // Override and use ASSIMP default which is CCW
             // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
             //  under FlipWindingOrder)
@@ -1234,7 +1235,8 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         if (!dirty) continue;
         ++shadowUpdates;
 
-        auto & instancedMeshes = _frame->lights.find(light)->second.visible;
+        STRATUS_LOG << "UPDATING\n";
+        auto & instancedMeshes = _frame->instancedPbrMeshes;//->lights.find(light)->second.visible;
     
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
@@ -1261,6 +1263,7 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         for (auto & entityObservers : instancedMeshes) {
             for (int i = 0; i < entityObservers.second.size(); ++i) {
                 MeshPtr m = GetMesh(entityObservers.second[i]);
+                _state.shadows->setMat4("model", GetMeshTransform(entityObservers.second[i]));
                 SetCullState(m->GetFaceCulling());
                 m->Render(1, GpuArrayBuffer());
             }

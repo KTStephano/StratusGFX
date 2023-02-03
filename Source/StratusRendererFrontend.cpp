@@ -78,9 +78,9 @@ namespace stratus {
 
                     for (auto& entry : lights) {
                         auto pos = entry.first->position;
-                        if (glm::distance(GetWorldTransform(p, i), pos) < entry.first->getRadius()) {
+                        //if (glm::distance(GetWorldTransform(p, i), pos) < entry.first->getRadius()) {
                             entry.second.dirty |= InsertMesh(entry.second.visible, p, i);
-                        }
+                        //}
                     }
                 }
             }
@@ -99,11 +99,14 @@ namespace stratus {
     void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
         _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     }
 
     void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
         _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+        _frame->csc.visible = _frame->instancedPbrMeshes;
     }
 
     void RendererFrontend::RemoveEntity(const Entity2Ptr& p) {
@@ -121,6 +124,10 @@ namespace stratus {
         else {
             _flatEntities.erase(p);
         }
+
+        _frame->instancedPbrMeshes.erase(p);
+        _frame->instancedFlatMeshes.erase(p);
+        _frame->csc.visible = _frame->instancedPbrMeshes;
 
         for (auto& entry : _lights) {
             if (entry.second.visible.erase(p)) {
@@ -150,10 +157,10 @@ namespace stratus {
         auto pos = light->position;
         for (auto& e : entities) {
             for (size_t i = 0; i < GetMeshCount(e.first); ++i) {
-                if (glm::distance(pos, GetWorldTransform(e.first, i)) < light->getRadius()) {
+                //if (glm::distance(pos, GetWorldTransform(e.first, i)) < light->getRadius()) {
                     InsertMesh(data.visible, e.first, i);
                     data.dirty = true;
-                }
+                //}
             }
         }
     }
@@ -624,15 +631,15 @@ namespace stratus {
                         auto lightPos = entry.first->position;
                         auto lightRadius = entry.first->getRadius();
                         // If the EntityView is in the light's visible set, its shadows are now out of date
-                        for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
-                            if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {
-                                entry.second.dirty |= RemoveMesh(entry.second.visible, entity.first, i);
-                            }
-                            // If the EntityView has moved inside the light's radius, add it
-                            else if (glm::distance(GetWorldTransform(entity.first, i), lightPos) < lightRadius) {
-                                entry.second.dirty |= InsertMesh(entry.second.visible, entity.first, i);
-                            }
-                        }
+                        // for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
+                        //     if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {
+                        //         entry.second.dirty |= RemoveMesh(entry.second.visible, entity.first, i);
+                        //     }
+                        //     // If the EntityView has moved inside the light's radius, add it
+                        //     else if (glm::distance(GetWorldTransform(entity.first, i), lightPos) < lightRadius) {
+                        //         entry.second.dirty |= InsertMesh(entry.second.visible, entity.first, i);
+                        //     }
+                        // }
                     }
                 }
             }
@@ -747,67 +754,67 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateCameraVisibility() {
-        const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-            &_staticPbrEntities,
-            &_dynamicPbrEntities
-        };
+        // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
+        //     &_staticPbrEntities,
+        //     &_dynamicPbrEntities
+        // };
 
-        const auto flatEntitySets = std::vector<const EntityMeshData *>{
-            &_flatEntities
-        };
+        // const auto flatEntitySets = std::vector<const EntityMeshData *>{
+        //     &_flatEntities
+        // };
 
-        EntityMeshData visiblePbr(16);
-        EntityMeshData visibleFlat(16);
+        // EntityMeshData visiblePbr(16);
+        // EntityMeshData visibleFlat(16);
 
-        _frame->instancedPbrMeshes.clear();
-        _frame->instancedFlatMeshes.clear();
-        auto position = _camera->getPosition();
+        // _frame->instancedPbrMeshes.clear();
+        // _frame->instancedFlatMeshes.clear();
+        // auto position = _camera->getPosition();
 
-        for (const EntityMeshData * entities : pbrEntitySets) {
-            for (auto& entityView : *entities) {
-                for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-                    if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
-                        InsertMesh(visiblePbr, entityView.first, i);
-                    }
-                }
-            }
-        }
+        // for (const EntityMeshData * entities : pbrEntitySets) {
+        //     for (auto& entityView : *entities) {
+        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
+        //             if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
+        //                 InsertMesh(visiblePbr, entityView.first, i);
+        //             }
+        //         }
+        //     }
+        // }
 
-        for (const EntityMeshData * entities : flatEntitySets) {
-            for (auto& entityView : *entities) {
-                for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-                    if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
-                        InsertMesh(visibleFlat, entityView.first, i);
-                    }
-                }
-            }
-        }
+        // for (const EntityMeshData * entities : flatEntitySets) {
+        //     for (auto& entityView : *entities) {
+        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
+        //             if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
+        //                 InsertMesh(visibleFlat, entityView.first, i);
+        //             }
+        //         }
+        //     }
+        // }
         
-        UpdateInstancedData(visiblePbr, _frame->instancedPbrMeshes);
-        UpdateInstancedData(visibleFlat, _frame->instancedFlatMeshes);
+        // UpdateInstancedData(visiblePbr, _frame->instancedPbrMeshes);
+        // UpdateInstancedData(visibleFlat, _frame->instancedFlatMeshes);
     }
 
     void RendererFrontend::_UpdateCascadeVisibility() {
-        const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-            &_staticPbrEntities,
-            &_dynamicPbrEntities
-        };
+        // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
+        //     &_staticPbrEntities,
+        //     &_dynamicPbrEntities
+        // };
 
-        EntityMeshData visible(16);
-        const size_t numCascades = _frame->csc.cascades.size();
-        const float maxDist = _params.zfar;
+        // EntityMeshData visible(16);
+        // const size_t numCascades = _frame->csc.cascades.size();
+        // const float maxDist = _params.zfar;
         
-        for (const EntityMeshData * entities : pbrEntitySets) {
-            for (auto& entityView : *entities) {
-                for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-                    if (glm::distance(_camera->getPosition(), GetWorldTransform(entityView.first, i)) < maxDist) {
-                        InsertMesh(visible, entityView.first, i);
-                    }
-                }
-            }
-        }
+        // for (const EntityMeshData * entities : pbrEntitySets) {
+        //     for (auto& entityView : *entities) {
+        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
+        //             if (glm::distance(_camera->getPosition(), GetWorldTransform(entityView.first, i)) < maxDist) {
+        //                 InsertMesh(visible, entityView.first, i);
+        //             }
+        //         }
+        //     }
+        // }
 
-        _frame->csc.visible.clear();
-        UpdateInstancedData(visible, _frame->csc.visible);
+        // _frame->csc.visible.clear();
+        // UpdateInstancedData(visible, _frame->csc.visible);
     }
 }
