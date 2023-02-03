@@ -220,14 +220,6 @@ namespace stratus {
         }
     }
 
-    void Mesh::UnmapAllGpuBuffers() const {
-        _buffers.UnmapAllMemory();
-    }
-
-    void Mesh::_UnmapAllGpuBuffersAndFinalizeData() const {
-        _buffers.FinalizeAllMemory();
-    }
-
     const GpuArrayBuffer& Mesh::GetData() const {
         _EnsureFinalized();
         return _buffers;

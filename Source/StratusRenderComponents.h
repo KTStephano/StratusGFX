@@ -10,13 +10,14 @@
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "StratusRenderNode.h"
 
 namespace stratus {
-    enum class RenderFaceCulling : int {
-        CULLING_NONE,
-        CULLING_CW,     // Clock-wise
-        CULLING_CCW,    // Counter-clock-wise
-    };
+    // enum class RenderFaceCulling : int {
+    //     CULLING_NONE,
+    //     CULLING_CW,     // Clock-wise
+    //     CULLING_CCW,    // Counter-clock-wise
+    // };
 
     struct Mesh;
 
@@ -77,10 +78,10 @@ namespace stratus {
         std::vector<glm::mat4> transforms;
     };
 
-    ENTITY_COMPONENT_STRUCT(RenderComponent) {
+    ENTITY_COMPONENT_STRUCT(RenderComponent)
         // Mesh data is always shared between components - changing one
         // changes all the RenderComponents that rely on it
-        const std::shared_ptr<MeshData> meshes;
+        std::shared_ptr<MeshData> meshes;
 
         RenderComponent();
         RenderComponent(const RenderComponent&);
