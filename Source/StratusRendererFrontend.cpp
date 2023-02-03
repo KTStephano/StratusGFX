@@ -7,12 +7,14 @@
 
 namespace stratus {
     static void InitializeMeshTransformComponent(const Entity2Ptr& p) {
-        p->Components().AttachComponent<MeshWorldTransforms>();
+        if (!p->Components().ContainsComponent<MeshWorldTransforms>()) p->Components().AttachComponent<MeshWorldTransforms>();
+
         auto global = p->Components().GetComponent<GlobalTransformComponent>().component;
         auto rc = p->Components().GetComponent<RenderComponent>().component;
         auto meshTransform = p->Components().GetComponent<MeshWorldTransforms>().component;
-        meshTransform->transforms.resize(rc->NumMaterials());
-        for (size_t i = 0; i < rc->NumMaterials(); ++i) {
+        meshTransform->transforms.resize(rc->GetMaterialCount());
+
+        for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
             meshTransform->transforms[i] = global->GetGlobalTransform() * rc->meshes->transforms[i];
         }
     }
@@ -33,13 +35,13 @@ namespace stratus {
 
         // Check if it is already present
         for (auto& mc : it->second) {
-            if (mc->mesh == rc->meshes->meshes[meshIndex]) return false;
+            if (mc->meshIndex == meshIndex) return false;
         }
 
         RenderMeshContainerPtr c(new RenderMeshContainer());
-        c->mesh = rc->meshes->meshes[meshIndex];
-        c->material = rc->GetMaterialAt(meshIndex);
-        c->transform = mt->transforms[meshIndex];
+        c->render = rc;
+        c->transform = mt;
+        c->meshIndex = meshIndex;
         it->second.push_back(std::move(c));
 
         return true;
@@ -49,13 +51,14 @@ namespace stratus {
         auto it = map.find(p);
         if (it == map.end()) return false;
 
-        auto rc = p->Components().GetComponent<RenderComponent>().component;
-        for (auto mi = it->second.begin(); mi != it->second.end(); ++mi) {
-            if ((*mi)->mesh == rc->meshes->meshes[meshIndex]) {
-                it->second.erase(mi);
+        for (auto mit = it->second.begin(); mit != it->second.end(); ++mit) {
+            if ((*mit)->meshIndex == meshIndex) {
+                it->second.erase(mit);
                 return true;
             }
         }
+
+        return false;
     }
 
     RendererFrontend::RendererFrontend(const RendererParams& p)
@@ -611,20 +614,24 @@ namespace stratus {
     void RendererFrontend::_CheckEntitySetForChanges(EntityMeshData& map, bool& flag) {
         for (auto& entity : map) {
             // If this is a light-interacting node, run through all the lights to see if they need to be updated
-            if (_EntityChanged(entity.first) && IsLightInteracting(entity.first)) {                 
+            if (_EntityChanged(entity.first)) {               
                 flag = true;
 
-                for (auto& entry : _lights) {
-                    auto lightPos = entry.first->position;
-                    auto lightRadius = entry.first->getRadius();
-                    // If the EntityView is in the light's visible set, its shadows are now out of date
-                    for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
-                        if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {
-                            entry.second.dirty |= RemoveMesh(entry.second.visible, entity.first, i);
-                        }
-                        // If the EntityView has moved inside the light's radius, add it
-                        else if (glm::distance(GetWorldTransform(entity.first, i), lightPos) < lightRadius) {
-                            entry.second.dirty |= InsertMesh(entry.second.visible, entity.first, i);
+                InitializeMeshTransformComponent(entity.first);
+
+                if (IsLightInteracting(entity.first)) {
+                    for (auto& entry : _lights) {
+                        auto lightPos = entry.first->position;
+                        auto lightRadius = entry.first->getRadius();
+                        // If the EntityView is in the light's visible set, its shadows are now out of date
+                        for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
+                            if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {
+                                entry.second.dirty |= RemoveMesh(entry.second.visible, entity.first, i);
+                            }
+                            // If the EntityView has moved inside the light's radius, add it
+                            else if (glm::distance(GetWorldTransform(entity.first, i), lightPos) < lightRadius) {
+                                entry.second.dirty |= InsertMesh(entry.second.visible, entity.first, i);
+                            }
                         }
                     }
                 }

@@ -45,7 +45,7 @@ public:
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
         //worldLight->setIntensity(0.5f);
 
-        //stratus::RendererFrontend::Instance()->SetAtmosphericShadowing(0.2f, 0.3f);
+        //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity2> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
@@ -54,10 +54,11 @@ public:
             auto transform = sponza->Components().GetComponent<stratus::LocalTransformComponent>().component;
             transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
-            stratus::RendererFrontend::Instance()->AddStaticEntity(sponza);
+            INSTANCE(EntityManager)->AddEntity(sponza);
+            INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         });
 
-        stratus::RendererFrontend::Instance()->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
+        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
 
         bool running = true;
 
@@ -105,7 +106,7 @@ public:
                             break;
                         case SDL_SCANCODE_R:
                             if (released) {
-                                stratus::RendererFrontend::Instance()->RecompileShaders();
+                                INSTANCE(RendererFrontend)->RecompileShaders();
                             }
                             break;
                         case SDL_SCANCODE_1: {
@@ -193,7 +194,7 @@ public:
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
-        stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        INSTANCE(RendererFrontend)->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         //renderer->addDrawable(rocks);
 

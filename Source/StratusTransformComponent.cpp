@@ -93,12 +93,17 @@ namespace stratus {
     void TransformProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& entities) {
         for (auto ptr : entities) {
             if (_IsEntityRelevant(ptr)) {
-                if (ptr->GetParentNode() == nullptr) _rootNodes.insert(ptr);
                 std::vector<Entity2Component *> components{
                     ptr->Components().GetComponent<LocalTransformComponent>().component,
                     ptr->Components().GetComponent<GlobalTransformComponent>().component
                 };
+                
                 _components.insert(std::make_pair(ptr, std::move(components)));
+
+                if (ptr->GetParentNode() == nullptr) {
+                    _rootNodes.insert(ptr);
+                    _ProcessNode(ptr);
+                }
             }
         }
     }

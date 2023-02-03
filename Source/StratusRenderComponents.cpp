@@ -292,17 +292,22 @@ namespace stratus {
 
     RenderComponent::RenderComponent(const RenderComponent& other) {
         this->meshes = other.meshes;
+        this->_materials = other._materials;
     }
 
     MeshPtr RenderComponent::GetMesh(const size_t meshIndex) const {
         return meshes->meshes[meshIndex];
     }
 
+    size_t RenderComponent::GetMeshCount() const {
+        return meshes->meshes.size();
+    }
+
     const glm::mat4& RenderComponent::GetMeshTransform(const size_t meshIndex) const {
         return meshes->transforms[meshIndex];
     }
 
-    size_t RenderComponent::NumMaterials() const {
+    size_t RenderComponent::GetMaterialCount() const {
         return _materials.size();
     }
 

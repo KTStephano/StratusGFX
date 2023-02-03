@@ -27,11 +27,23 @@ bool IsLightInteracting(const Entity2Ptr& p) {
 }
 
 size_t GetMeshCount(const Entity2Ptr& p) {
-    return p->Components().GetComponent<RenderComponent>().component->NumMaterials();
+    return p->Components().GetComponent<RenderComponent>().component->GetMeshCount();
 }
 
 static MeshPtr GetMesh(const Entity2Ptr& p, const size_t meshIndex) {
     return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
+}
+
+static MeshPtr GetMesh(const RenderMeshContainerPtr& p) {
+    return p->render->GetMesh(p->meshIndex);
+}
+
+static MaterialPtr GetMeshMaterial(const RenderMeshContainerPtr& p) {
+    return p->render->GetMaterialAt(p->meshIndex);
+}
+
+static const glm::mat4& GetMeshTransform(const RenderMeshContainerPtr& p) {
+    return p->transform->transforms[p->meshIndex];
 }
 
 // See https://www.khronos.org/opengl/wiki/Debug_Output
@@ -905,61 +917,61 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
     for (size_t i = 0; i < GetMeshCount(e); ++i) {
         Async<Texture> tex;
         const RenderMeshContainerPtr c = (*meshContainer)[i];
-        s->setMat4("model", c->transform);
+        s->setMat4("model", GetMeshTransform(c));
 
-        if (c->material->GetDiffuseTexture()) {
-            SETUP_TEXTURE("diffuseTexture", "textured", c->material->GetDiffuseTexture())
+        if (GetMeshMaterial(c)->GetDiffuseTexture()) {
+            SETUP_TEXTURE("diffuseTexture", "textured", GetMeshMaterial(c)->GetDiffuseTexture())
         }
         else {
-            s->setVec3("diffuseColor", c->material->GetDiffuseColor());
+            s->setVec3("diffuseColor", GetMeshMaterial(c)->GetDiffuseColor());
             s->setBool("textured", false);
         }
 
         // Determine which uniforms we should set
         if (IsLightInteracting(e)) {
-            s->setVec3("baseReflectivityValue", c->material->GetBaseReflectivity());
+            s->setVec3("baseReflectivityValue", GetMeshMaterial(c)->GetBaseReflectivity());
 
-            if (c->material->GetNormalMap()) {
-                SETUP_TEXTURE("normalMap", "normalMapped", c->material->GetNormalMap())
+            if (GetMeshMaterial(c)->GetNormalMap()) {
+                SETUP_TEXTURE("normalMap", "normalMapped", GetMeshMaterial(c)->GetNormalMap())
             }
             else {
                 s->setBool("normalMapped", false);
             }
 
-            if (c->material->GetDepthMap()) {
+            if (GetMeshMaterial(c)->GetDepthMap()) {
                 //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
                 s->setFloat("heightScale", 0.01f);
-                SETUP_TEXTURE("depthMap", "depthMapped", c->material->GetDepthMap())
+                SETUP_TEXTURE("depthMap", "depthMapped", GetMeshMaterial(c)->GetDepthMap())
             }
             else {
                 s->setBool("depthMapped", false);
             }
 
-            if (c->material->GetRoughnessMap()) {
-                SETUP_TEXTURE("roughnessMap", "roughnessMapped", c->material->GetRoughnessMap());
+            if (GetMeshMaterial(c)->GetRoughnessMap()) {
+                SETUP_TEXTURE("roughnessMap", "roughnessMapped", GetMeshMaterial(c)->GetRoughnessMap());
             }
             else {
-                s->setFloat("roughnessValue", c->material->GetRoughness());
+                s->setFloat("roughnessValue", GetMeshMaterial(c)->GetRoughness());
                 s->setBool("roughnessMapped", false);
             }
 
-            if (c->material->GetAmbientTexture()) {
-                SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", c->material->GetAmbientTexture())
+            if (GetMeshMaterial(c)->GetAmbientTexture()) {
+                SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", GetMeshMaterial(c)->GetAmbientTexture())
             }
             else {
                 s->setBool("ambientMapped", false);
             }
 
-            if (c->material->GetMetallicMap()) {
-                SETUP_TEXTURE("metalnessMap", "metalnessMapped", c->material->GetMetallicMap())
+            if (GetMeshMaterial(c)->GetMetallicMap()) {
+                SETUP_TEXTURE("metalnessMap", "metalnessMapped", GetMeshMaterial(c)->GetMetallicMap())
             }
             else {
-                s->setFloat("metallicValue", c->material->GetMetallic());
+                s->setFloat("metallicValue", GetMeshMaterial(c)->GetMetallic());
                 s->setBool("metalnessMapped", false);
             }
 
-            if (c->material->GetMetallicRoughnessMap()) {
-                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", c->material->GetMetallicRoughnessMap())
+            if (GetMeshMaterial(c)->GetMetallicRoughnessMap()) {
+                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", GetMeshMaterial(c)->GetMetallicRoughnessMap())
             }
             else {
                 s->setBool("metallicRoughnessMap", false);
@@ -969,9 +981,9 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
         }
 
         // Perform instanced rendering
-        SetCullState(c->mesh->GetFaceCulling());
+        SetCullState(GetMesh(c)->GetFaceCulling());
 
-        c->mesh->Render(1, GpuArrayBuffer());
+        GetMesh(c)->Render(1, GpuArrayBuffer());
     }
 
 #undef SETUP_TEXTURE
@@ -1034,7 +1046,7 @@ void RendererBackend::_RenderCSMDepth() {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
             const RenderMeshContainerPtr container = viewMesh.second[i];
             const Entity2Ptr& e = viewMesh.first;
-            const MeshPtr m = container->mesh;
+            const MeshPtr m = GetMesh(container);
             const size_t numInstances = 1;
             // Override and use ASSIMP default which is CCW
             // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
@@ -1248,7 +1260,7 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 
         for (auto & entityObservers : instancedMeshes) {
             for (int i = 0; i < entityObservers.second.size(); ++i) {
-                MeshPtr m = entityObservers.second[i]->mesh;
+                MeshPtr m = GetMesh(entityObservers.second[i]);
                 SetCullState(m->GetFaceCulling());
                 m->Render(1, GpuArrayBuffer());
             }

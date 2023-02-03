@@ -113,9 +113,10 @@ namespace stratus {
 
         MeshPtr GetMesh(const size_t) const;
         const glm::mat4& GetMeshTransform(const size_t) const;
+        size_t GetMeshCount() const;
 
         // There will always be 1 material per mesh
-        size_t NumMaterials() const;
+        size_t GetMaterialCount() const;
         const std::vector<MaterialPtr>& GetAllMaterials() const;
         const MaterialPtr& GetMaterialAt(size_t) const;
         void AddMaterial(MaterialPtr);

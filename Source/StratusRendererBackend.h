@@ -43,9 +43,9 @@ namespace stratus {
     };
 
     struct RenderMeshContainer {
-        MeshPtr mesh;
-        MaterialPtr material;
-        glm::mat4 transform;
+        RenderComponent * render = nullptr;
+        MeshWorldTransforms * transform = nullptr;
+        size_t meshIndex = 0;
     };
 
     typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
