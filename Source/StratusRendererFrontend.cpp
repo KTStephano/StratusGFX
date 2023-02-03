@@ -642,6 +642,8 @@ namespace stratus {
     void RendererFrontend::_CheckForEntityChanges() {
         // We only care about dynamic light-interacting entities
         _CheckEntitySetForChanges(_dynamicPbrEntities, _dynamicPbrDirty);
+        bool flag;
+        _CheckEntitySetForChanges(_flatEntities, flag);
     }
 
     // static void UpdateInstancedData(const EntityMeshData& entities, InstancedData& instanced) {

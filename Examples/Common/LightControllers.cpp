@@ -1,4 +1,5 @@
 #include "LightControllers.h"
+#include "StratusRenderComponents.h"
 
 std::vector<stratus::EntityProcessHandle> LightCreator::handles;
 
@@ -31,6 +32,13 @@ static void InitCube(const LightParams& p,
     // cube->SetLocalScale(glm::vec3(1.0f));
     // cube->SetLocalPosition(p.position);
     // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+    auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+    auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+    rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
+    cube->Components().DisableComponent<stratus::LightInteractionComponent>();
+    local->SetLocalScale(glm::vec3(1.0f));
+    local->SetLocalPosition(p.position);
+    rc->GetMaterialAt(0)->SetDiffuseColor(light->getColor());
 }
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {
@@ -49,7 +57,8 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(RendererFrontend)->AddStaticEntity(cube);
+    INSTANCE(EntityManager)->AddEntity(cube);
+    INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateStationaryLight(const LightParams& p) {
@@ -65,7 +74,8 @@ void LightCreator::CreateStationaryLight(const LightParams& p) {
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(RendererFrontend)->AddStaticEntity(cube);
+    INSTANCE(EntityManager)->AddEntity(cube);
+    INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateVirtualPointLight(const LightParams& p) {
