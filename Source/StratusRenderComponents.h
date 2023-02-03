@@ -62,6 +62,9 @@ namespace stratus {
         // application thread.
         void PackCpuData();
 
+        // Temporary - to be removed
+        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
+
     private:
         void _GenerateGpuData();
         void _CalculateTangentsBitangents();
@@ -107,6 +110,9 @@ namespace stratus {
 
         RenderComponent();
         RenderComponent(const RenderComponent&);
+
+        MeshPtr GetMesh(const size_t) const;
+        const glm::mat4& GetMeshTransform(const size_t) const;
 
         // There will always be 1 material per mesh
         size_t NumMaterials() const;

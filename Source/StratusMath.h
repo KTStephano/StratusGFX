@@ -272,6 +272,10 @@ namespace stratus {
         out[3].w = 1.0f;
     }
 
+    static glm::vec3 GetTranslate(const glm::mat4& mat) {
+        return mat[3];
+    }
+
     static glm::mat4 constructTransformMat(const Rotation& rotation, const glm::vec3& translation, const glm::vec3& scale) {
         glm::mat4 id(1.0f);
         matRotate(id, rotation);

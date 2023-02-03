@@ -8,6 +8,11 @@ uniform sampler2D ambientOcclusionMap;
 uniform sampler2D metalnessMap;
 uniform sampler2D metallicRoughnessMap;
 
+uniform vec3 diffuseColor;
+uniform vec3 baseReflectivityValue;
+uniform float metallicValue;
+uniform float roughnessValue;
+
 uniform bool textured = false;
 uniform bool normalMapped = false;
 uniform bool depthMapped = false;
@@ -18,7 +23,6 @@ uniform bool metallicRoughnessMapped = false;
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
-in float fsRoughness;
 uniform float heightScale = 0.1;
 
 /**
@@ -36,10 +40,6 @@ in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
 in mat3 fsModelNoTranslate;
-in vec3 fsDiffuseColor;
-in vec3 fsBaseReflectivity; // Ex: vec3(0.03-0.04) for plastics
-in float fsMetallic; // Between 0 and 1 where 0 is not metallic at all and 1 is purely metallic
-//in float fsfsShininess;
 
 /**
  * Tangent space -> world space
@@ -86,11 +86,11 @@ void main() {
         // }
     }
 
-    vec3 baseColor = fsDiffuseColor;
+    vec3 baseColor = diffuseColor;
     vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
-    float roughness = fsRoughness;
+    float roughness = roughnessValue;
     float ao = 1.0;
-    float metallic = fsMetallic;
+    float metallic = metallicValue;
 
     if (textured) {
         baseColor = texture(diffuseTexture, texCoords).rgb;
@@ -129,7 +129,7 @@ void main() {
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = baseColor;
-    gBaseReflectivity = fsBaseReflectivity;
+    gBaseReflectivity = baseReflectivityValue;
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);

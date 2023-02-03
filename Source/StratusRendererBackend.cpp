@@ -17,6 +17,23 @@
 #include "StratusWindow.h"
 
 namespace stratus {
+bool IsRenderable(const Entity2Ptr& p) {
+    return p->Components().ContainsComponent<RenderComponent>();
+}
+
+bool IsLightInteracting(const Entity2Ptr& p) {
+    auto component = p->Components().GetComponent<LightInteractionComponent>();
+    return component.status == EntityComponentStatus::COMPONENT_ENABLED;
+}
+
+size_t GetMeshCount(const Entity2Ptr& p) {
+    return p->Components().GetComponent<RenderComponent>().component->NumMaterials();
+}
+
+static MeshPtr GetMesh(const Entity2Ptr& p, const size_t meshIndex) {
+    return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
+}
+
 // See https://www.khronos.org/opengl/wiki/Debug_Output
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
@@ -291,10 +308,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
     // Create skybox cube
-    _state.skyboxCube = nullptr;// ResourceManager::Instance()->CreateCube()->GetRenderNode();
+    _state.skyboxCube = ResourceManager::Instance()->CreateCube();
 
     // Create the screen quad
-    _state.screenQuad = nullptr;// ResourceManager::Instance()->CreateQuad()->GetRenderNode();
+    _state.screenQuad = ResourceManager::Instance()->CreateQuad();
 
     // Use the shader isValid() method to determine if everything succeeded
     _ValidateAllShaders();
@@ -616,38 +633,38 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     }
 }
 
-void RendererBackend::_InitAllInstancedData() {
-#define INIT_INST_DATA(map)                                         \
-    for (auto& entry : map) {                                       \
-        RenderNodeView node = entry.first;                          \
-        std::vector<RendererEntityData>& dataVec = entry.second;    \
-        for (auto& data : dataVec) {                                \
-            _InitInstancedData(data);                               \
-        }                                                           \
-    }
+// void RendererBackend::_InitAllInstancedData() {
+// #define INIT_INST_DATA(map)                                         \
+//     for (auto& entry : map) {                                       \
+//         RenderNodeView node = entry.first;                          \
+//         std::vector<RendererEntityData>& dataVec = entry.second;    \
+//         for (auto& data : dataVec) {                                \
+//             _InitInstancedData(data);                               \
+//         }                                                           \
+//     }
 
-    // Dynamic entities
-    INIT_INST_DATA(_frame->instancedPbrMeshes)
+//     // Dynamic entities
+//     INIT_INST_DATA(_frame->instancedPbrMeshes)
 
-    // Flat entities
-    INIT_INST_DATA(_frame->instancedFlatMeshes)
+//     // Flat entities
+//     INIT_INST_DATA(_frame->instancedFlatMeshes)
 
-    // Shadow-casting lights
-    for (auto& entry : _frame->lights) {
-        auto light = entry.first;
-        auto& lightData = entry.second;
-        if (light->castsShadows() && lightData.dirty) {
-            INIT_INST_DATA(lightData.visible)
-        }
-    }
+//     // Shadow-casting lights
+//     for (auto& entry : _frame->lights) {
+//         auto light = entry.first;
+//         auto& lightData = entry.second;
+//         if (light->castsShadows() && lightData.dirty) {
+//             INIT_INST_DATA(lightData.visible)
+//         }
+//     }
 
-    // Cascades
-    if (_frame->csc.worldLight->getEnabled()) {
-        INIT_INST_DATA(_frame->csc.visible)
-    }
+//     // Cascades
+//     if (_frame->csc.worldLight->getEnabled()) {
+//         INIT_INST_DATA(_frame->csc.visible)
+//     }
 
-#undef INIT_INST_DATA
-}
+// #undef INIT_INST_DATA
+// }
 
 void RendererBackend::_InitSSAO() {
     // Create k values 0 to 15 and randomize them
@@ -709,7 +726,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     SDL_GL_MakeCurrent(window, _context);
 
     // Clear out instanced data from previous frame
-    _ClearInstancedData();
+    //_ClearInstancedData();
 
     // Clear out light data for lights that were removed
     _ClearRemovedLightData();
@@ -724,7 +741,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     _ClearFramebufferData(clearScreen);
 
     // Generate the GPU data for all instanced entities
-    _InitAllInstancedData();
+    //_InitAllInstancedData();
 
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -756,56 +773,56 @@ static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
-void RendererBackend::_InitInstancedData(RendererEntityData & c) {
-    Pipeline * pbr = _state.geometry.get();
+// void RendererBackend::_InitInstancedData(RendererEntityData & c) {
+//     Pipeline * pbr = _state.geometry.get();
 
-    auto & modelMats = c.modelMatrices;
-    auto & diffuseColors = c.diffuseColors;
-    auto & baseReflectivity = c.baseReflectivity;
-    auto & roughness = c.roughness;
-    auto & metallic = c.metallic;
-    auto & buffers = c.buffers;
-    buffers.Clear();
-    _state.gpuBuffers.push_back(buffers);
+//     auto & modelMats = c.modelMatrices;
+//     auto & diffuseColors = c.diffuseColors;
+//     auto & baseReflectivity = c.baseReflectivity;
+//     auto & roughness = c.roughness;
+//     auto & metallic = c.metallic;
+//     auto & buffers = c.buffers;
+//     buffers.Clear();
+//     _state.gpuBuffers.push_back(buffers);
 
-    GpuPrimitiveBuffer buffer;
+//     GpuPrimitiveBuffer buffer;
 
-    // First the model matrices
+//     // First the model matrices
 
-    // All shaders should use the same location for model, so this should work
-    int pos = pbr->getAttribLocation("model");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
-    buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     // All shaders should use the same location for model, so this should work
+//     int pos = pbr->getAttribLocation("model");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
+//     buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("diffuseColor");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("diffuseColor");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
+//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("baseReflectivity");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("baseReflectivity");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
+//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("metallic");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("metallic");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
+//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("roughness");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("roughness");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
+//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    //buffers.Bind();
-}
+//     //buffers.Bind();
+// }
 
-void RendererBackend::_ClearInstancedData() {
-    // glDeleteBuffers(buffers.size(), &buffers[0]);
-    for (auto& buffer: _state.gpuBuffers) buffer.Clear();
-    _state.gpuBuffers.clear();
-}
+// void RendererBackend::_ClearInstancedData() {
+//     // glDeleteBuffers(buffers.size(), &buffers[0]);
+//     for (auto& buffer: _state.gpuBuffers) buffer.Clear();
+//     _state.gpuBuffers.clear();
+// }
 
 void RendererBackend::_BindShader(Pipeline * s) {
     _UnbindShader();
@@ -843,7 +860,7 @@ static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
 }
 
-void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslation) {
+void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
@@ -861,8 +878,8 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
 
     // Set up the shader we will use for this batch of entities
     Pipeline * s;
-    std::vector<RendererEntityData>* meshContainer;
-    if (e.Get()->GetLightInteractionEnabled() == false) {
+    std::vector<RenderMeshContainerPtr>* meshContainer;
+    if (IsLightInteracting(e) == false) {
         s = _state.forward.get();
         meshContainer = &_frame->instancedFlatMeshes.find(e)->second;
     }
@@ -885,23 +902,23 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
             s->bindTexture(name, tex.Get());        \
         }
 
-    for (int i = 0; i < meshContainer->size(); ++i) {
+    for (size_t i = 0; i < GetMeshCount(e); ++i) {
         Async<Texture> tex;
-        const RenderMeshContainer* c = e.Get()->GetMeshContainer(i);
-        const RendererEntityData& container = (*meshContainer)[i];
+        const RenderMeshContainerPtr c = (*meshContainer)[i];
+        s->setMat4("model", c->transform);
 
         if (c->material->GetDiffuseTexture()) {
             SETUP_TEXTURE("diffuseTexture", "textured", c->material->GetDiffuseTexture())
         }
         else {
+            s->setVec3("diffuseColor", c->material->GetDiffuseColor());
             s->setBool("textured", false);
         }
 
         // Determine which uniforms we should set
-        if (e.Get()->GetLightInteractionEnabled() == false) {
-            s->setVec3("diffuseColor", &c->material->GetDiffuseColor()[0]);
-        }
-        else {
+        if (IsLightInteracting(e)) {
+            s->setVec3("baseReflectivityValue", c->material->GetBaseReflectivity());
+
             if (c->material->GetNormalMap()) {
                 SETUP_TEXTURE("normalMap", "normalMapped", c->material->GetNormalMap())
             }
@@ -922,6 +939,7 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
                 SETUP_TEXTURE("roughnessMap", "roughnessMapped", c->material->GetRoughnessMap());
             }
             else {
+                s->setFloat("roughnessValue", c->material->GetRoughness());
                 s->setBool("roughnessMapped", false);
             }
 
@@ -936,6 +954,7 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
                 SETUP_TEXTURE("metalnessMap", "metalnessMapped", c->material->GetMetallicMap())
             }
             else {
+                s->setFloat("metallicValue", c->material->GetMetallic());
                 s->setBool("metalnessMapped", false);
             }
 
@@ -952,7 +971,7 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
         // Perform instanced rendering
         SetCullState(c->mesh->GetFaceCulling());
 
-        c->mesh->Render(container.size, container.buffers);
+        c->mesh->Render(1, GpuArrayBuffer());
     }
 
 #undef SETUP_TEXTURE
@@ -973,7 +992,8 @@ void RendererBackend::_RenderSkybox() {
         _state.skybox->setMat4("view", view);
         _state.skybox->bindTexture("skybox", sky.Get());
 
-        _state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+        GetMesh(_state.skyboxCube, 0)->Render(1, GpuArrayBuffer());
+        //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
     _UnbindShader();
@@ -1012,16 +1032,16 @@ void RendererBackend::_RenderCSMDepth() {
     // Render each entity into the depth map
     for (auto& viewMesh : _frame->csc.visible) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
-            const RendererEntityData& container = viewMesh.second[i];
-            const RenderNodeView& e = viewMesh.first;
-            const RenderMeshPtr m = e.Get()->GetMeshContainer(i)->mesh;
-            const size_t numInstances = container.size;
+            const RenderMeshContainerPtr container = viewMesh.second[i];
+            const Entity2Ptr& e = viewMesh.first;
+            const MeshPtr m = container->mesh;
+            const size_t numInstances = 1;
             // Override and use ASSIMP default which is CCW
             // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
             //  under FlipWindingOrder)
             SetCullState(m->GetFaceCulling());
             //SetCullState(RenderFaceCulling::CULLING_CCW);
-            m->Render(numInstances, container.buffers);
+            m->Render(numInstances, GpuArrayBuffer());
         }
     }
     _frame->csc.fbo.unbind();
@@ -1228,9 +1248,9 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 
         for (auto & entityObservers : instancedMeshes) {
             for (int i = 0; i < entityObservers.second.size(); ++i) {
-                RenderMeshPtr m = entityObservers.first.Get()->GetMeshContainer(i)->mesh;
+                MeshPtr m = entityObservers.second[i]->mesh;
                 SetCullState(m->GetFaceCulling());
-                m->Render(entityObservers.second[i].size, entityObservers.second[i].buffers);
+                m->Render(1, GpuArrayBuffer());
             }
         }
 
@@ -1435,7 +1455,7 @@ void RendererBackend::RenderScene() {
     glEnable(GL_DEPTH_TEST);
 
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
-        const RenderNodeView& e = entityObservers.first;
+        const Entity2Ptr& e = entityObservers.first;
         _Render(e);
     }
     _state.buffer.fbo.unbind();
@@ -1489,7 +1509,7 @@ void RendererBackend::RenderScene() {
     _RenderSkybox();
 
     for (auto & entityObservers : _frame->instancedFlatMeshes) {
-        const RenderNodeView& e = entityObservers.first;
+        const Entity2Ptr& e = entityObservers.first;
         _Render(e);
     }
     _state.lightingFbo.unbind();
@@ -1671,7 +1691,8 @@ void RendererBackend::End() {
 }
 
 void RendererBackend::_RenderQuad() {
-    _state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+    GetMesh(_state.screenQuad, 0)->Render(1, GpuArrayBuffer());
+    //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
 TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {

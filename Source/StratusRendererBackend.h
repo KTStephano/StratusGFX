@@ -19,6 +19,10 @@
 #include "StratusGpuBuffer.h"
 #include "StratusThread.h"
 #include "StratusAsync.h"
+#include "StratusEntityCommon.h"
+#include "StratusEntity2.h"
+#include "StratusTransformComponent.h"
+#include "StratusRenderComponents.h"
 
 namespace stratus {
     class Pipeline;
@@ -27,17 +31,36 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
-    struct RendererEntityData {
-        std::vector<glm::mat4> modelMatrices;
-        std::vector<glm::vec3> diffuseColors;
-        std::vector<glm::vec3> baseReflectivity;
-        std::vector<float> roughness;
-        std::vector<float> metallic;
-        GpuArrayBuffer buffers;
-        size_t size = 0;    
-        // if true, regenerate buffers
-        bool dirty;
+    extern bool IsRenderable(const Entity2Ptr&);
+    extern bool IsLightInteracting(const Entity2Ptr&);
+    extern size_t GetMeshCount(const Entity2Ptr&);
+
+    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
+        MeshWorldTransforms() = default;
+        MeshWorldTransforms(const MeshWorldTransforms&) = default;
+
+        std::vector<glm::mat4> transforms;
     };
+
+    struct RenderMeshContainer {
+        MeshPtr mesh;
+        MaterialPtr material;
+        glm::mat4 transform;
+    };
+
+    typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
+
+    // struct RendererEntityData {
+    //     std::vector<glm::mat4> modelMatrices;
+    //     std::vector<glm::vec3> diffuseColors;
+    //     std::vector<glm::vec3> baseReflectivity;
+    //     std::vector<float> roughness;
+    //     std::vector<float> metallic;
+    //     GpuArrayBuffer buffers;
+    //     size_t size = 0;    
+    //     // if true, regenerate buffers
+    //     bool dirty;
+    // };
 
     struct RendererMouseState {
         int32_t x;
@@ -45,10 +68,10 @@ namespace stratus {
         uint32_t mask;
     };
 
-    typedef std::unordered_map<RenderNodeView, std::vector<RendererEntityData>> InstancedData;
+    typedef std::unordered_map<Entity2Ptr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererLightData {
-        InstancedData visible; 
+        EntityMeshData visible; 
         // If true then its shadow maps should be regenerated
         bool dirty;
     };
@@ -77,7 +100,7 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
-        InstancedData visible;
+        EntityMeshData visible;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
@@ -95,8 +118,8 @@ namespace stratus {
         CameraPtr camera;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
-        InstancedData instancedPbrMeshes;
-        InstancedData instancedFlatMeshes;
+        EntityMeshData instancedPbrMeshes;
+        EntityMeshData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         std::unordered_set<LightPtr> lightsToRemove;
@@ -270,10 +293,10 @@ namespace stratus {
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
-            RenderNodePtr skyboxCube;
+            Entity2Ptr skyboxCube;
             // Generic screen quad so we can render the screen
             // from a separate frame buffer
-            RenderNodePtr screenQuad;
+            Entity2Ptr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
         };
@@ -412,16 +435,15 @@ namespace stratus {
     private:
         void _InitializeVplData();
         void _ClearGBuffer();
-        void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
         void _ClearFramebufferData(const bool);
-        void _InitAllInstancedData();
+        // void _InitAllEntityMeshData();
         void _InitCoreCSMData(Pipeline *);
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
         void _InitAtmosphericShadowing();
-        void _InitInstancedData(RendererEntityData &);
-        void _ClearInstancedData();
+        // void _InitEntityMeshData(RendererEntityData &);
+        // void _ClearEntityMeshData();
         void _ClearRemovedLightData();
         void _BindShader(Pipeline *);
         void _UnbindShader();
@@ -429,7 +451,7 @@ namespace stratus {
         void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
-        void _Render(const RenderNodeView &, bool removeViewTranslation = false);
+        void _Render(const Entity2Ptr&, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);

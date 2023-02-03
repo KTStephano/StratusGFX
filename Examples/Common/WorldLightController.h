@@ -20,7 +20,7 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
     virtual ~WorldLightController() {
-        INSTANCE(RendererFrontend)->SetWorldLight(nullptr);
+        INSTANCE(RendererFrontend)->ClearWorldLight();
     }
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {

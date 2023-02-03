@@ -1,11 +1,11 @@
 #pragma once
 
-#include <vector>
-#include <memory>
-#include "StratusCommon.h"
-#include "StratusGpuBuffer.h"
-#include "StratusMaterial.h"
-#include "StratusMath.h"
+// #include <vector>
+// #include <memory>
+// #include "StratusCommon.h"
+// #include "StratusGpuBuffer.h"
+// #include "StratusMaterial.h"
+// #include "StratusMath.h"
 
 namespace stratus {
     enum class RenderFaceCulling : int {
@@ -13,162 +13,163 @@ namespace stratus {
         CULLING_CW,     // Clock-wise
         CULLING_CCW,    // Counter-clock-wise
     };
+}
 
-    struct RenderMesh;
-    struct RenderNode;
-    struct Entity;
+//     struct RenderMesh;
+//     struct RenderNode;
+//     struct Entity;
 
-    typedef std::shared_ptr<RenderMesh> RenderMeshPtr;
-    typedef std::shared_ptr<RenderNode> RenderNodePtr;
+//     typedef std::shared_ptr<RenderMesh> RenderMeshPtr;
+//     typedef std::shared_ptr<RenderNode> RenderNodePtr;
 
-    struct RenderMesh {
-        ~RenderMesh() = default;
+//     struct RenderMesh {
+//         ~RenderMesh() = default;
     
-        void AddVertex(const glm::vec3&);
-        void AddUV(const glm::vec2&);
-        void AddNormal(const glm::vec3&);
-        void AddTangent(const glm::vec3&);
-        void AddBitangent(const glm::vec3&);
-        void AddIndex(uint32_t);
+//         void AddVertex(const glm::vec3&);
+//         void AddUV(const glm::vec2&);
+//         void AddNormal(const glm::vec3&);
+//         void AddTangent(const glm::vec3&);
+//         void AddBitangent(const glm::vec3&);
+//         void AddIndex(uint32_t);
 
-        void CalculateTangentsBitangents() const;
-        // Generate Cpu data can happen on any thread
-        void GenerateCpuData() const;
-        // Generate Gpu Data MUST happen on rendering thread
-        void GenerateGpuData() const;
-        // Finalize gpu data can happen on any thread
-        void FinalizeGpuData() const;
-        void UnmapAllGpuBuffers() const;
-        const GpuArrayBuffer& GetData() const;
+//         void CalculateTangentsBitangents() const;
+//         // Generate Cpu data can happen on any thread
+//         void GenerateCpuData() const;
+//         // Generate Gpu Data MUST happen on rendering thread
+//         void GenerateGpuData() const;
+//         // Finalize gpu data can happen on any thread
+//         void FinalizeGpuData() const;
+//         void UnmapAllGpuBuffers() const;
+//         const GpuArrayBuffer& GetData() const;
 
-        size_t GetGpuSizeBytes() const;
+//         size_t GetGpuSizeBytes() const;
 
-        bool IsCpuDirty() const;
-        bool IsGpuDirty() const;
-        bool IsGpuDataDirty() const;
-        bool Complete() const;
+//         bool IsCpuDirty() const;
+//         bool IsGpuDirty() const;
+//         bool IsGpuDataDirty() const;
+//         bool Complete() const;
 
-        void SetFaceCulling(const RenderFaceCulling&);
-        RenderFaceCulling GetFaceCulling() const;
+//         void SetFaceCulling(const RenderFaceCulling&);
+//         RenderFaceCulling GetFaceCulling() const;
 
-        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
+//         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
-    private:
-        void _UnmapAllGpuBuffersAndFinalizeData() const;
+//     private:
+//         void _UnmapAllGpuBuffersAndFinalizeData() const;
 
-    private:
-        mutable GpuArrayBuffer _buffers;
-        mutable std::vector<glm::vec3> _vertices;
-        mutable std::vector<glm::vec2> _uvs;
-        mutable std::vector<glm::vec3> _normals;
-        mutable std::vector<glm::vec3> _tangents;
-        mutable std::vector<glm::vec3> _bitangents;
-        mutable std::vector<uint32_t> _indices;
-        mutable std::vector<float> _data;
-        mutable size_t _dataSizeBytes;
-        mutable uint32_t _numVertices;
-        mutable uint32_t _numIndices;
-        mutable bool _isCpuDirty = true;
-        mutable bool _isGpuDirty = true;
-        mutable bool _isGpuDataDirty = true;
-        //mutable void * _primitiveMapped = nullptr;
-        //mutable void * _indicesMapped = nullptr;
-        mutable RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
-    };
+//     private:
+//         mutable GpuArrayBuffer _buffers;
+//         mutable std::vector<glm::vec3> _vertices;
+//         mutable std::vector<glm::vec2> _uvs;
+//         mutable std::vector<glm::vec3> _normals;
+//         mutable std::vector<glm::vec3> _tangents;
+//         mutable std::vector<glm::vec3> _bitangents;
+//         mutable std::vector<uint32_t> _indices;
+//         mutable std::vector<float> _data;
+//         mutable size_t _dataSizeBytes;
+//         mutable uint32_t _numVertices;
+//         mutable uint32_t _numIndices;
+//         mutable bool _isCpuDirty = true;
+//         mutable bool _isGpuDirty = true;
+//         mutable bool _isGpuDataDirty = true;
+//         //mutable void * _primitiveMapped = nullptr;
+//         //mutable void * _indicesMapped = nullptr;
+//         mutable RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
+//     };
 
-    struct RenderMeshContainer {
-        RenderMeshPtr mesh;
-        MaterialPtr material;
-    };
+//     struct RenderMeshContainer {
+//         RenderMeshPtr mesh;
+//         MaterialPtr material;
+//     };
 
-    // A render node contains one or more material+mesh combinations as well as
-    // a local transform. A render node itself is meant to be attached to an Entity
-    // and the full world transform is derived by doing Entity->Transform * Node->Transform.
-    struct RenderNode {
-        // Deep copy of transform data - shallow copy of render data
-        RenderNodePtr Copy() const;
+//     // A render node contains one or more material+mesh combinations as well as
+//     // a local transform. A render node itself is meant to be attached to an Entity
+//     // and the full world transform is derived by doing Entity->Transform * Node->Transform.
+//     struct RenderNode {
+//         // Deep copy of transform data - shallow copy of render data
+//         RenderNodePtr Copy() const;
 
-        size_t GetNumMeshContainers() const;
-        const RenderMeshContainer * GetMeshContainer(size_t index) const;
-        void AddMeshContainer(const RenderMeshContainer&);
+//         size_t GetNumMeshContainers() const;
+//         const RenderMeshContainer * GetMeshContainer(size_t index) const;
+//         void AddMeshContainer(const RenderMeshContainer&);
 
-        // Sets the material for all mesh containers
-        void SetMaterial(const MaterialPtr&);
-        // Sets material for individual container
-        void SetMaterialFor(size_t containerIndex, const MaterialPtr&);
+//         // Sets the material for all mesh containers
+//         void SetMaterial(const MaterialPtr&);
+//         // Sets material for individual container
+//         void SetMaterialFor(size_t containerIndex, const MaterialPtr&);
 
-        // Transform info
-        void SetLocalPosition(const glm::vec3&);
-        void SetLocalRotation(const Rotation&);
-        // Offsets local rotation rather than overwrite
-        void UpdateLocalRotation(const Rotation&);
-        void SetLocalScale(const glm::vec3&);
-        void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
-        // Called by Entity when its transform info changes
-        void SetGlobalTransform(const glm::mat4&);
+//         // Transform info
+//         void SetLocalPosition(const glm::vec3&);
+//         void SetLocalRotation(const Rotation&);
+//         // Offsets local rotation rather than overwrite
+//         void UpdateLocalRotation(const Rotation&);
+//         void SetLocalScale(const glm::vec3&);
+//         void SetLocalPosRotScale(const glm::vec3&, const Rotation&, const glm::vec3&);
+//         // Called by Entity when its transform info changes
+//         void SetGlobalTransform(const glm::mat4&);
 
-        glm::vec3 GetLocalPosition() const;
-        const glm::mat4& GetLocalRotation() const;
-        glm::vec3 GetLocalScale() const;
+//         glm::vec3 GetLocalPosition() const;
+//         const glm::mat4& GetLocalRotation() const;
+//         glm::vec3 GetLocalScale() const;
 
-        glm::vec3 GetWorldPosition() const;
+//         glm::vec3 GetWorldPosition() const;
 
-        // This will be entity world transform * node transform
-        const glm::mat4& GetWorldTransform() const;
+//         // This will be entity world transform * node transform
+//         const glm::mat4& GetWorldTransform() const;
 
-        // True by default
-        void EnableLightInteraction(bool enabled);
-        void SetInvisible(bool invisible);
+//         // True by default
+//         void EnableLightInteraction(bool enabled);
+//         void SetInvisible(bool invisible);
 
-        bool GetLightInteractionEnabled() const;
-        bool GetInvisible() const;
+//         bool GetLightInteractionEnabled() const;
+//         bool GetInvisible() const;
 
-        bool operator==(const RenderNode& other) const;
-        bool operator!=(const RenderNode& other) const { return !(*this == other); }
+//         bool operator==(const RenderNode& other) const;
+//         bool operator!=(const RenderNode& other) const { return !(*this == other); }
 
-        size_t HashCode() const;
+//         size_t HashCode() const;
 
-        const std::shared_ptr<Entity>& GetOwner() const;
-        void SetOwner(const std::shared_ptr<Entity>&);
+//         const std::shared_ptr<Entity>& GetOwner() const;
+//         void SetOwner(const std::shared_ptr<Entity>&);
 
-    private:
-        std::vector<RenderMeshContainer> _meshes;
-        mutable bool _transformIsDirty = true;
-        mutable glm::mat4 _globalTransform = glm::mat4(1.0f);
-        mutable glm::mat4 _localTransform = glm::mat4(1.0f);
-        glm::mat4 _localScale = glm::mat4(1.0f);
-        glm::mat4 _localRotation = glm::mat4(1.0f);
-        glm::mat4 _localTranslate = glm::mat4(1.0f);
-        bool _lightInteractionEnabled = true;
-        bool _invisible = false;
-        std::shared_ptr<Entity> _owner;
-    };
+//     private:
+//         std::vector<RenderMeshContainer> _meshes;
+//         mutable bool _transformIsDirty = true;
+//         mutable glm::mat4 _globalTransform = glm::mat4(1.0f);
+//         mutable glm::mat4 _localTransform = glm::mat4(1.0f);
+//         glm::mat4 _localScale = glm::mat4(1.0f);
+//         glm::mat4 _localRotation = glm::mat4(1.0f);
+//         glm::mat4 _localTranslate = glm::mat4(1.0f);
+//         bool _lightInteractionEnabled = true;
+//         bool _invisible = false;
+//         std::shared_ptr<Entity> _owner;
+//     };
 
-    // This makes it easy to insert a render node into a hash set/map
-    struct RenderNodeView {
-        RenderNodeView() {}
-        RenderNodeView(const RenderNodePtr& node) : _node(node) {}
-        size_t HashCode() const { return _node->HashCode(); }
-        const RenderNodePtr& Get() const { return _node; }
+//     // This makes it easy to insert a render node into a hash set/map
+//     struct RenderNodeView {
+//         RenderNodeView() {}
+//         RenderNodeView(const RenderNodePtr& node) : _node(node) {}
+//         size_t HashCode() const { return _node->HashCode(); }
+//         const RenderNodePtr& Get() const { return _node; }
 
-        bool operator==(const RenderNodeView& other) const {
-            return *_node == *other._node;
-        }
+//         bool operator==(const RenderNodeView& other) const {
+//             return *_node == *other._node;
+//         }
 
-        bool operator!=(const RenderNodeView& other) const {
-            return !(*this == other);
-        }
+//         bool operator!=(const RenderNodeView& other) const {
+//             return !(*this == other);
+//         }
 
-    private:
-        RenderNodePtr _node;
-    };
-}
+//     private:
+//         RenderNodePtr _node;
+//     };
+// }
 
-namespace std {
-    template<>
-    struct hash<stratus::RenderNodeView> {
-        size_t operator()(const stratus::RenderNodeView & v) const {
-            return v.HashCode();
-        }
-    };
-}
+// namespace std {
+//     template<>
+//     struct hash<stratus::RenderNodeView> {
+//         size_t operator()(const stratus::RenderNodeView & v) const {
+//             return v.HashCode();
+//         }
+//     };
+// }

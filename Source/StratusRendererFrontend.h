@@ -29,15 +29,12 @@ namespace stratus {
         RendererFrontend(const RendererParams&);
 
         struct LightData {
-            std::unordered_set<EntityView> visible;
+            EntityMeshData visible;
             LightPtr lightCopy;
             bool dirty = true;
         };
 
     public:
-        void AddStaticEntity(const EntityPtr&);
-        void AddDynamicEntity(const EntityPtr&);
-        void RemoveEntity(const EntityPtr&);
         void AddStaticEntity(const Entity2Ptr&);
         void AddDynamicEntity(const Entity2Ptr&);
         void RemoveEntity(const Entity2Ptr&);
@@ -80,10 +77,11 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        static void _AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_set<EntityView>& pbr, std::unordered_set<EntityView>& flat, std::unordered_map<LightPtr, LightData>& lights);
-        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_set<EntityView>& entities);
-        static bool _EntityChanged(const EntityView&);
-        void _CheckEntitySetForChanges(std::unordered_set<EntityView>&, bool&);
+        static void _AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights);
+        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
+        static bool _EntityChanged(const Entity2Ptr&);
+        void _RemoveEntity(const Entity2Ptr&);
+        void _CheckEntitySetForChanges(EntityMeshData&, bool&);
 
     private:
         void _UpdateViewport();
@@ -92,13 +90,12 @@ namespace stratus {
         void _UpdateLights();
         void _UpdateCameraVisibility();
         void _UpdateCascadeVisibility();
-        void _SwapFrames();
 
     private:
         RendererParams _params;
-        std::unordered_set<EntityView> _staticPbrEntities;
-        std::unordered_set<EntityView> _dynamicPbrEntities;
-        std::unordered_set<EntityView> _flatEntities;
+        EntityMeshData _staticPbrEntities;
+        EntityMeshData _dynamicPbrEntities;
+        EntityMeshData _flatEntities;
         std::unordered_map<LightPtr, LightData> _lights;
         std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
@@ -111,7 +108,6 @@ namespace stratus {
         bool _viewportDirty = true;
         bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
-        std::shared_ptr<RendererFrame> _prevFrame;
         std::unique_ptr<RendererBackend> _renderer;
         mutable std::shared_mutex _mutex;
     };

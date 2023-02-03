@@ -256,34 +256,28 @@ namespace stratus {
         return _buffers;
     }
 
-    // void Mesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
-    //     // GenerateCpuData();
-    //     // GenerateGpuData();
-    //     // FinalizeGpuData();
+    void Mesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
+        if (!IsFinalized()) return;
 
-    //     // We don't want to run if our memory is mapped since another thread might be
-    //     // writing data to a buffer's memory region
-    //     if (!Complete()) return;
+        //if (_primitiveMapped != nullptr || _cpuData->indicesMapped != nullptr) {
+        //    //_buffers.UnmapAllReadWrite();
+        //    _primitiveMapped = nullptr;
+        //    _cpuData->indicesMapped = nullptr;
+        //}
 
-    //     //if (_primitiveMapped != nullptr || _cpuData->indicesMapped != nullptr) {
-    //     //    //_buffers.UnmapAllReadWrite();
-    //     //    _primitiveMapped = nullptr;
-    //     //    _cpuData->indicesMapped = nullptr;
-    //     //}
+        _buffers.Bind();
+        additionalBuffers.Bind();
 
-    //     _buffers.Bind();
-    //     additionalBuffers.Bind();
+        if (_numIndices > 0) {
+            glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (void *)0, numInstances);
+        }
+        else {
+            glDrawArraysInstanced(GL_TRIANGLES, 0, _numVertices, numInstances);
+        }
 
-    //     if (_numIndices > 0) {
-    //         glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (void *)0, numInstances);
-    //     }
-    //     else {
-    //         glDrawArraysInstanced(GL_TRIANGLES, 0, _numVertices, numInstances);
-    //     }
-
-    //     additionalBuffers.Unbind();
-    //     _buffers.Unbind();
-    // }
+        additionalBuffers.Unbind();
+        _buffers.Unbind();
+    }
 
     void Mesh::SetFaceCulling(const RenderFaceCulling& cullMode) {
         _cullMode = cullMode;
@@ -300,6 +294,14 @@ namespace stratus {
         this->meshes = other.meshes;
     }
 
+    MeshPtr RenderComponent::GetMesh(const size_t meshIndex) const {
+        return meshes->meshes[meshIndex];
+    }
+
+    const glm::mat4& RenderComponent::GetMeshTransform(const size_t meshIndex) const {
+        return meshes->transforms[meshIndex];
+    }
+
     size_t RenderComponent::NumMaterials() const {
         return _materials.size();
     }
@@ -314,9 +316,11 @@ namespace stratus {
 
     void RenderComponent::AddMaterial(MaterialPtr material) {
         _materials.push_back(material);
+        MarkChanged();
     }
 
     void RenderComponent::SetMaterialAt(MaterialPtr material, size_t index) {
         _materials[index] = material;
+        MarkChanged();
     }
 }
