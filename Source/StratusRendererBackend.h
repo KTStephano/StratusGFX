@@ -204,6 +204,7 @@ namespace stratus {
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int maxTotalVirtualPointLightsPerFrame = 128;
             int maxTotalVirtualLightsPerTile = 16;
+            GpuBuffer vplShadowMaps;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;

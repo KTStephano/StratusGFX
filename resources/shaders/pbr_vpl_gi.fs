@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "pbr.glsl"
 #include "vpl_tiled_deferred_culling.glsl"
 
@@ -21,8 +23,12 @@ uniform sampler2DRect ssao;
 uniform vec3 viewPosition;
 
 // Shadow information
-uniform samplerCube shadowCubeMaps[MAX_TOTAL_VPLS_PER_FRAME];
+//uniform samplerCube shadowCubeMaps[MAX_TOTAL_VPLS_PER_FRAME];
 uniform vec3 infiniteLightColor;
+
+layout (std430, binding = 11) readonly buffer shadows {
+    samplerCube shadowCubeMaps[];
+};
 
 // Window information
 uniform int viewportWidth;

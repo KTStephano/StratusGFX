@@ -3,11 +3,11 @@
 #include <memory>
 #include <vector>
 #include "StratusHandle.h"
+#include "StratusGpuCommon.h"
 
 namespace stratus {    
     class Texture;
     typedef Handle<Texture> TextureHandle;
-    typedef uint64_t GpuResidentTextureHandle;
 
     enum class TextureType : int {
         TEXTURE_2D,
@@ -135,12 +135,13 @@ namespace stratus {
         TextureType type() const;
         TextureComponentFormat format() const;
         TextureHandle handle() const;
-        GpuResidentTextureHandle gpuHandle() const;
         
+        // 64 bit handle representing the texture within the graphics driver
+        GpuTextureHandle GpuHandle() const;
         // Makes the texture resident in GPU memory for bindless use
-        void makeResident();
+        void MakeResident();
         // Removes residency
-        void makeNonResident();
+        void MakeNonResident();
 
         uint32_t width() const;
         uint32_t height() const;

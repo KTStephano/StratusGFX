@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <StratusLight.h>
+#include "StratusGpuCommon.h"
 #include "StratusPipeline.h"
 #include "StratusRendererBackend.h"
 #include <math.h>
@@ -50,27 +51,9 @@ static const glm::mat4& GetMeshTransform(const RenderMeshContainerPtr& p) {
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
-       //std::cout << "[OpenGL] " << message << std::endl;
+       std::cout << "[OpenGL] " << message << std::endl;
     }
 }
-
-// Matches the definition in vpl_tiled_deferred_culling.glsl
-// See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
-struct alignas(16) GpuVec {
-    float v[4];
-
-    GpuVec(float x, float y, float z, float w) {
-        v[0] = x;
-        v[1] = y;
-        v[2] = z;
-        v[3] = w;
-    }
-
-    GpuVec(float xyzw) : GpuVec(xyzw, xyzw, xyzw, xyzw) {}
-    GpuVec(const glm::vec4& v) : GpuVec(v[0], v[1], v[2], v[3]) {}
-    GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
-    GpuVec() : GpuVec(0.0f) {}
-};
 
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
@@ -348,6 +331,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     std::vector<int> visibleIndicesData(_state.vpls.maxTotalVirtualPointLightsPerFrame, 0);
+    _state.vpls.vplShadowMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
     _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
@@ -1397,12 +1381,18 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
 
     // Set up the shadow maps and radius information
+    //GpuTextureHandle * handles = (GpuTextureHandle *)_state.vpls.vplShadowMaps.MapMemory();
+    std::vector<GpuTextureHandle> handles(perVPLDistToViewer.size());
     for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
         int lightIndex = i;
         LightPtr light = perVPLDistToViewer[lightIndex].first;
+        auto texture = _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light));
+        handles[i] = texture.GpuHandle();
         //VirtualPointLight * point = (VirtualPointLight *)light.get();
-        _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+        //_state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
     }
+    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * handles.size(), (const void *)handles.data());
+    //_state.vpls.vplShadowMaps.UnmapMemory();
 
     _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);
@@ -1415,6 +1405,7 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
     _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
     _state.vpls.vplShadowSamples.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
+    _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
@@ -1726,7 +1717,7 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     // These will be resident in GPU memory for the entire life cycle of the renderer
-    //smap.shadowCubeMap.makeResident();
+    smap.shadowCubeMap.MakeResident();
     return handle;
 }
 

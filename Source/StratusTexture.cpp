@@ -17,7 +17,6 @@ namespace stratus {
         TextureConfig _config;
         mutable int _activeTexture = -1;
         TextureHandle _handle;
-        GpuResidentTextureHandle _ptr;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -77,7 +76,6 @@ namespace stratus {
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateMipmap(_convertTexture(_config.type));
-            //_ptr = glGetTextureHandleARB(_texture);
             unbind();
         }
 
@@ -158,11 +156,16 @@ namespace stratus {
         TextureType type() const               { return _config.type; }
         TextureComponentFormat format() const  { return _config.format; }
         TextureHandle handle() const           { return _handle; }
-        GpuResidentTextureHandle gpuHandle() const { return _ptr; }
 
         // These cause RenderDoc to disable frame capture... super unfortunate
-        void makeResident()                    { throw std::runtime_error("Not implemented"); }// glMakeTextureHandleResidentARB((GLuint64)_ptr); }
-        void makeNonResident()                 { throw std::runtime_error("Not implemented"); }// ((GLuint64)_ptr); }
+        GpuTextureHandle GpuHandle() const {
+            auto gpuHandle = glGetTextureHandleARB(_texture);
+            //STRATUS_LOG << "GPU HANDLE: " << gpuHandle << std::endl;
+            return (GpuTextureHandle)gpuHandle;
+        }
+
+        void MakeResident()                        { glMakeTextureHandleResidentARB((GLuint64)GpuHandle()); }
+        void MakeNonResident()                     { glMakeTextureHandleNonResidentARB((GLuint64)GpuHandle()); }
 
         uint32_t width() const                 { return _config.width; }
         uint32_t height() const                { return _config.height; }
@@ -450,10 +453,10 @@ namespace stratus {
     TextureType Texture::type() const { return _impl->type(); }
     TextureComponentFormat Texture::format() const { return _impl->format(); }
     TextureHandle Texture::handle() const { return _impl->handle(); }
-    GpuResidentTextureHandle Texture::gpuHandle() const { return _impl->gpuHandle(); }
 
-    void Texture::makeResident() { _impl->makeResident(); }
-    void Texture::makeNonResident() { _impl->makeNonResident(); }
+    GpuTextureHandle Texture::GpuHandle() const { return _impl->GpuHandle(); }
+    void Texture::MakeResident() { _impl->MakeResident(); }
+    void Texture::MakeNonResident() { _impl->MakeNonResident(); }
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
