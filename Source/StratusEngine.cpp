@@ -222,10 +222,10 @@ namespace stratus {
         _ShutdownResourceAndDelete(MaterialManager::_Instance());
         _ShutdownResourceAndDelete(RendererFrontend::_Instance());
         _ShutdownResourceAndDelete(Window::_Instance());
+        _ShutdownResourceAndDelete(EntityManager::_Instance());
+        _ShutdownResourceAndDelete(TaskSystem::_Instance());
         // This one does not have a shutdown routine
         _DeleteResource(ApplicationThread::_Instance());
-        _ShutdownResourceAndDelete(TaskSystem::_Instance());
-        _ShutdownResourceAndDelete(EntityManager::_Instance());
         _ShutdownResourceAndDelete(Log::_Instance());
     }
 
