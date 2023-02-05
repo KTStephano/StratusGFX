@@ -33,23 +33,37 @@ namespace stratus {
         GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
         GpuVec() : GpuVec(0.0f) {}
 
-        GpuVec& operator=(const GpuVec&) = default;
-        GpuVec& operator=(GpuVec&&) = default;
+        GpuVec& operator=(const GpuVec& other) {
+            _Copy(glm::vec4(other.v[0], other.v[1], other.v[2], other.v[3]));
+            return *this;
+        }
+
+        GpuVec& operator=(GpuVec&& other) {
+            _Copy(glm::vec4(other.v[0], other.v[1], other.v[2], other.v[3]));
+            return *this;
+        }
 
         GpuVec& operator=(const glm::vec4& vec) {
-            v[0] = vec.x;
-            v[1] = vec.y;
-            v[2] = vec.z;
-            v[3] = vec.w;
+            _Copy(vec);
             return *this;
         }
 
         GpuVec& operator=(const glm::vec3& vec) {
-            return this->operator=(glm::vec4(vec, 0.0f));
+            _Copy(glm::vec4(vec, 0.0f));
+            return *this;
         }
 
         GpuVec& operator=(float xyzw) {
-            return this->operator=(glm::vec4(xyzw, xyzw, xyzw, xyzw));
+            _Copy(glm::vec4(xyzw, xyzw, xyzw, xyzw));
+            return *this;
+        }
+
+    private:
+        void _Copy(const glm::vec4& vec) {
+            v[0] = vec.x;
+            v[1] = vec.y;
+            v[2] = vec.z;
+            v[3] = vec.w;
         }
     };
 
@@ -75,5 +89,12 @@ namespace stratus {
         alignas(8) GpuTextureHandle metallicRoughnessMap;
         alignas(4) unsigned int flags = 0;
         alignas(4) unsigned int _1;
+
+        GpuMaterial() = default;
+        GpuMaterial(const GpuMaterial&) = default;
+        GpuMaterial(GpuMaterial&&) = default;
+
+        GpuMaterial& operator=(const GpuMaterial&) = default;
+        GpuMaterial& operator=(GpuMaterial&&) = default;
     };
 }

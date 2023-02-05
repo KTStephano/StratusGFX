@@ -74,13 +74,20 @@ namespace stratus {
         : _params(p) {
     }
 
-    void RendererFrontend::_AddEntity(const Entity2Ptr& p, bool& pbrDirty, std::unordered_set<Entity2Ptr>& entities, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights) {
+    void RendererFrontend::_AddAllMaterialsForEntity(const Entity2Ptr& p) {
+        RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
+        for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
+            _dirtyMaterials.insert(c->GetMaterialAt(i));
+        }
+    }
+
+    void RendererFrontend::_AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights) {
         if (p == nullptr) return;
         
         if (IsRenderable(p)) {
             InitializeMeshTransformComponent(p);
 
-            entities.insert(p);
+            _AddAllMaterialsForEntity(p);
             //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
@@ -104,20 +111,20 @@ namespace stratus {
         }
 
         for (auto& child : p->GetChildNodes()) {
-            _AddEntity(child, pbrDirty, entities, pbr, flat, lights);
+            _AddEntity(child, pbrDirty, pbr, flat, lights);
         }
     }
 
     void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
-        _AddEntity(p, _staticPbrDirty, _entities, _staticPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _entities, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+        _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     }
 
     void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
-        _AddEntity(p, _dynamicPbrDirty, _entities, _dynamicPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _entities, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
         _frame->csc.visible = _frame->instancedPbrMeshes;
     }
 
@@ -127,8 +134,6 @@ namespace stratus {
     }
 
     void RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
-        _entities.erase(p);
-
         if (_staticPbrEntities.erase(p)) {
             _staticPbrDirty = true;
         }
@@ -847,100 +852,118 @@ namespace stratus {
         return tex.Completed() && !tex.Failed();
     }
 
-    static void MarkForUse(std::unordered_map<Texture, size_t>& marked, const Texture& texture, const size_t frame) {
-        if (marked.find(texture) == marked.end()) {
-            Texture::MakeResident(texture);
-        }
-        marked.insert(std::make_pair(texture, frame));
-    }
-
-    void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial, const size_t frame) {
+    void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
         gpuMaterial->flags = 0;
 
         gpuMaterial->diffuseColor = glm::vec4(material->GetDiffuseColor(), 1.0f);
         gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
         gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
         gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
+
+        auto diffuseHandle =   material->GetDiffuseTexture();
+        auto ambientHandle =   material->GetAmbientTexture();
+        auto normalHandle =    material->GetNormalMap();
+        auto depthHandle =     material->GetDepthMap();
+        auto roughnessHandle = material->GetRoughnessMap();
+        auto metallicHandle =  material->GetMetallicMap();
+        auto metallicRoughnessHandle = material->GetMetallicRoughnessMap();
         
-        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(material->GetDiffuseTexture());
-        auto ambient = INSTANCE(ResourceManager)->LookupTexture(material->GetAmbientTexture());
-        auto normal = INSTANCE(ResourceManager)->LookupTexture(material->GetNormalMap());
-        auto depth = INSTANCE(ResourceManager)->LookupTexture(material->GetDepthMap());
-        auto roughness = INSTANCE(ResourceManager)->LookupTexture(material->GetRoughnessMap());
-        auto metallic = INSTANCE(ResourceManager)->LookupTexture(material->GetMetallicMap());
-        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(material->GetMetallicRoughnessMap());
+        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle);
+        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle);
+        auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle);
+        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle);
+        auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle);
+        auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle);
+        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle);
 
         if (ValidateTexture(diffuse)) {
             gpuMaterial->diffuseMap = diffuse.Get().GpuHandle();
             gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
-            MarkForUse(_markedForUse, diffuse.Get(), frame);
+            Texture::MakeResident(diffuse.Get());
         }
+        else if (diffuseHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(ambient)) {
             gpuMaterial->ambientMap = ambient.Get().GpuHandle();
             gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
-            MarkForUse(_markedForUse, ambient.Get(), frame);
+            Texture::MakeResident(ambient.Get());
         }
+        else if (ambientHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(normal)) {
             gpuMaterial->normalMap = normal.Get().GpuHandle();
             gpuMaterial->flags |= GPU_NORMAL_MAPPED;
-            MarkForUse(_markedForUse, normal.Get(), frame);
+            Texture::MakeResident(normal.Get());
         }
+        else if (normalHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(depth)) {
             gpuMaterial->depthMap = depth.Get().GpuHandle();
             gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
-            MarkForUse(_markedForUse, depth.Get(), frame);
+            Texture::MakeResident(depth.Get());
         }
+        else if (depthHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(roughness)) {
             gpuMaterial->roughnessMap = roughness.Get().GpuHandle();
             gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
-            MarkForUse(_markedForUse, roughness.Get(), frame);
+            Texture::MakeResident(roughness.Get());
         }
+        else if (roughnessHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(metallic)) {
             gpuMaterial->metallicMap = metallic.Get().GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_MAPPED;
-            MarkForUse(_markedForUse, metallic.Get(), frame);
+            Texture::MakeResident(metallic.Get());
         }
+        else if (metallicHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
         if (ValidateTexture(metallicRoughness)) {
             gpuMaterial->metallicRoughnessMap = metallicRoughness.Get().GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
-            MarkForUse(_markedForUse, metallicRoughness.Get(), frame);
+            Texture::MakeResident(metallicRoughness.Get());
+        }
+        else if (metallicRoughnessHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
         }
     }
 
     void RendererFrontend::_UpdateMaterialSet() {
-        auto frameCount = INSTANCE(Engine)->FrameCount();
+        if (_dirtyMaterials.size() == 0) return;
 
-        GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
-        _frame->materialInfo.indices.clear();
+        auto dirtyMaterials = std::move(_dirtyMaterials);
+
         std::unordered_map<MaterialPtr, int>& indices = _frame->materialInfo.indices;
-        int nextMaterialIndex = 0;
-        for (const Entity2Ptr & p : _entities) {
-            RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
-            for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-                MaterialPtr material = c->GetMaterialAt(i);
-                if (indices.find(material) != indices.end()) continue;
-                if (nextMaterialIndex >= _frame->materialInfo.maxMaterials) {
-                    throw std::runtime_error("Maximum number of materials per frame exceeded");
+        GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
+
+        for (auto material : dirtyMaterials) {
+            GpuMaterial * gpuMaterial;
+            if (indices.find(material) != indices.end()) {
+                gpuMaterial = &materials[indices.find(material)->second];
+            }
+            else {
+                int nextIndex = int(indices.size());
+                if (nextIndex >= _frame->materialInfo.maxMaterials) {
+                    throw std::runtime_error("Maximum number of materials exceeded");
                 }
-                indices.insert(std::make_pair(material, nextMaterialIndex));
-                _CopyMaterialToGpuAndMarkForUse(material, &materials[nextMaterialIndex], frameCount);
-                ++nextMaterialIndex;
+                gpuMaterial = &materials[nextIndex];
+                indices.insert(std::make_pair(material, nextIndex));
             }
+            _CopyMaterialToGpuAndMarkForUse(material, gpuMaterial);
         }
+
         _frame->materialInfo.materials.UnmapMemory();
-
-        _UpdateTextureResidency(frameCount);
-    }
-
-    void RendererFrontend::_UpdateTextureResidency(const size_t frame) {
-        std::vector<Texture> toDelete;
-        for (auto& entry : _markedForUse) {
-            if (entry.second != frame) {
-                toDelete.push_back(entry.first);
-                Texture::MakeNonResident(entry.first);
-            }
-        }
-
-        for (const auto& texture : toDelete) _markedForUse.erase(texture);
     }
 }

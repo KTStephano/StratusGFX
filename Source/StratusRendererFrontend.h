@@ -15,7 +15,9 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "StratusRenderComponents.h"
+#include "StratusGpuCommon.h"
 
 namespace stratus {
     struct RendererParams {
@@ -81,13 +83,13 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        static void _AddEntity(const Entity2Ptr& p, bool& pbrDirty, std::unordered_set<Entity2Ptr>& entities, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights);
+        void _AddAllMaterialsForEntity(const Entity2Ptr&);
+        void _AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights);
         static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
         static bool _EntityChanged(const Entity2Ptr&);
         void _RemoveEntity(const Entity2Ptr&);
         void _CheckEntitySetForChanges(EntityMeshData&, bool&);
-        void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial, const size_t frame);
-        void _UpdateTextureResidency(const size_t frame);
+        void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
 
     private:
         void _UpdateViewport();
@@ -103,8 +105,8 @@ namespace stratus {
         EntityMeshData _staticPbrEntities;
         EntityMeshData _dynamicPbrEntities;
         EntityMeshData _flatEntities;
-        std::unordered_set<Entity2Ptr> _entities;
-        std::unordered_map<Texture, size_t> _markedForUse;
+        std::unordered_set<MaterialPtr> _dirtyMaterials;
+        //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_map<LightPtr, LightData> _lights;
         std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
