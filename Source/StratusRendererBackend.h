@@ -110,12 +110,19 @@ namespace stratus {
         bool regenerateFbo;    
     };
 
+    struct RendererMaterialInformation {
+        size_t maxMaterials = 2048;
+        std::unordered_map<MaterialPtr, int> indices;
+        GpuBuffer materials;
+    };
+
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
+        RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
         EntityMeshData instancedPbrMeshes;

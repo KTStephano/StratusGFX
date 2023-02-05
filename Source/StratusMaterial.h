@@ -76,13 +76,15 @@ namespace stratus {
         void SetMetallicRoughnessMap(TextureHandle);
 
     private:
-        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        //std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
+        //std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        int _LockWrite() const { return 0; }
+        int _LockRead()  const { return 0; }
 
         void _Release();
     
     private:
-        mutable std::shared_mutex _mutex;
+        //mutable std::shared_mutex _mutex;
         std::string _name;
         // Register self with material manager
         bool _registerSelf;

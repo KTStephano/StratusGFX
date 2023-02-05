@@ -19,6 +19,7 @@
 #include "LightComponents.h"
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
+#include "StratusGpuCommon.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -46,6 +47,8 @@ public:
         //worldLight->setIntensity(0.5f);
 
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
+
+        STRATUS_LOG << sizeof(stratus::GpuMaterial) << std::endl;
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity2> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);

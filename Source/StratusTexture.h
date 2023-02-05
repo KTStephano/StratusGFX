@@ -139,9 +139,9 @@ namespace stratus {
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
         // Makes the texture resident in GPU memory for bindless use
-        void MakeResident();
+        static void MakeResident(const Texture&);
         // Removes residency
-        void MakeNonResident();
+        static void MakeNonResident(const Texture&);
 
         uint32_t width() const;
         uint32_t height() const;

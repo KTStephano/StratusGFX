@@ -4,6 +4,11 @@
 #include "StratusWindow.h"
 #include "StratusTransformComponent.h"
 #include "StratusRenderComponents.h"
+#include "StratusResourceManager.h"
+#include "StratusEngine.h"
+#include "StratusEntity2.h"
+
+#include <algorithm>
 
 namespace stratus {
     static void InitializeMeshTransformComponent(const Entity2Ptr& p) {
@@ -21,6 +26,10 @@ namespace stratus {
 
     static glm::vec3 GetWorldTransform(const Entity2Ptr& p, const size_t meshIndex) {
         return glm::vec3(GetTranslate(p->Components().GetComponent<MeshWorldTransforms>().component->transforms[meshIndex]));
+    }
+
+    static MeshPtr GetMesh(const Entity2Ptr& p, const size_t meshIndex) {
+        return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
     }
 
     static bool InsertMesh(EntityMeshData& map, const Entity2Ptr& p, const size_t meshIndex) {
@@ -65,11 +74,14 @@ namespace stratus {
         : _params(p) {
     }
 
-    void RendererFrontend::_AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights) {
+    void RendererFrontend::_AddEntity(const Entity2Ptr& p, bool& pbrDirty, std::unordered_set<Entity2Ptr>& entities, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights) {
         if (p == nullptr) return;
         
         if (IsRenderable(p)) {
             InitializeMeshTransformComponent(p);
+
+            entities.insert(p);
+            //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
@@ -92,20 +104,20 @@ namespace stratus {
         }
 
         for (auto& child : p->GetChildNodes()) {
-            _AddEntity(child, pbrDirty, pbr, flat, lights);
+            _AddEntity(child, pbrDirty, entities, pbr, flat, lights);
         }
     }
 
     void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
-        _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+        _AddEntity(p, _staticPbrDirty, _entities, _staticPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _entities, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     }
 
     void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
         auto ul = _LockWrite();
-        _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _entities, _dynamicPbrEntities, _flatEntities, _lights);
+        _AddEntity(p, _dynamicPbrDirty, _entities, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
         _frame->csc.visible = _frame->instancedPbrMeshes;
     }
 
@@ -115,6 +127,8 @@ namespace stratus {
     }
 
     void RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
+        _entities.erase(p);
+
         if (_staticPbrEntities.erase(p)) {
             _staticPbrDirty = true;
         }
@@ -287,6 +301,8 @@ namespace stratus {
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
+        CHECK_IS_APPLICATION_THREAD();
+
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
@@ -299,6 +315,7 @@ namespace stratus {
         _UpdateLights();
         _UpdateCameraVisibility();
         _UpdateCascadeVisibility();
+        _UpdateMaterialSet();
 
         //_SwapFrames();
 
@@ -327,12 +344,17 @@ namespace stratus {
     }
 
     bool RendererFrontend::Initialize() {
+        CHECK_IS_APPLICATION_THREAD();
+
         _frame = std::make_shared<RendererFrame>();
 
         // 4 cascades total
         _frame->csc.cascades.resize(4);
         _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
+
+        // 2048 materials per frame
+        _frame->materialInfo.maxMaterials = 2048;
 
         ClearWorldLight();
 
@@ -341,6 +363,9 @@ namespace stratus {
 
         // Create the renderer on the renderer thread only
         _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
+
+        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+        _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
 
         return _renderer->Valid();
     }
@@ -816,5 +841,106 @@ namespace stratus {
 
         // _frame->csc.visible.clear();
         // UpdateInstancedData(visible, _frame->csc.visible);
+    }
+
+    static bool ValidateTexture(const Async<Texture> & tex) {
+        return tex.Completed() && !tex.Failed();
+    }
+
+    static void MarkForUse(std::unordered_map<Texture, size_t>& marked, const Texture& texture, const size_t frame) {
+        if (marked.find(texture) == marked.end()) {
+            Texture::MakeResident(texture);
+        }
+        marked.insert(std::make_pair(texture, frame));
+    }
+
+    void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial, const size_t frame) {
+        gpuMaterial->flags = 0;
+
+        gpuMaterial->diffuseColor = glm::vec4(material->GetDiffuseColor(), 1.0f);
+        gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
+        gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
+        gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
+        
+        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(material->GetDiffuseTexture());
+        auto ambient = INSTANCE(ResourceManager)->LookupTexture(material->GetAmbientTexture());
+        auto normal = INSTANCE(ResourceManager)->LookupTexture(material->GetNormalMap());
+        auto depth = INSTANCE(ResourceManager)->LookupTexture(material->GetDepthMap());
+        auto roughness = INSTANCE(ResourceManager)->LookupTexture(material->GetRoughnessMap());
+        auto metallic = INSTANCE(ResourceManager)->LookupTexture(material->GetMetallicMap());
+        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(material->GetMetallicRoughnessMap());
+
+        if (ValidateTexture(diffuse)) {
+            gpuMaterial->diffuseMap = diffuse.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
+            MarkForUse(_markedForUse, diffuse.Get(), frame);
+        }
+        if (ValidateTexture(ambient)) {
+            gpuMaterial->ambientMap = ambient.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
+            MarkForUse(_markedForUse, ambient.Get(), frame);
+        }
+        if (ValidateTexture(normal)) {
+            gpuMaterial->normalMap = normal.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_NORMAL_MAPPED;
+            MarkForUse(_markedForUse, normal.Get(), frame);
+        }
+        if (ValidateTexture(depth)) {
+            gpuMaterial->depthMap = depth.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
+            MarkForUse(_markedForUse, depth.Get(), frame);
+        }
+        if (ValidateTexture(roughness)) {
+            gpuMaterial->roughnessMap = roughness.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
+            MarkForUse(_markedForUse, roughness.Get(), frame);
+        }
+        if (ValidateTexture(metallic)) {
+            gpuMaterial->metallicMap = metallic.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_METALLIC_MAPPED;
+            MarkForUse(_markedForUse, metallic.Get(), frame);
+        }
+        if (ValidateTexture(metallicRoughness)) {
+            gpuMaterial->metallicRoughnessMap = metallicRoughness.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
+            MarkForUse(_markedForUse, metallicRoughness.Get(), frame);
+        }
+    }
+
+    void RendererFrontend::_UpdateMaterialSet() {
+        auto frameCount = INSTANCE(Engine)->FrameCount();
+
+        GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
+        _frame->materialInfo.indices.clear();
+        std::unordered_map<MaterialPtr, int>& indices = _frame->materialInfo.indices;
+        int nextMaterialIndex = 0;
+        for (const Entity2Ptr & p : _entities) {
+            RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
+            for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
+                MaterialPtr material = c->GetMaterialAt(i);
+                if (indices.find(material) != indices.end()) continue;
+                if (nextMaterialIndex >= _frame->materialInfo.maxMaterials) {
+                    throw std::runtime_error("Maximum number of materials per frame exceeded");
+                }
+                indices.insert(std::make_pair(material, nextMaterialIndex));
+                _CopyMaterialToGpuAndMarkForUse(material, &materials[nextMaterialIndex], frameCount);
+                ++nextMaterialIndex;
+            }
+        }
+        _frame->materialInfo.materials.UnmapMemory();
+
+        _UpdateTextureResidency(frameCount);
+    }
+
+    void RendererFrontend::_UpdateTextureResidency(const size_t frame) {
+        std::vector<Texture> toDelete;
+        for (auto& entry : _markedForUse) {
+            if (entry.second != frame) {
+                toDelete.push_back(entry.first);
+                Texture::MakeNonResident(entry.first);
+            }
+        }
+
+        for (const auto& texture : toDelete) _markedForUse.erase(texture);
     }
 }

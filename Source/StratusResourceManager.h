@@ -45,6 +45,7 @@ namespace stratus {
         //      prefix + "back." + fileExt
         TextureHandle LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt = "jpg");
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
+        Async<Texture> LookupTexture(TextureHandle handle) const;
 
         // Default shapes
         Entity2Ptr CreateCube();

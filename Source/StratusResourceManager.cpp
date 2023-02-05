@@ -217,6 +217,12 @@ namespace stratus {
         return true;
     }
 
+    Async<Texture> ResourceManager::LookupTexture(TextureHandle handle) const {
+        Async<Texture> ret;
+        GetTexture(handle, ret);
+        return ret;
+    }
+
     static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const bool srgb) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {

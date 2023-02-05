@@ -51,7 +51,7 @@ static const glm::mat4& GetMeshTransform(const RenderMeshContainerPtr& p) {
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
-       std::cout << "[OpenGL] " << message << std::endl;
+       //std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -889,78 +889,16 @@ void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
 
     s->setMat4("projection", &projection[0][0]);
     s->setMat4("view", &view[0][0]);
-
-#define SETUP_TEXTURE(name, flag, handle)           \
-        tex = _LookupTexture(handle);               \
-        const bool valid = ValidateTexture(tex);    \
-        s->setBool(flag, valid);                    \
-        if (valid) {                                \
-            s->bindTexture(name, tex.Get());        \
-        }
+    _frame->materialInfo.materials.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     for (size_t i = 0; i < GetMeshCount(e); ++i) {
         Async<Texture> tex;
         const RenderMeshContainerPtr c = (*meshContainer)[i];
         s->setMat4("model", GetMeshTransform(c));
-        s->setVec3("diffuseColor", GetMeshMaterial(c)->GetDiffuseColor());
-
-        if (GetMeshMaterial(c)->GetDiffuseTexture()) {
-            SETUP_TEXTURE("diffuseTexture", "textured", GetMeshMaterial(c)->GetDiffuseTexture())
-        }
-        else {
-            s->setBool("textured", false);
-        }
+        s->setInt("materialIndex", _frame->materialInfo.indices.find(GetMeshMaterial(c))->second);
 
         // Determine which uniforms we should set
         if (IsLightInteracting(e)) {
-            s->setVec3("baseReflectivityValue", GetMeshMaterial(c)->GetBaseReflectivity());
-            s->setFloat("metallicValue", GetMeshMaterial(c)->GetMetallic());
-            s->setFloat("roughnessValue", GetMeshMaterial(c)->GetRoughness());
-            s->setFloat("heightScale", 0.01f);
-
-            if (GetMeshMaterial(c)->GetNormalMap()) {
-                SETUP_TEXTURE("normalMap", "normalMapped", GetMeshMaterial(c)->GetNormalMap())
-            }
-            else {
-                s->setBool("normalMapped", false);
-            }
-
-            if (GetMeshMaterial(c)->GetDepthMap()) {
-                //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-                SETUP_TEXTURE("depthMap", "depthMapped", GetMeshMaterial(c)->GetDepthMap())
-            }
-            else {
-                s->setBool("depthMapped", false);
-            }
-
-            if (GetMeshMaterial(c)->GetRoughnessMap()) {
-                SETUP_TEXTURE("roughnessMap", "roughnessMapped", GetMeshMaterial(c)->GetRoughnessMap());
-            }
-            else {
-                s->setBool("roughnessMapped", false);
-            }
-
-            if (GetMeshMaterial(c)->GetAmbientTexture()) {
-                SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", GetMeshMaterial(c)->GetAmbientTexture())
-            }
-            else {
-                s->setBool("ambientMapped", false);
-            }
-
-            if (GetMeshMaterial(c)->GetMetallicMap()) {
-                SETUP_TEXTURE("metalnessMap", "metalnessMapped", GetMeshMaterial(c)->GetMetallicMap())
-            }
-            else {
-                s->setBool("metalnessMapped", false);
-            }
-
-            if (GetMeshMaterial(c)->GetMetallicRoughnessMap()) {
-                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", GetMeshMaterial(c)->GetMetallicRoughnessMap())
-            }
-            else {
-                s->setBool("metallicRoughnessMap", false);
-            }
-
             s->setVec3("viewPosition", &camera.getPosition()[0]);
         }
 
@@ -1717,14 +1655,12 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     // These will be resident in GPU memory for the entire life cycle of the renderer
-    smap.shadowCubeMap.MakeResident();
+    Texture::MakeResident(smap.shadowCubeMap);
     return handle;
 }
 
 Async<Texture> RendererBackend::_LookupTexture(TextureHandle handle) const {
-    Async<Texture> ret;
-    ResourceManager::Instance()->GetTexture(handle, ret);
-    return ret;
+    return INSTANCE(ResourceManager)->LookupTexture(handle);
 }
 
 Texture RendererBackend::_LookupShadowmapTexture(TextureHandle handle) const {

@@ -164,8 +164,13 @@ namespace stratus {
             return (GpuTextureHandle)gpuHandle;
         }
 
-        void MakeResident()                        { glMakeTextureHandleResidentARB((GLuint64)GpuHandle()); }
-        void MakeNonResident()                     { glMakeTextureHandleNonResidentARB((GLuint64)GpuHandle()); }
+        static void MakeResident(const Texture& texture) { 
+            glMakeTextureHandleResidentARB((GLuint64)texture.GpuHandle()); 
+        }
+
+        static void MakeNonResident(const Texture& texture) { 
+            glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle()); 
+        }
 
         uint32_t width() const                 { return _config.width; }
         uint32_t height() const                { return _config.height; }
@@ -455,8 +460,9 @@ namespace stratus {
     TextureHandle Texture::handle() const { return _impl->handle(); }
 
     GpuTextureHandle Texture::GpuHandle() const { return _impl->GpuHandle(); }
-    void Texture::MakeResident() { _impl->MakeResident(); }
-    void Texture::MakeNonResident() { _impl->MakeNonResident(); }
+
+    void Texture::MakeResident(const Texture& texture) { TextureImpl::MakeResident(texture); }
+    void Texture::MakeNonResident(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
     uint32_t Texture::width() const { return _impl->width(); }
     uint32_t Texture::height() const { return _impl->height(); }
