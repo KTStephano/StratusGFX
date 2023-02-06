@@ -964,7 +964,7 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto& viewMesh : _frame->csc.visible) {
+    for (auto& viewMesh : _frame->instancedPbrMeshes) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
             const RenderMeshContainerPtr container = viewMesh.second[i];
             const Entity2Ptr& e = viewMesh.first;

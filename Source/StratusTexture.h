@@ -113,6 +113,7 @@ namespace stratus {
     class TextureImpl;
     class Texture {
         friend class ResourceManager;
+        friend class TextureImpl;
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> _impl;
 

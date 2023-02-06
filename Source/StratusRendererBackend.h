@@ -100,7 +100,6 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
-        EntityMeshData visible;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;

@@ -41,11 +41,6 @@ namespace stratus {
         };
 
     public:
-        void AddStaticEntity(const Entity2Ptr&);
-        void AddDynamicEntity(const Entity2Ptr&);
-        void RemoveEntity(const Entity2Ptr&);
-        void ClearEntities();
-
         void AddLight(const LightPtr&);
         void RemoveLight(const LightPtr&);
         void ClearLights();
@@ -84,12 +79,13 @@ namespace stratus {
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
         void _AddAllMaterialsForEntity(const Entity2Ptr&);
-        void _AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights);
+        bool _AddEntity(const Entity2Ptr& p);
         static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
         static bool _EntityChanged(const Entity2Ptr&);
-        void _RemoveEntity(const Entity2Ptr&);
-        void _CheckEntitySetForChanges(EntityMeshData&, bool&);
+        bool _RemoveEntity(const Entity2Ptr&);
+        void _CheckEntitySetForChanges(std::unordered_set<Entity2Ptr>&);
         void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
+        void _RecalculateMaterialSet();
 
     private:
         void _UpdateViewport();
@@ -101,10 +97,18 @@ namespace stratus {
         void _UpdateMaterialSet();
 
     private:
+        // These are called by the private entity handler
+        friend struct RenderEntityProcess;
+        void _EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>&);
+        void _EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>&);
+        void _EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&);
+        void _EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&);
+
+    private:
         RendererParams _params;
-        EntityMeshData _staticPbrEntities;
-        EntityMeshData _dynamicPbrEntities;
-        EntityMeshData _flatEntities;
+        std::unordered_set<Entity2Ptr> _entities;
+        // These are entities we need to check for position/orientation/scale updates
+        std::unordered_set<Entity2Ptr> _dynamicEntities;
         std::unordered_set<MaterialPtr> _dirtyMaterials;
         //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_map<LightPtr, LightData> _lights;
@@ -113,13 +117,12 @@ namespace stratus {
         std::unordered_set<LightPtr> _lightsToRemove;
         CameraPtr _camera;
         glm::mat4 _projection = glm::mat4(1.0f);
-        bool _staticPbrDirty = true;
-        bool _dynamicPbrDirty = true;
-        bool _lightsDirty = true;
         bool _viewportDirty = true;
         bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
         std::unique_ptr<RendererBackend> _renderer;
+        // This forwards entity state changes to the renderer
+        EntityProcessHandle _entityHandler;
         mutable std::shared_mutex _mutex;
     };
 }

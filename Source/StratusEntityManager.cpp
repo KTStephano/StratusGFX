@@ -2,6 +2,7 @@
 #include "StratusEntity2.h"
 #include "StratusApplicationThread.h"
 #include "StratusTransformComponent.h"
+#include <algorithm>
 
 namespace stratus {
     EntityManager::EntityManager() {}
@@ -65,8 +66,8 @@ namespace stratus {
         }
 
         // Commit added/removed entities
-        _entities.insert(entitiesToAdd.begin(), entitiesToAdd.end());
-        _entities.erase(entitiesToRemove.begin(), entitiesToRemove.end());
+        for (auto& e : entitiesToAdd) _entities.insert(e);
+        for (auto& e : entitiesToRemove) _entities.erase(e);
 
         // If any processes have been added, tell them about all available entities
         // and allow them to perform their process routine for the first time

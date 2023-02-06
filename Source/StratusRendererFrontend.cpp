@@ -7,10 +7,38 @@
 #include "StratusResourceManager.h"
 #include "StratusEngine.h"
 #include "StratusEntity2.h"
+#include "StratusEntityProcess.h"
+#include "StratusEntityManager.h"
 
 #include <algorithm>
 
 namespace stratus {
+    struct RenderEntityProcess : public EntityProcess {
+        virtual ~RenderEntityProcess() = default;
+
+        virtual void Process(const double deltaSeconds) {}
+
+        void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntitiesAdded(e);
+        }
+
+        void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntitiesRemoved(e);
+        }
+
+        void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntityComponentsAdded(e);
+        }
+
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntityComponentsEnabledDisabled(e);
+        }
+    };
+
     static void InitializeMeshTransformComponent(const Entity2Ptr& p) {
         if (!p->Components().ContainsComponent<MeshWorldTransforms>()) p->Components().AttachComponent<MeshWorldTransforms>();
 
@@ -22,6 +50,11 @@ namespace stratus {
         for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
             meshTransform->transforms[i] = global->GetGlobalTransform() * rc->meshes->transforms[i];
         }
+    }
+
+    static bool IsStaticEntity(const Entity2Ptr& p) {
+        auto sc = p->Components().GetComponent<StaticObjectComponent>();
+        return sc.component != nullptr && sc.status == EntityComponentStatus::COMPONENT_ENABLED;
     }
 
     static glm::vec3 GetWorldTransform(const Entity2Ptr& p, const size_t meshIndex) {
@@ -81,21 +114,55 @@ namespace stratus {
         }
     }
 
-    void RendererFrontend::_AddEntity(const Entity2Ptr& p, bool& pbrDirty, EntityMeshData& pbr, EntityMeshData& flat, std::unordered_map<LightPtr, LightData>& lights) {
-        if (p == nullptr) return;
+    void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) {
+        auto ul = _LockWrite();
+        for (auto ptr : e) {
+            _AddEntity(ptr);
+        }
+    }
+
+    void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
+        auto ul = _LockWrite();
+        bool removed = false;
+        for (auto ptr : e) {
+            removed = removed || _RemoveEntity(ptr);
+        }
+
+        if (removed) {
+            _RecalculateMaterialSet();
+        }
+    }
+
+    void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& e) {
+        auto ul = _LockWrite();
+
+    }
+
+    void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& e) {
+        auto ul = _LockWrite();
+
+    }
+
+    bool RendererFrontend::_AddEntity(const Entity2Ptr& p) {
+        if (p == nullptr || _entities.find(p) != _entities.end()) return false;
         
         if (IsRenderable(p)) {
             InitializeMeshTransformComponent(p);
+
+            _entities.insert(p);
+
+            if (!IsStaticEntity(p)) {
+                _dynamicEntities.insert(p);
+            }
 
             _AddAllMaterialsForEntity(p);
             //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(pbr, p, i);
-                    pbrDirty = true;
+                    InsertMesh(_frame->instancedPbrMeshes, p, i);
 
-                    for (auto& entry : lights) {
+                    for (auto& entry : _lights) {
                         auto pos = entry.first->position;
                         //if (glm::distance(GetWorldTransform(p, i), pos) < entry.first->getRadius()) {
                             entry.second.dirty |= InsertMesh(entry.second.visible, p, i);
@@ -105,48 +172,38 @@ namespace stratus {
             }
             else {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(flat, p, i);
+                    InsertMesh(_frame->instancedFlatMeshes, p, i);
                 }
             }
         }
 
-        for (auto& child : p->GetChildNodes()) {
-            _AddEntity(child, pbrDirty, pbr, flat, lights);
-        }
+        return true;
     }
 
-    void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
-        auto ul = _LockWrite();
-        _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
-    }
+    // void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
+    //     auto ul = _LockWrite();
+    //     _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
+    //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+    // }
 
-    void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
-        auto ul = _LockWrite();
-        _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
-        _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
-        _frame->csc.visible = _frame->instancedPbrMeshes;
-    }
+    // void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
+    //     auto ul = _LockWrite();
+    //     _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
+    //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
+    // }
 
-    void RendererFrontend::RemoveEntity(const Entity2Ptr& p) {
-        auto ul = _LockWrite();
-        _RemoveEntity(p);
-    }
+    // void RendererFrontend::RemoveEntity(const Entity2Ptr& p) {
+    //     auto ul = _LockWrite();
+    //     _RemoveEntity(p);
+    // }
 
-    void RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
-        if (_staticPbrEntities.erase(p)) {
-            _staticPbrDirty = true;
-        }
-        else if (_dynamicPbrEntities.erase(p)) {
-            _dynamicPbrDirty = true;
-        }
-        else {
-            _flatEntities.erase(p);
-        }
+    bool RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
+        if (p == nullptr || _entities.find(p) == _entities.end()) return false;
 
+        _entities.erase(p);
+        _dynamicEntities.erase(p);
         _frame->instancedPbrMeshes.erase(p);
         _frame->instancedFlatMeshes.erase(p);
-        _frame->csc.visible = _frame->instancedPbrMeshes;
 
         for (auto& entry : _lights) {
             if (entry.second.visible.erase(p)) {
@@ -154,23 +211,32 @@ namespace stratus {
             }
         }
 
-        for (auto child : p->GetChildNodes()) _RemoveEntity(child);
+        return true;
     }
 
-    void RendererFrontend::ClearEntities() {
-        auto ul = _LockWrite();
-        _staticPbrEntities.clear();
-        _dynamicPbrEntities.clear();
-        _flatEntities.clear();
+    // void RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
+    //     if (_staticPbrEntities.erase(p)) {
+    //         _staticPbrDirty = true;
+    //     }
+    //     else if (_dynamicPbrEntities.erase(p)) {
+    //         _dynamicPbrDirty = true;
+    //     }
+    //     else {
+    //         _flatEntities.erase(p);
+    //     }
 
-        for (auto& entry : _lights) {
-            entry.second.visible.clear();
-            entry.second.dirty = true;
-        }
+    //     _frame->instancedPbrMeshes.erase(p);
+    //     _frame->instancedFlatMeshes.erase(p);
+    //     _frame->csc.visible = _frame->instancedPbrMeshes;
 
-        _staticPbrDirty = true;
-        _dynamicPbrDirty = true;
-    }
+    //     for (auto& entry : _lights) {
+    //         if (entry.second.visible.erase(p)) {
+    //             entry.second.dirty = true;
+    //         }
+    //     }
+
+    //     for (auto child : p->GetChildNodes()) _RemoveEntity(child);
+    // }
 
     void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities) {
         auto pos = light->position;
@@ -189,7 +255,6 @@ namespace stratus {
         if (_lights.find(light) != _lights.end()) return;
 
         _lights.insert(std::make_pair(light, LightData()));
-        _lightsDirty = true;
 
         auto& data = _lights.find(light)->second;
         data.dirty = true;
@@ -199,8 +264,7 @@ namespace stratus {
 
         if ( !light->castsShadows() ) return;
 
-        _AttemptAddEntitiesForLight(light, data, _staticPbrEntities);
-        _AttemptAddEntitiesForLight(light, data, _dynamicPbrEntities);
+        _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
 
     void RendererFrontend::RemoveLight(const LightPtr& light) {
@@ -210,7 +274,6 @@ namespace stratus {
         _lights.erase(light);
         _virtualPointLights.erase(light);
         _lightsToRemove.insert(copy);
-        _lightsDirty = true;
     }
 
     void RendererFrontend::ClearLights() {
@@ -220,7 +283,6 @@ namespace stratus {
         }
         _lights.clear();
         _virtualPointLights.clear();
-        _lightsDirty = true;
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
@@ -350,6 +412,8 @@ namespace stratus {
 
     bool RendererFrontend::Initialize() {
         CHECK_IS_APPLICATION_THREAD();
+        // Create the renderer on the renderer thread only
+        _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
 
         _frame = std::make_shared<RendererFrame>();
 
@@ -358,19 +422,18 @@ namespace stratus {
         _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
 
-        // 2048 materials per frame
-        _frame->materialInfo.maxMaterials = 2048;
+        // Set materials per frame and initialize material buffer
+        _frame->materialInfo.maxMaterials = 4096;
+        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+        _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
+
+        // Initialize entity processing
+        _entityHandler = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
 
         ClearWorldLight();
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
-
-        // Create the renderer on the renderer thread only
-        _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
-
-        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-        _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
 
         return _renderer->Valid();
     }
@@ -379,11 +442,12 @@ namespace stratus {
         _frame.reset();
         _renderer.reset();
 
-        _staticPbrEntities.clear();
-        _dynamicPbrEntities.clear();
-        _flatEntities.clear();
+        _entities.clear();
+        _dynamicEntities.clear();
         _lights.clear();
         _lightsToRemove.clear();
+
+        INSTANCE(EntityManager)->UnregisterEntityProcess(_entityHandler);
     }
 
     void RendererFrontend::RecompileShaders() {
@@ -648,15 +712,14 @@ namespace stratus {
         return tc->ChangedWithinLastFrame() || rc->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(EntityMeshData& map, bool& flag) {
+    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<Entity2Ptr>& map) {
         for (auto& entity : map) {
             // If this is a light-interacting node, run through all the lights to see if they need to be updated
-            if (_EntityChanged(entity.first)) {               
-                flag = true;
+            if (_EntityChanged(entity)) {               
 
-                InitializeMeshTransformComponent(entity.first);
+                InitializeMeshTransformComponent(entity);
 
-                if (IsLightInteracting(entity.first)) {
+                if (IsLightInteracting(entity)) {
                     for (auto& entry : _lights) {
                         auto lightPos = entry.first->position;
                         auto lightRadius = entry.first->getRadius();
@@ -678,9 +741,7 @@ namespace stratus {
 
     void RendererFrontend::_CheckForEntityChanges() {
         // We only care about dynamic light-interacting entities
-        _CheckEntitySetForChanges(_dynamicPbrEntities, _dynamicPbrDirty);
-        bool flag;
-        _CheckEntitySetForChanges(_flatEntities, flag);
+        _CheckEntitySetForChanges(_dynamicEntities);
     }
 
     // static void UpdateInstancedData(const EntityMeshData& entities, InstancedData& instanced) {
@@ -763,8 +824,7 @@ namespace stratus {
                 data.dirty = true;
                 data.visible.clear();
                 if (light->castsShadows()) {
-                    _AttemptAddEntitiesForLight(light, data, _staticPbrEntities);
-                    _AttemptAddEntitiesForLight(light, data, _dynamicPbrEntities);
+                    _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
                 }
             }
 
@@ -850,6 +910,44 @@ namespace stratus {
 
     static bool ValidateTexture(const Async<Texture> & tex) {
         return tex.Completed() && !tex.Failed();
+    }
+
+    void RendererFrontend::_RecalculateMaterialSet() {
+        _dirtyMaterials.clear();
+
+        for (const Entity2Ptr& p : _entities) {
+            _AddAllMaterialsForEntity(p);
+        }
+
+        // After this loop anything left in indices is no longer referenced
+        // by an entity
+        for (const MaterialPtr& m : _dirtyMaterials) {
+            _frame->materialInfo.indices.erase(m);
+        }
+
+    #define MAKE_NON_RESIDENT(handle)                               \
+        {                                                           \
+        auto at = INSTANCE(ResourceManager)->LookupTexture(handle); \
+        if (ValidateTexture(at)) {                                  \
+            Texture::MakeNonResident(at.Get());                     \
+        }                                                           \
+        }
+
+        // Erase what is no longer referenced
+        for (auto& entry : _frame->materialInfo.indices) {
+            MaterialPtr material = entry.first;
+            MAKE_NON_RESIDENT(material->GetDiffuseTexture())
+            MAKE_NON_RESIDENT(material->GetAmbientTexture())
+            MAKE_NON_RESIDENT(material->GetNormalMap())
+            MAKE_NON_RESIDENT(material->GetDepthMap())
+            MAKE_NON_RESIDENT(material->GetRoughnessMap())
+            MAKE_NON_RESIDENT(material->GetMetallicMap())
+            MAKE_NON_RESIDENT(material->GetMetallicRoughnessMap())
+        }
+
+        _frame->materialInfo.indices.clear();
+    
+    #undef MAKE_NON_RESIDENT
     }
 
     void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial) {

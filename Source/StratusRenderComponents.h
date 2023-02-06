@@ -128,11 +128,13 @@ namespace stratus {
         std::vector<MaterialPtr> _materials;
     };
 
+    // If enabled then the entity interacts with light, otherwise it is flat shaded
     ENTITY_COMPONENT_STRUCT(LightInteractionComponent)
         LightInteractionComponent() = default;
         LightInteractionComponent(const LightInteractionComponent&) = default;
     };
 
+    // If enabled then changes to position, orientation and scale are not tracked by renderer
     ENTITY_COMPONENT_STRUCT(StaticObjectComponent)
         StaticObjectComponent() = default;
         StaticObjectComponent(const StaticObjectComponent&) = default;

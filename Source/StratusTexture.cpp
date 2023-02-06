@@ -165,10 +165,12 @@ namespace stratus {
         }
 
         static void MakeResident(const Texture& texture) { 
+            if (texture._impl == nullptr) return;
             glMakeTextureHandleResidentARB((GLuint64)texture.GpuHandle()); 
         }
 
         static void MakeNonResident(const Texture& texture) { 
+            if (texture._impl == nullptr) return;
             glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle()); 
         }
 

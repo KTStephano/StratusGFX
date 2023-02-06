@@ -58,7 +58,7 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
     INSTANCE(EntityManager)->AddEntity(cube);
-    INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
+    //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateStationaryLight(const LightParams& p) {
@@ -75,7 +75,7 @@ void LightCreator::CreateStationaryLight(const LightParams& p) {
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
     INSTANCE(EntityManager)->AddEntity(cube);
-    INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
+    //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateVirtualPointLight(const LightParams& p) {
@@ -162,9 +162,12 @@ void LightProcess::Process(const double deltaSeconds) {
         }
         
         if (entity->Components().ContainsComponent<LightCubeComponent>()) {
-            INSTANCE(RendererFrontend)->RemoveEntity(
+            INSTANCE(EntityManager)->RemoveEntity(
                 entity->Components().GetComponent<LightCubeComponent>().component->cube
             );
+            //INSTANCE(RendererFrontend)->RemoveEntity(
+            //    entity->Components().GetComponent<LightCubeComponent>().component->cube
+            //);
         }
     }
 }

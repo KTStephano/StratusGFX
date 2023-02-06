@@ -58,7 +58,7 @@ public:
             transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             INSTANCE(EntityManager)->AddEntity(sponza);
-            INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
+            //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         });
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
