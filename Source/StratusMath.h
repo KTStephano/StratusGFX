@@ -295,8 +295,13 @@ namespace stratus {
         return worldTranspose * invTranslation;
     }
 
-    static glm::mat4 ToMat4(const aiMatrix4x4& aim) {
+    static glm::mat4 ToMat4(const aiMatrix4x4& _aim) {
         glm::mat4 gm(1.0f);
+        // See https://gamedev.stackexchange.com/questions/178554/opengl-strange-mesh-when-animating-assimp
+        // aiMatrix4x4 are row-major so we need to transpose it first before using it as a
+        // column-major GLM matrix
+        aiMatrix4x4 aim = _aim;
+        aim = aim.Transpose();
         for (size_t i = 0; i < 4; ++i) {
             for (size_t j = 0; j < 4; ++j) {
                 gm[i][j] = aim[i][j];
@@ -305,15 +310,15 @@ namespace stratus {
         return gm;
     }
 
-    static glm::mat4 ToMat4(const aiMatrix3x3& aim) {
-        glm::mat4 gm(1.0f);
-        for (size_t i = 0; i < 3; ++i) {
-            for (size_t j = 0; j < 3; ++j) {
-                gm[i][j] = aim[i][j];
-            }
-        }
-        return gm;
-    }
+    // static glm::mat4 ToMat4(const aiMatrix3x3& aim) {
+    //     glm::mat4 gm(1.0f);
+    //     for (size_t i = 0; i < 3; ++i) {
+    //         for (size_t j = 0; j < 3; ++j) {
+    //             gm[i][j] = aim[i][j];
+    //         }
+    //     }
+    //     return gm;
+    // }
 }
 
 // Printing helper functions --> Putting here due to bug in Windows compiler

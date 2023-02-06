@@ -249,7 +249,7 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    static void ProcessMesh(RenderComponent * renderNode, const glm::mat4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+    static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         if (mesh->mNumUVComponents[0] == 0) return;
         if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
@@ -344,16 +344,17 @@ namespace stratus {
 
         rmesh->PackCpuData();
         renderNode->meshes->meshes.push_back(rmesh);
-        renderNode->meshes->transforms.push_back(transform);
+        renderNode->meshes->transforms.push_back(ToMat4(transform));
         renderNode->AddMaterial(m);
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, Entity2Ptr entity, const glm::mat4& parentTransform, MaterialPtr rootMat, 
+    static void ProcessNode(aiNode * node, const aiScene * scene, Entity2Ptr entity, const aiMatrix4x4& parentTransform, MaterialPtr rootMat, 
                             const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
         aiMatrix4x4 aiMatTransform = node->mTransformation;
-        auto transform = parentTransform * ToMat4(aiMatTransform);
+        // See https://assimp-docs.readthedocs.io/en/v5.1.0/usage/use_the_lib.html
+        auto transform = aiMatTransform * parentTransform;
 
         if (node->mNumMeshes > 0) {
             InitializeRenderEntity(entity);
@@ -412,7 +413,7 @@ namespace stratus {
         Entity2Ptr e = CreateTransformEntity();
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, glm::mat4(1.0f), material, directory, extension, defaultCullMode);
+        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety

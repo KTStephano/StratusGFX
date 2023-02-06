@@ -45,7 +45,7 @@ namespace stratus {
         auto global = p->Components().GetComponent<GlobalTransformComponent>().component;
         auto rc = p->Components().GetComponent<RenderComponent>().component;
         auto meshTransform = p->Components().GetComponent<MeshWorldTransforms>().component;
-        meshTransform->transforms.resize(rc->GetMaterialCount());
+        meshTransform->transforms.resize(rc->GetMeshCount());
 
         for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
             meshTransform->transforms[i] = global->GetGlobalTransform() * rc->meshes->transforms[i];
@@ -1060,6 +1060,14 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateMaterialSet() {
+        // See if any materials were changed within the last frame
+        for (auto& entry : _frame->materialInfo.indices) {
+            if (entry.first->ChangedWithinLastFrame()) {
+                _dirtyMaterials.insert(entry.first);
+            }
+        }
+
+        // If no materials to update then end here
         if (_dirtyMaterials.size() == 0) return;
 
         auto dirtyMaterials = std::move(_dirtyMaterials);

@@ -232,6 +232,22 @@ namespace stratus {
         std::unordered_map<std::string, std::pair<Entity2ComponentView, EntityComponentStatus>> _componentTypeNames;
     };
 
+    // Convenience functions
+    template<typename E>
+    E * GetComponent(const Entity2Ptr& p) {
+        return p->Components().GetComponent<E>().component;
+    }
+
+    template<typename E>
+    EntityComponentStatus GetComponentStatus(const Entity2Ptr& p) {
+        return p->Components().GetComponent<E>().status;
+    }
+
+    template<typename E>
+    EntityComponentPair<E> GetComponentStatusPair(const Entity2Ptr& p) {
+        return p->Components().GetComponent<E>();
+    }
+
     // Collection of unque ID + configurable component data
     class Entity2 final : public std::enable_shared_from_this<Entity2> {
         friend class EntityManager;

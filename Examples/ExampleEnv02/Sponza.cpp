@@ -54,7 +54,7 @@ public:
         stratus::Async<stratus::Entity2> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
             sponza = e.GetPtr(); 
-            auto transform = sponza->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
             transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             INSTANCE(EntityManager)->AddEntity(sponza);
