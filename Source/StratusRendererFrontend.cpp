@@ -124,7 +124,7 @@ namespace stratus {
     void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
         auto ul = _LockWrite();
         bool removed = false;
-        for (auto ptr : e) {
+        for (auto& ptr : e) {
             removed = removed || _RemoveEntity(ptr);
         }
 
@@ -135,12 +135,33 @@ namespace stratus {
 
     void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& e) {
         auto ul = _LockWrite();
+        bool changed = false;
+        for (auto& entry : e) {
+            auto ptr = entry.first;
+            if (_RemoveEntity(ptr)) {
+                changed = true;
+                _AddEntity(ptr);
+            }
+        }
 
+        if (changed) {
+            _RecalculateMaterialSet();
+        }
     }
 
     void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& e) {
         auto ul = _LockWrite();
+        bool changed = false;
+        for (auto& ptr : e) {
+            if (_RemoveEntity(ptr)) {
+                changed = true;
+                _AddEntity(ptr);
+            }
+        }
 
+        if (changed) {
+            _RecalculateMaterialSet();
+        }
     }
 
     bool RendererFrontend::_AddEntity(const Entity2Ptr& p) {
