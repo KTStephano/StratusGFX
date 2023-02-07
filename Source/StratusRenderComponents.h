@@ -10,14 +10,13 @@
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "StratusRenderNode.h"
 
 namespace stratus {
-    // enum class RenderFaceCulling : int {
-    //     CULLING_NONE,
-    //     CULLING_CW,     // Clock-wise
-    //     CULLING_CCW,    // Counter-clock-wise
-    // };
+    enum class RenderFaceCulling : int {
+        CULLING_NONE,
+        CULLING_CW,     // Clock-wise
+        CULLING_CCW,    // Counter-clock-wise
+    };
 
     struct Mesh;
 
