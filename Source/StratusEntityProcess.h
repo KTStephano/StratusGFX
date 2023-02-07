@@ -23,12 +23,12 @@ namespace stratus {
         // Called when an entity is added or removed from the world directly,
         // or when it is attached or detached from a parent entity who is
         // part of the world
-        virtual void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>&) = 0;
-        virtual void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>&) = 0;
+        virtual void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>&) = 0;
+        virtual void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>&) = 0;
 
         // Called when an entity has a component added
-        virtual void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&) = 0;
+        virtual void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&) = 0;
         // Called when an entity component is enabled or disabled
-        virtual void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) = 0;
+        virtual void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&) = 0;
     };
 }

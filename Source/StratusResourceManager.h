@@ -4,11 +4,9 @@
 #include "StratusCommon.h"
 #include "StratusThread.h"
 #include "StratusEntity.h"
-#include "StratusEntity2.h"
 #include "StratusEntityCommon.h"
 #include "StratusRenderComponents.h"
 #include "StratusTexture.h"
-#include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
 #include "StratusAsync.h"
 #include <vector>
@@ -36,7 +34,7 @@ namespace stratus {
 
         virtual ~ResourceManager();
 
-        Async<Entity2> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
+        Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const bool srgb);
         // prefix is used to select all faces with one string. It ends up expanding to:
         //      prefix + "right." + fileExt
@@ -48,8 +46,8 @@ namespace stratus {
         Async<Texture> LookupTexture(TextureHandle handle) const;
 
         // Default shapes
-        Entity2Ptr CreateCube();
-        Entity2Ptr CreateQuad();
+        EntityPtr CreateCube();
+        EntityPtr CreateQuad();
 
     private:
         // SystemModule inteface
@@ -60,12 +58,12 @@ namespace stratus {
     private:
         void _ClearAsyncTextureData();
         void _ClearAsyncModelData();
-        void _ClearAsyncModelData(Entity2Ptr);
+        void _ClearAsyncModelData(EntityPtr);
 
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        Entity2Ptr _LoadModel(const std::string&, RenderFaceCulling);
+        EntityPtr _LoadModel(const std::string&, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
         TextureHandle _LoadTextureImpl(const std::vector<std::string>&, 
                                        const bool srgb,
@@ -86,10 +84,10 @@ namespace stratus {
         void _InitQuad();
 
     private:
-        Entity2Ptr _cube;
-        Entity2Ptr _quad;
-        std::unordered_map<std::string, Async<Entity2>> _loadedModels;
-        std::unordered_map<std::string, Async<Entity2>> _pendingFinalize;
+        EntityPtr _cube;
+        EntityPtr _quad;
+        std::unordered_map<std::string, Async<Entity>> _loadedModels;
+        std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
         std::unordered_set<MeshPtr> _meshFinalizeQueue;
         std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
         std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;

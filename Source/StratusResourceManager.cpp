@@ -120,7 +120,7 @@ namespace stratus {
         if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
     }
 
-    void ResourceManager::_ClearAsyncModelData(Entity2Ptr ptr) {
+    void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
         if (ptr == nullptr) return;
         for (auto& child : ptr->GetChildNodes()) {
             _ClearAsyncModelData(child);
@@ -134,18 +134,18 @@ namespace stratus {
         }
     }
 
-    Async<Entity2> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    Async<Entity> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         {
             auto sl = _LockRead();
             if (_loadedModels.find(name) != _loadedModels.end()) {
-                Async<Entity2> e = _loadedModels.find(name)->second;
-                return (e.Completed() && !e.Failed()) ? Async<Entity2>(e.GetPtr()->Copy()) : e;
+                Async<Entity> e = _loadedModels.find(name)->second;
+                return (e.Completed() && !e.Failed()) ? Async<Entity>(e.GetPtr()->Copy()) : e;
             }
         }
 
         auto ul = _LockWrite();
         TaskSystem * tasks = TaskSystem::Instance();
-        Async<Entity2> e = tasks->ScheduleTask<Entity2>([this, name, defaultCullMode]() {
+        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode]() {
             return _LoadModel(name, defaultCullMode);
         });
 
@@ -349,7 +349,7 @@ namespace stratus {
         rmesh->SetFaceCulling(cull);
     }
 
-    static void ProcessNode(aiNode * node, const aiScene * scene, Entity2Ptr entity, const aiMatrix4x4& parentTransform, MaterialPtr rootMat, 
+    static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, const aiMatrix4x4& parentTransform, MaterialPtr rootMat, 
                             const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
         // set the transformation info
         aiMatrix4x4 aiMatTransform = node->mTransformation;
@@ -370,14 +370,14 @@ namespace stratus {
 
         // Now do the same for each child
         for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-            // Create a new container Entity2
-            Entity2Ptr centity = CreateTransformEntity();
+            // Create a new container Entity
+            EntityPtr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
             ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode);
         }
     }
 
-    Entity2Ptr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    EntityPtr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
@@ -411,14 +411,14 @@ namespace stratus {
             return nullptr;
         }
 
-        Entity2Ptr e = CreateTransformEntity();
+        EntityPtr e = CreateTransformEntity();
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
         ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety
-        _loadedModels.insert(std::make_pair(name, Async<Entity2>(e->Copy())));
+        _loadedModels.insert(std::make_pair(name, Async<Entity>(e->Copy())));
 
         STRATUS_LOG << "Model loaded [" << name << "]" << std::endl;
 
@@ -535,11 +535,11 @@ namespace stratus {
         return texture;
     }
 
-    Entity2Ptr ResourceManager::CreateCube() {
+    EntityPtr ResourceManager::CreateCube() {
         return _cube->Copy();
     }
 
-    Entity2Ptr ResourceManager::CreateQuad() {
+    EntityPtr ResourceManager::CreateQuad() {
         return _quad->Copy();
     }
 
@@ -619,12 +619,12 @@ namespace stratus {
             // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
         }
 
-        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity2>(_cube)));
+        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_CCW);
-        // _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity2>(_cube)));
+        // _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
         // _cube->SetRenderNode(rnode);
     }
 
@@ -649,12 +649,12 @@ namespace stratus {
         }
 
         mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity2>(_quad)));
+        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
         // rmesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        // _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity2>(_quad)));
+        // _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
         // _quad->SetRenderNode(rnode);
     }
 }

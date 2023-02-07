@@ -2,29 +2,28 @@
 
 #include <vector>
 #include <memory>
-#include "StratusRenderNode.h"
 #include "StratusCommon.h"
 #include "StratusGpuBuffer.h"
 #include "StratusMaterial.h"
 #include "StratusMath.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
 namespace stratus {
-    // enum class RenderFaceCulling : int {
-    //     CULLING_NONE,
-    //     CULLING_CW,     // Clock-wise
-    //     CULLING_CCW,    // Counter-clock-wise
-    // };
+    enum class RenderFaceCulling : int {
+        CULLING_NONE,
+        CULLING_CW,     // Clock-wise
+        CULLING_CCW,    // Counter-clock-wise
+    };
 
     struct Mesh;
 
     typedef Mesh * MeshPtr;
 
-    extern Entity2Ptr CreateRenderEntity();
-    extern void InitializeRenderEntity(const Entity2Ptr&);
+    extern EntityPtr CreateRenderEntity();
+    extern void InitializeRenderEntity(const EntityPtr&);
 
     struct Mesh final {
     private:

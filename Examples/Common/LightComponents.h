@@ -13,7 +13,7 @@
 #include "StratusUtils.h"
 #include "StratusEntityManager.h"
 #include "StratusEntityCommon.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 
 ENTITY_COMPONENT_STRUCT(LightComponent)
     stratus::LightPtr light;
@@ -26,8 +26,8 @@ ENTITY_COMPONENT_STRUCT(LightComponent)
 };
 
 ENTITY_COMPONENT_STRUCT(LightCubeComponent)
-    stratus::Entity2Ptr cube;
-    LightCubeComponent(stratus::Entity2Ptr cube)
+    stratus::EntityPtr cube;
+    LightCubeComponent(stratus::EntityPtr cube)
         : cube(cube) {}
 
     LightCubeComponent(const LightCubeComponent& other) {

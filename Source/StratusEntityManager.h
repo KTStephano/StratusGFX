@@ -14,14 +14,14 @@
 
 namespace stratus {
     SYSTEM_MODULE_CLASS(EntityManager)
-        friend struct Entity2ComponentSet;
-        friend class Entity2;
+        friend struct EntityComponentSet;
+        friend class Entity;
 
         ~EntityManager() = default;
 
         // Add/Remove entities
-        void AddEntity(const Entity2Ptr&);
-        void RemoveEntity(const Entity2Ptr&);
+        void AddEntity(const EntityPtr&);
+        void RemoveEntity(const EntityPtr&);
 
         // Registers or Unregisters an EntityProcess type
         template<typename E, typename ... Types>
@@ -36,22 +36,22 @@ namespace stratus {
 
     private:
         void _RegisterEntityProcess(EntityProcessPtr&);
-        void _AddEntity(const Entity2Ptr&);
-        void _RemoveEntity(const Entity2Ptr&);
+        void _AddEntity(const EntityPtr&);
+        void _RemoveEntity(const EntityPtr&);
 
     private:
         // Meant to be called by Entity
-        void _NotifyComponentsAdded(const Entity2Ptr&, Entity2Component *);
-        void _NotifyComponentsEnabledDisabled(const Entity2Ptr&);
+        void _NotifyComponentsAdded(const EntityPtr&, EntityComponent *);
+        void _NotifyComponentsEnabledDisabled(const EntityPtr&);
 
     private:
         mutable std::shared_mutex _m;
         // All entities currently tracked
-        std::unordered_set<Entity2Ptr> _entities;
+        std::unordered_set<EntityPtr> _entities;
         // Entities added within the last frame
-        std::unordered_set<Entity2Ptr> _entitiesToAdd;
+        std::unordered_set<EntityPtr> _entitiesToAdd;
         // Entities which are pending removal (removed during Update)
-        std::unordered_set<Entity2Ptr> _entitiesToRemove;
+        std::unordered_set<EntityPtr> _entitiesToRemove;
         // Processes removed within last frame
         std::unordered_set<EntityProcessHandle> _processesToRemove;
         // Processes added within last frame
@@ -61,8 +61,8 @@ namespace stratus {
         // Convert handle to process ptr
         std::unordered_map<EntityProcessHandle, EntityProcessPtr> _handlesToPtrs;
         // Component change lists
-        std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _addedComponents;
-        std::unordered_set<Entity2Ptr> _componentsEnabledDisabled;
+        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> _addedComponents;
+        std::unordered_set<EntityPtr> _componentsEnabledDisabled;
     };
 
     template<typename E, typename ... Types>

@@ -4,8 +4,6 @@
 #include "StratusRendererBackend.h"
 #include "StratusEntity.h"
 #include "StratusEntityCommon.h"
-#include "StratusEntity2.h"
-#include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
 #include "StratusLight.h"
 #include "StratusThread.h"
@@ -78,12 +76,12 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        void _AddAllMaterialsForEntity(const Entity2Ptr&);
-        bool _AddEntity(const Entity2Ptr& p);
+        void _AddAllMaterialsForEntity(const EntityPtr&);
+        bool _AddEntity(const EntityPtr& p);
         static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
-        static bool _EntityChanged(const Entity2Ptr&);
-        bool _RemoveEntity(const Entity2Ptr&);
-        void _CheckEntitySetForChanges(std::unordered_set<Entity2Ptr>&);
+        static bool _EntityChanged(const EntityPtr&);
+        bool _RemoveEntity(const EntityPtr&);
+        void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
         void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
         void _RecalculateMaterialSet();
 
@@ -99,16 +97,16 @@ namespace stratus {
     private:
         // These are called by the private entity handler
         friend struct RenderEntityProcess;
-        void _EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>&);
-        void _EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>&);
-        void _EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&);
-        void _EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&);
+        void _EntitiesAdded(const std::unordered_set<stratus::EntityPtr>&);
+        void _EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>&);
+        void _EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&);
+        void _EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&);
 
     private:
         RendererParams _params;
-        std::unordered_set<Entity2Ptr> _entities;
+        std::unordered_set<EntityPtr> _entities;
         // These are entities we need to check for position/orientation/scale updates
-        std::unordered_set<Entity2Ptr> _dynamicEntities;
+        std::unordered_set<EntityPtr> _dynamicEntities;
         std::unordered_set<MaterialPtr> _dirtyMaterials;
         //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_map<LightPtr, LightData> _lights;

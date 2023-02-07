@@ -11,7 +11,6 @@
 #include "StratusEntity.h"
 #include "StratusCommon.h"
 #include "StratusCamera.h"
-#include "StratusRenderNode.h"
 #include "StratusTexture.h"
 #include "StratusFrameBuffer.h"
 #include "StratusLight.h"
@@ -20,7 +19,7 @@
 #include "StratusThread.h"
 #include "StratusAsync.h"
 #include "StratusEntityCommon.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusTransformComponent.h"
 #include "StratusRenderComponents.h"
 
@@ -31,9 +30,9 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
-    extern bool IsRenderable(const Entity2Ptr&);
-    extern bool IsLightInteracting(const Entity2Ptr&);
-    extern size_t GetMeshCount(const Entity2Ptr&);
+    extern bool IsRenderable(const EntityPtr&);
+    extern bool IsLightInteracting(const EntityPtr&);
+    extern size_t GetMeshCount(const EntityPtr&);
 
     ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
         MeshWorldTransforms() = default;
@@ -68,7 +67,7 @@ namespace stratus {
         uint32_t mask;
     };
 
-    typedef std::unordered_map<Entity2Ptr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
+    typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererLightData {
         EntityMeshData visible; 
@@ -300,10 +299,10 @@ namespace stratus {
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
-            Entity2Ptr skyboxCube;
+            EntityPtr skyboxCube;
             // Generic screen quad so we can render the screen
             // from a separate frame buffer
-            Entity2Ptr screenQuad;
+            EntityPtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
         };
@@ -458,7 +457,7 @@ namespace stratus {
         void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
-        void _Render(const Entity2Ptr&, bool removeViewTranslation = false);
+        void _Render(const EntityPtr&, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);

@@ -10,7 +10,7 @@
 #include "IntegrationMain.h"
 #include "StratusEntityManager.h"
 #include "StratusEntityProcess.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "StratusTransformComponent.h"
 
@@ -67,13 +67,13 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
     public:
         virtual ~TransformTest() = default;
 
-        stratus::Entity2Ptr prev;
+        stratus::EntityPtr prev;
 
         const char * GetAppName() const override {
             return "TransformTest";
         }
 
-        void CreateEntitiesRecursive(stratus::Entity2Ptr root, int maxDepth) {
+        void CreateEntitiesRecursive(stratus::EntityPtr root, int maxDepth) {
             if (maxDepth < 1) return;
 
             for (int i = 0; i < 5; ++i) {
@@ -94,7 +94,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
             }
         }
 
-        int CalculateNumNodes(stratus::Entity2Ptr root) {
+        int CalculateNumNodes(stratus::EntityPtr root) {
             int number = root->GetChildNodes().size();
             for (auto ptr : root->GetChildNodes()) {
                 number += CalculateNumNodes(ptr);
@@ -212,7 +212,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
         bool firstUpdate = true;
         bool previousUpdated = true;
         uint64_t nextFrameUpdate = 2;
-        std::vector<stratus::Entity2Ptr> entities;
+        std::vector<stratus::EntityPtr> entities;
     };
 
     STRATUS_INLINE_ENTRY_POINT(TransformTest, numArgs, argList);

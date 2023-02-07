@@ -1,5 +1,5 @@
 #include "StratusEntityManager.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusApplicationThread.h"
 #include "StratusTransformComponent.h"
 #include <algorithm>
@@ -7,7 +7,7 @@
 namespace stratus {
     EntityManager::EntityManager() {}
 
-    void EntityManager::AddEntity(const Entity2Ptr& e) {
+    void EntityManager::AddEntity(const EntityPtr& e) {
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - must add root node");
         }
@@ -15,7 +15,7 @@ namespace stratus {
         _AddEntity(e);
     }
 
-    void EntityManager::RemoveEntity(const Entity2Ptr& e) {
+    void EntityManager::RemoveEntity(const EntityPtr& e) {
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - tree structure is immutable after adding to manager");
         }
@@ -23,16 +23,16 @@ namespace stratus {
         _RemoveEntity(e);
     }
 
-    void EntityManager::_AddEntity(const Entity2Ptr& e) {
+    void EntityManager::_AddEntity(const EntityPtr& e) {
         _entitiesToAdd.insert(e);
-        for (const Entity2Ptr& c : e->GetChildNodes()) {
+        for (const EntityPtr& c : e->GetChildNodes()) {
             _AddEntity(c);
         }
     }
 
-    void EntityManager::_RemoveEntity(const Entity2Ptr& e) {
+    void EntityManager::_RemoveEntity(const EntityPtr& e) {
         _entitiesToRemove.insert(e);    
-        for (const Entity2Ptr& c : e->GetChildNodes()) {
+        for (const EntityPtr& c : e->GetChildNodes()) {
             _RemoveEntity(c);
         }
     }
@@ -119,18 +119,18 @@ namespace stratus {
         _processesToRemove.insert(handle);
     }
     
-    void EntityManager::_NotifyComponentsAdded(const Entity2Ptr& ptr, Entity2Component * component) {
+    void EntityManager::_NotifyComponentsAdded(const EntityPtr& ptr, EntityComponent * component) {
         std::unique_lock<std::shared_mutex> ul(_m);
         auto it = _addedComponents.find(ptr);
         if (it == _addedComponents.end()) {
-            _addedComponents.insert(std::make_pair(ptr, std::vector<Entity2Component *>{component}));
+            _addedComponents.insert(std::make_pair(ptr, std::vector<EntityComponent *>{component}));
         }
         else {
             it->second.push_back(component);
         }
     }
 
-    void EntityManager::_NotifyComponentsEnabledDisabled(const Entity2Ptr& ptr) {
+    void EntityManager::_NotifyComponentsEnabledDisabled(const EntityPtr& ptr) {
         std::unique_lock<std::shared_mutex> ul(_m);
         _componentsEnabledDisabled.insert(ptr);
     }

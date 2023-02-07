@@ -34,13 +34,13 @@ namespace stratus {
         allocator.allocator.Deallocate(ptr);
     }
 
-    Entity2Ptr CreateRenderEntity() {
-        auto ptr = Entity2::Create();
+    EntityPtr CreateRenderEntity() {
+        auto ptr = Entity::Create();
         InitializeRenderEntity(ptr);
         return ptr;
     }
 
-    void InitializeRenderEntity(const Entity2Ptr& ptr) {
+    void InitializeRenderEntity(const EntityPtr& ptr) {
         InitializeTransformEntity(ptr);
         ptr->Components().AttachComponent<RenderComponent>();
         ptr->Components().AttachComponent<LightInteractionComponent>();

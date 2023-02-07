@@ -18,20 +18,20 @@
 #include "StratusWindow.h"
 
 namespace stratus {
-bool IsRenderable(const Entity2Ptr& p) {
+bool IsRenderable(const EntityPtr& p) {
     return p->Components().ContainsComponent<RenderComponent>();
 }
 
-bool IsLightInteracting(const Entity2Ptr& p) {
+bool IsLightInteracting(const EntityPtr& p) {
     auto component = p->Components().GetComponent<LightInteractionComponent>();
     return component.status == EntityComponentStatus::COMPONENT_ENABLED;
 }
 
-size_t GetMeshCount(const Entity2Ptr& p) {
+size_t GetMeshCount(const EntityPtr& p) {
     return p->Components().GetComponent<RenderComponent>().component->GetMeshCount();
 }
 
-static MeshPtr GetMesh(const Entity2Ptr& p, const size_t meshIndex) {
+static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
     return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
 }
 
@@ -856,7 +856,7 @@ static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
 }
 
-void RendererBackend::_Render(const Entity2Ptr& e, bool removeViewTranslation) {
+void RendererBackend::_Render(const EntityPtr& e, bool removeViewTranslation) {
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
@@ -967,7 +967,7 @@ void RendererBackend::_RenderCSMDepth() {
     for (auto& viewMesh : _frame->instancedPbrMeshes) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
             const RenderMeshContainerPtr container = viewMesh.second[i];
-            const Entity2Ptr& e = viewMesh.first;
+            const EntityPtr& e = viewMesh.first;
             const MeshPtr m = GetMesh(container);
             const size_t numInstances = 1;
             _state.csmDepth->setMat4("model", GetMeshTransform(container));
@@ -1399,7 +1399,7 @@ void RendererBackend::RenderScene() {
     glEnable(GL_DEPTH_TEST);
 
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
-        const Entity2Ptr& e = entityObservers.first;
+        const EntityPtr& e = entityObservers.first;
         _Render(e);
     }
     _state.buffer.fbo.unbind();
@@ -1453,7 +1453,7 @@ void RendererBackend::RenderScene() {
     _RenderSkybox();
 
     for (auto & entityObservers : _frame->instancedFlatMeshes) {
-        const Entity2Ptr& e = entityObservers.first;
+        const EntityPtr& e = entityObservers.first;
         _Render(e);
     }
     _state.lightingFbo.unbind();

@@ -18,7 +18,7 @@
 #include "CameraController.h"
 #include "WorldLightController.h"
 #include "StratusEntityManager.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "LightComponents.h"
 #include "LightControllers.h"
@@ -31,7 +31,7 @@ public:
         return "StratusGFX";
     }
 
-    void PrintNodeHierarchy(const stratus::Entity2Ptr& p, const std::string& name, const std::string& prefix) {
+    void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
         auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
         std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
         if (rc) {
@@ -85,9 +85,9 @@ public:
         environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg", true));
         environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg", true));
 
-        stratus::Async<stratus::Entity2> e;
+        stratus::Async<stratus::Entity> e;
         e = Resources()->LoadModel("../resources/models/Latrine.fbx");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             outhouse = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
             transform->SetLocalScale(glm::vec3(15.0f));
@@ -96,7 +96,7 @@ public:
         });
 
         e = Resources()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             clay = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
             transform->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
@@ -106,7 +106,7 @@ public:
         });
 
         e = Resources()->LoadModel("../resources/models/boubin_stump.FBX");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             stump = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -116,7 +116,7 @@ public:
         });
 
         e = Resources()->LoadModel("../local/hintze-hall-1m.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             hall = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -127,7 +127,7 @@ public:
         });
 
         e = Resources()->LoadModel("../local/model.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             ramparts = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
             transform->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
@@ -137,7 +137,7 @@ public:
         });
 
         e = Resources()->LoadModel("../local/Rock_Terrain_SF.obj");
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             rocks = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
             transform->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
@@ -148,7 +148,7 @@ public:
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         e = Resources()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
             transform->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
@@ -404,16 +404,16 @@ private:
     std::vector<stratus::TextureHandle> depthMaps;
     std::vector<stratus::TextureHandle> roughnessMaps;
     std::vector<stratus::TextureHandle> environmentMaps;
-    stratus::Entity2Ptr outhouse;
-    stratus::Entity2Ptr clay;
-    stratus::Entity2Ptr stump;
-    stratus::Entity2Ptr hall;
-    stratus::Entity2Ptr ramparts;
-    stratus::Entity2Ptr rocks;
-    stratus::Entity2Ptr sponza;
-    std::vector<stratus::Entity2Ptr> cubeMeshes;
-    std::vector<stratus::Entity2Ptr> quadMeshes;
-    std::vector<stratus::Entity2Ptr> entities;
+    stratus::EntityPtr outhouse;
+    stratus::EntityPtr clay;
+    stratus::EntityPtr stump;
+    stratus::EntityPtr hall;
+    stratus::EntityPtr ramparts;
+    stratus::EntityPtr rocks;
+    stratus::EntityPtr sponza;
+    std::vector<stratus::EntityPtr> cubeMeshes;
+    std::vector<stratus::EntityPtr> quadMeshes;
+    std::vector<stratus::EntityPtr> entities;
     std::vector<size_t> textureIndices;
     glm::mat4 persp;
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "StratusEntityProcess.h"
 #include "StratusUtils.h"
@@ -13,8 +13,8 @@
 namespace stratus {
     // Convenience functions for creating a new entity or initializing existing entity
     // with transform components
-    extern Entity2Ptr CreateTransformEntity();
-    extern void InitializeTransformEntity(Entity2Ptr);
+    extern EntityPtr CreateTransformEntity();
+    extern void InitializeTransformEntity(EntityPtr);
 
     // Contains scale, rotate, translate for local coordinate system
     ENTITY_COMPONENT_STRUCT(LocalTransformComponent)
@@ -65,20 +65,20 @@ namespace stratus {
         virtual ~TransformProcess();
 
         void Process(const double deltaSeconds) override;
-        void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>&) override;
-        void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>&) override;
-        void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>&) override;
-        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>&) override;
+        void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>&) override;
+        void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>&) override;
+        void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&) override;
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&) override;
 
     private:
-        static bool _IsEntityRelevant(const Entity2Ptr&);
+        static bool _IsEntityRelevant(const EntityPtr&);
 
     private:
-        void _ProcessNode(const Entity2Ptr& p);
+        void _ProcessNode(const EntityPtr& p);
 
     private:
-        std::unordered_set<Entity2Ptr> _rootNodes;
+        std::unordered_set<EntityPtr> _rootNodes;
         // For quick access without needing to query the entity
-        std::unordered_map<Entity2Ptr, std::vector<Entity2Component *>> _components;
+        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> _components;
     };
 }

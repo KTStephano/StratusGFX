@@ -6,7 +6,7 @@
 #include "StratusRenderComponents.h"
 #include "StratusResourceManager.h"
 #include "StratusEngine.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityProcess.h"
 #include "StratusEntityManager.h"
 
@@ -18,28 +18,28 @@ namespace stratus {
 
         virtual void Process(const double deltaSeconds) {}
 
-        void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+        void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
             if (rf) rf->_EntitiesAdded(e);
         }
 
-        void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+        void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
             if (rf) rf->_EntitiesRemoved(e);
         }
 
-        void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& e) override {
+        void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) override {
             auto rf = INSTANCE(RendererFrontend);
             if (rf) rf->_EntityComponentsAdded(e);
         }
 
-        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
             if (rf) rf->_EntityComponentsEnabledDisabled(e);
         }
     };
 
-    static void InitializeMeshTransformComponent(const Entity2Ptr& p) {
+    static void InitializeMeshTransformComponent(const EntityPtr& p) {
         if (!p->Components().ContainsComponent<MeshWorldTransforms>()) p->Components().AttachComponent<MeshWorldTransforms>();
 
         auto global = p->Components().GetComponent<GlobalTransformComponent>().component;
@@ -52,20 +52,20 @@ namespace stratus {
         }
     }
 
-    static bool IsStaticEntity(const Entity2Ptr& p) {
+    static bool IsStaticEntity(const EntityPtr& p) {
         auto sc = p->Components().GetComponent<StaticObjectComponent>();
         return sc.component != nullptr && sc.status == EntityComponentStatus::COMPONENT_ENABLED;
     }
 
-    static glm::vec3 GetWorldTransform(const Entity2Ptr& p, const size_t meshIndex) {
+    static glm::vec3 GetWorldTransform(const EntityPtr& p, const size_t meshIndex) {
         return glm::vec3(GetTranslate(p->Components().GetComponent<MeshWorldTransforms>().component->transforms[meshIndex]));
     }
 
-    static MeshPtr GetMesh(const Entity2Ptr& p, const size_t meshIndex) {
+    static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
         return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
     }
 
-    static bool InsertMesh(EntityMeshData& map, const Entity2Ptr& p, const size_t meshIndex) {
+    static bool InsertMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
         auto it = map.find(p);
         if (it == map.end()) {
             map.insert(std::make_pair(p, std::vector<RenderMeshContainerPtr>()));
@@ -89,7 +89,7 @@ namespace stratus {
         return true;
     }
 
-    static bool RemoveMesh(EntityMeshData& map, const Entity2Ptr& p, const size_t meshIndex) {
+    static bool RemoveMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
         auto it = map.find(p);
         if (it == map.end()) return false;
 
@@ -107,21 +107,21 @@ namespace stratus {
         : _params(p) {
     }
 
-    void RendererFrontend::_AddAllMaterialsForEntity(const Entity2Ptr& p) {
+    void RendererFrontend::_AddAllMaterialsForEntity(const EntityPtr& p) {
         RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
         for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
             _dirtyMaterials.insert(c->GetMaterialAt(i));
         }
     }
 
-    void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) {
+    void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
         auto ul = _LockWrite();
         for (auto ptr : e) {
             _AddEntity(ptr);
         }
     }
 
-    void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
+    void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
         auto ul = _LockWrite();
         bool removed = false;
         for (auto& ptr : e) {
@@ -133,7 +133,7 @@ namespace stratus {
         }
     }
 
-    void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& e) {
+    void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) {
         auto ul = _LockWrite();
         bool changed = false;
         for (auto& entry : e) {
@@ -149,7 +149,7 @@ namespace stratus {
         }
     }
 
-    void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& e) {
+    void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) {
         auto ul = _LockWrite();
         bool changed = false;
         for (auto& ptr : e) {
@@ -164,7 +164,7 @@ namespace stratus {
         }
     }
 
-    bool RendererFrontend::_AddEntity(const Entity2Ptr& p) {
+    bool RendererFrontend::_AddEntity(const EntityPtr& p) {
         if (p == nullptr || _entities.find(p) != _entities.end()) return false;
         
         if (IsRenderable(p)) {
@@ -201,24 +201,24 @@ namespace stratus {
         return true;
     }
 
-    // void RendererFrontend::AddStaticEntity(const Entity2Ptr& p) {
+    // void RendererFrontend::AddStaticEntity(const EntityPtr& p) {
     //     auto ul = _LockWrite();
     //     _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
     //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     // }
 
-    // void RendererFrontend::AddDynamicEntity(const Entity2Ptr& p) {
+    // void RendererFrontend::AddDynamicEntity(const EntityPtr& p) {
     //     auto ul = _LockWrite();
     //     _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
     //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     // }
 
-    // void RendererFrontend::RemoveEntity(const Entity2Ptr& p) {
+    // void RendererFrontend::RemoveEntity(const EntityPtr& p) {
     //     auto ul = _LockWrite();
     //     _RemoveEntity(p);
     // }
 
-    bool RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
+    bool RendererFrontend::_RemoveEntity(const EntityPtr& p) {
         if (p == nullptr || _entities.find(p) == _entities.end()) return false;
 
         _entities.erase(p);
@@ -235,7 +235,7 @@ namespace stratus {
         return true;
     }
 
-    // void RendererFrontend::_RemoveEntity(const Entity2Ptr& p) {
+    // void RendererFrontend::_RemoveEntity(const EntityPtr& p) {
     //     if (_staticPbrEntities.erase(p)) {
     //         _staticPbrDirty = true;
     //     }
@@ -727,13 +727,13 @@ namespace stratus {
         }
     }
 
-    bool RendererFrontend::_EntityChanged(const Entity2Ptr& p) {
+    bool RendererFrontend::_EntityChanged(const EntityPtr& p) {
         auto tc = p->Components().GetComponent<GlobalTransformComponent>().component;
         auto rc = p->Components().GetComponent<RenderComponent>().component;
         return tc->ChangedWithinLastFrame() || rc->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<Entity2Ptr>& map) {
+    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityPtr>& map) {
         for (auto& entity : map) {
             // If this is a light-interacting node, run through all the lights to see if they need to be updated
             if (_EntityChanged(entity)) {               
@@ -936,7 +936,7 @@ namespace stratus {
     void RendererFrontend::_RecalculateMaterialSet() {
         _dirtyMaterials.clear();
 
-        for (const Entity2Ptr& p : _entities) {
+        for (const EntityPtr& p : _entities) {
             _AddAllMaterialsForEntity(p);
         }
 

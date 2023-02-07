@@ -1,13 +1,13 @@
 #include "StratusTransformComponent.h"
 
 namespace stratus {
-    Entity2Ptr CreateTransformEntity() {
-        auto ptr = Entity2::Create();
+    EntityPtr CreateTransformEntity() {
+        auto ptr = Entity::Create();
         InitializeTransformEntity(ptr);
         return ptr;
     }
 
-    void InitializeTransformEntity(Entity2Ptr ptr) {
+    void InitializeTransformEntity(EntityPtr ptr) {
         ptr->Components().AttachComponent<LocalTransformComponent>();
         ptr->Components().AttachComponent<GlobalTransformComponent>();
     }
@@ -90,10 +90,10 @@ namespace stratus {
         }
     }
 
-    void TransformProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& entities) {
+    void TransformProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& entities) {
         for (auto ptr : entities) {
             if (_IsEntityRelevant(ptr)) {
-                std::vector<Entity2Component *> components{
+                std::vector<EntityComponent *> components{
                     ptr->Components().GetComponent<LocalTransformComponent>().component,
                     ptr->Components().GetComponent<GlobalTransformComponent>().component
                 };
@@ -108,15 +108,15 @@ namespace stratus {
         }
     }
 
-    void TransformProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& entities) {
+    void TransformProcess::EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& entities) {
         for (auto ptr : entities) {
             _rootNodes.erase(ptr);
             _components.erase(ptr);
         }
     }
 
-    void TransformProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component *>>& entities) {
-        std::unordered_set<Entity2Ptr> added;
+    void TransformProcess::EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& entities) {
+        std::unordered_set<EntityPtr> added;
         for (auto p : entities) {
             if (_IsEntityRelevant(p.first)) {
                 added.insert(p.first);
@@ -126,9 +126,9 @@ namespace stratus {
         EntitiesAdded(added);
     }
 
-    void TransformProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& entities) {
-        std::unordered_set<Entity2Ptr> added;
-        std::unordered_set<Entity2Ptr> removed;
+    void TransformProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& entities) {
+        std::unordered_set<EntityPtr> added;
+        std::unordered_set<EntityPtr> removed;
         for (auto ptr : entities) {
             if (_IsEntityRelevant(ptr)) {
                 added.insert(ptr);
@@ -142,7 +142,7 @@ namespace stratus {
         EntitiesRemoved(removed);
     }
 
-    bool TransformProcess::_IsEntityRelevant(const Entity2Ptr& e) {
+    bool TransformProcess::_IsEntityRelevant(const EntityPtr& e) {
         auto& components = e->Components();
         auto local = components.GetComponent<LocalTransformComponent>();
         auto global = components.GetComponent<GlobalTransformComponent>();
@@ -151,7 +151,7 @@ namespace stratus {
             global.status == EntityComponentStatus::COMPONENT_ENABLED;
     }
 
-    void TransformProcess::_ProcessNode(const Entity2Ptr& p) {
+    void TransformProcess::_ProcessNode(const EntityPtr& p) {
         auto it = _components.find(p);
         if (it == _components.end()) return;
 

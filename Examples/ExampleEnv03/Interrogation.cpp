@@ -28,7 +28,7 @@ public:
         return "Interrogation";
     }
 
-    void PrintNodeHierarchy(const stratus::Entity2Ptr& p, const std::string& name, const std::string& prefix) {
+    void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
         auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
         std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
         if (rc) {
@@ -55,8 +55,8 @@ public:
         //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity2> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity2> e) { 
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             interrogationRoom = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(interrogationRoom);
             //transform->SetLocalPosition(glm::vec3(0.0f));
@@ -249,7 +249,7 @@ public:
     }
 
 private:
-    stratus::Entity2Ptr interrogationRoom;
+    stratus::EntityPtr interrogationRoom;
 };
 
 STRATUS_ENTRY_POINT(Interrogation)
