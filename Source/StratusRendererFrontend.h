@@ -3,13 +3,19 @@
 #include "StratusCommon.h"
 #include "StratusRendererBackend.h"
 #include "StratusEntity.h"
-#include "StratusRenderNode.h"
+#include "StratusEntityCommon.h"
 #include "StratusSystemModule.h"
 #include "StratusLight.h"
 #include "StratusThread.h"
+#include "StratusApplicationThread.h"
 #include <cstddef>
 #include <memory>
 #include <shared_mutex>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include "StratusRenderComponents.h"
+#include "StratusGpuCommon.h"
 
 namespace stratus {
     struct RendererParams {
@@ -27,17 +33,12 @@ namespace stratus {
         RendererFrontend(const RendererParams&);
 
         struct LightData {
-            std::unordered_set<EntityView> visible;
+            EntityMeshData visible;
             LightPtr lightCopy;
             bool dirty = true;
         };
 
     public:
-        void AddStaticEntity(const EntityPtr&);
-        void AddDynamicEntity(const EntityPtr&);
-        void RemoveEntity(const EntityPtr&);
-        void ClearEntities();
-
         void AddLight(const LightPtr&);
         void RemoveLight(const LightPtr&);
         void ClearLights();
@@ -75,10 +76,14 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        static void _AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_set<EntityView>& pbr, std::unordered_set<EntityView>& flat, std::unordered_map<LightPtr, LightData>& lights);
-        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_set<EntityView>& entities);
-        static bool _EntityChanged(const EntityView&);
-        void _CheckEntitySetForChanges(std::unordered_set<EntityView>&, bool&);
+        void _AddAllMaterialsForEntity(const EntityPtr&);
+        bool _AddEntity(const EntityPtr& p);
+        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
+        static bool _EntityChanged(const EntityPtr&);
+        bool _RemoveEntity(const EntityPtr&);
+        void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
+        void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
+        void _RecalculateMaterialSet();
 
     private:
         void _UpdateViewport();
@@ -87,27 +92,35 @@ namespace stratus {
         void _UpdateLights();
         void _UpdateCameraVisibility();
         void _UpdateCascadeVisibility();
-        void _SwapFrames();
+        void _UpdateMaterialSet();
+
+    private:
+        // These are called by the private entity handler
+        friend struct RenderEntityProcess;
+        void _EntitiesAdded(const std::unordered_set<stratus::EntityPtr>&);
+        void _EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>&);
+        void _EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&);
+        void _EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&);
 
     private:
         RendererParams _params;
-        std::unordered_set<EntityView> _staticPbrEntities;
-        std::unordered_set<EntityView> _dynamicPbrEntities;
-        std::unordered_set<EntityView> _flatEntities;
+        std::unordered_set<EntityPtr> _entities;
+        // These are entities we need to check for position/orientation/scale updates
+        std::unordered_set<EntityPtr> _dynamicEntities;
+        std::unordered_set<MaterialPtr> _dirtyMaterials;
+        //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_map<LightPtr, LightData> _lights;
         std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
         CameraPtr _camera;
         glm::mat4 _projection = glm::mat4(1.0f);
-        bool _staticPbrDirty = true;
-        bool _dynamicPbrDirty = true;
-        bool _lightsDirty = true;
         bool _viewportDirty = true;
         bool _recompileShaders = false;
         std::shared_ptr<RendererFrame> _frame;
-        std::shared_ptr<RendererFrame> _prevFrame;
         std::unique_ptr<RendererBackend> _renderer;
+        // This forwards entity state changes to the renderer
+        EntityProcessHandle _entityHandler;
         mutable std::shared_mutex _mutex;
     };
 }

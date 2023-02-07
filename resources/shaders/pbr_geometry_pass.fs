@@ -1,24 +1,17 @@
 STRATUS_GLSL_VERSION
 
-uniform sampler2D diffuseTexture;
-uniform sampler2D normalMap;
-uniform sampler2D depthMap;
-uniform sampler2D roughnessMap;
-uniform sampler2D ambientOcclusionMap;
-uniform sampler2D metalnessMap;
-uniform sampler2D metallicRoughnessMap;
+#extension GL_ARB_bindless_texture : require
 
-uniform bool textured = false;
-uniform bool normalMapped = false;
-uniform bool depthMapped = false;
-uniform bool roughnessMapped = false;
-uniform bool ambientMapped = false;
-uniform bool metalnessMapped = false;
-uniform bool metallicRoughnessMapped = false;
+#include "common.glsl"
+
+// Material information
+layout (std430, binding = 11) readonly buffer SSBO1 {
+    Material materials[];
+};
+uniform int materialIndex;
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
-in float fsRoughness;
 uniform float heightScale = 0.1;
 
 /**
@@ -36,10 +29,6 @@ in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
 in mat3 fsModelNoTranslate;
-in vec3 fsDiffuseColor;
-in vec3 fsBaseReflectivity; // Ex: vec3(0.03-0.04) for plastics
-in float fsMetallic; // Between 0 and 1 where 0 is not metallic at all and 1 is purely metallic
-//in float fsfsShininess;
 
 /**
  * Tangent space -> world space
@@ -71,7 +60,7 @@ vec4 calculateStructureOutput(float z) {
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
-    float height = texture(depthMap, texCoords).r;
+    float height = texture(materials[materialIndex].depthMap, texCoords).r;
     vec2 p = viewDir.xy * (height * 0.005);
     return texCoords - p;
 }
@@ -79,25 +68,27 @@ vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
 void main() {
     vec3 viewDir = normalize(viewPosition - fsPosition);
     vec2 texCoords = fsTexCoords;
-    if (depthMapped) {
+    Material material = materials[materialIndex];
+
+    if (bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED)) {
         texCoords = calculateDepthCoords(texCoords, viewDir);
         // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
         //     discard;
         // }
     }
 
-    vec3 baseColor = fsDiffuseColor;
+    vec3 baseColor = material.diffuseColor.xyz;
     vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
-    float roughness = fsRoughness;
+    float roughness = material.metallicRoughness.y;
     float ao = 1.0;
-    float metallic = fsMetallic;
+    float metallic = material.metallicRoughness.x;
 
-    if (textured) {
-        baseColor = texture(diffuseTexture, texCoords).rgb;
+    if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
+        baseColor = texture(material.diffuseMap, texCoords).rgb;
     }
 
-    if (normalMapped) {
-        normal = texture(normalMap, texCoords).rgb;
+    if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
+        normal = texture(material.normalMap, texCoords).rgb;
         // Normals generally have values from [-1, 1], but inside
         // an OpenGL texture they are transformed to [0, 1]. To convert
         // them back, we multiply by 2 and subtract 1.
@@ -106,22 +97,23 @@ void main() {
         normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
     }
 
-    if (roughnessMapped) {
-        roughness = texture(roughnessMap, texCoords).r;
-    }
-
-    if (ambientMapped) {
-        ao = texture(ambientOcclusionMap, texCoords).r;
-    }
-
-    if (metalnessMapped) {
-        metallic = texture(metalnessMap, texCoords).r;
-    }
-
-    if (metallicRoughnessMapped) {
-        vec2 metallicRoughness = texture(metallicRoughnessMap, texCoords).rg;
+    if (bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED)) {
+        vec2 metallicRoughness = texture(material.metallicRoughnessMap, texCoords).rg;
         metallic = clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
         roughness = metallicRoughness.g;
+    }
+    else {
+        if (bitwiseAndBool(material.flags, GPU_ROUGHNESS_MAPPED)) {
+            roughness = texture(material.roughnessMap, texCoords).r;
+        }
+
+        if (bitwiseAndBool(material.flags, GPU_METALLIC_MAPPED)) {
+            metallic = texture(material.metallicMap, texCoords).r;
+        }
+    }
+
+    if (bitwiseAndBool(material.flags, GPU_AMBIENT_MAPPED)) {
+        ao = texture(material.ambientMap, texCoords).r;
     }
 
     // Coordinate space is set to world
@@ -129,7 +121,7 @@ void main() {
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = baseColor;
-    gBaseReflectivity = fsBaseReflectivity;
+    gBaseReflectivity = material.baseReflectivity.xyz;
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);

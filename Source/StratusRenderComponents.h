@@ -6,7 +6,7 @@
 #include "StratusGpuBuffer.h"
 #include "StratusMaterial.h"
 #include "StratusMath.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -21,13 +21,23 @@ namespace stratus {
 
     struct Mesh;
 
-    typedef std::shared_ptr<Mesh> MeshPtr;
+    typedef Mesh * MeshPtr;
 
-    extern Entity2Ptr CreateRenderEntity();
-    extern void InitializeRenderEntity(const Entity2Ptr&);
+    extern EntityPtr CreateRenderEntity();
+    extern void InitializeRenderEntity(const EntityPtr&);
 
     struct Mesh final {
+    private:
         Mesh();
+
+    private:
+        static Mesh * _PlacementNew(uint8_t *);
+
+    public:
+        static MeshPtr Create();
+        static void Destroy(MeshPtr);
+
+    public:
         ~Mesh();
 
         void AddVertex(const glm::vec3&);
@@ -46,8 +56,16 @@ namespace stratus {
         void SetFaceCulling(const RenderFaceCulling&);
         RenderFaceCulling GetFaceCulling() const;
 
+        // Before data has been moved to the GPU the Mesh will need to pack
+        // all the data into a single buffer. This function is exposed so the
+        // resource manager can do this asynchronously before moving to the graphics
+        // application thread.
+        void PackCpuData();
+
+        // Temporary - to be removed
+        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
+
     private:
-        void _GenerateCpuData();
         void _GenerateGpuData();
         void _CalculateTangentsBitangents();
         void _EnsureFinalized() const;
@@ -62,6 +80,7 @@ namespace stratus {
             std::vector<glm::vec3> bitangents;
             std::vector<uint32_t> indices;
             std::vector<float> data;
+            bool needsRepacking = false;
         };
 
     private:
@@ -76,6 +95,12 @@ namespace stratus {
     struct MeshData {
         std::vector<MeshPtr> meshes;
         std::vector<glm::mat4> transforms;
+
+        ~MeshData() {
+            for (auto ptr : meshes) {
+                Mesh::Destroy(ptr);
+            }
+        }
     };
 
     ENTITY_COMPONENT_STRUCT(RenderComponent)
@@ -86,8 +111,12 @@ namespace stratus {
         RenderComponent();
         RenderComponent(const RenderComponent&);
 
+        MeshPtr GetMesh(const size_t) const;
+        const glm::mat4& GetMeshTransform(const size_t) const;
+        size_t GetMeshCount() const;
+
         // There will always be 1 material per mesh
-        size_t NumMaterials() const;
+        size_t GetMaterialCount() const;
         const std::vector<MaterialPtr>& GetAllMaterials() const;
         const MaterialPtr& GetMaterialAt(size_t) const;
         void AddMaterial(MaterialPtr);
@@ -99,11 +128,13 @@ namespace stratus {
         std::vector<MaterialPtr> _materials;
     };
 
+    // If enabled then the entity interacts with light, otherwise it is flat shaded
     ENTITY_COMPONENT_STRUCT(LightInteractionComponent)
         LightInteractionComponent() = default;
         LightInteractionComponent(const LightInteractionComponent&) = default;
     };
 
+    // If enabled then changes to position, orientation and scale are not tracked by renderer
     ENTITY_COMPONENT_STRUCT(StaticObjectComponent)
         StaticObjectComponent() = default;
         StaticObjectComponent(const StaticObjectComponent&) = default;

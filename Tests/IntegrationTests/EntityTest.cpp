@@ -10,7 +10,7 @@
 #include "IntegrationMain.h"
 #include "StratusEntityManager.h"
 #include "StratusEntityProcess.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 
 ENTITY_COMPONENT_STRUCT(ExampleComponent)
@@ -77,9 +77,9 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             STRATUS_LOG << "Process " << deltaSeconds << std::endl;
         }
 
-        void EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+        void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) override {
             numEntitiesAdded += e.size();
-            for (stratus::Entity2Ptr ptr : e) {
+            for (stratus::EntityPtr ptr : e) {
                 ptrs.push_back(ptr);
                 ptr->Components().AttachComponent<ExampleComponent>((const void *)this);
 
@@ -100,11 +100,11 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             }
         }
 
-        void EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) override {
+        void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) override {
             numEntitiesRemoved += e.size();
         }
 
-        void EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component*>>& added) override {
+        void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent*>>& added) override {
             for (auto entry : added) {
                 // Don't process if we've handled it before
                 if (seen.find(entry.first) != seen.end()) continue;
@@ -115,7 +115,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
                 // If the ptr we set is invalid then don't process
                 if (entry.first->Components().GetComponent<ExampleComponent>().component->ptr != (const void *)this) continue;
                 // Make sure the component we added actually shows up in the array
-                for (stratus::Entity2Component * c : components) {
+                for (stratus::EntityComponent * c : components) {
                     if (c->TypeName() == ExampleComponent::STypeName()) {
                         numComponentsAdded += 1;
                     }
@@ -123,7 +123,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             }
         }
 
-        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) override {
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& changed) override {
             componentsEnabledDisabledCalled = true;
             for (auto ptr : changed) {
                 if (ptr != disabledComponent || 
@@ -134,16 +134,16 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             }
         }
 
-        stratus::Entity2Ptr disabledComponent;
-        std::vector<stratus::Entity2Ptr> ptrs;
-        std::unordered_set<stratus::Entity2Ptr> seen;
+        stratus::EntityPtr disabledComponent;
+        std::vector<stratus::EntityPtr> ptrs;
+        std::unordered_set<stratus::EntityPtr> seen;
     };
 
     class EntityTest : public stratus::Application {
     public:
         virtual ~EntityTest() = default;
 
-        stratus::Entity2Ptr prev;
+        stratus::EntityPtr prev;
 
         const char * GetAppName() const override {
             return "EntityTest";
@@ -169,7 +169,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
             }
 
             if (Engine()->FrameCount() <= maxEntities) {
-                prev = stratus::Entity2::Create();
+                prev = stratus::Entity::Create();
                 if (prev->IsInWorld()) {
                     processRanIntoIssues = true;
                 }

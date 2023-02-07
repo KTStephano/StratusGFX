@@ -10,7 +10,7 @@
 #include "IntegrationMain.h"
 #include "StratusEntityManager.h"
 #include "StratusEntityProcess.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "StratusTransformComponent.h"
 
@@ -67,17 +67,19 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
     public:
         virtual ~TransformTest() = default;
 
-        stratus::Entity2Ptr prev;
+        stratus::EntityPtr prev;
 
         const char * GetAppName() const override {
             return "TransformTest";
         }
 
-        void CreateEntitiesRecursive(stratus::Entity2Ptr root, int maxDepth) {
+        void CreateEntitiesRecursive(stratus::EntityPtr root, int maxDepth) {
             if (maxDepth < 1) return;
 
             for (int i = 0; i < 5; ++i) {
                 auto ptr = stratus::CreateTransformEntity();
+                entities.push_back(ptr);
+
                 auto local = ptr->Components().GetComponent<stratus::LocalTransformComponent>().component;
                 auto scale = glm::vec3(RandFloat(1000), RandFloat(1000), RandFloat(1000));
                 auto rotate = stratus::Rotation(
@@ -88,14 +90,27 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
                 local->SetLocalTransform(scale, rotate, position);
                 if (root) root->AttachChildNode(ptr);
 
-                entities.push_back(ptr);
-
                 CreateEntitiesRecursive(ptr, maxDepth - 1);
             }
         }
 
+        int CalculateNumNodes(stratus::EntityPtr root) {
+            int number = root->GetChildNodes().size();
+            for (auto ptr : root->GetChildNodes()) {
+                number += CalculateNumNodes(ptr);
+            }
+            return number;
+        }
+
         bool Initialize() override {
             CreateEntitiesRecursive(nullptr, 4);
+            int treeSize = 0;
+            for (auto ptr : entities) {
+                if (ptr->GetParentNode() == nullptr) {
+                    treeSize = treeSize + 1 + CalculateNumNodes(ptr);
+                }
+            }
+            STRATUS_LOG << "TREE SIZE: " << treeSize << std::endl;
             for (auto ptr : entities) {
                 if (ptr->GetParentNode() == nullptr) {
                     INSTANCE(EntityManager)->AddEntity(ptr);
@@ -197,7 +212,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
         bool firstUpdate = true;
         bool previousUpdated = true;
         uint64_t nextFrameUpdate = 2;
-        std::vector<stratus::Entity2Ptr> entities;
+        std::vector<stratus::EntityPtr> entities;
     };
 
     STRATUS_INLINE_ENTRY_POINT(TransformTest, numArgs, argList);

@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <StratusLight.h>
+#include "StratusGpuCommon.h"
 #include "StratusPipeline.h"
 #include "StratusRendererBackend.h"
 #include <math.h>
@@ -17,6 +18,35 @@
 #include "StratusWindow.h"
 
 namespace stratus {
+bool IsRenderable(const EntityPtr& p) {
+    return p->Components().ContainsComponent<RenderComponent>();
+}
+
+bool IsLightInteracting(const EntityPtr& p) {
+    auto component = p->Components().GetComponent<LightInteractionComponent>();
+    return component.status == EntityComponentStatus::COMPONENT_ENABLED;
+}
+
+size_t GetMeshCount(const EntityPtr& p) {
+    return p->Components().GetComponent<RenderComponent>().component->GetMeshCount();
+}
+
+static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
+    return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
+}
+
+static MeshPtr GetMesh(const RenderMeshContainerPtr& p) {
+    return p->render->GetMesh(p->meshIndex);
+}
+
+static MaterialPtr GetMeshMaterial(const RenderMeshContainerPtr& p) {
+    return p->render->GetMaterialAt(p->meshIndex);
+}
+
+static const glm::mat4& GetMeshTransform(const RenderMeshContainerPtr& p) {
+    return p->transform->transforms[p->meshIndex];
+}
+
 // See https://www.khronos.org/opengl/wiki/Debug_Output
 void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
@@ -24,24 +54,6 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
        //std::cout << "[OpenGL] " << message << std::endl;
     }
 }
-
-// Matches the definition in vpl_tiled_deferred_culling.glsl
-// See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
-struct alignas(16) GpuVec {
-    float v[4];
-
-    GpuVec(float x, float y, float z, float w) {
-        v[0] = x;
-        v[1] = y;
-        v[2] = z;
-        v[3] = w;
-    }
-
-    GpuVec(float xyzw) : GpuVec(xyzw, xyzw, xyzw, xyzw) {}
-    GpuVec(const glm::vec4& v) : GpuVec(v[0], v[1], v[2], v[3]) {}
-    GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
-    GpuVec() : GpuVec(0.0f) {}
-};
 
 static void printGLInfo(const GFXConfig & config) {
     auto & log = STRATUS_LOG << std::endl;
@@ -291,10 +303,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
     // Create skybox cube
-    _state.skyboxCube = ResourceManager::Instance()->CreateCube()->GetRenderNode();
+    _state.skyboxCube = ResourceManager::Instance()->CreateCube();
 
     // Create the screen quad
-    _state.screenQuad = ResourceManager::Instance()->CreateQuad()->GetRenderNode();
+    _state.screenQuad = ResourceManager::Instance()->CreateQuad();
 
     // Use the shader isValid() method to determine if everything succeeded
     _ValidateAllShaders();
@@ -319,6 +331,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     std::vector<int> visibleIndicesData(_state.vpls.maxTotalVirtualPointLightsPerFrame, 0);
+    _state.vpls.vplShadowMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
     _state.vpls.vplPositions = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
     _state.vpls.vplColors = GpuBuffer(nullptr, sizeof(GpuVec) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
@@ -616,38 +629,38 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     }
 }
 
-void RendererBackend::_InitAllInstancedData() {
-#define INIT_INST_DATA(map)                                         \
-    for (auto& entry : map) {                                       \
-        RenderNodeView node = entry.first;                          \
-        std::vector<RendererEntityData>& dataVec = entry.second;    \
-        for (auto& data : dataVec) {                                \
-            _InitInstancedData(data);                               \
-        }                                                           \
-    }
+// void RendererBackend::_InitAllInstancedData() {
+// #define INIT_INST_DATA(map)                                         \
+//     for (auto& entry : map) {                                       \
+//         RenderNodeView node = entry.first;                          \
+//         std::vector<RendererEntityData>& dataVec = entry.second;    \
+//         for (auto& data : dataVec) {                                \
+//             _InitInstancedData(data);                               \
+//         }                                                           \
+//     }
 
-    // Dynamic entities
-    INIT_INST_DATA(_frame->instancedPbrMeshes)
+//     // Dynamic entities
+//     INIT_INST_DATA(_frame->instancedPbrMeshes)
 
-    // Flat entities
-    INIT_INST_DATA(_frame->instancedFlatMeshes)
+//     // Flat entities
+//     INIT_INST_DATA(_frame->instancedFlatMeshes)
 
-    // Shadow-casting lights
-    for (auto& entry : _frame->lights) {
-        auto light = entry.first;
-        auto& lightData = entry.second;
-        if (light->castsShadows() && lightData.dirty) {
-            INIT_INST_DATA(lightData.visible)
-        }
-    }
+//     // Shadow-casting lights
+//     for (auto& entry : _frame->lights) {
+//         auto light = entry.first;
+//         auto& lightData = entry.second;
+//         if (light->castsShadows() && lightData.dirty) {
+//             INIT_INST_DATA(lightData.visible)
+//         }
+//     }
 
-    // Cascades
-    if (_frame->csc.worldLight->getEnabled()) {
-        INIT_INST_DATA(_frame->csc.visible)
-    }
+//     // Cascades
+//     if (_frame->csc.worldLight->getEnabled()) {
+//         INIT_INST_DATA(_frame->csc.visible)
+//     }
 
-#undef INIT_INST_DATA
-}
+// #undef INIT_INST_DATA
+// }
 
 void RendererBackend::_InitSSAO() {
     // Create k values 0 to 15 and randomize them
@@ -709,7 +722,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     SDL_GL_MakeCurrent(window, _context);
 
     // Clear out instanced data from previous frame
-    _ClearInstancedData();
+    //_ClearInstancedData();
 
     // Clear out light data for lights that were removed
     _ClearRemovedLightData();
@@ -724,7 +737,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     _ClearFramebufferData(clearScreen);
 
     // Generate the GPU data for all instanced entities
-    _InitAllInstancedData();
+    //_InitAllInstancedData();
 
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -756,56 +769,56 @@ static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & proj
     };
 }
 
-void RendererBackend::_InitInstancedData(RendererEntityData & c) {
-    Pipeline * pbr = _state.geometry.get();
+// void RendererBackend::_InitInstancedData(RendererEntityData & c) {
+//     Pipeline * pbr = _state.geometry.get();
 
-    auto & modelMats = c.modelMatrices;
-    auto & diffuseColors = c.diffuseColors;
-    auto & baseReflectivity = c.baseReflectivity;
-    auto & roughness = c.roughness;
-    auto & metallic = c.metallic;
-    auto & buffers = c.buffers;
-    buffers.Clear();
-    _state.gpuBuffers.push_back(buffers);
+//     auto & modelMats = c.modelMatrices;
+//     auto & diffuseColors = c.diffuseColors;
+//     auto & baseReflectivity = c.baseReflectivity;
+//     auto & roughness = c.roughness;
+//     auto & metallic = c.metallic;
+//     auto & buffers = c.buffers;
+//     buffers.Clear();
+//     _state.gpuBuffers.push_back(buffers);
 
-    GpuPrimitiveBuffer buffer;
+//     GpuPrimitiveBuffer buffer;
 
-    // First the model matrices
+//     // First the model matrices
 
-    // All shaders should use the same location for model, so this should work
-    int pos = pbr->getAttribLocation("model");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
-    buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     // All shaders should use the same location for model, so this should work
+//     int pos = pbr->getAttribLocation("model");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
+//     buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("diffuseColor");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("diffuseColor");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
+//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("baseReflectivity");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
-    buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("baseReflectivity");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
+//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("metallic");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("metallic");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
+//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    pos = pbr->getAttribLocation("roughness");
-    buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
-    buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-    buffers.AddBuffer(buffer);
+//     pos = pbr->getAttribLocation("roughness");
+//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
+//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
+//     buffers.AddBuffer(buffer);
 
-    //buffers.Bind();
-}
+//     //buffers.Bind();
+// }
 
-void RendererBackend::_ClearInstancedData() {
-    // glDeleteBuffers(buffers.size(), &buffers[0]);
-    for (auto& buffer: _state.gpuBuffers) buffer.Clear();
-    _state.gpuBuffers.clear();
-}
+// void RendererBackend::_ClearInstancedData() {
+//     // glDeleteBuffers(buffers.size(), &buffers[0]);
+//     for (auto& buffer: _state.gpuBuffers) buffer.Clear();
+//     _state.gpuBuffers.clear();
+// }
 
 void RendererBackend::_BindShader(Pipeline * s) {
     _UnbindShader();
@@ -843,7 +856,7 @@ static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
 }
 
-void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslation) {
+void RendererBackend::_Render(const EntityPtr& e, bool removeViewTranslation) {
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
@@ -861,8 +874,8 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
 
     // Set up the shader we will use for this batch of entities
     Pipeline * s;
-    std::vector<RendererEntityData>* meshContainer;
-    if (e.Get()->GetLightInteractionEnabled() == false) {
+    std::vector<RenderMeshContainerPtr>* meshContainer;
+    if (IsLightInteracting(e) == false) {
         s = _state.forward.get();
         meshContainer = &_frame->instancedFlatMeshes.find(e)->second;
     }
@@ -876,83 +889,23 @@ void RendererBackend::_Render(const RenderNodeView& e, bool removeViewTranslatio
 
     s->setMat4("projection", &projection[0][0]);
     s->setMat4("view", &view[0][0]);
+    _frame->materialInfo.materials.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-#define SETUP_TEXTURE(name, flag, handle)           \
-        tex = _LookupTexture(handle);               \
-        const bool valid = ValidateTexture(tex);    \
-        s->setBool(flag, valid);                    \
-        if (valid) {                                \
-            s->bindTexture(name, tex.Get());        \
-        }
-
-    for (int i = 0; i < meshContainer->size(); ++i) {
+    for (size_t i = 0; i < GetMeshCount(e); ++i) {
         Async<Texture> tex;
-        const RenderMeshContainer* c = e.Get()->GetMeshContainer(i);
-        const RendererEntityData& container = (*meshContainer)[i];
-
-        if (c->material->GetDiffuseTexture()) {
-            SETUP_TEXTURE("diffuseTexture", "textured", c->material->GetDiffuseTexture())
-        }
-        else {
-            s->setBool("textured", false);
-        }
+        const RenderMeshContainerPtr c = (*meshContainer)[i];
+        s->setMat4("model", GetMeshTransform(c));
+        s->setInt("materialIndex", _frame->materialInfo.indices.find(GetMeshMaterial(c))->second);
 
         // Determine which uniforms we should set
-        if (e.Get()->GetLightInteractionEnabled() == false) {
-            s->setVec3("diffuseColor", &c->material->GetDiffuseColor()[0]);
-        }
-        else {
-            if (c->material->GetNormalMap()) {
-                SETUP_TEXTURE("normalMap", "normalMapped", c->material->GetNormalMap())
-            }
-            else {
-                s->setBool("normalMapped", false);
-            }
-
-            if (c->material->GetDepthMap()) {
-                //_bindTexture(s, "depthMap", m->getMaterial().depthMap);
-                s->setFloat("heightScale", 0.01f);
-                SETUP_TEXTURE("depthMap", "depthMapped", c->material->GetDepthMap())
-            }
-            else {
-                s->setBool("depthMapped", false);
-            }
-
-            if (c->material->GetRoughnessMap()) {
-                SETUP_TEXTURE("roughnessMap", "roughnessMapped", c->material->GetRoughnessMap());
-            }
-            else {
-                s->setBool("roughnessMapped", false);
-            }
-
-            if (c->material->GetAmbientTexture()) {
-                SETUP_TEXTURE("ambientOcclusionMap", "ambientMapped", c->material->GetAmbientTexture())
-            }
-            else {
-                s->setBool("ambientMapped", false);
-            }
-
-            if (c->material->GetMetallicMap()) {
-                SETUP_TEXTURE("metalnessMap", "metalnessMapped", c->material->GetMetallicMap())
-            }
-            else {
-                s->setBool("metalnessMapped", false);
-            }
-
-            if (c->material->GetMetallicRoughnessMap()) {
-                SETUP_TEXTURE("metallicRoughnessMap", "metallicRoughnessMapped", c->material->GetMetallicRoughnessMap())
-            }
-            else {
-                s->setBool("metallicRoughnessMap", false);
-            }
-
+        if (IsLightInteracting(e)) {
             s->setVec3("viewPosition", &camera.getPosition()[0]);
         }
 
         // Perform instanced rendering
-        SetCullState(c->mesh->GetFaceCulling());
+        SetCullState(GetMesh(c)->GetFaceCulling());
 
-        c->mesh->Render(container.size, container.buffers);
+        GetMesh(c)->Render(1, GpuArrayBuffer());
     }
 
 #undef SETUP_TEXTURE
@@ -973,7 +926,8 @@ void RendererBackend::_RenderSkybox() {
         _state.skybox->setMat4("view", view);
         _state.skybox->bindTexture("skybox", sky.Get());
 
-        _state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+        GetMesh(_state.skyboxCube, 0)->Render(1, GpuArrayBuffer());
+        //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
     _UnbindShader();
@@ -1010,18 +964,19 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto& viewMesh : _frame->csc.visible) {
+    for (auto& viewMesh : _frame->instancedPbrMeshes) {
         for (int i = 0; i < viewMesh.second.size(); ++i) {
-            const RendererEntityData& container = viewMesh.second[i];
-            const RenderNodeView& e = viewMesh.first;
-            const RenderMeshPtr m = e.Get()->GetMeshContainer(i)->mesh;
-            const size_t numInstances = container.size;
+            const RenderMeshContainerPtr container = viewMesh.second[i];
+            const EntityPtr& e = viewMesh.first;
+            const MeshPtr m = GetMesh(container);
+            const size_t numInstances = 1;
+            _state.csmDepth->setMat4("model", GetMeshTransform(container));
             // Override and use ASSIMP default which is CCW
             // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
             //  under FlipWindingOrder)
             SetCullState(m->GetFaceCulling());
             //SetCullState(RenderFaceCulling::CULLING_CCW);
-            m->Render(numInstances, container.buffers);
+            m->Render(numInstances, GpuArrayBuffer());
         }
     }
     _frame->csc.fbo.unbind();
@@ -1202,7 +1157,8 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         if (!dirty) continue;
         ++shadowUpdates;
 
-        auto & instancedMeshes = _frame->lights.find(light)->second.visible;
+        //STRATUS_LOG << "Updating out-of-date shadow map\n";
+        auto & instancedMeshes = _frame->instancedPbrMeshes;//->lights.find(light)->second.visible;
     
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
@@ -1228,9 +1184,10 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 
         for (auto & entityObservers : instancedMeshes) {
             for (int i = 0; i < entityObservers.second.size(); ++i) {
-                RenderMeshPtr m = entityObservers.first.Get()->GetMeshContainer(i)->mesh;
+                MeshPtr m = GetMesh(entityObservers.second[i]);
+                _state.shadows->setMat4("model", GetMeshTransform(entityObservers.second[i]));
                 SetCullState(m->GetFaceCulling());
-                m->Render(entityObservers.second[i].size, entityObservers.second[i].buffers);
+                m->Render(1, GpuArrayBuffer());
             }
         }
 
@@ -1362,12 +1319,18 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
 
     // Set up the shadow maps and radius information
+    //GpuTextureHandle * handles = (GpuTextureHandle *)_state.vpls.vplShadowMaps.MapMemory();
+    std::vector<GpuTextureHandle> handles(perVPLDistToViewer.size());
     for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
         int lightIndex = i;
         LightPtr light = perVPLDistToViewer[lightIndex].first;
+        auto texture = _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light));
+        handles[i] = texture.GpuHandle();
         //VirtualPointLight * point = (VirtualPointLight *)light.get();
-        _state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+        //_state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
     }
+    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * handles.size(), (const void *)handles.data());
+    //_state.vpls.vplShadowMaps.UnmapMemory();
 
     _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);
@@ -1380,6 +1343,7 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
     _state.vpls.vplFarPlanes.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
     _state.vpls.vplShadowSamples.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
+    _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
     _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
@@ -1435,7 +1399,7 @@ void RendererBackend::RenderScene() {
     glEnable(GL_DEPTH_TEST);
 
     for (auto & entityObservers : _frame->instancedPbrMeshes) {
-        const RenderNodeView& e = entityObservers.first;
+        const EntityPtr& e = entityObservers.first;
         _Render(e);
     }
     _state.buffer.fbo.unbind();
@@ -1489,7 +1453,7 @@ void RendererBackend::RenderScene() {
     _RenderSkybox();
 
     for (auto & entityObservers : _frame->instancedFlatMeshes) {
-        const RenderNodeView& e = entityObservers.first;
+        const EntityPtr& e = entityObservers.first;
         _Render(e);
     }
     _state.lightingFbo.unbind();
@@ -1671,7 +1635,8 @@ void RendererBackend::End() {
 }
 
 void RendererBackend::_RenderQuad() {
-    _state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
+    GetMesh(_state.screenQuad, 0)->Render(1, GpuArrayBuffer());
+    //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
 TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
@@ -1690,14 +1655,12 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     TextureHandle handle = TextureHandle::NextHandle();
     this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
     // These will be resident in GPU memory for the entire life cycle of the renderer
-    //smap.shadowCubeMap.makeResident();
+    Texture::MakeResident(smap.shadowCubeMap);
     return handle;
 }
 
 Async<Texture> RendererBackend::_LookupTexture(TextureHandle handle) const {
-    Async<Texture> ret;
-    ResourceManager::Instance()->GetTexture(handle, ret);
-    return ret;
+    return INSTANCE(ResourceManager)->LookupTexture(handle);
 }
 
 Texture RendererBackend::_LookupShadowmapTexture(TextureHandle handle) const {

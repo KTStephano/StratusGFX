@@ -5,12 +5,13 @@ layout (location = 1)  in vec2 texCoords;
 layout (location = 2)  in vec3 normal;
 layout (location = 3)  in vec3 tangent;
 layout (location = 4)  in vec3 bitangent;
-layout (location = 8)  in vec3 diffuseColor;
-layout (location = 9)  in vec3 baseReflectivity;
-layout (location = 10) in float metallic;
-layout (location = 11) in float roughness;
-layout (location = 12) in mat4 model;
+//layout (location = 8)  in vec3 diffuseColor;
+//layout (location = 9)  in vec3 baseReflectivity;
+//layout (location = 10) in float metallic;
+//layout (location = 11) in float roughness;
+//layout (location = 12) in mat4 model;
 
+uniform mat4 model;
 uniform mat4 projection;
 uniform mat4 view;
 
@@ -26,12 +27,8 @@ smooth out vec2 fsTexCoords;
 
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
-out float fsRoughness;
 out mat4 fsModel;
 out mat3 fsModelNoTranslate;
-out vec3 fsBaseReflectivity;
-out float fsMetallic;
-out vec3 fsDiffuseColor;
 
 void main() {
     //mat4 model = modelMats[gl_InstanceID];
@@ -57,11 +54,7 @@ void main() {
     vec3 b = normalize(cross(n, t));
     fsTbnMatrix = mat3(t, b, n);
 
-    fsRoughness = roughness;
     fsModel = model;
-    fsBaseReflectivity = baseReflectivity;
-    fsMetallic = metallic;
-    fsDiffuseColor = diffuseColor;
     
     gl_Position = projection * viewSpacePos;
 }

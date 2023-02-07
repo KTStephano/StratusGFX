@@ -4,8 +4,9 @@
 #include "StratusCommon.h"
 #include "StratusThread.h"
 #include "StratusEntity.h"
+#include "StratusEntityCommon.h"
+#include "StratusRenderComponents.h"
 #include "StratusTexture.h"
-#include "StratusRenderNode.h"
 #include "StratusSystemModule.h"
 #include "StratusAsync.h"
 #include <vector>
@@ -41,8 +42,8 @@ namespace stratus {
         //      ...
         //      prefix + "back." + fileExt
         TextureHandle LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt = "jpg");
-        void FinalizeModelMemory(const RenderMeshPtr&);
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
+        Async<Texture> LookupTexture(TextureHandle handle) const;
 
         // Default shapes
         EntityPtr CreateCube();
@@ -87,7 +88,7 @@ namespace stratus {
         EntityPtr _quad;
         std::unordered_map<std::string, Async<Entity>> _loadedModels;
         std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
-        std::unordered_set<RenderMeshPtr> _meshFinalizeQueue;
+        std::unordered_set<MeshPtr> _meshFinalizeQueue;
         std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
         std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
         std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;

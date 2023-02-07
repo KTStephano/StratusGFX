@@ -1,4 +1,5 @@
 #include "LightControllers.h"
+#include "StratusRenderComponents.h"
 
 std::vector<stratus::EntityProcessHandle> LightCreator::handles;
 
@@ -26,20 +27,28 @@ static void InitLight(const LightParams& p, stratus::LightPtr& light) {
 static void InitCube(const LightParams& p,
                      const stratus::LightPtr& light,
                      stratus::EntityPtr& cube) {
-    cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
-    cube->GetRenderNode()->EnableLightInteraction(false);
-    cube->SetLocalScale(glm::vec3(1.0f));
-    cube->SetLocalPosition(p.position);
-    cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+    // cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
+    // cube->GetRenderNode()->EnableLightInteraction(false);
+    // cube->SetLocalScale(glm::vec3(1.0f));
+    // cube->SetLocalPosition(p.position);
+    // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+    auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+    auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+    rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
+    cube->Components().DisableComponent<stratus::LightInteractionComponent>();
+    local->SetLocalScale(glm::vec3(1.0f));
+    local->SetLocalPosition(p.position);
+    rc->GetMaterialAt(0)->SetDiffuseColor(light->getColor());
 }
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {
-    auto ptr = stratus::Entity2::Create();
+    auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::PointLight());
     InitLight(p, light);
 
     stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
     InitCube(p, light, cube);
+    cube->Components().DisableComponent<stratus::StaticObjectComponent>();
 
     ptr->Components().AttachComponent<LightComponent>(light);
     ptr->Components().AttachComponent<LightCubeComponent>(cube);
@@ -49,11 +58,12 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(RendererFrontend)->AddStaticEntity(cube);
+    INSTANCE(EntityManager)->AddEntity(cube);
+    //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateStationaryLight(const LightParams& p) {
-    auto ptr = stratus::Entity2::Create();
+    auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::PointLight());
     InitLight(p, light);
 
@@ -65,11 +75,12 @@ void LightCreator::CreateStationaryLight(const LightParams& p) {
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(RendererFrontend)->AddStaticEntity(cube);
+    INSTANCE(EntityManager)->AddEntity(cube);
+    //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
 void LightCreator::CreateVirtualPointLight(const LightParams& p) {
-    auto ptr = stratus::Entity2::Create();
+    auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::VirtualPointLight());
     InitLight(p, light);
     ((stratus::VirtualPointLight *)light.get())->SetNumShadowSamples(p.numShadowSamples);
@@ -118,8 +129,8 @@ struct LightDeleteController : public stratus::InputHandler {
         }
     }
 
-    std::vector<stratus::Entity2Ptr> entitiesToRemove;
-    std::vector<stratus::Entity2Ptr> entities;
+    std::vector<stratus::EntityPtr> entitiesToRemove;
+    std::vector<stratus::EntityPtr> entities;
 };
 
 LightDeleteController * ConvertHandlerToLightDelete(const stratus::InputHandlerPtr& input) {
@@ -138,13 +149,13 @@ LightProcess::~LightProcess() {
     }
 }
 
-static bool EntityIsRelevant(const stratus::Entity2Ptr& entity) {
+static bool EntityIsRelevant(const stratus::EntityPtr& entity) {
     return entity->Components().ContainsComponent<LightComponent>() ||
            entity->Components().ContainsComponent<LightCubeComponent>();
 }
 
 void LightProcess::Process(const double deltaSeconds) {
-    for (stratus::Entity2Ptr& entity : ConvertHandlerToLightDelete(input)->entitiesToRemove) {
+    for (stratus::EntityPtr& entity : ConvertHandlerToLightDelete(input)->entitiesToRemove) {
         if (entity->Components().ContainsComponent<LightComponent>()) {
             INSTANCE(RendererFrontend)->RemoveLight(
                 entity->Components().GetComponent<LightComponent>().component->light
@@ -152,21 +163,24 @@ void LightProcess::Process(const double deltaSeconds) {
         }
         
         if (entity->Components().ContainsComponent<LightCubeComponent>()) {
-            INSTANCE(RendererFrontend)->RemoveEntity(
+            INSTANCE(EntityManager)->RemoveEntity(
                 entity->Components().GetComponent<LightCubeComponent>().component->cube
             );
+            //INSTANCE(RendererFrontend)->RemoveEntity(
+            //    entity->Components().GetComponent<LightCubeComponent>().component->cube
+            //);
         }
     }
 }
 
-void LightProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) {
+void LightProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto entity : e) {
         if ( !EntityIsRelevant(entity) ) continue;
         ConvertHandlerToLightDelete(input)->entities.push_back(entity);
     }
 }
 
-void LightProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
+void LightProcess::EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto entity : e) {
         if ( !EntityIsRelevant(entity) ) continue;
         auto lightDelete = ConvertHandlerToLightDelete(input);
@@ -178,11 +192,11 @@ void LightProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>
     }
 }
 
-void LightProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component*>>& added) {
+void LightProcess::EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent*>>& added) {
     // Do nothing
 }
 
-void LightProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) {
+void LightProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& changed) {
     // Do nothing
 }
 
@@ -194,7 +208,9 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         RandomLightMoverComponent * c = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
 
         c->position = c->position + speed * c->direction * float(deltaSeconds);
-        cube->cube->SetLocalPosition(c->position);
+        auto cubeTransform = stratus::GetComponent<stratus::LocalTransformComponent>(cube->cube);
+        cubeTransform->SetLocalPosition(c->position);
+        //cube->cube->SetLocalPosition(c->position);
         light->light->position = c->position;
 
         c->elapsedSeconds += deltaSeconds;
@@ -205,7 +221,7 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
     }
 }
 
-void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::Entity2Ptr>& e) {
+void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
         if (_IsEntityRelevant(ptr)) {
             _entities.insert(ptr);
@@ -214,21 +230,21 @@ void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::En
     }
 }
 
-void RandomLightMoverProcess::EntitiesRemoved(const std::unordered_set<stratus::Entity2Ptr>& e) {
+void RandomLightMoverProcess::EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
         _entities.erase(ptr);
     }
 }
 
-void RandomLightMoverProcess::EntityComponentsAdded(const std::unordered_map<stratus::Entity2Ptr, std::vector<stratus::Entity2Component*>>& added) {
+void RandomLightMoverProcess::EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent*>>& added) {
 
 }
 
-void RandomLightMoverProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::Entity2Ptr>& changed) {
+void RandomLightMoverProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& changed) {
 
 }
 
-bool RandomLightMoverProcess::_IsEntityRelevant(const stratus::Entity2Ptr& e) {
+bool RandomLightMoverProcess::_IsEntityRelevant(const stratus::EntityPtr& e) {
     return e->Components().ContainsComponent<RandomLightMoverComponent>() &&
         e->Components().ContainsComponent<LightComponent>() &&
         e->Components().ContainsComponent<LightCubeComponent>();

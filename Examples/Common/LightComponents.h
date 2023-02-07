@@ -13,7 +13,7 @@
 #include "StratusUtils.h"
 #include "StratusEntityManager.h"
 #include "StratusEntityCommon.h"
-#include "StratusEntity2.h"
+#include "StratusEntity.h"
 
 ENTITY_COMPONENT_STRUCT(LightComponent)
     stratus::LightPtr light;

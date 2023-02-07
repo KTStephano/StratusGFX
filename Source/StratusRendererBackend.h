@@ -11,7 +11,6 @@
 #include "StratusEntity.h"
 #include "StratusCommon.h"
 #include "StratusCamera.h"
-#include "StratusRenderNode.h"
 #include "StratusTexture.h"
 #include "StratusFrameBuffer.h"
 #include "StratusLight.h"
@@ -19,6 +18,10 @@
 #include "StratusGpuBuffer.h"
 #include "StratusThread.h"
 #include "StratusAsync.h"
+#include "StratusEntityCommon.h"
+#include "StratusEntity.h"
+#include "StratusTransformComponent.h"
+#include "StratusRenderComponents.h"
 
 namespace stratus {
     class Pipeline;
@@ -27,17 +30,36 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
-    struct RendererEntityData {
-        std::vector<glm::mat4> modelMatrices;
-        std::vector<glm::vec3> diffuseColors;
-        std::vector<glm::vec3> baseReflectivity;
-        std::vector<float> roughness;
-        std::vector<float> metallic;
-        GpuArrayBuffer buffers;
-        size_t size = 0;    
-        // if true, regenerate buffers
-        bool dirty;
+    extern bool IsRenderable(const EntityPtr&);
+    extern bool IsLightInteracting(const EntityPtr&);
+    extern size_t GetMeshCount(const EntityPtr&);
+
+    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
+        MeshWorldTransforms() = default;
+        MeshWorldTransforms(const MeshWorldTransforms&) = default;
+
+        std::vector<glm::mat4> transforms;
     };
+
+    struct RenderMeshContainer {
+        RenderComponent * render = nullptr;
+        MeshWorldTransforms * transform = nullptr;
+        size_t meshIndex = 0;
+    };
+
+    typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
+
+    // struct RendererEntityData {
+    //     std::vector<glm::mat4> modelMatrices;
+    //     std::vector<glm::vec3> diffuseColors;
+    //     std::vector<glm::vec3> baseReflectivity;
+    //     std::vector<float> roughness;
+    //     std::vector<float> metallic;
+    //     GpuArrayBuffer buffers;
+    //     size_t size = 0;    
+    //     // if true, regenerate buffers
+    //     bool dirty;
+    // };
 
     struct RendererMouseState {
         int32_t x;
@@ -45,10 +67,10 @@ namespace stratus {
         uint32_t mask;
     };
 
-    typedef std::unordered_map<RenderNodeView, std::vector<RendererEntityData>> InstancedData;
+    typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererLightData {
-        InstancedData visible; 
+        EntityMeshData visible; 
         // If true then its shadow maps should be regenerated
         bool dirty;
     };
@@ -77,7 +99,6 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
-        InstancedData visible;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
@@ -87,16 +108,23 @@ namespace stratus {
         bool regenerateFbo;    
     };
 
+    struct RendererMaterialInformation {
+        size_t maxMaterials = 2048;
+        std::unordered_map<MaterialPtr, int> indices;
+        GpuBuffer materials;
+    };
+
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
+        RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
-        InstancedData instancedPbrMeshes;
-        InstancedData instancedFlatMeshes;
+        EntityMeshData instancedPbrMeshes;
+        EntityMeshData instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         std::unordered_set<LightPtr> lightsToRemove;
@@ -181,6 +209,7 @@ namespace stratus {
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int maxTotalVirtualPointLightsPerFrame = 128;
             int maxTotalVirtualLightsPerTile = 16;
+            GpuBuffer vplShadowMaps;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;
@@ -270,10 +299,10 @@ namespace stratus {
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
-            RenderNodePtr skyboxCube;
+            EntityPtr skyboxCube;
             // Generic screen quad so we can render the screen
             // from a separate frame buffer
-            RenderNodePtr screenQuad;
+            EntityPtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
         };
@@ -412,16 +441,15 @@ namespace stratus {
     private:
         void _InitializeVplData();
         void _ClearGBuffer();
-        void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
         void _ClearFramebufferData(const bool);
-        void _InitAllInstancedData();
+        // void _InitAllEntityMeshData();
         void _InitCoreCSMData(Pipeline *);
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
         void _InitAtmosphericShadowing();
-        void _InitInstancedData(RendererEntityData &);
-        void _ClearInstancedData();
+        // void _InitEntityMeshData(RendererEntityData &);
+        // void _ClearEntityMeshData();
         void _ClearRemovedLightData();
         void _BindShader(Pipeline *);
         void _UnbindShader();
@@ -429,7 +457,7 @@ namespace stratus {
         void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
-        void _Render(const RenderNodeView &, bool removeViewTranslation = false);
+        void _Render(const EntityPtr&, bool removeViewTranslation = false);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);

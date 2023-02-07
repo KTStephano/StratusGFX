@@ -15,76 +15,10 @@
 #include <filesystem>
 #include "CameraController.h"
 #include "WorldLightController.h"
-
-class RandomLightMover { //: public stratus::Entity {
-    glm::vec3 _direction = glm::vec3(0.0f);
-
-    void _changeDirection() {
-        float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
-        float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
-        float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
-        _direction.x = (rand() % 100) > 50 ? 1.0f : 0.0f;
-        _direction.y = (rand() % 100) > 50 ? 1.0f : 0.0f;
-        _direction.z = (rand() % 100) > 50 ? 1.0f : 0.0f;
-
-        _direction = _direction * glm::vec3(xModifier, yModifier, zModifier);
-    }
-
-    double _elapsedSec = 0.0;
-
-public:
-    stratus::EntityPtr cube;
-    stratus::LightPtr light;
-    glm::vec3 position;
-    glm::vec3 speed;
-
-    RandomLightMover() {
-        cube = stratus::ResourceManager::Instance()->CreateCube();
-        cube->GetRenderNode()->SetMaterial(stratus::MaterialManager::Instance()->CreateDefault());
-        cube->GetRenderNode()->EnableLightInteraction(false);
-        //cube->scale = glm::vec3(0.25f, 0.25f, 0.25f);
-        cube->SetLocalScale(glm::vec3(1.0f));
-        light = stratus::LightPtr(new stratus::PointLight());
-        _changeDirection();
-    }
-
-    void addToScene() const {
-        //stratus::RendererFrontend::Instance()->AddStaticEntity(cube);
-        //r.addPointLight(light.get());
-        stratus::RendererFrontend::Instance()->AddLight(light);
-    }
-
-    void removeFromScene() const {
-        //stratus::RendererFrontend::Instance()->RemoveEntity(cube);
-        //r.addPointLight(light.get());
-        stratus::RendererFrontend::Instance()->RemoveLight(light);
-    }
-
-    virtual void update(double deltaSeconds) {
-        position = position + speed * _direction * float(deltaSeconds);
-        cube->SetLocalPosition(position);
-        light->position = position;
-        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
-        m->SetDiffuseColor(light->getColor());
-
-        _elapsedSec += deltaSeconds;
-        if (_elapsedSec > 5.0) {
-            _elapsedSec = 0.0;
-            _changeDirection();
-        }
-    }
-};
-
-struct StationaryLight : public RandomLightMover {
-    StationaryLight() : RandomLightMover() {}
-
-    void update(double deltaSeconds) override {
-        cube->SetLocalPosition(position);
-        light->position = position;
-        stratus::MaterialPtr m = cube->GetRenderNode()->GetMeshContainer(0)->material;
-        m->SetDiffuseColor(light->getColor());
-    }
-};
+#include "LightComponents.h"
+#include "LightControllers.h"
+#include "StratusTransformComponent.h"
+#include "StratusGpuCommon.h"
 
 class Interrogation : public stratus::Application {
 public:
@@ -94,9 +28,24 @@ public:
         return "Interrogation";
     }
 
+    void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
+        auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
+        std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
+        if (rc) {
+            for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
+                std::cout << rc->GetMeshTransform(i) << std::endl;
+            }
+        }
+        for (auto& c : p->GetChildNodes()) {
+            PrintNodeHierarchy(c, name, prefix + "-> ");
+        }
+    }
+
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
+
+        LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
@@ -108,9 +57,12 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-            interrogationRoom = e.GetPtr(); stratus::RendererFrontend::Instance()->AddStaticEntity(interrogationRoom); 
-            interrogationRoom->SetLocalPosition(glm::vec3(0.0f));
-            interrogationRoom->SetLocalScale(glm::vec3(0.125f));
+            interrogationRoom = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(interrogationRoom);
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            INSTANCE(EntityManager)->AddEntity(interrogationRoom);
+            PrintNodeHierarchy(interrogationRoom, "Interrogation", "");
         });
 
         bool running = true;
@@ -126,6 +78,8 @@ public:
         }
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
+
+        auto camera = World()->GetCamera();
 
         // Check for key/mouse events
         auto events = Input()->GetInputEventsLastFrame();
@@ -150,113 +104,112 @@ public:
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1200.0f);
-                                mover->light->setColor(1.0f, 1.0f, 0.5f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f, 1.0f, 0.5f),
+                                        1200.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1000.0);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        1200.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_3: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(1500.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        1500.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_4: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(2000.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        2000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_5: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(3000.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        3000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_6: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(6000.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        6000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_7: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(12000.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        12000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_8: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(24000.0f);
-                                mover->light->setColor(1.0f, 0.75f, 0.5);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f, 0.75f, 0.5f),
+                                        24000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_9: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(48000.0f);
-                                mover->light->setColor(1.0f, 0.75f, 0.5);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f, 0.75f, 0.5f),
+                                        48000.0f
+                                    )
+                                );
                             }
                             break;
                         }
                         case SDL_SCANCODE_0: {
                             if (released) {
-                                std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                                mover->light->setIntensity(65000.0f);
-                                mover->light->setColor(1.0f, 1.0f, 1.0f);
-                                mover->position = World()->GetCamera()->getPosition();
-                                mover->addToScene();
-                                lightMovers.push_back(std::move(mover));
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        65000.0f
+                                    )
+                                );
                             }
-                            break;
-                        }
-                        case SDL_SCANCODE_C: {
-                            for (auto& light : lightMovers) {
-                                light->removeFromScene();
-                            }
-                            lightMovers.clear();
                             break;
                         }
                         default: break;
@@ -280,9 +233,6 @@ public:
         //    renderer->addDrawable(entity);
         //}
 
-        for (auto & mover : lightMovers) {
-            mover->update(deltaSeconds);
-        }
         //renderer->end(camera);
 
         //// 0 lets it run as fast as it can
@@ -295,12 +245,11 @@ public:
 
     // Perform any resource cleanup
     virtual void Shutdown() override {
+        LightCreator::Shutdown();
     }
 
 private:
     stratus::EntityPtr interrogationRoom;
-    std::vector<stratus::EntityPtr> entities;
-    std::vector<std::unique_ptr<RandomLightMover>> lightMovers;
 };
 
 STRATUS_ENTRY_POINT(Interrogation)
