@@ -1,7 +1,6 @@
 STRATUS_GLSL_VERSION
 
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 texCoords;
+#include "mesh_data.glsl"
 
 uniform mat4 model;
 uniform mat4 projection;
@@ -11,6 +10,6 @@ uniform mat4 view;
 smooth out vec2 fsTexCoords;
 
 void main() {
-    gl_Position = projection * view * model * vec4(position, 1.0);
-    fsTexCoords = texCoords;
+    gl_Position = projection * view * model * vec4(getPosition(gl_VertexID), 1.0);
+    fsTexCoords = getTexCoord(gl_VertexID);
 }

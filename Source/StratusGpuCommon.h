@@ -69,7 +69,7 @@ namespace stratus {
 
     // Matches the definition in common.glsl and is intended to be used with std430 layout
     // qualifier (SSBO and not UBO since UBO does not support std430).
-    struct GpuMaterial {
+    struct alignas(128) GpuMaterial {
         GpuVec diffuseColor;
         GpuVec ambientColor;
         GpuVec baseReflectivity;
@@ -77,18 +77,18 @@ namespace stratus {
         // last two values = padding
         GpuVec metallicRoughness;
         // total bytes next 2 entries = GpuVec
-        alignas(8) GpuTextureHandle diffuseMap;
-        alignas(8) GpuTextureHandle ambientMap;
+        GpuTextureHandle diffuseMap;
+        GpuTextureHandle ambientMap;
         // total bytes next 2 entries = GpuVec
-        alignas(8) GpuTextureHandle normalMap;
-        alignas(8) GpuTextureHandle depthMap;
+        GpuTextureHandle normalMap;
+        GpuTextureHandle depthMap;
         // total bytes next 2 entries = GpuVec
-        alignas(8) GpuTextureHandle roughnessMap;
-        alignas(8) GpuTextureHandle metallicMap;
-        // total bytes next 2 entries = GpuVec
-        alignas(8) GpuTextureHandle metallicRoughnessMap;
-        alignas(4) unsigned int flags = 0;
-        alignas(4) unsigned int _1;
+        GpuTextureHandle roughnessMap;
+        GpuTextureHandle metallicMap;
+        // total bytes next 3 entries = GpuVec
+        GpuTextureHandle metallicRoughnessMap;
+        unsigned int flags = 0;
+        unsigned int _1;
 
         GpuMaterial() = default;
         GpuMaterial(const GpuMaterial&) = default;
@@ -97,4 +97,17 @@ namespace stratus {
         GpuMaterial& operator=(const GpuMaterial&) = default;
         GpuMaterial& operator=(GpuMaterial&&) = default;
     };
+
+    struct alignas(64) GpuMeshData {
+        float position[3];
+        float texCoord[2];
+        float normal[3];
+        float tangent[3];
+        float bitangent[3];
+        float _1[2];
+    };
+
+    static_assert(sizeof(GpuVec) == 16);
+    static_assert(sizeof(GpuMaterial) == 128);
+    static_assert(sizeof(GpuMeshData) == 64);
 }

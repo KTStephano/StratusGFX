@@ -1,15 +1,6 @@
 STRATUS_GLSL_VERSION
 
-layout (location = 0)  in vec3 position;
-layout (location = 1)  in vec2 texCoords;
-layout (location = 2)  in vec3 normal;
-layout (location = 3)  in vec3 tangent;
-layout (location = 4)  in vec3 bitangent;
-//layout (location = 8)  in vec3 diffuseColor;
-//layout (location = 9)  in vec3 baseReflectivity;
-//layout (location = 10) in float metallic;
-//layout (location = 11) in float roughness;
-//layout (location = 12) in mat4 model;
+#include "mesh_data.glsl"
 
 uniform mat4 model;
 uniform mat4 projection;
@@ -32,21 +23,21 @@ out mat3 fsModelNoTranslate;
 
 void main() {
     //mat4 model = modelMats[gl_InstanceID];
-    vec4 pos = model * vec4(position, 1.0);
+    vec4 pos = model * vec4(getPosition(gl_VertexID), 1.0);
 
     vec4 viewSpacePos = view * pos;
     fsPosition = pos.xyz;
     fsViewSpacePos = viewSpacePos.xyz;
-    fsTexCoords = texCoords;
+    fsTexCoords = getTexCoord(gl_VertexID);
 
     fsModelNoTranslate = mat3(model);
-    fsNormal = normalize(fsModelNoTranslate * normal);
+    fsNormal = normalize(fsModelNoTranslate * getNormal(gl_VertexID));
 
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // tbn matrix transforms from normal map space to world space
     mat3 normalMatrix = mat3(model);
-    vec3 n = normalize(normalMatrix * normal);
-    vec3 t = normalize(normalMatrix * tangent);
+    vec3 n = normalize(normalMatrix * getNormal(gl_VertexID));
+    vec3 t = normalize(normalMatrix * getTangent(gl_VertexID));
     // re-orthogonalize T with respect to N - see end of https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // this is also called Graham-Schmidt
     t = normalize(t - dot(t, n) * n);

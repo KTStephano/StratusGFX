@@ -1,11 +1,10 @@
 STRATUS_GLSL_VERSION
 
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 texCoords;
+#include "mesh_data.glsl"
 
 out vec2 fsTexCoords;
 
 void main() {
-    fsTexCoords = texCoords;
-    gl_Position = vec4(position, 1.0);
+    fsTexCoords = getTexCoord(gl_VertexID);
+    gl_Position = vec4(getPosition(gl_VertexID), 1.0);
 }

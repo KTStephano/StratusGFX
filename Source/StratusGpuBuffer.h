@@ -73,7 +73,7 @@ namespace stratus {
         virtual void Bind(const GpuBindingPoint) const;
         virtual void Unbind(const GpuBindingPoint) const;
         // From what I can tell there shouldn't be a need to unbind UBOs
-        virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index);
+        virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index) const;
 
         // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
         void * MapMemory(const Bitfield access = GPU_MAP_READ | GPU_MAP_WRITE) const;

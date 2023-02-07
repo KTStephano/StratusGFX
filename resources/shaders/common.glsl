@@ -19,7 +19,7 @@ STRATUS_GLSL_VERSION
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
-// Matches the definitions in StratusGpuCommon.h
+// Matches the definition in StratusGpuCommon.h
 struct Material {
     vec4 diffuseColor;
     vec4 ambientColor;
@@ -36,7 +36,7 @@ struct Material {
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D roughnessMap;
     sampler2D metallicMap;
-    // total bytes next 2 entries = vec4 (for std430)
+    // total bytes next 3 entries = vec4 (for std430)
     sampler2D metallicRoughnessMap;
     uint flags;
     uint _1;

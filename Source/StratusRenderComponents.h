@@ -4,12 +4,15 @@
 #include <memory>
 #include "StratusCommon.h"
 #include "StratusGpuBuffer.h"
+#include "StratusGpuCommon.h"
 #include "StratusMaterial.h"
 #include "StratusMath.h"
 #include "StratusEntity.h"
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+
+#define GPU_MESH_CHUNK_SIZE (65536)
 
 namespace stratus {
     enum class RenderFaceCulling : int {
@@ -49,7 +52,7 @@ namespace stratus {
         bool IsFinalized() const;
         void FinalizeData();
 
-        const GpuArrayBuffer& GetData() const;
+        const GpuBuffer& GetMeshData() const;
         size_t GetGpuSizeBytes() const;
 
         void SetFaceCulling(const RenderFaceCulling&);
@@ -78,12 +81,13 @@ namespace stratus {
             std::vector<glm::vec3> tangents;
             std::vector<glm::vec3> bitangents;
             std::vector<uint32_t> indices;
-            std::vector<float> data;
+            std::vector<GpuMeshData> data;
             bool needsRepacking = false;
         };
 
     private:
-        GpuArrayBuffer _buffers;
+        GpuBuffer _meshData;
+        GpuPrimitiveBuffer _indices;
         _MeshCpuData * _cpuData;
         size_t _dataSizeBytes;
         uint32_t _numVertices;

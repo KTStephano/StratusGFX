@@ -166,25 +166,41 @@ namespace stratus {
 
         // Pack all data into a single buffer
         _cpuData->data.clear();
-        _cpuData->data.reserve(_cpuData->vertices.size() * 3 + _cpuData->uvs.size() * 2 + _cpuData->normals.size() * 3 + _cpuData->tangents.size() * 3 + _cpuData->bitangents.size() * 3);
+        _cpuData->data.resize(_numVertices);
+        //_cpuData->data.reserve(_cpuData->vertices.size() * 3 + _cpuData->uvs.size() * 2 + _cpuData->normals.size() * 3 + _cpuData->tangents.size() * 3 + _cpuData->bitangents.size() * 3);
         for (int i = 0; i < _numVertices; ++i) {
-            _cpuData->data.push_back(_cpuData->vertices[i].x);
-            _cpuData->data.push_back(_cpuData->vertices[i].y);
-            _cpuData->data.push_back(_cpuData->vertices[i].z);
-            _cpuData->data.push_back(_cpuData->uvs[i].x);
-            _cpuData->data.push_back(_cpuData->uvs[i].y);
-            _cpuData->data.push_back(_cpuData->normals[i].x);
-            _cpuData->data.push_back(_cpuData->normals[i].y);
-            _cpuData->data.push_back(_cpuData->normals[i].z);
-            _cpuData->data.push_back(_cpuData->tangents[i].x);
-            _cpuData->data.push_back(_cpuData->tangents[i].y);
-            _cpuData->data.push_back(_cpuData->tangents[i].z);
-            _cpuData->data.push_back(_cpuData->bitangents[i].x);
-            _cpuData->data.push_back(_cpuData->bitangents[i].y);
-            _cpuData->data.push_back(_cpuData->bitangents[i].z);
+            // _cpuData->data.push_back(_cpuData->vertices[i].x);
+            // _cpuData->data.push_back(_cpuData->vertices[i].y);
+            // _cpuData->data.push_back(_cpuData->vertices[i].z);
+            // _cpuData->data.push_back(_cpuData->uvs[i].x);
+            // _cpuData->data.push_back(_cpuData->uvs[i].y);
+            // _cpuData->data.push_back(_cpuData->normals[i].x);
+            // _cpuData->data.push_back(_cpuData->normals[i].y);
+            // _cpuData->data.push_back(_cpuData->normals[i].z);
+            // _cpuData->data.push_back(_cpuData->tangents[i].x);
+            // _cpuData->data.push_back(_cpuData->tangents[i].y);
+            // _cpuData->data.push_back(_cpuData->tangents[i].z);
+            // _cpuData->data.push_back(_cpuData->bitangents[i].x);
+            // _cpuData->data.push_back(_cpuData->bitangents[i].y);
+            // _cpuData->data.push_back(_cpuData->bitangents[i].z);
+            GpuMeshData * data = &_cpuData->data[i];
+            data->position[0] = _cpuData->vertices[i].x;
+            data->position[1] = _cpuData->vertices[i].y;
+            data->position[2] = _cpuData->vertices[i].z;
+            data->texCoord[0] = _cpuData->uvs[i].x;
+            data->texCoord[1] = _cpuData->uvs[i].y;
+            data->normal[0] = _cpuData->normals[i].x;
+            data->normal[1] = _cpuData->normals[i].y;
+            data->normal[2] = _cpuData->normals[i].z;
+            data->tangent[0] = _cpuData->tangents[i].x;
+            data->tangent[1] = _cpuData->tangents[i].y;
+            data->tangent[2] = _cpuData->tangents[i].z;
+            data->bitangent[0] = _cpuData->bitangents[i].x;
+            data->bitangent[1] = _cpuData->bitangents[i].y;
+            data->bitangent[2] = _cpuData->bitangents[i].z;
         }
 
-        _dataSizeBytes = _cpuData->data.size() * sizeof(float);
+        _dataSizeBytes = _cpuData->data.size() * sizeof(GpuMeshData);
 
         _cpuData->needsRepacking = false;
     }
@@ -197,35 +213,40 @@ namespace stratus {
     void Mesh::_GenerateGpuData() {
         _EnsureNotFinalized();
 
-        _buffers = GpuArrayBuffer();
-        GpuPrimitiveBuffer buffer;
-        if (_numIndices > 0) {
-            buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
-            _buffers.AddBuffer(buffer);
-            //_cpuData->indicesMapped = buffer.MapMemory();
+        // If no indices generate a buffer from [0, num vertices)
+        // This does not require CPU data to be repacked
+        if (_cpuData->indices.size() == 0) {
+            for (uint32_t i = 0; i < _numVertices; ++i) {
+                AddIndex(i);
+            }
         }
 
+        _meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
+        _indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
+        //_buffers.AddBuffer(buffer);
+        //_cpuData->indicesMapped = buffer.MapMemory();
+
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
-        buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, _cpuData->data.data(), _cpuData->data.size() * sizeof(float));
-        _buffers.AddBuffer(buffer);
-        //_primitiveMapped = buffer.MapMemory();
+        // buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, _cpuData->data.data(), _cpuData->data.size() * sizeof(float));
+        // _buffers.AddBuffer(buffer);
+        // //_primitiveMapped = buffer.MapMemory();
         
-        const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
+        // const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
 
-        // Vertices
-        buffer.EnableAttribute(0, 3, GpuStorageType::FLOAT, false, stride, 0);
+        // // Vertices
+        // buffer.EnableAttribute(0, 3, GpuStorageType::FLOAT, false, stride, 0);
 
-        // UVs
-        buffer.EnableAttribute(1, 2, GpuStorageType::FLOAT, false, stride, 3 * sizeof(float));
+        // // UVs
+        // buffer.EnableAttribute(1, 2, GpuStorageType::FLOAT, false, stride, 3 * sizeof(float));
 
-        // Normals
-        buffer.EnableAttribute(2, 3, GpuStorageType::FLOAT, false, stride, 5 * sizeof(float));
+        // // Normals
+        // buffer.EnableAttribute(2, 3, GpuStorageType::FLOAT, false, stride, 5 * sizeof(float));
 
-        // Tangents
-        buffer.EnableAttribute(3, 3, GpuStorageType::FLOAT, false, stride, 8 * sizeof(float));
+        // // Tangents
+        // buffer.EnableAttribute(3, 3, GpuStorageType::FLOAT, false, stride, 8 * sizeof(float));
 
-        // Bitangents
-        buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
+        // // Bitangents
+        // buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
 
         // Clear CPU memory
         delete _cpuData;
@@ -239,21 +260,21 @@ namespace stratus {
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
             _GenerateGpuData();
-            _buffers.UnmapAllMemory();
-            _buffers.FinalizeAllMemory();
+            _meshData.UnmapMemory();
+            _indices.UnmapMemory();
         }
         else {
             ApplicationThread::Instance()->Queue([this]() {
                 _GenerateGpuData();
-                _buffers.UnmapAllMemory();
-                _buffers.FinalizeAllMemory();
+                _meshData.UnmapMemory();
+                _indices.UnmapMemory();
             });
         }
     }
 
-    const GpuArrayBuffer& Mesh::GetData() const {
+    const GpuBuffer& Mesh::GetMeshData() const {
         _EnsureFinalized();
-        return _buffers;
+        return _meshData;
     }
 
     void Mesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
@@ -265,7 +286,9 @@ namespace stratus {
         //    _cpuData->indicesMapped = nullptr;
         //}
 
-        _buffers.Bind();
+        // Matches the location in mesh_data.glsl
+        _meshData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
+        _indices.Bind();
         additionalBuffers.Bind();
 
         if (_numIndices > 0) {
@@ -276,7 +299,7 @@ namespace stratus {
         }
 
         additionalBuffers.Unbind();
-        _buffers.Unbind();
+        _indices.Unbind();
     }
 
     void Mesh::SetFaceCulling(const RenderFaceCulling& cullMode) {

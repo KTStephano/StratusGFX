@@ -138,7 +138,7 @@ namespace stratus {
         glBindBuffer(_ConvertBufferType(int(point)), 0);
     }
 
-    void BindBase(const GpuBaseBindingPoint point, const uint32_t index) {
+    void BindBase(const GpuBaseBindingPoint point, const uint32_t index) const {
         glBindBufferBase(_ConvertBufferType(int(point)), index, _buffer);
     }
 
@@ -210,7 +210,7 @@ namespace stratus {
         _impl->Unbind(point);
     }
 
-    void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const uint32_t index) {
+    void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const uint32_t index) const {
         _impl->BindBase(point, index);
     }
 
