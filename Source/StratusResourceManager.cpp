@@ -354,8 +354,8 @@ namespace stratus {
         // set the transformation info
         aiMatrix4x4 aiMatTransform = node->mTransformation;
         // See https://assimp-docs.readthedocs.io/en/v5.1.0/usage/use_the_lib.html
-        // ASSIMP uses row-major convention so the multiplication ordering is reversed
-        auto transform = aiMatTransform * parentTransform;
+        // ASSIMP uses row-major convention
+        auto transform = parentTransform * aiMatTransform;// * parentTransform;
 
         if (node->mNumMeshes > 0) {
             InitializeRenderEntity(entity);

@@ -7,7 +7,7 @@ include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRE
 link_directories(${ROOT_DIRECTORY}/Bin)
 file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 
-add_executable(${OUTPUT_NAME} ${SOURCES})
+add_executable(${OUTPUT_NAME} ${COMMON_SOURCES} ${SOURCES})
 target_link_libraries(${OUTPUT_NAME}
     StratusEngine)
 
