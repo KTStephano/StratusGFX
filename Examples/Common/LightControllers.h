@@ -9,7 +9,7 @@ struct LightParams {
     uint32_t numShadowSamples; // only valid for Virtual Point Lights (VPLs)
 
     LightParams()
-        : LightParams(glm::vec3(0.0f), glm::vec3(0.0f), 1.0f) {}
+        : LightParams(glm::vec3(0.0f), glm::vec3(1.0f), 1.0f) {}
 
     LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity)
         : LightParams(position, color, intensity, 3) {}

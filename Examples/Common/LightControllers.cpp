@@ -48,6 +48,7 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
 
     stratus::Entity2Ptr cube = INSTANCE(ResourceManager)->CreateCube();
     InitCube(p, light, cube);
+    cube->Components().DisableComponent<stratus::StaticObjectComponent>();
 
     ptr->Components().AttachComponent<LightComponent>(light);
     ptr->Components().AttachComponent<LightCubeComponent>(cube);
@@ -207,6 +208,8 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         RandomLightMoverComponent * c = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
 
         c->position = c->position + speed * c->direction * float(deltaSeconds);
+        auto cubeTransform = stratus::GetComponent<stratus::LocalTransformComponent>(cube->cube);
+        cubeTransform->SetLocalPosition(c->position);
         //cube->cube->SetLocalPosition(c->position);
         light->light->position = c->position;
 

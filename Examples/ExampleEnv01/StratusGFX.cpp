@@ -20,6 +20,8 @@
 #include "StratusEntityManager.h"
 #include "StratusEntity2.h"
 #include "StratusEntityCommon.h"
+#include "LightComponents.h"
+#include "LightControllers.h"
 
 class StratusGFX : public stratus::Application {
 public:
@@ -45,6 +47,8 @@ public:
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing StratusGFX" << std::endl;
+
+        LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
@@ -248,131 +252,116 @@ public:
                                 World()->RecompileShaders();
                             }
                             break;
-                        // case SDL_SCANCODE_UP: {
-                        //     float brightness = worldLight->getIntensity() + lightIncreaseSpeed * deltaSeconds;
-                        //     brightness = std::min(maxLightBrightness, brightness);
-                        //     worldLight->setIntensity(brightness);
-                        //     STRATUS_LOG << "Brightness: " << brightness << std::endl;
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_DOWN: {
-                        //     float brightness = worldLight->getIntensity() - lightIncreaseSpeed * deltaSeconds;
-                        //     worldLight->setIntensity(brightness);
-                        //     STRATUS_LOG << "Brightness: " << brightness << std::endl;
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_1: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight(/*spawnPhysicalMarker = */ false));
-                        //         mover->light->setIntensity(worldLight->getIntensity() * 100);
-                        //         const auto worldLightColor = worldLight->getColor();
-                        //         mover->light->setColor(worldLightColor.r, worldLightColor.g, worldLightColor.b);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_2: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(1000.0);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_3: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(1500.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_4: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(2000.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_5: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(3000.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_6: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(6000.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_7: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(12000.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_8: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(24000.0f);
-                        //         mover->light->setColor(1.0f, 0.75f, 0.5);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_9: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(48000.0f);
-                        //         mover->light->setColor(1.0f, 0.75f, 0.5);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_0: {
-                        //     if (released) {
-                        //         std::unique_ptr<RandomLightMover> mover(new StationaryLight());
-                        //         mover->light->setIntensity(65000.0f);
-                        //         mover->light->setColor(1.0f, 1.0f, 1.0f);
-                        //         mover->position = camera->getPosition();
-                        //         mover->addToScene();
-                        //         lightMovers.push_back(std::move(mover));
-                        //     }
-                        //     break;
-                        // }
-                        // case SDL_SCANCODE_C: {
-                        //     for (auto& light : lightMovers) {
-                        //         light->removeFromScene();
-                        //     }
-                        //     lightMovers.clear();
-                        //     break;
-                        // }
+                        case SDL_SCANCODE_1: {
+                            if (released) {
+                                LightCreator::CreateRandomLightMover(
+                                    LightParams(camera->getPosition(),
+                                        worldLight->getColor(),
+                                        1000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_2: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        1000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_3: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        1500.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_4: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        2000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_5: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        3000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_6: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        6000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_7: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        12000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_8: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f, 0.75f, 0.5f),
+                                        24000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_9: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f, 0.75f, 0.5f),
+                                        48000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
+                        case SDL_SCANCODE_0: {
+                            if (released) {
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(camera->getPosition(),
+                                        glm::vec3(1.0f),
+                                        65000.0f
+                                    )
+                                );
+                            }
+                            break;
+                        }
                         default: break;
                     }
                     break;
@@ -406,6 +395,7 @@ public:
 
     // Perform any resource cleanup
     virtual void Shutdown() override {
+        LightCreator::Shutdown();
     }
 
 private:
