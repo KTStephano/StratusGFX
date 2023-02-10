@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 #include "StratusCommon.h"
+#include "StratusGpuCommon.h"
 
 namespace stratus {
     enum class GpuBindingPoint : int {
@@ -83,10 +84,20 @@ namespace stratus {
         uintptr_t SizeBytes() const;
         // Make sure GPU_DYNAMIC_DATA is set
         void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data);
+        void CopyDataFromBuffer(const GpuBuffer&);
         void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data);
 
         // Memory mapping and data copying won't work after this
         void FinalizeMemory();
+
+        bool operator==(const GpuBuffer& other) const {
+            // Pointer comparison
+            return this->_impl == other._impl;
+        }
+
+        bool operator!=(const GpuBuffer& other) const {
+            return !(this->operator==(other));
+        }
 
     protected:
         std::shared_ptr<GpuBufferImpl> _impl;
@@ -122,5 +133,56 @@ namespace stratus {
 
     private:
         std::shared_ptr<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>> _buffers;
+    };
+
+    // Responsible for allocating vertex and index data. All data is stored
+    // in two giant GPU buffers (one for vertices, one for indices).
+    //
+    // This is NOT thread safe as only the main thread should be using it since 
+    // it performs GPU memory allocation.
+    //
+    // It can support a maximum of UINT_MAX vertices and UINT_MAX indices.
+    class GpuMeshAllocator final {
+        struct _MeshData {
+            size_t nextByte;
+            size_t lastByte;
+        };
+
+        GpuMeshAllocator() {}
+
+    public:
+        // Allocates 64-byte block vertex data where each element represents a GpuMeshData type.
+        //
+        // @return offset into global GPU vertex data array where data begins
+        static uint32_t AllocateVertexData(const uint32_t numVertices);
+        // @return offset into global GPU index data array where data begins
+        static uint32_t AllocateIndexData(const uint32_t numIndices);
+
+        // Deallocation
+        static void DeallocateVertexData(const uint32_t offset, const uint32_t numVertices);
+        static void DeallocateIndexData(const uint32_t offset, const uint32_t numIndices);
+
+        static void CopyVertexData(const std::vector<GpuMeshData>&, const uint32_t offset);
+        static void CopyIndexData(const std::vector<uint32_t>&, const uint32_t offset);
+
+        // Binds the GpuMesh buffer
+        static void BindBase(const GpuBaseBindingPoint&, const uint32_t);
+        // Binds/unbinds indices buffer
+        static void BindElementArrayBuffer();
+        static void UnbindElementArrayBuffer();
+
+    private:
+        static uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, GpuBuffer& buffer, _MeshData& data);
+        static void _Initialize();
+        static void _Shutdown();
+        static void _Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
+        static size_t _RemainingBytes(const _MeshData& data);
+
+    private:
+        static GpuBuffer _vertices;
+        static GpuBuffer _indices;
+        static _MeshData _freeVertices;
+        static _MeshData _freeIndices;
+        static bool _initialized;
     };
 }

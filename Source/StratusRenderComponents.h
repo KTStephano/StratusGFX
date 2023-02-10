@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <list>
 #include <memory>
 #include "StratusCommon.h"
 #include "StratusGpuBuffer.h"
@@ -52,7 +53,6 @@ namespace stratus {
         bool IsFinalized() const;
         void FinalizeData();
 
-        const GpuBuffer& GetMeshData() const;
         size_t GetGpuSizeBytes() const;
 
         void SetFaceCulling(const RenderFaceCulling&);
@@ -86,12 +86,12 @@ namespace stratus {
         };
 
     private:
-        GpuBuffer _meshData;
-        GpuPrimitiveBuffer _indices;
         _MeshCpuData * _cpuData;
         size_t _dataSizeBytes;
         uint32_t _numVertices;
         uint32_t _numIndices;
+        uint32_t _vertexOffset; // Into global GpuBuffer
+        uint32_t _indexOffset; // Into global GpuBuffer
         RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
     };
 

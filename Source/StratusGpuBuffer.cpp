@@ -168,6 +168,16 @@ namespace stratus {
         glNamedBufferSubData(_buffer, offset, size, data);
     }
 
+    void CopyDataFromBuffer(const GpuBufferImpl& buffer) {
+        if (SizeBytes() < buffer.SizeBytes()) {
+            throw std::runtime_error("Attempt to copy larger buffer to smaller buffer");
+        }
+        if (this == &buffer) {
+            throw std::runtime_error("Attempt to copy from buffer to itself");
+        }
+        glCopyNamedBufferSubData(buffer._buffer, _buffer, 0, 0, buffer.SizeBytes());
+    }
+
     void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
         if (offset + size > SizeBytes()) {
             throw std::runtime_error("offset+size exceeded maximum GPU buffer size");
@@ -232,6 +242,13 @@ namespace stratus {
 
     void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
         _impl->CopyDataToBuffer(offset, size, data);
+    }
+
+    void GpuBuffer::CopyDataFromBuffer(const GpuBuffer& buffer) {
+        if (_impl == nullptr || buffer._impl == nullptr) {
+            throw std::runtime_error("Attempt to use null GpuBuffer");
+        }
+        _impl->CopyDataFromBuffer(*buffer._impl);
     }
 
     void GpuBuffer::CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
@@ -300,5 +317,145 @@ namespace stratus {
         for (auto& buffer : *_buffers) {
             buffer->FinalizeMemory();
         }
+    }
+
+    // Responsible for allocating vertex and index data. All data is stored
+    // in two giant GPU buffers (one for vertices, one for indices).
+    //
+    // This is NOT thread safe as only the main thread should be using it since 
+    // it performs GPU memory allocation.
+    //
+    // It can support a maximum of UINT_MAX vertices and UINT_MAX indices.
+    // class GpuMeshAllocator final {
+    //     struct _MeshData {
+    //         size_t nextByte;
+    //         size_t lastByte;
+    //     };
+
+    //     GpuMeshAllocator() {}
+
+    // public:
+    //     // Allocates 64-byte block vertex data where each element represents a GpuMeshData type.
+    //     //
+    //     // @return offset into global GPU vertex data array where data begins
+    //     static uint32_t AllocateVertexData(const uint32_t numVertices);
+    //     // @return offset into global GPU index data array where data begins
+    //     static uint32_t AllocateIndexData(const uint32_t numIndices);
+
+    //     // Deallocation
+    //     static void DeallocateVertexData(const uint32_t offset, const uint32_t numVertices);
+    //     static void DeallocateIndexData(const uint32_t offset, const uint32_t numIndices);
+
+    //     static void CopyVertexData(const std::vector<GpuMeshData>&, const uint32_t offset);
+    //     static void CopyIndexData(const std::vector<uint32_t>&, const uint32_t offset);
+
+    //     static void BindBase(const GpuBaseBindingPoint&);
+
+    // private:
+    //     void _Initialize();
+    //     void _Shutdown();
+
+    // private:
+    //     static GpuBuffer _vertices;
+    //     static GpuBuffer _indices;
+    //     static _MeshData _freeVertices;
+    //     static _MeshData _freeIndices;
+    //     static bool _initialized;
+    // };
+
+    GpuBuffer GpuMeshAllocator::_vertices;
+    GpuBuffer GpuMeshAllocator::_indices;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeVertices;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeIndices;
+    bool GpuMeshAllocator::_initialized = false;
+    static constexpr size_t minVertices = 262144;
+    static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
+    static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
+
+    uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, GpuBuffer& buffer, _MeshData& data) {
+        assert(size > 0);
+        _Initialize();
+        const size_t totalSizeBytes = size_t(size) * byteMultiplier;
+        const size_t remainingBytes = _RemainingBytes(data);
+        if (totalSizeBytes > remainingBytes) {
+            const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVertices) * byteMultiplier;
+            if (newSizeBytes > maxBytes) {
+                throw std::runtime_error("Maximum GpuMesh bytes exceeded");
+            }
+            _Resize(buffer, data, newSizeBytes);
+        }
+        const uint32_t offset = data.nextByte / byteMultiplier;
+        data.nextByte += totalSizeBytes;
+        return offset;
+    }
+
+    uint32_t GpuMeshAllocator::AllocateVertexData(const uint32_t numVertices) {
+        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _freeVertices);
+    }
+
+    uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
+        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _freeIndices);
+    }
+
+    void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
+        _Initialize();
+    }
+
+    void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
+        _Initialize();
+    }
+
+    void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const uint32_t offset) {
+        _Initialize();
+        const intptr_t byteOffset = intptr_t(offset) * sizeof(GpuMeshData);
+        _vertices.CopyDataToBuffer(byteOffset, data.size() * sizeof(GpuMeshData), (const void *)data.data());
+    }
+
+    void GpuMeshAllocator::CopyIndexData(const std::vector<uint32_t>& data, const uint32_t offset) {
+        _Initialize();
+        const intptr_t byteOffset = intptr_t(offset) * sizeof(uint32_t);
+        _indices.CopyDataToBuffer(byteOffset, data.size() * sizeof(uint32_t), (const void *)data.data());
+    }
+
+    void GpuMeshAllocator::BindBase(const GpuBaseBindingPoint& point, const uint32_t index) {
+        _Initialize();
+        _vertices.BindBase(point, index);
+    }
+
+    void GpuMeshAllocator::BindElementArrayBuffer() {
+        _Initialize();
+        _indices.Bind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
+    }
+
+    void GpuMeshAllocator::UnbindElementArrayBuffer() {
+        _Initialize();
+        _indices.Unbind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
+    }
+
+    void GpuMeshAllocator::_Initialize() {
+        if (_initialized) return;
+        _initialized = true;
+        _freeVertices.nextByte = 0;
+        _freeIndices.nextByte = 0;
+        _Resize(_vertices, _freeVertices, minVertices * sizeof(GpuMeshData));
+        _Resize(_indices, _freeIndices, minVertices * sizeof(uint32_t));
+    }
+
+    void GpuMeshAllocator::_Shutdown() {
+
+    }
+
+    void GpuMeshAllocator::_Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
+        GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
+        // Null check
+        if (buffer != GpuBuffer()) {
+            resized.CopyDataFromBuffer(buffer);
+        }
+        data.lastByte = newSizeBytes;
+        buffer = resized;
+    }
+
+    size_t GpuMeshAllocator::_RemainingBytes(const _MeshData& data) {
+        return data.lastByte - data.nextByte;
     }
 }

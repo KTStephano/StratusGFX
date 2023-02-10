@@ -221,8 +221,20 @@ namespace stratus {
             }
         }
 
-        _meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
-        _indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
+        _vertexOffset = GpuMeshAllocator::AllocateVertexData(_numVertices);
+        _indexOffset = GpuMeshAllocator::AllocateIndexData(_numIndices);
+
+        // Account for the fact that all vertices are stored in a global GpuBuffer and so
+        // the indices need to be offset
+        for (uint32_t i = 0; i < _numIndices; ++i) {
+            _cpuData->indices[i] += _vertexOffset;
+        }
+
+        GpuMeshAllocator::CopyVertexData(_cpuData->data, _vertexOffset);
+        GpuMeshAllocator::CopyIndexData(_cpuData->indices, _indexOffset);
+
+        //_meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
+        //_indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
         //_buffers.AddBuffer(buffer);
         //_cpuData->indicesMapped = buffer.MapMemory();
 
@@ -260,21 +272,12 @@ namespace stratus {
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
             _GenerateGpuData();
-            _meshData.UnmapMemory();
-            _indices.UnmapMemory();
         }
         else {
             ApplicationThread::Instance()->Queue([this]() {
                 _GenerateGpuData();
-                _meshData.UnmapMemory();
-                _indices.UnmapMemory();
             });
         }
-    }
-
-    const GpuBuffer& Mesh::GetMeshData() const {
-        _EnsureFinalized();
-        return _meshData;
     }
 
     void Mesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
@@ -287,19 +290,12 @@ namespace stratus {
         //}
 
         // Matches the location in mesh_data.glsl
-        _meshData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
-        _indices.Bind();
         additionalBuffers.Bind();
 
-        if (_numIndices > 0) {
-            glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (void *)0, numInstances);
-        }
-        else {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, _numVertices, numInstances);
-        }
+        glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (const void *)(_indexOffset * sizeof(uint32_t)), numInstances);
 
         additionalBuffers.Unbind();
-        _indices.Unbind();
+        //GpuMeshAllocator::UnbindElementArrayBuffer();
     }
 
     void Mesh::SetFaceCulling(const RenderFaceCulling& cullMode) {

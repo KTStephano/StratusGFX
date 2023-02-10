@@ -1369,6 +1369,10 @@ void RendererBackend::RenderScene() {
 
     const Camera& c = *_frame->camera;
 
+    // Bind buffers
+    GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
+    GpuMeshAllocator::BindElementArrayBuffer();
+
     std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
     // This one is just for shadow-casting lights
     std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
@@ -1465,6 +1469,9 @@ void RendererBackend::RenderScene() {
 
     // Perform final drawing to screen + gamma correction
     _FinalizeFrame();
+
+    // Unbind element array buffer
+    GpuMeshAllocator::UnbindElementArrayBuffer();
 }
 
 void RendererBackend::_PerformPostFxProcessing() {
