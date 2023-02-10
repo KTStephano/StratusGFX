@@ -143,6 +143,9 @@ namespace stratus {
     //
     // It can support a maximum of UINT_MAX vertices and UINT_MAX indices.
     class GpuMeshAllocator final {
+        // This class initializes the global GPU memory for this class
+        friend class GraphicsDriver;
+
         struct _MeshData {
             size_t nextByte;
             size_t lastByte;

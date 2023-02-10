@@ -8,6 +8,7 @@
 #include "StratusApplicationThread.h"
 #include "StratusTaskSystem.h"
 #include "StratusEntityManager.h"
+#include "StratusGraphicsDriver.h"
 #include <atomic>
 #include <mutex>
 
@@ -151,6 +152,7 @@ namespace stratus {
         _InitMaterialManager();
         _InitResourceManager();
         _InitWindow();
+        _InitGraphicsDriver();
         _InitRenderer();
 
         // Initialize application last
@@ -166,6 +168,10 @@ namespace stratus {
 
     void Engine::_InitInput() {
         EngineModuleInit::InitializeEngineModule(InputManager::_Instance(), new InputManager(), true);
+    }
+
+    void Engine::_InitGraphicsDriver() {
+        GraphicsDriver::Initialize();
     }
 
     void Engine::_InitEntityManager() {
@@ -224,6 +230,8 @@ namespace stratus {
         _ShutdownResourceAndDelete(Window::_Instance());
         _ShutdownResourceAndDelete(EntityManager::_Instance());
         _ShutdownResourceAndDelete(TaskSystem::_Instance());
+        // This one does not have a specialized instance
+        GraphicsDriver::Shutdown();
         // This one does not have a shutdown routine
         _DeleteResource(ApplicationThread::_Instance());
         _ShutdownResourceAndDelete(Log::_Instance());

@@ -138,54 +138,6 @@ namespace stratus {
         bool globalIlluminationEnabled = true;
     };
 
-    /**
-     * This contains information about a lot of the
-     * OpenGL configuration params after initialization
-     * takes place.
-     */
-    struct GFXConfig {
-        std::string renderer;
-        std::string version;
-        int32_t minorVersion;
-        int32_t majorVersion;
-        int32_t maxDrawBuffers;
-        int32_t maxCombinedTextures;
-        int32_t maxCubeMapTextureSize;
-        int32_t maxFragmentUniformVectors;
-        int32_t maxFragmentUniformComponents;
-        int32_t maxVaryingFloats;
-        int32_t maxRenderbufferSize;
-        int32_t maxTextureImageUnits;
-        int32_t maxTextureSize1D2D;
-        int32_t maxTextureSize3D;
-        int32_t maxVertexAttribs;
-        int32_t maxVertexUniformVectors;
-        int32_t maxVertexUniformComponents;
-        int32_t maxViewportDims[2];
-        bool supportsSparseTextures2D[3];
-        // OpenGL may allow multiple page sizes at the same time which the application can select from
-        // first element: RGBA8, second element: RGBA16, third element: RGBA32
-        int32_t numPageSizes2D[3];
-        // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
-        // indicate that it is the most efficient page size for the implementation to work with
-        int32_t preferredPageSizeX2D[3];
-        int32_t preferredPageSizeY2D[3];
-        bool supportsSparseTextures3D[3];
-        int32_t numPageSizes3D[3];
-        int32_t preferredPageSizeX3D[3];
-        int32_t preferredPageSizeY3D[3];
-        int32_t preferredPageSizeZ3D[3];
-        int32_t maxComputeShaderStorageBlocks;
-        int32_t maxComputeUniformBlocks;
-        int32_t maxComputeTexImageUnits;
-        int32_t maxComputeUniformComponents;
-        int32_t maxComputeAtomicCounters;
-        int32_t maxComputeAtomicCounterBuffers;
-        int32_t maxComputeWorkGroupInvocations;
-        int32_t maxComputeWorkGroupCount[3];
-        int32_t maxComputeWorkGroupSize[3];
-    };
-
     class RendererBackend {
         struct GBuffer {
             FrameBuffer fbo;
@@ -326,24 +278,10 @@ namespace stratus {
         };
 
         /**
-         * The rendering context is defined as the window +
-         * gl context. Together they allow the renderer to
-         * perform a context switch before drawing in the event
-         * that multiple render objects are being used at once.
-         */
-        SDL_GLContext _context;
-
-        /**
          * Contains information about various different settings
          * which will affect final rendering.
          */
         RenderState _state;
-
-        /**
-         * All the fields in this struct are set during initialization
-         * since we have to set up the context and then query OpenGL.
-         */
-        GFXConfig _config;
 
         /**
          * Contains all of the shaders that are used by the renderer.
@@ -383,12 +321,6 @@ namespace stratus {
     public:
         explicit RendererBackend(const uint32_t width, const uint32_t height, const std::string&);
         ~RendererBackend();
-
-        /**
-         * @return graphics configuration which includes
-         *      details about various hardware capabilities
-         */
-        const GFXConfig & Config() const;
 
         /**
          * @return true if the renderer initialized itself properly

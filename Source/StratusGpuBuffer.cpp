@@ -352,7 +352,7 @@ namespace stratus {
     //     static void BindBase(const GpuBaseBindingPoint&);
 
     // private:
-    //     void _Initialize();
+    //     vo
     //     void _Shutdown();
 
     // private:
@@ -368,13 +368,12 @@ namespace stratus {
     GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeVertices;
     GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeIndices;
     bool GpuMeshAllocator::_initialized = false;
-    static constexpr size_t minVertices = 262144;
+    static constexpr size_t minVertices = 65536; //262144;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
 
     uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, GpuBuffer& buffer, _MeshData& data) {
         assert(size > 0);
-        _Initialize();
         const size_t totalSizeBytes = size_t(size) * byteMultiplier;
         const size_t remainingBytes = _RemainingBytes(data);
         if (totalSizeBytes > remainingBytes) {
@@ -398,37 +397,30 @@ namespace stratus {
     }
 
     void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
-        _Initialize();
     }
 
     void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
-        _Initialize();
     }
 
     void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const uint32_t offset) {
-        _Initialize();
         const intptr_t byteOffset = intptr_t(offset) * sizeof(GpuMeshData);
         _vertices.CopyDataToBuffer(byteOffset, data.size() * sizeof(GpuMeshData), (const void *)data.data());
     }
 
     void GpuMeshAllocator::CopyIndexData(const std::vector<uint32_t>& data, const uint32_t offset) {
-        _Initialize();
         const intptr_t byteOffset = intptr_t(offset) * sizeof(uint32_t);
         _indices.CopyDataToBuffer(byteOffset, data.size() * sizeof(uint32_t), (const void *)data.data());
     }
 
     void GpuMeshAllocator::BindBase(const GpuBaseBindingPoint& point, const uint32_t index) {
-        _Initialize();
         _vertices.BindBase(point, index);
     }
 
     void GpuMeshAllocator::BindElementArrayBuffer() {
-        _Initialize();
         _indices.Bind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
     }
 
     void GpuMeshAllocator::UnbindElementArrayBuffer() {
-        _Initialize();
         _indices.Unbind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
     }
 
@@ -442,7 +434,8 @@ namespace stratus {
     }
 
     void GpuMeshAllocator::_Shutdown() {
-
+        _vertices = GpuBuffer();
+        _indices = GpuBuffer();
     }
 
     void GpuMeshAllocator::_Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {

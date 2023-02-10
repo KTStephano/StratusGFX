@@ -89,6 +89,7 @@ namespace stratus {
     private:
         void _InitLog();
         void _InitInput();
+        void _InitGraphicsDriver();
         void _InitEntityManager();
         void _InitApplicationThread();
         void _InitTaskSystem();

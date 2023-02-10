@@ -16,6 +16,7 @@
 #include "StratusApplicationThread.h"
 #include "StratusEngine.h"
 #include "StratusWindow.h"
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
 bool IsRenderable(const EntityPtr& p) {
@@ -55,162 +56,9 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
-static void printGLInfo(const GFXConfig & config) {
-    auto & log = STRATUS_LOG << std::endl;
-    log << "==================== OpenGL Information ====================" << std::endl;
-    log << "\tRenderer: "                               << config.renderer << std::endl;
-    log << "\tVersion: "                                << config.version << std::endl;
-    log << "\tMajor, minor Version: "                   << config.majorVersion << ", " << config.minorVersion << std::endl;
-    log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
-    log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
-    log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
-    log << "\tMax fragment uniform vectors: "           << config.maxFragmentUniformVectors << std::endl;
-    log << "\tMax fragment uniform components: "        << config.maxFragmentUniformComponents << std::endl;
-    log << "\tMax varying floats: "                     << config.maxVaryingFloats << std::endl;
-    log << "\tMax render buffer size: "                 << config.maxRenderbufferSize << std::endl;
-    log << "\tMax texture image units: "                << config.maxTextureImageUnits << std::endl;
-    log << "\tMax texture size 1D: "                    << config.maxTextureSize1D2D << std::endl;
-    log << "\tMax texture size 2D: "                    << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
-    log << "\tMax texture size 3D: "                    << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
-    log << "\tMax vertex attribs: "                     << config.maxVertexAttribs << std::endl;
-    log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
-    log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
-    log << "\tMax viewport dims: "                      << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
-
-    log << std::endl << "\t==> Compute Information" << std::endl;
-    log << "\tMax compute shader storage blocks: "      << config.maxComputeShaderStorageBlocks << std::endl;
-    log << "\tMax compute uniform blocks: "             << config.maxComputeUniformBlocks << std::endl;
-    log << "\tMax compute uniform texture image units: "<< config.maxComputeTexImageUnits << std::endl;
-    log << "\tMax compute uniform components: "         << config.maxComputeUniformComponents << std::endl;
-    log << "\tMax compute atomic counters: "            << config.maxComputeAtomicCounters << std::endl;
-    log << "\tMax compute atomic counter buffers: "     << config.maxComputeAtomicCounterBuffers << std::endl;
-    log << "\tMax compute work group invocations: "     << config.maxComputeWorkGroupInvocations << std::endl;
-    log << "\tMax compute work group count: "           << config.maxComputeWorkGroupCount[0] << "x" 
-                                                        << config.maxComputeWorkGroupCount[1] << "x" 
-                                                        << config.maxComputeWorkGroupCount[2] << std::endl;
-    log << "\tMax compute work group size: "            << config.maxComputeWorkGroupSize[0] << "x" 
-                                                        << config.maxComputeWorkGroupSize[1] << "x" 
-                                                        << config.maxComputeWorkGroupSize[2] << std::endl;
-
-    log << std::boolalpha;
-    log << std::endl << "\t==> Virtual/Sparse Texture Information" << std::endl;
-    const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-    const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
-    for (int i = 0; i < internalFormats.size(); ++i) {
-        log << "\t" << strInternalFormats[i] << std::endl;
-        log << "\t\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D[i] << std::endl;
-        if (config.supportsSparseTextures2D[i]) {
-            log << "\t\tNum sparse (virtual) page sizes 2D: " << config.numPageSizes2D[i] << std::endl;
-            log << "\t\tPreferred page size X 2D: "           << config.preferredPageSizeX2D[i] << std::endl;
-            log << "\t\tPreferred page size Y 2D: "           << config.preferredPageSizeY2D[i] << std::endl;
-        }
-        log << "\t\tSupports sparse (virtual) textures 3D: "  << config.supportsSparseTextures3D[i] << std::endl;
-        if (config.supportsSparseTextures3D[i]) {
-            log << "\t\tNum sparse (virtual) page sizes 3D: " << config.numPageSizes3D[i] << std::endl;
-            log << "\t\tPreferred page size X 3D: "           << config.preferredPageSizeX3D[i] << std::endl;
-            log << "\t\tPreferred page size Y 3D: "           << config.preferredPageSizeY3D[i] << std::endl;
-            log << "\t\tPreferred page size Z 3D: "           << config.preferredPageSizeZ3D[i] << std::endl;
-        }
-    }
-}
-
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
     static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
 
-    SDL_Window * window = (SDL_Window *)Window::Instance()->GetWindowObject();
-
-    // Set the profile to core as opposed to compatibility mode
-    SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    // Set max/min version
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    //SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
-    // Enable double buffering
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-    // Create the gl context
-    STRATUS_LOG << "Creating OpenGL context" << std::endl;
-    _context = SDL_GL_CreateContext(window);
-    if (_context == nullptr) {
-        STRATUS_ERROR << "Unable to create a valid OpenGL context" << std::endl;
-        STRATUS_ERROR << SDL_GetError() << std::endl;
-        _isValid = false;
-        return;
-    }
-
-    // Init gl core profile using gl3w
-    if (gl3wInit()) {
-        STRATUS_ERROR << "Failed to initialize core OpenGL profile" << std::endl;
-        _isValid = false;
-        return;
-    }
-
-    //if (!gl3wIsSupported(maxGLVersion, minGLVersion)) {
-    //    STRATUS_ERROR << "[error] OpenGL 3.2 not supported" << std::endl;
-    //    _isValid = false;
-    //    return;
-    //}
-
-    // Query OpenGL about various different hardware capabilities
-    _config.renderer = (const char *)glGetString(GL_RENDERER);
-    _config.version = (const char *)glGetString(GL_VERSION);
-    glGetIntegerv(GL_MINOR_VERSION, &_config.minorVersion);
-    glGetIntegerv(GL_MAJOR_VERSION, &_config.majorVersion);
-    glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &_config.maxCombinedTextures);
-    glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &_config.maxCubeMapTextureSize);
-    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &_config.maxFragmentUniformVectors);
-    glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &_config.maxRenderbufferSize);
-    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &_config.maxTextureImageUnits);
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &_config.maxTextureSize1D2D);
-    glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &_config.maxTextureSize3D);
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &_config.maxVertexAttribs);
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &_config.maxVertexUniformVectors);
-    glGetIntegerv(GL_MAX_DRAW_BUFFERS, &_config.maxDrawBuffers);
-    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &_config.maxFragmentUniformComponents);
-    glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &_config.maxVertexUniformComponents);
-    glGetIntegerv(GL_MAX_VARYING_FLOATS, &_config.maxVaryingFloats);
-    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, _config.maxViewportDims);
-    glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &_config.maxComputeShaderStorageBlocks);
-    glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, &_config.maxComputeUniformBlocks);
-    glGetIntegerv(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, &_config.maxComputeTexImageUnits);
-    glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, &_config.maxComputeUniformComponents);
-    glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTERS, &_config.maxComputeAtomicCounters);
-    glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS, &_config.maxComputeAtomicCounterBuffers);
-    glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &_config.maxComputeWorkGroupInvocations);
-    // 0, 1, 2 count for x, y and z dims
-    for (int i = 0; i < 3; ++i) {
-        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &_config.maxComputeWorkGroupCount[i]);
-        glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &_config.maxComputeWorkGroupSize[i]);
-    }
-
-    if (_config.majorVersion < 4 || _config.minorVersion < 3) {
-        STRATUS_ERROR << "OpenGL version LOWER than 4.3 - this is not supported" << std::endl;
-        _isValid = false;
-    }
-
-    const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-    for (int i = 0; i < internalFormats.size(); ++i) {
-        const GLenum internalFormat = internalFormats[i];
-        // Query OpenGL about sparse textures (2D)
-        glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes2D[i]);
-        _config.supportsSparseTextures2D[i] = _config.numPageSizes2D[i] > 0;
-        if (_config.supportsSparseTextures2D) {
-            // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
-            glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX2D[i]);
-            glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY2D[i]);
-        }
-
-        // Query OpenGL about sparse textures (3D)
-        glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &_config.numPageSizes3D[i]);
-        _config.supportsSparseTextures3D[i] = _config.numPageSizes3D[i] > 0;
-        if (_config.supportsSparseTextures3D) {
-            // 1 * sizeof(int32_t) since we only want the first valid page size rather than all _config.numPageSizes of them
-            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_X_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeX3D[i]);
-            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Y_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeY3D[i]);
-            glGetInternalformativ(GL_TEXTURE_3D, internalFormat, GL_VIRTUAL_PAGE_SIZE_Z_ARB, 1 * sizeof(int32_t), &_config.preferredPageSizeZ3D[i]);
-        }
-    }
-
-    printGLInfo(_config);
     _isValid = true;
 
     // Set up OpenGL debug logging
@@ -218,7 +66,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glDebugMessageCallback(OpenGLDebugCallback, nullptr);
 
     const std::filesystem::path shaderRoot("../resources/shaders");
-    const ShaderApiVersion version{_config.majorVersion, _config.minorVersion};
+    const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
     // Initialize the pipelines
     _state.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -350,11 +198,6 @@ void RendererBackend::_ValidateAllShaders() {
 }
 
 RendererBackend::~RendererBackend() {
-    if (_context) {
-        SDL_GL_DeleteContext(_context);
-        _context = nullptr;
-    }
-
     for (Pipeline * shader : _shaders) delete shader;
     _shaders.clear();
 
@@ -367,10 +210,6 @@ void RendererBackend::RecompileShaders() {
         p->recompile();
     }
     _ValidateAllShaders();
-}
-
-const GFXConfig & RendererBackend::Config() const {
-    return _config;
 }
 
 bool RendererBackend::Valid() const {
@@ -718,8 +557,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     _frame = frame;
 
     // Make sure we set our context as the active one
-    SDL_Window* window = (SDL_Window*)Window::Instance()->GetWindowObject();
-    SDL_GL_MakeCurrent(window, _context);
+    GraphicsDriver::MakeContextCurrent();
 
     // Clear out instanced data from previous frame
     //_ClearInstancedData();
@@ -1629,14 +1467,7 @@ void RendererBackend::_FinalizeFrame() {
 void RendererBackend::End() {
     CHECK_IS_APPLICATION_THREAD();
 
-    if ( !_frame->vsyncEnabled ) {
-        // 0 lets it run as fast as it can
-        SDL_GL_SetSwapInterval(0);
-    }
-
-    // Swap front and back buffer
-    SDL_Window* window = (SDL_Window *)Window::Instance()->GetWindowObject();
-    SDL_GL_SwapWindow(window);
+    GraphicsDriver::SwapBuffers(_frame->vsyncEnabled);
 
     _frame.reset();
 }
