@@ -762,6 +762,8 @@ namespace stratus {
 
                 InitializeMeshTransformComponent(entity);
 
+                _drawCommandsDirty = true;
+
                 if (IsLightInteracting(entity)) {
                     for (auto& entry : _lights) {
                         auto lightPos = entry.first->position;
