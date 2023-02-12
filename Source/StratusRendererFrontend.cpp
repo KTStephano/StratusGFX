@@ -766,6 +766,7 @@ namespace stratus {
                     for (auto& entry : _lights) {
                         auto lightPos = entry.first->position;
                         auto lightRadius = entry.first->getRadius();
+                        entry.second.dirty = true;
                         // If the EntityView is in the light's visible set, its shadows are now out of date
                         // for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
                         //     if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {

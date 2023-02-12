@@ -1007,8 +1007,6 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         if (!dirty) continue;
         ++shadowUpdates;
 
-        STRATUS_LOG << "LIGHT DIRTY\n";
-
         //STRATUS_LOG << "Updating out-of-date shadow map\n";
         auto & instancedMeshes = _frame->instancedPbrMeshes;//->lights.find(light)->second.visible;
     
