@@ -7,6 +7,7 @@
 #include <cstdint>
 #include "StratusCommon.h"
 #include "StratusGpuCommon.h"
+#include <unordered_set>
 
 namespace stratus {
     enum class GpuBindingPoint : int {
@@ -17,7 +18,9 @@ namespace stratus {
         // Allows read-only uniform buffer access
         UNIFORM_BUFFER          = BITMASK64_POW2(3),
         // Allows read and write shader buffer access
-        SHADER_STORAGE_BUFFER   = BITMASK64_POW2(4)
+        SHADER_STORAGE_BUFFER   = BITMASK64_POW2(4),
+        // Allows for indirect array and element draw commands
+        DRAW_INDIRECT_BUFFER    = BITMASK64_POW2(5)
     };
 
     // A more restrictive set of bindings good for things like floating point (vertex, normal, etc.)
@@ -187,5 +190,41 @@ namespace stratus {
         static _MeshData _freeVertices;
         static _MeshData _freeIndices;
         static bool _initialized;
+    };
+
+    // Stores material indices, model transforms and indirect draw commands
+    class GpuCommandBuffer final {
+        GpuBuffer _materialIndices;
+        GpuBuffer _modelTransforms;
+        GpuBuffer _indirectDrawCommands;
+
+    public:
+        // This is to allow for 64-bit handles to be used to identify an object
+        // with its location in the array
+        std::unordered_map<uint64_t, size_t> handlesToIndicesMap;
+        std::vector<uint64_t> handles;
+        // CPU side of the data
+        std::vector<uint32_t> materialIndices;
+        std::vector<glm::mat4> modelTransforms;
+        std::vector<GpuDrawElementsIndirectCommand> indirectDrawCommands;
+
+        GpuCommandBuffer(GpuCommandBuffer&&) = default;
+        GpuCommandBuffer(const GpuCommandBuffer&) = delete;
+
+        GpuCommandBuffer& operator=(GpuCommandBuffer&&) = delete;
+        GpuCommandBuffer& operator=(const GpuCommandBuffer&) = delete;
+
+        void RemoveCommandsAt(const std::unordered_set<size_t>& indices);
+        size_t NumDrawCommands() const;
+        void UploadDataToGpu();
+
+        void BindMaterialIndicesBuffer(uint32_t index);
+        void BindModelTransformBuffer(uint32_t index);
+
+        void BindIndirectDrawCommands();
+        void UnbindIndirectDrawCommands();
+
+    private:
+        void _VerifyArraySizes() const;
     };
 }

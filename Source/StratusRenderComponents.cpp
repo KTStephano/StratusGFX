@@ -210,6 +210,18 @@ namespace stratus {
         return _dataSizeBytes;
     }
 
+    uint32_t Mesh::GetVertexOffset() const {
+        return _vertexOffset;
+    }
+
+    uint32_t Mesh::GetIndexOffset() const {
+        return _indexOffset;
+    }
+
+    uint32_t Mesh::GetNumIndices() const {
+        return _numIndices;
+    }
+
     void Mesh::_GenerateGpuData() {
         _EnsureNotFinalized();
 

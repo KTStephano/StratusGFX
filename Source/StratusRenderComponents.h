@@ -67,6 +67,11 @@ namespace stratus {
         // Temporary - to be removed
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
+        // Offsets into global GPU buffers
+        uint32_t GetVertexOffset() const;
+        uint32_t GetIndexOffset() const;
+        uint32_t GetNumIndices() const;
+
     private:
         void _GenerateGpuData();
         void _CalculateTangentsBitangents();

@@ -34,6 +34,7 @@ namespace stratus {
         case GpuBindingPoint::ELEMENT_ARRAY_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
         case GpuBindingPoint::UNIFORM_BUFFER: return GL_UNIFORM_BUFFER;
         case GpuBindingPoint::SHADER_STORAGE_BUFFER: return GL_SHADER_STORAGE_BUFFER;
+        case GpuBindingPoint::DRAW_INDIRECT_BUFFER: return GL_DRAW_INDIRECT_BUFFER;
         }
 
         throw std::invalid_argument("Unknown buffer type");
@@ -450,5 +451,82 @@ namespace stratus {
 
     size_t GpuMeshAllocator::_RemainingBytes(const _MeshData& data) {
         return data.lastByte - data.nextByte;
+    }
+
+    void GpuCommandBuffer::RemoveCommandsAt(const std::unordered_set<size_t>& indices) {
+        _VerifyArraySizes();
+        if (indices.size() == 0) return;
+
+        std::vector<uint64_t> newHandles;
+        std::vector<uint32_t> newMaterialIndices;
+        std::vector<glm::mat4> newModelTransforms;
+        std::vector<GpuDrawElementsIndirectCommand> newIndirectDrawCommands;
+        for (size_t i = 0; i < NumDrawCommands(); ++i) {
+            if (indices.find(i) == indices.end()) {
+                handlesToIndicesMap.insert(std::make_pair(handles[i], newHandles.size()));
+                newHandles.push_back(handles[i]);
+                newMaterialIndices.push_back(materialIndices[i]);
+                newModelTransforms.push_back(modelTransforms[i]);
+                newIndirectDrawCommands.push_back(indirectDrawCommands[i]);
+            }
+            else {
+                handlesToIndicesMap.erase(handles[i]);
+            }
+        }
+
+        handles = std::move(newHandles);
+        materialIndices = std::move(newMaterialIndices);
+        modelTransforms = std::move(newModelTransforms);
+        indirectDrawCommands = std::move(newIndirectDrawCommands);
+    }
+
+    size_t GpuCommandBuffer::NumDrawCommands() const {
+        return indirectDrawCommands.size();
+    }
+
+    void GpuCommandBuffer::UploadDataToGpu() {
+        _VerifyArraySizes();
+        
+        const uintptr_t size = indirectDrawCommands.size();
+        const Bitfield flags = GPU_DYNAMIC_DATA;
+
+        _materialIndices = GpuBuffer((const void *)materialIndices.data(), size * sizeof(uint32_t), flags);
+        _modelTransforms = GpuBuffer((const void *)modelTransforms.data(), size * sizeof(glm::mat4), flags);
+        _indirectDrawCommands = GpuBuffer((const void *)indirectDrawCommands.data(), size * sizeof(GpuDrawElementsIndirectCommand), flags);
+    }
+
+    void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index) {
+        if (_materialIndices == GpuBuffer()) {
+            throw std::runtime_error("Null material indices GpuBuffer");
+        }
+        _materialIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+    }
+
+    void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) {
+        if (_modelTransforms == GpuBuffer()) {
+            throw std::runtime_error("Null model transform GpuBuffer");
+        }
+        _modelTransforms.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+    }
+
+    void GpuCommandBuffer::BindIndirectDrawCommands() {
+        if (_indirectDrawCommands == GpuBuffer()) {
+            throw std::runtime_error("Null indirect draw command buffer");
+        }
+        _indirectDrawCommands.Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
+    }
+
+    void GpuCommandBuffer::UnbindIndirectDrawCommands() {
+        if (_indirectDrawCommands == GpuBuffer()) {
+            throw std::runtime_error("Null indirect draw command buffer");
+        }
+        _indirectDrawCommands.Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
+    }
+
+    void GpuCommandBuffer::_VerifyArraySizes() const {
+        assert(materialIndices.size() == handlesToIndicesMap.size() &&
+               materialIndices.size() == handles.size() &&
+               materialIndices.size() == modelTransforms.size() &&
+               materialIndices.size() == indirectDrawCommands.size());
     }
 }

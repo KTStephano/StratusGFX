@@ -50,8 +50,13 @@ namespace stratus {
     Entity::Entity() : Entity(EntityComponentSet::Create()) {}
 
     Entity::Entity(EntityComponentSet * ptr) {
+        _handle = EntityHandle::NextHandle();
         _components = ptr;
         _components->_SetOwner(this);
+    }
+
+    const EntityHandle& Entity::GetHandle() const {
+        return _handle;
     }
 
     Entity::~Entity() {

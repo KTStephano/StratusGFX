@@ -107,6 +107,17 @@ namespace stratus {
         float _1[2];
     };
 
+    // See "Drawing Commands" in OpenGL SuperBible and 
+    // "Implementing Lightweight Rendering Queues" in 3D Graphics Rendering Cookbook
+    struct GpuDrawElementsIndirectCommand {
+        uint32_t vertexCount;
+        uint32_t instanceCount;
+        // Measured in units of indices instead of the normal bytes
+        uint32_t firstIndex;
+        int32_t baseVertex;
+        uint32_t baseInstance;
+    };
+
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
     static_assert(sizeof(GpuMeshData) == 64);

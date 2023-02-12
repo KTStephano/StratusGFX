@@ -62,6 +62,9 @@ __ComponentAllocator<Component>& __GetComponentAllocator() {
         }
 
 namespace stratus {
+    class Entity;
+    typedef Handle<Entity> EntityHandle;
+
     enum class EntityComponentStatus : int64_t {
         COMPONENT_ENABLED,
         COMPONENT_DISABLED
@@ -271,6 +274,11 @@ namespace stratus {
     public:
         ~Entity();
 
+        Entity(Entity&&) = delete;
+        Entity(const Entity&) = delete;
+        Entity& operator=(Entity&&) = delete;
+        Entity& operator=(const Entity&) = delete;
+
         EntityPtr Copy() const;
 
         // Manipulate components - thread safe
@@ -289,6 +297,8 @@ namespace stratus {
         const std::vector<EntityPtr>& GetChildNodes() const;
         bool ContainsChildNode(const EntityPtr&) const;
 
+        const EntityHandle& GetHandle() const;
+
     private:
         // Called by EntityManager class
         void _AddToWorld();
@@ -299,6 +309,7 @@ namespace stratus {
 
     private:
         mutable std::shared_mutex _m;
+        EntityHandle _handle;
         // List of unique components
         EntityComponentSet * _components;
         EntityWeakPtr _parent;
