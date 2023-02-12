@@ -70,7 +70,7 @@ namespace stratus {
     typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererLightData {
-        EntityMeshData visible; 
+        //EntityMeshData visible; 
         // If true then its shadow maps should be regenerated
         bool dirty;
     };
@@ -110,7 +110,7 @@ namespace stratus {
 
     struct RendererMaterialInformation {
         size_t maxMaterials = 2048;
-        std::unordered_map<MaterialPtr, int> indices;
+        std::unordered_map<MaterialPtr, uint32_t> indices;
         GpuBuffer materials;
     };
 
@@ -123,8 +123,8 @@ namespace stratus {
         RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
-        EntityMeshData instancedPbrMeshes;
-        EntityMeshData instancedFlatMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedFlatMeshes;
         std::unordered_map<LightPtr, RendererLightData> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         std::unordered_set<LightPtr> lightsToRemove;
@@ -389,7 +389,10 @@ namespace stratus {
         void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
-        void _Render(const EntityPtr&, bool removeViewTranslation = false);
+        void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);
+        void _Render(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
+        void _Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void _RenderImmediate(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);

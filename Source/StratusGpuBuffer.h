@@ -65,6 +65,9 @@ namespace stratus {
 
     struct GpuBufferImpl;
     struct GpuArrayBufferImpl;
+    struct GpuCommandBuffer;
+
+    typedef std::unique_ptr<GpuCommandBuffer> GpuCommandBufferPtr;
 
     // A gpu buffer holds primitive data usually in the form of floats, ints and shorts
     // TODO: Look into use cases for things other than STATIC_DRAW
@@ -197,12 +200,15 @@ namespace stratus {
         GpuBuffer _materialIndices;
         GpuBuffer _modelTransforms;
         GpuBuffer _indirectDrawCommands;
+        size_t _maxDrawCalls;
 
     public:
+        GpuCommandBuffer(const size_t maxDrawCalls);
+
         // This is to allow for 64-bit handles to be used to identify an object
         // with its location in the array
-        std::unordered_map<uint64_t, size_t> handlesToIndicesMap;
-        std::vector<uint64_t> handles;
+        // std::unordered_map<uint64_t, size_t> handlesToIndicesMap;
+        // std::vector<uint64_t> handles;
         // CPU side of the data
         std::vector<uint32_t> materialIndices;
         std::vector<glm::mat4> modelTransforms;

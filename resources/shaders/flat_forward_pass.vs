@@ -2,14 +2,19 @@ STRATUS_GLSL_VERSION
 
 #include "mesh_data.glsl"
 
-uniform mat4 model;
+layout (std430, binding = 13) readonly buffer SSBO3 {
+    mat4 modelMatrices[];
+};
+
 uniform mat4 projection;
 uniform mat4 view;
 //uniform mat4 modelView;
 
 smooth out vec2 fsTexCoords;
+flat out int fsDrawID;
 
 void main() {
-    gl_Position = projection * view * model * vec4(getPosition(gl_VertexID), 1.0);
+    gl_Position = projection * view * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     fsTexCoords = getTexCoord(gl_VertexID);
+    fsDrawID = gl_DrawID;
 }

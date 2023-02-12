@@ -453,28 +453,39 @@ namespace stratus {
         return data.lastByte - data.nextByte;
     }
 
+    GpuCommandBuffer::GpuCommandBuffer(const size_t maxDrawCalls) 
+        : _maxDrawCalls(maxDrawCalls) {
+        
+        const uintptr_t size = maxDrawCalls;
+        const Bitfield flags = GPU_DYNAMIC_DATA;
+
+        _materialIndices = GpuBuffer(nullptr, size * sizeof(uint32_t), flags);
+        _modelTransforms = GpuBuffer(nullptr, size * sizeof(glm::mat4), flags);
+        _indirectDrawCommands = GpuBuffer(nullptr, size * sizeof(GpuDrawElementsIndirectCommand), flags);
+    }
+
     void GpuCommandBuffer::RemoveCommandsAt(const std::unordered_set<size_t>& indices) {
         _VerifyArraySizes();
         if (indices.size() == 0) return;
 
-        std::vector<uint64_t> newHandles;
+        // std::vector<uint64_t> newHandles;
         std::vector<uint32_t> newMaterialIndices;
         std::vector<glm::mat4> newModelTransforms;
         std::vector<GpuDrawElementsIndirectCommand> newIndirectDrawCommands;
         for (size_t i = 0; i < NumDrawCommands(); ++i) {
             if (indices.find(i) == indices.end()) {
-                handlesToIndicesMap.insert(std::make_pair(handles[i], newHandles.size()));
-                newHandles.push_back(handles[i]);
+                // handlesToIndicesMap.insert(std::make_pair(handles[i], newHandles.size()));
+                // newHandles.push_back(handles[i]);
                 newMaterialIndices.push_back(materialIndices[i]);
                 newModelTransforms.push_back(modelTransforms[i]);
                 newIndirectDrawCommands.push_back(indirectDrawCommands[i]);
             }
-            else {
-                handlesToIndicesMap.erase(handles[i]);
-            }
+            // else {
+            //     handlesToIndicesMap.erase(handles[i]);
+            // }
         }
 
-        handles = std::move(newHandles);
+        // handles = std::move(newHandles);
         materialIndices = std::move(newMaterialIndices);
         modelTransforms = std::move(newModelTransforms);
         indirectDrawCommands = std::move(newIndirectDrawCommands);
@@ -486,13 +497,12 @@ namespace stratus {
 
     void GpuCommandBuffer::UploadDataToGpu() {
         _VerifyArraySizes();
-        
-        const uintptr_t size = indirectDrawCommands.size();
-        const Bitfield flags = GPU_DYNAMIC_DATA;
 
-        _materialIndices = GpuBuffer((const void *)materialIndices.data(), size * sizeof(uint32_t), flags);
-        _modelTransforms = GpuBuffer((const void *)modelTransforms.data(), size * sizeof(glm::mat4), flags);
-        _indirectDrawCommands = GpuBuffer((const void *)indirectDrawCommands.data(), size * sizeof(GpuDrawElementsIndirectCommand), flags);
+        const size_t numElems = NumDrawCommands();
+        if (numElems == 0) return;
+        _materialIndices.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
+        _modelTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
+        _indirectDrawCommands.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
     }
 
     void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index) {
@@ -524,9 +534,11 @@ namespace stratus {
     }
 
     void GpuCommandBuffer::_VerifyArraySizes() const {
-        assert(materialIndices.size() == handlesToIndicesMap.size() &&
-               materialIndices.size() == handles.size() &&
+        assert(//materialIndices.size() == handlesToIndicesMap.size() &&
+               //materialIndices.size() == handles.size() &&
                materialIndices.size() == modelTransforms.size() &&
                materialIndices.size() == indirectDrawCommands.size());
+
+        assert(NumDrawCommands() <= _maxDrawCalls);
     }
 }

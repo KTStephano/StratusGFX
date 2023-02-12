@@ -694,7 +694,24 @@ static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
 }
 
-void RendererBackend::_Render(const EntityPtr& e, bool removeViewTranslation) {
+void RendererBackend::_RenderImmediate(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer) {
+    if (buffer->NumDrawCommands() == 0) return;
+
+    _frame->materialInfo.materials.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+    buffer->BindMaterialIndicesBuffer(12);
+    buffer->BindModelTransformBuffer(13);
+    buffer->BindIndirectDrawCommands();
+
+    SetCullState(cull);
+
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)0, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
+
+    buffer->UnbindIndirectDrawCommands();
+}
+
+void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, bool isLightInteracting, bool removeViewTranslation) {
+    if (buffer->NumDrawCommands() == 0) return;
+
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
@@ -712,43 +729,40 @@ void RendererBackend::_Render(const EntityPtr& e, bool removeViewTranslation) {
 
     // Set up the shader we will use for this batch of entities
     Pipeline * s;
-    std::vector<RenderMeshContainerPtr>* meshContainer;
-    if (IsLightInteracting(e) == false) {
+    if (isLightInteracting == false) {
         s = _state.forward.get();
-        meshContainer = &_frame->instancedFlatMeshes.find(e)->second;
     }
     else {
         s = _state.geometry.get();
-        meshContainer = &_frame->instancedPbrMeshes.find(e)->second;
     }
 
     //s->print();
     _BindShader(s);
 
+    if (isLightInteracting) {
+        s->setVec3("viewPosition", &camera.getPosition()[0]);
+    }
+
     s->setMat4("projection", &projection[0][0]);
     s->setMat4("view", &view[0][0]);
-    _frame->materialInfo.materials.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-    for (size_t i = 0; i < GetMeshCount(e); ++i) {
-        Async<Texture> tex;
-        const RenderMeshContainerPtr c = (*meshContainer)[i];
-        s->setMat4("model", GetMeshTransform(c));
-        s->setInt("materialIndex", _frame->materialInfo.indices.find(GetMeshMaterial(c))->second);
-
-        // Determine which uniforms we should set
-        if (IsLightInteracting(e)) {
-            s->setVec3("viewPosition", &camera.getPosition()[0]);
-        }
-
-        // Perform instanced rendering
-        SetCullState(GetMesh(c)->GetFaceCulling());
-
-        GetMesh(c)->Render(1, GpuArrayBuffer());
-    }
+    _RenderImmediate(cull, buffer);
 
 #undef SETUP_TEXTURE
 
     _UnbindShader();
+}
+
+void RendererBackend::_Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, bool isLightInteracting, bool removeViewTranslation) {
+    for (auto& entry : map) {
+        _Render(entry.first, entry.second, isLightInteracting, removeViewTranslation);
+    }
+}
+
+void RendererBackend::_RenderImmediate(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
+    for (auto& entry : map) {
+        _RenderImmediate(entry.first, entry.second);
+    }
 }
 
 void RendererBackend::_RenderSkybox() {
@@ -802,21 +816,19 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
     // Render each entity into the depth map
-    for (auto& viewMesh : _frame->instancedPbrMeshes) {
-        for (int i = 0; i < viewMesh.second.size(); ++i) {
-            const RenderMeshContainerPtr container = viewMesh.second[i];
-            const EntityPtr& e = viewMesh.first;
-            const MeshPtr m = GetMesh(container);
-            const size_t numInstances = 1;
-            _state.csmDepth->setMat4("model", GetMeshTransform(container));
-            // Override and use ASSIMP default which is CCW
-            // (see https://assimp.sourceforge.net/lib_html/postprocess_8h.html#a64795260b95f5a4b3f3dc1be4f52e410
-            //  under FlipWindingOrder)
-            SetCullState(m->GetFaceCulling());
-            //SetCullState(RenderFaceCulling::CULLING_CCW);
-            m->Render(numInstances, GpuArrayBuffer());
-        }
-    }
+    // for (auto& viewMesh : _frame->instancedPbrMeshes) {
+    //     for (int i = 0; i < viewMesh.second.size(); ++i) {
+    //         const RenderMeshContainerPtr container = viewMesh.second[i];
+    //         const EntityPtr& e = viewMesh.first;
+    //         const MeshPtr m = GetMesh(container);
+    //         const size_t numInstances = 1;
+    //         _state.csmDepth->setMat4("model", GetMeshTransform(container));
+    //         SetCullState(m->GetFaceCulling());
+    //         //SetCullState(RenderFaceCulling::CULLING_CCW);
+    //         m->Render(numInstances, GpuArrayBuffer());
+    //     }
+    // }
+    _RenderImmediate(_frame->instancedPbrMeshes);
     _frame->csc.fbo.unbind();
 
     _UnbindShader();
@@ -995,6 +1007,8 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         if (!dirty) continue;
         ++shadowUpdates;
 
+        STRATUS_LOG << "LIGHT DIRTY\n";
+
         //STRATUS_LOG << "Updating out-of-date shadow map\n";
         auto & instancedMeshes = _frame->instancedPbrMeshes;//->lights.find(light)->second.visible;
     
@@ -1020,14 +1034,15 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         _state.shadows->setVec3("lightPos", &light->position[0]);
         _state.shadows->setFloat("farPlane", point->getFarPlane());
 
-        for (auto & entityObservers : instancedMeshes) {
-            for (int i = 0; i < entityObservers.second.size(); ++i) {
-                MeshPtr m = GetMesh(entityObservers.second[i]);
-                _state.shadows->setMat4("model", GetMeshTransform(entityObservers.second[i]));
-                SetCullState(m->GetFaceCulling());
-                m->Render(1, GpuArrayBuffer());
-            }
-        }
+        // for (auto & entityObservers : instancedMeshes) {
+        //     for (int i = 0; i < entityObservers.second.size(); ++i) {
+        //         MeshPtr m = GetMesh(entityObservers.second[i]);
+        //         _state.shadows->setMat4("model", GetMeshTransform(entityObservers.second[i]));
+        //         SetCullState(m->GetFaceCulling());
+        //         m->Render(1, GpuArrayBuffer());
+        //     }
+        // }
+        _RenderImmediate(instancedMeshes);
 
         // Unbind
         smap.frameBuffer.unbind();
@@ -1240,10 +1255,8 @@ void RendererBackend::RenderScene() {
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
 
-    for (auto & entityObservers : _frame->instancedPbrMeshes) {
-        const EntityPtr& e = entityObservers.first;
-        _Render(e);
-    }
+    _Render(_frame->instancedPbrMeshes, true);
+    
     _state.buffer.fbo.unbind();
 
     //glEnable(GL_BLEND);
@@ -1294,10 +1307,8 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     _RenderSkybox();
 
-    for (auto & entityObservers : _frame->instancedFlatMeshes) {
-        const EntityPtr& e = entityObservers.first;
-        _Render(e);
-    }
+    _Render(_frame->instancedFlatMeshes, false);
+
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);

@@ -84,6 +84,7 @@ namespace stratus {
         void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
         void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
         void _RecalculateMaterialSet();
+        std::vector<GpuDrawElementsIndirectCommand> _GenerateDrawCommands(RenderComponent *) const;
 
     private:
         void _UpdateViewport();
@@ -93,6 +94,7 @@ namespace stratus {
         void _UpdateCameraVisibility();
         void _UpdateCascadeVisibility();
         void _UpdateMaterialSet();
+        void _UpdateDrawCommands();
 
     private:
         // These are called by the private entity handler
@@ -113,6 +115,9 @@ namespace stratus {
         std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
         InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
+        EntityMeshData _flatEntities;
+        EntityMeshData _pbrEntities;
+        bool _drawCommandsDirty = false;
         CameraPtr _camera;
         glm::mat4 _projection = glm::mat4(1.0f);
         bool _viewportDirty = true;

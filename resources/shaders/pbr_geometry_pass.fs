@@ -8,7 +8,10 @@ STRATUS_GLSL_VERSION
 layout (std430, binding = 11) readonly buffer SSBO1 {
     Material materials[];
 };
-uniform int materialIndex;
+
+layout (std430, binding = 12) readonly buffer SSBO2 {
+    uint materialIndices[];
+};
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
@@ -29,6 +32,7 @@ in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
 in mat3 fsModelNoTranslate;
+flat in int fsDrawID;
 
 /**
  * Tangent space -> world space
@@ -60,7 +64,7 @@ vec4 calculateStructureOutput(float z) {
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
-    float height = texture(materials[materialIndex].depthMap, texCoords).r;
+    float height = texture(materials[materialIndices[fsDrawID]].depthMap, texCoords).r;
     vec2 p = viewDir.xy * (height * 0.005);
     return texCoords - p;
 }
@@ -68,7 +72,7 @@ vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
 void main() {
     vec3 viewDir = normalize(viewPosition - fsPosition);
     vec2 texCoords = fsTexCoords;
-    Material material = materials[materialIndex];
+    Material material = materials[materialIndices[fsDrawID]];
 
     if (bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED)) {
         texCoords = calculateDepthCoords(texCoords, viewDir);

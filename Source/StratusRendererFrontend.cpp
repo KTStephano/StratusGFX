@@ -116,9 +116,12 @@ namespace stratus {
 
     void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
         auto ul = _LockWrite();
+        bool added = false;
         for (auto ptr : e) {
-            _AddEntity(ptr);
+            added |= _AddEntity(ptr);
         }
+
+        _drawCommandsDirty = _drawCommandsDirty || added;
     }
 
     void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
@@ -128,6 +131,7 @@ namespace stratus {
             removed = removed || _RemoveEntity(ptr);
         }
 
+        _drawCommandsDirty = _drawCommandsDirty || removed;
         if (removed) {
             _RecalculateMaterialSet();
         }
@@ -144,6 +148,7 @@ namespace stratus {
             }
         }
 
+        _drawCommandsDirty = _drawCommandsDirty || changed;
         if (changed) {
             _RecalculateMaterialSet();
         }
@@ -159,6 +164,7 @@ namespace stratus {
             }
         }
 
+        _drawCommandsDirty = _drawCommandsDirty || changed;
         if (changed) {
             _RecalculateMaterialSet();
         }
@@ -181,35 +187,38 @@ namespace stratus {
             
             if (IsLightInteracting(p)) {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(_frame->instancedPbrMeshes, p, i);
+                    InsertMesh(_pbrEntities, p, i);
 
                     for (auto& entry : _lights) {
                         auto pos = entry.first->position;
                         //if (glm::distance(GetWorldTransform(p, i), pos) < entry.first->getRadius()) {
-                            entry.second.dirty |= InsertMesh(entry.second.visible, p, i);
+                        //    entry.second.dirty |= InsertMesh(entry.second.visible, p, i);
                         //}
                     }
                 }
             }
             else {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(_frame->instancedFlatMeshes, p, i);
+                    InsertMesh(_flatEntities, p, i);
                 }
             }
-        }
 
-        return true;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     // void RendererFrontend::AddStaticEntity(const EntityPtr& p) {
     //     auto ul = _LockWrite();
-    //     _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
+    //     _AddEntity(p, _staticPbrDirty, _static_pbrEntities, __flatEntities, _lights);
     //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     // }
 
     // void RendererFrontend::AddDynamicEntity(const EntityPtr& p) {
     //     auto ul = _LockWrite();
-    //     _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
+    //     _AddEntity(p, _dynamicPbrDirty, _dynamic_pbrEntities, __flatEntities, _lights);
     //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
     // }
 
@@ -223,27 +232,27 @@ namespace stratus {
 
         _entities.erase(p);
         _dynamicEntities.erase(p);
-        _frame->instancedPbrMeshes.erase(p);
-        _frame->instancedFlatMeshes.erase(p);
+        _pbrEntities.erase(p);
+        _flatEntities.erase(p);
 
         for (auto& entry : _lights) {
-            if (entry.second.visible.erase(p)) {
+            //if (entry.second.visible.erase(p)) {
                 entry.second.dirty = true;
-            }
+            //}
         }
 
         return true;
     }
 
     // void RendererFrontend::_RemoveEntity(const EntityPtr& p) {
-    //     if (_staticPbrEntities.erase(p)) {
+    //     if (_static_pbrEntities.erase(p)) {
     //         _staticPbrDirty = true;
     //     }
-    //     else if (_dynamicPbrEntities.erase(p)) {
+    //     else if (_dynamic_pbrEntities.erase(p)) {
     //         _dynamicPbrDirty = true;
     //     }
     //     else {
-    //         _flatEntities.erase(p);
+    //         __flatEntities.erase(p);
     //     }
 
     //     _frame->instancedPbrMeshes.erase(p);
@@ -260,15 +269,15 @@ namespace stratus {
     // }
 
     void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities) {
-        auto pos = light->position;
-        for (auto& e : entities) {
-            for (size_t i = 0; i < GetMeshCount(e.first); ++i) {
-                //if (glm::distance(pos, GetWorldTransform(e.first, i)) < light->getRadius()) {
-                    InsertMesh(data.visible, e.first, i);
-                    data.dirty = true;
-                //}
-            }
-        }
+        // auto pos = light->position;
+        // for (auto& e : entities) {
+        //     for (size_t i = 0; i < GetMeshCount(e.first); ++i) {
+        //         //if (glm::distance(pos, GetWorldTransform(e.first, i)) < light->getRadius()) {
+        //             InsertMesh(data.visible, e.first, i);
+        //             data.dirty = true;
+        //         //}
+        //     }
+        // }
     }
 
     void RendererFrontend::AddLight(const LightPtr& light) {
@@ -285,7 +294,7 @@ namespace stratus {
 
         if ( !light->castsShadows() ) return;
 
-        _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
+        //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
 
     void RendererFrontend::RemoveLight(const LightPtr& light) {
@@ -404,6 +413,7 @@ namespace stratus {
         _UpdateCameraVisibility();
         _UpdateCascadeVisibility();
         _UpdateMaterialSet();
+        _UpdateDrawCommands();
 
         //_SwapFrames();
 
@@ -447,6 +457,18 @@ namespace stratus {
         _frame->materialInfo.maxMaterials = 4096;
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
         _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
+
+        // Set up draw command buffers
+        std::vector<RenderFaceCulling> culling{
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE  
+        };
+
+        for (auto cull : culling) {
+            _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer(50000))));
+            _frame->instancedPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer(50000))));
+        }
 
         // Initialize entity processing
         _entityHandler = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
@@ -814,9 +836,9 @@ namespace stratus {
     //         }
     //     }
     // }
-    static void UpdateInstancedData(const EntityMeshData& entities, EntityMeshData& instanced) {
-        instanced.insert(entities.begin(), entities.end());
-    }
+    // static void UpdateInstancedData(const EntityMeshData& entities, EntityMeshData& instanced) {
+    //     instanced.insert(entities.begin(), entities.end());
+    // }
 
     void RendererFrontend::_UpdateLights() {
         _frame->lightsToRemove.clear();
@@ -844,9 +866,9 @@ namespace stratus {
                 *data.lightCopy = *light;
                 data.dirty = true;
                 data.visible.clear();
-                if (light->castsShadows()) {
-                    _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
-                }
+                // if (light->castsShadows()) {
+                //     _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
+                // }
             }
 
             // Rebuild the instance data if necessary
@@ -856,7 +878,7 @@ namespace stratus {
 
                 auto& lightData = _frame->lights.find(lightCopy)->second;
                 lightData.dirty = data.dirty;
-                UpdateInstancedData(data.visible, lightData.visible);
+                //UpdateInstancedData(data.visible, lightData.visible);
             }
             else {
                 _frame->lights.find(lightCopy)->second.dirty = data.dirty;
@@ -866,12 +888,12 @@ namespace stratus {
 
     void RendererFrontend::_UpdateCameraVisibility() {
         // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-        //     &_staticPbrEntities,
-        //     &_dynamicPbrEntities
+        //     &_static_pbrEntities,
+        //     &_dynamic_pbrEntities
         // };
 
         // const auto flatEntitySets = std::vector<const EntityMeshData *>{
-        //     &_flatEntities
+        //     &__flatEntities
         // };
 
         // EntityMeshData visiblePbr(16);
@@ -907,8 +929,8 @@ namespace stratus {
 
     void RendererFrontend::_UpdateCascadeVisibility() {
         // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-        //     &_staticPbrEntities,
-        //     &_dynamicPbrEntities
+        //     &_static_pbrEntities,
+        //     &_dynamic_pbrEntities
         // };
 
         // EntityMeshData visible(16);
@@ -1069,10 +1091,11 @@ namespace stratus {
 
         // If no materials to update then end here
         if (_dirtyMaterials.size() == 0) return;
+        _drawCommandsDirty = true;
 
         auto dirtyMaterials = std::move(_dirtyMaterials);
 
-        std::unordered_map<MaterialPtr, int>& indices = _frame->materialInfo.indices;
+        std::unordered_map<MaterialPtr, uint32_t>& indices = _frame->materialInfo.indices;
         GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
 
         for (auto material : dirtyMaterials) {
@@ -1092,5 +1115,62 @@ namespace stratus {
         }
 
         _frame->materialInfo.materials.UnmapMemory();
+    }
+
+    std::vector<GpuDrawElementsIndirectCommand> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {
+        std::vector<GpuDrawElementsIndirectCommand> commands(c->GetMeshCount());
+        for (size_t i = 0; i < c->GetMeshCount(); ++i) {
+            GpuDrawElementsIndirectCommand command;
+            command.baseInstance = 0;
+            command.baseVertex = 0;
+            command.firstIndex = c->GetMesh(i)->GetIndexOffset();
+            command.instanceCount = 1;
+            command.vertexCount = c->GetMesh(i)->GetNumIndices();
+            commands[i] = command;
+        }
+        return commands;
+    }
+
+    void RendererFrontend::_UpdateDrawCommands() {
+        if (!_drawCommandsDirty) return;
+        _drawCommandsDirty = false;
+
+        // Clear old commands
+        for (auto& entry : _frame->instancedFlatMeshes) {
+            entry.second->materialIndices.clear();
+            entry.second->modelTransforms.clear();
+            entry.second->indirectDrawCommands.clear();
+        }
+
+        for (auto& entry : _frame->instancedPbrMeshes) {
+            entry.second->materialIndices.clear();
+            entry.second->modelTransforms.clear();
+            entry.second->indirectDrawCommands.clear();
+        }
+
+    #define GENERATE_COMMANDS(entityMap, drawCommands)                                                                 \
+        for (const auto& entry : entityMap) {                                                                          \
+            RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
+            MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
+            auto cull = c->GetMesh(0)->GetFaceCulling();                                                               \
+            auto commands = _GenerateDrawCommands(c);                                                                  \
+            GpuCommandBufferPtr& buffer = drawCommands.find(cull)->second;                                             \
+            for (size_t i = 0; i < c->GetMeshCount(); ++i) {                                                           \
+                buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(i))->second);     \
+                buffer->modelTransforms.push_back(mt->transforms[i]);                                                  \
+            }                                                                                                          \
+            buffer->indirectDrawCommands.insert(buffer->indirectDrawCommands.end(), commands.begin(), commands.end()); \
+        }                                                                                                              \
+        for (auto& entry : drawCommands) {                                                                             \
+            entry.second->UploadDataToGpu();                                                                           \
+        }
+
+        // Generate flat commands
+        GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes)
+
+        // Generate pbr commands
+        GENERATE_COMMANDS(_pbrEntities, _frame->instancedPbrMeshes)
+
+    #undef GENERATE_COMMANDS
     }
 }
