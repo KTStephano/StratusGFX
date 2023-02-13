@@ -302,12 +302,12 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -343,7 +343,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Virtual Point Light Global Illumination fbo
-    _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.vpls.vplGIColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIFbo = FrameBuffer({_state.vpls.vplGIColorBuffer});
@@ -423,7 +423,7 @@ void RendererBackend::_InitializePostFxBuffers() {
     }
 
     // Create the atmospheric post fx buffer
-    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     atmosphericTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
@@ -437,6 +437,9 @@ void RendererBackend::_InitializePostFxBuffers() {
 void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     // Always clear the main screen buffer, but only
     // conditionally clean the custom frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // default
+    glDepthMask(GL_TRUE);
+    glClearDepthf(1.0f);
     glClearColor(_frame->clearColor.r, _frame->clearColor.g, _frame->clearColor.b, _frame->clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -445,23 +448,23 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         _state.buffer.fbo.clear(color);
         _state.ssaoOcclusionBuffer.clear(color);
         _state.ssaoOcclusionBlurredBuffer.clear(color);
-        _state.atmosphericFbo.clear(glm::vec4(0.0f));
+        _state.atmosphericFbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         _state.lightingFbo.clear(color);
         _state.vpls.vplGIFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
-            _frame->csc.fbo.clear(glm::vec4(0.0f));
+            _frame->csc.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             //const int index = Engine::Instance()->FrameCount() % 4;
             //_frame->csc.fbo.ClearDepthStencilLayer(index);
         }
 
         for (auto& gaussian : _state.gaussianBuffers) {
-            gaussian.fbo.clear(glm::vec4(0.0f));
+            gaussian.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         }
 
         for (auto& postFx : _state.postFxBuffers) {
-            postFx.fbo.clear(glm::vec4(0.0f));
+            postFx.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         }
 
         _state.atmosphericPostFxBuffer.fbo.clear(glm::vec4(0.0f));
@@ -585,7 +588,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
-    glEnable(GL_DEPTH_CLAMP);
+    //glEnable(GL_DEPTH_CLAMP);
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
@@ -712,6 +715,9 @@ void RendererBackend::_RenderImmediate(const RenderFaceCulling cull, GpuCommandB
 void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, bool isLightInteracting, bool removeViewTranslation) {
     if (buffer->NumDrawCommands() == 0) return;
 
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
@@ -789,6 +795,7 @@ void RendererBackend::_RenderSkybox() {
 void RendererBackend::_RenderCSMDepth() {
     _BindShader(_state.csmDepth.get());
     glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
     glEnable(GL_POLYGON_OFFSET_FILL);

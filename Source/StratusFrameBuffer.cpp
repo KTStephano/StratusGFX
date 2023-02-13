@@ -8,6 +8,7 @@ namespace stratus {
     class FrameBufferImpl {
         GLuint _fbo;
         std::vector<Texture> _colorAttachments;
+        std::vector<GLenum> _glColorAttachments; // For use with glDrawBuffers
         Texture _depthStencilAttachment;
         mutable GLenum _currentBindingPoint = 0;
         bool _valid = false;
@@ -36,7 +37,11 @@ namespace stratus {
         void clear(const glm::vec4 & rgba) {
             if (_currentBindingPoint != 0) std::cerr << "Warning: clear() called after bind()" << std::endl;
             bind();
+            glDepthMask(GL_TRUE);
+            glStencilMask(GL_TRUE);
+            glDrawBuffers(_glColorAttachments.size(), _glColorAttachments.data());
             glClearColor(rgba.r, rgba.g, rgba.b, rgba.a);
+            glClearDepthf(1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             unbind();
         }
@@ -119,6 +124,7 @@ namespace stratus {
                 }
                 else {
                     GLenum color = GL_COLOR_ATTACHMENT0 + drawBuffers.size();
+                    _glColorAttachments.push_back(color);
                     drawBuffers.push_back(color);
                     /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER, 
@@ -156,8 +162,6 @@ namespace stratus {
         }
 
         void copyFrom(const FrameBufferImpl & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter) {
-            other._bind(GL_READ_FRAMEBUFFER); // read from
-            this->_bind(GL_DRAW_FRAMEBUFFER); // write to
             // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
             // of the framebuffer you are reading to!
             GLbitfield mask = 0;
@@ -165,9 +169,7 @@ namespace stratus {
             if (bit & DEPTH_BIT) mask |= GL_DEPTH_BUFFER_BIT;
             if (bit & STENCIL_BIT) mask |= GL_STENCIL_BUFFER_BIT;
             GLenum blitFilter = (filter == BufferFilter::NEAREST) ? GL_NEAREST : GL_LINEAR;
-            glBlitFramebuffer(from.startX, from.startY, from.endX, from.endY, to.startX, to.startY, to.endX, to.endY, mask, blitFilter);
-            other.unbind();
-            this->unbind();
+            glBlitNamedFramebuffer(other._fbo, _fbo, from.startX, from.startY, from.endX, from.endY, to.startX, to.startY, to.endX, to.endY, mask, blitFilter);
         }
 
         const std::vector<Texture> & getColorAttachments() const {
