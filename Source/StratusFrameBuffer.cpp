@@ -35,15 +35,16 @@ namespace stratus {
         FrameBufferImpl & operator=(FrameBufferImpl &&) = delete;
 
         void clear(const glm::vec4 & rgba) {
-            if (_currentBindingPoint != 0) std::cerr << "Warning: clear() called after bind()" << std::endl;
-            bind();
+            bool bindAndUnbind = true;
+            if (_currentBindingPoint != 0) bindAndUnbind = false;
+            if (bindAndUnbind) bind();
             glDepthMask(GL_TRUE);
             glStencilMask(GL_TRUE);
             glDrawBuffers(_glColorAttachments.size(), _glColorAttachments.data());
             glClearColor(rgba.r, rgba.g, rgba.b, rgba.a);
             glClearDepthf(1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            unbind();
+            if (bindAndUnbind) unbind();
         }
 
         void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {

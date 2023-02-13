@@ -138,7 +138,7 @@ void main() {
         float distance = length(lightPositions[lightIndex].xyz - fragPos);
         float radius = lightRadii[lightIndex];
         float ratio = distance / radius;
-        if (ratio > 1.0) continue;
+        if (distance < 10 || ratio > 1.0) continue;
 
         distance = distance * (1.0 - ratio);
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {

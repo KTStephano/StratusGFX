@@ -1242,8 +1242,6 @@ void RendererBackend::RenderScene() {
     // Perform world light depth pass if enabled
     if (_frame->csc.worldLight->getEnabled()) {
         _RenderCSMDepth();
-        // Handle VPLs for global illumination
-        if (_frame->globalIlluminationEnabled) _PerformVirtualPointLightCulling(perVPLDistToViewer);
     }
 
     // TEMP: Set up the light source
@@ -1299,6 +1297,8 @@ void RendererBackend::RenderScene() {
 
     // If world light is enabled perform VPL Global Illumination pass
     if (_frame->csc.worldLight->getEnabled() && _frame->globalIlluminationEnabled) {
+        // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
+        _PerformVirtualPointLightCulling(perVPLDistToViewer);
         _ComputeVirtualPointLightGlobalIllumination(perVPLDistToViewer);
     }
 
