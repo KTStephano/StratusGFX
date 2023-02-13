@@ -189,7 +189,7 @@ namespace stratus {
         // See https://learnopengl.com/Advanced-Lighting/Deferred-Shading for the equation
         void _recalcRadius() {
             static const float lightMin = 256.0 / 5;
-            const glm::vec3 intensity = getIntensity() * getColor();
+            const glm::vec3 intensity = getColor(); // Factors in intensity already
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
             //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
             _radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
@@ -197,8 +197,8 @@ namespace stratus {
 
         void _recalcColorWithIntensity() {
             _color = _baseColor * _intensity;
-            _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
-            _color = (_color / maxLightColor) * 30.0f;
+            // _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
+            // _color = (_color / maxLightColor) * 30.0f;
         }
     };
 

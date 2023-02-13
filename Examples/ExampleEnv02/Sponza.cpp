@@ -139,7 +139,7 @@ public:
                                 const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
                                 const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
                                 );
                             }
                             break;
@@ -149,7 +149,7 @@ public:
                                 const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
                                 const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
                                 );
                             }
                             break;
@@ -159,7 +159,7 @@ public:
                                 const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
                                 const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 25.0f, numShadowSamples)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
                                 );
                             }
                             break;

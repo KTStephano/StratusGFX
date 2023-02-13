@@ -42,6 +42,10 @@ layout (std430, binding = 3) readonly buffer visibleVplTable {
     int vplVisibleIndex[];
 };
 
+layout (std430, binding = 10) readonly buffer vplColors {
+    vec4 lightColors[];
+};
+
 uniform int viewportWidth;
 uniform int viewportHeight;
 
@@ -134,11 +138,13 @@ void main() {
     }
 
     for (int i = 0; i < numVisible; ++i) {
+        //float intensity = length()
         int lightIndex = vplVisibleIndex[i];
         float distance = length(lightPositions[lightIndex].xyz - fragPos);
         float radius = lightRadii[lightIndex];
+        float lightIntensity = length(lightColors[lightIndex]);
         float ratio = distance / radius;
-        if (distance < 10 || ratio > 1.0) continue;
+        if (ratio > 1.0 || (lightIntensity > 100 && ratio < 0.045) || ratio < 0.02) continue;
 
         distance = distance * (1.0 - ratio);
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
