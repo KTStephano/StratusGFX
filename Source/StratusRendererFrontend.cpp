@@ -501,6 +501,8 @@ namespace stratus {
     void RendererFrontend::_UpdateViewport() {
         _viewportDirty = _viewportDirty || Window::Instance()->WindowResizedWithinLastFrame();
         _frame->viewportDirty = _viewportDirty;
+
+        if (!_viewportDirty) return;
         _viewportDirty = false;
 
         const float aspect = Window::Instance()->GetWindowDims().first / float(Window::Instance()->GetWindowDims().second);
