@@ -212,10 +212,9 @@ namespace stratus {
         GpuBuffer _materialIndices;
         GpuBuffer _modelTransforms;
         GpuBuffer _indirectDrawCommands;
-        size_t _maxDrawCalls;
 
     public:
-        GpuCommandBuffer(const size_t maxDrawCalls);
+        GpuCommandBuffer();
 
         // This is to allow for 64-bit handles to be used to identify an object
         // with its location in the array

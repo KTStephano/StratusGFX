@@ -466,8 +466,8 @@ namespace stratus {
         };
 
         for (auto cull : culling) {
-            _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer(50000))));
-            _frame->instancedPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer(50000))));
+            _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->instancedPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
         }
 
         // Initialize entity processing
