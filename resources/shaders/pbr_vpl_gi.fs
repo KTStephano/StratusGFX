@@ -104,7 +104,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightPositions[lightIndex].xyz;
-        float distanceRadiusRatio = length(lightPosition - fragPos) / lightRadii[lightIndex];
+        float lightRadius = lightRadii[lightIndex];
         vec3 lightColor = lightColors[lightIndex].xyz;
         float lightIntensity = length(lightColor);
         //if (distance > lightRadii[lightIndex]) continue;
@@ -117,7 +117,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vplColor = vplColor + calculateVirtualPointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculateVirtualPointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
     return boundHDR(vplColor);

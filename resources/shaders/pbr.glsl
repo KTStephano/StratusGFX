@@ -134,7 +134,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    const float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
@@ -147,7 +147,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     return mix(light2, light1, weight) * (1.0 / samples); //* 0.25;
 }
 
-float normalDistribution(const float NdotH, const float roughness) {
+float normalDistribution(float NdotH, float roughness) {
     float roughnessSquared = roughness * roughness;
     float denominator = (NdotH * NdotH) * (roughnessSquared - 1) + 1;
     denominator = PI * (denominator * denominator);
@@ -163,7 +163,7 @@ float geometrySchlickGGX(float NdotX, float k) {
     return NdotX / max(NdotX * (1 - k) + k, PREVENT_DIV_BY_ZERO);
 }
 
-float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, const float roughness) {
+float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness) {
     float k = pow(roughness + 1, 2) / 8.0;
     float NdotV = max(dot(normal, viewDir), 0.0);
     float NdotL = max(dot(normal, lightDir), 0.0);
@@ -175,9 +175,15 @@ float quadraticAttenuation(vec3 lightDir) {
     return 1.0 / (1.0 + lightDist * lightDist);
 }
 
+float vplQuadraticAttenuation(vec3 lightDir, float lightRadius) {
+    float minDist = 0.15 * lightRadius;
+    float lightDist = max(minDist, length(lightDir));
+    return 1.0 / (1.0 + lightDist * lightDist);
+}
+
 vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
-    const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
-    const float attenuationFactor, const float ambientIntensity) {
+    float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity, 
+    float attenuationFactor, float ambientIntensity) {
     
     vec3 V = viewDir;
     vec3 L = normalize(lightDir);
@@ -208,7 +214,7 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
 }
 
 vec3 calculateDiffuseOnlyLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
-    const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, const float attenuationFactor, const float ambientIntensity) {
+    float metallic, float ao, float shadowFactor, vec3 baseReflectivity, float attenuationFactor, float ambientIntensity) {
     
     vec3 V = viewDir;
     vec3 L = normalize(lightDir);
@@ -233,17 +239,17 @@ vec3 calculateDiffuseOnlyLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, 
     return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
 }
 
-vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
+vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor, float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity) {
     vec3 lightDir   = lightPos - fragPosition;
 
     return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
 }
 
 vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor,
-    const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
+    float lightRadius, float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity) {
 
     vec3 lightDir   = lightPos - fragPosition;
 
     //return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
-    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplQuadraticAttenuation(lightDir, lightRadius), pointLightAmbientIntensity);
 }

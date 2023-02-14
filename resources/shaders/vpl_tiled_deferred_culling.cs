@@ -144,7 +144,8 @@ void main() {
         float radius = lightRadii[lightIndex];
         float lightIntensity = length(lightColors[lightIndex]);
         float ratio = distance / radius;
-        if (ratio > 1.0 || (lightIntensity > 100 && ratio < 0.045) || ratio < 0.02) continue;
+        if (ratio > 1.0 || ratio < 0.025) continue;
+        //if (ratio > 1.0 || (lightIntensity > 100 && ratio < 0.045) || ratio < 0.02) continue;
 
         distance = distance * (1.0 - ratio);
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
