@@ -54,6 +54,22 @@ namespace stratus {
     Mesh::~Mesh() {
         delete _cpuData;
         _cpuData = nullptr;
+
+        auto vertexOffset = _vertexOffset;
+        auto numVertices = _numVertices;
+        auto indexOffset = _indexOffset;
+        auto numIndices = _numIndices;
+        const auto deallocate = [vertexOffset, numVertices, indexOffset, numIndices]() {
+            GpuMeshAllocator::DeallocateVertexData(vertexOffset, numVertices);
+            GpuMeshAllocator::DeallocateIndexData(indexOffset, numIndices);
+        };
+
+        if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+            deallocate();
+        }
+        else {
+            ApplicationThread::Instance()->Queue(deallocate);
+        }
     }
 
     bool Mesh::IsFinalized() const {
