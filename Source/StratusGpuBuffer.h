@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 #include <memory>
 #include <vector>
+#include <forward_list>
 #include <cstdint>
 #include "StratusCommon.h"
 #include "StratusGpuCommon.h"
@@ -190,8 +191,13 @@ namespace stratus {
     private:
         static GpuBuffer _vertices;
         static GpuBuffer _indices;
-        static _MeshData _freeVertices;
-        static _MeshData _freeIndices;
+        // Allows for O(1) allocation when data is available
+        static _MeshData _lastVertex;
+        static _MeshData _lastIndex;
+        // Allows for O(N) allocation by searching for previously deallocated
+        // chunks of memory
+        static std::forward_list<_MeshData> _freeVertices;
+        static std::forward_list<_MeshData> _freeIndices;
         static bool _initialized;
     };
 

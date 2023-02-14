@@ -359,15 +359,17 @@ namespace stratus {
     // private:
     //     static GpuBuffer _vertices;
     //     static GpuBuffer _indices;
-    //     static _MeshData _freeVertices;
-    //     static _MeshData _freeIndices;
+    //     static _MeshData _lastVertex;
+    //     static _MeshData _lastIndex;
     //     static bool _initialized;
     // };
 
     GpuBuffer GpuMeshAllocator::_vertices;
     GpuBuffer GpuMeshAllocator::_indices;
-    GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeVertices;
-    GpuMeshAllocator::_MeshData GpuMeshAllocator::_freeIndices;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastVertex;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastIndex;
+    std::forward_list<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
+    std::forward_list<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
     bool GpuMeshAllocator::_initialized = false;
     static constexpr size_t minVertices = 65536; //262144;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
@@ -390,11 +392,11 @@ namespace stratus {
     }
 
     uint32_t GpuMeshAllocator::AllocateVertexData(const uint32_t numVertices) {
-        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _freeVertices);
+        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _lastVertex);
     }
 
     uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
-        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _freeIndices);
+        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _lastIndex);
     }
 
     void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
@@ -428,10 +430,10 @@ namespace stratus {
     void GpuMeshAllocator::_Initialize() {
         if (_initialized) return;
         _initialized = true;
-        _freeVertices.nextByte = 0;
-        _freeIndices.nextByte = 0;
-        _Resize(_vertices, _freeVertices, minVertices * sizeof(GpuMeshData));
-        _Resize(_indices, _freeIndices, minVertices * sizeof(uint32_t));
+        _lastVertex.nextByte = 0;
+        _lastIndex.nextByte = 0;
+        _Resize(_vertices, _lastVertex, minVertices * sizeof(GpuMeshData));
+        _Resize(_indices, _lastIndex, minVertices * sizeof(uint32_t));
     }
 
     void GpuMeshAllocator::_Shutdown() {
