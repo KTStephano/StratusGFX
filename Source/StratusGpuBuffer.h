@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 #include <memory>
 #include <vector>
+#include <forward_list>
 #include <cstdint>
 #include "StratusCommon.h"
 #include "StratusGpuCommon.h"
@@ -179,6 +180,9 @@ namespace stratus {
         // Binds/unbinds indices buffer
         static void BindElementArrayBuffer();
         static void UnbindElementArrayBuffer();
+
+        static uint32_t FreeVertices();
+        static uint32_t FreeIndices();
 
     private:
         static _MeshData * _FindFreeSlot(std::vector<_MeshData>&, const size_t bytes);

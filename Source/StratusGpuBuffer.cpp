@@ -391,17 +391,37 @@ namespace stratus {
                                              GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
         assert(size > 0);
 
+        _MeshData * dataPtr = &data;
         const size_t totalSizeBytes = size_t(size) * byteMultiplier;
         const size_t remainingBytes = _RemainingBytes(data);
+
         if (totalSizeBytes > remainingBytes) {
-            const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVertices) * byteMultiplier;
-            if (newSizeBytes > maxBytes) {
-                throw std::runtime_error("Maximum GpuMesh bytes exceeded");
+            // See if one of the slots has data we can use
+            _MeshData * freeSlot = _FindFreeSlot(freeList, totalSizeBytes);
+            if (freeSlot) {
+                dataPtr = freeSlot;
             }
-            _Resize(buffer, data, newSizeBytes);
+            // If not perform a resize
+            else {
+                const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVertices) * byteMultiplier;
+                if (newSizeBytes > maxBytes) {
+                    throw std::runtime_error("Maximum GpuMesh bytes exceeded");
+                }
+                _Resize(buffer, data, newSizeBytes);
+            }
         }
-        const uint32_t offset = data.nextByte / byteMultiplier;
-        data.nextByte += totalSizeBytes;
+
+        const uint32_t offset = dataPtr->nextByte / byteMultiplier;
+        dataPtr->nextByte += totalSizeBytes;
+
+        // We pulled from a free list - delete if empty
+        if (dataPtr != &data && _RemainingBytes(*dataPtr) == 0) {
+            std::stable_partition(freeList.begin(), freeList.end(),
+                [dataPtr](_MeshData& d) { return &d != dataPtr; }
+            );
+            freeList.pop_back();
+        }
+
         return offset;
     }
 
@@ -424,10 +444,10 @@ namespace stratus {
             data.nextByte = offsetBytes;
             data.lastByte = lastByte;
             bool done = false;
-            for (auto it = freeList.begin(); it != freeList.end(); ++it) {
-                // Merge with existing entry
-                if (offsetBytes <= it->lastByte) {
-                    it->lastByte = lastByte;
+            for (_MeshData& entry : freeList) {
+                // Overlapping entries - merge
+                if (offsetBytes <= entry.lastByte) {
+                    entry.lastByte = lastByte;
                     done = true;
                     break;
                 }
@@ -444,43 +464,53 @@ namespace stratus {
             }
 
             // Try to merge any that we can
-            size_t numElements = 1;
-            for (size_t i = 0; i < freeList.size() - 1; ++i) {
-                _MeshData& current = freeList[i];
-                _MeshData& next = freeList[i + 1];
-                // See if current and next can be merged
-                if (next.nextByte <= current.lastByte) {
-                    next.nextByte = current.nextByte;
-                    current.nextByte = 0;
-                    current.lastByte = 0;
+            if (freeList.size() > 1) {
+                size_t numElements = 1;
+                for (size_t i = 0; i < freeList.size() - 1; ++i) {
+                    _MeshData& current = freeList[i];
+                    _MeshData& next = freeList[i + 1];
+                    // See if current and next can be merged
+                    if (next.nextByte <= current.lastByte) {
+                        next.nextByte = current.nextByte;
+                        current.nextByte = 0;
+                        current.lastByte = 0;
+                    }
+                    else {
+                        ++numElements;
+                    }
                 }
-                else {
-                    ++numElements;
+
+                // Clear out dead entries
+                if (numElements != freeList.size()) {
+                    auto it = std::stable_partition(freeList.begin(), freeList.end(),
+                        [](const _MeshData& d) { return _RemainingBytes(d) != 0; }
+                    );
+                    auto removed = std::distance(it, freeList.end());
+                    for (int i = 0; i < removed; ++i) {
+                        freeList.pop_back();
+                    }
                 }
             }
 
-            if (numElements != freeList.size()) {
-                std::vector<_MeshData> merged;
-                merged.reserve(numElements);
-                for (const _MeshData& data : freeList) {
-                    if (_RemainingBytes(data) != 0) {
-                        merged.push_back(data);
-                    }
+            // See if we can merge it back into the main list
+            if (freeList.size() == 1) {
+                if (last.nextByte <= freeList[0].lastByte) {
+                    last.nextByte = freeList[0].nextByte;
+                    freeList.clear();
                 }
-                freeList = std::move(merged);
             }
         }
     }
 
     void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
         const size_t offsetBytes = offset * sizeof(GpuMeshData);
-        const size_t lastByte = numVertices * sizeof(GpuMeshData);
+        const size_t lastByte = offsetBytes + numVertices * sizeof(GpuMeshData);
         _DeallocateData(_lastVertex, _freeVertices, offsetBytes, lastByte);
     }
 
     void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
         const size_t offsetBytes = offset * sizeof(uint32_t);
-        const size_t lastByte = numIndices * sizeof(uint32_t);
+        const size_t lastByte = offsetBytes + numIndices * sizeof(uint32_t);
         _DeallocateData(_lastIndex, _freeIndices, offsetBytes, lastByte);
     }
 
@@ -533,6 +563,22 @@ namespace stratus {
 
     size_t GpuMeshAllocator::_RemainingBytes(const _MeshData& data) {
         return data.lastByte - data.nextByte;
+    }
+
+    uint32_t GpuMeshAllocator::FreeVertices() {
+        uint32_t vertices = static_cast<uint32_t>(_RemainingBytes(_lastVertex) / sizeof(GpuMeshData));
+        for (auto& data : _freeVertices) {
+            vertices += static_cast<uint32_t>(_RemainingBytes(data) / sizeof(GpuMeshData));
+        }
+        return vertices;
+    }
+
+    uint32_t GpuMeshAllocator::FreeIndices() {
+        uint32_t indices = static_cast<uint32_t>(_RemainingBytes(_lastIndex) / sizeof(uint32_t));
+        for (auto& data : _freeIndices) {
+            indices += static_cast<uint32_t>(_RemainingBytes(data) / sizeof(uint32_t));
+        }
+        return indices;
     }
 
     GpuCommandBuffer::GpuCommandBuffer(const size_t maxDrawCalls) 
