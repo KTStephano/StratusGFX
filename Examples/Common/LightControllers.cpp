@@ -38,10 +38,10 @@ static void InitCube(const LightParams& p,
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
     local->SetLocalScale(glm::vec3(1.0f));
     local->SetLocalPosition(p.position);
+    auto color = light->getColor();
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
-    auto color = light->getColor();
-    color = (color / 10000.0f) * 30.0f;
+    color = (color / stratus::maxLightColor) * 30.0f;
     rc->GetMaterialAt(0)->SetDiffuseColor(color);
 }
 

@@ -4,7 +4,6 @@
 #include "glm/glm.hpp"
 #include <memory>
 #include <vector>
-#include <forward_list>
 #include <cstdint>
 #include "StratusCommon.h"
 #include "StratusGpuCommon.h"
@@ -182,7 +181,10 @@ namespace stratus {
         static void UnbindElementArrayBuffer();
 
     private:
-        static uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, GpuBuffer& buffer, _MeshData& data);
+        static _MeshData * _FindFreeSlot(std::vector<_MeshData>&, const size_t bytes);
+        static uint32_t _AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+                                      GpuBuffer&, _MeshData&, std::vector<GpuMeshAllocator::_MeshData>&);
+        static void _DeallocateData(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const size_t offsetBytes, const size_t lastByte);
         static void _Initialize();
         static void _Shutdown();
         static void _Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
@@ -196,8 +198,8 @@ namespace stratus {
         static _MeshData _lastIndex;
         // Allows for O(N) allocation by searching for previously deallocated
         // chunks of memory
-        static std::forward_list<_MeshData> _freeVertices;
-        static std::forward_list<_MeshData> _freeIndices;
+        static std::vector<_MeshData> _freeVertices;
+        static std::vector<_MeshData> _freeIndices;
         static bool _initialized;
     };
 

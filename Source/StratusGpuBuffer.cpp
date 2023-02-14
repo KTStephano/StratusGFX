@@ -1,6 +1,7 @@
 #include "StratusGpuBuffer.h"
 #include <functional>
 #include <iostream>
+#include <algorithm>
 #include "StratusApplicationThread.h"
 #include "StratusLog.h"
 
@@ -368,15 +369,28 @@ namespace stratus {
     GpuBuffer GpuMeshAllocator::_indices;
     GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastVertex;
     GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastIndex;
-    std::forward_list<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
-    std::forward_list<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
+    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
+    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
     bool GpuMeshAllocator::_initialized = false;
     static constexpr size_t minVertices = 65536; //262144;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
 
-    uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, GpuBuffer& buffer, _MeshData& data) {
+    GpuMeshAllocator::_MeshData * GpuMeshAllocator::_FindFreeSlot(std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t bytes) {
+        for (_MeshData& data : freeList) {
+            auto remaining = _RemainingBytes(data);
+            // TODO: Instead choose smallest buffer that will work rather than first available?
+            if (remaining >= bytes) {
+                return &data;
+            }
+        }
+        return nullptr;
+    }
+
+    uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+                                             GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
         assert(size > 0);
+
         const size_t totalSizeBytes = size_t(size) * byteMultiplier;
         const size_t remainingBytes = _RemainingBytes(data);
         if (totalSizeBytes > remainingBytes) {
@@ -392,17 +406,82 @@ namespace stratus {
     }
 
     uint32_t GpuMeshAllocator::AllocateVertexData(const uint32_t numVertices) {
-        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _lastVertex);
+        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _lastVertex, _freeVertices);
     }
 
     uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
-        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _lastIndex);
+        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _lastIndex, _freeIndices);
+    }
+
+    void GpuMeshAllocator::_DeallocateData(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t offsetBytes, const size_t lastByte) {
+        // If it's at the end just return it to the last vertex to allow O(1) allocation
+        if (lastByte == last.lastByte) {
+            last.nextByte = offsetBytes;
+        }
+        else {
+            // Find an appropriate slot (either existing or new) and merge slots that are close by
+            _MeshData data;
+            data.nextByte = offsetBytes;
+            data.lastByte = lastByte;
+            bool done = false;
+            for (auto it = freeList.begin(); it != freeList.end(); ++it) {
+                // Merge with existing entry
+                if (offsetBytes <= it->lastByte) {
+                    it->lastByte = lastByte;
+                    done = true;
+                    break;
+                }
+            }
+
+            if (!done) {
+                freeList.push_back(data);
+
+                const auto comparison = [](const _MeshData& left, const _MeshData& right) {
+                    return left.lastByte < right.lastByte;
+                };
+
+                std::sort(freeList.begin(), freeList.end(), comparison);
+            }
+
+            // Try to merge any that we can
+            size_t numElements = 1;
+            for (size_t i = 0; i < freeList.size() - 1; ++i) {
+                _MeshData& current = freeList[i];
+                _MeshData& next = freeList[i + 1];
+                // See if current and next can be merged
+                if (next.nextByte <= current.lastByte) {
+                    next.nextByte = current.nextByte;
+                    current.nextByte = 0;
+                    current.lastByte = 0;
+                }
+                else {
+                    ++numElements;
+                }
+            }
+
+            if (numElements != freeList.size()) {
+                std::vector<_MeshData> merged;
+                merged.reserve(numElements);
+                for (const _MeshData& data : freeList) {
+                    if (_RemainingBytes(data) != 0) {
+                        merged.push_back(data);
+                    }
+                }
+                freeList = std::move(merged);
+            }
+        }
     }
 
     void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
+        const size_t offsetBytes = offset * sizeof(GpuMeshData);
+        const size_t lastByte = numVertices * sizeof(GpuMeshData);
+        _DeallocateData(_lastVertex, _freeVertices, offsetBytes, lastByte);
     }
 
     void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
+        const size_t offsetBytes = offset * sizeof(uint32_t);
+        const size_t lastByte = numIndices * sizeof(uint32_t);
+        _DeallocateData(_lastIndex, _freeIndices, offsetBytes, lastByte);
     }
 
     void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const uint32_t offset) {
@@ -439,6 +518,7 @@ namespace stratus {
     void GpuMeshAllocator::_Shutdown() {
         _vertices = GpuBuffer();
         _indices = GpuBuffer();
+        _initialized = false;
     }
 
     void GpuMeshAllocator::_Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {

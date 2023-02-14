@@ -197,7 +197,7 @@ namespace stratus {
 
         void _recalcColorWithIntensity() {
             _color = _baseColor * _intensity;
-            // _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
+            _color = glm::clamp(_color, glm::vec3(0.0f), glm::vec3(maxLightColor));
             // _color = (_color / maxLightColor) * 30.0f;
         }
     };
