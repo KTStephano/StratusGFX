@@ -121,7 +121,7 @@ namespace stratus {
         //}
 	};
 
-    // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
+        // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
     // for more info on quaternions
 	struct Rotation {
 		Degrees x;
@@ -137,7 +137,8 @@ namespace stratus {
             return glm::vec3(x.value(), y.value(), z.value());
         }
 
-
+        glm::mat4 asMat4() const;
+        glm::mat3 asMat3() const;
 	};
 
 	inline Radians cosine(const Radians& r) { return Radians(cosf(r.value())); }
@@ -233,6 +234,7 @@ namespace stratus {
         out[2].z = in[2].z;
     }
 
+    // Equiv to Out * Mat(Scale)
     static void matScale(glm::mat4& out, const glm::vec3& scale) {
         out[0].x = out[0].x * scale.x;
         out[0].y = out[0].y * scale.y;
@@ -247,10 +249,31 @@ namespace stratus {
         out[2].z = out[2].z * scale.z;
     }
 
+    // Equiv to Out * Mat(Scale)
+    static void matScale(glm::mat3& out, const glm::vec3& scale) {
+        out[0].x = out[0].x * scale.x;
+        out[0].y = out[0].y * scale.y;
+        out[0].z = out[0].z * scale.z;
+
+        out[1].x = out[1].x * scale.x;
+        out[1].y = out[1].y * scale.y;
+        out[1].z = out[1].z * scale.z;
+
+        out[2].x = out[2].x * scale.x;
+        out[2].y = out[2].y * scale.y;
+        out[2].z = out[2].z * scale.z;
+    }
+
+    // Equiv to T * Out
     static void matTranslate(glm::mat4& out, const glm::vec3& translate) {
         out[3].x = translate.x;
         out[3].y = translate.y;
         out[3].z = translate.z;
+        out[3].w = 1.0f;
+    }
+
+    static glm::vec3 GetTranslate(const glm::mat4& mat) {
+        return mat[3];
     }
 
     static glm::mat4 constructTransformMat(const Rotation& rotation, const glm::vec3& translation, const glm::vec3& scale) {
@@ -272,8 +295,13 @@ namespace stratus {
         return worldTranspose * invTranslation;
     }
 
-    static glm::mat4 ToMat4(const aiMatrix4x4& aim) {
+    static glm::mat4 ToMat4(const aiMatrix4x4& _aim) {
         glm::mat4 gm(1.0f);
+        // See https://gamedev.stackexchange.com/questions/178554/opengl-strange-mesh-when-animating-assimp
+        // aiMatrix4x4 are row-major so we need to transpose it first before using it as a
+        // column-major GLM matrix
+        aiMatrix4x4 aim = _aim;
+        aim = aim.Transpose();
         for (size_t i = 0; i < 4; ++i) {
             for (size_t j = 0; j < 4; ++j) {
                 gm[i][j] = aim[i][j];
@@ -281,6 +309,16 @@ namespace stratus {
         }
         return gm;
     }
+
+    // static glm::mat4 ToMat4(const aiMatrix3x3& aim) {
+    //     glm::mat4 gm(1.0f);
+    //     for (size_t i = 0; i < 3; ++i) {
+    //         for (size_t j = 0; j < 3; ++j) {
+    //             gm[i][j] = aim[i][j];
+    //         }
+    //     }
+    //     return gm;
+    // }
 }
 
 // Printing helper functions --> Putting here due to bug in Windows compiler

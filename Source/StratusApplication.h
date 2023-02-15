@@ -8,14 +8,21 @@ namespace stratus {
     class RendererFrontend;
     class MaterialManager;
     class Engine;
+    class InputManager;
+    class Window;
 
     // Special interface class which the engine knows is the entry point
     // for the application (e.g. editor or game)
     class Application : public SystemModule {
         friend class Engine;
 
+        static Application *& _Instance() {
+            static Application * instance = nullptr;
+            return instance;
+        }
+
     public:
-        static Application * Instance() { return _instance; }
+        static Application * Instance() { return _Instance(); }
 
         virtual ~Application() = default;
 
@@ -30,9 +37,8 @@ namespace stratus {
         static ResourceManager * Resources();
         static RendererFrontend * World();
         static MaterialManager * Materials();
-        static Engine * Stratus();
-
-    private:
-        static Application * _instance;
+        static Engine * Engine();
+        static InputManager * Input();
+        static Window * Window();
     };
 }

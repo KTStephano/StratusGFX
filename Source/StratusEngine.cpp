@@ -3,9 +3,12 @@
 #include "StratusLog.h"
 #include "StratusMaterial.h"
 #include "StratusResourceManager.h"
+#include "StratusWindow.h"
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
 #include "StratusTaskSystem.h"
+#include "StratusEntityManager.h"
+#include "StratusGraphicsDriver.h"
 #include <atomic>
 #include <mutex>
 
@@ -23,7 +26,7 @@ namespace stratus {
         EngineInitParams params;
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
-        Application::_instance = app;
+        Application::_Instance() = app;
 
         // Delete the instance in case it's left over from a previous run
         delete Engine::_instance;
@@ -112,23 +115,25 @@ namespace stratus {
         _main = ApplicationThread::Instance()->_thread.get();
     }
 
-    template<typename E>
-    void _InitializeEngineModule(E * instance, const bool log) {
-        if (log) {
-            STRATUS_LOG << "Initializing " << instance->Name() << std::endl;
+    struct EngineModuleInit {
+        template<typename E>
+        static void InitializeEngineModule(E * instance, const bool log) {
+            if (log) {
+                STRATUS_LOG << "Initializing " << instance->Name() << std::endl;
+            }
+
+            if (!instance->Initialize()) {
+                std::cerr << instance->Name() << " failed to load" << std::endl;
+                exit(-1);
+            }
         }
 
-        if (!instance->Initialize()) {
-            std::cerr << instance->Name() << " failed to load" << std::endl;
-            exit(-1);
+        template<typename E>
+        static void InitializeEngineModule(E *& ptr, E * instance, const bool log) {
+            InitializeEngineModule<E>(instance, log);
+            ptr = instance;
         }
-    }
-
-    template<typename E>
-    void _InitializeEngineModule(E *& ptr, E * instance, const bool log) {
-        _InitializeEngineModule<E>(instance, log);
-        ptr = instance;
-    }
+    };
 
     void Engine::Initialize() {
         // We need to initialize everything on renderer thread
@@ -141,47 +146,65 @@ namespace stratus {
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
+        _InitInput();
+        _InitEntityManager();
         _InitTaskSystem();
         _InitMaterialManager();
         _InitResourceManager();
+        _InitWindow();
+        _InitGraphicsDriver();
         _InitRenderer();
 
         // Initialize application last
-        _InitializeEngineModule(Application::Instance(), true);
+        EngineModuleInit::InitializeEngineModule(Application::Instance(), true);
 
         STRATUS_LOG << "Initialization complete" << std::endl;
         _isInitializing.store(false);
     }
 
     void Engine::_InitLog() {
-        _InitializeEngineModule(Log::_instance, new Log(), false);
+        EngineModuleInit::InitializeEngineModule(Log::_Instance(), new Log(), false);
+    }
+
+    void Engine::_InitInput() {
+        EngineModuleInit::InitializeEngineModule(InputManager::_Instance(), new InputManager(), true);
+    }
+
+    void Engine::_InitGraphicsDriver() {
+        GraphicsDriver::Initialize();
+    }
+
+    void Engine::_InitEntityManager() {
+        EngineModuleInit::InitializeEngineModule(EntityManager::_Instance(), new EntityManager(), true);
     }
 
     void Engine::_InitApplicationThread() {
-        ApplicationThread::_instance = new ApplicationThread();
+        ApplicationThread::_Instance() = new ApplicationThread();
     }
 
     void Engine::_InitTaskSystem() {
-        _InitializeEngineModule(TaskSystem::_instance, new TaskSystem(), true);
+        EngineModuleInit::InitializeEngineModule(TaskSystem::_Instance(), new TaskSystem(), true);
     }
 
     void Engine::_InitMaterialManager() {
-        _InitializeEngineModule(MaterialManager::_instance, new MaterialManager(), true);
+        EngineModuleInit::InitializeEngineModule(MaterialManager::_Instance(), new MaterialManager(), true);
     }
 
     void Engine::_InitResourceManager() {
-        _InitializeEngineModule(ResourceManager::_instance, new ResourceManager(), true);
+        EngineModuleInit::InitializeEngineModule(ResourceManager::_Instance(), new ResourceManager(), true);
+    }
+
+    void Engine::_InitWindow() {
+        EngineModuleInit::InitializeEngineModule(Window::_Instance(), new Window(1920, 1080), true);
     }
 
     void Engine::_InitRenderer() {
         RendererParams params;
-        params.viewportWidth = 1920;
-        params.viewportHeight = 1080;
         params.appName = Application::Instance()->GetAppName();
         params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
-        _InitializeEngineModule(RendererFrontend::_instance, new RendererFrontend(params), true);
+        EngineModuleInit::InitializeEngineModule(RendererFrontend::_Instance(), new RendererFrontend(params), true);
     }
 
     // Should be called before Shutdown()
@@ -199,20 +222,19 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        Application::Instance()->Shutdown();
-        ResourceManager::Instance()->Shutdown();
-        MaterialManager::Instance()->Shutdown();
-        RendererFrontend::Instance()->Shutdown();
-        Log::Instance()->Shutdown();
-        TaskSystem::Instance()->Shutdown();
-
-        _DeleteResource(Application::_instance);
-        _DeleteResource(ResourceManager::_instance);
-        _DeleteResource(MaterialManager::_instance);
-        _DeleteResource(RendererFrontend::_instance);
-        _DeleteResource(ApplicationThread::Instance()->_instance);
-        _DeleteResource(Log::_instance);
-        _DeleteResource(TaskSystem::_instance);
+        _ShutdownResourceAndDelete(Application::_Instance());
+        _ShutdownResourceAndDelete(InputManager::_Instance());
+        _ShutdownResourceAndDelete(ResourceManager::_Instance());
+        _ShutdownResourceAndDelete(MaterialManager::_Instance());
+        _ShutdownResourceAndDelete(RendererFrontend::_Instance());
+        _ShutdownResourceAndDelete(Window::_Instance());
+        _ShutdownResourceAndDelete(EntityManager::_Instance());
+        _ShutdownResourceAndDelete(TaskSystem::_Instance());
+        // This one does not have a specialized instance
+        GraphicsDriver::Shutdown();
+        // This one does not have a shutdown routine
+        _DeleteResource(ApplicationThread::_Instance());
+        _ShutdownResourceAndDelete(Log::_Instance());
     }
 
     // Processes the next full system frame, including rendering. Returns false only
@@ -244,17 +266,25 @@ namespace stratus {
         // Update prev frame start to be the beginning of this current frame
         _stats.prevFrameStart = end;
 
+        SystemStatus status;
+        #define UPDATE_MODULE(name)                                     \
+            status = name::Instance()->Update(deltaSeconds);            \
+            if (status != SystemStatus::SYSTEM_CONTINUE) return status;
+
         // Update core modules
-        Log::Instance()->Update(deltaSeconds);
-        TaskSystem::Instance()->Update(deltaSeconds);
-        MaterialManager::Instance()->Update(deltaSeconds);
-        ResourceManager::Instance()->Update(deltaSeconds);
-        
-        // Queue next render frame
-        RendererFrontend::Instance()->Update(deltaSeconds);
+        UPDATE_MODULE(Log)
+        UPDATE_MODULE(InputManager)
+        UPDATE_MODULE(EntityManager)
+        UPDATE_MODULE(TaskSystem)
+        UPDATE_MODULE(MaterialManager)
+        UPDATE_MODULE(ResourceManager)
+        UPDATE_MODULE(Window)
+        UPDATE_MODULE(RendererFrontend)
 
         // Finish with update to application
         return Application::Instance()->Update(deltaSeconds);
+
+        #undef UPDATE_MODULE
     }
 
     // Main thread is where both engine + application run

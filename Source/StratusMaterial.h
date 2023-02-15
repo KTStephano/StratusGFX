@@ -75,17 +75,26 @@ namespace stratus {
         // Things like GLTF 2.0 permit a combined metallic-roughness map
         void SetMetallicRoughnessMap(TextureHandle);
 
+        void MarkChanged();
+        bool ChangedWithinLastFrame();
+
     private:
-        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        //std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
+        //std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        // TODO: We will be accessing material state too often to have to lock every time. Ensure thread safety similar
+        // to how Entities are handled where each system updates one at a time and can parallelize themselves while ensuring
+        // no material is changed by multiple threads at once.
+        int _LockWrite() const { return 0; }
+        int _LockRead()  const { return 0; }
 
         void _Release();
     
     private:
-        mutable std::shared_mutex _mutex;
+        //mutable std::shared_mutex _mutex;
         std::string _name;
         // Register self with material manager
         bool _registerSelf;
+        uint64_t _lastFrameChanged = 0;
         glm::vec3 _diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _baseReflectivity = glm::vec3(0.04f);
@@ -108,16 +117,8 @@ namespace stratus {
         std::vector<MaterialPtr> _subMats;
     };
 
-    class MaterialManager : public SystemModule {
-        friend class Engine;
-
-        // Only engine should create
-        MaterialManager();
-
-    public:
-        static MaterialManager * Instance() { return _instance; }
-
-        ~MaterialManager();
+    SYSTEM_MODULE_CLASS(MaterialManager)
+        virtual ~MaterialManager();
 
         // Creating and querying materials
         MaterialPtr CreateMaterial(const std::string& name);
@@ -133,17 +134,13 @@ namespace stratus {
 
         MaterialPtr CreateDefault();
 
+    private:
         // SystemModule inteface
-        virtual const char * Name() const {
-            return "MaterialManager";
-        }
-        
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
 
     private:
-        static MaterialManager * _instance;
         ConcurrentHashMap<std::string, MaterialPtr> _materials;
     };
 }

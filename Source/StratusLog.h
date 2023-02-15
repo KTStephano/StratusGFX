@@ -10,11 +10,7 @@
 #define STRATUS_ERROR stratus::Log::Instance()->Error(__FUNCTION__, __LINE__)
 
 namespace stratus {
-    class Log : public SystemModule {
-        friend class Engine;
-        Log();
-
-    public:
+    SYSTEM_MODULE_CLASS(Log)
         ~Log() = default;
 
         Log(const Log&) = delete;
@@ -27,19 +23,10 @@ namespace stratus {
         std::ostream& Warn(const std::string & function, const int line) const;
         std::ostream& Error(const std::string & function, const int line) const;
 
-        // Static instance
-        static Log * Instance() { return _instance; }
-
-        // SystemModule inteface
-        virtual const char * Name() const {
-            return "Log";
-        }
-        
+    private:
+        // SystemModule inteface     
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
         virtual void Shutdown();
-
-    private:
-        static Log * _instance;
     };
 }

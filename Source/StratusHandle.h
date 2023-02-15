@@ -38,8 +38,12 @@ namespace stratus {
         
         static Handle<E> Null() { return Handle<E>(); }
 
-        // Comparison operators
         size_t HashCode() const { return std::hash<uint64_t>{}(_handle); }
+        // Unsigned 64-bit integer representation
+        uint64_t Integer() const { return _handle; }
+
+        // Comparison operators
+
         bool operator==(const Handle<E>& other) const { return _handle == other._handle; }
         bool operator!=(const Handle<E>& other) const { return _handle != other._handle; }
         bool operator< (const Handle<E>& other) const { return _handle <  other._handle; }

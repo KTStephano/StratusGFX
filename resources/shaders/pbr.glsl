@@ -23,7 +23,7 @@ float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 frag
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.
-    float calculatedDepth = texture(shadowMap, fragDir).r * lightFarPlane;
+    //float calculatedDepth = texture(shadowMap, fragDir + vec3(0.2)).r * lightFarPlane;
     // This bias was found through trial and error... it was originally
     // 0.05 * (1.0 - max...)
     // Part of this came from GPU Gems
@@ -35,36 +35,31 @@ float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 frag
     // Now we use a sampling-based method to look around the current pixel
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
-    float iterationsPerLoop = pow(numSamples, 1.0 / 3.0);
+    float iterationsPerLoop = max(1.0, pow(numSamples, 1.0 / 3.0));
     float shadow = 0.0;
     float totalSamples = 0.0;//PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
-    if (iterationsPerLoop > 1) {
-        float offset = 0.2;
-        float increment = (2 * offset) / (iterationsPerLoop - 1);
-        for (float x = -offset, i = 0; i < iterationsPerLoop; i += 1, x += increment) {
-            for (float y = -offset, j = 0; j < iterationsPerLoop; j += 1, y += increment) {
-                for (float z = -offset, k = 0; k < iterationsPerLoop; k += 1, z += increment) {
-                    float depth = texture(shadowMap, fragDir + vec3(x, y, z)).r;
-                    // Perform this operation to go from [0, 1] to
-                    // the original value
-                    //totalSamples = totalSamples + 1.0;
-                    depth = depth * lightFarPlane;
-                    if ((currentDepth - bias) > depth) {
-                        totalSamples = totalSamples + 1.0;
-                        shadow = shadow + 1.0;
-                    }
+    float offset = 0.2;
+    float increment = (2 * offset) / (iterationsPerLoop - 1);
+    for (float x = -offset, i = 0; i < iterationsPerLoop && totalSamples < numSamples; i += 1, x += increment) {
+        for (float y = -offset, j = 0; j < iterationsPerLoop && totalSamples < numSamples; j += 1, y += increment) {
+            for (float z = -offset, k = 0; k < iterationsPerLoop && totalSamples < numSamples; k += 1, z += increment) {
+                float depth = texture(shadowMap, fragDir + vec3(x, y, z)).r;
+                // Perform this operation to go from [0, 1] to
+                // the original value
+                //totalSamples = totalSamples + 1.0;
+                depth = depth * lightFarPlane;
+                if ((currentDepth - bias) > depth) {
+                    totalSamples = totalSamples + 1.0;
+                    shadow = shadow + 1.0;
                 }
             }
         }
-    }
-    else {
-        shadow = texture(shadowMap, fragDir).r;
     }
 
     //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
     //bias = clamp(bias, 0, 0.01);
     //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
-    return shadow / (totalSamples + 1.0);
+    return shadow / max(1.0, totalSamples);
 }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
@@ -139,7 +134,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    const float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
@@ -152,7 +147,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     return mix(light2, light1, weight) * (1.0 / samples); //* 0.25;
 }
 
-float normalDistribution(const float NdotH, const float roughness) {
+float normalDistribution(float NdotH, float roughness) {
     float roughnessSquared = roughness * roughness;
     float denominator = (NdotH * NdotH) * (roughnessSquared - 1) + 1;
     denominator = PI * (denominator * denominator);
@@ -168,7 +163,7 @@ float geometrySchlickGGX(float NdotX, float k) {
     return NdotX / max(NdotX * (1 - k) + k, PREVENT_DIV_BY_ZERO);
 }
 
-float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, const float roughness) {
+float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness) {
     float k = pow(roughness + 1, 2) / 8.0;
     float NdotV = max(dot(normal, viewDir), 0.0);
     float NdotL = max(dot(normal, lightDir), 0.0);
@@ -180,8 +175,16 @@ float quadraticAttenuation(vec3 lightDir) {
     return 1.0 / (1.0 + lightDist * lightDist);
 }
 
-vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity, 
-    const float attenuationFactor, const float ambientIntensity) {
+float vplAttenuation(vec3 lightDir, float lightRadius) {
+    float minDist = 0.25 * lightRadius;
+    float maxDist = 0.75 * lightRadius;
+    float lightDist = clamp(length(lightDir), minDist, maxDist);
+    return 1.0 / (1.0 + lightDist * lightDist);
+}
+
+vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
+    float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity, 
+    float attenuationFactor, float ambientIntensity) {
     
     vec3 V = viewDir;
     vec3 L = normalize(lightDir);
@@ -199,20 +202,55 @@ vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal
     vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
     float D        = normalDistribution(NdotH, roughness);
     float G        = geometry(N, V, L, roughness);
-    vec3 diffuse   = lightColor; // * attenuationFactor;
+    vec3 radiance  = lightColor; // * attenuationFactor;
     vec3 specular  = (D * F * G) / max((4 * W0dotN * WidotN), PREVENT_DIV_BY_ZERO);
 
     //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
 
     vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
-    vec3 finalBrightnes = (kD * baseColor / PI + specular) * diffuse * NdotWi;
+    vec3 finalBrightnes = (kD * baseColor / PI + specular) * radiance * NdotWi;
 
     //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
-    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);  
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
 }
 
-vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor, const float roughness, const float metallic, const float ao, const float shadowFactor, vec3 baseReflectivity) {
+vec3 calculateDiffuseOnlyLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
+    float metallic, float ao, float shadowFactor, vec3 baseReflectivity, float attenuationFactor, float ambientIntensity) {
+    
+    vec3 V = viewDir;
+    vec3 L = normalize(lightDir);
+    vec3 H = normalize(V + L);
+    vec3 N = normal;
+
+    float NdotH    = max(dot(N, H), 0.0);
+    float HdotV    = max(dot(H, V), 0.0);
+    float NdotWi   = max(dot(N, L), 0.0);
+    vec3 F         = fresnel(baseColor, clamp(HdotV, 0.0, 1.0), baseReflectivity, metallic);
+    vec3 kS        = F;
+    // We multiply by inverse of metallic since we only want non-metals to have diffuse lighting
+    vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
+    vec3 radiance  = lightColor; // * attenuationFactor;
+
+    //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));
+
+    vec3 ambient = baseColor * ao * lightColor * ambientIntensity; // * attenuationFactor;
+    vec3 finalBrightnes = (kD * baseColor / PI) * radiance * NdotWi;
+
+    //return (1.0 - shadowFactor) * ((kD * baseColor / PI + specular) * diffuse * NdotWi);
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
+}
+
+vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor, float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity) {
     vec3 lightDir   = lightPos - fragPosition;
 
     return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+}
+
+vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor,
+    float lightRadius, float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity) {
+
+    vec3 lightDir   = lightPos - fragPosition;
+
+    //return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), pointLightAmbientIntensity);
 }

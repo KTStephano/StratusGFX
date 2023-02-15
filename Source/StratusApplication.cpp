@@ -3,12 +3,10 @@
 #include "StratusRendererFrontend.h"
 #include "StratusMaterial.h"
 #include "StratusEngine.h"
+#include "StratusWindow.h"
+#include "StratusCommon.h"
 
 namespace stratus {
-    #define INSTANCE(type) stratus::##type::Instance()
-
-    Application * Application::_instance = nullptr;
-
     ResourceManager * Application::Resources() {
         return INSTANCE(ResourceManager);
     }
@@ -21,7 +19,15 @@ namespace stratus {
         return INSTANCE(MaterialManager);
     }
 
-    Engine * Application::Stratus() {
+    Engine * Application::Engine() {
         return INSTANCE(Engine);
+    }
+
+    InputManager * Application::Input() {
+        return INSTANCE(InputManager);
+    }
+
+    Window * Application::Window() {
+        return INSTANCE(Window);
     }
 }

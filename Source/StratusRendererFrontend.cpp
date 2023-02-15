@@ -1,139 +1,295 @@
 #include "StratusRendererFrontend.h"
 #include "StratusUtils.h"
 #include "StratusLog.h"
+#include "StratusWindow.h"
+#include "StratusTransformComponent.h"
+#include "StratusRenderComponents.h"
+#include "StratusResourceManager.h"
+#include "StratusEngine.h"
+#include "StratusEntity.h"
+#include "StratusEntityProcess.h"
+#include "StratusEntityManager.h"
+
+#include <algorithm>
 
 namespace stratus {
-    RendererFrontend * RendererFrontend::_instance = nullptr;
+    struct RenderEntityProcess : public EntityProcess {
+        virtual ~RenderEntityProcess() = default;
+
+        virtual void Process(const double deltaSeconds) {}
+
+        void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntitiesAdded(e);
+        }
+
+        void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntitiesRemoved(e);
+        }
+
+        void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntityComponentsAdded(e);
+        }
+
+        void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) override {
+            auto rf = INSTANCE(RendererFrontend);
+            if (rf) rf->_EntityComponentsEnabledDisabled(e);
+        }
+    };
+
+    static void InitializeMeshTransformComponent(const EntityPtr& p) {
+        if (!p->Components().ContainsComponent<MeshWorldTransforms>()) p->Components().AttachComponent<MeshWorldTransforms>();
+
+        auto global = p->Components().GetComponent<GlobalTransformComponent>().component;
+        auto rc = p->Components().GetComponent<RenderComponent>().component;
+        auto meshTransform = p->Components().GetComponent<MeshWorldTransforms>().component;
+        meshTransform->transforms.resize(rc->GetMeshCount());
+
+        for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
+            meshTransform->transforms[i] = global->GetGlobalTransform() * rc->meshes->transforms[i];
+        }
+    }
+
+    static bool IsStaticEntity(const EntityPtr& p) {
+        auto sc = p->Components().GetComponent<StaticObjectComponent>();
+        return sc.component != nullptr && sc.status == EntityComponentStatus::COMPONENT_ENABLED;
+    }
+
+    static glm::vec3 GetWorldTransform(const EntityPtr& p, const size_t meshIndex) {
+        return glm::vec3(GetTranslate(p->Components().GetComponent<MeshWorldTransforms>().component->transforms[meshIndex]));
+    }
+
+    static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
+        return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
+    }
+
+    static bool InsertMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
+        auto it = map.find(p);
+        if (it == map.end()) {
+            map.insert(std::make_pair(p, std::vector<RenderMeshContainerPtr>()));
+            it = map.find(p);
+        }
+
+        auto rc = p->Components().GetComponent<RenderComponent>().component;
+        auto mt = p->Components().GetComponent<MeshWorldTransforms>().component;
+
+        // Check if it is already present
+        for (auto& mc : it->second) {
+            if (mc->meshIndex == meshIndex) return false;
+        }
+
+        RenderMeshContainerPtr c(new RenderMeshContainer());
+        c->render = rc;
+        c->transform = mt;
+        c->meshIndex = meshIndex;
+        it->second.push_back(std::move(c));
+
+        return true;
+    }
+
+    static bool RemoveMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
+        auto it = map.find(p);
+        if (it == map.end()) return false;
+
+        for (auto mit = it->second.begin(); mit != it->second.end(); ++mit) {
+            if ((*mit)->meshIndex == meshIndex) {
+                it->second.erase(mit);
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     RendererFrontend::RendererFrontend(const RendererParams& p)
         : _params(p) {
     }
 
-    void RendererFrontend::_AddEntity(const EntityPtr& p, bool& pbrDirty, std::unordered_map<EntityView, EntityStateData>& pbr, std::unordered_map<EntityView, EntityStateData>& flat, std::unordered_map<LightPtr, LightData>& lights) {
-        if (p == nullptr || p->GetRenderNode() == nullptr) return;
-        EntityStateData state = EntityStateData{p->GetWorldPosition(), p->GetLocalScale(), p->GetLocalRotation().asVec3()};
-        if (p->GetRenderNode()->GetLightInteractionEnabled()) {
-            const size_t size = pbr.size();
-            pbr.insert(std::make_pair(EntityView(p), state));
-            pbrDirty = pbrDirty || size != pbr.size();
+    void RendererFrontend::_AddAllMaterialsForEntity(const EntityPtr& p) {
+        RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
+        for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
+            _dirtyMaterials.insert(c->GetMaterialAt(i));
+        }
+    }
 
-            for (auto& entry : lights) {
-                auto pos = entry.first->position;
-                if (glm::distance(p->GetWorldPosition(), pos) < entry.first->getRadius()) {
-                    entry.second.visible.insert(EntityView(p));
-                    entry.second.dirty = true;
+    void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = _LockWrite();
+        bool added = false;
+        for (auto ptr : e) {
+            added |= _AddEntity(ptr);
+        }
+
+        _drawCommandsDirty = _drawCommandsDirty || added;
+    }
+
+    void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = _LockWrite();
+        bool removed = false;
+        for (auto& ptr : e) {
+            removed = removed || _RemoveEntity(ptr);
+        }
+
+        _drawCommandsDirty = _drawCommandsDirty || removed;
+        if (removed) {
+            _RecalculateMaterialSet();
+        }
+    }
+
+    void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) {
+        auto ul = _LockWrite();
+        bool changed = false;
+        for (auto& entry : e) {
+            auto ptr = entry.first;
+            if (_RemoveEntity(ptr)) {
+                changed = true;
+                _AddEntity(ptr);
+            }
+        }
+
+        _drawCommandsDirty = _drawCommandsDirty || changed;
+        if (changed) {
+            _RecalculateMaterialSet();
+        }
+    }
+
+    void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = _LockWrite();
+        bool changed = false;
+        for (auto& ptr : e) {
+            if (_RemoveEntity(ptr)) {
+                changed = true;
+                _AddEntity(ptr);
+            }
+        }
+
+        _drawCommandsDirty = _drawCommandsDirty || changed;
+        if (changed) {
+            _RecalculateMaterialSet();
+        }
+    }
+
+    bool RendererFrontend::_AddEntity(const EntityPtr& p) {
+        if (p == nullptr || _entities.find(p) != _entities.end()) return false;
+        
+        if (IsRenderable(p)) {
+            InitializeMeshTransformComponent(p);
+
+            _entities.insert(p);
+
+            const bool isStatic = IsStaticEntity(p);
+
+            if (!isStatic) {
+                _dynamicEntities.insert(p);
+            }
+
+            _AddAllMaterialsForEntity(p);
+            //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
+            
+            if (IsLightInteracting(p)) {
+                for (size_t i = 0; i < GetMeshCount(p); ++i) {
+                    if (isStatic) InsertMesh(_staticPbrEntities, p, i);
+                    else InsertMesh(_dynamicPbrEntities, p, i);
+
+                    for (auto& entry : _lights) {
+                        if (!entry->castsShadows()) continue;
+                        auto pos = entry->GetPosition();
+                        if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
+                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->getRadius()) {
+                                _frame->lightsToUpate.PushBack(entry);
+                            }
+                        }
+                    }
                 }
             }
+            else {
+                for (size_t i = 0; i < GetMeshCount(p); ++i) {
+                    InsertMesh(_flatEntities, p, i);
+                }
+            }
+
+            return true;
         }
         else {
-            flat.insert(std::make_pair(EntityView(p), state));
-        }
-
-        for (auto& child : p->GetChildren()) {
-            _AddEntity(child, pbrDirty, pbr, flat, lights);
+            return false;
         }
     }
 
-    void RendererFrontend::AddStaticEntity(const EntityPtr& p) {
-        auto ul = _LockWrite();
-        _AddEntity(p, _staticPbrDirty, _staticPbrEntities, _flatEntities, _lights);
-    }
+    bool RendererFrontend::_RemoveEntity(const EntityPtr& p) {
+        if (p == nullptr || _entities.find(p) == _entities.end()) return false;
 
-    void RendererFrontend::AddDynamicEntity(const EntityPtr& p) {
-        auto ul = _LockWrite();
-        _AddEntity(p, _dynamicPbrDirty, _dynamicPbrEntities, _flatEntities, _lights);
-    }
-
-    void RendererFrontend::RemoveEntity(const EntityPtr& p) {
-        auto ul = _LockWrite();
-        auto view = EntityView(p);
-        if (_staticPbrEntities.erase(view)) {
-            _staticPbrDirty = true;
-        }
-        else if (_dynamicPbrEntities.erase(view)) {
-            _dynamicPbrDirty = true;
-        }
-        else {
-            _flatEntities.erase(view);
-        }
+        _entities.erase(p);
+        _dynamicEntities.erase(p);
+        _dynamicPbrEntities.erase(p);
+        _staticPbrEntities.erase(p);
+        _flatEntities.erase(p);
 
         for (auto& entry : _lights) {
-            if (entry.second.visible.erase(view)) {
-                entry.second.dirty = true;
-            }
+            if (!entry->castsShadows()) continue;
+            //if (entry.second.visible.erase(p)) {
+                if (entry->IsStaticLight()) {
+                    if (IsStaticEntity(p)) {
+                        _frame->lightsToUpate.PushBack(entry);
+                    }
+                }
+                else {
+                    _frame->lightsToUpate.PushBack(entry);
+                }
+            //}
         }
 
-        for (auto child : p->GetChildren()) RemoveEntity(child);
-    }
-
-    void RendererFrontend::ClearEntities() {
-        auto ul = _LockWrite();
-        _staticPbrEntities.clear();
-        _dynamicPbrEntities.clear();
-        _flatEntities.clear();
-
-        for (auto& entry : _lights) {
-            entry.second.visible.clear();
-            entry.second.dirty = true;
-        }
-
-        _staticPbrDirty = true;
-        _dynamicPbrDirty = true;
-    }
-
-    void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const std::unordered_map<EntityView, EntityStateData>& entities) {
-        auto pos = light->position;
-        for (auto& e : entities) {
-            if (glm::distance(pos, e.first.Get()->GetWorldPosition()) < light->getRadius()) {
-                data.visible.insert(e.first);
-                data.dirty = true;
-            }
-        }
+        return true;
     }
 
     void RendererFrontend::AddLight(const LightPtr& light) {
         auto ul = _LockWrite();
         if (_lights.find(light) != _lights.end()) return;
 
-        _lights.insert(std::make_pair(light, LightData()));
-        _lightsDirty = true;
-
-        auto& data = _lights.find(light)->second;
-        data.dirty = true;
-        data.lightCopy = light->Copy();
+        _lights.insert(light);
+        _frame->lights.insert(light);
 
         if ( light->IsVirtualLight() ) _virtualPointLights.insert(light);
 
+        if ( !light->IsStaticLight() ) _dynamicLights.insert(light);
+
         if ( !light->castsShadows() ) return;
 
-        _AttemptAddEntitiesForLight(light, data, _staticPbrEntities);
-        _AttemptAddEntitiesForLight(light, data, _dynamicPbrEntities);
+        _frame->lightsToUpate.PushBack(light);
+
+        //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
 
     void RendererFrontend::RemoveLight(const LightPtr& light) {
         auto ul = _LockWrite();
         if (_lights.find(light) == _lights.end()) return;
-        auto copy = _lights.find(light)->second.lightCopy;
         _lights.erase(light);
+        _dynamicLights.erase(light);
         _virtualPointLights.erase(light);
-        _lightsToRemove.insert(copy);
-        _lightsDirty = true;
+        _lightsToRemove.insert(light);
+        _frame->lightsToUpate.Erase(light);
     }
 
     void RendererFrontend::ClearLights() {
         auto ul = _LockWrite();
         for (auto& light : _lights) {
-            _lightsToRemove.insert(light.second.lightCopy);
+            _lightsToRemove.insert(light);
         }
         _lights.clear();
+        _dynamicLights.clear();
         _virtualPointLights.clear();
-        _lightsDirty = true;
+        _frame->lightsToUpate.Clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
         if (light == nullptr) return;
         auto ul = _LockWrite();
         _worldLight = light;
+    }
+
+    InfiniteLightPtr RendererFrontend::GetWorldLight() {
+        auto sl = _LockRead();
+        return _worldLight;
     }
 
     void RendererFrontend::ClearWorldLight() {
@@ -147,11 +303,9 @@ namespace stratus {
         _camera = camera;
     }
 
-    void RendererFrontend::SetViewportDims(const uint32_t width, const uint32_t height) {
-        auto ul = _LockWrite();
-        _params.viewportWidth = width;
-        _params.viewportHeight = height;
-        _viewportDirty = true;
+    CameraPtr RendererFrontend::GetCamera() const {
+        auto sl = _LockRead();
+        return _camera;
     }
 
     void RendererFrontend::SetFovY(const Degrees& fovy) {
@@ -183,16 +337,6 @@ namespace stratus {
         _frame->skybox = skybox;
     }
 
-    std::vector<SDL_Event> RendererFrontend::PollInputEvents() {
-        auto ul = _LockWrite();
-        return std::move(_events);
-    }
-
-    RendererMouseState RendererFrontend::GetMouseState() const {
-        auto sl = _LockRead();
-        return _mouse;
-    }
-
     void RendererFrontend::SetAtmosphericShadowing(float fogDensity, float scatterControl) {
         auto ul = _LockWrite();
         _frame->atmospheric.fogDensity = std::max(0.0f, std::min(fogDensity, 1.0f));
@@ -220,27 +364,22 @@ namespace stratus {
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
+        CHECK_IS_APPLICATION_THREAD();
+
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
+        _camera->update(deltaSeconds);
         _frame->camera = _camera->Copy();
 
         _UpdateViewport();
         _UpdateCascadeTransforms();
         _CheckForEntityChanges();
         _UpdateLights();
-        _UpdateCameraVisibility();
-        _UpdateCascadeVisibility();
+        _UpdateMaterialSet();
+        _UpdateDrawCommands();
 
         //_SwapFrames();
-
-        // Update events
-        for (auto e : _renderer->PollInputEvents()) {
-            _events.push_back(e);
-        }
-
-        // Update mouse
-        _mouse = _renderer->GetMouseState();
 
         // Check for shader recompile request
         if (_recompileShaders) {
@@ -255,11 +394,6 @@ namespace stratus {
         _renderer->RenderScene();
         _renderer->End();
 
-        // Clear all light dirty flags
-        for (auto& entry : _lights) {
-            entry.second.dirty = false;
-        }
-
         // This needs to be unset
         _frame->csc.regenerateFbo = false;
 
@@ -267,6 +401,10 @@ namespace stratus {
     }
 
     bool RendererFrontend::Initialize() {
+        CHECK_IS_APPLICATION_THREAD();
+        // Create the renderer on the renderer thread only
+        _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
+
         _frame = std::make_shared<RendererFrame>();
 
         // 4 cascades total
@@ -274,27 +412,45 @@ namespace stratus {
         _frame->csc.cascadeResolutionXY = 4096;
         _frame->csc.regenerateFbo = true;
 
+        // Set materials per frame and initialize material buffer
+        _frame->materialInfo.maxMaterials = 4096;
+        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+        _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
+
+        // Set up draw command buffers
+        std::vector<RenderFaceCulling> culling{
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE  
+        };
+
+        for (auto cull : culling) {
+            _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->instancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->instancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+        }
+
+        // Initialize entity processing
+        _entityHandler = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
+
         ClearWorldLight();
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
-
-        // Create the renderer on the renderer thread only
-        _renderer = std::make_unique<RendererBackend>(_params.viewportWidth, _params.viewportHeight, _params.appName);
 
         return _renderer->Valid();
     }
 
     void RendererFrontend::Shutdown() {
         _frame.reset();
-        _prevFrame.reset();
         _renderer.reset();
 
-        _staticPbrEntities.clear();
-        _dynamicPbrEntities.clear();
-        _flatEntities.clear();
+        _entities.clear();
+        _dynamicEntities.clear();
         _lights.clear();
         _lightsToRemove.clear();
+
+        INSTANCE(EntityManager)->UnregisterEntityProcess(_entityHandler);
     }
 
     void RendererFrontend::RecompileShaders() {
@@ -303,15 +459,13 @@ namespace stratus {
     }
 
     void RendererFrontend::_UpdateViewport() {
-        if (_viewportDirty) {
-            _frame->viewportDirty  = true;
-            _viewportDirty = false;
-        }
-        else {
-            _frame->viewportDirty = false;
-        }
+        _viewportDirty = _viewportDirty || Window::Instance()->WindowResizedWithinLastFrame();
+        _frame->viewportDirty = _viewportDirty;
 
-        const float aspect = _params.viewportWidth / float(_params.viewportHeight);
+        if (!_viewportDirty) return;
+        _viewportDirty = false;
+
+        const float aspect = Window::Instance()->GetWindowDims().first / float(Window::Instance()->GetWindowDims().second);
         _projection        = glm::perspective(
             Radians(_params.fovy).value(),
             aspect,
@@ -322,8 +476,8 @@ namespace stratus {
         _frame->znear          = _params.znear;
         _frame->zfar           = _params.zfar;
         _frame->projection     = _projection;
-        _frame->viewportWidth  = _params.viewportWidth;
-        _frame->viewportHeight = _params.viewportHeight;
+        _frame->viewportWidth  = Window::Instance()->GetWindowDims().first;
+        _frame->viewportHeight = Window::Instance()->GetWindowDims().second;
         _frame->fovy           = Radians(_params.fovy);
     }
 
@@ -369,7 +523,7 @@ namespace stratus {
 
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
-        const float ar = float(_params.viewportWidth) / float(_params.viewportHeight);
+        const float ar = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float projPlaneDist = glm::tan(Radians(_params.fovy).value() / 2.0f);
@@ -557,46 +711,37 @@ namespace stratus {
         }
     }
 
-    bool RendererFrontend::_EntityChanged(const EntityView& view, const EntityStateData& data) {
-        auto position = view.Get()->GetWorldPosition();
-        auto scale = view.Get()->GetLocalScale();
-        auto rotation = view.Get()->GetLocalRotation().asVec3();
-
-        return glm::distance(position, data.lastPosition) > 0.01f ||
-               glm::distance(scale, data.lastScale)       > 0.01f ||
-               glm::distance(rotation, data.lastRotation) > 0.01f;
+    bool RendererFrontend::_EntityChanged(const EntityPtr& p) {
+        auto tc = p->Components().GetComponent<GlobalTransformComponent>().component;
+        auto rc = p->Components().GetComponent<RenderComponent>().component;
+        return tc->ChangedWithinLastFrame() || rc->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_map<EntityView, EntityStateData>& map, bool& flag) {
-        for (auto& entry : map) {
-            EntityView view = entry.first;
-            EntityStateData& data = entry.second;
-            if (_EntityChanged(view, data)) {                 
-                // Update the cached info
-                data.lastPosition = view.Get()->GetWorldPosition();
-                data.lastScale = view.Get()->GetLocalScale();
-                data.lastRotation = view.Get()->GetLocalRotation().asVec3();
-                flag = true;
+    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityPtr>& set) {
+        for (auto& entity : set) {
+            // If this is a light-interacting node, run through all the lights to see if they need to be updated
+            if (_EntityChanged(entity)) {               
 
-                RenderNodePtr rnode = view.Get()->GetRenderNode();
-                // If this is a light-interacting node, run through all the lights to see if they need to be updated
-                if (rnode->GetLightInteractionEnabled()) {
-                    for (auto entry : _lights) {
-                        auto lightPos = entry.first->position;
-                        auto lightRadius = entry.first->getRadius();
-                        // If the EntityView is in the light's visible set, its shadows are now out of date
-                        if (entry.second.visible.find(view) != entry.second.visible.end()) {
-                            // If the EntityView has moved out of the light radius, remove it
-                            if (glm::distance(data.lastPosition, lightPos) > lightRadius) {
-                                entry.second.visible.erase(view);
+                InitializeMeshTransformComponent(entity);
+
+                _drawCommandsDirty = true;
+
+                if (IsLightInteracting(entity)) {
+                    for (const auto& light : _lights) {
+                        // Static lights don't care about entity movement changes
+                        if (light->IsStaticLight()) continue;
+
+                        auto lightPos = light->GetPosition();
+                        auto lightRadius = light->getRadius();
+                        //If the EntityView is in the light's visible set, its shadows are now out of date
+                        for (size_t i = 0; i < GetMeshCount(entity); ++i) {
+                            if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
+                                _frame->lightsToUpate.PushBack(light);
                             }
-                            entry.second.dirty = true;
-                        }
-
-                        // If the EntityView has moved inside the light's radius, add it
-                        else if (glm::distance(data.lastPosition, lightPos) < lightRadius) {
-                            entry.second.visible.insert(view);
-                            entry.second.dirty = true;
+                            // If the EntityView has moved inside the light's radius, add it
+                            else if (glm::distance(GetWorldTransform(entity, i), lightPos) < lightRadius) {
+                                _frame->lightsToUpate.PushBack(light);
+                            }
                         }
                     }
                 }
@@ -605,61 +750,8 @@ namespace stratus {
     }
 
     void RendererFrontend::_CheckForEntityChanges() {
-        std::vector<EntityView> pbrToRemove;
-        std::vector<EntityView> flatToRemove;
-
         // We only care about dynamic light-interacting entities
-        _CheckEntitySetForChanges(_dynamicPbrEntities, _dynamicPbrDirty);
-    }
-
-    static void UpdateInstancedData(const std::unordered_set<EntityView>& entities, InstancedData& instanced) {
-        std::unordered_map<RenderNodeView, RenderNodeView> originalToCopy(16);
-        std::unordered_map<RenderNodeView, size_t> counts(16);
-
-        for (auto& e : entities) {
-            auto view = RenderNodeView(e.Get()->GetRenderNode());
-
-            std::unordered_map<RenderNodeView, size_t>::iterator it = counts.find(view);
-            if (originalToCopy.find(view) == originalToCopy.end()) {
-                originalToCopy.insert(std::make_pair(view, RenderNodeView(e.Get()->GetRenderNode()->Copy())));
-                counts.insert(std::make_pair(view, 1));
-            }
-            else {
-                ++it->second;
-            }
-        }
-
-        for (auto& e : entities) {
-            auto view = originalToCopy.find(RenderNodeView(e.Get()->GetRenderNode()))->first;
-            if (instanced.find(view) == instanced.end()) {
-                std::vector<RendererEntityData> instanceData(view.Get()->GetNumMeshContainers());
-                const size_t count = counts.find(view)->second;
-                for (int i = 0; i < instanceData.size(); ++i) {
-                    instanceData[i].modelMatrices.reserve(count);
-                    instanceData[i].diffuseColors.reserve(count);
-                    instanceData[i].baseReflectivity.reserve(count);
-                    instanceData[i].roughness.reserve(count);
-                    instanceData[i].metallic.reserve(count);
-                    instanceData[i].size = count;
-                }
-                instanced.insert(std::make_pair(view, std::move(instanceData)));
-            }
-
-            auto& entityDataVec = instanced.find(view)->second;
-            
-            // Each mesh will have its own instanced data
-            for (int i = 0; i < view.Get()->GetNumMeshContainers(); ++i) {
-                auto& entityData = entityDataVec[i];
-                auto  meshData   = view.Get()->GetMeshContainer(i);
-                entityData.dirty = true;
-                entityData.modelMatrices.push_back(e.Get()->GetWorldTransform());
-                entityData.diffuseColors.push_back(meshData->material->GetDiffuseColor());
-                entityData.baseReflectivity.push_back(meshData->material->GetBaseReflectivity());
-                entityData.roughness.push_back(meshData->material->GetRoughness());
-                entityData.metallic.push_back(meshData->material->GetMetallic());
-                //++entityData.size;
-            }
-        }
+        _CheckEntitySetForChanges(_dynamicEntities);
     }
 
     void RendererFrontend::_UpdateLights() {
@@ -673,127 +765,242 @@ namespace stratus {
         _lightsToRemove.clear();
 
         // Update the world light
-        _frame->csc.worldLight = _worldLight->Copy();
+        _frame->csc.worldLight = _worldLight;//->Copy();
 
         // Now go through and update all lights that have changed in some way
-        for (auto& entry : _lights) {
-            auto  light = entry.first;
-            auto& data  = entry.second;
-            auto  lightCopy = entry.second.lightCopy;
+        for (auto& light : _lights) {
+            if ( !light->castsShadows() ) continue;
 
             // See if the light moved or its radius changed
-            auto prevPos = data.lightCopy->position;
-            auto prevRadius = data.lightCopy->getRadius();
-            if (glm::distance(prevPos, light->position) > 0.01f || std::fabs(light->getRadius() - prevRadius) > 0.01f) {
-                *data.lightCopy = *light;
-                data.dirty = true;
-                data.visible.clear();
-                if (light->castsShadows()) {
-                    _AttemptAddEntitiesForLight(light, data, _staticPbrEntities);
-                    _AttemptAddEntitiesForLight(light, data, _dynamicPbrEntities);
-                }
+            if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
+                _frame->lightsToUpate.PushBack(light);
             }
+        }
+    }
 
-            // Rebuild the instance data if necessary
-            if (_frame->lights.find(lightCopy) == _frame->lights.end() || data.dirty == true) {
-                _frame->lights.insert(std::make_pair(lightCopy, RendererLightData()));
-                if ( !lightCopy->castsShadows() ) continue;
+    static bool ValidateTexture(const Async<Texture> & tex) {
+        return tex.Completed() && !tex.Failed();
+    }
 
-                auto& lightData = _frame->lights.find(lightCopy)->second;
-                lightData.dirty = data.dirty;
-                UpdateInstancedData(data.visible, lightData.visible);
+    void RendererFrontend::_RecalculateMaterialSet() {
+        _dirtyMaterials.clear();
+
+        for (const EntityPtr& p : _entities) {
+            _AddAllMaterialsForEntity(p);
+        }
+
+        // After this loop anything left in indices is no longer referenced
+        // by an entity
+        for (const MaterialPtr& m : _dirtyMaterials) {
+            _frame->materialInfo.indices.erase(m);
+        }
+
+    #define MAKE_NON_RESIDENT(handle)                               \
+        {                                                           \
+        auto at = INSTANCE(ResourceManager)->LookupTexture(handle); \
+        if (ValidateTexture(at)) {                                  \
+            Texture::MakeNonResident(at.Get());                     \
+        }                                                           \
+        }
+
+        // Erase what is no longer referenced
+        for (auto& entry : _frame->materialInfo.indices) {
+            MaterialPtr material = entry.first;
+            MAKE_NON_RESIDENT(material->GetDiffuseTexture())
+            MAKE_NON_RESIDENT(material->GetAmbientTexture())
+            MAKE_NON_RESIDENT(material->GetNormalMap())
+            MAKE_NON_RESIDENT(material->GetDepthMap())
+            MAKE_NON_RESIDENT(material->GetRoughnessMap())
+            MAKE_NON_RESIDENT(material->GetMetallicMap())
+            MAKE_NON_RESIDENT(material->GetMetallicRoughnessMap())
+        }
+
+        _frame->materialInfo.indices.clear();
+    
+    #undef MAKE_NON_RESIDENT
+    }
+
+    void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
+        gpuMaterial->flags = 0;
+
+        gpuMaterial->diffuseColor = glm::vec4(material->GetDiffuseColor(), 1.0f);
+        gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
+        gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
+        gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
+
+        auto diffuseHandle =   material->GetDiffuseTexture();
+        auto ambientHandle =   material->GetAmbientTexture();
+        auto normalHandle =    material->GetNormalMap();
+        auto depthHandle =     material->GetDepthMap();
+        auto roughnessHandle = material->GetRoughnessMap();
+        auto metallicHandle =  material->GetMetallicMap();
+        auto metallicRoughnessHandle = material->GetMetallicRoughnessMap();
+        
+        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle);
+        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle);
+        auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle);
+        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle);
+        auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle);
+        auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle);
+        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle);
+
+        if (ValidateTexture(diffuse)) {
+            gpuMaterial->diffuseMap = diffuse.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
+            Texture::MakeResident(diffuse.Get());
+        }
+        else if (diffuseHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(ambient)) {
+            gpuMaterial->ambientMap = ambient.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
+            Texture::MakeResident(ambient.Get());
+        }
+        else if (ambientHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(normal)) {
+            gpuMaterial->normalMap = normal.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_NORMAL_MAPPED;
+            Texture::MakeResident(normal.Get());
+        }
+        else if (normalHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(depth)) {
+            gpuMaterial->depthMap = depth.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
+            Texture::MakeResident(depth.Get());
+        }
+        else if (depthHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(roughness)) {
+            gpuMaterial->roughnessMap = roughness.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
+            Texture::MakeResident(roughness.Get());
+        }
+        else if (roughnessHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(metallic)) {
+            gpuMaterial->metallicMap = metallic.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_METALLIC_MAPPED;
+            Texture::MakeResident(metallic.Get());
+        }
+        else if (metallicHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+
+        if (ValidateTexture(metallicRoughness)) {
+            gpuMaterial->metallicRoughnessMap = metallicRoughness.Get().GpuHandle();
+            gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
+            Texture::MakeResident(metallicRoughness.Get());
+        }
+        else if (metallicRoughnessHandle != TextureHandle::Null()) {
+            _dirtyMaterials.insert(material);
+        }
+    }
+
+    void RendererFrontend::_UpdateMaterialSet() {
+        // See if any materials were changed within the last frame
+        for (auto& entry : _frame->materialInfo.indices) {
+            if (entry.first->ChangedWithinLastFrame()) {
+                _dirtyMaterials.insert(entry.first);
+            }
+        }
+
+        // If no materials to update then end here
+        if (_dirtyMaterials.size() == 0) return;
+        _drawCommandsDirty = true;
+
+        auto dirtyMaterials = std::move(_dirtyMaterials);
+
+        std::unordered_map<MaterialPtr, uint32_t>& indices = _frame->materialInfo.indices;
+        GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
+
+        for (auto material : dirtyMaterials) {
+            GpuMaterial * gpuMaterial;
+            if (indices.find(material) != indices.end()) {
+                gpuMaterial = &materials[indices.find(material)->second];
             }
             else {
-                _frame->lights.find(lightCopy)->second.dirty = data.dirty;
+                int nextIndex = int(indices.size());
+                if (nextIndex >= _frame->materialInfo.maxMaterials) {
+                    throw std::runtime_error("Maximum number of materials exceeded");
+                }
+                gpuMaterial = &materials[nextIndex];
+                indices.insert(std::make_pair(material, nextIndex));
             }
+            _CopyMaterialToGpuAndMarkForUse(material, gpuMaterial);
         }
+
+        _frame->materialInfo.materials.UnmapMemory();
     }
 
-    void RendererFrontend::_UpdateCameraVisibility() {
-        const auto pbrEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
-            &_staticPbrEntities,
-            &_dynamicPbrEntities
-        };
-
-        const auto flatEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
-            &_flatEntities
-        };
-
-        std::unordered_set<EntityView> visiblePbr(16);
-        std::unordered_set<EntityView> visibleFlat(16);
-
-        _frame->instancedPbrMeshes.clear();
-        _frame->instancedFlatMeshes.clear();
-        auto position = _camera->getPosition();
-
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
-            for (auto& entityView : *entities) {
-                if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < _params.zfar) {
-                    visiblePbr.insert(entityView.first);
-                }
-            }
+    std::vector<GpuDrawElementsIndirectCommand> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {
+        std::vector<GpuDrawElementsIndirectCommand> commands(c->GetMeshCount());
+        for (size_t i = 0; i < c->GetMeshCount(); ++i) {
+            GpuDrawElementsIndirectCommand command;
+            command.baseInstance = 0;
+            command.baseVertex = 0;
+            command.firstIndex = c->GetMesh(i)->GetIndexOffset();
+            command.instanceCount = 1;
+            command.vertexCount = c->GetMesh(i)->GetNumIndices();
+            commands[i] = command;
         }
-
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : flatEntitySets) {
-            for (auto& entityView : *entities) {
-                if (glm::distance(position, entityView.first.Get()->GetWorldPosition()) < _params.zfar) {
-                    visibleFlat.insert(entityView.first);
-                }
-            }
-        }
-        
-        UpdateInstancedData(visiblePbr, _frame->instancedPbrMeshes);
-        UpdateInstancedData(visibleFlat, _frame->instancedFlatMeshes);
+        return commands;
     }
 
-    void RendererFrontend::_UpdateCascadeVisibility() {
-        const auto pbrEntitySets = std::vector<const std::unordered_map<EntityView, EntityStateData> *>{
-            &_staticPbrEntities,
-            &_dynamicPbrEntities
+    void RendererFrontend::_UpdateDrawCommands() {
+        if (!_drawCommandsDirty) return;
+        _drawCommandsDirty = false;
+
+        // Clear old commands
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> *> oldCommands{
+            &_frame->instancedFlatMeshes,
+            &_frame->instancedDynamicPbrMeshes,
+            &_frame->instancedStaticPbrMeshes
         };
 
-        std::unordered_set<EntityView> visible(16);
-        const size_t numCascades = _frame->csc.cascades.size();
-        const float maxDist = _params.zfar;
-        
-        for (const std::unordered_map<EntityView, EntityStateData> * entities : pbrEntitySets) {
-            for (auto& entityView : *entities) {
-                if (glm::distance(_camera->getPosition(), entityView.first.Get()->GetWorldPosition()) < maxDist) {
-                    visible.insert(entityView.first);
-                }
+        for (auto * cmdList : oldCommands) {
+            for (auto& entry : *cmdList) {
+                entry.second->materialIndices.clear();
+                entry.second->modelTransforms.clear();
+                entry.second->indirectDrawCommands.clear();
             }
         }
 
-        _frame->csc.visible.clear();
-        UpdateInstancedData(visible, _frame->csc.visible);
-    }
+    #define GENERATE_COMMANDS(entityMap, drawCommands)                                                                 \
+        for (const auto& entry : entityMap) {                                                                          \
+            RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
+            MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
+            auto cull = c->GetMesh(0)->GetFaceCulling();                                                               \
+            auto commands = _GenerateDrawCommands(c);                                                                  \
+            GpuCommandBufferPtr& buffer = drawCommands.find(cull)->second;                                             \
+            for (size_t i = 0; i < c->GetMeshCount(); ++i) {                                                           \
+                buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(i))->second);     \
+                buffer->modelTransforms.push_back(mt->transforms[i]);                                                  \
+            }                                                                                                          \
+            buffer->indirectDrawCommands.insert(buffer->indirectDrawCommands.end(), commands.begin(), commands.end()); \
+        }                                                                                                              \
+        for (auto& entry : drawCommands) {                                                                             \
+            entry.second->UploadDataToGpu();                                                                           \
+        }
 
-    void RendererFrontend::_SwapFrames() {
-        /*
-        // Keep flags consistent
-        _prevFrame->viewportDirty = _frame->viewportDirty;
-        _prevFrame->vsyncEnabled = _frame->vsyncEnabled;
-        _prevFrame->csc.regenerateFbo = _frame->csc.regenerateFbo;
-        _prevFrame->csc.worldLightingEnabled = _frame->csc.worldLightingEnabled;
+        // Generate flat commands
+        GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes)
 
-        // Copy shared memory
-        _frame->csc.fbo = _prevFrame->csc.fbo;
+        // Generate pbr commands
+        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes)
+        GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes)
 
-        // Clear old data
-        _prevFrame->instancedPbrMeshes.clear();
-        _prevFrame->instancedFlatMeshes.clear();
-        _prevFrame->lights.clear();
-        _prevFrame->csc.visible.clear();
-
-        // Keep viewport data consistent
-        _prevFrame->clearColor = _frame->clearColor;
-        _prevFrame->viewportWidth = _frame->viewportWidth;
-        _prevFrame->viewportHeight = _frame->viewportHeight;
-
-        // Swap
-        auto tmp = _prevFrame;
-        _prevFrame = _frame;
-        _frame = tmp;
-        */
+    #undef GENERATE_COMMANDS
     }
 }

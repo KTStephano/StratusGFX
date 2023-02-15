@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <deque>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include "StratusEntity.h"
 #include "StratusCommon.h"
 #include "StratusCamera.h"
-#include "StratusRenderNode.h"
 #include "StratusTexture.h"
 #include "StratusFrameBuffer.h"
 #include "StratusLight.h"
@@ -19,6 +19,10 @@
 #include "StratusGpuBuffer.h"
 #include "StratusThread.h"
 #include "StratusAsync.h"
+#include "StratusEntityCommon.h"
+#include "StratusEntity.h"
+#include "StratusTransformComponent.h"
+#include "StratusRenderComponents.h"
 
 namespace stratus {
     class Pipeline;
@@ -27,17 +31,36 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
-    struct RendererEntityData {
-        std::vector<glm::mat4> modelMatrices;
-        std::vector<glm::vec3> diffuseColors;
-        std::vector<glm::vec3> baseReflectivity;
-        std::vector<float> roughness;
-        std::vector<float> metallic;
-        GpuArrayBuffer buffers;
-        size_t size = 0;    
-        // if true, regenerate buffers
-        bool dirty;
+    extern bool IsRenderable(const EntityPtr&);
+    extern bool IsLightInteracting(const EntityPtr&);
+    extern size_t GetMeshCount(const EntityPtr&);
+
+    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
+        MeshWorldTransforms() = default;
+        MeshWorldTransforms(const MeshWorldTransforms&) = default;
+
+        std::vector<glm::mat4> transforms;
     };
+
+    struct RenderMeshContainer {
+        RenderComponent * render = nullptr;
+        MeshWorldTransforms * transform = nullptr;
+        size_t meshIndex = 0;
+    };
+
+    typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
+
+    // struct RendererEntityData {
+    //     std::vector<glm::mat4> modelMatrices;
+    //     std::vector<glm::vec3> diffuseColors;
+    //     std::vector<glm::vec3> baseReflectivity;
+    //     std::vector<float> roughness;
+    //     std::vector<float> metallic;
+    //     GpuArrayBuffer buffers;
+    //     size_t size = 0;    
+    //     // if true, regenerate buffers
+    //     bool dirty;
+    // };
 
     struct RendererMouseState {
         int32_t x;
@@ -45,13 +68,7 @@ namespace stratus {
         uint32_t mask;
     };
 
-    typedef std::unordered_map<RenderNodeView, std::vector<RendererEntityData>> InstancedData;
-
-    struct RendererLightData {
-        InstancedData visible; 
-        // If true then its shadow maps should be regenerated
-        bool dirty;
-    };
+    typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererCascadeData {
         // Use during shadow map rendering
@@ -77,7 +94,6 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
-        InstancedData visible;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         uint32_t cascadeResolutionXY;
@@ -87,18 +103,82 @@ namespace stratus {
         bool regenerateFbo;    
     };
 
+    struct RendererMaterialInformation {
+        size_t maxMaterials = 2048;
+        std::unordered_map<MaterialPtr, uint32_t> indices;
+        GpuBuffer materials;
+    };
+
+    struct LightUpdateQueue {
+        template<typename LightPtrContainer>
+        void PushBackAll(const LightPtrContainer& container) {
+            for (const LightPtr& ptr : container) {
+                PushBack(ptr);
+            }
+        }
+
+        void PushBack(const LightPtr& ptr) {
+            if (_existing.find(ptr) != _existing.end() || !ptr->castsShadows()) return;
+            _queue.push_back(ptr);
+            _existing.insert(ptr);
+        }
+
+        LightPtr PopFront() {
+            if (Size() == 0) return nullptr;
+            auto front = Front();
+            _existing.erase(front);
+            _queue.pop_front();
+            return front;
+        }
+
+        LightPtr Front() const {
+            if (Size() == 0) return nullptr;
+            return _queue.front();
+        }
+
+        // In case a light needs to be removed without being updated
+        void Erase(const LightPtr& ptr) {
+            if (_existing.find(ptr) == _existing.end()) return;
+            _existing.erase(ptr);
+            for (auto it = _queue.begin(); it != _queue.end(); ++it) {
+                const LightPtr& light = *it;
+                if (ptr == light) {
+                    _queue.erase(it);
+                    return;
+                }
+            }
+        }
+
+        // In case all lights need to be removed without being updated
+        void Clear() {
+            _queue.clear();
+            _existing.clear();
+        }
+
+        size_t Size() const {
+            return _queue.size();
+        }
+
+    private:
+        std::deque<LightPtr> _queue;
+        std::unordered_set<LightPtr> _existing;
+    };
+
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
+        RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
-        InstancedData instancedPbrMeshes;
-        InstancedData instancedFlatMeshes;
-        std::unordered_map<LightPtr, RendererLightData> lights;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedStaticPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedFlatMeshes;
+        std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
+        LightUpdateQueue lightsToUpate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
@@ -108,54 +188,6 @@ namespace stratus {
         bool viewportDirty;
         bool vsyncEnabled;
         bool globalIlluminationEnabled = true;
-    };
-
-    /**
-     * This contains information about a lot of the
-     * OpenGL configuration params after initialization
-     * takes place.
-     */
-    struct GFXConfig {
-        std::string renderer;
-        std::string version;
-        int32_t minorVersion;
-        int32_t majorVersion;
-        int32_t maxDrawBuffers;
-        int32_t maxCombinedTextures;
-        int32_t maxCubeMapTextureSize;
-        int32_t maxFragmentUniformVectors;
-        int32_t maxFragmentUniformComponents;
-        int32_t maxVaryingFloats;
-        int32_t maxRenderbufferSize;
-        int32_t maxTextureImageUnits;
-        int32_t maxTextureSize1D2D;
-        int32_t maxTextureSize3D;
-        int32_t maxVertexAttribs;
-        int32_t maxVertexUniformVectors;
-        int32_t maxVertexUniformComponents;
-        int32_t maxViewportDims[2];
-        bool supportsSparseTextures2D[3];
-        // OpenGL may allow multiple page sizes at the same time which the application can select from
-        // first element: RGBA8, second element: RGBA16, third element: RGBA32
-        int32_t numPageSizes2D[3];
-        // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
-        // indicate that it is the most efficient page size for the implementation to work with
-        int32_t preferredPageSizeX2D[3];
-        int32_t preferredPageSizeY2D[3];
-        bool supportsSparseTextures3D[3];
-        int32_t numPageSizes3D[3];
-        int32_t preferredPageSizeX3D[3];
-        int32_t preferredPageSizeY3D[3];
-        int32_t preferredPageSizeZ3D[3];
-        int32_t maxComputeShaderStorageBlocks;
-        int32_t maxComputeUniformBlocks;
-        int32_t maxComputeTexImageUnits;
-        int32_t maxComputeUniformComponents;
-        int32_t maxComputeAtomicCounters;
-        int32_t maxComputeAtomicCounterBuffers;
-        int32_t maxComputeWorkGroupInvocations;
-        int32_t maxComputeWorkGroupCount[3];
-        int32_t maxComputeWorkGroupSize[3];
     };
 
     class RendererBackend {
@@ -179,8 +211,9 @@ namespace stratus {
             const int tileXDivisor = 16;
             const int tileYDivisor = 9;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int maxTotalVirtualPointLightsPerFrame = 128;
-            int maxTotalVirtualLightsPerTile = maxTotalVirtualPointLightsPerFrame;
+            int maxTotalVirtualPointLightsPerFrame = 200;
+            int maxTotalVirtualLightsPerTile = 16;
+            GpuBuffer vplShadowMaps;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;
@@ -196,13 +229,15 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numShadowMaps = 300;
+            int numShadowMaps = 200;
             int shadowCubeMapX = 512, shadowCubeMapY = 512;
             int maxShadowCastingLights = 48; // per frame
-            int maxTotalLightsPerFrame = 256; // active in a frame
+            int maxTotalLightsPerFrame = numShadowMaps; // active in a frame
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = 6;
+            // Lights are inserted into a queue to prevent any light from being
+            // over updated or neglected
+            int maxShadowUpdatesPerFrame = 3;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -270,16 +305,12 @@ namespace stratus {
             std::unique_ptr<Pipeline> csmDepth;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
-            RenderNodePtr skyboxCube;
+            EntityPtr skyboxCube;
             // Generic screen quad so we can render the screen
             // from a separate frame buffer
-            RenderNodePtr screenQuad;
+            EntityPtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
-            // Window events
-            std::vector<SDL_Event> events;
-            // For keeping track of mouse location/button status
-            RendererMouseState mouse;
         };
 
         struct TextureCache {
@@ -301,32 +332,10 @@ namespace stratus {
         };
 
         /**
-         * This is needed to create the gl context and to
-         * perform a gl context switch. This pointer is
-         * NOT managed by this class and should not be deleted
-         * by the Renderer.
-         */
-        SDL_Window * _window;
-
-        /**
-         * The rendering context is defined as the window +
-         * gl context. Together they allow the renderer to
-         * perform a context switch before drawing in the event
-         * that multiple render objects are being used at once.
-         */
-        SDL_GLContext _context;
-
-        /**
          * Contains information about various different settings
          * which will affect final rendering.
          */
         RenderState _state;
-
-        /**
-         * All the fields in this struct are set during initialization
-         * since we have to set up the context and then query OpenGL.
-         */
-        GFXConfig _config;
 
         /**
          * Contains all of the shaders that are used by the renderer.
@@ -366,12 +375,6 @@ namespace stratus {
     public:
         explicit RendererBackend(const uint32_t width, const uint32_t height, const std::string&);
         ~RendererBackend();
-
-        /**
-         * @return graphics configuration which includes
-         *      details about various hardware capabilities
-         */
-        const GFXConfig & Config() const;
 
         /**
          * @return true if the renderer initialized itself properly
@@ -416,24 +419,23 @@ namespace stratus {
         void End();
 
         // Returns window events since the last time this was called
-        std::vector<SDL_Event> PollInputEvents();
+        // std::vector<SDL_Event> PollInputEvents();
 
-        // Returns the mouse status as of the most recent frame
-        RendererMouseState GetMouseState() const;
+        // // Returns the mouse status as of the most recent frame
+        // RendererMouseState GetMouseState() const;
 
     private:
         void _InitializeVplData();
         void _ClearGBuffer();
-        void _AddDrawable(const EntityPtr& e);
         void _UpdateWindowDimensions();
         void _ClearFramebufferData(const bool);
-        void _InitAllInstancedData();
+        // void _InitAllEntityMeshData();
         void _InitCoreCSMData(Pipeline *);
         void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
         void _InitSSAO();
         void _InitAtmosphericShadowing();
-        void _InitInstancedData(RendererEntityData &);
-        void _ClearInstancedData();
+        // void _InitEntityMeshData(RendererEntityData &);
+        // void _ClearEntityMeshData();
         void _ClearRemovedLightData();
         void _BindShader(Pipeline *);
         void _UnbindShader();
@@ -441,7 +443,10 @@ namespace stratus {
         void _PerformAtmosphericPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
-        void _Render(const RenderNodeView &, bool removeViewTranslation = false);
+        void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);
+        void _Render(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
+        void _Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void _RenderImmediate(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
         void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);

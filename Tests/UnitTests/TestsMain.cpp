@@ -2,7 +2,7 @@
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include <catch2/catch_all.hpp>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     Catch::Session session; // There must be exactly one instance
 
     // writing to session.configData() here sets defaults

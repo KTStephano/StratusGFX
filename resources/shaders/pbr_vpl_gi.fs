@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "pbr.glsl"
 #include "vpl_tiled_deferred_culling.glsl"
 
@@ -21,8 +23,12 @@ uniform sampler2DRect ssao;
 uniform vec3 viewPosition;
 
 // Shadow information
-uniform samplerCube shadowCubeMaps[MAX_TOTAL_VPLS_PER_FRAME];
+//uniform samplerCube shadowCubeMaps[MAX_TOTAL_VPLS_PER_FRAME];
 uniform vec3 infiniteLightColor;
+
+layout (std430, binding = 11) readonly buffer shadows {
+    samplerCube shadowCubeMaps[];
+};
 
 // Window information
 uniform int viewportWidth;
@@ -70,6 +76,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // For example: 16, 9
     ivec2 multiplier = ivec2(viewportWidth, viewportHeight) / numTiles;
     uvec2 tileCoords = uvec2(pixelCoords / vec2(multiplier));
+    //uvec2 tileCoords = uvec2(pixelCoords);
     if (tileCoords.x >= numTiles.x || tileCoords.y >= numTiles.y) return screenColor;
 
     // Each entry in the activeLightIndicesPerTile buffer has MAX_VPLS_PER_TILE entries
@@ -94,23 +101,23 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = activeLightIndicesPerTile[baseTileIndex + baseLightIndex];
-        if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
+        //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightPositions[lightIndex].xyz;
-        float distance = length(lightPosition - fragPos);
+        float lightRadius = lightRadii[lightIndex];
         vec3 lightColor = lightColors[lightIndex].xyz;
-        if (distance > lightRadii[lightIndex]) continue;
-        if (length(vplColor) > (length(infiniteLightColor) * 0.25)) break;
+        float lightIntensity = length(lightColor);
+        //if (distance > lightRadii[lightIndex]) continue;
 
-        int numSamples = int(lightNumSamples[lightIndex]);
+        int numSamples = 1; //int(lightNumSamples[lightIndex]);
         float shadowFactor = 0.0;
-        if (length(lightPosition - viewPosition) < 135) {
-            shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
-        }
+        //if (length(lightPosition - viewPosition) < 150) {
+        shadowFactor = calculateShadowValue(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal), numSamples);
+        //}
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vplColor = vplColor + calculatePointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculateVirtualPointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
     return boundHDR(vplColor);

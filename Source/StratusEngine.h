@@ -15,9 +15,14 @@
 #include <chrono>
 //#include "Renderer.h"
 
+// Useful within an existing main function
+#define STRATUS_INLINE_ENTRY_POINT(ApplicationClass, numArgs, argList)     \
+    stratus::EngineBoot<ApplicationClass>(numArgs, (const char **)argList)
+
+// Defines both the main function and the engine startup function
 #define STRATUS_ENTRY_POINT(ApplicationClass)                              \
     int main(int nargs, char ** args) {                                    \
-        stratus::EngineBoot<ApplicationClass>(nargs, (const char **)args); \
+        STRATUS_INLINE_ENTRY_POINT(ApplicationClass, nargs, args);         \
         return 0;                                                          \
     }
 
@@ -83,16 +88,26 @@ namespace stratus {
 
     private:
         void _InitLog();
+        void _InitInput();
+        void _InitGraphicsDriver();
+        void _InitEntityManager();
         void _InitApplicationThread();
         void _InitTaskSystem();
         void _InitMaterialManager();
         void _InitResourceManager();
+        void _InitWindow();
         void _InitRenderer();
 
         template<typename E>
         void _DeleteResource(E *& ptr) {
             delete ptr;
             ptr = nullptr;
+        }
+
+        template<typename E>
+        void _ShutdownResourceAndDelete(E *& ptr) {
+            ptr->Shutdown();
+            _DeleteResource(ptr);
         }
 
     private:

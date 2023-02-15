@@ -1,16 +1,20 @@
 STRATUS_GLSL_VERSION
 
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 texCoords;
-layout (location = 12) in mat4 model;
+#include "mesh_data.glsl"
+
+layout (std430, binding = 13) readonly buffer SSBO3 {
+    mat4 modelMatrices[];
+};
 
 uniform mat4 projection;
 uniform mat4 view;
 //uniform mat4 modelView;
 
 smooth out vec2 fsTexCoords;
+flat out int fsDrawID;
 
 void main() {
-    gl_Position = projection * view * model * vec4(position, 1.0);
-    fsTexCoords = texCoords;
+    gl_Position = projection * view * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    fsTexCoords = getTexCoord(gl_VertexID);
+    fsDrawID = gl_DrawID;
 }

@@ -1,12 +1,22 @@
 #include "StratusMaterial.h"
+#include "StratusEngine.h"
 
 namespace stratus {
-    MaterialManager * MaterialManager::_instance = nullptr;
-
     Material::Material(const std::string& name, bool registerSelf)
         : _name(name), _registerSelf(registerSelf) {}
 
     Material::~Material() {}
+
+    void Material::MarkChanged() {
+        auto ul = _LockWrite();
+        _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+    }
+
+    bool Material::ChangedWithinLastFrame() {
+        auto sl = _LockRead();
+        auto diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        return diff <= 1;
+    }
 
     // New name must be unique
     void Material::SetName(const std::string& name) {
@@ -19,6 +29,7 @@ namespace stratus {
         
         // If the material manager can't change our name then revert it
         if (!MaterialManager::Instance()->NotifyNameChanged(old, shared_from_this())) {
+            MarkChanged();
             auto ul = _LockWrite();
             _name = old;
         }
@@ -68,26 +79,31 @@ namespace stratus {
     }
 
     void Material::SetDiffuseColor(const glm::vec3& diffuse) {
+        MarkChanged();
         auto ul = _LockWrite();
         _diffuseColor = diffuse;
     }
 
     void Material::SetAmbientColor(const glm::vec3& ambient) {
+        MarkChanged();
         auto ul = _LockWrite();
         _ambientColor = ambient;
     }
 
     void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
+        MarkChanged();
         auto ul = _LockWrite();
         _baseReflectivity = reflectivity;
     }
 
     void Material::SetRoughness(float roughness) {
+        MarkChanged();
         auto ul = _LockWrite();
         _roughness = roughness;
     }
 
     void Material::SetMetallic(float metallic) {
+        MarkChanged();
         auto ul = _LockWrite();
         _metallic = metallic;
     }
@@ -129,36 +145,43 @@ namespace stratus {
     }
 
     void Material::SetDiffuseTexture(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _diffuseTexture = handle;
     }
 
     void Material::SetAmbientTexture(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _ambientTexture = handle;
     }
 
     void Material::SetNormalMap(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _normalMap = handle;
     }
 
     void Material::SetDepthMap(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _depthMap = handle;
     }
 
     void Material::SetRoughnessMap(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _roughnessMap = handle;
     }
 
     void Material::SetMetallicMap(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _metallicMap = handle;
     }
 
     void Material::SetMetallicRoughnessMap(TextureHandle handle) {
+        MarkChanged();
         auto ul = _LockWrite();
         _metallicRoughnessMap = handle;
     }

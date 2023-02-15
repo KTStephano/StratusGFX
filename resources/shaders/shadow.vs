@@ -1,13 +1,14 @@
 STRATUS_GLSL_VERSION
 
-//#define MAX_INSTANCES 250
-
-layout (location = 0) in vec3 position;
-layout (location = 12) in mat4 model;
+#include "mesh_data.glsl"
 
 //uniform mat4 modelMats[MAX_INSTANCES];
 
+layout (std430, binding = 13) readonly buffer SSBO3 {
+    mat4 modelMatrices[];
+};
+
 void main() {
     //mat4 model = modelMats[gl_InstanceID];
-    gl_Position = model * vec4(position, 1.0);
+    gl_Position = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
 }
