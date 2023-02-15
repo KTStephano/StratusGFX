@@ -587,8 +587,6 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POLYGON_SMOOTH);
-    // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
-    //glEnable(GL_DEPTH_CLAMP);
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
@@ -799,11 +797,14 @@ void RendererBackend::_RenderCSMDepth() {
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
     glEnable(GL_POLYGON_OFFSET_FILL);
+    // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
+    glEnable(GL_DEPTH_CLAMP);
     glPolygonOffset(3.0f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
     _state.csmDepth->setVec3("lightDir", &_frame->csc.worldLightCamera->getDirection()[0]);
+    _state.csmDepth->setFloat("nearClipPlane", _frame->znear);
 
     // Set up each individual view-projection matrix
     for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
@@ -841,6 +842,7 @@ void RendererBackend::_RenderCSMDepth() {
 
     _UnbindShader();
     glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_DEPTH_CLAMP);
 }
 
 void RendererBackend::_RenderSsaoOcclude() {
@@ -1520,22 +1522,22 @@ void RendererBackend::_InitCoreCSMData(Pipeline * s) {
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.getDirection();
 
-    s->setVec3("infiniteLightDirection", &direction[0]);    
+    s->setVec3("infiniteLightDirection", direction);    
     s->bindTexture("infiniteLightShadowMap", *_frame->csc.fbo.getDepthStencilAttachment());
     for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
-        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", &_frame->csc.cascades[i].projectionViewSample[0][0]);
+        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", _frame->csc.cascades[i].projectionViewSample);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 
     for (int i = 0; i < 2; ++i) {
-        s->setVec4("shadowOffset[" + std::to_string(i) + "]", &_frame->csc.cascadeShadowOffsets[i][0]);
+        s->setVec4("shadowOffset[" + std::to_string(i) + "]", _frame->csc.cascadeShadowOffsets[i]);
     }
 
     for (int i = 0; i < _frame->csc.cascades.size() - 1; ++i) {
         // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
         // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
-        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", &_frame->csc.cascades[i + 1].cascadePlane[0]);
+        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", _frame->csc.cascades[i + 1].cascadePlane);
     }
 }
 
@@ -1592,7 +1594,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
 
     s->setInt("numLights", lightIndex);
     s->setInt("numShadowLights", shadowLightIndex);
-    s->setVec3("viewPosition", &c.getPosition()[0]);
+    s->setVec3("viewPosition", c.getPosition());
     const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
     s->setVec3("atmosphericLightPos", lightPosition);
 
@@ -1608,7 +1610,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
     s->setBool("infiniteLightingEnabled", _frame->csc.worldLight->getEnabled());
     lightColor = _frame->csc.worldLight->getLuminance();
-    s->setVec3("infiniteLightColor", &lightColor[0]);
+    s->setVec3("infiniteLightColor", lightColor);
     s->setFloat("worldLightAmbientIntensity", _frame->csc.worldLight->getAmbientIntensity());
 
     _InitCoreCSMData(s);

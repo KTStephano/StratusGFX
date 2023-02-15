@@ -410,7 +410,7 @@ namespace stratus {
         auto ul = _LockWrite();
         if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
-        if (_camera) _camera->update(deltaSeconds);
+        _camera->update(deltaSeconds);
         _frame->camera = _camera->Copy();
 
         _UpdateViewport();
@@ -861,7 +861,7 @@ namespace stratus {
         _lightsToRemove.clear();
 
         // Update the world light
-        _frame->csc.worldLight = _worldLight;
+        _frame->csc.worldLight = _worldLight;//->Copy();
 
         // Now go through and update all lights that have changed in some way
         for (auto& light : _lights) {
