@@ -216,23 +216,6 @@ namespace stratus {
         }
     }
 
-    // void RendererFrontend::AddStaticEntity(const EntityPtr& p) {
-    //     auto ul = _LockWrite();
-    //     _AddEntity(p, _staticPbrDirty, _static_pbrEntities, __flatEntities, _lights);
-    //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
-    // }
-
-    // void RendererFrontend::AddDynamicEntity(const EntityPtr& p) {
-    //     auto ul = _LockWrite();
-    //     _AddEntity(p, _dynamicPbrDirty, _dynamic_pbrEntities, __flatEntities, _lights);
-    //     _AddEntity(p, _dynamicPbrDirty, _frame->instancedPbrMeshes, _frame->instancedFlatMeshes, _lights);
-    // }
-
-    // void RendererFrontend::RemoveEntity(const EntityPtr& p) {
-    //     auto ul = _LockWrite();
-    //     _RemoveEntity(p);
-    // }
-
     bool RendererFrontend::_RemoveEntity(const EntityPtr& p) {
         if (p == nullptr || _entities.find(p) == _entities.end()) return false;
 
@@ -258,30 +241,6 @@ namespace stratus {
 
         return true;
     }
-
-    // void RendererFrontend::_RemoveEntity(const EntityPtr& p) {
-    //     if (_static_pbrEntities.erase(p)) {
-    //         _staticPbrDirty = true;
-    //     }
-    //     else if (_dynamic_pbrEntities.erase(p)) {
-    //         _dynamicPbrDirty = true;
-    //     }
-    //     else {
-    //         __flatEntities.erase(p);
-    //     }
-
-    //     _frame->instancedPbrMeshes.erase(p);
-    //     _frame->instancedFlatMeshes.erase(p);
-    //     _frame->csc.visible = _frame->instancedPbrMeshes;
-
-    //     for (auto& entry : _lights) {
-    //         if (entry.second.visible.erase(p)) {
-    //             entry.second.dirty = true;
-    //         }
-    //     }
-
-    //     for (auto child : p->GetChildNodes()) _RemoveEntity(child);
-    // }
 
     void RendererFrontend::AddLight(const LightPtr& light) {
         auto ul = _LockWrite();
@@ -417,8 +376,6 @@ namespace stratus {
         _UpdateCascadeTransforms();
         _CheckForEntityChanges();
         _UpdateLights();
-        _UpdateCameraVisibility();
-        _UpdateCascadeVisibility();
         _UpdateMaterialSet();
         _UpdateDrawCommands();
 
@@ -797,59 +754,6 @@ namespace stratus {
         _CheckEntitySetForChanges(_dynamicEntities);
     }
 
-    // static void UpdateInstancedData(const EntityMeshData& entities, InstancedData& instanced) {
-    //     std::unordered_map<RenderNodeView, RenderNodeView> originalToCopy(16);
-    //     std::unordered_map<RenderNodeView, size_t> counts(16);
-
-    //     for (auto& e : entities) {
-    //         auto view = RenderNodeView(e.Get()->GetRenderNode());
-
-    //         std::unordered_map<RenderNodeView, size_t>::iterator it = counts.find(view);
-    //         if (originalToCopy.find(view) == originalToCopy.end()) {
-    //             originalToCopy.insert(std::make_pair(view, RenderNodeView(e.Get()->GetRenderNode()->Copy())));
-    //             counts.insert(std::make_pair(view, 1));
-    //         }
-    //         else {
-    //             ++it->second;
-    //         }
-    //     }
-
-    //     for (auto& e : entities) {
-    //         auto view = originalToCopy.find(RenderNodeView(e.Get()->GetRenderNode()))->first;
-    //         if (instanced.find(view) == instanced.end()) {
-    //             std::vector<RendererEntityData> instanceData(view.Get()->GetNumMeshContainers());
-    //             const size_t count = counts.find(view)->second;
-    //             for (int i = 0; i < instanceData.size(); ++i) {
-    //                 instanceData[i].modelMatrices.reserve(count);
-    //                 instanceData[i].diffuseColors.reserve(count);
-    //                 instanceData[i].baseReflectivity.reserve(count);
-    //                 instanceData[i].roughness.reserve(count);
-    //                 instanceData[i].metallic.reserve(count);
-    //                 instanceData[i].size = count;
-    //             }
-    //             instanced.insert(std::make_pair(view, std::move(instanceData)));
-    //         }
-
-    //         auto& entityDataVec = instanced.find(view)->second;
-            
-    //         // Each mesh will have its own instanced data
-    //         for (int i = 0; i < view.Get()->GetNumMeshContainers(); ++i) {
-    //             auto& entityData = entityDataVec[i];
-    //             auto  meshData   = view.Get()->GetMeshContainer(i);
-    //             entityData.dirty = true;
-    //             entityData.modelMatrices.push_back(e.Get()->GetWorldTransform());
-    //             entityData.diffuseColors.push_back(meshData->material->GetDiffuseColor());
-    //             entityData.baseReflectivity.push_back(meshData->material->GetBaseReflectivity());
-    //             entityData.roughness.push_back(meshData->material->GetRoughness());
-    //             entityData.metallic.push_back(meshData->material->GetMetallic());
-    //             //++entityData.size;
-    //         }
-    //     }
-    // }
-    // static void UpdateInstancedData(const EntityMeshData& entities, EntityMeshData& instanced) {
-    //     instanced.insert(entities.begin(), entities.end());
-    // }
-
     void RendererFrontend::_UpdateLights() {
         _frame->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
@@ -872,71 +776,6 @@ namespace stratus {
                 _frame->lightsToUpate.PushBack(light);
             }
         }
-    }
-
-    void RendererFrontend::_UpdateCameraVisibility() {
-        // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-        //     &_static_pbrEntities,
-        //     &_dynamic_pbrEntities
-        // };
-
-        // const auto flatEntitySets = std::vector<const EntityMeshData *>{
-        //     &__flatEntities
-        // };
-
-        // EntityMeshData visiblePbr(16);
-        // EntityMeshData visibleFlat(16);
-
-        // _frame->instancedPbrMeshes.clear();
-        // _frame->instancedFlatMeshes.clear();
-        // auto position = _camera->getPosition();
-
-        // for (const EntityMeshData * entities : pbrEntitySets) {
-        //     for (auto& entityView : *entities) {
-        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-        //             if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
-        //                 InsertMesh(visiblePbr, entityView.first, i);
-        //             }
-        //         }
-        //     }
-        // }
-
-        // for (const EntityMeshData * entities : flatEntitySets) {
-        //     for (auto& entityView : *entities) {
-        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-        //             if (glm::distance(position, GetWorldTransform(entityView.first, i)) < _params.zfar) {
-        //                 InsertMesh(visibleFlat, entityView.first, i);
-        //             }
-        //         }
-        //     }
-        // }
-        
-        // UpdateInstancedData(visiblePbr, _frame->instancedPbrMeshes);
-        // UpdateInstancedData(visibleFlat, _frame->instancedFlatMeshes);
-    }
-
-    void RendererFrontend::_UpdateCascadeVisibility() {
-        // const auto pbrEntitySets = std::vector<const EntityMeshData *>{
-        //     &_static_pbrEntities,
-        //     &_dynamic_pbrEntities
-        // };
-
-        // EntityMeshData visible(16);
-        // const size_t numCascades = _frame->csc.cascades.size();
-        // const float maxDist = _params.zfar;
-        
-        // for (const EntityMeshData * entities : pbrEntitySets) {
-        //     for (auto& entityView : *entities) {
-        //         for (size_t i = 0; i < GetMeshCount(entityView.first); ++i) {
-        //             if (glm::distance(_camera->getPosition(), GetWorldTransform(entityView.first, i)) < maxDist) {
-        //                 InsertMesh(visible, entityView.first, i);
-        //             }
-        //         }
-        //     }
-        // }
-
-        // _frame->csc.visible.clear();
-        // UpdateInstancedData(visible, _frame->csc.visible);
     }
 
     static bool ValidateTexture(const Async<Texture> & tex) {

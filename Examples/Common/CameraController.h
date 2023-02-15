@@ -15,7 +15,7 @@ struct CameraController : public stratus::InputHandler {
 
         _cameraLight = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
         _cameraLight->setCastsShadows(false);
-        _cameraLight->setIntensity(1200.0f);
+        _cameraLight->setIntensity(600.0f);
 
         if (_cameraLightEnabled) {
             stratus::RendererFrontend::Instance()->AddLight(_cameraLight);

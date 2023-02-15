@@ -84,8 +84,6 @@ namespace stratus {
         void _UpdateCascadeTransforms();
         void _CheckForEntityChanges();
         void _UpdateLights();
-        void _UpdateCameraVisibility();
-        void _UpdateCascadeVisibility();
         void _UpdateMaterialSet();
         void _UpdateDrawCommands();
 

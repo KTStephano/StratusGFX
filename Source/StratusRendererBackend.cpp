@@ -268,21 +268,21 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.normals.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
@@ -471,39 +471,6 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
     }
 }
 
-// void RendererBackend::_InitAllInstancedData() {
-// #define INIT_INST_DATA(map)                                         \
-//     for (auto& entry : map) {                                       \
-//         RenderNodeView node = entry.first;                          \
-//         std::vector<RendererEntityData>& dataVec = entry.second;    \
-//         for (auto& data : dataVec) {                                \
-//             _InitInstancedData(data);                               \
-//         }                                                           \
-//     }
-
-//     // Dynamic entities
-//     INIT_INST_DATA(_frame->instancedPbrMeshes)
-
-//     // Flat entities
-//     INIT_INST_DATA(_frame->instancedFlatMeshes)
-
-//     // Shadow-casting lights
-//     for (auto& entry : _frame->lights) {
-//         auto light = entry.first;
-//         auto& lightData = entry.second;
-//         if (light->castsShadows() && lightData.dirty) {
-//             INIT_INST_DATA(lightData.visible)
-//         }
-//     }
-
-//     // Cascades
-//     if (_frame->csc.worldLight->getEnabled()) {
-//         INIT_INST_DATA(_frame->csc.visible)
-//     }
-
-// #undef INIT_INST_DATA
-// }
-
 void RendererBackend::_InitSSAO() {
     // Create k values 0 to 15 and randomize them
     std::vector<float> ks(16);
@@ -607,57 +574,6 @@ static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & proj
         projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
     };
 }
-
-// void RendererBackend::_InitInstancedData(RendererEntityData & c) {
-//     Pipeline * pbr = _state.geometry.get();
-
-//     auto & modelMats = c.modelMatrices;
-//     auto & diffuseColors = c.diffuseColors;
-//     auto & baseReflectivity = c.baseReflectivity;
-//     auto & roughness = c.roughness;
-//     auto & metallic = c.metallic;
-//     auto & buffers = c.buffers;
-//     buffers.Clear();
-//     _state.gpuBuffers.push_back(buffers);
-
-//     GpuPrimitiveBuffer buffer;
-
-//     // First the model matrices
-
-//     // All shaders should use the same location for model, so this should work
-//     int pos = pbr->getAttribLocation("model");
-//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, modelMats.data(), modelMats.size() * sizeof(glm::mat4));
-//     buffer.EnableAttribute(pos, 16, GpuStorageType::FLOAT, false, 0, 0, 1);
-//     buffers.AddBuffer(buffer);
-
-//     pos = pbr->getAttribLocation("diffuseColor");
-//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, diffuseColors.data(), diffuseColors.size() * sizeof(glm::vec3));
-//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-//     buffers.AddBuffer(buffer);
-
-//     pos = pbr->getAttribLocation("baseReflectivity");
-//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, baseReflectivity.data(), baseReflectivity.size() * sizeof(glm::vec3));
-//     buffer.EnableAttribute(pos, 3, GpuStorageType::FLOAT, false, 0, 0, 1);
-//     buffers.AddBuffer(buffer);
-
-//     pos = pbr->getAttribLocation("metallic");
-//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, metallic.data(), metallic.size() * sizeof(float));
-//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-//     buffers.AddBuffer(buffer);
-
-//     pos = pbr->getAttribLocation("roughness");
-//     buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, roughness.data(), roughness.size() * sizeof(float));
-//     buffer.EnableAttribute(pos, 1, GpuStorageType::FLOAT, false, 0, 0, 1);
-//     buffers.AddBuffer(buffer);
-
-//     //buffers.Bind();
-// }
-
-// void RendererBackend::_ClearInstancedData() {
-//     // glDeleteBuffers(buffers.size(), &buffers[0]);
-//     for (auto& buffer: _state.gpuBuffers) buffer.Clear();
-//     _state.gpuBuffers.clear();
-// }
 
 void RendererBackend::_BindShader(Pipeline * s) {
     _UnbindShader();
@@ -823,19 +739,7 @@ void RendererBackend::_RenderCSMDepth() {
         throw std::runtime_error("Critical error: depth attachment not present");
     }
     glViewport(0, 0, depth->width(), depth->height());
-    // Render each entity into the depth map
-    // for (auto& viewMesh : _frame->instancedPbrMeshes) {
-    //     for (int i = 0; i < viewMesh.second.size(); ++i) {
-    //         const RenderMeshContainerPtr container = viewMesh.second[i];
-    //         const EntityPtr& e = viewMesh.first;
-    //         const MeshPtr m = GetMesh(container);
-    //         const size_t numInstances = 1;
-    //         _state.csmDepth->setMat4("model", GetMeshTransform(container));
-    //         SetCullState(m->GetFaceCulling());
-    //         //SetCullState(RenderFaceCulling::CULLING_CCW);
-    //         m->Render(numInstances, GpuArrayBuffer());
-    //     }
-    // }
+
     _RenderImmediate(_frame->instancedStaticPbrMeshes);
     _RenderImmediate(_frame->instancedDynamicPbrMeshes);
     _frame->csc.fbo.unbind();
@@ -967,6 +871,10 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
                                          std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     const Camera& c = *_frame->camera;
 
+    perLightDistToViewer.reserve(_state.maxTotalLightsPerFrame);
+    perLightShadowCastingDistToViewer.reserve(_state.numShadowMaps);
+    perVPLDistToViewer.reserve(_state.vpls.maxTotalVirtualPointLightsPerFrame);
+
     // Init per light instance data
     for (auto& light : _frame->lights) {
         const double distance = glm::distance(c.getPosition(), light->GetPosition());
@@ -976,9 +884,6 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         }
 
         if (light->castsShadows()) {
-            if (!_ShadowMapExistsForLight(light)) {
-                _frame->lightsToUpate.PushBack(light);
-            }
             perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
         }
     }
@@ -996,8 +901,15 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > _state.maxShadowCastingLights) {
-        perLightShadowCastingDistToViewer.resize(_state.maxShadowCastingLights);
+    if (perLightShadowCastingDistToViewer.size() > _state.numShadowMaps) {
+        perLightShadowCastingDistToViewer.resize(_state.numShadowMaps);
+    }
+
+    // Check if any need to have a new shadow map pulled from the cache
+    for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
+        if (!_ShadowMapExistsForLight(light)) {
+            _frame->lightsToUpate.PushBack(light);
+        }
     }
 
     // Set blend func just for shadow pass
