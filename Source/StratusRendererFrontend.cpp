@@ -178,7 +178,9 @@ namespace stratus {
 
             _entities.insert(p);
 
-            if (!IsStaticEntity(p)) {
+            const bool isStatic = IsStaticEntity(p);
+
+            if (!isStatic) {
                 _dynamicEntities.insert(p);
             }
 
@@ -187,13 +189,17 @@ namespace stratus {
             
             if (IsLightInteracting(p)) {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(_pbrEntities, p, i);
+                    if (isStatic) InsertMesh(_staticPbrEntities, p, i);
+                    else InsertMesh(_dynamicPbrEntities, p, i);
 
                     for (auto& entry : _lights) {
-                        auto pos = entry.first->position;
-                        //if (glm::distance(GetWorldTransform(p, i), pos) < entry.first->getRadius()) {
-                        //    entry.second.dirty |= InsertMesh(entry.second.visible, p, i);
-                        //}
+                        if (!entry->castsShadows()) continue;
+                        auto pos = entry->GetPosition();
+                        if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
+                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->getRadius()) {
+                                _frame->lightsToUpate.PushBack(entry);
+                            }
+                        }
                     }
                 }
             }
@@ -232,12 +238,21 @@ namespace stratus {
 
         _entities.erase(p);
         _dynamicEntities.erase(p);
-        _pbrEntities.erase(p);
+        _dynamicPbrEntities.erase(p);
+        _staticPbrEntities.erase(p);
         _flatEntities.erase(p);
 
         for (auto& entry : _lights) {
+            if (!entry->castsShadows()) continue;
             //if (entry.second.visible.erase(p)) {
-                entry.second.dirty = true;
+                if (entry->IsStaticLight()) {
+                    if (IsStaticEntity(p)) {
+                        _frame->lightsToUpate.PushBack(entry);
+                    }
+                }
+                else {
+                    _frame->lightsToUpate.PushBack(entry);
+                }
             //}
         }
 
@@ -268,31 +283,20 @@ namespace stratus {
     //     for (auto child : p->GetChildNodes()) _RemoveEntity(child);
     // }
 
-    void RendererFrontend::_AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities) {
-        // auto pos = light->position;
-        // for (auto& e : entities) {
-        //     for (size_t i = 0; i < GetMeshCount(e.first); ++i) {
-        //         //if (glm::distance(pos, GetWorldTransform(e.first, i)) < light->getRadius()) {
-        //             InsertMesh(data.visible, e.first, i);
-        //             data.dirty = true;
-        //         //}
-        //     }
-        // }
-    }
-
     void RendererFrontend::AddLight(const LightPtr& light) {
         auto ul = _LockWrite();
         if (_lights.find(light) != _lights.end()) return;
 
-        _lights.insert(std::make_pair(light, LightData()));
-
-        auto& data = _lights.find(light)->second;
-        data.dirty = true;
-        data.lightCopy = light->Copy();
+        _lights.insert(light);
+        _frame->lights.insert(light);
 
         if ( light->IsVirtualLight() ) _virtualPointLights.insert(light);
 
+        if ( !light->IsStaticLight() ) _dynamicLights.insert(light);
+
         if ( !light->castsShadows() ) return;
+
+        _frame->lightsToUpate.PushBack(light);
 
         //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
@@ -300,19 +304,22 @@ namespace stratus {
     void RendererFrontend::RemoveLight(const LightPtr& light) {
         auto ul = _LockWrite();
         if (_lights.find(light) == _lights.end()) return;
-        auto copy = _lights.find(light)->second.lightCopy;
         _lights.erase(light);
+        _dynamicLights.erase(light);
         _virtualPointLights.erase(light);
-        _lightsToRemove.insert(copy);
+        _lightsToRemove.insert(light);
+        _frame->lightsToUpate.Erase(light);
     }
 
     void RendererFrontend::ClearLights() {
         auto ul = _LockWrite();
         for (auto& light : _lights) {
-            _lightsToRemove.insert(light.second.lightCopy);
+            _lightsToRemove.insert(light);
         }
         _lights.clear();
+        _dynamicLights.clear();
         _virtualPointLights.clear();
+        _frame->lightsToUpate.Clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
@@ -430,11 +437,6 @@ namespace stratus {
         _renderer->RenderScene();
         _renderer->End();
 
-        // Clear all light dirty flags
-        for (auto& entry : _lights) {
-            entry.second.dirty = false;
-        }
-
         // This needs to be unset
         _frame->csc.regenerateFbo = false;
 
@@ -467,7 +469,8 @@ namespace stratus {
 
         for (auto cull : culling) {
             _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            _frame->instancedPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->instancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->instancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
         }
 
         // Initialize entity processing
@@ -757,8 +760,8 @@ namespace stratus {
         return tc->ChangedWithinLastFrame() || rc->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityPtr>& map) {
-        for (auto& entity : map) {
+    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityPtr>& set) {
+        for (auto& entity : set) {
             // If this is a light-interacting node, run through all the lights to see if they need to be updated
             if (_EntityChanged(entity)) {               
 
@@ -767,20 +770,22 @@ namespace stratus {
                 _drawCommandsDirty = true;
 
                 if (IsLightInteracting(entity)) {
-                    for (auto& entry : _lights) {
-                        auto lightPos = entry.first->position;
-                        auto lightRadius = entry.first->getRadius();
-                        entry.second.dirty = true;
-                        // If the EntityView is in the light's visible set, its shadows are now out of date
-                        // for (size_t i = 0; i < GetMeshCount(entity.first); ++i) {
-                        //     if (glm::distance(GetWorldTransform(entity.first, i), lightPos) > lightRadius) {
-                        //         entry.second.dirty |= RemoveMesh(entry.second.visible, entity.first, i);
-                        //     }
-                        //     // If the EntityView has moved inside the light's radius, add it
-                        //     else if (glm::distance(GetWorldTransform(entity.first, i), lightPos) < lightRadius) {
-                        //         entry.second.dirty |= InsertMesh(entry.second.visible, entity.first, i);
-                        //     }
-                        // }
+                    for (const auto& light : _lights) {
+                        // Static lights don't care about entity movement changes
+                        if (light->IsStaticLight()) continue;
+
+                        auto lightPos = light->GetPosition();
+                        auto lightRadius = light->getRadius();
+                        //If the EntityView is in the light's visible set, its shadows are now out of date
+                        for (size_t i = 0; i < GetMeshCount(entity); ++i) {
+                            if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
+                                _frame->lightsToUpate.PushBack(light);
+                            }
+                            // If the EntityView has moved inside the light's radius, add it
+                            else if (glm::distance(GetWorldTransform(entity, i), lightPos) < lightRadius) {
+                                _frame->lightsToUpate.PushBack(light);
+                            }
+                        }
                     }
                 }
             }
@@ -856,37 +861,15 @@ namespace stratus {
         _lightsToRemove.clear();
 
         // Update the world light
-        _frame->csc.worldLight = _worldLight->Copy();
+        _frame->csc.worldLight = _worldLight;
 
         // Now go through and update all lights that have changed in some way
-        for (auto& entry : _lights) {
-            auto  light = entry.first;
-            auto& data  = entry.second;
-            auto  lightCopy = entry.second.lightCopy;
+        for (auto& light : _lights) {
+            if ( !light->castsShadows() ) continue;
 
             // See if the light moved or its radius changed
-            auto prevPos = data.lightCopy->position;
-            auto prevRadius = data.lightCopy->getRadius();
-            if (glm::distance(prevPos, light->position) > 0.01f || std::fabs(light->getRadius() - prevRadius) > 0.01f) {
-                *data.lightCopy = *light;
-                data.dirty = true;
-                data.visible.clear();
-                // if (light->castsShadows()) {
-                //     _AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
-                // }
-            }
-
-            // Rebuild the instance data if necessary
-            if (_frame->lights.find(lightCopy) == _frame->lights.end() || data.dirty == true) {
-                _frame->lights.insert(std::make_pair(lightCopy, RendererLightData()));
-                if ( !lightCopy->castsShadows() ) continue;
-
-                auto& lightData = _frame->lights.find(lightCopy)->second;
-                lightData.dirty = data.dirty;
-                //UpdateInstancedData(data.visible, lightData.visible);
-            }
-            else {
-                _frame->lights.find(lightCopy)->second.dirty = data.dirty;
+            if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
+                _frame->lightsToUpate.PushBack(light);
             }
         }
     }
@@ -1141,16 +1124,18 @@ namespace stratus {
         _drawCommandsDirty = false;
 
         // Clear old commands
-        for (auto& entry : _frame->instancedFlatMeshes) {
-            entry.second->materialIndices.clear();
-            entry.second->modelTransforms.clear();
-            entry.second->indirectDrawCommands.clear();
-        }
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> *> oldCommands{
+            &_frame->instancedFlatMeshes,
+            &_frame->instancedDynamicPbrMeshes,
+            &_frame->instancedStaticPbrMeshes
+        };
 
-        for (auto& entry : _frame->instancedPbrMeshes) {
-            entry.second->materialIndices.clear();
-            entry.second->modelTransforms.clear();
-            entry.second->indirectDrawCommands.clear();
+        for (auto * cmdList : oldCommands) {
+            for (auto& entry : *cmdList) {
+                entry.second->materialIndices.clear();
+                entry.second->modelTransforms.clear();
+                entry.second->indirectDrawCommands.clear();
+            }
         }
 
     #define GENERATE_COMMANDS(entityMap, drawCommands)                                                                 \
@@ -1174,7 +1159,8 @@ namespace stratus {
         GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes)
 
         // Generate pbr commands
-        GENERATE_COMMANDS(_pbrEntities, _frame->instancedPbrMeshes)
+        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes)
+        GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes)
 
     #undef GENERATE_COMMANDS
     }

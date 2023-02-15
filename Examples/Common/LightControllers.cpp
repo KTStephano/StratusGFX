@@ -21,7 +21,7 @@ void LightCreator::Shutdown() {
 static void InitLight(const LightParams& p, stratus::LightPtr& light) {
     light->setIntensity(p.intensity);
     light->setColor(p.color);
-    light->position = p.position;
+    light->SetPosition(p.position);
 }
 
 static void InitCube(const LightParams& p,
@@ -47,7 +47,7 @@ static void InitCube(const LightParams& p,
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {
     auto ptr = stratus::Entity::Create();
-    stratus::LightPtr light(new stratus::PointLight());
+    stratus::LightPtr light(new stratus::PointLight(/* staticLight = */ false));
     InitLight(p, light);
 
     stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
@@ -68,7 +68,7 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
 
 void LightCreator::CreateStationaryLight(const LightParams& p) {
     auto ptr = stratus::Entity::Create();
-    stratus::LightPtr light(new stratus::PointLight());
+    stratus::LightPtr light(new stratus::PointLight(/* staticLight = */ false));
     InitLight(p, light);
 
     stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
@@ -215,7 +215,7 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         auto cubeTransform = stratus::GetComponent<stratus::LocalTransformComponent>(cube->cube);
         cubeTransform->SetLocalPosition(c->position);
         //cube->cube->SetLocalPosition(c->position);
-        light->light->position = c->position;
+        light->light->SetPosition(c->position);
 
         c->elapsedSeconds += deltaSeconds;
         if (c->elapsedSeconds > 5.0) {

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <deque>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -69,12 +70,6 @@ namespace stratus {
 
     typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
-    struct RendererLightData {
-        //EntityMeshData visible; 
-        // If true then its shadow maps should be regenerated
-        bool dirty;
-    };
-
     struct RendererCascadeData {
         // Use during shadow map rendering
         glm::mat4 projectionViewRender;
@@ -114,6 +109,61 @@ namespace stratus {
         GpuBuffer materials;
     };
 
+    struct LightUpdateQueue {
+        template<typename LightPtrContainer>
+        void PushBackAll(const LightPtrContainer& container) {
+            for (const LightPtr& ptr : container) {
+                PushBack(ptr);
+            }
+        }
+
+        void PushBack(const LightPtr& ptr) {
+            if (_existing.find(ptr) != _existing.end() || !ptr->castsShadows()) return;
+            _queue.push_back(ptr);
+            _existing.insert(ptr);
+        }
+
+        LightPtr PopFront() {
+            if (Size() == 0) return nullptr;
+            auto front = Front();
+            _existing.erase(front);
+            _queue.pop_front();
+            return front;
+        }
+
+        LightPtr Front() const {
+            if (Size() == 0) return nullptr;
+            return _queue.front();
+        }
+
+        // In case a light needs to be removed without being updated
+        void Erase(const LightPtr& ptr) {
+            if (_existing.find(ptr) == _existing.end()) return;
+            _existing.erase(ptr);
+            for (auto it = _queue.begin(); it != _queue.end(); ++it) {
+                const LightPtr& light = *it;
+                if (ptr == light) {
+                    _queue.erase(it);
+                    return;
+                }
+            }
+        }
+
+        // In case all lights need to be removed without being updated
+        void Clear() {
+            _queue.clear();
+            _existing.clear();
+        }
+
+        size_t Size() const {
+            return _queue.size();
+        }
+
+    private:
+        std::deque<LightPtr> _queue;
+        std::unordered_set<LightPtr> _existing;
+    };
+
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
@@ -123,10 +173,12 @@ namespace stratus {
         RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
         RendererAtmosphericData atmospheric;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedStaticPbrMeshes;
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedFlatMeshes;
-        std::unordered_map<LightPtr, RendererLightData> lights;
+        std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
+        LightUpdateQueue lightsToUpate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
@@ -183,7 +235,9 @@ namespace stratus {
             int maxTotalLightsPerFrame = 128; // active in a frame
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
-            int maxShadowUpdatesPerFrame = 6;
+            // Lights are inserted into a queue to prevent any light from being
+            // over updated or neglected
+            int maxShadowUpdatesPerFrame = 3;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written

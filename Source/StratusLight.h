@@ -8,6 +8,7 @@
 #include <cmath>
 #include <memory>
 #include "StratusLog.h"
+#include "StratusEngine.h"
 
 namespace stratus {
     class InfiniteLight;
@@ -97,23 +98,41 @@ namespace stratus {
 
     class Light {
     protected:
+        glm::vec3 _position = glm::vec3(0.0f);
         glm::vec3 _color = glm::vec3(1.0f);
         glm::vec3 _baseColor = _color;
+        uint64_t _lastFramePositionChanged = 0;
+        uint64_t _lastFrameRadiusChanged = 0;
         float _intensity = 200.0f;
         float _radius = 1.0f;
         bool _castsShadows = true;
         // If virtual we intend to use it less as a natural light and more
         // as a way of simulating bounce lighting
         bool _virtualLight = false;
+        // If true then we don't want it to be updated when dynamic entities
+        // change in the scene (can still cast light, just shadows will not be updated)
+        bool _staticLight = false;
 
-        Light(const bool virtualLight)
-            : _virtualLight(virtualLight) {}
+        Light(const bool virtualLight, const bool staticLight)
+            : _virtualLight(virtualLight), _staticLight(staticLight) {}
 
     public:
-        glm::vec3 position = glm::vec3(0.0f);
-        
-        Light() : Light(false) {}
+        Light(const bool staticLight) : Light(false, staticLight) {}
         virtual ~Light() = default;
+
+        const glm::vec3& GetPosition() const {
+            return _position;
+        }
+
+        void SetPosition(const glm::vec3& position) {
+            _position = position;
+            _lastFramePositionChanged = INSTANCE(Engine)->FrameCount();
+        }
+
+        bool PositionChangedWithinLastFrame() const {
+            auto diff = INSTANCE(Engine)->FrameCount() - _lastFramePositionChanged;
+            return diff <= 1;
+        }
 
         /**
          * @return type of point light so that the renderer knows
@@ -142,7 +161,7 @@ namespace stratus {
             _color = glm::vec3(r, g, b);
             _baseColor = _color;
             _recalcColorWithIntensity();
-            _recalcRadius();
+            //_recalcRadius();
         }
 
         void setColor(const glm::vec3& color) {
@@ -171,6 +190,12 @@ namespace stratus {
             return std::max(150.0f, _radius);
         }
 
+        bool RadiusChangedWithinLastFrame() const {
+            auto diff = INSTANCE(Engine)->FrameCount() - _lastFrameRadiusChanged;
+            return diff <= 1;
+
+        }
+
         void setCastsShadows(bool enable) {
             this->_castsShadows = enable;
         }
@@ -182,6 +207,7 @@ namespace stratus {
         // If true then the light will be invisible when the sun is not overhead - 
         // useful for brightening up directly-lit scenes without Static or RT GI
         bool IsVirtualLight() const { return _virtualLight; }
+        bool IsStaticLight()  const { return _staticLight; }
 
         virtual LightPtr Copy() const = 0;
 
@@ -193,6 +219,7 @@ namespace stratus {
             const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
             //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
             _radius = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
+            _lastFrameRadiusChanged = INSTANCE(Engine)->FrameCount();
         }
 
         void _recalcColorWithIntensity() {
@@ -212,11 +239,11 @@ namespace stratus {
         float lightFarPlane = 500.0f;
 
     protected:
-        PointLight(const bool virtualLight) 
-            : Light(virtualLight) {}
+        PointLight(const bool virtualLight, const bool staticLight) 
+            : Light(virtualLight, staticLight) {}
 
     public:
-        PointLight() : PointLight(false) {}
+        PointLight(const bool staticLight) : PointLight(false, staticLight) {}
 
         virtual ~PointLight() = default;
 
@@ -259,7 +286,7 @@ namespace stratus {
         friend class Renderer;
 
     public:
-        VirtualPointLight() : PointLight(/* virtualLight = */ true) {}
+        VirtualPointLight() : PointLight(/* virtualLight = */ true, /* staticLight = */ true) {}
         virtual ~VirtualPointLight() = default;
 
         void SetNumShadowSamples(uint32_t samples) { _numShadowSamples = samples; }

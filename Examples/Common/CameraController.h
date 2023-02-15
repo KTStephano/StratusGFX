@@ -13,7 +13,7 @@ struct CameraController : public stratus::InputHandler {
         _camera = stratus::CameraPtr(new stratus::Camera());
         stratus::RendererFrontend::Instance()->SetCamera(_camera);
 
-        _cameraLight = stratus::LightPtr(new stratus::PointLight());
+        _cameraLight = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
         _cameraLight->setCastsShadows(false);
         _cameraLight->setIntensity(1200.0f);
 
@@ -105,7 +105,7 @@ struct CameraController : public stratus::InputHandler {
         glm::vec3 tmpCamSpeed = _cameraSpeed * _camSpeedDivide;
         _camera->setSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
 
-        _cameraLight->position = _camera->getPosition();
+        _cameraLight->SetPosition(_camera->getPosition());
     }
 
 private:

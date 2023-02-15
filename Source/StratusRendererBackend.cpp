@@ -835,7 +835,8 @@ void RendererBackend::_RenderCSMDepth() {
     //         m->Render(numInstances, GpuArrayBuffer());
     //     }
     // }
-    _RenderImmediate(_frame->instancedPbrMeshes);
+    _RenderImmediate(_frame->instancedStaticPbrMeshes);
+    _RenderImmediate(_frame->instancedDynamicPbrMeshes);
     _frame->csc.fbo.unbind();
 
     _UnbindShader();
@@ -963,20 +964,19 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
                                          std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer,
                                          std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     const Camera& c = *_frame->camera;
-    std::unordered_map<LightPtr, bool> perLightIsDirty;
 
     // Init per light instance data
-    for (auto& entry : _frame->lights) {
-        LightPtr light = entry.first;
-        auto& lightData = entry.second;
-        const double distance = glm::distance(c.getPosition(), light->position);
+    for (auto& light : _frame->lights) {
+        const double distance = glm::distance(c.getPosition(), light->GetPosition());
         perLightDistToViewer.push_back(std::make_pair(light, distance));
         if (light->IsVirtualLight()) {
             perVPLDistToViewer.push_back(std::make_pair(light, distance));
         }
-        //if (distance > 2 * light->getRadius()) continue;
-        perLightIsDirty.insert(std::make_pair(light, lightData.dirty || !_ShadowMapExistsForLight(light)));
+
         if (light->castsShadows()) {
+            if (!_ShadowMapExistsForLight(light)) {
+                _frame->lightsToUpate.PushBack(light);
+            }
             perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
         }
     }
@@ -1003,19 +1003,11 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
     _BindShader(_state.shadows.get());
-    int shadowUpdates = 0;
-    for (auto&[light, d] : perLightShadowCastingDistToViewer) {
-        if (shadowUpdates > _state.maxShadowUpdatesPerFrame) break;
-        const double distance = glm::distance(c.getPosition(), light->position);
-        // We want to compute shadows at least once for each light source before we enable the option of skipping it 
-        // due to it being too far away
-        const bool dirty = perLightIsDirty.find(light)->second;
-        //if (distance > 2 * light->getRadius() || !dirty) continue;
-        if (!dirty) continue;
-        ++shadowUpdates;
-
-        //STRATUS_LOG << "Updating out-of-date shadow map\n";
-        auto & instancedMeshes = _frame->instancedPbrMeshes;//->lights.find(light)->second.visible;
+    for (int shadowUpdates = 0; shadowUpdates < _state.maxShadowUpdatesPerFrame && _frame->lightsToUpate.Size() > 0; ++shadowUpdates) {
+        auto light = _frame->lightsToUpate.PopFront();
+        // Ideally this won't be needed but just in case
+        if ( !light->castsShadows() ) continue;
+        //const double distance = perLightShadowCastingDistToViewer.find(light)->second;
     
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
@@ -1031,23 +1023,16 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         // Current pass only cares about depth buffer
         // glClear(GL_DEPTH_BUFFER_BIT);
 
-        auto transforms = GenerateLightViewTransforms(lightPerspective, point->position);
+        auto transforms = GenerateLightViewTransforms(lightPerspective, point->GetPosition());
         for (int i = 0; i < transforms.size(); ++i) {
             const std::string index = "[" + std::to_string(i) + "]";
             _state.shadows->setMat4("shadowMatrices" + index, &transforms[i][0][0]);
         }
-        _state.shadows->setVec3("lightPos", &light->position[0]);
+        _state.shadows->setVec3("lightPos", light->GetPosition());
         _state.shadows->setFloat("farPlane", point->getFarPlane());
 
-        // for (auto & entityObservers : instancedMeshes) {
-        //     for (int i = 0; i < entityObservers.second.size(); ++i) {
-        //         MeshPtr m = GetMesh(entityObservers.second[i]);
-        //         _state.shadows->setMat4("model", GetMeshTransform(entityObservers.second[i]));
-        //         SetCullState(m->GetFaceCulling());
-        //         m->Render(1, GpuArrayBuffer());
-        //     }
-        // }
-        _RenderImmediate(instancedMeshes);
+        _RenderImmediate(_frame->instancedStaticPbrMeshes);
+        if ( !point->IsStaticLight() ) _RenderImmediate(_frame->instancedDynamicPbrMeshes);
 
         // Unbind
         smap.frameBuffer.unbind();
@@ -1088,7 +1073,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     std::vector<float> lightShadowSamples(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
-        lightPositions[i] = GpuVec(glm::vec4(point->position, 1.0f));
+        lightPositions[i] = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
         lightFarPlanes[i] = point->getFarPlane();
         lightRadii[i] = point->getRadius();
         lightColors[i] = GpuVec(glm::vec4(point->getBaseColor() * point->getIntensity(), 1.0f));
@@ -1259,7 +1244,8 @@ void RendererBackend::RenderScene() {
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
 
-    _Render(_frame->instancedPbrMeshes, true);
+    _Render(_frame->instancedStaticPbrMeshes, true);
+    _Render(_frame->instancedDynamicPbrMeshes, true);
     
     _state.buffer.fbo.unbind();
 
@@ -1579,7 +1565,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         }
 
         lightColor = point->getBaseColor() * point->getIntensity();
-        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", &point->position[0]);
+        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", point->GetPosition());
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
         s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
         s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());

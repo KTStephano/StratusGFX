@@ -64,7 +64,7 @@ public:
         bool running = true;
 
         // for (int i = 0; i < 64; ++i) {
-        //     float x = rand() % 600;
+        //     float x = rand() % 600;g
         //     float y = rand() % 600;
         //     float z = rand() % 200;
         //     stratus::VirtualPointLight * vpl = new stratus::VirtualPointLight();

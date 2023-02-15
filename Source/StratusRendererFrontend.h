@@ -32,12 +32,6 @@ namespace stratus {
     private:
         RendererFrontend(const RendererParams&);
 
-        struct LightData {
-            EntityMeshData visible;
-            LightPtr lightCopy;
-            bool dirty = true;
-        };
-
     public:
         void AddLight(const LightPtr&);
         void RemoveLight(const LightPtr&);
@@ -78,7 +72,6 @@ namespace stratus {
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
         void _AddAllMaterialsForEntity(const EntityPtr&);
         bool _AddEntity(const EntityPtr& p);
-        static void _AttemptAddEntitiesForLight(const LightPtr& light, LightData& data, const EntityMeshData& entities);
         static bool _EntityChanged(const EntityPtr&);
         bool _RemoveEntity(const EntityPtr&);
         void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
@@ -111,12 +104,14 @@ namespace stratus {
         std::unordered_set<EntityPtr> _dynamicEntities;
         std::unordered_set<MaterialPtr> _dirtyMaterials;
         //std::vector<GpuMaterial> _gpuMaterials;
-        std::unordered_map<LightPtr, LightData> _lights;
-        std::unordered_set<LightPtr> _virtualPointLights; // data is found in _lights
+        std::unordered_set<LightPtr> _lights;
+        std::unordered_set<LightPtr> _dynamicLights;
+        std::unordered_set<LightPtr> _virtualPointLights;
         InfiniteLightPtr _worldLight;
         std::unordered_set<LightPtr> _lightsToRemove;
         EntityMeshData _flatEntities;
-        EntityMeshData _pbrEntities;
+        EntityMeshData _dynamicPbrEntities;
+        EntityMeshData _staticPbrEntities;
         bool _drawCommandsDirty = false;
         CameraPtr _camera;
         glm::mat4 _projection = glm::mat4(1.0f);
