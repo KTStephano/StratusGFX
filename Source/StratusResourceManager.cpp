@@ -241,6 +241,7 @@ namespace stratus {
             {aiTextureType_SPECULAR, "Specular"},
             {aiTextureType_AMBIENT, "Ambient"},
             {aiTextureType_EMISSIVE, "Emissive"},
+            {aiTextureType_OPACITY, "Opacity"},
             {aiTextureType_HEIGHT, "Height"},
             {aiTextureType_NORMALS, "Normals"},
             {aiTextureType_BASE_COLOR, "Base Color"},
@@ -249,6 +250,9 @@ namespace stratus {
             {aiTextureType_METALNESS, "Metalness"},
             {aiTextureType_AMBIENT_OCCLUSION, "Ambient Occlusion"},
             {aiTextureType_DIFFUSE_ROUGHNESS, "Diffuse Roughness"},
+            {aiTextureType_SHEEN, "Sheen"},
+            {aiTextureType_CLEARCOAT, "Clearcoat"},
+            {aiTextureType_TRANSMISSION, "Transmission"},
             {aiTextureType_UNKNOWN, "Unknown/Other"}
         };
 
@@ -312,12 +316,16 @@ namespace stratus {
             PrintMatType(aimat, aiTextureType_EMISSIVE);
             PrintMatType(aimat, aiTextureType_HEIGHT);
             PrintMatType(aimat, aiTextureType_NORMALS);
+            PrintMatType(aimat, aiTextureType_OPACITY);
             PrintMatType(aimat, aiTextureType_BASE_COLOR);
             PrintMatType(aimat, aiTextureType_NORMAL_CAMERA);
             PrintMatType(aimat, aiTextureType_EMISSION_COLOR);
             PrintMatType(aimat, aiTextureType_METALNESS);
             PrintMatType(aimat, aiTextureType_AMBIENT_OCCLUSION);
             PrintMatType(aimat, aiTextureType_DIFFUSE_ROUGHNESS);
+            PrintMatType(aimat, aiTextureType_SHEEN);
+            PrintMatType(aimat, aiTextureType_CLEARCOAT);
+            PrintMatType(aimat, aiTextureType_TRANSMISSION);
             PrintMatType(aimat, aiTextureType_UNKNOWN);
 
             aiColor3D diffuse;
@@ -325,17 +333,20 @@ namespace stratus {
             aiColor3D reflective;
             float metallic;
             float roughness;
+            float opacity;
             auto diffuseret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_DIFFUSE, diffuse);
             auto ambientret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, ambient);
             auto reflectret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_REFLECTIVE, reflective);
             auto metalret = aimat->Get<float>(AI_MATKEY_METALLIC_FACTOR, metallic);
             auto roughret = aimat->Get<float>(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
+            auto opacityret = aimat->Get<float>(AI_MATKEY_OPACITY, opacity);
 
             if (diffuseret == AI_SUCCESS) m->SetDiffuseColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b));
             if (ambientret == AI_SUCCESS) m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
             if (reflectret == AI_SUCCESS) m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
             if (metalret   == AI_SUCCESS) m->SetMetallic(metallic);
             if (roughret   == AI_SUCCESS) m->SetRoughness(roughness);
+        
 
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, true));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!

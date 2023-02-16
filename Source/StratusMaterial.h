@@ -99,7 +99,7 @@ namespace stratus {
         glm::vec3 _ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _baseReflectivity = glm::vec3(0.04f);
         float _roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
-        float _metallic = 0.0f;
+        float _metallic = 0.04f; // 0.04 is good for many non-metallic surfaces
         // Not required to have a texture
         TextureHandle _diffuseTexture = TextureHandle::Null();
         // Not required to have an ambient texture

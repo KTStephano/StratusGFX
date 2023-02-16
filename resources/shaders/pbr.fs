@@ -1,53 +1,5 @@
 STRATUS_GLSL_VERSION
 
-/**
- * @see https://learnopengl.com/PBR/Theory
- *
- * The equation we're working off of is Lo(p,ωo)=Integral [(kd(c/π)+DFG/(4(ωo⋅n)(ωi⋅n)))*Li(p,ωi)n⋅ωi] dωi
- *
- * We effectively discretize the function by just calculating it from the perspective of each light rather than
- * trying to solve the indefinite integral (which from what I understand has no analytical solution). This is also
- * known as a numerical solution where a finite number of steps approximate the real solution.
- *
- * Lo(p, wo) effectively stands for the light intensity (radiance) at point p when viewed from wo.
- *
- * kd is equal to 1.0 - ks, where ks is the specular component (roughly F in the above)
- *
- * (c/π) is equal to (surface color aka diffuse / pi), where the division by pi normalizes the color.
- *
- * DFG is three separate functions D, F, G:
- *      D = normal distribution function = α^2 / (π ((n⋅h) ^ 2 (α ^ 2 − 1)+1) ^ 2)
-          ==> Approximates the total surface area of the microfacets which are perfectly aligned with the half angle vector
-          ==> a is the surface's roughness
-          ==> n is the surface normal
-          ==> h is the half angle vector = normalize (l + v) = (l + v) / || l + v ||
-          ==> Since n and h are normalized, n dot h is equal to cos(angle between them)
-        F = Fresnel (Freh-nel) equation = F0+(1−F0)(1−(h⋅v)) ^ 5
-          ==> Describes the ratio of the light that gets reflected (specular) over the light that gets refracted (diffuse)
-          ==> A good approximation of specular component from earlier lighting approximations such as Blinn-Phong
-          ==> F0 represents the base reflectivity of the surface calculated using indices of refraction (IOR)
-              as the viewing angle gets closer and closer to 90 degrees, the stronger the Fresnel and thus reflections
-              (demonstrated by looking at even a rough surface from a 90 degree angle - generally you will see some shine)
-          ==> https://refractiveindex.info/ is a good place for F0
-          ==> h*v is the dot product of normalized half angle vector and normalized view vector, so it is cos(angle between them)
-        G = G(n,v,l,k)=Gsub(n,v,k)Gsub(n,l,k)
-          ==> Approximates the amount of surface area where parts of the geometry occlude other parts of the surface (self-shadowing)
-          ==> n is the surface normal
-          ==> v is the view direction
-          ==> k is a remapping of roughness based on whether we're using direct or IBL lighting
-              (direct) = (a + 1) ^ 2 / 8
-              (IBL)    = a ^ 2 / 2
-          ==> l is the light direction vector
-        Gsub = G_Schlick_GGX = n⋅v / ((n⋅v)(1−k)+k) (see above for definition of terms)
-
- * Li(p, wi) is the radiance of point p when viewed from light Wi. It is equal to (light_color * attenuation)
-          ==> attenuation when using quadratic attenuation is equal to 1.0 / distance ^ 2
-          ==> distance = length(light_pos - world_pos)
-
- * n*wi is equal to cos(angle between n and light wi) since both are normalized
- * wi = normalize(light_pos - world_pos)
- */
-
 #include "common.glsl"
 #include "atmospheric_postfx.glsl"
 #include "pbr.glsl"
