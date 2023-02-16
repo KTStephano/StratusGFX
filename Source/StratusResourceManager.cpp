@@ -406,19 +406,19 @@ namespace stratus {
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
                                                        aiProcess_JoinIdenticalVertices |
                                                        aiProcess_SortByPType |
-                                                    //    aiProcess_GenNormals |
-                                                       aiProcess_GenSmoothNormals | 
+                                                       //aiProcess_GenNormals |
+                                                       //aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
-                                                       aiProcess_GenUVCoords | 
+                                                       //aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
                                                        //aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
-                                                       aiProcess_OptimizeMeshes |
+                                                       aiProcess_OptimizeMeshes
                                                     //    aiProcess_OptimizeGraph |
-                                                       aiProcess_FixInfacingNormals |
-                                                       aiProcess_FindDegenerates |
-                                                       aiProcess_FindInvalidData |
-                                                       aiProcess_FindInstances
+                                                       //aiProcess_FixInfacingNormals |
+                                                       //aiProcess_FindDegenerates |
+                                                       //aiProcess_FindInvalidData
+                                                       //aiProcess_FindInstances
                                                     //    aiProcess_FlipWindingOrder
                                                 );
 

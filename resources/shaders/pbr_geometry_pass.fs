@@ -104,7 +104,7 @@ void main() {
     }
 
     if (bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED)) {
-        vec2 metallicRoughness = texture(material.metallicRoughnessMap, texCoords).rg;
+        vec2 metallicRoughness = texture(material.metallicRoughnessMap, texCoords).yz;
         metallic = clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
         roughness = metallicRoughness.g;
     }
