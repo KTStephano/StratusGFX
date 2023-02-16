@@ -944,16 +944,23 @@ namespace stratus {
         _frame->materialInfo.materials.UnmapMemory();
     }
 
-    std::vector<GpuDrawElementsIndirectCommand> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {
-        std::vector<GpuDrawElementsIndirectCommand> commands(c->GetMeshCount());
+    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {
+        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
+            auto cull = c->GetMesh(i)->GetFaceCulling();
+            if (commands.find(cull) == commands.end()) {
+                auto vec = std::vector<GpuDrawElementsIndirectCommand>();
+                vec.reserve(c->GetMeshCount());
+                commands.insert(std::make_pair(cull, std::move(vec)));
+            }
             GpuDrawElementsIndirectCommand command;
+            auto& commandList = commands.find(cull)->second;
             command.baseInstance = 0;
             command.baseVertex = 0;
             command.firstIndex = c->GetMesh(i)->GetIndexOffset();
             command.instanceCount = 1;
             command.vertexCount = c->GetMesh(i)->GetNumIndices();
-            commands[i] = command;
+            commandList.push_back(command);
         }
         return commands;
     }
@@ -981,14 +988,18 @@ namespace stratus {
         for (const auto& entry : entityMap) {                                                                          \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
-            auto cull = c->GetMesh(0)->GetFaceCulling();                                                               \
             auto commands = _GenerateDrawCommands(c);                                                                  \
-            GpuCommandBufferPtr& buffer = drawCommands.find(cull)->second;                                             \
             for (size_t i = 0; i < c->GetMeshCount(); ++i) {                                                           \
+                auto cull = c->GetMesh(i)->GetFaceCulling();                                                           \
+                auto& buffer = drawCommands.find(cull)->second;                                                        \
                 buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(i))->second);     \
                 buffer->modelTransforms.push_back(mt->transforms[i]);                                                  \
             }                                                                                                          \
-            buffer->indirectDrawCommands.insert(buffer->indirectDrawCommands.end(), commands.begin(), commands.end()); \
+            for (auto& entry : commands) {                                                                             \
+                auto& buffer = drawCommands.find(entry.first)->second;                                                 \
+                buffer->indirectDrawCommands.insert(buffer->indirectDrawCommands.end(),                                \
+                                                    entry.second.begin(), entry.second.end());                         \
+            }                                                                                                          \
         }                                                                                                              \
         for (auto& entry : drawCommands) {                                                                             \
             entry.second->UploadDataToGpu();                                                                           \

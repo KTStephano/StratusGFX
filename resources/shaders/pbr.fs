@@ -111,7 +111,10 @@ void main() {
     vec3 viewDir = normalize(viewPosition - fragPos);
 
     vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
+    // Normals generally have values from [-1, 1], but inside
+    // an OpenGL texture they are transformed to [0, 1]. To convert
+    // them back, we multiply by 2 and subtract 1.
+    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
     float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO

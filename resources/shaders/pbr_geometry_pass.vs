@@ -39,15 +39,18 @@ void main() {
     fsNormal = normalize(fsModelNoTranslate * getNormal(gl_VertexID));
 
     // @see https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+    // Also see the tangent space and bump mapping section in "Foundations of Game Engine Development: Rendering"
     // tbn matrix transforms from normal map space to world space
     mat3 normalMatrix = mat3(modelMatrices[gl_DrawID]);
-    vec3 n = normalize(normalMatrix * getNormal(gl_VertexID));
-    vec3 t = normalize(normalMatrix * getTangent(gl_VertexID));
+    vec3 n = normalize(getNormal(gl_VertexID)); //normalize(normalMatrix * getNormal(gl_VertexID));
+    vec3 t = getTangent(gl_VertexID); //normalize(normalMatrix * getTangent(gl_VertexID));
     // re-orthogonalize T with respect to N - see end of https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     // this is also called Graham-Schmidt
     t = normalize(t - dot(t, n) * n);
-    // then retrieve perpendicular vector B with the cross product of T and N
-    vec3 b = normalize(cross(n, t));
+    // then retrieve perpendicular vector B and do the same
+    //vec3 b = normalize(cross(n, t));
+    vec3 b = getBitangent(gl_VertexID);
+    b = normalize(b - dot(b, n) * n - dot(b, t) * t);
     fsTbnMatrix = mat3(t, b, n);
 
     fsModel = modelMatrices[gl_DrawID];

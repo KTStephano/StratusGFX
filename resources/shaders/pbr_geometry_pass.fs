@@ -97,7 +97,9 @@ void main() {
         // an OpenGL texture they are transformed to [0, 1]. To convert
         // them back, we multiply by 2 and subtract 1.
         normal = normalize(normal * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-        normal = normalize(fsTbnMatrix * normal);
+        // fsTbnMatrix goes from tangent space (defined by coordinate system of normal map)
+        // to object space, and then model no translate moves to world space without translating
+        normal = normalize(fsModelNoTranslate * fsTbnMatrix * normal);
         normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
     }
 

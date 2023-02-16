@@ -236,6 +236,22 @@ namespace stratus {
     }
 
     static void PrintMatType(const aiMaterial * aimat, const aiTextureType type) {
+        static const std::unordered_map<int, std::string> conversion{
+            {aiTextureType_DIFFUSE, "Diffuse"},
+            {aiTextureType_SPECULAR, "Specular"},
+            {aiTextureType_AMBIENT, "Ambient"},
+            {aiTextureType_EMISSIVE, "Emissive"},
+            {aiTextureType_HEIGHT, "Height"},
+            {aiTextureType_NORMALS, "Normals"},
+            {aiTextureType_BASE_COLOR, "Base Color"},
+            {aiTextureType_NORMAL_CAMERA, "Normal Camera"},
+            {aiTextureType_EMISSION_COLOR, "Emission Color"},
+            {aiTextureType_METALNESS, "Metalness"},
+            {aiTextureType_AMBIENT_OCCLUSION, "Ambient Occlusion"},
+            {aiTextureType_DIFFUSE_ROUGHNESS, "Diffuse Roughness"},
+            {aiTextureType_UNKNOWN, "Unknown/Other"}
+        };
+
         const auto count = aimat->GetTextureCount(type);
         std::stringstream out;
         out << count;
@@ -243,7 +259,7 @@ namespace stratus {
             aiString str;
             aimat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            out << ", " << file;
+            out << ": " << conversion.find(type)->second << ", " << file;
         }
         out << std::endl;
         STRATUS_LOG << out.str();
@@ -281,6 +297,7 @@ namespace stratus {
             // Disable face culling if applicable
             int doubleSided = 0;
             if(AI_SUCCESS == aimat->Get(AI_MATKEY_TWOSIDED, doubleSided)) {
+                STRATUS_LOG << "Double Sided: " << doubleSided << std::endl;
                 if (doubleSided != 0) {
                     cull = RenderFaceCulling::CULLING_NONE;
                 }
@@ -300,6 +317,7 @@ namespace stratus {
             PrintMatType(aimat, aiTextureType_EMISSION_COLOR);
             PrintMatType(aimat, aiTextureType_METALNESS);
             PrintMatType(aimat, aiTextureType_AMBIENT_OCCLUSION);
+            PrintMatType(aimat, aiTextureType_DIFFUSE_ROUGHNESS);
             PrintMatType(aimat, aiTextureType_UNKNOWN);
 
             aiColor3D diffuse;
