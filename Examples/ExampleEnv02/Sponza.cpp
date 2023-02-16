@@ -49,10 +49,10 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         //stratus::Async<stratus::Entity>g e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../local/Sponza2022/NewSponza_Main_glTF_002.gltf", stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
@@ -63,7 +63,7 @@ public:
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
+        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg"));
 
         bool running = true;
 

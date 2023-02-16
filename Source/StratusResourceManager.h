@@ -14,6 +14,11 @@
 #include <unordered_map>
 
 namespace stratus {
+    enum class ColorSpace : int {
+        LINEAR,
+        SRGB
+    };
+
     SYSTEM_MODULE_CLASS(ResourceManager)
     private:
         struct RawTextureData {
@@ -34,14 +39,14 @@ namespace stratus {
 
         virtual ~ResourceManager();
 
-        Async<Entity> LoadModel(const std::string&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
-        TextureHandle LoadTexture(const std::string&, const bool srgb);
+        Async<Entity> LoadModel(const std::string&, const ColorSpace&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
+        TextureHandle LoadTexture(const std::string&, const ColorSpace&);
         // prefix is used to select all faces with one string. It ends up expanding to:
         //      prefix + "right." + fileExt
         //      prefix + "left." + fileExt
         //      ...
         //      prefix + "back." + fileExt
-        TextureHandle LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt = "jpg");
+        TextureHandle LoadCubeMap(const std::string& prefix, const ColorSpace&, const std::string& fileExt = "jpg");
         bool GetTexture(const TextureHandle, Async<Texture>&) const;
         Async<Texture> LookupTexture(TextureHandle handle) const;
 
@@ -63,17 +68,17 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&, RenderFaceCulling);
+        EntityPtr _LoadModel(const std::string&, const ColorSpace&, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
         TextureHandle _LoadTextureImpl(const std::vector<std::string>&, 
-                                       const bool srgb,
+                                       const ColorSpace&,
                                        const TextureType type = TextureType::TEXTURE_2D,
                                        const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
                                        const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                        const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
         std::shared_ptr<RawTextureData> _LoadTexture(const std::vector<std::string>&, 
                                                      const TextureHandle, 
-                                                     const bool srgb,
+                                                     const ColorSpace&,
                                                      const TextureType type = TextureType::TEXTURE_2D,
                                                      const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
                                                      const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,

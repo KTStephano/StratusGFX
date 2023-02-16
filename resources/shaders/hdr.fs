@@ -3,7 +3,7 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 
 uniform sampler2D screen;
-uniform float gamma = 2.5;
+uniform float gamma = 2.2;
 
 out vec4 color;
 

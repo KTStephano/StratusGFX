@@ -134,7 +134,7 @@ namespace stratus {
         }
     }
 
-    Async<Entity> ResourceManager::LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    Async<Entity> ResourceManager::LoadModel(const std::string& name, const ColorSpace& cspace, RenderFaceCulling defaultCullMode) {
         {
             auto sl = _LockRead();
             if (_loadedModels.find(name) != _loadedModels.end()) {
@@ -145,8 +145,8 @@ namespace stratus {
 
         auto ul = _LockWrite();
         TaskSystem * tasks = TaskSystem::Instance();
-        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode]() {
-            return _LoadModel(name, defaultCullMode);
+        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode, cspace]() {
+            return _LoadModel(name, cspace, defaultCullMode);
         });
 
         _loadedModels.insert(std::make_pair(name, e));
@@ -154,18 +154,18 @@ namespace stratus {
         return e;
     }
 
-    TextureHandle ResourceManager::LoadTexture(const std::string& name, const bool srgb) {
-        return _LoadTextureImpl({name}, srgb);
+    TextureHandle ResourceManager::LoadTexture(const std::string& name, const ColorSpace& cspace) {
+        return _LoadTextureImpl({name}, cspace);
     }
 
-    TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const bool srgb, const std::string& fileExt) {
+    TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const ColorSpace& cspace, const std::string& fileExt) {
         return _LoadTextureImpl({prefix + "right." + fileExt,
                                  prefix + "left." + fileExt,
                                  prefix + "top." + fileExt,
                                  prefix + "bottom." + fileExt,
                                  prefix + "front." + fileExt,
                                  prefix + "back." + fileExt}, 
-                                srgb,
+                                cspace,
                                 TextureType::TEXTURE_3D,
                                 TextureCoordinateWrapping::CLAMP_TO_EDGE,
                                 TextureMinificationFilter::LINEAR,
@@ -173,7 +173,7 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, 
-                                                    const bool srgb,
+                                                    const ColorSpace& cspace,
                                                     const TextureType type,
                                                     const TextureCoordinateWrapping wrap,
                                                     const TextureMinificationFilter min,
@@ -197,8 +197,8 @@ namespace stratus {
         auto handle = TextureHandle::NextHandle();
         TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, srgb, type, wrap, min, mag]() {
-            return _LoadTexture(files, handle, srgb, type, wrap, min, mag);
+        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
+            return _LoadTexture(files, handle, cspace, type, wrap, min, mag);
         });
 
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
@@ -223,13 +223,13 @@ namespace stratus {
         return ret;
     }
 
-    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const bool srgb) {
+    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {
             aiString str; 
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, srgb);
+            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, cspace);
         }
 
         return texture;
@@ -256,6 +256,8 @@ namespace stratus {
             {aiTextureType_UNKNOWN, "Unknown/Other"}
         };
 
+        if (conversion.find(type) == conversion.end()) return;
+
         const auto count = aimat->GetTextureCount(type);
         std::stringstream out;
         out << count;
@@ -269,7 +271,7 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+    static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode, const ColorSpace& cspace) {
         if (mesh->mNumUVComponents[0] == 0) return;
         if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
 
@@ -348,17 +350,17 @@ namespace stratus {
             if (roughret   == AI_SUCCESS) m->SetRoughness(roughness);
         
 
-            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, true));
+            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
-            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, false));
-            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, false));
-            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, false));
-            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, true));
-            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, false));
+            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR));
+            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
+            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
+            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
+            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
             if (extension == "gltf" || extension == "GLTF") {
-                m->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, false));
+                m->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::LINEAR));
             }
 
             STRATUS_LOG << "m " 
@@ -379,7 +381,7 @@ namespace stratus {
     }
 
     static void ProcessNode(aiNode * node, const aiScene * scene, EntityPtr entity, const aiMatrix4x4& parentTransform, MaterialPtr rootMat, 
-                            const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode) {
+                            const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode, const ColorSpace& cspace) {
         // set the transformation info
         aiMatrix4x4 aiMatTransform = node->mTransformation;
         // See https://assimp-docs.readthedocs.io/en/v5.1.0/usage/use_the_lib.html
@@ -393,7 +395,7 @@ namespace stratus {
             // Process all node meshes (if any)
             for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
                 aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-                ProcessMesh(rnode, transform, mesh, scene, rootMat, directory, extension, defaultCullMode);
+                ProcessMesh(rnode, transform, mesh, scene, rootMat, directory, extension, defaultCullMode, cspace);
             }
         }
 
@@ -402,11 +404,11 @@ namespace stratus {
             // Create a new container Entity
             EntityPtr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
-            ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode);
+            ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode, cspace);
         }
     }
 
-    EntityPtr ResourceManager::_LoadModel(const std::string& name, RenderFaceCulling defaultCullMode) {
+    EntityPtr ResourceManager::_LoadModel(const std::string& name, const ColorSpace& cspace, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
@@ -417,18 +419,18 @@ namespace stratus {
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
                                                        aiProcess_JoinIdenticalVertices |
                                                        aiProcess_SortByPType |
-                                                       //aiProcess_GenNormals |
+                                                       aiProcess_GenNormals |
                                                        //aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
-                                                       //aiProcess_GenUVCoords | 
+                                                       aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
                                                        //aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
-                                                       aiProcess_OptimizeMeshes
+                                                       aiProcess_OptimizeMeshes |
                                                     //    aiProcess_OptimizeGraph |
                                                        //aiProcess_FixInfacingNormals |
                                                        //aiProcess_FindDegenerates |
-                                                       //aiProcess_FindInvalidData
+                                                       aiProcess_FindInvalidData
                                                        //aiProcess_FindInstances
                                                     //    aiProcess_FlipWindingOrder
                                                 );
@@ -443,7 +445,7 @@ namespace stratus {
         EntityPtr e = CreateTransformEntity();
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode);
+        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode, cspace);
 
         auto ul = _LockWrite();
         // Create an internal copy for thread safety
@@ -456,7 +458,7 @@ namespace stratus {
 
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 
                                                                                    const TextureHandle handle, 
-                                                                                   const bool srgb,
+                                                                                   const ColorSpace& cspace,
                                                                                    const TextureType type,
                                                                                    const TextureCoordinateWrapping wrap,
                                                                                    const TextureMinificationFilter min,
@@ -498,7 +500,7 @@ namespace stratus {
                         config.format = TextureComponentFormat::RED;
                         break;
                     case 3:
-                        if (srgb) {
+                        if (cspace == ColorSpace::SRGB) {
                             config.format = TextureComponentFormat::SRGB;
                         }
                         else {
@@ -506,7 +508,7 @@ namespace stratus {
                         }
                         break;
                     case 4:
-                        if (srgb) {
+                        if (cspace == ColorSpace::SRGB) {
                             config.format = TextureComponentFormat::SRGB_ALPHA;
                         }
                         else {
