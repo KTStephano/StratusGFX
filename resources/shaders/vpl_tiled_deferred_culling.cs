@@ -147,8 +147,8 @@ void main() {
         //if (ratio > 1.0 || ratio < 0.025) continue;
         //if (ratio > 1.0 || (lightIntensity > 100 && ratio < 0.045) || ratio < 0.02) continue;
 
-        float percentageStrength = max(1.0 - ratio, 0.001);
-        distance = distance * percentageStrength;
+        //float percentageStrength = max(1.0 - ratio, 0.001);
+        distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
                 //shuffleDown(indicesVisibleThisTile, ii);
