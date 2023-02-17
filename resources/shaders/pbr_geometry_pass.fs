@@ -81,14 +81,19 @@ void main() {
         // }
     }
 
-    vec3 baseColor = material.diffuseColor.xyz;
+    vec4 baseColor = material.diffuseColor;
     vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
     float roughness = material.metallicRoughness.y;
     float ao = 1.0;
     float metallic = material.metallicRoughness.x;
 
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
-        baseColor = texture(material.diffuseMap, texCoords).rgb;
+        baseColor = texture(material.diffuseMap, texCoords);
+    }
+
+    // TODO: Add support for punch-through transparency at the least
+    if (baseColor.a < 1.0) {
+        discard;
     }
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
@@ -127,7 +132,7 @@ void main() {
     gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
-    gAlbedo = baseColor;
+    gAlbedo = baseColor.rgb;
     gBaseReflectivity = material.baseReflectivity.xyz;
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);

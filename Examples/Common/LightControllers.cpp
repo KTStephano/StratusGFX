@@ -42,7 +42,7 @@ static void InitCube(const LightParams& p,
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
     color = (color / stratus::maxLightColor) * 30.0f;
-    rc->GetMaterialAt(0)->SetDiffuseColor(color);
+    rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
 }
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {

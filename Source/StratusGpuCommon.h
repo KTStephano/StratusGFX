@@ -83,6 +83,7 @@ namespace stratus {
         GpuTextureHandle normalMap;
         GpuTextureHandle depthMap;
         // total bytes next 2 entries = GpuVec
+        // TODO: Remove these and always favor metallicRoughnessMap
         GpuTextureHandle roughnessMap;
         GpuTextureHandle metallicMap;
         // total bytes next 3 entries = GpuVec

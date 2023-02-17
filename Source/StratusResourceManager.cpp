@@ -330,25 +330,36 @@ namespace stratus {
             PrintMatType(aimat, aiTextureType_TRANSMISSION);
             PrintMatType(aimat, aiTextureType_UNKNOWN);
 
-            aiColor3D diffuse;
-            aiColor3D ambient;
-            aiColor3D reflective;
+            aiColor4D diffuse;
+            aiColor4D ambient;
+            aiColor4D reflective;
             float metallic;
             float roughness;
             float opacity;
-            auto diffuseret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-            auto ambientret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, ambient);
-            auto reflectret = aimat->Get<aiColor3D>(AI_MATKEY_COLOR_REFLECTIVE, reflective);
-            auto metalret = aimat->Get<float>(AI_MATKEY_METALLIC_FACTOR, metallic);
-            auto roughret = aimat->Get<float>(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
-            auto opacityret = aimat->Get<float>(AI_MATKEY_OPACITY, opacity);
+            aiColor4D transparency;
 
-            if (diffuseret == AI_SUCCESS) m->SetDiffuseColor(glm::vec3(diffuse.r, diffuse.g, diffuse.b));
-            if (ambientret == AI_SUCCESS) m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
-            if (reflectret == AI_SUCCESS) m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
-            if (metalret   == AI_SUCCESS) m->SetMetallic(metallic);
-            if (roughret   == AI_SUCCESS) m->SetRoughness(roughness);
-        
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_DIFFUSE, &diffuse) == AI_SUCCESS) {
+                m->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
+                STRATUS_LOG << "Diffuse Alpha: " << diffuse.a << std::endl;
+            }
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_AMBIENT, &ambient) == AI_SUCCESS) {
+                m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
+            }
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
+                m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+            }
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
+                m->SetMetallic(metallic);
+            }
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
+                m->SetRoughness(roughness);
+            }
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
+                STRATUS_LOG << "Opacity Value: " << opacity << std::endl;
+            }
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_TRANSPARENT, &transparency) == AI_SUCCESS) {
+                STRATUS_LOG << "Transparency: " << transparency.r << ", " << transparency.g << ", " << transparency.b << ", " << transparency.a << std::endl;
+            }
 
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!

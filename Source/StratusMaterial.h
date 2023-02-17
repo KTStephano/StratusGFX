@@ -45,13 +45,13 @@ namespace stratus {
         bool operator!=(const Material& other) const { return !(*this == other); }
 
         // Get and set material properties
-        const glm::vec3& GetDiffuseColor() const;
+        const glm::vec4& GetDiffuseColor() const;
         const glm::vec3& GetAmbientColor() const;
         const glm::vec3& GetBaseReflectivity() const;
         float GetRoughness() const;
         float GetMetallic() const;
 
-        void SetDiffuseColor(const glm::vec3&);
+        void SetDiffuseColor(const glm::vec4&);
         void SetAmbientColor(const glm::vec3&);
         void SetBaseReflectivity(const glm::vec3&);
         void SetRoughness(float);
@@ -95,7 +95,7 @@ namespace stratus {
         // Register self with material manager
         bool _registerSelf;
         uint64_t _lastFrameChanged = 0;
-        glm::vec3 _diffuseColor = glm::vec3(1.0f, 0.0f, 0.0f);
+        glm::vec4 _diffuseColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
         glm::vec3 _ambientColor = glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 _baseReflectivity = glm::vec3(0.04f);
         float _roughness = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)

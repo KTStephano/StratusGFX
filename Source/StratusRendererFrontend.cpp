@@ -823,7 +823,7 @@ namespace stratus {
     void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
         gpuMaterial->flags = 0;
 
-        gpuMaterial->diffuseColor = glm::vec4(material->GetDiffuseColor(), 1.0f);
+        gpuMaterial->diffuseColor = material->GetDiffuseColor();
         gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
         gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
         gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);

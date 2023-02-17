@@ -53,7 +53,7 @@ namespace stratus {
     }
 
     // Get and set material properties
-    const glm::vec3& Material::GetDiffuseColor() const {
+    const glm::vec4& Material::GetDiffuseColor() const {
         auto sl = _LockRead();
         return _diffuseColor;
     }
@@ -78,7 +78,7 @@ namespace stratus {
         return _metallic;
     }
 
-    void Material::SetDiffuseColor(const glm::vec3& diffuse) {
+    void Material::SetDiffuseColor(const glm::vec4& diffuse) {
         MarkChanged();
         auto ul = _LockWrite();
         _diffuseColor = diffuse;
