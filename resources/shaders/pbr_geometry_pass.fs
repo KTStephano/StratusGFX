@@ -126,8 +126,9 @@ void main() {
     if (bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED)) {
         // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
         vec2 metallicRoughness = texture(material.metallicRoughnessMap, texCoords).gb;
-        metallic = clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
-        roughness = metallicRoughness.g;
+        //metallicRoughness *= vec2(metallic, roughness);
+        metallic = 1.0 - metallicRoughness.r; //clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
+        roughness = 1.0 - metallicRoughness.g;
     }
     else {
         if (bitwiseAndBool(material.flags, GPU_ROUGHNESS_MAPPED)) {

@@ -206,7 +206,7 @@ float normalDistribution(float NdotH, float roughness) {
 
 vec3 fresnel(vec3 albedo, float HdotV, vec3 baseReflectivity, float metallic) {
     vec3 F0 = mix(baseReflectivity, albedo, metallic);
-    return F0 + (1.0 - F0) * pow(1.0 - HdotV, 5);
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - HdotV, 0.0, 1.0), 5);
 }
 
 float geometrySchlickGGX(float NdotX, float k) {
@@ -279,7 +279,7 @@ vec3 calculateDiffuseOnlyLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, 
     vec3 F         = fresnel(baseColor, clamp(HdotV, 0.0, 1.0), baseReflectivity, metallic);
     vec3 kS        = F;
     // We multiply by inverse of metallic since we only want non-metals to have diffuse lighting
-    vec3 kD        = (vec3(1.0) - kS);// * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
+    vec3 kD        = (vec3(1.0) - kS) * (1.0 - metallic); // TODO: UNCOMMENT METALLIC PART
     vec3 radiance  = lightColor; // * attenuationFactor;
 
     //float atmosphericIntensity = getAtmosphericIntensity(atmosphereBuffer, lightColor, fsTexCoords * vec2(windowWidth, windowHeight));

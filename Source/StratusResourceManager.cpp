@@ -354,6 +354,7 @@ namespace stratus {
             if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
                 m->SetRoughness(roughness);
             }
+            // TODO: Add material + renderer support for opacity/transparency values and mapping
             if (aiGetMaterialFloat(aimat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
                 STRATUS_LOG << "Opacity Value: " << opacity << std::endl;
             }
