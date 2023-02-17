@@ -10,6 +10,8 @@
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
 #include "StratusUtils.h"
+#include <algorithm>
+#include <cmath>
 
 struct WorldLightController : public stratus::InputHandler {
     WorldLightController(const glm::vec3& lightColor) {
@@ -24,14 +26,15 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
-        const float lightRotationSpeed = 3.0f;
-        const float lightIncreaseSpeed = 5.0f;
-        const float minLightBrightness = 0.25f;
-        const float maxLightBrightness = 30.0f;
-        const float atmosphericIncreaseSpeed = 1.0f;
-        float fogDensity = INSTANCE(RendererFrontend)->GetAtmosphericFogDensity();
-        float scatterControl = INSTANCE(RendererFrontend)->GetAtmosphericScatterControl();
-        float lightIntensity = _worldLight->getIntensity();
+        const double lightRotationSpeed = 3.0;
+        const double lightIncreaseSpeed = 5.0;
+        const double minLightBrightness = 0.25;
+        const double maxLightBrightness = 30.0;
+        const double atmosphericIncreaseSpeed = 1.0;
+        const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
+        double fogDensity = INSTANCE(RendererFrontend)->GetAtmosphericFogDensity();
+        double scatterControl = INSTANCE(RendererFrontend)->GetAtmosphericScatterControl();
+        double lightIntensity = _worldLight->getIntensity();
         
         for (auto e : input) {
             switch (e.type) {
@@ -84,28 +87,28 @@ struct WorldLightController : public stratus::InputHandler {
                             break;
                         case SDL_SCANCODE_UP: {
                             if (released) {
-                                scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
+                                scatterControl = scatterControl + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_DOWN: {
                             if (released) {
-                                scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
+                                scatterControl = scatterControl - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_LEFT: {
                             if (released) {
-                                fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
+                                fogDensity = fogDensity - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_RIGHT: {
                             if (released) {
-                                fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
+                                fogDensity = fogDensity + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
                             }
                             break;
@@ -115,8 +118,9 @@ struct WorldLightController : public stratus::InputHandler {
             }
         }
 
+        INSTANCE(RendererFrontend)->SetAtmosphericShadowing(fogDensity, scatterControl);
+
         if (!_worldLightPaused) {
-            INSTANCE(RendererFrontend)->SetAtmosphericShadowing(fogDensity, scatterControl);
             _worldLight->offsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
         }
 
