@@ -117,7 +117,8 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                    //LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 1.0f), 1200.0f)
                                 );
                             }
                             break;
