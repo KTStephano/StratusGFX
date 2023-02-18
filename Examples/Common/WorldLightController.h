@@ -14,10 +14,11 @@
 #include <cmath>
 
 struct WorldLightController : public stratus::InputHandler {
-    WorldLightController(const glm::vec3& lightColor) {
+    WorldLightController(const glm::vec3& lightColor, const float intensity = 4.0f) {
         _worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
         _worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
         _worldLight->setColor(lightColor);
+        _worldLight->setIntensity(intensity);
         INSTANCE(RendererFrontend)->SetWorldLight(_worldLight);
     }
 

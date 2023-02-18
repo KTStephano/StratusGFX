@@ -108,7 +108,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 1.0f, 0.5f),
                                         1200.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -119,7 +120,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         1200.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -130,7 +132,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         1500.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -141,7 +144,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         2000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -152,7 +156,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         3000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -163,7 +168,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         6000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -174,7 +180,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         12000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -185,7 +192,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         24000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -196,7 +204,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         48000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -207,7 +216,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         65000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;

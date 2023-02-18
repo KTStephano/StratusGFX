@@ -50,8 +50,8 @@ bool bitwiseAndBool(uint flag, uint mask) {
 
 // Prevents HDR color values from exceeding 16-bit color buffer range
 vec3 boundHDR(vec3 value) {
-    //return min(value, 65500.0);
-    return value; // Engine is currently using 32-bit... disable for now
+    return min(value, 65500.0);
+    //return value; // Engine is currently using 32-bit... disable for now
 }
 
 // See https://community.khronos.org/t/saturate/53155

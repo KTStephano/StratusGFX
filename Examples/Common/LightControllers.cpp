@@ -36,7 +36,7 @@ static void InitCube(const LightParams& p,
     auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
     rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
-    local->SetLocalScale(glm::vec3(1.0f));
+    local->SetLocalScale(glm::vec3(0.25f));
     local->SetLocalPosition(p.position);
     auto color = light->getColor();
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
@@ -66,20 +66,23 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
     //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
-void LightCreator::CreateStationaryLight(const LightParams& p) {
+void LightCreator::CreateStationaryLight(const LightParams& p, const bool spawnCube) {
     auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::PointLight(/* staticLight = */ false));
     InitLight(p, light);
 
-    stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
-    InitCube(p, light, cube);
+    stratus::EntityPtr cube;
+    if (spawnCube) {
+        cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(p, light, cube);
+    }
 
     ptr->Components().AttachComponent<LightComponent>(light);
-    ptr->Components().AttachComponent<LightCubeComponent>(cube);
+    if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(EntityManager)->AddEntity(cube);
+    if (spawnCube) INSTANCE(EntityManager)->AddEntity(cube);
     //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 

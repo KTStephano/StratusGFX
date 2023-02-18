@@ -70,7 +70,7 @@ vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
 }
 
 // See "Implementing a material system" in 3D Graphics Rendering Cookbook
-// This *only* uses basic punch through transparency and is not a full transparency solution
+// This *only* implements basic punch through transparency and is not a full transparency solution
 void runAlphaTest(float alpha, float alphaThreshold) {
     if (alphaThreshold == 0.0) return;
 

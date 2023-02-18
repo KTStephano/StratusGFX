@@ -100,7 +100,6 @@ namespace stratus {
         std::unordered_set<EntityPtr> _entities;
         // These are entities we need to check for position/orientation/scale updates
         std::unordered_set<EntityPtr> _dynamicEntities;
-        std::unordered_set<MaterialPtr> _dirtyMaterials;
         //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_set<LightPtr> _lights;
         std::unordered_set<LightPtr> _dynamicLights;
@@ -110,6 +109,7 @@ namespace stratus {
         EntityMeshData _flatEntities;
         EntityMeshData _dynamicPbrEntities;
         EntityMeshData _staticPbrEntities;
+        bool _materialsDirty = false;
         bool _drawCommandsDirty = false;
         CameraPtr _camera;
         glm::mat4 _projection = glm::mat4(1.0f);

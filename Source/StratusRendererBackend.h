@@ -105,8 +105,13 @@ namespace stratus {
 
     struct RendererMaterialInformation {
         size_t maxMaterials = 2048;
+        // These are the materials we draw from to calculate the material-indices map
+        std::unordered_set<MaterialPtr> availableMaterials;
+        // Indices can change completely if new materials are added
         std::unordered_map<MaterialPtr, uint32_t> indices;
-        GpuBuffer materials;
+        // List of CPU-side materials for easy copy to GPU
+        std::vector<GpuMaterial> materials;
+        GpuBuffer materialsBuffer;
     };
 
     struct LightUpdateQueue {
@@ -258,6 +263,9 @@ namespace stratus {
             FrameBuffer atmosphericFbo;
             Texture atmosphericTexture;
             Texture atmosphericNoiseTexture;
+            // Used for fast approximate anti-aliasing (FXAA)
+            PostFXBuffer fxaaFbo1;
+            PostFXBuffer fxaaFbo2;
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -303,6 +311,9 @@ namespace stratus {
             std::unique_ptr<Pipeline> vplTileDeferredCulling;
             // Handles cascading shadow map depth buffer rendering
             std::unique_ptr<Pipeline> csmDepth;
+            // Handles fxaa luminance followed by fxaa smoothing
+            std::unique_ptr<Pipeline> fxaaLuminance;
+            std::unique_ptr<Pipeline> fxaaSmoothing;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;
@@ -440,7 +451,9 @@ namespace stratus {
         void _BindShader(Pipeline *);
         void _UnbindShader();
         void _PerformPostFxProcessing();
+        void _PerformBloomPostFx();
         void _PerformAtmosphericPostFx();
+        void _PerformFxaaPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
         void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);

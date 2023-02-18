@@ -32,6 +32,10 @@ namespace stratus {
         GpuVec(const glm::vec4& v) : GpuVec(v[0], v[1], v[2], v[3]) {}
         GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
         GpuVec() : GpuVec(0.0f) {}
+        
+        GpuVec(const GpuVec& other) {
+            _Copy(glm::vec4(other.v[0], other.v[1], other.v[2], other.v[3]));
+        }
 
         GpuVec& operator=(const GpuVec& other) {
             _Copy(glm::vec4(other.v[0], other.v[1], other.v[2], other.v[3]));
@@ -91,7 +95,7 @@ namespace stratus {
         unsigned int flags = 0;
         unsigned int _1;
 
-        GpuMaterial() = default;
+        GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
         GpuMaterial(GpuMaterial&&) = default;
 

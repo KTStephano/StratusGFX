@@ -150,6 +150,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"pbr_vpl_gi.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
+    _state.fxaaLuminance = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fxaa.vs", ShaderType::VERTEX},
+        Shader{"fxaa_luminance.fs", ShaderType::FRAGMENT}
+    }));
+    _state.shaders.push_back(_state.fxaaLuminance.get());
+
     // Create skybox cube
     _state.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -274,15 +280,15 @@ void RendererBackend::_UpdateWindowDimensions() {
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
@@ -302,12 +308,12 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the lighting fbo
-    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.lightingHighBrightnessBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.lightingHighBrightnessBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -323,7 +329,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the SSAO fbo
-    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.ssaoOcclusionTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.ssaoOcclusionTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.ssaoOcclusionTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBuffer = FrameBuffer({_state.ssaoOcclusionTexture});
@@ -333,7 +339,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the SSAO blurred fbo
-    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.ssaoOcclusionBlurredTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.ssaoOcclusionBlurredTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.ssaoOcclusionBlurredTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.ssaoOcclusionBlurredBuffer = FrameBuffer({_state.ssaoOcclusionBlurredTexture});
@@ -343,7 +349,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     // Code to create the Virtual Point Light Global Illumination fbo
-    _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.vpls.vplGIColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIFbo = FrameBuffer({_state.vpls.vplGIColorBuffer});
@@ -377,7 +383,7 @@ void RendererBackend::_InitializePostFxBuffers() {
         currHeight /= 2;
         if (currWidth < 8 || currHeight < 8) break;
         PostFXBuffer buffer;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, 0, false }, NoTextureData);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, currWidth, currHeight, 0, false }, NoTextureData);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -410,7 +416,7 @@ void RendererBackend::_InitializePostFxBuffers() {
     for (auto&[width, height] : sizes) {
         PostFXBuffer buffer;
         ++_state.numUpsampleIterations;
-        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, 0, false }, NoTextureData);
+        auto color = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, width, height, 0, false }, NoTextureData);
         color.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
@@ -423,7 +429,7 @@ void RendererBackend::_InitializePostFxBuffers() {
     }
 
     // Create the atmospheric post fx buffer
-    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     atmosphericTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     atmosphericTexture.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
@@ -432,6 +438,19 @@ void RendererBackend::_InitializePostFxBuffers() {
         STRATUS_ERROR << "Unable to initialize atmospheric post fx buffer" << std::endl;
         return;
     }
+    _state.postFxBuffers.push_back(_state.atmosphericPostFxBuffer);
+
+    // Create the FXAA buffers
+    Texture fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    fxaa.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    fxaa.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.fxaaFbo1.fbo = FrameBuffer({fxaa});
+    if (!_state.fxaaFbo1.fbo.valid()) {
+        _isValid = false;
+        STRATUS_ERROR << "Unable to initialize fxaa luminance buffer" << std::endl;
+        return;
+    }
+    _state.postFxBuffers.push_back(_state.fxaaFbo1);
 }
 
 void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
@@ -614,7 +633,7 @@ static bool ValidateTexture(const Async<Texture> & tex) {
 void RendererBackend::_RenderImmediate(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer) {
     if (buffer->NumDrawCommands() == 0) return;
 
-    _frame->materialInfo.materials.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+    _frame->materialInfo.materialsBuffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
     buffer->BindMaterialIndicesBuffer(12);
     buffer->BindModelTransformBuffer(13);
     buffer->BindIndirectDrawCommands();
@@ -671,6 +690,9 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
 #undef SETUP_TEXTURE
 
     _UnbindShader();
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::_Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, bool isLightInteracting, bool removeViewTranslation) {
@@ -1159,7 +1181,7 @@ void RendererBackend::RenderScene() {
     glEnable(GL_DEPTH_TEST);
 
     _Render(_frame->instancedStaticPbrMeshes, true);
-    _Render(_frame->instancedDynamicPbrMeshes, true);
+    //_Render(_frame->instancedDynamicPbrMeshes, true);
     
     _state.buffer.fbo.unbind();
 
@@ -1213,7 +1235,7 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     _RenderSkybox();
 
-    _Render(_frame->instancedFlatMeshes, false);
+    //_Render(_frame->instancedFlatMeshes, false);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;
@@ -1235,6 +1257,18 @@ void RendererBackend::_PerformPostFxProcessing() {
     //glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
 
+    _PerformBloomPostFx();
+
+    _PerformAtmosphericPostFx();
+
+    _PerformFxaaPostFx();
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void RendererBackend::_PerformBloomPostFx() {
     // We use this so that we can avoid a final copy between the downsample and blurring stages
     std::vector<PostFXBuffer> finalizedPostFxFrames(_state.numDownsampleIterations + _state.numUpsampleIterations);
    
@@ -1324,8 +1358,6 @@ void RendererBackend::_PerformPostFxProcessing() {
     }
 
     _UnbindShader();
-
-    _PerformAtmosphericPostFx();
 }
 
 glm::vec3 RendererBackend::_CalculateAtmosphericLightPosition() const {
@@ -1366,6 +1398,21 @@ void RendererBackend::_PerformAtmosphericPostFx() {
     _UnbindShader();
 
     _state.finalScreenTexture = _state.atmosphericPostFxBuffer.fbo.getColorAttachments()[0];
+}
+
+void RendererBackend::_PerformFxaaPostFx() {
+    glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
+
+    _BindShader(_state.fxaaLuminance.get());
+    
+    _state.fxaaFbo1.fbo.bind();
+    _state.fxaaLuminance->bindTexture("screen", _state.finalScreenTexture);
+    _RenderQuad();
+    _state.fxaaFbo1.fbo.unbind();
+
+    _UnbindShader();
+
+    _state.finalScreenTexture = _state.fxaaFbo1.fbo.getColorAttachments()[0];
 }
 
 void RendererBackend::_FinalizeFrame() {
@@ -1456,6 +1503,14 @@ void RendererBackend::_InitCoreCSMData(Pipeline * s) {
 void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights) {
     // Set up point lights
 
+    // Make sure everything is set to some sort of default to prevent shader crashes or huge performance drops
+    s->setFloat("lightFarPlanes[0]", 1.0f);
+    s->bindTexture("shadowCubeMaps[0]", _LookupShadowmapTexture(_state.dummyCubeMap));
+    s->setVec3("lightPositions[0]", glm::vec3(0.0f));
+    s->setVec3("lightColors[0]", glm::vec3(0.0f));
+    s->setFloat("lightRadii[0]", 1.0f);
+    s->setBool("lightCastsShadows[0]", false);
+
     const Camera& c = *_frame->camera;
     glm::vec3 lightColor;
     int lightIndex = 0;
@@ -1485,13 +1540,6 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         ++lightIndex;
-    }
-
-    if (shadowLightIndex == 0) {
-       // If we don't do this the fragment shader crashes
-       s->setFloat("lightFarPlanes[0]", 0.0f);
-       //_bindShadowMapTexture(s, "shadowCubeMaps[0]", _state.dummyCubeMap);
-       s->bindTexture("shadowCubeMaps[0]", _LookupShadowmapTexture(_state.dummyCubeMap));
     }
 
     s->setFloat("ambientIntensity", 0.0001f);

@@ -160,6 +160,9 @@ namespace stratus {
         // These cause RenderDoc to disable frame capture... super unfortunate
         GpuTextureHandle GpuHandle() const {
             auto gpuHandle = glGetTextureHandleARB(_texture);
+            if (gpuHandle == 0) {
+                throw std::runtime_error("GPU texture handle is null");
+            }
             //STRATUS_LOG << "GPU HANDLE: " << gpuHandle << std::endl;
             return (GpuTextureHandle)gpuHandle;
         }
@@ -171,7 +174,7 @@ namespace stratus {
 
         static void MakeNonResident(const Texture& texture) { 
             if (texture._impl == nullptr) return;
-            glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle()); 
+            glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle());
         }
 
         uint32_t width() const                 { return _config.width; }

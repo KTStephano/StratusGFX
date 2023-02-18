@@ -41,7 +41,7 @@ namespace stratus {
                     auto ul = this->_LockWrite();
                     this->_result = result;
                     this->_complete = true;
-                    this->_failed = false;
+                    this->_failed = this->_result == nullptr;
                 }
                 catch (const std::exception& e) {
                     auto ul = this->_LockWrite();

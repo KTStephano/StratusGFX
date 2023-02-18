@@ -9,6 +9,7 @@
 #include "StratusEntity.h"
 #include "StratusEntityProcess.h"
 #include "StratusEntityManager.h"
+#include "StratusGraphicsDriver.h"
 
 #include <algorithm>
 
@@ -108,9 +109,10 @@ namespace stratus {
     }
 
     void RendererFrontend::_AddAllMaterialsForEntity(const EntityPtr& p) {
+        _materialsDirty = true;
         RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
         for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-            _dirtyMaterials.insert(c->GetMaterialAt(i));
+            _frame->materialInfo.availableMaterials.insert(c->GetMaterialAt(i));
         }
     }
 
@@ -415,7 +417,7 @@ namespace stratus {
         // Set materials per frame and initialize material buffer
         _frame->materialInfo.maxMaterials = 4096;
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-        _frame->materialInfo.materials = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
+        _frame->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
 
         // Set up draw command buffers
         std::vector<RenderFaceCulling> culling{
@@ -783,7 +785,8 @@ namespace stratus {
     }
 
     void RendererFrontend::_RecalculateMaterialSet() {
-        _dirtyMaterials.clear();
+        _frame->materialInfo.availableMaterials.clear();
+        _materialsDirty = true;
 
         for (const EntityPtr& p : _entities) {
             _AddAllMaterialsForEntity(p);
@@ -791,7 +794,7 @@ namespace stratus {
 
         // After this loop anything left in indices is no longer referenced
         // by an entity
-        for (const MaterialPtr& m : _dirtyMaterials) {
+        for (const MaterialPtr& m : _frame->materialInfo.availableMaterials) {
             _frame->materialInfo.indices.erase(m);
         }
 
@@ -849,8 +852,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
             Texture::MakeResident(diffuse.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (diffuseHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(ambient)) {
@@ -858,8 +862,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
             Texture::MakeResident(ambient.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (ambientHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(normal)) {
@@ -867,8 +872,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_NORMAL_MAPPED;
             Texture::MakeResident(normal.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (normalHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(depth)) {
@@ -876,8 +882,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
             Texture::MakeResident(depth.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (depthHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(roughness)) {
@@ -885,8 +892,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
             Texture::MakeResident(roughness.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (roughnessHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(metallic)) {
@@ -894,8 +902,9 @@ namespace stratus {
             gpuMaterial->flags |= GPU_METALLIC_MAPPED;
             Texture::MakeResident(metallic.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (metallicHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
 
         if (ValidateTexture(metallicRoughness)) {
@@ -903,45 +912,64 @@ namespace stratus {
             gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
             Texture::MakeResident(metallicRoughness.Get());
         }
+        // If this is true then the texture is still loading so we need to check again later
         else if (metallicRoughnessHandle != TextureHandle::Null()) {
-            _dirtyMaterials.insert(material);
+            _materialsDirty = true;
         }
     }
 
     void RendererFrontend::_UpdateMaterialSet() {
+        // static int frame = 0;
+        // ++frame;
+        // if (frame % 10 == 0) _materialsDirty = true;
+
         // See if any materials were changed within the last frame
-        for (auto& entry : _frame->materialInfo.indices) {
-            if (entry.first->ChangedWithinLastFrame()) {
-                _dirtyMaterials.insert(entry.first);
+        if ( !_materialsDirty ) {
+            for (auto& entry : _frame->materialInfo.indices) {
+                if (entry.first->ChangedWithinLastFrame()) {
+                    _materialsDirty = true;
+                    break;
+                }
             }
         }
 
-        // If no materials to update then end here
-        if (_dirtyMaterials.size() == 0) return;
-        _drawCommandsDirty = true;
+        // Update at least once per 10 frames
+        const bool updateMaterialResidency = _materialsDirty || (INSTANCE(Engine)->FrameCount() % 10 == 0);
 
-        auto dirtyMaterials = std::move(_dirtyMaterials);
+        // If no materials to update then no need to recompute the index set
+        if (_materialsDirty) {
+            _drawCommandsDirty = true;
+            _materialsDirty = false;
 
-        std::unordered_map<MaterialPtr, uint32_t>& indices = _frame->materialInfo.indices;
-        GpuMaterial * materials = (GpuMaterial *)_frame->materialInfo.materials.MapMemory();
-
-        for (auto material : dirtyMaterials) {
-            GpuMaterial * gpuMaterial;
-            if (indices.find(material) != indices.end()) {
-                gpuMaterial = &materials[indices.find(material)->second];
+            if (_frame->materialInfo.availableMaterials.size() >= _frame->materialInfo.maxMaterials) {
+                throw std::runtime_error("Maximum number of materials exceeded");
             }
-            else {
+
+            std::unordered_map<MaterialPtr, uint32_t>& indices = _frame->materialInfo.indices;
+            indices.clear();
+
+            for (auto material : _frame->materialInfo.availableMaterials) {
                 int nextIndex = int(indices.size());
-                if (nextIndex >= _frame->materialInfo.maxMaterials) {
-                    throw std::runtime_error("Maximum number of materials exceeded");
-                }
-                gpuMaterial = &materials[nextIndex];
                 indices.insert(std::make_pair(material, nextIndex));
             }
-            _CopyMaterialToGpuAndMarkForUse(material, gpuMaterial);
         }
 
-        _frame->materialInfo.materials.UnmapMemory();
+        // If we don't update these either every frame or every few frames, performance degrades. I do not yet know 
+        // why this happens.
+        if (updateMaterialResidency) {
+            if (_frame->materialInfo.materials.size() < _frame->materialInfo.availableMaterials.size()) {
+                _frame->materialInfo.materials.resize(_frame->materialInfo.availableMaterials.size());
+            }
+
+            for (const auto& entry : _frame->materialInfo.indices) {
+                GpuMaterial * material = &_frame->materialInfo.materials[entry.second];
+                _CopyMaterialToGpuAndMarkForUse(entry.first, material);
+            }
+
+            _frame->materialInfo.materialsBuffer.CopyDataToBuffer(0, 
+                                                                sizeof(GpuMaterial) * _frame->materialInfo.materials.size(),
+                                                                (const void *)_frame->materialInfo.materials.data());
+        }
     }
 
     std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {

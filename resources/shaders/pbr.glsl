@@ -303,5 +303,5 @@ vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 norma
     vec3 lightDir   = lightPos - fragPosition;
 
     //return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
-    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), pointLightAmbientIntensity);
+    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.0);
 }

@@ -22,7 +22,7 @@ struct LightCreator {
     static void Initialize();
     static void Shutdown();
     static void CreateRandomLightMover(const LightParams&);
-    static void CreateStationaryLight(const LightParams&);
+    static void CreateStationaryLight(const LightParams&, const bool spawnCube = true);
     static void CreateVirtualPointLight(const LightParams&);
 
 private:
