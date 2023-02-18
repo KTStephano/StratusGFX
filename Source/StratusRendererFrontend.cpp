@@ -933,13 +933,16 @@ namespace stratus {
             }
         }
 
-        // Update at least once per 10 frames
-        const bool updateMaterialResidency = _materialsDirty || (INSTANCE(Engine)->FrameCount() % 10 == 0);
+        // Update for the next 3 frames after the frame indices were recalculated (solved a strange performance issue possible related to shaders
+        // accessing invalid data)
+        const uint64_t frameCount = INSTANCE(Engine)->FrameCount();
+        const bool updateMaterialResidency = _materialsDirty || ((frameCount - _lastFrameMaterialIndicesRecomputed) < 3);
 
         // If no materials to update then no need to recompute the index set
         if (_materialsDirty) {
             _drawCommandsDirty = true;
             _materialsDirty = false;
+            _lastFrameMaterialIndicesRecomputed = frameCount;
 
             if (_frame->materialInfo.availableMaterials.size() >= _frame->materialInfo.maxMaterials) {
                 throw std::runtime_error("Maximum number of materials exceeded");

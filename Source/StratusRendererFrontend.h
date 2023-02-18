@@ -109,6 +109,7 @@ namespace stratus {
         EntityMeshData _flatEntities;
         EntityMeshData _dynamicPbrEntities;
         EntityMeshData _staticPbrEntities;
+        uint64_t _lastFrameMaterialIndicesRecomputed = 0;
         bool _materialsDirty = false;
         bool _drawCommandsDirty = false;
         CameraPtr _camera;
