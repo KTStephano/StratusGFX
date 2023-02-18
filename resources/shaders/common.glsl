@@ -63,13 +63,13 @@ float saturate(float value) {
     return clamp(value, 0.0, 1.0);
 }
 
-vec2 computeTexelWidth(sampler2D tex, int miplevel) {
+vec2 computeTexelSize(sampler2D tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
     return (1.0 / textureSize(tex, miplevel));// * vec2(2.0, 1.0);
 }
 
-vec2 computeTexelWidth(sampler2DArrayShadow tex, int miplevel) {
+vec2 computeTexelSize(sampler2DArrayShadow tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
     return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);

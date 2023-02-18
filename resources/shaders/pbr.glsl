@@ -174,7 +174,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     //vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
     float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
 
-    vec2 wh = computeTexelWidth(infiniteLightShadowMap, 0);
+    vec2 wh = computeTexelSize(infiniteLightShadowMap, 0);
                          
     float light1 = 0.0;
     float light2 = 0.0;

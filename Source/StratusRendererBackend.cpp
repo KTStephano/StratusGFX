@@ -156,6 +156,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     }));
     _state.shaders.push_back(_state.fxaaLuminance.get());
 
+    _state.fxaaSmoothing = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fxaa.vs", ShaderType::VERTEX},
+        Shader{"fxaa_smoothing.fs", ShaderType::FRAGMENT}
+    }));
+    _state.shaders.push_back(_state.fxaaSmoothing.get());
+
     // Create skybox cube
     _state.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -451,6 +457,17 @@ void RendererBackend::_InitializePostFxBuffers() {
         return;
     }
     _state.postFxBuffers.push_back(_state.fxaaFbo1);
+
+    fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    fxaa.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    fxaa.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.fxaaFbo2.fbo = FrameBuffer({fxaa});
+    if (!_state.fxaaFbo2.fbo.valid()) {
+        _isValid = false;
+        STRATUS_ERROR << "Unable to initialize fxaa smoothing buffer" << std::endl;
+        return;
+    }
+    _state.postFxBuffers.push_back(_state.fxaaFbo2);
 }
 
 void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
@@ -1403,6 +1420,7 @@ void RendererBackend::_PerformAtmosphericPostFx() {
 void RendererBackend::_PerformFxaaPostFx() {
     glViewport(0, 0, _frame->viewportWidth, _frame->viewportHeight);
 
+    // Perform luminance calculation pass
     _BindShader(_state.fxaaLuminance.get());
     
     _state.fxaaFbo1.fbo.bind();
@@ -1413,6 +1431,18 @@ void RendererBackend::_PerformFxaaPostFx() {
     _UnbindShader();
 
     _state.finalScreenTexture = _state.fxaaFbo1.fbo.getColorAttachments()[0];
+
+    // Perform smoothing pass
+    _BindShader(_state.fxaaSmoothing.get());
+
+    _state.fxaaFbo2.fbo.bind();
+    _state.fxaaSmoothing->bindTexture("screen", _state.finalScreenTexture);
+    _RenderQuad();
+    _state.fxaaFbo2.fbo.unbind();
+
+    _UnbindShader();
+
+    _state.finalScreenTexture = _state.fxaaFbo2.fbo.getColorAttachments()[0];
 }
 
 void RendererBackend::_FinalizeFrame() {
@@ -1649,6 +1679,5 @@ void RendererBackend::_RemoveLightFromShadowMapCache(LightPtr light) {
 
     // Remove from LRU cache
     _EvictLightFromShadowMapCache(light);
-
 }
 }

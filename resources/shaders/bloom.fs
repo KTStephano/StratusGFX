@@ -42,7 +42,7 @@ vec2 screenTransformTexCoords(vec2 uv) {
 // See https://catlikecoding.com/unity/tutorials/advanced-rendering/bloom/ for additional explanation
 // See https://github.com/Unity-Technologies/Graphics/blob/master/com.unity.postprocessing/PostProcessing/Shaders/Builtins/Bloom.shader for reference implementation
 vec3 downsampleBilinear13(sampler2D tex, vec2 uv) {
-    vec2 texelWidth = computeTexelWidth(tex, 0);
+    vec2 texelWidth = computeTexelSize(tex, 0);
 
     // Innermost square including center coordinate
     vec3 innermost       = texture(tex, screenTransformTexCoords(uv)).rgb;
@@ -85,7 +85,7 @@ vec3 downsampleBilinear13(sampler2D tex, vec2 uv) {
 //
 // Important: repeated convolutions converge to Gaussian, so we won't have any explicit Gaussian Blur code
 vec3 upsampleTentFilter9(sampler2D tex, vec2 uv, float radiusScale) {
-    vec2 texelWidth = computeTexelWidth(tex, 0);
+    vec2 texelWidth = computeTexelSize(tex, 0);
 
     vec3 center     = texture(tex, screenTransformTexCoords(uv)).rgb;
     vec3 top        = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, 1.0)   * radiusScale)).rgb;
@@ -144,7 +144,7 @@ vec3 applyGaussianBlur() {
     vec3 color = texture(mainTexture, fsTexCoords).rgb * weights[0];
     // This will give us the size of a single texel in (x, y) directions
     // (the 0 is telling it to give us the size at mipmap 0, aka full size image)
-    vec2 texelWidth = computeTexelWidth(mainTexture, 0);
+    vec2 texelWidth = computeTexelSize(mainTexture, 0);
     if (horizontal) {
         for (int i = 1; i < WEIGHT_LENGTH; ++i) {
             vec2 texOffset = vec2(texelWidth.x * i, 0.0);
