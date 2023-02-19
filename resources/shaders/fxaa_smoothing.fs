@@ -3,6 +3,47 @@
 
 // For implementation details see https://catlikecoding.com/unity/tutorials/advanced-rendering/fxaa/
 
+// Summary of the algorithm:
+//      BEGIN SECTION ONLY DEALING WITH IMMEDIATE 3x3 NEIGHBORHOOD OF PIXELS
+//
+//      1. Sample the luminance value at the current (center) pixel
+//      2. Sample the luminance at its north, south, east and west neighbors
+//      3. Calculate the minimum and maximum luminance values of the 5 pixels
+//      4. Subtract max - min luminance to obtain an initial contrast value
+//      5. If the initial contrast value is too small (min and max brightness is very similar)
+//         then we skip the rest of the steps by assuming we are NOT on an edge.
+//      6. Sample the remaining northeast, northwest, southeast and southwest neighbor pixel
+//         luminance values.
+//      7. Calculate the average luminance of the 8 neighbors (skipping center pixel) and multiply
+//         luminance of north, south, east and west neighbors by 2 so that they are emphasized more heavily in the average.
+//      8. Calculate a new contrast value by subtracting the average luminance by the middle luminance (convert negative values to positive).
+//      9. Normalize the new contrast value by dividing it by the original max - min contrast value, and clamp the result between
+//         0 and 1.
+//      10. Calculate the first of two blend factors which is defined as:
+//          smoothstep(0.0, 1.0, normalizedCenterAvgContrast) * smoothstep(0.0, 1.0, normalizedCenterAvgContrast) * subpixelBlending
+//          where subpixelBlending is a configurable value between 0.0 (off) and 1.0 (max). We use smoothstep to perform a smooth
+//          blending rather than a harsh blending if we just used the raw normalizedCenterAvgContrast value.
+//      11. Now we need to determine if we are on a horizontal or vertical edge. To do this:
+//          horizontal = abs sum of upper - center and lower - center contrast values (northwest - center, north - center, northeast - center,
+//                                                                                     southwest - center, south - center, southeast - center)
+//
+//          vertical = abs sum of left - center and right - center contrast values (northwest - center, left - center, northeast - center,
+//                                                                                  southwest - center, right - center, southeast - center)
+//
+//      12. If horizontal >= vertical, we're on a horizontal edge. Otherwise the edge is vertical.
+//      13. Now compute the positive and negative contrast of the edge by abs value subtracting one side of the edge - center and the other side of the edge - center.
+//      14. If positive contrast <= negative contrast, we need to move towards the negative side of the edge.
+//      15. If desirable, end early and select the second pixel on either the positive or negative side of the edge and blend it with the center pixel.
+//
+//      BEGIN SECTION DEALING WITH LENGTH OF THE EDGE RATHER THAN JUST 3x3 LOCAL NEIGHBORHOOD
+//
+//      16. It is possible to use the information we have now to select one pixel from either the positive or negative side of the edge and blend it with
+//          the center pixel to give us some level of anti-aliasting. However, this means only features defined within the 3x3 grid of neighborhood pixels
+//          can be accounted for and anti-aliased. The rest of the algorithm is for walking along the edge in both directions to figure out how close the center pixel is to either
+//          end of the edge and select a new blend weight based on this. A result of this is better feature detection so that we can anti-alias more fully along the
+//          edge rather than just the 3x3 local neighborhood.
+//      17. 
+
 STRATUS_GLSL_VERSION
 
 #include "common.glsl"
@@ -38,7 +79,7 @@ uniform float relativeThreshold = 0.125;
 //      0.50 - lower limit (sharper, less sub-pixel aliasing removal)
 //      0.25 - almost off
 //      0.00 - completely off
-uniform float subpixelBlending = 0.75;
+uniform float subpixelBlending = 1.0;
 
 out vec4 color;
 
@@ -98,8 +139,8 @@ void main() {
 
     // Use smoothstep on the normalized center average contrast so that the transition isn't as harsh as it
     // would be otherwise
-    float blendFactor = smoothstep(0.0, 1.0, normalizedCenterAvgContrast);
-    blendFactor = blendFactor * blendFactor * subpixelBlending;
+    float pixelBlendFactor = smoothstep(0.0, 1.0, normalizedCenterAvgContrast);
+    pixelBlendFactor = pixelBlendFactor * pixelBlendFactor * subpixelBlending;
 
     // For the next step we need to select the blend direction. FXAA takes the center pixel and blends it with
     // one of its 4 neighbors from the left, right, top and bottom.
@@ -139,17 +180,110 @@ void main() {
     float negativeLuma = isHorizontal ? lumaBot : lumaLeft;
     float positiveGradient = abs(positiveLuma - lumaCenter);
     float negativeGradient = abs(negativeLuma - lumaCenter);
+    float gradient;
+    float oppositeLuma;
 
     if (positiveGradient < negativeGradient) {
         pixelStep = -pixelStep;
+        oppositeLuma = negativeLuma;
+        gradient = negativeGradient;
+    }
+    else {
+        oppositeLuma = positiveLuma;
+        gradient = positiveGradient;
     }
 
     vec2 uv = fsTexCoords;
+    // This represents the coords which are halfway between two pixels - one on each side of the edge
+    vec2 uvEdge = uv;
+    // If uvEdge moves along +/- y direction, this will move along +/- x direction and vice versa. The reason is that
+    // if uvEdge samples above and below us, we then want to move in the <-, -> directions and continuously sample
+    // above and below. Ex: step -> to the right, sample above and below; step -> to the right, sample above and below, repeat until max steps.
+    vec2 edgeStep;
+    
+    // The step along the edge uses 0.5 as a multiplier so that it is halfway between
+    // two pixels (one on each side of the edge). With bilinear filtering this means we will get the average luminance between
+    // them without having to explicitly sample both pixels in the pair.
     if (isHorizontal) {
-        uv.y += pixelStep * blendFactor;
+        uvEdge.y += pixelStep * 0.5;
+        edgeStep = vec2(computeTexelSize(screen, 0).x, 0.0);
     }
     else {
-        uv.x += pixelStep * blendFactor;
+        uvEdge.x += pixelStep * 0.5;
+        edgeStep = vec2(0.0, computeTexelSize(screen, 0).y);
+    }
+
+    float edgeLumaAvg = (lumaCenter + oppositeLuma) * 0.5;
+    float gradientThreshold = gradient * 0.25;
+
+    // We have arrays of 2 since we are going to step towards both the positive and negative ends
+    // of the edge relative to the center pixel
+    bool atEdgeEnds[2] = bool[](false, false);
+    float edgeToCenterDistances[2] = float[](0.0, 0.0);
+    float edgeLumaDeltas[2] = float[](0.0, 0.0);
+    float directionalSigns[2] = float[](1.0, -1.0);
+    vec2 edgeSteps[2] = vec2[](edgeStep, -edgeStep);
+
+    for (int i = 0; i < 2; ++i) {
+        vec2 puv = uvEdge + edgeSteps[i];
+        float edgeLumaDelta = texture(screen, puv).a - edgeLumaAvg;
+        // As soon as the contrast between current edge pixel and the edge average exceeds
+        // the gradient threshold, we assume that to be the end of the edge
+        bool atEdgeEnd = abs(edgeLumaDelta) >= gradientThreshold;
+
+        // Perform 9 additional steps along the edge for a total of 10 each direction
+        for (int j = 0; j < 9 && !atEdgeEnd; ++j) {
+            puv += edgeSteps[i];
+            edgeLumaDelta = texture(screen, puv).a - edgeLumaAvg;
+            atEdgeEnd = abs(edgeLumaDelta) >= gradientThreshold;
+        }
+
+        edgeLumaDeltas[i] = edgeLumaDelta;
+        atEdgeEnds[i] = atEdgeEnd;
+
+        float distance;
+        if (isHorizontal) {
+            edgeToCenterDistances[i] = (directionalSigns[i] * puv.x) + (-directionalSigns[i] * uv.x);
+        }
+        else {
+            edgeToCenterDistances[i] = (directionalSigns[i] * puv.y) + (-directionalSigns[i] * uv.y);
+        }
+    }
+
+    // Determine the shortest distance (meaning along which direction of the edge our center pixel is closest to)
+    // and then check to see that the difference between the end luma and average luma is positive or negative
+    float shortestDistance;
+    bool deltaSign;
+    if (edgeToCenterDistances[0] <= edgeToCenterDistances[1]) {
+        shortestDistance = edgeToCenterDistances[0];
+        deltaSign = edgeLumaDeltas[0] >= 0;
+    }
+    else {
+        shortestDistance = edgeToCenterDistances[1];
+        deltaSign = edgeLumaDeltas[1] >= 0;
+    }
+
+    // If the delta sign and the center - average edge luminance are moving in different directions, it means our stepping
+    // algorithmn was actually moving away from the edge rather than along it. If this is the case we just skip blending
+    // altogether
+    float edgeBlendFactor;
+    if (deltaSign == (lumaCenter - edgeLumaAvg >= 0)) {
+        edgeBlendFactor = 0.0;
+    }
+    else {
+        // This ensures that the closer the center pixel gets to the edge, the more we blend
+        edgeBlendFactor = 0.5 - shortestDistance / (edgeToCenterDistances[0] + edgeToCenterDistances[1]);
+    }
+
+    //edgeBlendFactor = edgeBlendFactor * edgeBlendFactor;
+
+    // This is the final application of FXAA based on above calculations
+    float finalBlendFactor = max(pixelBlendFactor, edgeBlendFactor);
+    if (isHorizontal) {
+        uv.y += pixelStep * finalBlendFactor;
+    }
+    else {
+        uv.x += pixelStep * finalBlendFactor;
     }
 
     color = vec4(texture(screen, uv).rgb, 1.0);

@@ -16,6 +16,20 @@ Pipeline::~Pipeline() {
     glDeleteProgram(_program);
 }
 
+static void PrintSourceWithLineNums(const std::string& source) {
+    std::cout << "==Begin Shader Source==" << std::endl;
+    std::cout << "1. ";
+    size_t lineNum = 2;
+    for (size_t i = 0; i < source.size(); ++i) {
+        std::cout << source[i];
+        if (source[i] == '\n') {
+            std::cout << lineNum << ". ";
+            ++lineNum;
+        }
+    }
+    std::cout << std::endl << "==End Shader Source==" << std::endl;
+}
+
 /**
  * Takes a shader and checks if it raised any GL errors
  * during compilation. If so, it will print those errors
@@ -24,10 +38,12 @@ Pipeline::~Pipeline() {
  * @return true if no errors occurred and false if anything
  *      went wrong
  */
-static bool checkShaderError(GLuint shader, const std::string & filename) {
+static bool checkShaderError(GLuint shader, const std::string & filename, const std::string & source) {
     GLint result;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if (!result) {
+        PrintSourceWithLineNums(source);
+
         STRATUS_ERROR << "[error] Unable to compile shader: " << filename << std::endl;
 
         // Now we're going to get the error log and print it out
@@ -228,7 +244,7 @@ void Pipeline::_compile() {
         glShaderSource(bin, 1, &bufferPtr, nullptr);
         glCompileShader(bin);
 
-        if (!checkShaderError(bin, s.filename)) {
+        if (!checkShaderError(bin, s.filename, buffer)) {
             _isValid = false;
             return;
         }
