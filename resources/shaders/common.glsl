@@ -75,6 +75,12 @@ vec2 computeTexelSize(sampler2DArrayShadow tex, int miplevel) {
     return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
 }
 
+vec2 computeTexelSize(samplerCube tex, int miplevel) {
+    // This will give us the size of a single texel in (x, y) directions
+    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
+    return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
+}
+
 // Linear interpolate
 vec4 lerp(vec4 x, vec4 y, float a) {
     return mix(x, y, a);

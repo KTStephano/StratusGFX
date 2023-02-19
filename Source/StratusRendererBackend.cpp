@@ -1198,7 +1198,7 @@ void RendererBackend::RenderScene() {
     glEnable(GL_DEPTH_TEST);
 
     _Render(_frame->instancedStaticPbrMeshes, true);
-    //_Render(_frame->instancedDynamicPbrMeshes, true);
+    _Render(_frame->instancedDynamicPbrMeshes, true);
     
     _state.buffer.fbo.unbind();
 
@@ -1252,7 +1252,7 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     _RenderSkybox();
 
-    //_Render(_frame->instancedFlatMeshes, false);
+    _Render(_frame->instancedFlatMeshes, false);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;

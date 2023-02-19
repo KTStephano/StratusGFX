@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#include "common.glsl"
+
 in vec4 fsPosition;
 
 uniform vec3 lightPos;
@@ -10,7 +12,7 @@ void main() {
     float lightDistance = length(fsPosition.xyz - lightPos);
     
     // map to [0;1] range by dividing by far_plane
-    lightDistance = lightDistance / farPlane;
+    lightDistance = saturate(lightDistance / farPlane);
     
     // write this as modified depth
     gl_FragDepth = lightDistance;

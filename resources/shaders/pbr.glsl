@@ -63,51 +63,60 @@ uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
-// Example for numSamples: 27, 64, or some other value that can be cleanly cube-rooted
-float calculateShadowValue(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, int numSamples) {
+// Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
+float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
-    // It's very important to multiply by lightFarPlane. The recorded depth
-    // is on the range [0, 1] so we need to convert it back to what it was originally
-    // or else our depth comparison will fail.
-    //float calculatedDepth = texture(shadowMap, fragDir + vec3(0.2)).r * lightFarPlane;
-    // This bias was found through trial and error... it was originally
-    // 0.05 * (1.0 - max...)
+
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
     float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
-    //float bias = max(0.75 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05);
-    //float bias = max(0.85 * (1.0 - lightNormalDotProduct), 0.05);
-    //bias = bias < 0.0 ? bias * -1.0 : bias;
     // Now we use a sampling-based method to look around the current pixel
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
-    float iterationsPerLoop = max(1.0, pow(numSamples, 1.0 / 3.0));
     float shadow = 0.0;
-    float totalSamples = 0.0;//PCF_SAMPLES_CUBED; // 64 if samples is set to 4.0
-    float offset = 0.2;
-    float increment = (2 * offset) / (iterationsPerLoop - 1);
-    for (float x = -offset, i = 0; i < iterationsPerLoop && totalSamples < numSamples; i += 1, x += increment) {
-        for (float y = -offset, j = 0; j < iterationsPerLoop && totalSamples < numSamples; j += 1, y += increment) {
-            for (float z = -offset, k = 0; k < iterationsPerLoop && totalSamples < numSamples; k += 1, z += increment) {
-                float depth = texture(shadowMap, fragDir + vec3(x, y, z)).r;
-                // Perform this operation to go from [0, 1] to
-                // the original value
-                //totalSamples = totalSamples + 1.0;
+    float offset = 0.3;
+    float offsets[2] = float[](-offset, offset);
+    // This should result in 2*2*2 = 8 samples
+    for (int x = 0; x < 2; ++x) {
+        for (int y = 0; y < 2; ++y) {
+            for (int z = 0; z < 2; ++z) {
+                float depth = texture(shadowMap, fragDir + vec3(offsets[x], offsets[y], offsets[z])).r;
+                // It's very important to multiply by lightFarPlane. The recorded depth
+                // is on the range [0, 1] so we need to convert it back to what it was originally
+                // or else our depth comparison will fail.
                 depth = depth * lightFarPlane;
                 if ((currentDepth - bias) > depth) {
-                    totalSamples = totalSamples + 1.0;
                     shadow = shadow + 1.0;
                 }
             }
         }
     }
 
-    //float bias = 0.005 * tan(acos(max(lightNormalDotProduct, 0.0)));
-    //bias = clamp(bias, 0, 0.01);
-    //return (currentDepth - bias) > calculatedDepth ? 1.0 : 0.0;
-    return shadow / max(1.0, totalSamples);
+    return shadow / 8.0;
+}
+
+// Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
+float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+    // Not required for fragDir to be normalized
+    vec3 fragDir = fragPos - lightPos;
+    float currentDepth = length(fragDir);
+
+    // Part of this came from GPU Gems
+    // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
+    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    float shadow = 0.0;
+    float depth = texture(shadowMap, fragDir).r;
+    // It's very important to multiply by lightFarPlane. The recorded depth
+    // is on the range [0, 1] so we need to convert it back to what it was originally
+    // or else our depth comparison will fail.
+    depth = depth * lightFarPlane;
+    if ((currentDepth - bias) > depth) {
+        shadow = 1.0;
+    }
+
+    return shadow;
 }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
