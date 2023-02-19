@@ -12,7 +12,7 @@ add_executable(${TEST_EXE} ${TEST_SOURCES})
 target_include_directories(${TEST_EXE} PUBLIC
     ${ROOT_DIRECTORY}/gl3w/include
     ${ROOT_DIRECTORY}
-    ${ROOT_DIRECTORY}/Source/
+    ${ROOT_DIRECTORY}/Source/Engine/
     ${CMAKE_CURRENT_LIST_DIR}
     ${OPENGL_INCLUDE_DIRS}
     ${ROOT_DIRECTORY}/assimp/Deploy/include

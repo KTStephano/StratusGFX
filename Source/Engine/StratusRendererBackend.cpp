@@ -65,7 +65,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(OpenGLDebugCallback, nullptr);
 
-    const std::filesystem::path shaderRoot("../resources/shaders");
+    const std::filesystem::path shaderRoot("../Source/Shaders");
     const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
     // Initialize the pipelines
