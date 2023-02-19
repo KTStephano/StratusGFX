@@ -19,7 +19,7 @@
 //      8. Calculate a new contrast value by subtracting the average luminance by the middle luminance (convert negative values to positive).
 //      9. Normalize the new contrast value by dividing it by the original max - min contrast value, and clamp the result between
 //         0 and 1.
-//      10. Calculate the first of two blend factors which is defined as:
+//      10. Calculate the first of two blend factors (pixelBlendFactor) which is defined as:
 //          smoothstep(0.0, 1.0, normalizedCenterAvgContrast) * smoothstep(0.0, 1.0, normalizedCenterAvgContrast) * subpixelBlending
 //          where subpixelBlending is a configurable value between 0.0 (off) and 1.0 (max). We use smoothstep to perform a smooth
 //          blending rather than a harsh blending if we just used the raw normalizedCenterAvgContrast value.
@@ -42,7 +42,32 @@
 //          can be accounted for and anti-aliased. The rest of the algorithm is for walking along the edge in both directions to figure out how close the center pixel is to either
 //          end of the edge and select a new blend weight based on this. A result of this is better feature detection so that we can anti-alias more fully along the
 //          edge rather than just the 3x3 local neighborhood.
-//      17. 
+//      17. Set the current uv coordinates of the edge equal to the center uv coordinates.
+//      18. If horizontal, increment uvEdge.y by half the pixel step. Half a pixel step puts us between two pixels (above edge and below edge) so that with bilinear
+//          filtering we get the average of both computed by the hardware.
+//      19. Compute the edgeStep which is the opposite texel size as the pixel step. So if horizontal, pixel step = texelSize.x and edgeStep = texelSize.y.
+//          The reason for this is that after calculating the original uvEdge coordinate, we just want to shift it along in both directions. So if uvEdge is
+//          sampling above and below the current pixel, we want to step one place to the right or left, sample above and below; step another place to the right or
+//          left, sample above and below. Repeat until max steps has been reached.
+//      20. Compute the average edge luminance which is equal to (center + (positive or negative luminance selected based on step 13)) * 0.5.
+//      21. Set the gradient threshold equal to gradient * 0.25 where gradient is the positive or negative contrast selected in step 13. This value allows us to
+//          determine if we move away from the edge while stepping in one direction or the other. If the threshold is exceeded we have reached the end of the edge.
+//      22. Walk along both directions of the edge relative to the center pixel. At each step, sample the half-pixel luminance using uvEdge +/- step offset.
+//          If the luminance exceeds the gradient threshold, end early. Set the number of steps equal to 10 where each step linearly offsets uvEdge in either + or
+//          - direction.
+//      23. Find the shortest texel distance seeing how far we moved in both directions from the center pixel until we (hopefully) hit the end of the edge.
+//      24. Check the sign of the luminance delta (pixel luminance - edge average luminance from step 20) of the shortest distance end pixel with the sign
+//          of the center pixel luminance - edge average luminance. If the signs are moving in opposite directions, we moved away from the edge so the edge
+//          blending factor (edgeBlendFactor) should be 0. Otherwise edgeBlendFactor = 0.5 - shortestDistance / (positive distance + negative distance). This ensures
+//          that the closer the center pixel is from the end of the edge, the more heavily we apply anti-aliasing.
+//      25. Take the max of the pixel blend factor and the edge blend factor which creates the final blend. Use this blend factor to offset the center pixel coordinate
+//          to blend its color with that pixel.
+//
+//      OTHER STEPS?
+//
+//      It is possible to improve the quality of FXAA (not implemented here). For the above steps we use a linear step offset in both directions along the edge and hope
+//      that we find the end of the edge within 10 iterations. It is possible to use a non-linear step offset to more reliably find the end of the edge, coupled with a
+//      guess step offset as a final attempt if we cannot find it within 10 non-linear iterations.
 
 STRATUS_GLSL_VERSION
 
