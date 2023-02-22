@@ -180,7 +180,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     // Use the shader isValid() method to determine if everything succeeded
     _ValidateAllShaders();
 
-    _state.dummyCubeMap = CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
+    _state.dummyCubeMap = _CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY, false);
 
     // Init constant SSAO data
     _InitSSAO();
@@ -189,12 +189,22 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _InitAtmosphericShadowing();
 
     // Create a pool of shadow maps for point lights to use
-    for (int i = 0; i < _state.numShadowMaps; ++i) {
-        CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY);
-    }
+    _InitPointShadowMaps();
 
     // Virtual point lights
     _InitializeVplData();
+}
+
+void RendererBackend::_InitPointShadowMaps() {
+    // Create the normal point shadow map cache
+    for (int i = 0; i < _state.numRegularShadowMaps; ++i) {
+        _CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY, false);
+    }
+
+    // Create the virtual point light shadow map cache
+    for (int i = 0; i < _state.vpls.maxTotalVirtualPointLightsPerFrame; ++i) {
+        _CreateShadowMap3D(_state.vpls.vplShadowCubeMapX, _state.vpls.vplShadowCubeMapY, true);
+    }
 }
 
 void RendererBackend::_InitializeVplData() {
@@ -931,19 +941,21 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
                                          std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     const Camera& c = *_frame->camera;
 
-    perLightDistToViewer.reserve(_state.maxTotalLightsPerFrame);
-    perLightShadowCastingDistToViewer.reserve(_state.numShadowMaps);
+    perLightDistToViewer.reserve(_state.maxTotalRegularLightsPerFrame);
+    perLightShadowCastingDistToViewer.reserve(_state.maxShadowCastingLightsPerFrame);
     perVPLDistToViewer.reserve(_state.vpls.maxTotalVirtualPointLightsPerFrame);
 
     // Init per light instance data
     for (auto& light : _frame->lights) {
         const double distance = glm::distance(c.getPosition(), light->GetPosition());
-        perLightDistToViewer.push_back(std::make_pair(light, distance));
         if (light->IsVirtualLight()) {
             perVPLDistToViewer.push_back(std::make_pair(light, distance));
         }
+        else {
+            perLightDistToViewer.push_back(std::make_pair(light, distance));
+        }
 
-        if (light->castsShadows()) {
+        if ( !light->IsVirtualLight() && light->castsShadows() ) {
             perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
         }
     }
@@ -954,21 +966,34 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     };
     std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > _state.maxTotalLightsPerFrame) {
-        perLightDistToViewer.resize(_state.maxTotalLightsPerFrame);
+    if (perLightDistToViewer.size() > _state.maxTotalRegularLightsPerFrame) {
+        perLightDistToViewer.resize(_state.maxTotalRegularLightsPerFrame);
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > _state.numShadowMaps) {
-        perLightShadowCastingDistToViewer.resize(_state.numShadowMaps);
+    if (perLightShadowCastingDistToViewer.size() > _state.maxShadowCastingLightsPerFrame) {
+        perLightShadowCastingDistToViewer.resize(_state.maxShadowCastingLightsPerFrame);
+    }
+
+    // Remove vpls exceeding absolute maximum
+    if (perVPLDistToViewer.size() > _state.vpls.maxTotalVirtualPointLightsPerFrame) {
+        perVPLDistToViewer.resize(_state.vpls.maxTotalVirtualPointLightsPerFrame);
     }
 
     // Check if any need to have a new shadow map pulled from the cache
-    for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
-        if (!_ShadowMapExistsForLight(light)) {
-            _frame->lightsToUpate.PushBack(light);
+    std::vector<std::vector<std::pair<LightPtr, double>> *> shadowCasters{
+        &perLightShadowCastingDistToViewer,
+        &perVPLDistToViewer    
+    };
+
+    for (const auto* vec : shadowCasters) {
+        for (const auto&[light, _] : *vec) {
+            //if (!_ShadowMapExistsForLight(light)) {
+                _frame->lightsToUpate.PushBack(light);
+            //}
         }
     }
 
@@ -1019,27 +1044,27 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     if (perVPLDistToViewer.size() == 0) return;
 
-    std::vector<std::pair<LightPtr, double>> availableVPLs;
-    availableVPLs.reserve(perVPLDistToViewer.size());
-    for (auto& entry : perVPLDistToViewer) {
-        // Only add lights we have shadow maps for
-        if (_ShadowMapExistsForLight(entry.first)) {
-            availableVPLs.push_back(entry);
-        }
-    }
+    // std::vector<std::pair<LightPtr, double>> availableVPLs;
+    // availableVPLs.reserve(perVPLDistToViewer.size());
+    // for (auto& entry : perVPLDistToViewer) {
+    //     // Only add lights we have shadow maps for
+    //     if (_ShadowMapExistsForLight(entry.first)) {
+    //         availableVPLs.push_back(entry);
+    //     }
+    // }
 
-    perVPLDistToViewer = std::move(availableVPLs);
+    // perVPLDistToViewer = std::move(availableVPLs);
 
-    // Sort lights based on distance to viewer
-    const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
-        return a.second < b.second;
-    };
-    std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
+    // // Sort lights based on distance to viewer
+    // const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
+    //     return a.second < b.second;
+    // };
+    // std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
 
-    // Check if we have too many lights for a single frame
-    if (perVPLDistToViewer.size() > _state.vpls.maxTotalVirtualPointLightsPerFrame) {
-        perVPLDistToViewer.resize(_state.vpls.maxTotalVirtualPointLightsPerFrame);
-    }
+    // // Check if we have too many lights for a single frame
+    // if (perVPLDistToViewer.size() > _state.vpls.maxTotalVirtualPointLightsPerFrame) {
+    //     perVPLDistToViewer.resize(_state.vpls.maxTotalVirtualPointLightsPerFrame);
+    // }
 
     // Pack data into system memory
     std::vector<GpuVec> lightPositions(perVPLDistToViewer.size());
@@ -1243,7 +1268,7 @@ void RendererBackend::RenderScene() {
 
     //_unbindAllTextures();
     _BindShader(_state.lighting.get());
-    _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLights);
+    _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLightsPerFrame);
     _state.lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
     _state.lighting->bindTexture("gPosition", _state.buffer.position);
     _state.lighting->bindTexture("gNormal", _state.buffer.normals);
@@ -1494,7 +1519,7 @@ void RendererBackend::_RenderQuad() {
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
-TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY) {
+TextureHandle RendererBackend::_CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY, bool vpl) {
     ShadowMap3D smap;
     smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
     smap.shadowCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
@@ -1502,13 +1527,24 @@ TextureHandle RendererBackend::CreateShadowMap3D(uint32_t resolutionX, uint32_t 
     // We need to set this when using sampler2DShadow in the GLSL shader
     //smap.shadowCubeMap.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
-    smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
+    if (vpl) {
+        smap.diffuseCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
+        smap.diffuseCubeMap.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        smap.diffuseCubeMap.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+        smap.frameBuffer = FrameBuffer({smap.diffuseCubeMap, smap.shadowCubeMap});
+    }
+    else {
+        smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
+    }
+    
     if (!smap.frameBuffer.valid()) {
         _isValid = false;
         return TextureHandle::Null();
     }
+    auto& cache = vpl ? _vplSmapCache : _smapCache;
     TextureHandle handle = TextureHandle::NextHandle();
-    this->_shadowMap3DHandles.insert(std::make_pair(handle, smap));
+    cache.shadowMap3DHandles.insert(std::make_pair(handle, smap));
     // These will be resident in GPU memory for the entire life cycle of the renderer
     Texture::MakeResident(smap.shadowCubeMap);
     return handle;
@@ -1521,11 +1557,19 @@ Async<Texture> RendererBackend::_LookupTexture(TextureHandle handle) const {
 Texture RendererBackend::_LookupShadowmapTexture(TextureHandle handle) const {
     if (handle == TextureHandle::Null()) return Texture();
 
-    if (_shadowMap3DHandles.find(handle) == _shadowMap3DHandles.end()) {
-        return Texture();
+    // See if it's in the regular cache
+    auto it = _smapCache.shadowMap3DHandles.find(handle);
+    if (it != _smapCache.shadowMap3DHandles.end()) {
+        return it->second.shadowCubeMap;
     }
 
-    return _shadowMap3DHandles.find(handle)->second.shadowCubeMap;
+    // See if it's in the VPL cache
+    it = _vplSmapCache.shadowMap3DHandles.find(handle);
+    if (it != _vplSmapCache.shadowMap3DHandles.end()) {
+        return it->second.shadowCubeMap;
+    }
+
+    return Texture();
 }
 
 // This handles everything that's in pbr.glsl
@@ -1632,14 +1676,15 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
 }
 
 TextureHandle RendererBackend::_GetOrAllocateShadowMapHandleForLight(LightPtr light) {
-    assert(_shadowMap3DHandles.size() > 0);
+    auto& cache = _GetSmapCacheForLight(light);
+    assert(cache.shadowMap3DHandles.size() > 0);
 
-    auto it = _lightsToShadowMap.find(light);
+    auto it = cache.lightsToShadowMap.find(light);
     // If not found, look for an existing shadow map
-    if (it == _lightsToShadowMap.end()) {
+    if (it == cache.lightsToShadowMap.end()) {
         TextureHandle handle;
-        for (const auto & entry : _shadowMap3DHandles) {
-            if (_usedShadowMaps.find(entry.first) == _usedShadowMaps.end()) {
+        for (const auto & entry : cache.shadowMap3DHandles) {
+            if (cache.usedShadowMaps.find(entry.first) == cache.usedShadowMaps.end()) {
                 handle = entry.first;
                 break;
             }
@@ -1647,9 +1692,9 @@ TextureHandle RendererBackend::_GetOrAllocateShadowMapHandleForLight(LightPtr li
 
         if (handle == TextureHandle::Null()) {
             // Evict oldest since we could not find an available handle
-            LightPtr oldest = _lruLightCache.front();
-            _lruLightCache.pop_front();
-            handle = _lightsToShadowMap.find(oldest)->second;
+            LightPtr oldest = cache.lruLightCache.front();
+            cache.lruLightCache.pop_front();
+            handle = cache.lightsToShadowMap.find(oldest)->second;
             _EvictLightFromShadowMapCache(oldest);
         }
 
@@ -1664,43 +1709,54 @@ TextureHandle RendererBackend::_GetOrAllocateShadowMapHandleForLight(LightPtr li
 }
 
 RendererBackend::ShadowMap3D RendererBackend::_GetOrAllocateShadowMapForLight(LightPtr light) {
-    return this->_shadowMap3DHandles.find(_GetOrAllocateShadowMapHandleForLight(light))->second;
+    auto& cache = _GetSmapCacheForLight(light);
+    return cache.shadowMap3DHandles.find(_GetOrAllocateShadowMapHandleForLight(light))->second;
 }
 
 void RendererBackend::_SetLightShadowMapHandle(LightPtr light, TextureHandle handle) {
-    _lightsToShadowMap.insert(std::make_pair(light, handle));
-    _usedShadowMaps.insert(handle);
+    auto& cache = _GetSmapCacheForLight(light);
+    cache.lightsToShadowMap.insert(std::make_pair(light, handle));
+    cache.usedShadowMaps.insert(handle);
 }
 
 void RendererBackend::_EvictLightFromShadowMapCache(LightPtr light) {
-    for (auto it = _lruLightCache.begin(); it != _lruLightCache.end(); ++it) {
+    auto& cache = _GetSmapCacheForLight(light);
+    for (auto it = cache.lruLightCache.begin(); it != cache.lruLightCache.end(); ++it) {
         if (*it == light) {
-            _lruLightCache.erase(it);
+            cache.lruLightCache.erase(it);
             return;
         }
     }
 }
 
 bool RendererBackend::_ShadowMapExistsForLight(LightPtr light) {
-    return _lightsToShadowMap.find(light) != _lightsToShadowMap.end();
+    auto& cache = _GetSmapCacheForLight(light);
+    return cache.lightsToShadowMap.find(light) != cache.lightsToShadowMap.end();
 }
 
 void RendererBackend::_AddLightToShadowMapCache(LightPtr light) {
+    auto& cache = _GetSmapCacheForLight(light);
     // First remove the existing light entry if it's already there
     _EvictLightFromShadowMapCache(light);
     // Push to back so that it is seen as most recently used
-    _lruLightCache.push_back(light);
+    cache.lruLightCache.push_back(light);
 }
 
 void RendererBackend::_RemoveLightFromShadowMapCache(LightPtr light) {
     if ( !_ShadowMapExistsForLight(light) ) return;
 
+    auto& cache = _GetSmapCacheForLight(light);
+
     // Deallocate its map
-    TextureHandle handle = _lightsToShadowMap.find(light)->second;
-    _lightsToShadowMap.erase(light);
-    _usedShadowMaps.erase(handle);
+    TextureHandle handle = cache.lightsToShadowMap.find(light)->second;
+    cache.lightsToShadowMap.erase(light);
+    cache.usedShadowMaps.erase(handle);
 
     // Remove from LRU cache
     _EvictLightFromShadowMapCache(light);
+}
+
+RendererBackend::ShadowMapCache& RendererBackend::_GetSmapCacheForLight(LightPtr light) {
+    return light->IsVirtualLight() ? _vplSmapCache : _smapCache;
 }
 }

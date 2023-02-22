@@ -12,12 +12,17 @@ layout (std430, binding = 13) readonly buffer SSBO3 {
 };
 
 smooth out vec4 fsPosition;
+smooth out vec2 fsTexCoords;
+flat out int fsDrawID;
 
 void main() {
     // Select which layer of the depth texture we will write to
 	// (DEPTH_LAYER is defined in C++ code)
 	gl_Layer = DEPTH_LAYER;
 
+    fsDrawID = gl_DrawID;
+    fsTexCoords = getTexCoord(gl_VertexID);
     fsPosition = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+
     gl_Position = shadowMatrix * fsPosition;
 }

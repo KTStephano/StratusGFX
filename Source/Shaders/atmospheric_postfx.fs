@@ -17,7 +17,7 @@ out vec4 color;
 void main() {
     vec2 widthHeight = textureSize(atmosphereBuffer, 0).xy;
     vec3 screenColor = texture(screenBuffer, fsTexCoords).rgb;
-    vec3 atmosphereColor = normalize(lightColor); //(screenColor + lightColor) / 2.0;//10 * screenColor + lightColor / 2.0;
+    vec3 atmosphereColor = normalize(lightColor); //10 * screenColor + lightColor / 2.0;
     float intensity = getAtmosphericIntensity(atmosphereBuffer, lightPosition, fsTexCoords * widthHeight);
 
     color = vec4(screenColor + intensity * atmosphereColor, 1.0);

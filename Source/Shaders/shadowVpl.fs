@@ -9,6 +9,8 @@ flat in int fsDrawID;
 uniform vec3 lightPos;
 uniform float farPlane;
 
+out vec3 color;
+
 void main() {
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
