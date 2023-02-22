@@ -31,7 +31,7 @@ struct WorldLightController : public stratus::InputHandler {
         const double lightIncreaseSpeed = 5.0;
         const double minLightBrightness = 0.25;
         const double maxLightBrightness = 30.0;
-        const double atmosphericIncreaseSpeed = 1.0;
+        const double atmosphericIncreaseSpeed = 0.15;
         const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
         double fogDensity = INSTANCE(RendererFrontend)->GetAtmosphericFogDensity();
         double scatterControl = INSTANCE(RendererFrontend)->GetAtmosphericScatterControl();

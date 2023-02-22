@@ -258,7 +258,7 @@ namespace stratus {
                     case TextureComponentFormat::SRGB: return GL_SRGB; // Here we specify SRGB since it's internal format
                     case TextureComponentFormat::RGBA: return GL_RGBA;
                     case TextureComponentFormat::SRGB_ALPHA: return GL_SRGB_ALPHA; // GL_SRGB_ALPHA since it's internal format
-                    case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT;
+                    case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT; //GL_DEPTH_COMPONENT;
                     case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
                     default: throw std::runtime_error("Unknown format");
                 }

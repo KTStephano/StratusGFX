@@ -109,7 +109,7 @@ void main() {
         baseColor = texture(material.diffuseMap, texCoords);
     }
 
-    runAlphaTest(baseColor.a, 0.5);
+    runAlphaTest(baseColor.a, 0.25);
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
         normal = texture(material.normalMap, texCoords).rgb;
@@ -153,4 +153,12 @@ void main() {
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+
+    // Small offset to help prevent z fighting in certain cases
+    if (baseColor.a < 1.0) {
+        gl_FragDepth = gl_FragCoord.z - 0.00001;
+    }
+    else {
+        gl_FragDepth = gl_FragCoord.z;
+    }
 }

@@ -70,6 +70,17 @@ vec3 applyToneMapACES_Hill(vec3 color)
     return color;
 }
 
+// See http://filmicworlds.com/blog/filmic-tonemapping-operators/
+vec3 applyToneMap_Uncharted2(vec3 color)
+{
+    const float A = 0.15;
+    const float B = 0.50;
+    const float C = 0.10;
+    const float D = 0.20;
+    const float E = 0.02;
+    const float F = 0.30;
+    return ((color*(A*color+C*B)+D*E)/(color*(A*color+B)+D*F))-E/F;
+}
 
 vec3 gammaCorrect(vec3 color) {
     return pow(color, vec3(1.0 / gamma));
@@ -85,7 +96,11 @@ void main() {
     // corrected = gammaCorrect(corrected);
 
     vec3 corrected = applyACESFilm(screenColor);
-    //vec3 corrected = applyToneMapACES_Hill(screenColor);
+    //vec3 corrected = applyToneMapACES_Hill(2.0 * screenColor);
+    // vec3 corrected = applyToneMap_Uncharted2(2.0 * screenColor);
+    // const float W = 11.2;
+    // vec3 whiteScale = vec3(1.0) / applyToneMap_Uncharted2(vec3(W));
+    // corrected = corrected * whiteScale;
     // Gamma correction
     corrected = gammaCorrect(corrected);
 

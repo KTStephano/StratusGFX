@@ -47,9 +47,17 @@ void main() {
         diffuse = texture(material.diffuseMap, fsTexCoords);
     }
 
-    runAlphaTest(diffuse.a, 0.5);
+    runAlphaTest(diffuse.a, 0.25);
 
     // Apply gamma correction
     //texColor = pow(texColor, vec3(1.0 / gamma));
     color = diffuse.rgb;
+
+    // Small offset to help prevent z fighting in certain cases
+    if (diffuse.a < 1.0) {
+        gl_FragDepth = gl_FragCoord.z - 0.00001;
+    }
+    else {
+        gl_FragDepth = gl_FragCoord.z;
+    }
 }
