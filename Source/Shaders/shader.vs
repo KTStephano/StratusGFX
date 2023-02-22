@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "mesh_data.glsl"
 
 void main() {

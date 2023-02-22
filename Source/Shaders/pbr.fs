@@ -2,6 +2,8 @@
 
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "common.glsl"
 #include "atmospheric_postfx.glsl"
 #include "pbr.glsl"

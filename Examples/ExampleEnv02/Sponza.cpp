@@ -128,7 +128,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 100.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 2500.0f)
                                 );
                             }
                             break;

@@ -219,11 +219,13 @@ namespace stratus {
             int maxTotalVirtualPointLightsPerFrame = 200;
             int maxTotalVirtualLightsPerTile = 16;
             int vplShadowCubeMapX = 256, vplShadowCubeMapY = 256;
+            GpuBuffer vplDiffuseMaps;
             GpuBuffer vplShadowMaps;
             GpuBuffer vplLightIndicesVisiblePerTile;
             GpuBuffer vplNumLightsVisiblePerTile;
             GpuBuffer vplPositions;
             GpuBuffer vplColors;
+            GpuBuffer vplIntensities;
             GpuBuffer vplShadowFactors;
             GpuBuffer vplFarPlanes;
             GpuBuffer vplRadii;
@@ -290,6 +292,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> hdrGamma;
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
             std::vector<std::unique_ptr<Pipeline>> shadows;
+            std::vector<std::unique_ptr<Pipeline>> vplShadows;
             // Geometry pass - handles all combinations of material properties
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass

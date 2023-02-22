@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 // Enables gl_Layer and gl_ViewportIndex in the vertex shader (no geometry shader required)
 #extension GL_ARB_shader_viewport_layer_array : require
 

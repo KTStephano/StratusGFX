@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 // This is to determine which lights are visible to which parts of the screen
 // where the screen has been partitioned into a 2D grid of tiles
 

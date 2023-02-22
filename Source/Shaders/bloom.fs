@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "common.glsl"
 
 uniform bool downsamplingStage = true;

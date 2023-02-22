@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 smooth in vec2 fsTexCoords;
 
 // ssao.vs should be used for its vertex shader

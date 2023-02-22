@@ -42,6 +42,14 @@ struct Material {
     uint _1;
 };
 
+layout (std430, binding = 30) readonly buffer SSBO_Global1 {
+    Material materials[];
+};
+
+layout (std430, binding = 31) readonly buffer SSBO_Global2 {
+    uint materialIndices[];
+};
+
 // Checks if flag & mask is greater than 0
 bool bitwiseAndBool(uint flag, uint mask) {
     uint value = flag & mask;

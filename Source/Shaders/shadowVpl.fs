@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 #include "common.glsl"
 
 smooth in vec4 fsPosition;
@@ -12,6 +14,13 @@ uniform float farPlane;
 out vec3 color;
 
 void main() {
+    Material material = materials[materialIndices[fsDrawID]];
+    vec4 baseColor = material.diffuseColor;
+
+    if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
+        baseColor = texture(material.diffuseMap, fsTexCoords);
+    }
+
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
     
@@ -20,4 +29,6 @@ void main() {
     
     // write this as modified depth
     gl_FragDepth = lightDistance;
+
+    color = baseColor.rgb;
 }  

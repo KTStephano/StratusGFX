@@ -4,15 +4,6 @@ STRATUS_GLSL_VERSION
 
 #include "common.glsl"
 
-// Material information
-layout (std430, binding = 11) readonly buffer SSBO1 {
-    Material materials[];
-};
-
-layout (std430, binding = 12) readonly buffer SSBO2 {
-    uint materialIndices[];
-};
-
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
 uniform float heightScale = 0.1;

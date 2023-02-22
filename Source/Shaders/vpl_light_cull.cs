@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#extension GL_ARB_bindless_texture : require
+
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
 //
@@ -35,8 +37,24 @@ layout (std430, binding = 3) buffer outputBlock2 {
     int vplVisibleIndex[];
 };
 
+layout (std430, binding = 5) readonly buffer vplDiffuse {
+    samplerCube diffuseCubeMaps[];
+};
+
+layout (std430, binding = 6) writeonly buffer vplColors {
+    vec4 lightColors[];
+};
+
+layout (std430, binding = 7) readonly buffer vplIntensity {
+    float lightIntensities[];
+};
+
 void main() {
     int index = int(gl_GlobalInvocationID.x);
+
+    vec3 diffuse = texture(diffuseCubeMaps[index], -infiniteLightDirection).rgb;
+    lightColors[index] = vec4(diffuse * lightIntensities[index], 1.0);
+
     vec3 lightPos = lightPositions[index].xyz;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),

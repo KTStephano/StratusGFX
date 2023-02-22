@@ -7,14 +7,6 @@ smooth in vec2 fsTexCoords;
 #include "common.glsl"
 
 //uniform vec3 diffuseColor;
-// Material information
-layout (std430, binding = 11) readonly buffer SSBO1 {
-    Material materials[];
-};
-
-layout (std430, binding = 12) readonly buffer SSBO2 {
-    uint materialIndices[];
-};
 
 flat in int fsDrawID;
 
