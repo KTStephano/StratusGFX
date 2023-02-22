@@ -110,11 +110,16 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
-    _state.csmDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"csm.vs", ShaderType::VERTEX},
-        Shader{"csm.gs", ShaderType::GEOMETRY},
-        Shader{"csm.fs", ShaderType::FRAGMENT}}));
-    _state.shaders.push_back(_state.csmDepth.get());
+    for (int i = 0; i < 5; ++i) {
+        _state.csmDepth.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"csm.vs", ShaderType::VERTEX},
+            //Shader{"csm.gs", ShaderType::GEOMETRY},
+            Shader{"csm.fs", ShaderType::FRAGMENT}},
+            // Defines
+            {{"DEPTH_LAYER", std::to_string(i)}}))
+        );
+        _state.shaders.push_back(_state.csmDepth[i].get());
+    }
 
     _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"ssao.vs", ShaderType::VERTEX},
@@ -746,7 +751,10 @@ void RendererBackend::_RenderSkybox() {
 }
 
 void RendererBackend::_RenderCSMDepth() {
-    _BindShader(_state.csmDepth.get());
+    if (_frame->csc.cascades.size() > _state.csmDepth.size()) {
+        throw std::runtime_error("Max cascades exceeded (> 5)");
+    }
+
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -758,20 +766,6 @@ void RendererBackend::_RenderCSMDepth() {
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
-    _state.csmDepth->setVec3("lightDir", &_frame->csc.worldLightCamera->getDirection()[0]);
-    _state.csmDepth->setFloat("nearClipPlane", _frame->znear);
-
-    // Set up each individual view-projection matrix
-    for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
-        auto& csm = _frame->csc.cascades[i];
-        _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
-    }
-
-    // Select face (one per frame)
-    //const int face = Engine::Instance()->FrameCount() % 4;
-    //_state.csmDepth->setInt("face", face);
-
-    // Render everything in a single pass
     _frame->csc.fbo.bind();
     const Texture * depth = _frame->csc.fbo.getDepthStencilAttachment();
     if (!depth) {
@@ -779,11 +773,34 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
 
-    _RenderImmediate(_frame->instancedStaticPbrMeshes);
-    _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+    for (size_t cascade = 0; cascade < _frame->csc.cascades.size(); ++cascade) {
+        Pipeline * shader = _state.csmDepth[cascade].get();
+        _BindShader(shader);
+
+        shader->setVec3("lightDir", &_frame->csc.worldLightCamera->getDirection()[0]);
+        shader->setFloat("nearClipPlane", _frame->znear);
+
+        // Set up each individual view-projection matrix
+        // for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
+        //     auto& csm = _frame->csc.cascades[i];
+        //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
+        // }
+
+        // Select face (one per frame)
+        //const int face = Engine::Instance()->FrameCount() % 4;
+        //_state.csmDepth->setInt("face", face);
+
+        // Render everything
+        auto& csm = _frame->csc.cascades[cascade];
+        shader->setMat4("shadowMatrix", csm.projectionViewRender);
+        _RenderImmediate(_frame->instancedStaticPbrMeshes);
+        _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+
+        _UnbindShader();
+    }
+    
     _frame->csc.fbo.unbind();
 
-    _UnbindShader();
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_DEPTH_CLAMP);
 }

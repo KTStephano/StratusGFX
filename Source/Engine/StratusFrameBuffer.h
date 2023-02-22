@@ -52,6 +52,10 @@ namespace stratus {
         void bind() const;
         void unbind() const;
 
+        // Useful for layered rendering
+        void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer);
+        void SetDepthTextureLayer(const int layer);
+
         bool valid() const;
         void * underlying() const;
     };

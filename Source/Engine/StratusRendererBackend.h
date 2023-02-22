@@ -310,7 +310,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> vplCulling;
             std::unique_ptr<Pipeline> vplTileDeferredCulling;
             // Handles cascading shadow map depth buffer rendering
-            std::unique_ptr<Pipeline> csmDepth;
+            // (we compile one depth shader per cascade - max 5)
+            std::vector<std::unique_ptr<Pipeline>> csmDepth;
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;
             std::unique_ptr<Pipeline> fxaaSmoothing;

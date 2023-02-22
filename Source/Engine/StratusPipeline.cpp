@@ -6,8 +6,11 @@
 #include "StratusUtils.h"
 
 namespace stratus {
-Pipeline::Pipeline(const std::filesystem::path& rootPath, const ShaderApiVersion& version, const std::vector<Shader> & shaders)
-    : _shaders(shaders), _rootPath(rootPath), _version(version) {
+Pipeline::Pipeline(const std::filesystem::path& rootPath, 
+                   const ShaderApiVersion& version, 
+                   const std::vector<Shader> & shaders, 
+                   const std::vector<std::pair<std::string, std::string>> defines)
+    : _shaders(shaders), _rootPath(rootPath), _version(version), _defines(defines) {
 
     this->_compile();
 }
@@ -196,10 +199,20 @@ static void PreprocessIncludes(std::string& source, const std::filesystem::path&
     }
 }
 
-static void PreprocessShaderSource(std::string& source, const std::filesystem::path& root, const std::string& versionTag, const std::unordered_set<std::string>& allShaders) {
+static void PreprocessShaderSource(std::string& source, 
+                                   const std::filesystem::path& root, 
+                                   const std::string& versionTag, 
+                                   const std::unordered_set<std::string>& allShaders,
+                                   const std::vector<std::pair<std::string, std::string>>& defines) {
     PreprocessIncludes(source, root, allShaders);
-    ReplaceFirst(source, "STRATUS_GLSL_VERSION", versionTag);
+    ReplaceFirst(source, "STRATUS_GLSL_VERSION", versionTag + "\n\nSTRATUS_GLSL_DEFINES");
     ReplaceAll(source, "STRATUS_GLSL_VERSION", "");
+    // Build the define list
+    std::string defineList;
+    for (const auto& define : defines) {
+        defineList = defineList + "#define " + define.first + " " + define.second + "\n";
+    }
+    ReplaceFirst(source, "STRATUS_GLSL_DEFINES", defineList);
 }
 
 void Pipeline::_compile() {
@@ -217,7 +230,7 @@ void Pipeline::_compile() {
             return;
         }
 
-        PreprocessShaderSource(buffer, _rootPath, versionTag, allShaders);
+        PreprocessShaderSource(buffer, _rootPath, versionTag, allShaders, _defines);
 
         GLenum type;
         switch (s.type) {

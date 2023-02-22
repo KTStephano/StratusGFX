@@ -33,6 +33,19 @@ class Pipeline {
      * List of all shaders used by the pipeline.
      */
     std::vector<Shader> _shaders;
+    
+    /**
+     * Specifies the top level directory where all shaders are located.
+     */
+    std::filesystem::path _rootPath;
+
+    /**
+     * Contains information about the graphics API version.
+     */
+    ShaderApiVersion _version;
+
+    // List of #defines for the shader
+    std::vector<std::pair<std::string, std::string>> _defines;
 
     // List of bound textures since the last call to bind()
     std::unordered_map<std::string, Texture> _boundTextures;
@@ -51,23 +64,16 @@ class Pipeline {
      */
     bool _isValid = false;
 
-    /**
-     * Specifies the top level directory where all shaders are located.
-     */
-    std::filesystem::path _rootPath;
-
-    /**
-     * Contains information about the graphics API version.
-     */
-    ShaderApiVersion _version;
-
 public:
     /**
      * @param vertexPipeline file for the vertex Pipeline
      * @param geomPipeline file for the geometry Pipeline (optional)
      * @param fragPipeline file for the fragment Pipeline
      */
-    Pipeline(const std::filesystem::path& rootPath, const ShaderApiVersion& version, const std::vector<Shader>& shaders);
+    Pipeline(const std::filesystem::path& rootPath, 
+             const ShaderApiVersion& version, 
+             const std::vector<Shader>& shaders,
+             const std::vector<std::pair<std::string, std::string>> defines = {});
     ~Pipeline();
 
     /**

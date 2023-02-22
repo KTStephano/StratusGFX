@@ -82,6 +82,32 @@ namespace stratus {
             _currentBindingPoint = 0;
         }
 
+        void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer) {
+            if (_colorAttachments.size() < attachmentNum) {
+                throw std::runtime_error("Attachment number exceeds amount of attached color textures");
+            }
+
+            glNamedFramebufferTextureLayer(
+                _fbo, 
+                GL_COLOR_ATTACHMENT0 + attachmentNum,
+                *(GLuint *)getColorAttachments()[attachmentNum].underlying(),
+                mipLevel, layer
+            );
+        }
+
+        void SetDepthTextureLayer(const int layer) {
+            if (_depthStencilAttachment == Texture()) {
+                throw std::runtime_error("Attempt to use null depth/stencil attachment");
+            }
+
+            glNamedFramebufferTextureLayer(
+                _fbo, 
+                GL_DEPTH_ATTACHMENT,
+                *(GLuint *)getDepthStencilAttachment()->underlying(),
+                0, layer
+            );
+        }
+
         void setAttachments(const std::vector<Texture> & attachments) {
             if (_colorAttachments.size() > 0 || _depthStencilAttachment.valid()) throw std::runtime_error("setAttachments called twice");
             _valid = true;
@@ -225,4 +251,12 @@ namespace stratus {
     void FrameBuffer::unbind() const       { _fbo->unbind(); }
     bool FrameBuffer::valid() const        { return _fbo != nullptr && _fbo->valid(); }
     void * FrameBuffer::underlying() const { return _fbo->underlying(); }
+
+    void FrameBuffer::SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer) { 
+        _fbo->SetColorTextureLayer(attachmentNum, mipLevel, layer); 
+    }
+
+    void FrameBuffer::SetDepthTextureLayer(const int layer) { 
+        _fbo->SetDepthTextureLayer(layer);
+    }
 }
