@@ -288,7 +288,7 @@ namespace stratus {
             // of hdr and gamma correction
             std::unique_ptr<Pipeline> hdrGamma;
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
-            std::unique_ptr<Pipeline> shadows;
+            std::vector<std::unique_ptr<Pipeline>> shadows;
             // Geometry pass - handles all combinations of material properties
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass
@@ -310,7 +310,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> vplCulling;
             std::unique_ptr<Pipeline> vplTileDeferredCulling;
             // Handles cascading shadow map depth buffer rendering
-            // (we compile one depth shader per cascade - max 5)
+            // (we compile one depth shader per cascade - max 6)
             std::vector<std::unique_ptr<Pipeline>> csmDepth;
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;

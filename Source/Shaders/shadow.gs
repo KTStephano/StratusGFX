@@ -1,3 +1,5 @@
+// No longer used! Kept for reference purposes. See http://www.joshbarczak.com/blog/?p=667
+
 STRATUS_GLSL_VERSION
 
 layout (triangles) in;

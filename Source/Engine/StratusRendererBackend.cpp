@@ -93,12 +93,16 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"hdr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.hdrGamma.get());
 
-    // Set up the shadow preprocessing shader
-    _state.shadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"shadow.vs", ShaderType::VERTEX},
-        Shader{"shadow.gs", ShaderType::GEOMETRY},
-        Shader{"shadow.fs", ShaderType::FRAGMENT}}));
-    _state.shaders.push_back(_state.shadows.get());
+    // Set up the shadow preprocessing shaders
+    for (int i = 0; i < 6; ++i) {
+        _state.shadows.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"shadow.vs", ShaderType::VERTEX},
+            //Shader{"shadow.gs", ShaderType::GEOMETRY},
+            Shader{"shadow.fs", ShaderType::FRAGMENT}},
+            {{"DEPTH_LAYER", std::to_string(i)}}))
+        );
+        _state.shaders.push_back(_state.shadows[i].get());
+    }
 
     _state.lighting = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr.vs", ShaderType::VERTEX},
@@ -110,7 +114,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.bloom.get());
 
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 6; ++i) {
         _state.csmDepth.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"csm.vs", ShaderType::VERTEX},
             //Shader{"csm.gs", ShaderType::GEOMETRY},
@@ -752,7 +756,7 @@ void RendererBackend::_RenderSkybox() {
 
 void RendererBackend::_RenderCSMDepth() {
     if (_frame->csc.cascades.size() > _state.csmDepth.size()) {
-        throw std::runtime_error("Max cascades exceeded (> 5)");
+        throw std::runtime_error("Max cascades exceeded (> 6)");
     }
 
     glEnable(GL_DEPTH_TEST);
@@ -972,7 +976,6 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
-    _BindShader(_state.shadows.get());
     for (int shadowUpdates = 0; shadowUpdates < _state.maxShadowUpdatesPerFrame && _frame->lightsToUpate.Size() > 0; ++shadowUpdates) {
         auto light = _frame->lightsToUpate.PopFront();
         // Ideally this won't be needed but just in case
@@ -994,20 +997,23 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
         // glClear(GL_DEPTH_BUFFER_BIT);
 
         auto transforms = GenerateLightViewTransforms(lightPerspective, point->GetPosition());
-        for (int i = 0; i < transforms.size(); ++i) {
-            const std::string index = "[" + std::to_string(i) + "]";
-            _state.shadows->setMat4("shadowMatrices" + index, &transforms[i][0][0]);
-        }
-        _state.shadows->setVec3("lightPos", light->GetPosition());
-        _state.shadows->setFloat("farPlane", point->getFarPlane());
+        for (size_t i = 0; i < transforms.size(); ++i) {
+            Pipeline * shader = _state.shadows[i].get();
+            _BindShader(shader);
 
-        _RenderImmediate(_frame->instancedStaticPbrMeshes);
-        if ( !point->IsStaticLight() ) _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+            shader->setMat4("shadowMatrix", transforms[i]);
+            shader->setVec3("lightPos", light->GetPosition());
+            shader->setFloat("farPlane", point->getFarPlane());
+
+            _RenderImmediate(_frame->instancedStaticPbrMeshes);
+            if ( !point->IsStaticLight() ) _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+
+            _UnbindShader();
+        }
 
         // Unbind
         smap.frameBuffer.unbind();
     }
-    _UnbindShader();
 }
 
 void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {

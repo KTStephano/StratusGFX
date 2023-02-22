@@ -68,8 +68,8 @@ namespace stratus {
             // TODO: There is a much better way to do this
             // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFramebufferTextureLayer.xhtml
             // Followed by a regular glClear of the depth stencil attachment
-            std::vector<float> data(_depthStencilAttachment.width() * _depthStencilAttachment.height(), val);
-            _depthStencilAttachment.clearLayer(0, layer, (const void *)data.data());
+            //std::vector<float> data(_depthStencilAttachment.width() * _depthStencilAttachment.height(), val);
+            _depthStencilAttachment.clearLayer(0, layer, (const void *)&val);
         }
 
         void bind() const {
