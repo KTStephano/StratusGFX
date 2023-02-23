@@ -50,15 +50,15 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
             transform->SetLocalPosition(glm::vec3(0.0f));
             //transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
-            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
             INSTANCE(EntityManager)->AddEntity(sponza);
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         });
