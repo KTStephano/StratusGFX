@@ -1108,7 +1108,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.getDirection();
 
-    _state.vplCulling->setVec3("infiniteLightDirection", direction);  
+    _state.vplCulling->setVec3("infiniteLightDirection", direction);
+    _state.vplCulling->setVec3("infiniteLightColor", _frame->csc.worldLight->getColor());
 
     // Set up # visible atomic counter
     int numVisible = 0;

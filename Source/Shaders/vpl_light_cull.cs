@@ -12,6 +12,8 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 #include "pbr.glsl"
 #include "vpl_tiled_deferred_culling.glsl"
 
+uniform vec3 infiniteLightColor;
+
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
 
@@ -52,17 +54,28 @@ layout (std430, binding = 7) readonly buffer vplIntensity {
 void main() {
     int index = int(gl_GlobalInvocationID.x);
 
-    vec3 diffuse = texture(diffuseCubeMaps[index], -infiniteLightDirection).rgb;
-    lightColors[index] = vec4(diffuse * lightIntensities[index], 1.0);
-
     vec3 lightPos = lightPositions[index].xyz;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
     if (shadowFactor < 0.99) {
+        vec3 color = vec3(0.0);
+        float offset = 0.3;
+        float offsets[2] = float[](-offset, offset);
+        // This should result in 2*2*2 = 8 samples
+        for (int x = 0; x < 2; ++x) {
+            for (int y = 0; y < 2; ++y) {
+                for (int z = 0; z < 2; ++z) {
+                    vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
+                    color += texture(diffuseCubeMaps[index], -infiniteLightDirection + dirOffset).rgb * infiniteLightColor;
+                }
+            }
+        }
+
         int next = atomicAdd(numVisible, 1);
         shadowFactors[index] = shadowFactor;
         vplVisibleIndex[next] = index;
+        lightColors[index] = vec4(color * lightIntensities[index], 1.0);
     }
 }

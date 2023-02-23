@@ -111,7 +111,7 @@ void main() {
                                   dot(cascadePlanes[2], vec4(fragPos, 1.0)));
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
-        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.0);
+        color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.003);
     }
 
     fsColor = boundHDR(color);
