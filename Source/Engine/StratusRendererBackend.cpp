@@ -1054,28 +1054,6 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
 void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     if (perVPLDistToViewer.size() == 0) return;
 
-    // std::vector<std::pair<LightPtr, double>> availableVPLs;
-    // availableVPLs.reserve(perVPLDistToViewer.size());
-    // for (auto& entry : perVPLDistToViewer) {
-    //     // Only add lights we have shadow maps for
-    //     if (_ShadowMapExistsForLight(entry.first)) {
-    //         availableVPLs.push_back(entry);
-    //     }
-    // }
-
-    // perVPLDistToViewer = std::move(availableVPLs);
-
-    // // Sort lights based on distance to viewer
-    // const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
-    //     return a.second < b.second;
-    // };
-    // std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
-
-    // // Check if we have too many lights for a single frame
-    // if (perVPLDistToViewer.size() > _state.vpls.maxTotalVirtualPointLightsPerFrame) {
-    //     perVPLDistToViewer.resize(_state.vpls.maxTotalVirtualPointLightsPerFrame);
-    // }
-
     // Pack data into system memory
     std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
     std::vector<GpuVec> lightPositions(perVPLDistToViewer.size());
@@ -1109,7 +1087,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     const glm::vec3 direction = lightCam.getDirection();
 
     _state.vplCulling->setVec3("infiniteLightDirection", direction);
-    _state.vplCulling->setVec3("infiniteLightColor", _frame->csc.worldLight->getColor());
+    _state.vplCulling->setVec3("infiniteLightColor", _frame->csc.worldLight->getLuminance());
 
     // Set up # visible atomic counter
     int numVisible = 0;

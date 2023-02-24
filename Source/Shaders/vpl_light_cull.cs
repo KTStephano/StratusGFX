@@ -60,11 +60,11 @@ void main() {
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
     float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
     if (shadowFactor < 0.99) {
-        // First two samples from the exact direction vector for a total of 10 samples
+        // First two samples from the exact direction vector for a total of 10 samples after loop
         vec3 color = 2.0 * texture(diffuseCubeMaps[index], -infiniteLightDirection).rgb * infiniteLightColor;
-        float offset = 0.3;
+        float offset = 0.2;
         float offsets[2] = float[](-offset, offset);
-        // This should result in 2*2*2 = 8 samples
+        // This should result in 2*2*2 = 8 samples, + 2 from above = 10
         for (int x = 0; x < 2; ++x) {
             for (int y = 0; y < 2; ++y) {
                 for (int z = 0; z < 2; ++z) {

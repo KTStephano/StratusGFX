@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "pbr.glsl"
+#include "pbr2.glsl"
 #include "vpl_tiled_deferred_culling.glsl"
 
 // Input from vertex shader
@@ -111,12 +112,12 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
         float shadowFactor = 0.0;
         //if (length(lightPosition - viewPosition) < 150) {
-        shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal));
         //}
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vplColor = vplColor + calculateVirtualPointLighting(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
     return boundHDR(vplColor);

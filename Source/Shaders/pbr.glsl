@@ -236,7 +236,7 @@ float quadraticAttenuation(vec3 lightDir) {
 }
 
 float vplAttenuation(vec3 lightDir, float lightRadius) {
-    float minDist = 0.15 * lightRadius;
+    float minDist = 0.1 * lightRadius;
     float maxDist = 0.35 * lightRadius;
     float lightDist = clamp(length(lightDir), minDist, maxDist);
     return 1.0 / (1.0 + lightDist * lightDist);
@@ -312,5 +312,5 @@ vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 norma
     vec3 lightDir   = lightPos - fragPosition;
 
     //return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.0);
-    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.0);
+    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.003);
 }

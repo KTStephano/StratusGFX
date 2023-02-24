@@ -186,7 +186,7 @@ namespace stratus {
         }
 
         // Gets radius but bounded
-        float getRadius() const {
+        virtual float getRadius() const {
             return std::max(150.0f, _radius);
         }
 
@@ -296,6 +296,10 @@ namespace stratus {
         // to PointLight instead of this and then cause horrible strange errors
         LightPtr Copy() const override {
             return LightPtr(new VirtualPointLight(*this));
+        }
+
+        virtual float getRadius() const override {
+            return std::max(500.0f, _radius);
         }
 
     private:

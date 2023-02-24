@@ -95,17 +95,44 @@ float Fd_Lambert(float NdotV, float NdotL, float LdotH, float roughness) {
     return 1.0 / PI;
 }
 
+vec3 singleScatteringBRDF_Specular(
+    float NdotV,
+    float NdotL,
+    float NdotH,
+    float LdotH,
+    float remappedRoughness,
+    vec3 f0) {
+
+    float NDF        = NDF_GGX(NdotH, remappedRoughness);
+    vec3  Fresnel    = Fr_Fresnel_Schlick(LdotH, f0);
+    float Visibility = Visibility_G_SmithGGX(NdotV, NdotL, remappedRoughness);
+
+    return (NDF * Visibility) * Fresnel;
+}
+
+vec3 singleScatteringBRDF_Diffuse(
+    float NdotV,
+    float NdotL,
+    float NdotH,
+    float LdotH,
+    float remappedRoughness,
+    vec3 diffuseColor) {
+
+    return diffuseColor * Fd_Burley(NdotV, NdotL, LdotH, remappedRoughness);
+}
+
 // This uses single scattering which means it does not account for the fact that light may bounce around
 // several microfacets and then still escape. A downside is that this tends to exhibit energy loss as roughness
 // increases. This can be prevented by switching to a more accurace multi-scattering model (Filament paper explains
 // how).
-vec3 singleScatteringBRDF(vec3 lightDir, 
-                          vec3 viewDir, 
-                          vec3 normal, 
-                          vec3 baseColor, 
-                          vec3 baseReflectance, 
-                          float roughness, 
-                          float metallic) {
+vec3 BRDF(
+    vec3 lightDir, 
+    vec3 viewDir, 
+    vec3 normal, 
+    vec3 baseColor, 
+    vec3 baseReflectance, 
+    float roughness, 
+    float metallic) {
     
     // Remaps from perceptually linear roughness to roughness
     float remappedRoughness = roughness * roughness;
@@ -126,34 +153,66 @@ vec3 singleScatteringBRDF(vec3 lightDir,
     float NdotH = saturate(dot(N, H));
     float LdotH = saturate(dot(L, H));
 
-    float NDF        = NDF_GGX(NdotH, remappedRoughness);
-    vec3  Fresnel    = Fr_Fresnel_Schlick(LdotH, f0);
-    float Visibility = Visibility_G_SmithGGX(NdotV, NdotL, remappedRoughness);
-
     // Specular
-    vec3 Fr = (NDF * Visibility) * Fresnel;
+    vec3 Fr = singleScatteringBRDF_Specular(NdotV, NdotL, NdotH, LdotH, remappedRoughness, f0);
 
     // Diffuse
-    vec3 Fd = diffuseColor * Fd_Burley(NdotV, NdotL, LdotH, remappedRoughness);
+    vec3 Fd = singleScatteringBRDF_Diffuse(NdotV, NdotL, NdotH, LdotH, remappedRoughness, diffuseColor);
 
     // Does not account for light color/intensity (functions below do that)
     return (Fd + Fr) * NdotL;
 }
 
-vec3 calculateLighting2(vec3 lightColor, 
-                        vec3 lightDir, 
-                        vec3 viewDir, 
-                        vec3 normal, 
-                        vec3 baseColor, 
-                        float roughness, 
-                        float metallic, 
-                        float ambientOcclusion, 
-                        float shadowFactor, 
-                        vec3 baseReflectance, 
-                        float attenuationFactor, 
-                        float ambientIntensity) {
+vec3 BRDF_DiffuseOnly(
+    vec3 lightDir, 
+    vec3 viewDir, 
+    vec3 normal, 
+    vec3 baseColor, 
+    vec3 baseReflectance, 
+    float roughness, 
+    float metallic) {
+    
+    // Remaps from perceptually linear roughness to roughness
+    float remappedRoughness = roughness * roughness;
 
-    vec3 brdf = singleScatteringBRDF(lightDir, viewDir, normal, baseColor, baseReflectance, roughness, metallic);
+    // Compute diffuse from base using metallic value
+    vec3 diffuseColor = (1.0 - metallic) * baseColor;
+
+    // Compute reflectance - for purely metallic materials this is used as the diffuse color
+    vec3 f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
+
+    vec3 V = viewDir;
+    vec3 L = normalize(lightDir);
+    vec3 H = normalize(V + L);
+    vec3 N = normal;
+
+    float NdotV = saturate(dot(N, V)); //abs(dot(N, V)) + PREVENT_DIV_BY_ZERO;
+    float NdotL = saturate(dot(N, L));
+    float NdotH = saturate(dot(N, H));
+    float LdotH = saturate(dot(L, H));
+
+    // Diffuse
+    vec3 Fd = singleScatteringBRDF_Diffuse(NdotV, NdotL, NdotH, LdotH, remappedRoughness, diffuseColor);
+
+    // Does not account for light color/intensity (functions below do that)
+    return Fd * NdotL;
+}
+
+vec3 calculateLighting2(
+    vec3 lightColor, 
+    vec3 lightDir, 
+    vec3 viewDir, 
+    vec3 normal, 
+    vec3 baseColor, 
+    float roughness, 
+    float metallic, 
+    float ambientOcclusion, 
+    float shadowFactor, 
+    vec3 baseReflectance, 
+    float attenuationFactor, 
+    float ambientIntensity) {
+
+    vec3 brdf = BRDF(lightDir, viewDir, normal, baseColor, baseReflectance, roughness, metallic);
 
     vec3 ambient = brdf * ambientOcclusion * lightColor * ambientIntensity;
     vec3 finalBrightnes = brdf * lightColor;
@@ -161,33 +220,77 @@ vec3 calculateLighting2(vec3 lightColor,
     return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
 }
 
-vec3 calculateDirectionalLighting(vec3 lightColor,
-                                  vec3 lightDir, 
-                                  vec3 viewDir, 
-                                  vec3 normal, 
-                                  vec3 baseColor, 
-                                  float roughness, 
-                                  float metallic, 
-                                  float ambientOcclusion, 
-                                  float shadowFactor, 
-                                  vec3 baseReflectance, 
-                                  float ambientIntensity) {
+vec3 calculateLighting_DiffuseOnly(
+    vec3 lightColor, 
+    vec3 lightDir, 
+    vec3 viewDir, 
+    vec3 normal, 
+    vec3 baseColor, 
+    float roughness, 
+    float metallic, 
+    float ambientOcclusion, 
+    float shadowFactor, 
+    vec3 baseReflectance, 
+    float attenuationFactor, 
+    float ambientIntensity) {
+
+    vec3 brdf = BRDF_DiffuseOnly(lightDir, viewDir, normal, baseColor, baseReflectance, roughness, metallic);
+
+    vec3 ambient = brdf * ambientOcclusion * lightColor * ambientIntensity;
+    vec3 finalBrightnes = brdf * lightColor;
+
+    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
+}
+
+vec3 calculateDirectionalLighting(
+    vec3 lightColor,
+    vec3 lightDir, 
+    vec3 viewDir, 
+    vec3 normal, 
+    vec3 baseColor, 
+    float roughness, 
+    float metallic, 
+    float ambientOcclusion, 
+    float shadowFactor, 
+    vec3 baseReflectance, 
+    float ambientIntensity) {
 
     return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, 1.0, ambientIntensity);
 }
 
-vec3 calculatePointLighting2(vec3 fragPosition, 
-                             vec3 baseColor, 
-                             vec3 normal, 
-                             vec3 viewDir, 
-                             vec3 lightPos, 
-                             vec3 lightColor, 
-                             float roughness, 
-                             float metallic, 
-                             float ambientOcclusion, 
-                             float shadowFactor, 
-                             vec3 baseReflectance) {
+vec3 calculatePointLighting2(
+    vec3 fragPosition, 
+    vec3 baseColor, 
+    vec3 normal, 
+    vec3 viewDir, 
+    vec3 lightPos, 
+    vec3 lightColor, 
+    float roughness, 
+    float metallic, 
+    float ambientOcclusion, 
+    float shadowFactor, 
+    vec3 baseReflectance) {
+
     vec3 lightDir   = lightPos - fragPosition;
 
     return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+}
+
+vec3 calculateVirtualPointLighting2(
+    vec3 fragPosition, 
+    vec3 baseColor, 
+    vec3 normal, 
+    vec3 viewDir, 
+    vec3 lightPos, 
+    vec3 lightColor,
+    float lightRadius, 
+    float roughness, 
+    float metallic, 
+    float ambientOcclusion, 
+    float shadowFactor, 
+    vec3 baseReflectance) {
+
+    vec3 lightDir   = lightPos - fragPosition;
+
+    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.003);
 }
