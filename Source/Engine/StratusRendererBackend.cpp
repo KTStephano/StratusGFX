@@ -1056,6 +1056,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Pack data into system memory
     std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
+    std::vector<GpuTextureHandle> smapHandles(perVPLDistToViewer.size());
     std::vector<GpuVec> lightPositions(perVPLDistToViewer.size());
     std::vector<float> lightIntensities(perVPLDistToViewer.size());
     std::vector<float> lightFarPlanes(perVPLDistToViewer.size());
@@ -1065,6 +1066,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
         auto smap = _GetOrAllocateShadowMapForLight(perVPLDistToViewer[i].first);
         diffuseHandles[i] = smap.diffuseCubeMap.GpuHandle();
+        smapHandles[i] = smap.shadowCubeMap.GpuHandle();
         lightPositions[i] = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
         lightFarPlanes[i] = point->getFarPlane();
         lightRadii[i] = point->getRadius();
@@ -1074,6 +1076,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Move data to GPU memory
     _state.vpls.vplDiffuseMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * diffuseHandles.size(), (const void *)diffuseHandles.data());
+    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * smapHandles.size(), (const void *)smapHandles.data());
     _state.vpls.vplPositions.CopyDataToBuffer(0, sizeof(GpuVec) * lightPositions.size(), (const void *)lightPositions.data());
     _state.vpls.vplFarPlanes.CopyDataToBuffer(0, sizeof(float) * lightFarPlanes.size(), (const void *)lightFarPlanes.data());
     _state.vpls.vplIntensities.CopyDataToBuffer(0, sizeof(float) * lightIntensities.size(), (const void *)lightIntensities.data());
@@ -1112,14 +1115,16 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
 
     // Bind inputs
     _state.vplTileDeferredCulling->bindTexture("gPosition", _state.buffer.position);
+    _state.vplTileDeferredCulling->bindTexture("gNormal", _state.buffer.normals);
+    _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
+    _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
+
     _state.vpls.vplPositions.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     _state.vpls.vplRadii.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     _state.vpls.vplColors.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 10);
-
-    _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
-    _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
+    _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     // Bind outputs
     _state.vpls.vplLightIndicesVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
@@ -1164,20 +1169,6 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     // Set up infinite light color
     const glm::vec3 lightColor = _frame->csc.worldLight->getLuminance();
     _state.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
-
-    // Set up the shadow maps and radius information
-    //GpuTextureHandle * handles = (GpuTextureHandle *)_state.vpls.vplShadowMaps.MapMemory();
-    std::vector<GpuTextureHandle> handles(perVPLDistToViewer.size());
-    for (int i = 0; i < perVPLDistToViewer.size(); ++i) {
-        int lightIndex = i;
-        LightPtr light = perVPLDistToViewer[lightIndex].first;
-        auto smap = _GetOrAllocateShadowMapForLight(light);
-        handles[i] = smap.shadowCubeMap.GpuHandle();
-        //VirtualPointLight * point = (VirtualPointLight *)light.get();
-        //_state.vplGlobalIllumination->bindTexture("shadowCubeMaps[" + std::to_string(i) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
-    }
-    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * handles.size(), (const void *)handles.data());
-    //_state.vpls.vplShadowMaps.UnmapMemory();
 
     _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth);
     _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight);

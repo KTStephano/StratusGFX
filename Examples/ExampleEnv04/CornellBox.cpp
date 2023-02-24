@@ -3,7 +3,6 @@
 #include <iostream>
 #include <StratusPipeline.h>
 #include <StratusCamera.h>
-#include "StratusAsync.h"
 #include <chrono>
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
@@ -21,12 +20,25 @@
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
 
-class Sponza : public stratus::Application {
+class CornellBox : public stratus::Application {
 public:
-    virtual ~Sponza() = default;
+    virtual ~CornellBox() = default;
 
     const char * GetAppName() const override {
-        return "Sponza";
+        return "CornellBox";
+    }
+
+    void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
+        auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
+        std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
+        if (rc) {
+            for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
+                std::cout << rc->GetMeshTransform(i) << std::endl;
+            }
+        }
+        for (auto& c : p->GetChildNodes()) {
+            PrintNodeHierarchy(c, name, prefix + "-> ");
+        }
     }
 
     // Perform first-time initialization - true if success, false otherwise
@@ -40,48 +52,25 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor));
+        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, 3.0f));
         Input()->AddInputHandler(controller);
 
-        // Moonlight
-        //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
-        //worldLight->setIntensity(0.5f);
-
-        //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
+        //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
+        //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
+        //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../../local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
-        
-        auto callback = [this](stratus::Async<stratus::Entity> e) { 
-            sponza = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
-            transform->SetLocalPosition(glm::vec3(0.0f));
-            //transform->SetLocalScale(glm::vec3(15.0f));
-            transform->SetLocalScale(glm::vec3(15.0f));
-            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
-            INSTANCE(EntityManager)->AddEntity(sponza);
-            //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
-        };
-
-        e.AddCallback(callback);
-        //e2.AddCallback(callback);
-
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../CornellBox/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            cornellBox = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(cornellBox);
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            transform->SetLocalScale(glm::vec3(0.125f));
+            INSTANCE(EntityManager)->AddEntity(cornellBox);
+            PrintNodeHierarchy(cornellBox, "CornellBox", "");
+        });
 
         bool running = true;
-
-        // for (int i = 0; i < 64; ++i) {
-        //     float x = rand() % 600;gg
-        //     float y = rand() % 600;
-        //     float z = rand() % 200;
-        //     stratus::VirtualPointLight * vpl = new stratus::VirtualPointLight();
-        //     vpl->setIntensity(worldLight->getIntensity() * 50.0f);
-        //     vpl->position = glm::vec3(x, y, z);
-        //     vpl->setColor(worldLight->getColor());
-        //     World()->AddLight(stratus::LightPtr((stratus::Light *)vpl));
-        // }
 
         return true;
     }
@@ -93,11 +82,11 @@ public:
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
+        //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
+
+        auto camera = World()->GetCamera();
         auto worldLight = World()->GetWorldLight();
         const glm::vec3 worldLightColor = worldLight->getColor();
-        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
-
-        //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
         // Check for key/mouse events
         auto events = Input()->GetInputEventsLastFrame();
@@ -117,20 +106,10 @@ public:
                             break;
                         case SDL_SCANCODE_R:
                             if (released) {
-                                INSTANCE(RendererFrontend)->RecompileShaders();
+                                stratus::RendererFrontend::Instance()->RecompileShaders();
                             }
                             break;
                         case SDL_SCANCODE_1: {
-                            if (released) {
-                                LightCreator::CreateStationaryLight(
-                                    //LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
-                                    LightParams(World()->GetCamera()->getPosition(), warmMorningColor, 600.0f),
-                                    false
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, 100.0f)
@@ -138,7 +117,7 @@ public:
                             }
                             break;
                         }
-                        case SDL_SCANCODE_3: {
+                        case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, 50.0f)
@@ -146,18 +125,10 @@ public:
                             }
                             break;
                         }
-                        case SDL_SCANCODE_4: {
+                        case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
                                     LightParams(World()->GetCamera()->getPosition(), worldLightColor, 15.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_5: {
-                            if (released) {
-                                LightCreator::CreateRandomLightMover(
-                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
                                 );
                             }
                             break;
@@ -170,22 +141,10 @@ public:
             }
         }
 
-        
-
-        // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
-        //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-
-        #define LERP(x, v1, v2) (x * v1 + (1.0f - x) * v2)
-
-        //renderer->toggleWorldLighting(worldLightEnabled);
-        // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.5));
-        // worldLight->setColor(glm::vec3(1.0f, 0.75f, 0.75f));
-        //const float x = std::sinf(stratus::Radians(worldLight->getRotation().x).value());
-        
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
-        INSTANCE(RendererFrontend)->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         //renderer->addDrawable(rocks);
 
@@ -211,8 +170,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr sponza;
-    std::vector<stratus::EntityPtr> entities;
+    stratus::EntityPtr cornellBox;
 };
 
-STRATUS_ENTRY_POINT(Sponza)
+STRATUS_ENTRY_POINT(CornellBox)

@@ -272,17 +272,27 @@ namespace stratus {
     }
 
     static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode, const ColorSpace& cspace) {
-        if (mesh->mNumUVComponents[0] == 0) return;
-        if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
+        
+        STRATUS_LOG << "MESH DATA" << mesh->mNumUVComponents[0] << ", " << mesh->mNormals << ", " << mesh->mTangents << ", " << mesh->mBitangents << std::endl;
+        //if (mesh->mNumUVComponents[0] == 0) return;
+        //if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
+        if (mesh->mNormals == nullptr) return;
 
         MeshPtr rmesh = Mesh::Create();
         // Process core primitive data
         for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
             rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
-            rmesh->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
             rmesh->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
-            rmesh->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
-            rmesh->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
+
+            if (mesh->mNumUVComponents[0] != 0) {
+                rmesh->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
+            }
+            else {
+                rmesh->AddUV(glm::vec2(1.0f, 1.0f));
+            }
+
+            if (mesh->mTangents != nullptr)   rmesh->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
+            if (mesh->mBitangents != nullptr) rmesh->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
         }
 
         // Process indices

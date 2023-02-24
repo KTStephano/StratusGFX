@@ -15,9 +15,11 @@ layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 
 #include "vpl_tiled_deferred_culling.glsl"
 #include "common.glsl"
+#include "pbr.glsl"
 
 // GBuffer information
 uniform sampler2D gPosition;
+uniform sampler2D gNormal;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -57,6 +59,10 @@ layout (std430, binding = 5) writeonly buffer outputBlock1 {
 
 layout (std430, binding = 6) writeonly buffer outputBlock2 {
     int vplNumVisiblePerTile[];
+};
+
+layout (std430, binding = 11) readonly buffer vplShadows {
+    samplerCube shadowCubeMaps[];
 };
 
 /*
@@ -129,6 +135,7 @@ void main() {
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
     int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
     vec3 fragPos = texture(gPosition, texCoords).xyz;
+    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
 
     int numVisibleThisTile = 0;
     int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
@@ -142,8 +149,9 @@ void main() {
     for (int i = 0; i < numVisible; ++i) {
         //float intensity = length()
         int lightIndex = vplVisibleIndex[i];
-        float distance = length(lightPositions[lightIndex].xyz - fragPos);
+        vec3 lightPosition = lightPositions[lightIndex].xyz;
         float radius = lightRadii[lightIndex];
+        float distance = length(lightPosition - fragPos);
         float lightIntensity = length(lightColors[lightIndex]);
         float ratio = distance / radius;
         //if (ratio > 1.0 || ratio < 0.025) continue;
@@ -153,8 +161,10 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                //shuffleDown(indicesVisibleThisTile, ii);
-                //shuffleDown(distancesVisibleThisTile, ii);
+                float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+                // Light can't see current surface
+                if (shadowFactor > 0.25) break;
+
                 SHUFFLE_DOWN(indicesVisibleThisTile, ii)
                 SHUFFLE_DOWN(distancesVisibleThisTile, ii)
                 indicesVisibleThisTile[ii] = lightIndex;

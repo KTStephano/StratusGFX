@@ -62,7 +62,7 @@ void main() {
     if (shadowFactor < 0.99) {
         // First two samples from the exact direction vector for a total of 10 samples after loop
         vec3 color = 2.0 * texture(diffuseCubeMaps[index], -infiniteLightDirection).rgb * infiniteLightColor;
-        float offset = 0.2;
+        float offset = 0.5;
         float offsets[2] = float[](-offset, offset);
         // This should result in 2*2*2 = 8 samples, + 2 from above = 10
         for (int x = 0; x < 2; ++x) {
