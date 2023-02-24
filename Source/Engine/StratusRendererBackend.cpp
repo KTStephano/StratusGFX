@@ -1346,7 +1346,7 @@ void RendererBackend::_PerformPostFxProcessing() {
     //glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
 
-    //_PerformBloomPostFx();
+    _PerformBloomPostFx();
 
     _PerformAtmosphericPostFx();
 

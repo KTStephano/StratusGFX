@@ -71,6 +71,14 @@ float saturate(float value) {
     return clamp(value, 0.0, 1.0);
 }
 
+vec3 clampMediumPrecision(vec3 value) {
+    return clamp(value, 0.0, 65504.0);
+}
+
+float clampMediumPrecision(float value) {
+    return clamp(value, 0.0, 65504.0);
+}
+
 vec2 computeTexelSize(sampler2D tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)

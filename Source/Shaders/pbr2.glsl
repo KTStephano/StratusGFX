@@ -45,9 +45,9 @@ STRATUS_GLSL_VERSION
 
 // The GGX NDF is a distribution with short peak highlights and long-tailed falloff
 float NDF_GGX(float NdotH, float roughness) {
-    float a = NdotH * roughness;
-    float k = roughness / ((1.0 - NdotH * NdotH) + a * a);
-    return k * k * (1.0 / PI);
+    float r2 = roughness * roughness;
+    float f = (NdotH * r2 - NdotH) * NdotH + 1.0;
+    return r2 / max(PI * f * f, PREVENT_DIV_BY_ZERO);
 }
 
 // This uses a height-correlated Smith function for determining geometric shadowing. What this means
@@ -56,8 +56,7 @@ float Visibility_G_SmithGGX(float NdotV, float NdotL, float roughness) {
     float a2 = roughness * roughness;
     float ggxv = NdotL * sqrt((NdotV - a2 * NdotV) * NdotV + a2);
     float ggxl = NdotV * sqrt((NdotL - a2 * NdotL) * NdotL + a2);
-    // NOTE: Adding 0.03 prevented weird flickering errors - is it division by zero?
-    return 0.5 / (ggxv + ggxl + 0.03);
+    return 0.5 / max(ggxv + ggxl, PREVENT_DIV_BY_ZERO);
 }
 
 // Fresnel Effect defines how light reflects and refracts at the interface between two different media/materials
