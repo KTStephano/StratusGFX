@@ -9,5 +9,5 @@ layout (location = 0) out vec4 fsColor;
 uniform samplerCube skybox;
 
 void main() {
-    fsColor = texture(skybox, fsTexCoords);
+    fsColor = 3 * texture(skybox, fsTexCoords);
 }
