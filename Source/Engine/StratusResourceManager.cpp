@@ -376,8 +376,14 @@ namespace stratus {
 
             m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
-            m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR));
-            m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
+            auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR);
+            if (normalMap != TextureHandle::Null()) {
+                m->SetNormalMap(normalMap);
+            }
+            else {
+                m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
+            }
+            //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
             m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
             m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));

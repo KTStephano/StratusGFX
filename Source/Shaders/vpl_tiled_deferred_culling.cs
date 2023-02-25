@@ -172,7 +172,7 @@ void main() {
             if (distance < distancesVisibleThisTile[ii]) {
                 float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
                 // // Light can't see current surface
-                if (shadowFactor > 0.25) break;
+                if (shadowFactor > 0.5) break;
 
                 SHUFFLE_DOWN(indicesVisibleThisTile, ii)
                 SHUFFLE_DOWN(distancesVisibleThisTile, ii)
