@@ -309,6 +309,18 @@ void Pipeline::setFloat(const std::string &uniform, float f) const {
     glUniform1f(getUniformLocation(uniform), f);
 }
 
+void Pipeline::setUVec2(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform2uiv(getUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::setUVec3(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform3uiv(getUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::setUVec4(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform4uiv(getUniformLocation(uniform), num, vec);
+}
+
 void Pipeline::setVec2(const std::string &uniform, const float *vec, int num) const {
     glUniform2fv(getUniformLocation(uniform), num, vec);
 }
@@ -331,6 +343,18 @@ void Pipeline::setMat3(const std::string &uniform, const float *mat, int num) co
 
 void Pipeline::setMat4(const std::string &uniform, const float *mat, int num) const {
     glUniformMatrix4fv(getUniformLocation(uniform), num, GL_FALSE, mat);
+}
+
+void Pipeline::setUVec2(const std::string & uniform, const glm::uvec2& v) const {
+    setUVec2(uniform, &v[0]);
+}
+
+void Pipeline::setUVec3(const std::string & uniform, const glm::uvec3& v) const {
+    setUVec3(uniform, &v[0]);
+}
+
+void Pipeline::setUVec4(const std::string & uniform, const glm::uvec4& v) const {
+    setUVec4(uniform, &v[0]);
 }
 
 void Pipeline::setVec2(const std::string & uniform, const glm::vec2& v) const {

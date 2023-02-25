@@ -124,6 +124,9 @@ public:
      void setBool(const std::string & uniform, bool b) const;
      void setInt(const std::string & uniform, int i) const;
      void setFloat(const std::string & uniform, float f) const;
+     void setUVec2(const std::string & uniform, const unsigned int * vec, int num = 1) const;
+     void setUVec3(const std::string & uniform, const unsigned int * vec, int num = 1) const;
+     void setUVec4(const std::string & uniform, const unsigned int * vec, int num = 1) const;
      void setVec2(const std::string & uniform, const float * vec, int num = 1) const;
      void setVec3(const std::string & uniform, const float * vec, int num = 1) const;
      void setVec4(const std::string & uniform, const float * vec, int num = 1) const;
@@ -131,6 +134,9 @@ public:
      void setMat3(const std::string & uniform, const float * mat, int num = 1) const;
      void setMat4(const std::string & uniform, const float * mat, int num = 1) const;
 
+     void setUVec2(const std::string & uniform, const glm::uvec2&) const;
+     void setUVec3(const std::string & uniform, const glm::uvec3&) const;
+     void setUVec4(const std::string & uniform, const glm::uvec4&) const;
      void setVec2(const std::string & uniform, const glm::vec2&) const;
      void setVec3(const std::string & uniform, const glm::vec3&) const;
      void setVec4(const std::string & uniform, const glm::vec4&) const;
