@@ -119,11 +119,20 @@ void main() {
 }
 */
 
-#define SHUFFLE_DOWN(values, start)                                          \
-    for (int index_ = MAX_VPLS_PER_TILE - 2; index_ >= start; --index_) {    \
-        values[index_ + 1] = values[index_];                                 \
-    }                                                                        \
-    values[start] = 0;                              
+#define MAX_SEARCH_SPACE (MAX_VPLS_PER_TILE)
+
+#define SHUFFLE_DOWN(values, start, end)                        \
+    for (int index_ = end - 2; index_ >= start; --index_) {     \
+        values[index_ + 1] = values[index_];                    \
+    }                                                           \
+    values[start] = 0;    
+
+// #define SHUFFLE_DOWN(values, start, end) {                                   \
+//     for (int index_ = end + 1; index_ > start; --index_) {                   \
+//         values[index_] = values[index_ - 1];                                 \
+//     }                                                                        \
+//     values[start] = 0;                                                       \
+// }                                                                            \
 
 void main() {
     uvec2 numTiles = uvec2(viewportWidth, viewportHeight);
@@ -138,10 +147,10 @@ void main() {
     vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
 
     int numVisibleThisTile = 0;
-    int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
-    float distancesVisibleThisTile[MAX_VPLS_PER_TILE];
+    int indicesVisibleThisTile[MAX_SEARCH_SPACE];
+    float distancesVisibleThisTile[MAX_SEARCH_SPACE];
 
-    for (int i = 0; i < MAX_VPLS_PER_TILE; ++i) {
+    for (int i = 0; i < MAX_SEARCH_SPACE; ++i) {
         indicesVisibleThisTile[i] = i;
         distancesVisibleThisTile[i] = FLOAT_MAX;
     }
@@ -150,35 +159,20 @@ void main() {
         //float intensity = length()
         int lightIndex = vplVisibleIndex[i];
         vec3 lightPosition = lightPositions[lightIndex].xyz;
-        // Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane.
-        // If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.
-        // See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane
-        vec3 lightMinusFrag = lightPosition - fragPos;
-        float sideCheck = dot(normal, lightMinusFrag);
-        if (sideCheck < 0) continue;
-
         float radius = lightRadii[lightIndex];
-        float distance = length(lightMinusFrag);
+        float distance = length(lightPosition - fragPos);
         float lightIntensity = length(lightColors[lightIndex]);
         float ratio = distance / radius;
-
         if (ratio > 1.0) continue;
-        //if (ratio > 1.0 || ratio < 0.025) continue;
-        //if (ratio > 1.0 || (lightIntensity > 100 && ratio < 0.045) || ratio < 0.02) continue;
 
-        //float percentageStrength = max(1.0 - ratio, 0.001);
         distance = ratio;
-        for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
+        for (int ii = 0; ii < MAX_SEARCH_SPACE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
-                // // Light can't see current surface
-                if (shadowFactor > 0.25) break;
-
-                SHUFFLE_DOWN(indicesVisibleThisTile, ii)
-                SHUFFLE_DOWN(distancesVisibleThisTile, ii)
+                SHUFFLE_DOWN(indicesVisibleThisTile, ii, MAX_SEARCH_SPACE)
+                SHUFFLE_DOWN(distancesVisibleThisTile, ii, MAX_SEARCH_SPACE)
                 indicesVisibleThisTile[ii] = lightIndex;
                 distancesVisibleThisTile[ii] = distance;
-                if (numVisibleThisTile < MAX_VPLS_PER_TILE) {
+                if (numVisibleThisTile < MAX_SEARCH_SPACE) {
                     ++numVisibleThisTile;
                 }
                 break;

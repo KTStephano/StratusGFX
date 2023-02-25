@@ -20,11 +20,16 @@ uniform mat4 shadowMatrix;
 uniform vec3 lightDir;
 uniform int depthLayer;
 out float fsTanTheta;
+flat out int fsDrawID;
+smooth out vec2 fsTexCoords;
 
 void main () {
 	// Select which layer of the depth texture we will write to
 	// (DEPTH_LAYER is defined in C++ code)
 	gl_Layer = DEPTH_LAYER;
+
+	fsDrawID = gl_DrawID;
+	fsTexCoords = getTexCoord(gl_VertexID);
 
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
 	fsTanTheta = 3.0 * tan(acos(dot(normalize(lightDir), getNormal(gl_VertexID))));

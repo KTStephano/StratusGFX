@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "common.glsl"
+#include "alpha_test.glsl"
 
 //uniform float fsShininessVals[MAX_INSTANCES];
 //uniform float fsShininess = 0.0;
@@ -58,24 +59,6 @@ vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
     float height = texture(materials[materialIndices[fsDrawID]].depthMap, texCoords).r;
     vec2 p = viewDir.xy * (height * 0.005);
     return texCoords - p;
-}
-
-// See "Implementing a material system" in 3D Graphics Rendering Cookbook
-// This *only* implements basic punch through transparency and is not a full transparency solution
-void runAlphaTest(float alpha, float alphaThreshold) {
-    if (alphaThreshold == 0.0) return;
-
-    mat4 thresholdMatrix = mat4(
-        1.0/17.0, 9.0/17.0, 3.0/17.0, 11.0/17.0,
-        13.0/17.0, 5.0/17.0, 15.0/17.0, 7.0/17.0,
-        4.0/17.0, 12.0/17.0, 2.0/17.0, 10.0/17.0,
-        16.0/17.0, 8.0/17.0, 14.0/17.0, 6.0/17.0
-    );
-
-    int x = int(mod(gl_FragCoord.x, 4.0));
-    int y = int(mod(gl_FragCoord.y, 4.0));
-    alpha = clamp(alpha - 0.5 * thresholdMatrix[x][y], 0.0, 1.0);
-    if (alpha < alphaThreshold) discard;
 }
 
 void main() {

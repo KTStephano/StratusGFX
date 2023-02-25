@@ -29,6 +29,10 @@ namespace stratus {
             _config = config;
 
             bind();
+            // Use tightly packed data
+            // See https://stackoverflow.com/questions/19023397/use-glteximage2d-draw-6363-image
+            // See https://registry.khronos.org/OpenGL-Refpages/es1.1/xhtml/glPixelStorei.xml
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             if (config.type == TextureType::TEXTURE_2D || config.type == TextureType::TEXTURE_RECTANGLE) {
                 glTexImage2D(_convertTexture(config.type), // target
                     0, // level 
@@ -74,9 +78,10 @@ namespace stratus {
                 throw std::runtime_error("Unknown texture type specified");
             }
 
-            // Mipmaps aren't generated for rectangle textures
-            if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateMipmap(_convertTexture(_config.type));
             unbind();
+
+            // Mipmaps aren't generated for rectangle textures
+            if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(_texture);
         }
 
         ~TextureImpl() {

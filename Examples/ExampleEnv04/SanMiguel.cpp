@@ -20,12 +20,12 @@
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
 
-class CornellBox : public stratus::Application {
+class SanMiguel : public stratus::Application {
 public:
-    virtual ~CornellBox() = default;
+    virtual ~SanMiguel() = default;
 
     const char * GetAppName() const override {
-        return "CornellBox";
+        return "SanMiguel";
     }
 
     void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
@@ -60,15 +60,17 @@ public:
         //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../CornellBox/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-            cornellBox = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(cornellBox);
+            sanMiguel = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sanMiguel);
             //transform->SetLocalPosition(glm::vec3(0.0f));
-            transform->SetLocalScale(glm::vec3(0.125f));
-            INSTANCE(EntityManager)->AddEntity(cornellBox);
-            PrintNodeHierarchy(cornellBox, "CornellBox", "");
+            transform->SetLocalScale(glm::vec3(10.0f));
+            INSTANCE(EntityManager)->AddEntity(sanMiguel);
+            PrintNodeHierarchy(sanMiguel, "SanMiguel", "");
         });
+
+        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
 
         bool running = true;
 
@@ -170,7 +172,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr cornellBox;
+    stratus::EntityPtr sanMiguel;
 };
 
-STRATUS_ENTRY_POINT(CornellBox)
+STRATUS_ENTRY_POINT(SanMiguel)

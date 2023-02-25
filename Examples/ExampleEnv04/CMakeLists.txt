@@ -1,7 +1,7 @@
 find_package(OpenGL REQUIRED)
 
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
-set(OUTPUT_NAME Ex04_CornellBox)
+set(OUTPUT_NAME Ex04_SanMiguel)
 
 include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/Engine/ ${CMAKE_CURRENT_LIST_DIR} ${OPENGL_INCLUDE_DIRS} ${ROOT_DIRECTORY}/assimp/Deploy/include ${ROOT_DIRECTORY}/SDL2/include)
 link_directories(${ROOT_DIRECTORY}/Bin)

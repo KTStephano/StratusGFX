@@ -59,6 +59,9 @@ namespace stratus {
             //if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
+                if (tpair.second.Failed()) {
+                    continue;
+                }
                 TextureHandle handle = tpair.first;
                 auto texdata = tpair.second.GetPtr();
                 if (!texdata) continue;
@@ -273,7 +276,6 @@ namespace stratus {
 
     static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode, const ColorSpace& cspace) {
         
-        STRATUS_LOG << "MESH DATA" << mesh->mNumUVComponents[0] << ", " << mesh->mNormals << ", " << mesh->mTangents << ", " << mesh->mBitangents << std::endl;
         //if (mesh->mNumUVComponents[0] == 0) return;
         //if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
         if (mesh->mNormals == nullptr) return;
@@ -514,6 +516,7 @@ namespace stratus {
                 config.dataType = TextureComponentType::UINT;
                 config.width = (uint32_t)width;
                 config.height = (uint32_t)height;
+                config.depth = 1;
                 // This loads the textures with sRGB in mind so that they get converted back
                 // to linear color space. Warning: if the texture was not actually specified as an
                 // sRGB texture (common for normal/specular maps), this will cause problems.
