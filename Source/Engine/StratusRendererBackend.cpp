@@ -158,9 +158,13 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
     _state.shaders.push_back(_state.vplCulling.get());
 
-    _state.vplTileDeferredCulling = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    _state.vplTileDeferredCullingStage1 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_tiled_deferred_culling_stage1.cs", ShaderType::COMPUTE}}));
+    _state.shaders.push_back(_state.vplTileDeferredCullingStage1.get());
+
+    _state.vplTileDeferredCullingStage2 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_tiled_deferred_culling_stage2.cs", ShaderType::COMPUTE}}));
-    _state.shaders.push_back(_state.vplTileDeferredCulling.get());
+    _state.shaders.push_back(_state.vplTileDeferredCullingStage2.get());
 
     _state.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr_vpl_gi.vs", ShaderType::VERTEX},
@@ -284,8 +288,9 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Set up VPL tile data
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    const int totalTiles = (_frame->viewportWidth / 1) * (_frame->viewportHeight / 1);
+    const int totalTiles = (_frame->viewportWidth / _state.vpls.tileXYDivisor) * (_frame->viewportHeight / _state.vpls.tileXYDivisor);
     std::vector<GpuVplStage2PerTileOutputs> data(totalTiles, GpuVplStage2PerTileOutputs());
+    _state.vpls.vplStage1Results = GpuBuffer(nullptr, sizeof(GpuVplStage1PerTileOutputs) * totalTiles, flags);
     _state.vpls.vplVisiblePerTile = GpuBuffer((const void *)data.data(), sizeof(GpuVplStage2PerTileOutputs) * totalTiles, flags);
 
     // Regenerate the main frame buffer
@@ -1091,32 +1096,53 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplCulling->unbind();
 
     // Now perform culling per tile since we now know which lights are active
-    _state.vplTileDeferredCulling->bind();
+    _state.vplTileDeferredCullingStage1->bind();
 
     // Bind inputs
-    _state.vplTileDeferredCulling->bindTexture("gPosition", _state.buffer.position);
-    _state.vplTileDeferredCulling->bindTexture("gNormal", _state.buffer.normals);
+    _state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    _state.vplTileDeferredCullingStage1->bindTexture("gNormal", _state.buffer.normals);
     // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
 
     _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+
+    // Bind outputs
+    _state.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+
+    // Dispatch and synchronize
+    _state.vplTileDeferredCullingStage1->dispatchCompute(
+        (unsigned int)_frame->viewportWidth  / _state.vpls.tileXYDivisor,
+        (unsigned int)_frame->viewportHeight / _state.vpls.tileXYDivisor,
+        1
+    );
+    _state.vplTileDeferredCullingStage1->synchronizeCompute();
+
+    _state.vplTileDeferredCullingStage1->unbind();
+
+    // Perform stage 2 of the tiled deferred culling
+    _state.vplTileDeferredCullingStage2->bind();
+
+    // Bind inputs
+    _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     // Bind outputs
     _state.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-
+    
     // Dispatch and synchronize
-    _state.vplTileDeferredCulling->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / 16,
-        (unsigned int)_frame->viewportHeight / 9,
+    _state.vplTileDeferredCullingStage2->dispatchCompute(
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXYDivisor * 2),
+        (unsigned int)_frame->viewportHeight / (_state.vpls.tileXYDivisor * 2),
         1
     );
-    _state.vplTileDeferredCulling->synchronizeCompute();
+    _state.vplTileDeferredCullingStage2->synchronizeCompute();
 
-    _state.vplTileDeferredCulling->unbind();
-    
+    _state.vplTileDeferredCullingStage2->unbind();
+
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
     // GpuVplStage2PerTileOutputs * tiles = (GpuVplStage2PerTileOutputs *)_state.vpls.vplVisiblePerTile.MapMemory();
     // GpuVplData * vpld = (GpuVplData *)_state.vpls.vplData.MapMemory();
@@ -1159,8 +1185,8 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     const glm::vec3 lightColor = _frame->csc.worldLight->getLuminance();
     _state.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
 
-    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth  / 1);
-    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight / 1);
+    _state.vplGlobalIllumination->setInt("numTilesX", _frame->viewportWidth  / _state.vpls.tileXYDivisor);
+    _state.vplGlobalIllumination->setInt("numTilesY", _frame->viewportHeight / _state.vpls.tileXYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);

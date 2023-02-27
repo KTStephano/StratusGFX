@@ -220,6 +220,7 @@ namespace stratus {
             int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;
             GpuBuffer vplDiffuseMaps;
             GpuBuffer vplShadowMaps;
+            GpuBuffer vplStage1Results;
             GpuBuffer vplVisiblePerTile;
             GpuBuffer vplData;
             GpuBuffer vplVisibleIndices;
@@ -304,7 +305,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;
-            std::unique_ptr<Pipeline> vplTileDeferredCulling;
+            std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
+            std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
             // Handles cascading shadow map depth buffer rendering
             // (we compile one depth shader per cascade - max 6)
             std::vector<std::unique_ptr<Pipeline>> csmDepth;

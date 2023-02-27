@@ -9,15 +9,11 @@ STRATUS_GLSL_VERSION
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
+layout (local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
 #include "vpl_tiled_deferred_culling.glsl"
 #include "common.glsl"
 #include "pbr.glsl"
-
-// GBuffer information
-uniform sampler2D gPosition;
-uniform sampler2D gNormal;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -59,18 +55,12 @@ layout (std430, binding = 11) readonly buffer vplShadows {
     values[start] = 0;                            
 
 void main() {
-    // Defines local work group from layout local size tag above
-    uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
     uvec2 numTiles = gl_NumWorkGroups.xy * gl_WorkGroupSize.xy;
     uvec2 tileCoords = gl_GlobalInvocationID.xy;
-    uvec2 viewportWidthHeight = gl_NumWorkGroups.xy * gl_WorkGroupSize.xy;
-    uvec2 pixelCoords = gl_GlobalInvocationID.xy;
-    // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
-    vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidthHeight.x, viewportWidthHeight.y);
 
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
-    vec3 fragPos = texture(gPosition, texCoords).xyz;
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
+    vec3 fragPos = stage1Data[tileIndex].averageLocalPosition.xyz;
+    vec3 normal = stage1Data[tileIndex].averageLocalNormal.xyz;
 
     int numVisibleThisTile = 0;
     int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
@@ -104,16 +94,18 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                //if (ratio < 0.25) {
+                if (ratio < 0.2) {
+                //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
                     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
-                    // // Light can't see current surface
-                    if (shadowFactor > 0.5) break;
-                //}
+                    // Light can't see current surface
+                    if (shadowFactor > 0.75) break;
+                }
 
                 SHUFFLE_DOWN(indicesVisibleThisTile, ii)
                 SHUFFLE_DOWN(distancesVisibleThisTile, ii)
                 indicesVisibleThisTile[ii] = lightIndex;
                 distancesVisibleThisTile[ii] = distance;
+
                 if (numVisibleThisTile < MAX_VPLS_PER_TILE) {
                     ++numVisibleThisTile;
                 }
