@@ -12,6 +12,10 @@
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
+// Matches the definitions in vpl_tiled_deferred_culling.glsl
+#define MAX_TOTAL_VPLS_PER_FRAME (300)
+#define MAX_VPLS_PER_TILE (6)
+
 namespace stratus {
     // Used with bindless textures
     typedef uint64_t GpuTextureHandle;
@@ -123,7 +127,41 @@ namespace stratus {
         uint32_t baseInstance;
     };
 
+    struct alignas(32) GpuVplStage1PerTileOutputs {
+        GpuVec averageLocalPosition;
+        GpuVec averageLocalNormal;
+    };
+
+    struct alignas(32) GpuVplStage2PerTileOutputs {
+        int numVisible;
+        int _1;
+        int indices[MAX_VPLS_PER_TILE];
+
+        GpuVplStage2PerTileOutputs() :
+            numVisible(0) {}
+    };
+
+    struct alignas(64) GpuVplData {
+        GpuVec position;
+        GpuVec color;
+        GpuVec _3;
+        float radius;
+        float farPlane;
+        float intensity;
+        float  _2;
+
+        GpuVplData() :
+            position(0.0f),
+            color(0.0f),
+            radius(1.0f),
+            farPlane(1.0f),
+            intensity(1.0f) {}
+    };
+
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
     static_assert(sizeof(GpuMeshData) == 64);
+    static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
+    static_assert(sizeof(GpuVplStage2PerTileOutputs) == 32);
+    static_assert(sizeof(GpuVplData) == 64);
 }

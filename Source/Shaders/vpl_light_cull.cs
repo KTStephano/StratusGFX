@@ -23,15 +23,11 @@ uniform vec3 infiniteLightColor;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) buffer vplLightData {
-    float shadowFactors[];
+layout (std430, binding = 0) buffer inoutBlock1 {
+    VplData lightData[];
 };
 
-layout (std430, binding = 4) buffer vplPositions {
-    vec4 lightPositions[];
-};
-
-layout (std430, binding = 1) buffer numVisibleVPLs {
+layout (std430, binding = 1) buffer outputBlock1 {
     int numVisible;
 };
 
@@ -43,18 +39,10 @@ layout (std430, binding = 5) readonly buffer vplDiffuse {
     samplerCube diffuseCubeMaps[];
 };
 
-layout (std430, binding = 6) writeonly buffer vplColors {
-    vec4 lightColors[];
-};
-
-layout (std430, binding = 7) readonly buffer vplIntensity {
-    float lightIntensities[];
-};
-
 void main() {
     int index = int(gl_GlobalInvocationID.x);
 
-    vec3 lightPos = lightPositions[index].xyz;
+    vec3 lightPos = lightData[index].position.xyz;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                               dot(cascadePlanes[2], vec4(lightPos, 1.0)));
@@ -75,8 +63,7 @@ void main() {
         }
 
         int next = atomicAdd(numVisible, 1);
-        shadowFactors[index] = shadowFactor;
         vplVisibleIndex[next] = index;
-        lightColors[index] = vec4(color * lightIntensities[index], 1.0);
+        lightData[index].color = vec4(color * lightData[index].intensity, 1.0);
     }
 }

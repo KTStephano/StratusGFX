@@ -27,10 +27,6 @@ uniform vec3 viewPosition;
 //uniform samplerCube shadowCubeMaps[MAX_TOTAL_VPLS_PER_FRAME];
 uniform vec3 infiniteLightColor;
 
-layout (std430, binding = 11) readonly buffer shadows {
-    samplerCube shadowCubeMaps[];
-};
-
 // Window information
 uniform int viewportWidth;
 uniform int viewportHeight;
@@ -42,34 +38,16 @@ uniform sampler2D screen;
 uniform int numTilesX;
 uniform int numTilesY;
 
-layout (std430, binding = 3) readonly buffer vplActiveLights {
-    int numActiveLightsPerTile[];
+layout (std430, binding = 0) readonly buffer inputBlock1 {
+    VplData lightData[];
 };
 
-// Active light indices into main buffer
-layout (std430, binding = 4) readonly buffer vplIndices {
-    int activeLightIndicesPerTile[];
+layout (std430, binding = 1) readonly buffer inputBlock2 {
+    VplStage2PerTileOutputs tileData[];
 };
 
-// Light positions
-layout (std430, binding = 5) readonly buffer vplPositions {
-    vec4 lightPositions[];
-};
-
-layout (std430, binding = 6) readonly buffer vplColors {
-    vec4 lightColors[];
-};
-
-layout (std430, binding = 7) readonly buffer vplRadii {
-    float lightRadii[];
-};
-
-layout (std430, binding = 8) readonly buffer vplFarPlanes {
-    float lightFarPlanes[];
-};
-
-layout (std430, binding = 9) readonly buffer vplNumSamples {
-    float lightNumSamples[];
+layout (std430, binding = 11) readonly buffer inputBlock3 {
+    samplerCube shadowCubeMaps[];
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
@@ -81,9 +59,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     if (tileCoords.x >= numTiles.x || tileCoords.y >= numTiles.y) return screenColor;
 
     // Each entry in the activeLightIndicesPerTile buffer has MAX_VPLS_PER_TILE entries
-    int baseTileIndex = int(tileCoords.x * MAX_VPLS_PER_TILE + tileCoords.y * numTiles.x * MAX_VPLS_PER_TILE);
+    int baseTileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
     // numActiveVPLsPerTile only has one int per entry
-    int numActiveVPLs = numActiveLightsPerTile[tileCoords.x + tileCoords.y * numTiles.x];
+    int numActiveVPLs = tileData[baseTileIndex].numVisible;
     if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
 
     vec3 fragPos = texture(gPosition, texCoords).rgb;
@@ -101,21 +79,24 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 vplColor = screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
-        int lightIndex = activeLightIndicesPerTile[baseTileIndex + baseLightIndex];
+        int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
-        vec3 lightPosition = lightPositions[lightIndex].xyz;
-        float lightRadius = lightRadii[lightIndex];
-        vec3 lightColor = lightColors[lightIndex].xyz;
+        vec3 lightPosition = lightData[lightIndex].position.xyz;
+        float lightRadius = lightData[lightIndex].radius;
+        vec3 lightColor = lightData[lightIndex].color.xyz;
         float lightIntensity = length(lightColor);
         float distance = length(lightPosition - fragPos);
         float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = 0.0;
-        if (ratio < 0.1) {
-            shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-        }
+        // if (ratio < 0.25) {
+        //     shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        // }
+        //else if (ratio < 0.25) {
+        //    shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightFarPlanes[lightIndex], fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        //}
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 

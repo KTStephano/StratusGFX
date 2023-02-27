@@ -2,16 +2,14 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
-// Stage 1 of this two-stage compute pipeline determines which lights are visible to which
-// tile where tiles are each defined as having 144 pixels (16*9).
+// This is to determine which lights are visible to which parts of the screen
+// where the screen has been partitioned into a 2D grid of tiles
 
 // See the Compute section of the OpenGL Superbible for more information
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-//
-// 16:9 aspect ratio
-layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
 
 #include "vpl_tiled_deferred_culling.glsl"
 #include "common.glsl"
@@ -30,44 +28,23 @@ uniform sampler2D gNormal;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer vplLightPositions {
-    vec4 lightPositions[];
+layout (std430, binding = 0) readonly buffer inputBlock1 {
+    VplData lightData[];
 };
 
-layout (std430, binding = 7) readonly buffer vplLightRadii {
-    float lightRadii[];
+layout (std430, binding = 1) writeonly buffer outputBlock1 {
+    VplStage1PerTileOutputs vplNumVisiblePerTile[];
 };
 
-layout (std430, binding = 1) readonly buffer numVisibleVPLs {
-    int numVisible;
-};
-
-layout (std430, binding = 3) readonly buffer visibleVplTable {
-    int vplVisibleIndex[];
-};
-
-layout (std430, binding = 10) readonly buffer vplColors {
-    vec4 lightColors[];
-};
-
-layout (std430, binding = 5) writeonly buffer outputBlock1 {
-    int vplIndicesVisiblePerTile[];
-};
-
-layout (std430, binding = 6) writeonly buffer outputBlock2 {
-    int vplNumVisiblePerTile[];
-};
-
-layout (std430, binding = 11) readonly buffer vplShadows {
+layout (std430, binding = 11) readonly buffer inputBlock2 {
     samplerCube shadowCubeMaps[];
-};                          
+};                           
 
 shared vec3 localPositions[gl_WorkGroupSize.x * gl_WorkGroupSize.y];
 shared vec3 localNormals[gl_WorkGroupSize.x * gl_WorkGroupSize.y];
 shared vec3 averageLocalPosition;
 shared vec3 averageLocalNormal;
-shared bool lightVisible[MAX_TOTAL_VPLS_PER_FRAME];
-shared float lightVisibleDistances[MAX_TOTAL_VPLS_PER_FRAME];
+shared float lightDistanceRadiusRatios[MAX_TOTAL_VPLS_PER_FRAME];
 
 void main() {
     // Defines local work group from layout local size tag above
@@ -80,7 +57,7 @@ void main() {
     vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidthHeight.x, viewportWidthHeight.y);
 
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
-    int baseTileIndex = tileIndex * MAX_TOTAL_VPLS_PER_FRAME;
+    int baseTileIndex = tileIndex * MAX_VPLS_PER_TILE;
     vec3 fragPos = texture(gPosition, texCoords).xyz;
     vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
 
@@ -90,44 +67,21 @@ void main() {
 
     if (gl_LocalInvocationIndex == 0) {
         vplNumVisiblePerTile[tileIndex] = 0;
-        for (int i = 0; i < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
-            lightVisible[i] = false;
-        }
     }
 
     // Wait for all local threads to get here
     barrier();
 
-    // The next few steps are an incremental sum using multiple threads
-    if (mod(gl_LocalInvocationIndex, 2) == 0) {
-        localPositions[gl_LocalInvocationIndex] += localPositions[gl_LocalInvocationIndex + 1];
-        localNormals[gl_LocalInvocationIndex]   += localNormals[gl_LocalInvocationIndex   + 1];
-    }
-
-    barrier();
-
-    if (mod(gl_LocalInvocationIndex, 4) == 0) {
-        localPositions[gl_LocalInvocationIndex] += localPositions[gl_LocalInvocationIndex + 2];
-        localNormals[gl_LocalInvocationIndex]   += localNormals[gl_LocalInvocationIndex   + 2];
-    }
-
-    barrier();
-
-    if (mod(gl_LocalInvocationIndex, 8) == 0) {
-        localPositions[gl_LocalInvocationIndex] += localPositions[gl_LocalInvocationIndex + 4];
-        localNormals[gl_LocalInvocationIndex]   += localNormals[gl_LocalInvocationIndex   + 4];
-    }
-
-    barrier();
-
-    // Sum the rest
+    // Compute average on first local work group thread
     if (gl_LocalInvocationIndex == 0) {
         averageLocalPosition = vec3(0.0);
         averageLocalNormal   = vec3(0.0);
-        for (int i = 0; i < localWorkGroupSize; i += 8) {
+
+        for (int i = 0; i < localWorkGroupSize; ++i) {
             averageLocalPosition += localPositions[i];
             averageLocalNormal   += localNormals[i];
         }
+
         averageLocalPosition /= float(localWorkGroupSize);
         averageLocalNormal   /= float(localWorkGroupSize);
         averageLocalNormal    = normalize(averageLocalNormal);
@@ -136,19 +90,76 @@ void main() {
     // Wait for all local threads to get here
     barrier();
 
-    // Determine which lights are visible
+    // Compute the light distance to radius ratios in parallel
     for (uint i = gl_LocalInvocationIndex; i < numVisible; i += localWorkGroupSize) {
         int lightIndex = vplVisibleIndex[i];
         vec3 lightPosition = lightPositions[lightIndex].xyz;
-        float distance = length(lightPosition - fragPos);
+        float distance = length(lightPosition - averageLocalPosition);
         float radius = lightRadii[lightIndex];
         float ratio = distance / radius;
 
-        if (ratio > 1.0) continue;
-
-        lightVisible[lightIndex] = true;
-        lightVisibleDistances[lightIndex] = distance;
+        lightDistanceRadiusRatios[lightIndex] = ratio;
     }
 
+    // Wait for all local threads to get here
     barrier();
+
+    // Determine light visibility for this tile
+    if (gl_LocalInvocationIndex == 0) {
+        int numVisibleThisTile = 0;
+        int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
+        float distancesVisibleThisTile[MAX_VPLS_PER_TILE];
+
+        for (int i = 0; i < MAX_VPLS_PER_TILE; ++i) {
+            indicesVisibleThisTile[i] = i;
+            distancesVisibleThisTile[i] = FLOAT_MAX;
+        }
+
+        for (int i = 0; i < numVisible; ++i) {
+            //float intensity = length()
+            int lightIndex = vplVisibleIndex[i];
+            vec3 lightPosition = lightPositions[lightIndex].xyz;
+            // Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane.
+            // If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.
+            // See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane
+            vec3 lightMinusFrag = lightPosition - averageLocalPosition;
+            float sideCheck = dot(averageLocalNormal, lightMinusFrag);
+            if (sideCheck < 0) continue;
+
+            float radius = lightRadii[lightIndex];
+            float ratio = lightDistanceRadiusRatios[lightIndex];
+
+            if (ratio > 1.0) continue;
+
+            float distance = ratio;
+            for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
+                if (distance < distancesVisibleThisTile[ii]) {
+                    //if (ratio < 0.1) {
+                        float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, averageLocalPosition, lightPosition, dot(lightMinusFrag, averageLocalNormal));
+                        // // Light can't see current surface
+                        if (shadowFactor > 0.0) break;
+                    //}
+
+                    SHUFFLE_DOWN(indicesVisibleThisTile, ii)
+                    SHUFFLE_DOWN(distancesVisibleThisTile, ii)
+                    indicesVisibleThisTile[ii] = lightIndex;
+                    distancesVisibleThisTile[ii] = distance;
+                    if (numVisibleThisTile < MAX_VPLS_PER_TILE) {
+                        ++numVisibleThisTile;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        vplNumVisiblePerTile[tileIndex] = numVisibleThisTile;
+        for (int i = 0; i < numVisibleThisTile; ++i) {
+            vplIndicesVisiblePerTile[baseTileIndex + i] = indicesVisibleThisTile[i];
+        }
+    }
+
+    // vplNumVisiblePerTile[tileIndex] = numVisibleThisTile;
+    // for (int i = 0; i < numVisibleThisTile; ++i) {
+    //     vplIndicesVisiblePerTile[baseTileIndex + i] = indicesVisibleThisTile[i];
+    // }
 }

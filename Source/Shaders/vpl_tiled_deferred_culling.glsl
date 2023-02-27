@@ -30,3 +30,25 @@ STRATUS_GLSL_VERSION
     }                                                                   \
     old = returned;                                                     \
 }
+
+// Needs to match up with definition in StratusGpuCommon
+struct VplStage1PerTileOutputs {
+    vec4 averageLocalPosition;
+    vec4 averageLocalNormal;
+};
+
+struct VplStage2PerTileOutputs {
+    int numVisible;
+    int _1;
+    int indices[MAX_VPLS_PER_TILE];
+};
+
+struct VplData {
+    vec4 position;
+    vec4 color;
+    vec4  _3;
+    float radius;
+    float farPlane;
+    float intensity;
+    float _2;
+};

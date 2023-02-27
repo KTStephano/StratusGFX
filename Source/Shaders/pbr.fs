@@ -113,7 +113,7 @@ void main() {
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
         //color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.003);
-        color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.003);
+        color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
     }
 
     fsColor = boundHDR(color);
