@@ -9,7 +9,7 @@ STRATUS_GLSL_VERSION
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
 
 #include "vpl_tiled_deferred_culling.glsl"
 #include "common.glsl"
@@ -97,9 +97,9 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                //if (ratio < 0.2) {
+                if (ratio < 0.2 && fragDist < 200) {
                 //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
-                if (ratio < 0.1 && fragDist < 100) {
+                //if (fragDist < 300) {
                     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
                     // Light can't see current surface
                     if (shadowFactor > 0.75) break;

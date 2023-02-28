@@ -193,7 +193,7 @@ public:
             // }
             //40.9513, 192.5, 108.947
             for (int x = 45; x > 0; x -= 10) {
-                for (int y = 5; y < 300; y += 50) {
+                for (int y = 5; y < 270; y += 30) {
                     for (int z = -140; z < 180; z += 35) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(

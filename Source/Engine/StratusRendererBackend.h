@@ -17,6 +17,7 @@
 #include "StratusLight.h"
 #include "StratusMath.h"
 #include "StratusGpuBuffer.h"
+#include "StratusGpuCommon.h"
 #include "StratusThread.h"
 #include "StratusAsync.h"
 #include "StratusEntityCommon.h"
@@ -213,10 +214,11 @@ namespace stratus {
 
         struct VirtualPointLightData {
             // For splitting viewport into tiles
-            const int tileXYDivisor = 2;
+            const int tileXDivisor = 1;
+            const int tileYDivisor = 9;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int maxTotalVirtualPointLightsPerFrame = 512;
-            int maxTotalVirtualLightsPerTile = 6;
+            int maxTotalVirtualPointLightsPerFrame = MAX_TOTAL_VPLS_PER_FRAME;
+            int maxTotalVirtualLightsPerTile = MAX_VPLS_PER_TILE;
             int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;
             GpuBuffer vplDiffuseMaps;
             GpuBuffer vplShadowMaps;

@@ -13,7 +13,7 @@
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
 // Matches the definitions in vpl_tiled_deferred_culling.glsl
-#define MAX_TOTAL_VPLS_PER_FRAME (300)
+#define MAX_TOTAL_VPLS_PER_FRAME (512)
 #define MAX_VPLS_PER_TILE (6)
 
 namespace stratus {
