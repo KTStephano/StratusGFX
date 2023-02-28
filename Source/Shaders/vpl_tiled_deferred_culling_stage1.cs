@@ -54,8 +54,8 @@ void main() {
     vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidthHeight.x, viewportWidthHeight.y);
 
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
-    vec3 fragPos = texture(gPosition, texCoords).xyz;
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
+    vec3 fragPos = textureLod(gPosition, texCoords, 0).xyz;
+    vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
 
     // Each thread will now add their local contribution to position and normal to compute averages
     localPositions[gl_LocalInvocationIndex] = fragPos;
