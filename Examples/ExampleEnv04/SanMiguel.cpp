@@ -143,6 +143,23 @@ public:
             }
         }
 
+        if (sanMiguel != nullptr) {
+            sanMiguel = nullptr;
+            int spawned = 0;
+            for (int x = 80; x < 240; x += 20) {
+                for (int y = 5; y < 120; y += 20) {
+                    for (int z = -5; z < 70; z += 20) {
+                            ++spawned;
+                            LightCreator::CreateVirtualPointLight(
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                                true
+                            );
+                    }
+                }
+            }
+            STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
+        }
+
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 

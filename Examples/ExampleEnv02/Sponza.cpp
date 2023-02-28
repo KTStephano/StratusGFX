@@ -122,11 +122,6 @@ public:
                                 INSTANCE(RendererFrontend)->RecompileShaders();
                             }
                             break;
-                        case SDL_SCANCODE_V:
-                            if (released) {
-                                STRATUS_LOG << "Pos: " << INSTANCE(RendererFrontend)->GetCamera()->getPosition() << std::endl;
-                            }
-                            break;
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(

@@ -94,6 +94,11 @@ struct CameraController : public stratus::InputHandler {
                             }
 
                             break;
+                        case SDL_SCANCODE_V:
+                            if (released) {
+                                STRATUS_LOG << "Camera Position: " << INSTANCE(RendererFrontend)->GetCamera()->getPosition() << std::endl;
+                            }
+                            break;
                     }
                 }
             }
