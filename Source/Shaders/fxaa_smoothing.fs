@@ -250,9 +250,10 @@ void main() {
     float edgeLumaDeltas[2] = float[](0.0, 0.0);
     float directionalSigns[2] = float[](1.0, -1.0);
     vec2 edgeSteps[2] = vec2[](edgeStep, -edgeStep);
+    float edgeStepOffsets[10] = float[](1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 4.0);
 
     for (int i = 0; i < 2; ++i) {
-        vec2 puv = uvEdge + edgeSteps[i];
+        vec2 puv = uvEdge + edgeSteps[i] * edgeStepOffsets[0];
         float edgeLumaDelta = texture(screen, puv).a - edgeLumaAvg;
         // As soon as the contrast between current edge pixel and the edge average exceeds
         // the gradient threshold, we assume that to be the end of the edge
@@ -260,7 +261,7 @@ void main() {
 
         // Perform 9 additional steps along the edge for a total of 10 each direction
         for (int j = 0; j < 9 && !atEdgeEnd; ++j) {
-            puv += edgeSteps[i];
+            puv += edgeSteps[i] * edgeStepOffsets[j + 1];
             edgeLumaDelta = texture(screen, puv).a - edgeLumaAvg;
             atEdgeEnd = abs(edgeLumaDelta) >= gradientThreshold;
         }
