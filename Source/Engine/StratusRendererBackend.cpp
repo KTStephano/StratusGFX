@@ -1124,6 +1124,8 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     _state.vplTileDeferredCullingStage2->bind();
 
     // Bind inputs
+    _state.vplTileDeferredCullingStage2->setVec3("viewPosition", _frame->camera->getPosition());
+
     _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     _state.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);

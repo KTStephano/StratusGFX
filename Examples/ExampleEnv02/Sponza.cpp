@@ -50,23 +50,25 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../../local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../../local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        requested.push_back(e);
+        requested.push_back(e2);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
-            sponza = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
+            received.push_back(e.GetPtr());
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
             transform->SetLocalPosition(glm::vec3(0.0f));
             //transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
-            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
-            INSTANCE(EntityManager)->AddEntity(sponza);
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            INSTANCE(EntityManager)->AddEntity(e.GetPtr());
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         };
 
         e.AddCallback(callback);
-        //e2.AddCallback(callback);
+        e2.AddCallback(callback);
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
 
@@ -175,7 +177,34 @@ public:
             }
         }
 
-        
+        if (requested.size() == received.size()) {
+            received.clear();
+            int spawned = 0;
+            // for (int x = 15; x < 55; x += 10) {
+            //     for (int y = 5; y < 245; y += 20) {
+            //         for (int z = 30; z < 230; z += 20) {
+            //             ++spawned;
+            //             LightCreator::CreateVirtualPointLight(
+            //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+            //                 true
+            //             );
+            //         }
+            //     }
+            // }
+            //40.9513, 192.5, 108.947
+            for (int x = 45; x > 0; x -= 10) {
+                for (int y = 5; y < 300; y += 50) {
+                    for (int z = -140; z < 180; z += 35) {
+                            ++spawned;
+                            LightCreator::CreateVirtualPointLight(
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+                                true
+                            );
+                    }
+                }
+            }
+            STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
+        }
 
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -216,8 +245,8 @@ public:
     }
 
 private:
-    stratus::EntityPtr sponza;
-    std::vector<stratus::EntityPtr> entities;
+    std::vector<stratus::Async<stratus::Entity>> requested;
+    std::vector<stratus::EntityPtr> received;
 };
 
 STRATUS_ENTRY_POINT(Sponza)

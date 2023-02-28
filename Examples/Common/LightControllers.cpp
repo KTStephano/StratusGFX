@@ -86,17 +86,26 @@ void LightCreator::CreateStationaryLight(const LightParams& p, const bool spawnC
     //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
-void LightCreator::CreateVirtualPointLight(const LightParams& p) {
+void LightCreator::CreateVirtualPointLight(const LightParams& p, const bool spawnCube) {
     auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::VirtualPointLight());
     InitLight(p, light);
     ((stratus::VirtualPointLight *)light.get())->SetNumShadowSamples(p.numShadowSamples);
 
+    stratus::EntityPtr cube;
+    if (spawnCube) {
+        cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(p, light, cube);
+        cube->Components().DisableComponent<stratus::StaticObjectComponent>();
+    }
+
     STRATUS_LOG << "VPL Radius: " << light->getRadius() << std::endl;
 
     ptr->Components().AttachComponent<LightComponent>(light);
+    if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
+    if (spawnCube) INSTANCE(EntityManager)->AddEntity(cube);
 }
 
 struct LightDeleteController : public stratus::InputHandler {

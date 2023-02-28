@@ -23,7 +23,7 @@ struct LightCreator {
     static void Shutdown();
     static void CreateRandomLightMover(const LightParams&);
     static void CreateStationaryLight(const LightParams&, const bool spawnCube = true);
-    static void CreateVirtualPointLight(const LightParams&);
+    static void CreateVirtualPointLight(const LightParams&, const bool spawnCube = false);
 
 private:
     static std::vector<stratus::EntityProcessHandle> handles;

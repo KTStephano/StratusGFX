@@ -15,6 +15,8 @@ layout (local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 #include "common.glsl"
 #include "pbr.glsl"
 
+uniform vec3 viewPosition;
+
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
 
@@ -61,6 +63,7 @@ void main() {
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
     vec3 fragPos = stage1Data[tileIndex].averageLocalPosition.xyz;
     vec3 normal = stage1Data[tileIndex].averageLocalNormal.xyz;
+    float fragDist = length(fragPos - viewPosition);
 
     int numVisibleThisTile = 0;
     int indicesVisibleThisTile[MAX_VPLS_PER_TILE];
@@ -94,8 +97,9 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                if (ratio < 0.2) {
+                //if (ratio < 0.2) {
                 //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
+                if (ratio < 0.1 && fragDist < 100) {
                     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
                     // Light can't see current surface
                     if (shadowFactor > 0.75) break;
