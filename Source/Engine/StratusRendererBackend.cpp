@@ -977,7 +977,9 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     for (auto& light : _frame->lights) {
         const double distance = glm::distance(c.getPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
-            if (worldLightEnabled) perVPLDistToViewer.push_back(std::make_pair(light, distance));
+            if (worldLightEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
+                perVPLDistToViewer.push_back(std::make_pair(light, distance));
+            }
         }
         else {
             perLightDistToViewer.push_back(std::make_pair(light, distance));
@@ -1123,6 +1125,26 @@ void RendererBackend::_PerformVirtualPointLightCullingStage1(
     if (totalVisible > MAX_TOTAL_VPLS_PER_FRAME) {
         visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
         totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
+        // visibleVplIndices.clear();
+
+        // // We want at least 64 lights close to the viewer
+        // for (int i = 0; i < 64; ++i) {
+        //     visibleVplIndices.push_back(indices[i]);
+        // }
+
+        // const int rest = totalVisible - 64;
+        // const int step = std::max<int>(rest / (MAX_TOTAL_VPLS_PER_FRAME - 64), 1);
+        // for (int i = 64; i < totalVisible; i += step) {
+        //     visibleVplIndices.push_back(indices[i]);
+        // }
+
+        // totalVisible = int(visibleVplIndices.size());
+        // // Make sure we didn't go over because of step size
+        // if (visibleVplIndices.size() > MAX_TOTAL_VPLS_PER_FRAME) {
+        //     visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
+        //     totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
+        // }
+
         _state.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&totalVisible);
         _state.vpls.vplVisibleIndices.CopyDataToBuffer(0, sizeof(int) * totalVisible, (const void *)visibleVplIndices.data());
     }
@@ -1156,6 +1178,7 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     _state.vplColoring->bind();
 
     // Bind inputs
+    _state.vplColoring->setVec3("infiniteLightDirection", direction);
     _state.vplColoring->setVec3("infiniteLightColor", _frame->csc.worldLight->getLuminance());
 
     _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);

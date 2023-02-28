@@ -2,6 +2,8 @@
 
 #include "StratusCommon.h"
 
+// Once a VPL is further than this distance away it is automatically culled
+#define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
 #define MAX_TOTAL_VPL_SHADOW_MAPS (512)
 
 // Matches the definitions in common.glsl
@@ -16,7 +18,7 @@
 
 // Matches the definitions in vpl_common.glsl
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (512)
+#define MAX_TOTAL_VPLS_PER_FRAME (200)
 #define MAX_VPLS_PER_TILE (6)
 
 namespace stratus {
@@ -161,10 +163,12 @@ namespace stratus {
             intensity(1.0f) {}
     };
 
+    // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
     static_assert(sizeof(GpuMeshData) == 64);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplData) == 64);
+    static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

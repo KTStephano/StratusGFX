@@ -3,7 +3,7 @@ STRATUS_GLSL_VERSION
 // These needs to match what is in the renderer backend!
 // TODO: Find a better way to sync these values with renderer
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (512)
+#define MAX_TOTAL_VPLS_PER_FRAME (200)
 #define MAX_VPLS_PER_TILE (6)
 
 // Needs to use uint for its memory backing since GLSL atomics only work on int and uint

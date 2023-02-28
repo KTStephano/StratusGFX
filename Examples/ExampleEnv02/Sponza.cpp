@@ -180,21 +180,20 @@ public:
         if (requested.size() == received.size()) {
             received.clear();
             int spawned = 0;
-            // for (int x = 15; x < 55; x += 10) {
-            //     for (int y = 5; y < 245; y += 20) {
-            //         for (int z = 30; z < 230; z += 20) {
-            //             ++spawned;
-            //             LightCreator::CreateVirtualPointLight(
-            //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-            //                 true
-            //             );
+            // for (int x = 45; x > 0; x -= 10) {
+            //     for (int y = 5; y < 270; y += 30) {
+            //         for (int z = -140; z < 180; z += 35) {
+            //                 ++spawned;
+            //                 LightCreator::CreateVirtualPointLight(
+            //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+            //                     true
+            //                 );
             //         }
             //     }
             // }
-            //40.9513, 192.5, 108.947
             for (int x = 45; x > 0; x -= 10) {
-                for (int y = 5; y < 270; y += 30) {
-                    for (int z = -140; z < 180; z += 35) {
+                for (int y = 5; y < 260; y += 50) {
+                    for (int z = -140; z < 180; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
@@ -203,6 +202,7 @@ public:
                     }
                 }
             }
+
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
         }
 
