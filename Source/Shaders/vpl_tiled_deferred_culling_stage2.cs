@@ -99,7 +99,7 @@ void main() {
             if (distance < distancesVisibleThisTile[ii]) {
                 if (ratio < 0.2 && fragDist < 200) {
                 //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
-                //if (fragDist < 300) {
+                //if (fragDist < 200) {
                     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
                     // Light can't see current surface
                     if (shadowFactor > 0.75) break;
