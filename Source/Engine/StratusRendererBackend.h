@@ -217,8 +217,6 @@ namespace stratus {
             const int tileXDivisor = 2;
             const int tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int maxTotalVirtualPointLightsPerFrame = MAX_TOTAL_VPLS_PER_FRAME;
-            int maxTotalVirtualLightsPerTile = MAX_VPLS_PER_TILE;
             int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;
             GpuBuffer vplDiffuseMaps;
             GpuBuffer vplShadowMaps;
@@ -307,6 +305,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;
+            std::unique_ptr<Pipeline> vplColoring;
             std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
             std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
             // Handles cascading shadow map depth buffer rendering
@@ -470,9 +469,14 @@ namespace stratus {
         void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);
         void _Render(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
         void _Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void _InitVplFrameData(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
         void _RenderImmediate(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&, std::vector<std::pair<LightPtr, double>>&);
-        void _PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>&);
+        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, 
+                                std::vector<std::pair<LightPtr, double>>&, 
+                                std::vector<std::pair<LightPtr, double>>&,
+                                std::vector<int>& visibleVplIndices);
+        void _PerformVirtualPointLightCullingStage1(const std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
+        void _PerformVirtualPointLightCullingStage2(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
         void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
         void _RenderCSMDepth();
         void _RenderQuad();

@@ -2,6 +2,8 @@
 
 #include "StratusCommon.h"
 
+#define MAX_TOTAL_VPL_SHADOW_MAPS (512)
+
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
 #define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))
@@ -12,7 +14,8 @@
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
-// Matches the definitions in vpl_tiled_deferred_culling.glsl
+// Matches the definitions in vpl_common.glsl
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
 #define MAX_TOTAL_VPLS_PER_FRAME (512)
 #define MAX_VPLS_PER_TILE (6)
 
@@ -20,7 +23,7 @@ namespace stratus {
     // Used with bindless textures
     typedef uint64_t GpuTextureHandle;
 
-    // Matches the definition in vpl_tiled_deferred_culling.glsl
+    // Matches the definition in vpl_common.glsl
     // See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
     struct alignas(16) GpuVec {
         float v[4];

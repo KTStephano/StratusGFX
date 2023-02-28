@@ -7,12 +7,13 @@ STRATUS_GLSL_VERSION
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 #include "pbr.glsl"
-#include "vpl_tiled_deferred_culling.glsl"
+#include "vpl_common.glsl"
 
 uniform vec3 infiniteLightColor;
+uniform int totalNumLights;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -23,7 +24,7 @@ uniform vec3 infiniteLightColor;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) buffer inoutBlock1 {
+layout (std430, binding = 0) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
@@ -35,35 +36,50 @@ layout (std430, binding = 3) buffer outputBlock2 {
     int vplVisibleIndex[];
 };
 
-layout (std430, binding = 5) readonly buffer vplDiffuse {
-    samplerCube diffuseCubeMaps[];
-};
+shared bool lightVisible[MAX_TOTAL_VPLS_BEFORE_CULLING];
+// shared int localNumVisible;
 
 void main() {
-    int index = int(gl_GlobalInvocationID.x);
+    int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    vec3 lightPos = lightData[index].position.xyz;
-    vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
-                              dot(cascadePlanes[1], vec4(lightPos, 1.0)),
-                              dot(cascadePlanes[2], vec4(lightPos, 1.0)));
-    float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
-    if (shadowFactor < 0.99) {
-        // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = 2.0 * texture(diffuseCubeMaps[index], -infiniteLightDirection).rgb * infiniteLightColor;
-        float offset = 0.5;
-        float offsets[2] = float[](-offset, offset);
-        // This should result in 2*2*2 = 8 samples, + 2 from above = 10
-        for (int x = 0; x < 2; ++x) {
-            for (int y = 0; y < 2; ++y) {
-                for (int z = 0; z < 2; ++z) {
-                    vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
-                    color += texture(diffuseCubeMaps[index], -infiniteLightDirection + dirOffset).rgb * infiniteLightColor;
-                }
+    // if (gl_LocalInvocationIndex == 0) {
+    //     localNumVisible = 0;
+    // }
+
+    // barrier();
+
+    // Set all visible flags to false
+    for (int index = int(gl_GlobalInvocationID.x); index < totalNumLights; index += stepSize) {
+        lightVisible[index] = false;
+    }
+
+    barrier();
+
+    for (int index = int(gl_GlobalInvocationID.x); index < totalNumLights; index += stepSize) {
+        vec3 lightPos = lightData[index].position.xyz;
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[1], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[2], vec4(lightPos, 1.0)));
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
+        if (shadowFactor < 0.25) {
+            lightVisible[index] = true;
+            // int next = atomicAdd(localNumVisible, 1);
+            // vplVisibleIndex[next] = index;
+            //lightData[index].color = vec4(vec3(1.0) * 500, 1.0);
+        }
+    }
+
+    barrier();
+
+    if (gl_LocalInvocationIndex == 0) {
+        int localNumVisible = 0;
+        for (int i = 0; i < totalNumLights; ++i) {
+            if (lightVisible[i]) {
+                vplVisibleIndex[localNumVisible] = i;
+                ++localNumVisible;
             }
         }
 
-        int next = atomicAdd(numVisible, 1);
-        vplVisibleIndex[next] = index;
-        lightData[index].color = vec4(color * lightData[index].intensity, 1.0);
+        numVisible = localNumVisible;
     }
 }

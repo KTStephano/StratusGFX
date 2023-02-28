@@ -4,7 +4,7 @@ STRATUS_GLSL_VERSION
 
 #include "pbr.glsl"
 #include "pbr2.glsl"
-#include "vpl_tiled_deferred_culling.glsl"
+#include "vpl_common.glsl"
 
 // Input from vertex shader
 in vec2 fsTexCoords;

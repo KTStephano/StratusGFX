@@ -158,6 +158,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
     _state.shaders.push_back(_state.vplCulling.get());
 
+    _state.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
+    _state.shaders.push_back(_state.vplColoring.get());
+
     _state.vplTileDeferredCullingStage1 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_tiled_deferred_culling_stage1.cs", ShaderType::COMPUTE}}));
     _state.shaders.push_back(_state.vplTileDeferredCullingStage1.get());
@@ -167,8 +171,8 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     _state.shaders.push_back(_state.vplTileDeferredCullingStage2.get());
 
     _state.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"pbr_vpl_gi.vs", ShaderType::VERTEX},
-        Shader{"pbr_vpl_gi.fs", ShaderType::FRAGMENT}}));
+        Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
+        Shader{"vpl_pbr_gi.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
     _state.fxaaLuminance = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -214,18 +218,18 @@ void RendererBackend::_InitPointShadowMaps() {
     }
 
     // Create the virtual point light shadow map cache
-    for (int i = 0; i < _state.vpls.maxTotalVirtualPointLightsPerFrame; ++i) {
+    for (int i = 0; i < MAX_TOTAL_VPL_SHADOW_MAPS; ++i) {
         _CreateShadowMap3D(_state.vpls.vplShadowCubeMapX, _state.vpls.vplShadowCubeMapY, true);
     }
 }
 
 void RendererBackend::_InitializeVplData() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    std::vector<int> visibleIndicesData(_state.vpls.maxTotalVirtualPointLightsPerFrame, 0);
-    _state.vpls.vplDiffuseMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
-    _state.vpls.vplShadowMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING, 0);
+    _state.vpls.vplDiffuseMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
+    _state.vpls.vplShadowMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     _state.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
-    _state.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * _state.vpls.maxTotalVirtualPointLightsPerFrame, flags);
+    _state.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     _state.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -942,20 +946,38 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     glEnable(GL_DEPTH_TEST);
 }
 
+void RendererBackend::_InitVplFrameData(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
+    for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
+        VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
+        GpuVplData& data = vplData[i];
+        data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
+        data.farPlane = point->getFarPlane();
+        data.radius = point->getRadius();
+        data.intensity = point->getIntensity();
+    }
+    _state.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
+}
+
 void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>>& perLightDistToViewer, 
                                          std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer,
-                                         std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+                                         std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
+                                         std::vector<int>& visibleVplIndices) {
     const Camera& c = *_frame->camera;
+
+    const bool worldLightEnabled = _frame->csc.worldLight->getEnabled();
 
     perLightDistToViewer.reserve(_state.maxTotalRegularLightsPerFrame);
     perLightShadowCastingDistToViewer.reserve(_state.maxShadowCastingLightsPerFrame);
-    perVPLDistToViewer.reserve(_state.vpls.maxTotalVirtualPointLightsPerFrame);
+    if (worldLightEnabled) {
+        perVPLDistToViewer.reserve(MAX_TOTAL_VPLS_BEFORE_CULLING);
+    }
 
     // Init per light instance data
     for (auto& light : _frame->lights) {
         const double distance = glm::distance(c.getPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
-            perVPLDistToViewer.push_back(std::make_pair(light, distance));
+            if (worldLightEnabled) perVPLDistToViewer.push_back(std::make_pair(light, distance));
         }
         else {
             perLightDistToViewer.push_back(std::make_pair(light, distance));
@@ -972,7 +994,6 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     };
     std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
     std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
-    std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
     if (perLightDistToViewer.size() > _state.maxTotalRegularLightsPerFrame) {
@@ -985,21 +1006,28 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     }
 
     // Remove vpls exceeding absolute maximum
-    if (perVPLDistToViewer.size() > _state.vpls.maxTotalVirtualPointLightsPerFrame) {
-        perVPLDistToViewer.resize(_state.vpls.maxTotalVirtualPointLightsPerFrame);
+    if (worldLightEnabled) {
+        std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
+        if (perVPLDistToViewer.size() > MAX_TOTAL_VPLS_BEFORE_CULLING) {
+            perVPLDistToViewer.resize(MAX_TOTAL_VPLS_BEFORE_CULLING);
+        }
+
+        _InitVplFrameData(perVPLDistToViewer);
+        _PerformVirtualPointLightCullingStage1(perVPLDistToViewer, visibleVplIndices);
     }
 
     // Check if any need to have a new shadow map pulled from the cache
-    std::vector<std::vector<std::pair<LightPtr, double>> *> shadowCasters{
-        &perLightShadowCastingDistToViewer,
-        &perVPLDistToViewer    
-    };
+    for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
+        if (!_ShadowMapExistsForLight(light)) {
+            _frame->lightsToUpate.PushBack(light);
+        }
+    }
 
-    for (const auto* vec : shadowCasters) {
-        for (const auto&[light, _] : *vec) {
-            if (!_ShadowMapExistsForLight(light)) {
-                _frame->lightsToUpate.PushBack(light);
-            }
+    for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
+        const int index = visibleVplIndices[i];
+        auto light = perVPLDistToViewer[index].first;
+        if (!_ShadowMapExistsForLight(light)) {
+            _frame->lightsToUpate.PushBack(light);
         }
     }
 
@@ -1047,29 +1075,11 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
     }
 }
 
-void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+void RendererBackend::_PerformVirtualPointLightCullingStage1(
+    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
+    std::vector<int>& visibleVplIndices) {
+
     if (perVPLDistToViewer.size() == 0) return;
-
-    // Pack data into system memory
-    std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
-    std::vector<GpuTextureHandle> smapHandles(perVPLDistToViewer.size());
-    std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
-    for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
-        VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
-        auto smap = _GetOrAllocateShadowMapForLight(perVPLDistToViewer[i].first);
-        diffuseHandles[i] = smap.diffuseCubeMap.GpuHandle();
-        smapHandles[i] = smap.shadowCubeMap.GpuHandle();
-        GpuVplData& data = vplData[i];
-        data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
-        data.farPlane = point->getFarPlane();
-        data.radius = point->getRadius();
-        data.intensity = point->getIntensity();
-    }
-
-    // Move data to GPU memory
-    _state.vpls.vplDiffuseMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * diffuseHandles.size(), (const void *)diffuseHandles.data());
-    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * smapHandles.size(), (const void *)smapHandles.data());
-    _state.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 
     _state.vplCulling->bind();
 
@@ -1078,7 +1088,7 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     const glm::vec3 direction = lightCam.getDirection();
 
     _state.vplCulling->setVec3("infiniteLightDirection", direction);
-    _state.vplCulling->setVec3("infiniteLightColor", _frame->csc.worldLight->getLuminance());
+    _state.vplCulling->setInt("totalNumLights", perVPLDistToViewer.size());
 
     // Set up # visible atomic counter
     int numVisible = 0;
@@ -1088,12 +1098,78 @@ void RendererBackend::_PerformVirtualPointLightCulling(std::vector<std::pair<Lig
     // Bind light data and visibility indices
     _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    _state.vpls.vplDiffuseMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
 
     _InitCoreCSMData(_state.vplCulling.get());
-    _state.vplCulling->dispatchCompute((unsigned int)perVPLDistToViewer.size(), 1, 1);
+    _state.vplCulling->dispatchCompute(1, 1, 1);
     _state.vplCulling->synchronizeCompute();
+
     _state.vplCulling->unbind();
+
+    int totalVisible = *(int *)_state.vpls.vplNumVisible.MapMemory();
+    _state.vpls.vplNumVisible.UnmapMemory();
+
+    // These should still be sorted since the GPU compute shader doesn't reorder them
+    int * indices = (int *)_state.vpls.vplVisibleIndices.MapMemory();
+    visibleVplIndices.resize(totalVisible);
+
+    for (int i = 0; i < totalVisible; ++i) {
+        visibleVplIndices[i] = indices[i];
+    }
+
+    _state.vpls.vplVisibleIndices.UnmapMemory();
+
+    //STRATUS_LOG << totalVisible << std::endl;
+
+    if (totalVisible > MAX_TOTAL_VPLS_PER_FRAME) {
+        visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
+        totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
+        _state.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&totalVisible);
+        _state.vpls.vplVisibleIndices.CopyDataToBuffer(0, sizeof(int) * totalVisible, (const void *)visibleVplIndices.data());
+    }
+}
+
+void RendererBackend::_PerformVirtualPointLightCullingStage2(
+    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
+    const std::vector<int>& visibleVplIndices) {
+
+    if (perVPLDistToViewer.size() == 0) return;
+
+    // Pack data into system memory
+    std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
+    std::vector<GpuTextureHandle> smapHandles(perVPLDistToViewer.size());
+    for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
+        const int index = visibleVplIndices[i];
+        VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[index].first.get();
+        auto smap = _GetOrAllocateShadowMapForLight(perVPLDistToViewer[index].first);
+        diffuseHandles[index] = smap.diffuseCubeMap.GpuHandle();
+        smapHandles[index] = smap.shadowCubeMap.GpuHandle();
+    }
+
+    // Move data to GPU memory
+    _state.vpls.vplDiffuseMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * diffuseHandles.size(), (const void *)diffuseHandles.data());
+    _state.vpls.vplShadowMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * smapHandles.size(), (const void *)smapHandles.data());
+
+    const Camera & lightCam = *_frame->csc.worldLightCamera;
+    // glm::mat4 lightView = lightCam.getViewTransform();
+    const glm::vec3 direction = lightCam.getDirection();
+
+    _state.vplColoring->bind();
+
+    // Bind inputs
+    _state.vplColoring->setVec3("infiniteLightColor", _frame->csc.worldLight->getLuminance());
+
+    _state.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    _state.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    _state.vpls.vplDiffuseMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+
+    // Bind outputs
+    _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+
+    // Dispatch and synchronize
+    _state.vplColoring->dispatchCompute(1, 1, 1);
+    _state.vplColoring->synchronizeCompute();
+
+    _state.vplColoring->unbind();
 
     // Now perform culling per tile since we now know which lights are active
     _state.vplTileDeferredCullingStage1->bind();
@@ -1223,18 +1299,20 @@ void RendererBackend::RenderScene() {
     GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
     GpuMeshAllocator::BindElementArrayBuffer();
 
+    // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
+    // do this first
+    if (_frame->csc.worldLight->getEnabled()) {
+        _RenderCSMDepth();
+    }
+
     std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
     // This one is just for shadow-casting lights
     std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
     std::vector<std::pair<LightPtr, double>> perVPLDistToViewer;
+    std::vector<int> visibleVplIndices;
 
     // Perform point light pass
-    _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer);
-
-    // Perform world light depth pass if enabled
-    if (_frame->csc.worldLight->getEnabled()) {
-        _RenderCSMDepth();
-    }
+    _UpdatePointLights(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer, visibleVplIndices);
 
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
@@ -1291,7 +1369,7 @@ void RendererBackend::RenderScene() {
     // If world light is enabled perform VPL Global Illumination pass
     if (_frame->csc.worldLight->getEnabled() && _frame->globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
-        _PerformVirtualPointLightCulling(perVPLDistToViewer);
+        _PerformVirtualPointLightCullingStage2(perVPLDistToViewer, visibleVplIndices);
         _ComputeVirtualPointLightGlobalIllumination(perVPLDistToViewer);
     }
 

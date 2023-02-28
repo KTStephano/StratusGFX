@@ -11,7 +11,7 @@ STRATUS_GLSL_VERSION
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
 layout (local_size_x = 2, local_size_y = 5, local_size_z = 1) in;
 
-#include "vpl_tiled_deferred_culling.glsl"
+#include "vpl_common.glsl"
 #include "common.glsl"
 #include "pbr.glsl"
 
