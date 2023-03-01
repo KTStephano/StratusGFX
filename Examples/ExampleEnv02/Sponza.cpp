@@ -40,7 +40,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor));
+        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 10));
         Input()->AddInputHandler(controller);
 
         // Moonlight
