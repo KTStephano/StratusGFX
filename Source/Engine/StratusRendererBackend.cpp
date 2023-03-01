@@ -807,7 +807,7 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
 
-    for (size_t cascade = 0; cascade < _frame->csc.cascades.size() - 1; ++cascade) {
+    for (size_t cascade = 0; cascade < _frame->csc.cascades.size(); ++cascade) {
         Pipeline * shader = _frame->csc.worldLight->GetAlphaTest() ?
             _state.csmDepthRunAlphaTest[cascade].get() :
             _state.csmDepth[cascade].get();
