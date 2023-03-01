@@ -186,8 +186,8 @@ public:
             //         }
             //     }
             // }
-            for (int x = 45; x > 0; x -= 10) {
-                for (int y = 5; y < 260; y += 50) {
+            for (int x = 60; x > 0; x -= 20) {
+                for (int y = 15; y < 260; y += 40) {
                     for (int z = -140; z < 180; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(

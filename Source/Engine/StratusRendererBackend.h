@@ -215,7 +215,7 @@ namespace stratus {
         struct VirtualPointLightData {
             // For splitting viewport into tiles
             const int tileXDivisor = 2;
-            const int tileYDivisor = 5;
+            const int tileYDivisor = 4;
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;
             GpuBuffer vplDiffuseMaps;
@@ -311,6 +311,7 @@ namespace stratus {
             // Handles cascading shadow map depth buffer rendering
             // (we compile one depth shader per cascade - max 6)
             std::vector<std::unique_ptr<Pipeline>> csmDepth;
+            std::vector<std::unique_ptr<Pipeline>> csmDepthRunAlphaTest;
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;
             std::unique_ptr<Pipeline> fxaaSmoothing;

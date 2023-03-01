@@ -18,7 +18,7 @@
 
 // Matches the definitions in vpl_common.glsl
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (200)
+#define MAX_TOTAL_VPLS_PER_FRAME (160)
 #define MAX_VPLS_PER_TILE (6)
 
 namespace stratus {

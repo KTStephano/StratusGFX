@@ -13,15 +13,25 @@ smooth in vec2 fsTexCoords;
 uniform float nearClipPlane;
 
 void main() {
-	// Material material = materials[materialIndices[fsDrawID]];
-	// vec4 baseColor = material.diffuseColor;
+#ifdef RUN_CSM_ALPHA_TEST
+	Material material = materials[materialIndices[fsDrawID]];
+	vec4 baseColor = material.diffuseColor;
 
-    // if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
-    //     baseColor = texture(material.diffuseMap, fsTexCoords);
-    // }
+    if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
+        baseColor = texture(material.diffuseMap, fsTexCoords);
+    }
 
-	// runAlphaTest(baseColor.a, 0.25);
+	runAlphaTest(baseColor.a, 0.25);
 
 	// Written automatically - if used here it may disable early Z test but need to verify this
 	//gl_FragDepth = gl_FragCoord.z;// + fsTanTheta;
+
+	// Small offset to help prevent z fighting in certain cases
+    // if (baseColor.a < 1.0) {
+    //     gl_FragDepth = gl_FragCoord.z - 0.00001;
+    // }
+    // else {
+    //     gl_FragDepth = gl_FragCoord.z;
+    // }
+#endif
 }

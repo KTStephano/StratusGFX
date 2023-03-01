@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "common.glsl"
+#include "alpha_test.glsl"
 
 smooth in vec4 fsPosition;
 smooth in vec2 fsTexCoords;
@@ -20,6 +21,8 @@ void main() {
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         baseColor = texture(material.diffuseMap, fsTexCoords);
     }
+
+    runAlphaTest(baseColor.a, 0.25);
 
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);

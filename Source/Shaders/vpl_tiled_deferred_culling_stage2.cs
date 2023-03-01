@@ -9,7 +9,9 @@ STRATUS_GLSL_VERSION
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
+
+// Each thread group processes 32*2 = 64 tiles
+layout (local_size_x = 32, local_size_y = 2, local_size_z = 1) in;
 
 #include "vpl_common.glsl"
 #include "common.glsl"

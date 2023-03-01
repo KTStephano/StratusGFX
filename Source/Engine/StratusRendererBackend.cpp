@@ -131,6 +131,16 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
             {{"DEPTH_LAYER", std::to_string(i)}}))
         );
         _state.shaders.push_back(_state.csmDepth[i].get());
+
+        _state.csmDepthRunAlphaTest.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"csm.vs", ShaderType::VERTEX},
+            //Shader{"csm.gs", ShaderType::GEOMETRY},
+            Shader{"csm.fs", ShaderType::FRAGMENT}},
+            // Defines
+            {{"DEPTH_LAYER", std::to_string(i)},
+             {"RUN_CSM_ALPHA_TEST", "1"}}))
+        );
+        _state.shaders.push_back(_state.csmDepthRunAlphaTest[i].get());
     }
 
     _state.ssaoOcclude = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -797,8 +807,11 @@ void RendererBackend::_RenderCSMDepth() {
     }
     glViewport(0, 0, depth->width(), depth->height());
 
-    for (size_t cascade = 0; cascade < _frame->csc.cascades.size(); ++cascade) {
-        Pipeline * shader = _state.csmDepth[cascade].get();
+    for (size_t cascade = 0; cascade < _frame->csc.cascades.size() - 1; ++cascade) {
+        Pipeline * shader = _frame->csc.worldLight->GetAlphaTest() ?
+            _state.csmDepthRunAlphaTest[cascade].get() :
+            _state.csmDepth[cascade].get();
+
         _BindShader(shader);
 
         shader->setVec3("lightDir", &_frame->csc.worldLightCamera->getDirection()[0]);
@@ -1236,8 +1249,8 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 4),
-        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 4),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
+        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 2),
         1
     );
     _state.vplTileDeferredCullingStage2->synchronizeCompute();

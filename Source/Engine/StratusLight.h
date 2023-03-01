@@ -37,6 +37,7 @@ namespace stratus {
         float _intensity = 4.0f;
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
+        bool _runAlphaTest = true;
 
     public:
         InfiniteLight(const bool enabled = true)
@@ -90,6 +91,11 @@ namespace stratus {
 
         bool getEnabled() const { return _enabled; }
         void setEnabled(const bool e) { _enabled = e; }
+
+        // Enables alpha testing during cascaded shadow map creation - some scenes don't work
+        // as well with this enabled
+        void SetAlphaTest(const bool enabled) { _runAlphaTest = enabled; }
+        bool GetAlphaTest() const { return _runAlphaTest; }
 
         virtual InfiniteLightPtr Copy() const {
             return InfiniteLightPtr(new InfiniteLight(*this));
