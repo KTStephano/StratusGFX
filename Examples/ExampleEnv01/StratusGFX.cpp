@@ -54,7 +54,7 @@ public:
         Input()->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
+        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor, warmMorningColor));
         Input()->AddInputHandler(controller);
 
         //World()->SetAtmosphericShadowing(0.3f, 0.8f);

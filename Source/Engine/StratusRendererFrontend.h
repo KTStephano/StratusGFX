@@ -51,11 +51,6 @@ namespace stratus {
         void SetGlobalIlluminationEnabled(const bool);
         bool GetGlobalIlluminationEnabled() const;
 
-        // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
-        void SetAtmosphericShadowing(float fogDensity, float scatterControl);
-        float GetAtmosphericFogDensity() const;
-        float GetAtmosphericScatterControl() const;
-
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;
 

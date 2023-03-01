@@ -86,13 +86,6 @@ namespace stratus {
         float cascadeEnds;
     };
 
-    struct RendererAtmosphericData {
-        int numSamples = 64;
-        float fogDensity = 0.002f;
-        // If > 1, then backscattered light will be greater than forwardscattered light
-        float scatterControl = 0.004f; // 0.004 is roughly a G of 0.7
-    };
-
     struct RendererCascadeContainer {
         FrameBuffer fbo;
         std::vector<RendererCascadeData> cascades;
@@ -178,7 +171,6 @@ namespace stratus {
         CameraPtr camera;
         RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
-        RendererAtmosphericData atmospheric;
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedDynamicPbrMeshes;
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedStaticPbrMeshes;
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedFlatMeshes;

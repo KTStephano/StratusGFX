@@ -14,10 +14,11 @@
 #include <cmath>
 
 struct WorldLightController : public stratus::InputHandler {
-    WorldLightController(const glm::vec3& lightColor, const float intensity = 4.0f) {
+    WorldLightController(const glm::vec3& lightColor, const glm::vec3& atmosphereColor, const float intensity = 4.0f) {
         _worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
         _worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
         _worldLight->setColor(lightColor);
+        _worldLight->SetAtmosphereColor(atmosphereColor);
         _worldLight->setIntensity(intensity);
         INSTANCE(RendererFrontend)->SetWorldLight(_worldLight);
     }
@@ -33,8 +34,8 @@ struct WorldLightController : public stratus::InputHandler {
         const double maxLightBrightness = 30.0;
         const double atmosphericIncreaseSpeed = 0.15;
         const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
-        double fogDensity = INSTANCE(RendererFrontend)->GetAtmosphericFogDensity();
-        double scatterControl = INSTANCE(RendererFrontend)->GetAtmosphericScatterControl();
+        double particleDensity = _worldLight->GetAtmosphericParticleDensity();
+        double scatterControl = _worldLight->GetAtmosphericScatterControl();
         double lightIntensity = _worldLight->getIntensity();
         
         for (auto e : input) {
@@ -102,15 +103,15 @@ struct WorldLightController : public stratus::InputHandler {
                         }
                         case SDL_SCANCODE_LEFT: {
                             if (released) {
-                                fogDensity = fogDensity - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
-                                STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                                particleDensity = particleDensity - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_RIGHT: {
                             if (released) {
-                                fogDensity = fogDensity + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
-                                STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                                particleDensity = particleDensity + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;
                         }
@@ -119,7 +120,7 @@ struct WorldLightController : public stratus::InputHandler {
             }
         }
 
-        INSTANCE(RendererFrontend)->SetAtmosphericShadowing(fogDensity, scatterControl);
+        _worldLight->SetAtmosphericLightingConstants(particleDensity, scatterControl);
 
         if (!_worldLightPaused) {
             _worldLight->offsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));

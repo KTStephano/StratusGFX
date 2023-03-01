@@ -38,6 +38,13 @@ namespace stratus {
         float _ambientIntensity = minAmbientIntensity;
         bool _enabled = true;
         bool _runAlphaTest = true;
+        // This is the number of rays we march per pixel to determine the final
+        // atmospheric value
+        int _numAtmosphericSamples = 64;
+        float _particleDensity = 0.002f;
+        // If > 1, then backscattered light will be greater than forwardscattered light
+        float _scatterControl = 0.004f; // 0.004 is roughly a G of 0.7
+        glm::vec3 _atmosphereColor = glm::vec3(1.0f);
 
     public:
         InfiniteLight(const bool enabled = true)
@@ -96,6 +103,37 @@ namespace stratus {
         // as well with this enabled
         void SetAlphaTest(const bool enabled) { _runAlphaTest = enabled; }
         bool GetAlphaTest() const { return _runAlphaTest; }
+
+        // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
+        void SetAtmosphericLightingConstants(float particleDensity, float scatterControl) {
+            _particleDensity = std::max(0.0f, std::min(particleDensity, 1.0f));
+            _scatterControl = std::max(0.0f, scatterControl);
+        }
+
+        void SetAtmosphereColor(const glm::vec3& color) {
+            _atmosphereColor = color;
+        }
+
+        // Number of rays that we march per pixel to determine final atmospheric value
+        void SetNumAtmosphericSamplesPerPixel(const int numSamples) {
+            _numAtmosphericSamples = numSamples;
+        }
+
+        int GetAtmosphericNumSamplesPerPixel() const {
+            return _numAtmosphericSamples;
+        }
+
+        float GetAtmosphericParticleDensity() const {
+            return _particleDensity;
+        }
+
+        float GetAtmosphericScatterControl() const {
+            return _scatterControl;
+        }
+
+        const glm::vec3& GetAtmosphereColor() const {
+            return _atmosphereColor;
+        }
 
         virtual InfiniteLightPtr Copy() const {
             return InfiniteLightPtr(new InfiniteLight(*this));

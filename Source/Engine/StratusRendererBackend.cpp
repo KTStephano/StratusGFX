@@ -898,15 +898,15 @@ void RendererBackend::_RenderAtmosphericShadowing() {
     glDisable(GL_DEPTH_TEST);
 
     auto re = std::default_random_engine{};
-    const float n = _frame->atmospheric.numSamples;
+    const float n = _frame->csc.worldLight->GetAtmosphericNumSamplesPerPixel();
     // On the range [0.0, 1/n)
     std::uniform_real_distribution<float> real(0.0f, 1.0f / n);
     const glm::vec2 noiseShift(real(re), real(re));
     const float dmin     = _frame->znear;
     const float dmax     = _frame->csc.cascades[_frame->csc.cascades.size() - 1].cascadeEnds;
-    const float lambda   = _frame->atmospheric.fogDensity;
+    const float lambda   = _frame->csc.worldLight->GetAtmosphericParticleDensity();
     // cbrt = cube root
-    const float cubeR    = std::cbrt(_frame->atmospheric.scatterControl);
+    const float cubeR    = std::cbrt(_frame->csc.worldLight->GetAtmosphericScatterControl());
     const float g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
     // aspect ratio
     const float ar       = float(_frame->viewportWidth) / float(_frame->viewportHeight);
@@ -1569,7 +1569,7 @@ void RendererBackend::_PerformAtmosphericPostFx() {
     const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
     //const float sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
     //const float cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
-    const glm::vec3 lightColor = _frame->csc.worldLight->getColor();// * glm::vec3(cosX, cosX, sinX);
+    const glm::vec3 lightColor = _frame->csc.worldLight->GetAtmosphereColor();// * glm::vec3(cosX, cosX, sinX);
 
     _BindShader(_state.atmosphericPostFx.get());
     _state.atmosphericPostFxBuffer.fbo.bind();

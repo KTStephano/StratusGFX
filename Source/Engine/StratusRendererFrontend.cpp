@@ -339,22 +339,6 @@ namespace stratus {
         _frame->skybox = skybox;
     }
 
-    void RendererFrontend::SetAtmosphericShadowing(float fogDensity, float scatterControl) {
-        auto ul = _LockWrite();
-        _frame->atmospheric.fogDensity = std::max(0.0f, std::min(fogDensity, 1.0f));
-        _frame->atmospheric.scatterControl = scatterControl;
-    }
-
-    float RendererFrontend::GetAtmosphericFogDensity() const {
-        auto sl = _LockRead();
-        return _frame->atmospheric.fogDensity;
-    }
-
-    float RendererFrontend::GetAtmosphericScatterControl() const {
-        auto sl = _LockRead();
-        return _frame->atmospheric.scatterControl;
-    }
-
     void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
         auto ul = _LockWrite();
         _frame->globalIlluminationEnabled = enabled;
