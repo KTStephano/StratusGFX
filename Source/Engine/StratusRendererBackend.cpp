@@ -185,6 +185,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_pbr_gi.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.vplGlobalIllumination.get());
 
+    _state.vplGlobalIlluminationBlurring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
+        Shader{"vpl_pbr_gi_blur.fs", ShaderType::FRAGMENT}}));
+    _state.shaders.push_back(_state.vplGlobalIlluminationBlurring.get());
+
     _state.fxaaLuminance = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"fxaa.vs", ShaderType::VERTEX},
         Shader{"fxaa_luminance.fs", ShaderType::FRAGMENT}
@@ -403,6 +408,15 @@ void RendererBackend::_UpdateWindowDimensions() {
         return;
     }
 
+    _state.vpls.vplGIBlurredBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    _state.vpls.vplGIBlurredBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.vpls.vplGIBlurredBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    _state.vpls.vplGIBlurredFbo = FrameBuffer({_state.vpls.vplGIBlurredBuffer});
+    if (!_state.vpls.vplGIBlurredBuffer.valid()) {
+        _isValid = false;
+        return;
+    }
+
     // Code to create the Atmospheric fbo
     _state.atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth / 2, _frame->viewportHeight / 2, 0, false}, NoTextureData);
     _state.atmosphericTexture.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
@@ -526,6 +540,7 @@ void RendererBackend::_ClearFramebufferData(const bool clearScreen) {
         _state.atmosphericFbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         _state.lightingFbo.clear(color);
         _state.vpls.vplGIFbo.clear(color);
+        _state.vpls.vplGIBlurredFbo.clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (_frame->csc.fbo.valid()) {
@@ -1323,7 +1338,19 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _RenderQuad();
     
     _UnbindShader();
-    _state.lightingFbo.copyFrom(_state.vpls.vplGIFbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
+    _state.vpls.vplGIFbo.unbind();
+
+    _BindShader(_state.vplGlobalIlluminationBlurring.get());
+    _state.vpls.vplGIBlurredFbo.bind();
+    _state.vplGlobalIlluminationBlurring->bindTexture("screen", _state.lightingColorBuffer);
+    _state.vplGlobalIlluminationBlurring->bindTexture("indirectIllumination", _state.vpls.vplGIColorBuffer);
+
+    _RenderQuad();
+
+    _UnbindShader();
+    _state.vpls.vplGIBlurredFbo.unbind();
+
+    _state.lightingFbo.copyFrom(_state.vpls.vplGIBlurredFbo, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBounds{0, 0, _frame->viewportWidth, _frame->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 }
 
 void RendererBackend::RenderScene() {

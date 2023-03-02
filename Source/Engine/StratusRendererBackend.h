@@ -219,6 +219,8 @@ namespace stratus {
             GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             Texture vplGIColorBuffer;
+            FrameBuffer vplGIBlurredFbo;
+            Texture vplGIBlurredBuffer;
         };
 
         struct RenderState {
@@ -294,6 +296,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> lighting;
             // Handles global illuminatino stage
             std::unique_ptr<Pipeline> vplGlobalIllumination;
+            std::unique_ptr<Pipeline> vplGlobalIlluminationBlurring;
+            // Bloom stage
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;

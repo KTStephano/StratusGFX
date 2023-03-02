@@ -77,7 +77,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
-    vec3 vplColor = screenColor;
+    vec3 vplColor = vec3(0.0); //screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
         // Calculate true light index via lookup into active light table
         int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
