@@ -47,6 +47,7 @@ static void setupDayTime() {
     }
 
     INSTANCE(RendererFrontend)->SetFogDensity(0.0f);
+    INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5f));
     INSTANCE(RendererFrontend)->SetSkyboxIntensity(3.0f);
     
     STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
@@ -83,7 +84,7 @@ static void setupNightTime() {
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(72.1779, 24.355, 44.6474), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(78.7009, 44.73, 86.5537), glm::vec3(1, 1, 0.5), 400, true),
