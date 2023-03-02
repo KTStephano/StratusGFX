@@ -55,8 +55,8 @@ vec4 calculateStructureOutput(float z) {
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
-vec2 calculateDepthCoords(vec2 texCoords, vec3 viewDir) {
-    float height = texture(materials[materialIndices[fsDrawID]].depthMap, texCoords).r;
+vec2 calculateDepthCoords(in Material material, vec2 texCoords, vec3 viewDir) {
+    float height = texture(material.depthMap, texCoords).r;
     vec2 p = viewDir.xy * (height * 0.005);
     return texCoords - p;
 }
@@ -67,7 +67,7 @@ void main() {
     Material material = materials[materialIndices[fsDrawID]];
 
     if (bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED)) {
-        texCoords = calculateDepthCoords(texCoords, viewDir);
+        texCoords = calculateDepthCoords(material, texCoords, viewDir);
         // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
         //     discard;
         // }

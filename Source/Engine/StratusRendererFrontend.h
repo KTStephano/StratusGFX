@@ -47,6 +47,10 @@ namespace stratus {
         void SetVsyncEnabled(const bool);
         void SetClearColor(const glm::vec4&);
         void SetSkybox(const TextureHandle&);
+        void SetSkyboxColorMask(const glm::vec3&);
+        void SetSkyboxIntensity(const float);
+        void SetFogColor(const glm::vec3&);
+        void SetFogDensity(const float);
 
         void SetGlobalIlluminationEnabled(const bool);
         bool GetGlobalIlluminationEnabled() const;

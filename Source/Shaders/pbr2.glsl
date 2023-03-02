@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #include "pbr.glsl"
+#include "fog.glsl"
 
 // All of the information was taken from these two sources:
 //      https://google.github.io/filament/Filament.html
@@ -203,7 +204,9 @@ vec3 calculateLighting2(
     vec3 lightDir, 
     vec3 viewDir, 
     vec3 normal, 
-    vec3 baseColor, 
+    vec3 baseColor,
+    float viewDist, 
+    float fogIntensity,
     float roughness, 
     float metallic, 
     float ambientOcclusion, 
@@ -215,9 +218,9 @@ vec3 calculateLighting2(
     vec3 brdf = BRDF(lightDir, viewDir, normal, baseColor, baseReflectance, roughness, metallic);
 
     vec3 ambient = brdf * ambientOcclusion * lightColor * ambientIntensity;
-    vec3 finalBrightnes = brdf * lightColor;
+    vec3 finalBrightness = brdf * lightColor;
 
-    return attenuationFactor * (ambient + shadowFactor * finalBrightnes);
+    return attenuationFactor * (ambient + shadowFactor * applyFog(finalBrightness, viewDist, fogIntensity));
 }
 
 vec3 calculateLighting_DiffuseOnly(
@@ -226,6 +229,7 @@ vec3 calculateLighting_DiffuseOnly(
     vec3 viewDir, 
     vec3 normal, 
     vec3 baseColor, 
+    float viewDist,
     float roughness, 
     float metallic, 
     float ambientOcclusion, 
@@ -248,6 +252,7 @@ vec3 calculateDirectionalLighting(
     vec3 viewDir, 
     vec3 normal, 
     vec3 baseColor, 
+    float viewDist,
     float roughness, 
     float metallic, 
     float ambientOcclusion, 
@@ -255,7 +260,7 @@ vec3 calculateDirectionalLighting(
     vec3 baseReflectance, 
     float ambientIntensity) {
 
-    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, 1.0, ambientIntensity);
+    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 1.0, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, 1.0, ambientIntensity);
 }
 
 vec3 calculatePointLighting2(
@@ -265,6 +270,7 @@ vec3 calculatePointLighting2(
     vec3 viewDir, 
     vec3 lightPos, 
     vec3 lightColor, 
+    float viewDist,
     float roughness, 
     float metallic, 
     float ambientOcclusion, 
@@ -272,8 +278,9 @@ vec3 calculatePointLighting2(
     vec3 baseReflectance) {
 
     vec3 lightDir   = lightPos - fragPosition;
+    //lightColor = vec3(277 / 255, 66 / 255, 52 / 255) * 800;
 
-    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
+    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, length(lightColor) / 12, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
 }
 
 vec3 calculateVirtualPointLighting2(
@@ -283,6 +290,7 @@ vec3 calculateVirtualPointLighting2(
     vec3 viewDir, 
     vec3 lightPos, 
     vec3 lightColor,
+    float viewDist,
     float lightRadius, 
     float roughness, 
     float metallic, 
@@ -294,5 +302,5 @@ vec3 calculateVirtualPointLighting2(
     float adjustedShadowFactor = 1.0 - shadowFactor;
     adjustedShadowFactor = max(adjustedShadowFactor, 0.35);
 
-    return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
+    return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
 }

@@ -180,9 +180,13 @@ namespace stratus {
         std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
-        TextureHandle skybox = TextureHandle::Null();
         glm::mat4 projection;
         glm::vec4 clearColor;
+        TextureHandle skybox = TextureHandle::Null();
+        glm::vec3 skyboxColorMask = glm::vec3(1.0f);
+        float skyboxIntensity = 3.0f;
+        glm::vec3 fogColor = glm::vec3(0.5f);
+        float fogDensity = 0.0f;
         bool viewportDirty;
         bool vsyncEnabled;
         bool globalIlluminationEnabled = true;

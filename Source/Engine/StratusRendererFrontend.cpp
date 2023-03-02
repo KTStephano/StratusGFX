@@ -339,6 +339,26 @@ namespace stratus {
         _frame->skybox = skybox;
     }
 
+    void RendererFrontend::SetSkyboxColorMask(const glm::vec3& mask) {
+        auto ul = _LockWrite();
+        _frame->skyboxColorMask = mask;
+    }
+
+    void RendererFrontend::SetSkyboxIntensity(const float intensity) {
+        auto ul = _LockWrite();
+        _frame->skyboxIntensity = intensity;
+    }
+
+    void RendererFrontend::SetFogColor(const glm::vec3& color) {
+        auto ul = _LockWrite();
+        _frame->fogColor = color;
+    }
+
+    void RendererFrontend::SetFogDensity(const float density) {
+        auto ul = _LockWrite();
+        _frame->fogDensity = density;
+    }
+
     void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
         auto ul = _LockWrite();
         _frame->globalIlluminationEnabled = enabled;

@@ -22,6 +22,7 @@ static void InitLight(const LightParams& p, stratus::LightPtr& light) {
     light->setIntensity(p.intensity);
     light->setColor(p.color);
     light->SetPosition(p.position);
+    light->setCastsShadows(p.castsShadows);
 }
 
 static void InitCube(const LightParams& p,
@@ -41,7 +42,7 @@ static void InitCube(const LightParams& p,
     auto color = light->getColor();
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
-    color = (color / stratus::maxLightColor) * 30.0f;
+    color = (color / stratus::maxLightColor) * 100.0f;
     rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
 }
 
@@ -139,6 +140,10 @@ struct LightDeleteController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_L: {
+                            printLights = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -147,6 +152,7 @@ struct LightDeleteController : public stratus::InputHandler {
 
     std::vector<stratus::EntityPtr> entitiesToRemove;
     std::vector<stratus::EntityPtr> entities;
+    bool printLights = false;
 };
 
 LightDeleteController * ConvertHandlerToLightDelete(const stratus::InputHandlerPtr& input) {
@@ -171,6 +177,21 @@ static bool EntityIsRelevant(const stratus::EntityPtr& entity) {
 }
 
 void LightProcess::Process(const double deltaSeconds) {
+    if (ConvertHandlerToLightDelete(input)->printLights) {
+        ConvertHandlerToLightDelete(input)->printLights = false;
+        const auto& lights = ConvertHandlerToLightDelete(input)->entities;
+        for (const auto& light : lights) {
+            auto ptr = stratus::GetComponent<LightComponent>(light)->light;
+            const bool containsCube = stratus::ContainsComponent<LightCubeComponent>(light);
+            STRATUS_LOG << "LightCreator::CreateStationaryLight(\n"
+                        << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
+                        << "glm::vec3" << ptr->getBaseColor() << ", "
+                        << ptr->getIntensity() << ", "
+                        << (ptr->castsShadows() ? "true" : "false") << "), \n"
+                        << "    " << (containsCube ? "true" : "false") << "\n);";
+        }
+    }
+
     for (stratus::EntityPtr& entity : ConvertHandlerToLightDelete(input)->entitiesToRemove) {
         if (entity->Components().ContainsComponent<LightComponent>()) {
             INSTANCE(RendererFrontend)->RemoveLight(

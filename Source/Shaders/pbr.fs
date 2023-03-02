@@ -65,7 +65,9 @@ layout (location = 0) out vec3 fsColor;
 void main() {
     vec2 texCoords = fsTexCoords;
     vec3 fragPos = texture(gPosition, texCoords).rgb;
-    vec3 viewDir = normalize(viewPosition - fragPos);
+    vec3 viewMinusFrag = viewPosition - fragPos;
+    vec3 viewDir = normalize(viewMinusFrag);
+    float viewDist = length(viewMinusFrag);
 
     vec3 baseColor = texture(gAlbedo, texCoords).rgb;
     // Normals generally have values from [-1, 1], but inside
@@ -96,10 +98,10 @@ void main() {
         // calculate distance between light source and current fragment
         float distance = length(lightPositions[i] - fragPos);
         if(distance < lightRadii[i]) {
-            if (shadowCubeMapIndex < MAX_LIGHTS) {
+            if (shadowCubeMapIndex < MAX_LIGHTS && viewDist < 500.0) {
                 shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal));
             }
-            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, lightPositions[i], lightColors[i], roughness, metallic, ambient, shadowFactor, baseReflectivity);
+            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, lightPositions[i], lightColors[i], viewDist, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }
     }
 
@@ -113,7 +115,7 @@ void main() {
         float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
         //vec3 lightDir = infiniteLightDirection;
         //color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.003);
-        color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
+        color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
     }
 
     fsColor = boundHDR(color);

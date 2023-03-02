@@ -2,22 +2,22 @@
 #include <sstream>
 
 std::ostream& operator<<(std::ostream& os, const glm::vec2& v) {
-    return os << "[" << v.x << ", " << v.y << "]";
+    return os << "(" << v.x << ", " << v.y << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::vec3& v) {
-    return os << "[" << v.x << ", " << v.y << ", " << v.z << "]";
+    return os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
-    return os << "[" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "]";
+    return os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat2& m) {
     static constexpr size_t size = 2;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
-    os << "[";
+    os << "(";
     for (int r = 0; r < size; ++r) {
         for (int c = 0; c < size; ++c) {
             os << m[c][r];
@@ -25,14 +25,14 @@ std::ostream& operator<<(std::ostream& os, const glm::mat2& m) {
         }
         if (r < (size - 1)) os << std::endl;
     }
-    return os << "]";
+    return os << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat3& m) {
     static constexpr size_t size = 3;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
-    os << "[";
+    os << "(";
     for (int r = 0; r < size; ++r) {
         for (int c = 0; c < size; ++c) {
             os << m[c][r];
@@ -40,14 +40,14 @@ std::ostream& operator<<(std::ostream& os, const glm::mat3& m) {
         }
         if (r < (size - 1)) os << std::endl;
     }
-    return os << "]";
+    return os << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat4& m) {
     static constexpr size_t size = 4;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
-    os << "[";
+    os << "(";
     for (int r = 0; r < size; ++r) {
         for (int c = 0; c < size; ++c) {
             os << m[c][r];
@@ -55,7 +55,7 @@ std::ostream& operator<<(std::ostream& os, const glm::mat4& m) {
         }
         if (r < (size - 1)) os << std::endl;
     }
-    return os << "]";
+    return os << ")";
 }
 
 namespace stratus {

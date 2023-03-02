@@ -789,6 +789,8 @@ void RendererBackend::_RenderSkybox() {
 
         _state.skybox->setMat4("projection", projection);
         _state.skybox->setMat4("view", view);
+        _state.skybox->setVec3("colorMask", _frame->skyboxColorMask);
+        _state.skybox->setFloat("intensity", _frame->skyboxIntensity);
         _state.skybox->bindTexture("skybox", sky.Get());
 
         GetMesh(_state.skyboxCube, 0)->Render(1, GpuArrayBuffer());
@@ -1330,6 +1332,9 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vplGlobalIllumination->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
     _state.vplGlobalIllumination->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
 
+    _state.vplGlobalIllumination->setVec3("fogColor", _frame->fogColor);
+    _state.vplGlobalIllumination->setFloat("fogDensity", _frame->fogDensity);
+
     const Camera& camera = _frame->camera.get();
     _state.vplGlobalIllumination->setVec3("viewPosition", camera.getPosition());
     _state.vplGlobalIllumination->setInt("viewportWidth", _frame->viewportWidth);
@@ -1424,6 +1429,8 @@ void RendererBackend::RenderScene() {
     _state.lighting->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
     _state.lighting->setFloat("windowWidth", _frame->viewportWidth);
     _state.lighting->setFloat("windowHeight", _frame->viewportHeight);
+    _state.lighting->setVec3("fogColor", _frame->fogColor);
+    _state.lighting->setFloat("fogDensity", _frame->fogDensity);
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();

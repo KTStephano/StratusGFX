@@ -6,16 +6,20 @@ struct LightParams {
     glm::vec3 position;
     glm::vec3 color;
     float intensity;
+    bool castsShadows;
     uint32_t numShadowSamples; // only valid for Virtual Point Lights (VPLs)
 
     LightParams()
         : LightParams(glm::vec3(0.0f), glm::vec3(1.0f), 1.0f) {}
 
     LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity)
-        : LightParams(position, color, intensity, 3) {}
+        : LightParams(position, color, intensity, true) {}
 
-    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const uint32_t numShadowSamples)
-        : position(position), color(color), intensity(intensity), numShadowSamples(numShadowSamples) {}
+    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool castsShadows)
+        : LightParams(position, color, intensity, castsShadows, 3) {}
+
+    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool castsShadows, const uint32_t numShadowSamples)
+        : position(position), color(color), intensity(intensity), castsShadows(castsShadows), numShadowSamples(numShadowSamples) {}
 };
 
 struct LightCreator {
