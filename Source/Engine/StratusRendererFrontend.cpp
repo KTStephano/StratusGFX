@@ -346,7 +346,7 @@ namespace stratus {
 
     void RendererFrontend::SetSkyboxIntensity(const float intensity) {
         auto ul = _LockWrite();
-        _frame->skyboxIntensity = intensity;
+        _frame->skyboxIntensity = std::max(intensity, 0.0f);
     }
 
     void RendererFrontend::SetFogColor(const glm::vec3& color) {
@@ -356,7 +356,7 @@ namespace stratus {
 
     void RendererFrontend::SetFogDensity(const float density) {
         auto ul = _LockWrite();
-        _frame->fogDensity = density;
+        _frame->fogDensity = std::max(density, 0.0f);
     }
 
     void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
