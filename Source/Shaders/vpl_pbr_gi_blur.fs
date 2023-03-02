@@ -17,13 +17,13 @@ uniform sampler2D indirectIllumination;
 void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
 
-    vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
+    vec3 centerIllum = 2.0 * texture(indirectIllumination, fsTexCoords).rgb;
     vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
     vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
     vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
     vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
     
-    vec3 illumAvg = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
+    vec3 illumAvg = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 6.0;
 
     color = screenColor + illumAvg;
 }
