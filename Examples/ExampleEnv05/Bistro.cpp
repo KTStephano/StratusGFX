@@ -53,33 +53,33 @@ static void setupDayTime() {
 }
 
 static void setupNightTime() {
-    INSTANCE(RendererFrontend)->SetFogDensity(0.0001);
+    INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
     INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5, 0.5, 0.125));
     INSTANCE(RendererFrontend)->SetSkyboxIntensity(0.025);
 
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-12.0833, 24.51, -48.1222), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(2.13202, 24.51, -73.0153), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-18.6798, 26.02, -22.1233), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-5.15052, 26.385, 7.78559), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(16.6873, 24.355, 22.819), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(44.5133, 24.355, 33.9222), glm::vec3(1, 1, 0.5), 800, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(72.1779, 24.355, 44.6474), glm::vec3(1, 1, 0.5), 800, true),
@@ -87,111 +87,111 @@ static void setupNightTime() {
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(78.7009, 44.73, 86.5537), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-17.3537, 44.835, 100.604), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-21.2039, 44.835, 47.2472), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-43.6241, 44.835, -41.414), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-133.528, 41.2, 12.5846), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-172.268, 41.2, -37.5382), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-119.783, 41.2, -95.6311), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-177.766, 41.2, -149.001), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-201.141, 41.2, -72.1625), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-245.44, 41.2, -117.601), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-284.728, 33.875, -171.218), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-269.03, 33.875, -210.122), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-208.976, 45.175, -182.813), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-84.087, 41.425, -113.386), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-21.3645, 43.29, -182.658), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(179.52, 45.815, -415.614), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(176.673, 45.815, -344.445), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(89.9812, 46.37, -201.47), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(37.5956, 44.79, -212.5), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(215.365, 44.915, 187.586), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(244.89, 47.01, 231.121), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(299.942, 41.535, 135.591), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(332.324, 44.89, 240.823), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(350.854, 44.89, 183.909), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(208.095, 41.165, 127.712), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(492.692, 44.965, 343.702), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(388.343, 44.965, 338.671), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(15.0234, 41.1151, -105.322), glm::vec3(0.0470588, 0.356863, 0.054902), 300, false),
@@ -263,7 +263,7 @@ static void setupNightTime() {
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-96.7772, 44.93, 20.1176), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-4.29871, 41.5651, 8.65284), glm::vec3(0.0470588, 0.356863, 0.054902), 300, false),
@@ -331,35 +331,35 @@ static void setupNightTime() {
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(8.70603, 41.1401, -82.8636), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(20.1393, 41.1401, -104.487), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-1.21708, 41.1401, -63.8615), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-12.2171, 41.1401, -43.1852), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(12.6869, 41.1951, 19.8702), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(35.821, 41.1951, 28.8144), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(55.7428, 41.1951, 36.5482), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(77.314, 41.1951, 45.3662), glm::vec3(1, 1, 0.5), 400, true),
-        true
+        false
     );
 }
 

@@ -19,14 +19,15 @@ uniform float fogDensity = 0.0;
 //
 // This is achieved with the following equation:
 //      L0       = initial illuminance
-//      Lambient = indirect contribution, here approximated as a fog color
+//      Lambient = indirect contribution, here approximated as part of the fogColor input
 //      distance = distance from surface to camera in world space
 //      F        = fraction of incoming illuminance which is lost
 //      Aab      = absorption coefficient = -ln(F)
 //               --> -ln(F) since F is <= 1 so -ln(F) results in a positive value
 //      Asc      = outscattering coefficient
 //      Aex      = Aab + Asc
-//      k        = fraction of scattered light directed towards the camera
+//               --> This is specified together as the fogDensity input
+//      k        = fraction of scattered light directed towards the camera, here approximated as part of the fogColor input
 //      Lin      = L0 * exp(-Aex * distance) + Lambient * ((k * Asc) / Aex) * (1.0 - exp(-Aex * distance))
 //               --> Lambient * ((k*Asc) / Aex) are approximated by a final fog color which is input into the shader
 //      f        = exp(-Aex * distance)
