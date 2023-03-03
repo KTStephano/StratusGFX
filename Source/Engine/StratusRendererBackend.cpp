@@ -589,14 +589,14 @@ void RendererBackend::_InitAtmosphericShadowing() {
     std::uniform_real_distribution<float> real(0.0f, 1.0f);
 
     // Create the 64x64 noise texture
-    const size_t size = 32 * 32;
+    const size_t size = 64 * 64;
     std::vector<float> table(size);
     for (size_t i = 0; i < size; ++i) {
         table[i] = real(re);
     }
 
     const void* ptr = (const void *)table.data();
-    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 32, 32, 0, false}, TextureArrayData{ptr});
+    _state.atmosphericNoiseTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, 64, 64, 0, false}, TextureArrayData{ptr});
     _state.atmosphericNoiseTexture.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.atmosphericNoiseTexture.setCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }

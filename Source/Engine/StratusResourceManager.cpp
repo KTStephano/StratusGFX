@@ -449,8 +449,8 @@ namespace stratus {
         const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
                                                        aiProcess_JoinIdenticalVertices |
                                                        aiProcess_SortByPType |
-                                                       //aiProcess_GenNormals |
-                                                       aiProcess_GenSmoothNormals | 
+                                                       aiProcess_GenNormals |
+                                                       //aiProcess_GenSmoothNormals | 
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
