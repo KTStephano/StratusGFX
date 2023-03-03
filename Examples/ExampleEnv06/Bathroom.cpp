@@ -150,12 +150,12 @@ public:
             bathroom = nullptr;
             int spawned = 0;
 
-            for (int x = -14; x < -4; x += 2) {
-                for (int y = 3; y < 20; y += 2) {
-                    for (int z = -20; z < 10; z += 2) {
+            for (int x = -14; x < 0; x += 3) {
+                for (int y = 3; y < 10; y += 3) {
+                    for (int z = -20; z < 10; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 10.0f),
                             false
                         );
                     }
