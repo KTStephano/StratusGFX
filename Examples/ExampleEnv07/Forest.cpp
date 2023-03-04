@@ -20,12 +20,12 @@
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
 
-class SanMiguel : public stratus::Application {
+class Forest : public stratus::Application {
 public:
-    virtual ~SanMiguel() = default;
+    virtual ~Forest() = default;
 
     const char * GetAppName() const override {
-        return "SanMiguel";
+        return "Forest";
     }
 
     void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
@@ -52,28 +52,29 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 7));
+        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
         Input()->AddInputHandler(controller);
-
-        // Alpha testing doesn't work so well for this scene
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
         //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../../PineForest/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-            sanMiguel = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sanMiguel);
+            forest = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(forest);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(10.0f));
-            INSTANCE(EntityManager)->AddEntity(sanMiguel);
-            PrintNodeHierarchy(sanMiguel, "SanMiguel", "");
+            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(70.0f), stratus::Degrees(0.0f)));
+            INSTANCE(EntityManager)->AddEntity(forest);
         });
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        INSTANCE(RendererFrontend)->SetSkyboxIntensity(3.0f);
 
         bool running = true;
 
@@ -90,8 +91,6 @@ public:
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
         auto camera = World()->GetCamera();
-        auto worldLight = World()->GetWorldLight();
-        const glm::vec3 worldLightColor = worldLight->getColor();
 
         // Check for key/mouse events
         auto events = Input()->GetInputEventsLastFrame();
@@ -117,7 +116,7 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 100.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f), 100.0f)
                                 );
                             }
                             break;
@@ -125,15 +124,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 50.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_3: {
-                            if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 15.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f), 50.0f)
                                 );
                             }
                             break;
@@ -146,20 +137,20 @@ public:
             }
         }
 
-        if (sanMiguel != nullptr) {
-            sanMiguel = nullptr;
+        if (forest != nullptr) {
+            forest = nullptr;
             int spawned = 0;
 
-            for (int x = 80; x < 240; x += 20) {
-                for (int y = 5; y < 120; y += 20) {
-                    for (int z = -5; z < 70; z += 20) {
-                            ++spawned;
-                            LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
-                                false
-                            );
+            for (int x = -90; x < 90; x += 20) {
+                //for (int y = 3; y < 10; y += 3) {
+                    for (int z = -350; z < 50; z += 50) {
+                        ++spawned;
+                        LightCreator::CreateVirtualPointLight(
+                            LightParams(glm::vec3(float(x), 20.0f, float(z)), glm::vec3(1.0f), 100.0f),
+                            true
+                        );
                     }
-                }
+                //}
             }
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
@@ -194,7 +185,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr sanMiguel;
+    stratus::EntityPtr forest;
 };
 
-STRATUS_ENTRY_POINT(SanMiguel)
+STRATUS_ENTRY_POINT(Forest)
