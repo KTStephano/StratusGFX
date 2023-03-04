@@ -60,7 +60,7 @@ uniform vec4 cascadePlanes[3];
 uniform mat4 cascadeProjViews[4];
 
 uniform float worldLightAmbientIntensity = 0.003;
-uniform float pointLightAmbientIntensity = 0.125;
+uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
