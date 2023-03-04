@@ -60,33 +60,33 @@ public:
         //World()->SetAtmosphericShadowing(0.3f, 0.8f);
 
         // For textures see https://3dtextures.me/
-        textures.push_back(Resources()->LoadTexture("../resources/textures/Substance_graph_BaseColor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../resources/textures/Bark_06_basecolor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_basecolor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_BaseColor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_basecolor.jpg", stratus::ColorSpace::SRGB));
 
-        normalMaps.push_back(Resources()->LoadTexture("../resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::LINEAR));
 
-        depthMaps.push_back(Resources()->LoadTexture("../resources/textures/Substance_graph_Height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../resources/textures/Bark_06_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::LINEAR));
 
-        roughnessMaps.push_back(Resources()->LoadTexture("../resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::LINEAR));
 
-        environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Substance_graph_AmbientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Bark_06_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_AmbientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
 
         stratus::Async<stratus::Entity> e;
-        e = Resources()->LoadModel("../resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR);
+        e = Resources()->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             outhouse = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
@@ -95,7 +95,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(outhouse);
         });
 
-        e = Resources()->LoadModel("../resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB);
+        e = Resources()->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             clay = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
@@ -105,7 +105,7 @@ public:
             PrintNodeHierarchy(clay, "Clay", "");
         });
 
-        e = Resources()->LoadModel("../resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB);
+        e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             stump = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
@@ -115,7 +115,7 @@ public:
             PrintNodeHierarchy(stump, "Stump", "");
         });
 
-        e = Resources()->LoadModel("../local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB);
+        e = Resources()->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             hall = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
@@ -126,7 +126,7 @@ public:
             PrintNodeHierarchy(hall, "Hall", "");
         });
 
-        e = Resources()->LoadModel("../local/model.obj", stratus::ColorSpace::SRGB);
+        e = Resources()->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             ramparts = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
@@ -136,7 +136,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(ramparts);
         });
 
-        e = Resources()->LoadModel("../local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB);
+        e = Resources()->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             rocks = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
@@ -147,7 +147,7 @@ public:
         });
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        e = Resources()->LoadModel("../../glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        e = Resources()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
@@ -174,7 +174,7 @@ public:
             quadMeshes.push_back(quad);
         }
 
-        //quadMat.texture = Resources()->LoadTexture("../resources/textures/volcanic_rock_texture.png");
+        //quadMat.texture = Resources()->LoadTexture("../Resources/resources/textures/volcanic_rock_texture.png");
         srand(time(nullptr));
         for (int i = 0; i < 100; ++i) {
             size_t texIndex = rand() % textures.size();
@@ -187,7 +187,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(mesh);
         }
         //std::vector<std::unique_ptr<Cube>> cubes;
-        // cubeMat.texture = Resources()->LoadTexture("../resources/textures/wood_texture.jpg");
+        // cubeMat.texture = Resources()->LoadTexture("../Resources/resources/textures/wood_texture.jpg");
         for (int i = 0; i < 5000; ++i) {
             size_t texIndex = rand() % textures.size();
             auto mesh = cubeMeshes[texIndex]->Copy();
