@@ -314,5 +314,16 @@ void main() {
         uv.x += pixelStep * finalBlendFactor;
     }
 
-    color = vec4(texture(screen, uv).rgb, 1.0);
+    vec3 c0 = texture(screen, uv).rgb;
+    vec3 c1 = textureOffset(screen, uv, ivec2( 0,  1)).rgb;
+    vec3 c2 = textureOffset(screen, uv, ivec2( 0, -1)).rgb;
+    vec3 c3 = textureOffset(screen, uv, ivec2( 1,  0)).rgb;
+    vec3 c4 = textureOffset(screen, uv, ivec2(-1,  0)).rgb;
+    // vec3 c5 = textureOffset(screen, uv, ivec2( 1,  1)).rgb;
+    // vec3 c6 = textureOffset(screen, uv, ivec2(-1,  1)).rgb;
+    // vec3 c7 = textureOffset(screen, uv, ivec2( 1, -1)).rgb;
+    // vec3 c8 = textureOffset(screen, uv, ivec2(-1, -1)).rgb;
+
+    //color = vec4(c0, 1.0);
+    color = vec4((c0 + c1 + c2 + c3 + c4) / 5.0, 1.0);
 }

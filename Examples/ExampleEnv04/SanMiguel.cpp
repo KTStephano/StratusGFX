@@ -69,8 +69,8 @@ public:
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sanMiguel);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(10.0f));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
             INSTANCE(EntityManager)->AddEntity(sanMiguel);
-            PrintNodeHierarchy(sanMiguel, "SanMiguel", "");
         });
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
@@ -156,7 +156,7 @@ public:
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
-                                true
+                                false
                             );
                     }
                 }
