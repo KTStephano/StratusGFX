@@ -220,7 +220,7 @@ vec3 calculateLighting2(
     vec3 ambient = brdf * ambientOcclusion * lightColor * ambientIntensity;
     vec3 finalBrightness = brdf * lightColor;
 
-    return attenuationFactor * (applyFog(ambient + shadowFactor * finalBrightness, viewDist, fogIntensity));
+    return attenuationFactor * (ambient + shadowFactor * applyFog(finalBrightness, viewDist, fogIntensity));
 }
 
 vec3 calculateLighting_DiffuseOnly(

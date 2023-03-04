@@ -45,6 +45,9 @@ namespace stratus {
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
                     CastTexDataToPtr(data, 0)
                 );
+
+                // Set anisotropic filtering
+                glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, GraphicsDriver::GetConfig().maxAnisotropy);
             }
             else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -78,9 +81,6 @@ namespace stratus {
             else {
                 throw std::runtime_error("Unknown texture type specified");
             }
-
-            // Set anisotropic filtering
-            glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, GraphicsDriver::GetConfig().maxAnisotropy);
 
             unbind();
 
