@@ -23,6 +23,7 @@ namespace stratus {
         log << "\tRenderer: "                               << config.renderer << std::endl;
         log << "\tVersion: "                                << config.version << std::endl;
         log << "\tMajor, minor Version: "                   << config.majorVersion << ", " << config.minorVersion << std::endl;
+        log << "\tMax anisotropy: "                         << config.maxAnisotropy << std::endl;
         log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
         log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
         log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
@@ -114,6 +115,7 @@ namespace stratus {
         context.config.version = (const char *)glGetString(GL_VERSION);
         glGetIntegerv(GL_MINOR_VERSION, &context.config.minorVersion);
         glGetIntegerv(GL_MAJOR_VERSION, &context.config.majorVersion);
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &context.config.maxAnisotropy);
         glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &context.config.maxCombinedTextures);
         glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &context.config.maxCubeMapTextureSize);
         glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &context.config.maxFragmentUniformVectors);

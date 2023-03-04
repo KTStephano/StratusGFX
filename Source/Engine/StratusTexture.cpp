@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <iostream>
 #include "StratusApplicationThread.h"
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
     static const void * CastTexDataToPtr(const TextureArrayData& data, const size_t offset) {
@@ -77,6 +78,9 @@ namespace stratus {
             else {
                 throw std::runtime_error("Unknown texture type specified");
             }
+
+            // Set anisotropic filtering
+            glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, GraphicsDriver::GetConfig().maxAnisotropy);
 
             unbind();
 

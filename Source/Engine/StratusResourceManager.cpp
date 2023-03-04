@@ -171,7 +171,7 @@ namespace stratus {
                                 cspace,
                                 TextureType::TEXTURE_3D,
                                 TextureCoordinateWrapping::CLAMP_TO_EDGE,
-                                TextureMinificationFilter::LINEAR,
+                                TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                 TextureMagnificationFilter::LINEAR);
     }
 
