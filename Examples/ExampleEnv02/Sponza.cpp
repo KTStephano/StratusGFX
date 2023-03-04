@@ -192,7 +192,7 @@ public:
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-                                false
+                                true
                             );
                     }
                 }

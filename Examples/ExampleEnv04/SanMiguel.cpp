@@ -52,7 +52,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 7));
+        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
         Input()->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene
@@ -156,7 +156,7 @@ public:
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
-                                false
+                                true
                             );
                     }
                 }

@@ -55,7 +55,7 @@ static void setupDayTime() {
 
 static void setupNightTime() {
     INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
-    INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f));
+    INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5, 0.5, 0.125));
     INSTANCE(RendererFrontend)->SetSkyboxIntensity(0.025);
 
     LightCreator::CreateStationaryLight(

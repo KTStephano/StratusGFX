@@ -28,7 +28,7 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
-        const double lightRotationSpeed = _rotationSpeeds[_rotationSpeedIndex];
+        const double lightRotationSpeed = 3.0;
         const double lightIncreaseSpeed = 5.0;
         const double minLightBrightness = 0.25;
         const double maxLightBrightness = 30.0;
@@ -68,13 +68,6 @@ struct WorldLightController : public stratus::InputHandler {
                                 STRATUS_LOG << "Global Illumination Toggled" << std::endl;
                                 const bool enabled = INSTANCE(RendererFrontend)->GetGlobalIlluminationEnabled();
                                 INSTANCE(RendererFrontend)->SetGlobalIlluminationEnabled( !enabled );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_O: {
-                            if (released) {
-                                _rotationSpeedIndex = (_rotationSpeedIndex + 1) % _maxNumRotationSpeeds;
-                                STRATUS_LOG << "Directional Light Rotation Speed: " << _rotationSpeeds[_rotationSpeedIndex] << std::endl;
                             }
                             break;
                         }
@@ -137,9 +130,6 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
 private:
-    static constexpr size_t _maxNumRotationSpeeds = 4;
-    static constexpr double _rotationSpeeds[maxNumRotationSpeeds] = {0.5, 1.0, 2.0, 3.0};
-    size_t _rotationSpeedIndex = 3;
     float _worldLightMoveDirection = 1.0; // -1.0 reverses it
     stratus::InfiniteLightPtr _worldLight;
     bool _worldLightPaused = true;
