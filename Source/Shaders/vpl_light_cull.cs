@@ -61,7 +61,7 @@ void main() {
                                 dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[2], vec4(lightPos, 1.0)));
         float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
-        if (shadowFactor < 1.0) {
+        if (shadowFactor < 0.5) {
             lightVisible[index] = true;
             // int next = atomicAdd(localNumVisible, 1);
             // vplVisibleIndex[next] = index;

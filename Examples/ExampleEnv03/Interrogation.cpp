@@ -65,7 +65,7 @@ public:
         });
 
         INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
-        INSTANCE(RendererFrontend)->SetFogDensity(0.002);
+        INSTANCE(RendererFrontend)->SetFogDensity(0.00125);
 
         bool running = true;
 

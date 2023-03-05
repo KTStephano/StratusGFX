@@ -68,7 +68,7 @@ struct CameraController : public stratus::InputHandler {
                             break;
                         case SDL_SCANCODE_LCTRL:
                             if (!released && _cameraMoveEnabled) {
-                                _camSpeedDivide = 0.05f;
+                                _camSpeedDivide = 0.025f;
                             }
                             else {
                                 _camSpeedDivide = 0.25f;

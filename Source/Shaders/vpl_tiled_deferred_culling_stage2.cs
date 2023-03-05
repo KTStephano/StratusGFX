@@ -99,7 +99,7 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                if (ratio < 0.2 && fragDist < 200) {
+                if (ratio < 0.2 && fragDist < 300) {
                 //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
                 //if (fragDist < 200) {
                     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
