@@ -439,6 +439,6 @@ void Pipeline::unbindAllTextures() {
         setInt(binding.first, 0);
     }
     _boundTextures.clear();
-    _activeTextureIndex = 1;
+    _activeTextureIndex = 0;
 }
 }

@@ -51,7 +51,7 @@ class Pipeline {
     std::unordered_map<std::string, Texture> _boundTextures;
 
     // Lets us keep track of the next texture index to use
-    int _activeTextureIndex = 1;
+    int _activeTextureIndex = 0;
 
     /**
      * Program handle returned from OpenGL

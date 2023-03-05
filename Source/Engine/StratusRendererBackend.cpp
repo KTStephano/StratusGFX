@@ -1759,12 +1759,12 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // Set up point lights
 
     // Make sure everything is set to some sort of default to prevent shader crashes or huge performance drops
-    s->setFloat("lightFarPlanes[0]", 1.0f);
-    s->bindTexture("shadowCubeMaps[0]", _LookupShadowmapTexture(_state.dummyCubeMap));
-    s->setVec3("lightPositions[0]", glm::vec3(0.0f));
-    s->setVec3("lightColors[0]", glm::vec3(0.0f));
-    s->setFloat("lightRadii[0]", 1.0f);
-    s->setBool("lightCastsShadows[0]", false);
+    // s->setFloat("lightFarPlanes[0]", 1.0f);
+    // s->bindTexture("shadowCubeMaps[0]", _LookupShadowmapTexture(_state.dummyCubeMap));
+    // s->setVec3("lightPositions[0]", glm::vec3(0.0f));
+    // s->setVec3("lightColors[0]", glm::vec3(0.0f));
+    // s->setFloat("lightRadii[0]", 1.0f);
+    // s->setBool("lightCastsShadows[0]", false);
 
     const Camera& c = *_frame->camera;
     glm::vec3 lightColor;
@@ -1778,10 +1778,14 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         //if (distance > (2 * light->getRadius())) continue;
 
         // VPLs are handled as part of the global illumination compute pipeline
-        if (point->IsVirtualLight()) continue;
+        if (point->IsVirtualLight()) {
+            continue;
+        }
 
         if (point->castsShadows()) {
-            if (shadowLightIndex >= maxShadowLights) continue;
+            if (shadowLightIndex >= maxShadowLights) {
+                continue;
+            }
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _GetOrAllocateShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));

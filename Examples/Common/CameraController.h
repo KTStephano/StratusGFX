@@ -40,7 +40,7 @@ struct CameraController : public stratus::InputHandler {
         for (auto e : input) {
             switch (e.type) {
                 case SDL_MOUSEMOTION:
-                    if (_cameraMoveEnabled) {
+                    if (_cameraRotateEnabled) {
                         _camera->modifyAngle(stratus::Degrees(0.0f), stratus::Degrees(-e.motion.xrel), stratus::Degrees(0.0f));
                     }
                     //STRATUS_LOG << camera.getRotation() << std::endl;
@@ -90,9 +90,15 @@ struct CameraController : public stratus::InputHandler {
                                 _cameraSpeed.y = 0.0f;
                             }
                             break;
-                        case (SDL_SCANCODE_X): {
+                        case (SDL_SCANCODE_T): {
                             if (released) {
                                 _cameraMoveEnabled = !_cameraMoveEnabled;
+                            }
+                            break;
+                        }
+                        case (SDL_SCANCODE_Y): {
+                            if (released) {
+                                _cameraRotateEnabled = !_cameraRotateEnabled;
                             }
                             break;
                         }
@@ -144,6 +150,7 @@ private:
     stratus::LightPtr _cameraLight;
     bool _cameraLightEnabled = true;
     bool _cameraMoveEnabled = true;
+    bool _cameraRotateEnabled = true;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
     float _camSpeedDivide = 0.25f; // For slowing camera down
 };
