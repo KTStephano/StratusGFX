@@ -2,6 +2,13 @@
 
 #include "StratusCommon.h"
 
+// For forcing 1-byte tight struct packing (we need to precisely control alignment and padding)
+#ifdef __GNUC__
+#define PACKED_STRUCT_ATTRIBUTE __attribute__ ((packed))
+#else
+#define PACKED_STRUCT_ATTRIBUTE
+#endif
+
 // Once a VPL is further than this distance away it is automatically culled
 #define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
 #define MAX_TOTAL_VPL_SHADOW_MAPS (512)
@@ -27,7 +34,10 @@ namespace stratus {
 
     // Matches the definition in vpl_common.glsl
     // See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
-    struct alignas(16) GpuVec {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE alignas(16) GpuVec {
         float v[4];
 
         GpuVec(float x, float y, float z, float w) {
@@ -79,10 +89,16 @@ namespace stratus {
             v[3] = vec.w;
         }
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
     // Matches the definition in common.glsl and is intended to be used with std430 layout
     // qualifier (SSBO and not UBO since UBO does not support std430).
-    struct alignas(128) GpuMaterial {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuMaterial {
         GpuVec diffuseColor;
         GpuVec ambientColor;
         GpuVec baseReflectivity;
@@ -111,8 +127,14 @@ namespace stratus {
         GpuMaterial& operator=(const GpuMaterial&) = default;
         GpuMaterial& operator=(GpuMaterial&&) = default;
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
-    struct alignas(64) GpuMeshData {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuMeshData {
         float position[3];
         float texCoord[2];
         float normal[3];
@@ -120,10 +142,16 @@ namespace stratus {
         float bitangent[3];
         float _1[2];
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
     // See "Drawing Commands" in OpenGL SuperBible and 
     // "Implementing Lightweight Rendering Queues" in 3D Graphics Rendering Cookbook
-    struct GpuDrawElementsIndirectCommand {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuDrawElementsIndirectCommand {
         uint32_t vertexCount;
         uint32_t instanceCount;
         // Measured in units of indices instead of the normal bytes
@@ -131,13 +159,25 @@ namespace stratus {
         int32_t baseVertex;
         uint32_t baseInstance;
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
-    struct alignas(32) GpuVplStage1PerTileOutputs {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE alignas(32) GpuVplStage1PerTileOutputs {
         GpuVec averageLocalPosition;
         GpuVec averageLocalNormal;
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
-    struct alignas(32) GpuVplStage2PerTileOutputs {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE alignas(32) GpuVplStage2PerTileOutputs {
         int numVisible;
         int _1;
         int indices[MAX_VPLS_PER_TILE];
@@ -145,8 +185,14 @@ namespace stratus {
         GpuVplStage2PerTileOutputs() :
             numVisible(0) {}
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
-    struct alignas(64) GpuVplData {
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE alignas(64) GpuVplData {
         GpuVec position;
         GpuVec color;
         GpuVec _3;
@@ -162,6 +208,9 @@ namespace stratus {
             farPlane(1.0f),
             intensity(1.0f) {}
     };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
 
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);

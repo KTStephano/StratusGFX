@@ -62,7 +62,7 @@ public:
             transform->SetLocalPosition(glm::vec3(0.0f));
             //transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
-            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));  
             INSTANCE(EntityManager)->AddEntity(e.GetPtr());
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         };

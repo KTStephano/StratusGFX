@@ -1267,7 +1267,7 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 64),
         (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 2),
         1
     );
