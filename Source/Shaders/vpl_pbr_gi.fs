@@ -74,7 +74,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, pixelCoords).r;
+    float ambientOcclusion = texture(ssao, pixelCoords).r;
+    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * ambientOcclusion;
     vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
 
     vec3 vplColor = vec3(0.0); //screenColor;
@@ -98,7 +99,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vplColor = vplColor + calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
     return boundHDR(vplColor);

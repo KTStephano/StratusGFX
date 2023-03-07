@@ -62,6 +62,8 @@ namespace stratus {
         // Global engine instance
         static Engine * Instance() { return _instance; }
 
+        // Sets max frame rate
+        void SetMaxFrameRate(const uint32_t);
         // Checks if the engine has completed its init phase
         bool IsInitializing() const;
         // True if the engine is performing final shutdown sequence

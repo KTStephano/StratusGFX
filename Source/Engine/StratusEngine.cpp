@@ -93,6 +93,11 @@ namespace stratus {
         return _isShuttingDown.load();
     }
 
+    void Engine::SetMaxFrameRate(const uint32_t rate) {
+        std::unique_lock<std::shared_mutex> ul(_mainLoop);
+        _params.maxFrameRate = std::max<uint32_t>(rate, 30);
+    }
+
     uint64_t Engine::FrameCount() const {
         return _stats.currentFrame;
     }
@@ -246,25 +251,35 @@ namespace stratus {
         if (IsInitializing()) return SystemStatus::SYSTEM_CONTINUE;
         if (IsShuttingDown()) return SystemStatus::SYSTEM_SHUTDOWN;
 
-        std::unique_lock<std::shared_mutex> ul(_mainLoop);
+        //std::shared_lock<std::shared_mutex> sl(_mainLoop);
 
         // Calculate new frame time
         const auto end = std::chrono::system_clock::now();
-        const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
-        const double deltaSeconds = duration / 1000.0;
-        const double frameRate = 1.0 / deltaSeconds;
-
+        //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
+        const double duration = std::chrono::duration<double, std::milli>(end - _stats.prevFrameStart).count();
+        const auto requestedFrameTimingMsec = 1000.0 / double(_params.maxFrameRate);
         // Make sure we haven't exceeded the max frame rate
-        if (frameRate > _params.maxFrameRate) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //if (frameRate > _params.maxFrameRate) {
+        if (duration < requestedFrameTimingMsec) {
+            //std::this_thread::sleep_for(std::chrono::nanoseconds(1));
             return SystemStatus::SYSTEM_CONTINUE;
         }
+
+
+        const double deltaSeconds = duration / 1000.0;
+        //const double frameRate = 1.0 / deltaSeconds;
+
+        //sl.unlock();
+
+        //std::unique_lock<std::shared_mutex> ul(_mainLoop);
 
         // Frame counter should always be +1 for each valid frame
         ++_stats.currentFrame;
 
         // Update prev frame start to be the beginning of this current frame
         _stats.prevFrameStart = end;
+
+        //ul.unlock();
 
         SystemStatus status;
         #define UPDATE_MODULE(name)                                     \

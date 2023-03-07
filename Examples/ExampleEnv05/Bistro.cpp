@@ -389,6 +389,8 @@ public:
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
+        INSTANCE(Engine)->SetMaxFrameRate(30);
+
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());

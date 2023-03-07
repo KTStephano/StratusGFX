@@ -454,14 +454,14 @@ namespace stratus {
                                                        aiProcess_FlipUVs | 
                                                        aiProcess_GenUVCoords | 
                                                        aiProcess_CalcTangentSpace |
-                                                       //aiProcess_SplitLargeMeshes | 
+                                                       aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
-                                                    //    aiProcess_OptimizeGraph |
+                                                       aiProcess_OptimizeGraph |
                                                        //aiProcess_FixInfacingNormals |
-                                                       //aiProcess_FindDegenerates |
-                                                       aiProcess_FindInvalidData
-                                                       //aiProcess_FindInstances
+                                                       aiProcess_FindDegenerates |
+                                                       aiProcess_FindInvalidData |
+                                                       aiProcess_FindInstances
                                                     //    aiProcess_FlipWindingOrder
                                                 );
 

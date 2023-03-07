@@ -98,8 +98,13 @@ void main() {
         // calculate distance between light source and current fragment
         float distance = length(lightPositions[i] - fragPos);
         if(distance < lightRadii[i]) {
-            if (shadowCubeMapIndex < MAX_LIGHTS && viewDist < 750.0) {
-                shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal));
+            if (shadowCubeMapIndex < MAX_LIGHTS) {
+                if (viewDist < 150.0) {
+                    shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal));
+                }
+                else if (viewDist < 750.0) {
+                    shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[shadowCubeMapIndex], lightFarPlanes[shadowCubeMapIndex], fragPos, lightPositions[i], dot(lightPositions[i] - fragPos, normal));
+                }
             }
             color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, lightPositions[i], lightColors[i], viewDist, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }

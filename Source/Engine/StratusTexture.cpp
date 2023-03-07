@@ -47,7 +47,9 @@ namespace stratus {
                 );
 
                 // Set anisotropic filtering
-                glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, GraphicsDriver::GetConfig().maxAnisotropy);
+                auto maxAnisotropy = GraphicsDriver::GetConfig().maxAnisotropy;
+                maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
+                glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
             }
             else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
