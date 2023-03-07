@@ -992,9 +992,9 @@ namespace stratus {
             auto& commandList = commands.find(cull)->second;
             command.baseInstance = 0;
             command.baseVertex = 0;
-            command.firstIndex = c->GetMesh(i)->GetIndexOffset();
+            command.firstIndex = c->GetMesh(i)->GetIndexOffset(0);
             command.instanceCount = 1;
-            command.vertexCount = c->GetMesh(i)->GetNumIndices();
+            command.vertexCount = c->GetMesh(i)->GetNumIndices(0);
             commandList.push_back(command);
         }
         return commands;

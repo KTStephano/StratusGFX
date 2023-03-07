@@ -389,7 +389,7 @@ public:
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
-        INSTANCE(Engine)->SetMaxFrameRate(30);
+        //INSTANCE(Engine)->SetMaxFrameRate(30);
 
         LightCreator::Initialize();
 
@@ -431,7 +431,7 @@ public:
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         if (Engine()->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
-        }
+        } 
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 

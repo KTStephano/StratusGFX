@@ -22,6 +22,8 @@ if (assimp_FOUND)
     set(${ASSIMP_LIBRARY} "assimp")
 endif(assimp_FOUND)
 
+find_package(meshoptimizer REQUIRED)
+
 target_include_directories(${OUTPUT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
 message(${SDL2_LIBRARIES})
 message(${ASSIMP_LIBRARIES})
@@ -32,6 +34,7 @@ set(LIBRARIES
     ${SDL2_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${ASSIMP_LIBRARIES}
+    meshoptimizer::meshoptimizer
 )
 
 if (NOT WIN32)

@@ -6,6 +6,7 @@
 #include "StratusLog.h"
 #include "StratusTransformComponent.h"
 #include "StratusPoolAllocator.h"
+#include "meshoptimizer.h"
 
 namespace stratus {
     struct MeshAllocator {
@@ -57,11 +58,13 @@ namespace stratus {
 
         auto vertexOffset = _vertexOffset;
         auto numVertices = _numVertices;
-        auto indexOffset = _indexOffset;
-        auto numIndices = _numIndices;
-        const auto deallocate = [vertexOffset, numVertices, indexOffset, numIndices]() {
+        auto indexOffsetPerLod = _indexOffsetPerLod;
+        auto numIndicesPerLod = _numIndicesPerLod;
+        const auto deallocate = [vertexOffset, numVertices, indexOffsetPerLod, numIndicesPerLod]() {
             GpuMeshAllocator::DeallocateVertexData(vertexOffset, numVertices);
-            GpuMeshAllocator::DeallocateIndexData(indexOffset, numIndices);
+            for (size_t i = 0; i < indexOffsetPerLod.size(); ++i) {
+                GpuMeshAllocator::DeallocateIndexData(indexOffsetPerLod[i], numIndicesPerLod[i]);
+            }
         };
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
@@ -230,12 +233,14 @@ namespace stratus {
         return _vertexOffset;
     }
 
-    uint32_t Mesh::GetIndexOffset() const {
-        return _indexOffset;
+    uint32_t Mesh::GetIndexOffset(size_t lod) const {
+        lod = lod >= _indexOffsetPerLod.size() ? _indexOffsetPerLod.size() - 1 : lod;
+        return _indexOffsetPerLod[lod];
     }
 
-    uint32_t Mesh::GetNumIndices() const {
-        return _numIndices;
+    uint32_t Mesh::GetNumIndices(size_t lod) const {
+        lod = lod >= _numIndicesPerLod.size() ? _numIndicesPerLod.size() - 1 : lod;
+        return _numIndicesPerLod[lod];
     }
 
     void Mesh::_GenerateGpuData() {
@@ -249,17 +254,33 @@ namespace stratus {
             }
         }
 
-        _vertexOffset = GpuMeshAllocator::AllocateVertexData(_numVertices);
-        _indexOffset = GpuMeshAllocator::AllocateIndexData(_numIndices);
+        std::vector<std::vector<uint32_t>> indicesPerLod;
+        indicesPerLod.push_back(_cpuData->indices);
+        _numIndicesPerLod.push_back(_cpuData->indices.size());
+        for (int i = 0; i < 7; ++i) {
+            auto& prevIndices = indicesPerLod[indicesPerLod.size() - 1];
+            std::vector<uint32_t> simplified(prevIndices.size());
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.02f);
+            simplified.resize(size);
+            indicesPerLod.push_back(std::move(simplified));
+            _numIndicesPerLod.push_back(size);
+            if (size < 1024) break;
+        }
 
-        // Account for the fact that all vertices are stored in a global GpuBuffer and so
-        // the indices need to be offset
-        for (uint32_t i = 0; i < _numIndices; ++i) {
-            _cpuData->indices[i] += _vertexOffset;
+        _vertexOffset = GpuMeshAllocator::AllocateVertexData(_numVertices);
+
+        for (auto& indices : indicesPerLod) {
+            _indexOffsetPerLod.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
+            // Account for the fact that all vertices are stored in a global GpuBuffer and so
+            // the indices need to be offset
+            for (size_t i = 0; i < indices.size(); ++i) {
+                indices[i] += _vertexOffset;
+            }
+            
+            GpuMeshAllocator::CopyIndexData(indices, _indexOffsetPerLod[_indexOffsetPerLod.size() - 1]);
         }
 
         GpuMeshAllocator::CopyVertexData(_cpuData->data, _vertexOffset);
-        GpuMeshAllocator::CopyIndexData(_cpuData->indices, _indexOffset);
 
         //_meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
         //_indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
@@ -320,7 +341,7 @@ namespace stratus {
         // Matches the location in mesh_data.glsl
         additionalBuffers.Bind();
 
-        glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (const void *)(_indexOffset * sizeof(uint32_t)), numInstances);
+        glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (const void *)(GetIndexOffset(0) * sizeof(uint32_t)), numInstances);
 
         additionalBuffers.Unbind();
         //GpuMeshAllocator::UnbindElementArrayBuffer();

@@ -69,8 +69,8 @@ namespace stratus {
 
         // Offsets into global GPU buffers
         uint32_t GetVertexOffset() const;
-        uint32_t GetIndexOffset() const;
-        uint32_t GetNumIndices() const;
+        uint32_t GetIndexOffset(size_t lod) const;
+        uint32_t GetNumIndices(size_t lod) const;
 
     private:
         void _GenerateGpuData();
@@ -96,7 +96,8 @@ namespace stratus {
         uint32_t _numVertices;
         uint32_t _numIndices;
         uint32_t _vertexOffset; // Into global GpuBuffer
-        uint32_t _indexOffset; // Into global GpuBuffer
+        std::vector<uint32_t> _numIndicesPerLod;
+        std::vector<uint32_t> _indexOffsetPerLod; // Into global GpuBuffer
         RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
     };
 
