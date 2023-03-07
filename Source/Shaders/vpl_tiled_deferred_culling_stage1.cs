@@ -11,8 +11,8 @@ STRATUS_GLSL_VERSION
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
 
 // Each thread group processes 2 * 4 = 8 pixels
-layout (local_size_x = 2, local_size_y = 4, local_size_z = 1) in;
-//layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+//layout (local_size_x = 2, local_size_y = 4, local_size_z = 1) in;
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
 
 #include "vpl_common.glsl"
 #include "common.glsl"

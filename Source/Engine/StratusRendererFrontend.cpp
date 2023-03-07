@@ -423,6 +423,10 @@ namespace stratus {
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
         _frame->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
 
+        //_frame->instancedFlatMeshes.resize(1);
+        //_frame->instancedDynamicPbrMeshes.resize(1);
+        //_frame->instancedStaticPbrMeshes.resize(1);
+
         // Set up draw command buffers
         std::vector<RenderFaceCulling> culling{
             RenderFaceCulling::CULLING_CCW,
@@ -430,10 +434,19 @@ namespace stratus {
             RenderFaceCulling::CULLING_NONE  
         };
 
-        for (auto cull : culling) {
-            _frame->instancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            _frame->instancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            _frame->instancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+        // Initialize the LODs
+        for (size_t i = 0; i < 8; ++i) {
+            _frame->instancedFlatMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+            _frame->instancedDynamicPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+            _frame->instancedStaticPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+        }
+
+        for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
+            for (auto cull : culling) {
+                _frame->instancedFlatMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                _frame->instancedDynamicPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                _frame->instancedStaticPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            }
         }
 
         // Initialize entity processing
@@ -979,7 +992,7 @@ namespace stratus {
         }
     }
 
-    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c) const {
+    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod) const {
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
             auto cull = c->GetMesh(i)->GetFaceCulling();
@@ -992,9 +1005,9 @@ namespace stratus {
             auto& commandList = commands.find(cull)->second;
             command.baseInstance = 0;
             command.baseVertex = 0;
-            command.firstIndex = c->GetMesh(i)->GetIndexOffset(0);
+            command.firstIndex = c->GetMesh(i)->GetIndexOffset(lod);
             command.instanceCount = 1;
-            command.vertexCount = c->GetMesh(i)->GetNumIndices(0);
+            command.vertexCount = c->GetMesh(i)->GetNumIndices(lod);
             commandList.push_back(command);
         }
         return commands;
@@ -1005,30 +1018,32 @@ namespace stratus {
         _drawCommandsDirty = false;
 
         // Clear old commands
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> *> oldCommands{
+        std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> *> oldCommands{
             &_frame->instancedFlatMeshes,
             &_frame->instancedDynamicPbrMeshes,
             &_frame->instancedStaticPbrMeshes
         };
 
         for (auto * cmdList : oldCommands) {
-            for (auto& entry : *cmdList) {
-                entry.second->materialIndices.clear();
-                entry.second->modelTransforms.clear();
-                entry.second->indirectDrawCommands.clear();
+            for (size_t i = 0; i < cmdList->size(); ++i) {
+                for (auto& entry : (*cmdList)[i]) {
+                    entry.second->materialIndices.clear();
+                    entry.second->modelTransforms.clear();
+                    entry.second->indirectDrawCommands.clear();
+                }
             }
         }
 
-    #define GENERATE_COMMANDS(entityMap, drawCommands)                                                                 \
+    #define GENERATE_COMMANDS(entityMap, drawCommands, lod)                                                            \
         for (const auto& entry : entityMap) {                                                                          \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
-            auto commands = _GenerateDrawCommands(c);                                                                  \
-            for (size_t i = 0; i < c->GetMeshCount(); ++i) {                                                           \
-                auto cull = c->GetMesh(i)->GetFaceCulling();                                                           \
+            auto commands = _GenerateDrawCommands(c, lod);                                                             \
+            for (size_t __i = 0; __i < c->GetMeshCount(); ++__i) {                                                     \
+                auto cull = c->GetMesh(__i)->GetFaceCulling();                                                         \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
-                buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(i))->second);     \
-                buffer->modelTransforms.push_back(mt->transforms[i]);                                                  \
+                buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(__i))->second);   \
+                buffer->modelTransforms.push_back(mt->transforms[__i]);                                                \
             }                                                                                                          \
             for (auto& entry : commands) {                                                                             \
                 auto& buffer = drawCommands.find(entry.first)->second;                                                 \
@@ -1041,11 +1056,15 @@ namespace stratus {
         }
 
         // Generate flat commands
-        GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes)
+        for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
+            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i)
+        }
 
         // Generate pbr commands
-        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes)
-        GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes)
+        for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
+            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i)
+            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i)
+        }
 
     #undef GENERATE_COMMANDS
     }

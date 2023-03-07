@@ -68,7 +68,7 @@ namespace stratus {
     struct GpuArrayBufferImpl;
     struct GpuCommandBuffer;
 
-    typedef std::unique_ptr<GpuCommandBuffer> GpuCommandBufferPtr;
+    typedef std::shared_ptr<GpuCommandBuffer> GpuCommandBufferPtr;
 
     // A gpu buffer holds primitive data usually in the form of floats, ints and shorts
     // TODO: Look into use cases for things other than STATIC_DRAW

@@ -847,8 +847,9 @@ void RendererBackend::_RenderCSMDepth() {
         // Render everything
         auto& csm = _frame->csc.cascades[cascade];
         shader->setMat4("shadowMatrix", csm.projectionViewRender);
-        _RenderImmediate(_frame->instancedStaticPbrMeshes);
-        _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+        const size_t lod = cascade * 2 + 1;
+        _RenderImmediate(_frame->instancedStaticPbrMeshes[lod]);
+        _RenderImmediate(_frame->instancedDynamicPbrMeshes[lod]);
 
         _UnbindShader();
     }
@@ -1096,8 +1097,8 @@ void RendererBackend::_UpdatePointLights(std::vector<std::pair<LightPtr, double>
             shader->setVec3("lightPos", light->GetPosition());
             shader->setFloat("farPlane", point->getFarPlane());
 
-            _RenderImmediate(_frame->instancedStaticPbrMeshes);
-            if ( !point->IsStaticLight() ) _RenderImmediate(_frame->instancedDynamicPbrMeshes);
+            _RenderImmediate(_frame->instancedStaticPbrMeshes[0]);
+            if ( !point->IsStaticLight() ) _RenderImmediate(_frame->instancedDynamicPbrMeshes[0]);
 
             _UnbindShader();
         }
@@ -1396,8 +1397,8 @@ void RendererBackend::RenderScene() {
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
 
-    _Render(_frame->instancedStaticPbrMeshes, true);
-    _Render(_frame->instancedDynamicPbrMeshes, true);
+    _Render(_frame->instancedStaticPbrMeshes[0], true);
+    _Render(_frame->instancedDynamicPbrMeshes[0], true);
     
     _state.buffer.fbo.unbind();
 
@@ -1453,7 +1454,7 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     _RenderSkybox();
 
-    _Render(_frame->instancedFlatMeshes, false);
+    _Render(_frame->instancedFlatMeshes[0], false);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;

@@ -390,6 +390,7 @@ public:
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
         //INSTANCE(Engine)->SetMaxFrameRate(30);
+        INSTANCE(RendererFrontend)->SetVsyncEnabled(true);
 
         LightCreator::Initialize();
 

@@ -171,9 +171,9 @@ namespace stratus {
         CameraPtr camera;
         RendererMaterialInformation materialInfo;
         RendererCascadeContainer csc;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedStaticPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> instancedFlatMeshes;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedFlatMeshes;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpate; // shadow map data is invalid
@@ -210,7 +210,7 @@ namespace stratus {
 
         struct VirtualPointLightData {
             // For splitting viewport into tiles
-            const int tileXDivisor = 2;
+            const int tileXDivisor = 4;
             const int tileYDivisor = 4;
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;

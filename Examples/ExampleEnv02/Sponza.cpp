@@ -72,6 +72,8 @@ public:
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
 
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+
         bool running = true;
 
         // for (int i = 0; i < 64; ++i) {

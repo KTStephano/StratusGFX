@@ -260,7 +260,11 @@ namespace stratus {
         for (int i = 0; i < 7; ++i) {
             auto& prevIndices = indicesPerLod[indicesPerLod.size() - 1];
             std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.02f);
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            // If we didn't see at least a 10% reduction, try the more aggressive algorithm
+            if ((prevIndices.size() * 0.9) < double(size)) {
+                size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            }
             simplified.resize(size);
             indicesPerLod.push_back(std::move(simplified));
             _numIndicesPerLod.push_back(size);
