@@ -31,6 +31,7 @@ flat out int fsDrawID;
 void main() {
     //mat4 model = modelMats[gl_InstanceID];
     vec4 pos = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    //vec4 pos = vec4(getPosition(gl_VertexID), 1.0);
 
     vec4 viewSpacePos = view * pos;
     fsPosition = pos.xyz;

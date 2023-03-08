@@ -42,6 +42,15 @@ struct Material {
     uint _1;
 };
 
+struct DrawElementsIndirectCommand {
+    uint vertexCount;
+    uint instanceCount;
+    // Measured in units of indices instead of the normal bytes
+    uint firstIndex;
+    int baseVertex;
+    uint baseInstance;
+};
+
 layout (std430, binding = 30) readonly buffer SSBO_Global1 {
     Material materials[];
 };

@@ -210,8 +210,10 @@ namespace stratus {
     // Stores material indices, model transforms and indirect draw commands
     class GpuCommandBuffer final {
         GpuBuffer _materialIndices;
+        GpuBuffer _globalTransforms;
         GpuBuffer _modelTransforms;
         GpuBuffer _indirectDrawCommands;
+        GpuBuffer _aabbs;
 
     public:
         GpuCommandBuffer();
@@ -222,8 +224,13 @@ namespace stratus {
         // std::vector<uint64_t> handles;
         // CPU side of the data
         std::vector<uint32_t> materialIndices;
+        // Sometimes (for example with AABBs) we only want the global transform which excludes
+        // the mesh transform
+        std::vector<glm::mat4> globalTransforms;
+        // Model transform is defined as global transform * mesh transform
         std::vector<glm::mat4> modelTransforms;
         std::vector<GpuDrawElementsIndirectCommand> indirectDrawCommands;
+        std::vector<GpuAABB> aabbs;
 
         GpuCommandBuffer(GpuCommandBuffer&&) = default;
         GpuCommandBuffer(const GpuCommandBuffer&) = delete;
@@ -236,10 +243,14 @@ namespace stratus {
         void UploadDataToGpu();
 
         void BindMaterialIndicesBuffer(uint32_t index);
+        void BindGlobalTransformBuffer(uint32_t index);
         void BindModelTransformBuffer(uint32_t index);
+        void BindAabbBuffer(uint32_t index);
 
         void BindIndirectDrawCommands();
         void UnbindIndirectDrawCommands();
+
+        const GpuBuffer& GetIndirectDrawCommandsBuffer() const;
 
     private:
         void _VerifyArraySizes() const;

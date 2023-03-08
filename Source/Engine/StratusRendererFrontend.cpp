@@ -384,12 +384,14 @@ namespace stratus {
         _UpdateLights();
         _UpdateMaterialSet();
         _UpdateDrawCommands();
+        _UpdateVisibility();
 
         //_SwapFrames();
 
         // Check for shader recompile request
         if (_recompileShaders) {
             _renderer->RecompileShaders();
+            _viscull->recompile();
             _recompileShaders = false;
         }
 
@@ -441,6 +443,12 @@ namespace stratus {
             _frame->instancedStaticPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
         }
 
+        for (auto cull : culling) {
+            _frame->visibleFirstLodInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->visibleFirstLodInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            _frame->visibleFirstLodInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+        }
+
         for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
             for (auto cull : culling) {
                 _frame->instancedFlatMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
@@ -454,10 +462,18 @@ namespace stratus {
 
         ClearWorldLight();
 
+        // Initialize visibility culling compute pipeline
+        const std::filesystem::path shaderRoot("../Source/Shaders");
+        const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
+
+        _viscull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"visibility_culling.cs", ShaderType::COMPUTE}}
+        ));
+
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return _renderer->Valid();
+        return _renderer->Valid() && _viscull->isValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -1017,11 +1033,18 @@ namespace stratus {
         if (!_drawCommandsDirty) return;
         _drawCommandsDirty = false;
 
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { _frame->visibleFirstLodInstancedFlatMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ _frame->visibleFirstLodInstancedDynamicPbrMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ _frame->visibleFirstLodInstancedStaticPbrMeshes };
+
         // Clear old commands
         std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> *> oldCommands{
             &_frame->instancedFlatMeshes,
             &_frame->instancedDynamicPbrMeshes,
-            &_frame->instancedStaticPbrMeshes
+            &_frame->instancedStaticPbrMeshes,
+            &vfm,
+            &vdpm,
+            &vspm
         };
 
         for (auto * cmdList : oldCommands) {
@@ -1034,8 +1057,9 @@ namespace stratus {
             }
         }
 
-    #define GENERATE_COMMANDS(entityMap, drawCommands, lod)                                                            \
+    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB)                                                \
         for (const auto& entry : entityMap) {                                                                          \
+            GlobalTransformComponent * gt = GetComponent<GlobalTransformComponent>(entry.first);                       \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
             auto commands = _GenerateDrawCommands(c, lod);                                                             \
@@ -1043,7 +1067,11 @@ namespace stratus {
                 auto cull = c->GetMesh(__i)->GetFaceCulling();                                                         \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
                 buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(__i))->second);   \
+                buffer->globalTransforms.push_back(gt->GetGlobalTransform());                                          \
                 buffer->modelTransforms.push_back(mt->transforms[__i]);                                                \
+                if (uploadAABB) {                                                                                      \
+                    buffer->aabbs.push_back(c->GetMesh(__i)->GetAABB());                                               \
+                }                                                                                                      \
             }                                                                                                          \
             for (auto& entry : commands) {                                                                             \
                 auto& buffer = drawCommands.find(entry.first)->second;                                                 \
@@ -1056,16 +1084,115 @@ namespace stratus {
         }
 
         // Generate flat commands
+        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true)
+
         for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i)
+            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, false)
         }
 
         // Generate pbr commands
+        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true)
+        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true)
+
         for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i)
-            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i)
+            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, false)
+            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, false)
         }
 
     #undef GENERATE_COMMANDS
+    }
+
+    // See the section on culling in "3D Graphics Rendering Cookbook"
+    void RendererFrontend::_UpdateVisibility() {
+        static const std::vector<RenderFaceCulling> culling{
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE  
+        };
+
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> *> inDrawCommands{
+            &_frame->instancedFlatMeshes[0],
+            &_frame->instancedDynamicPbrMeshes[0],
+            &_frame->instancedStaticPbrMeshes[0]  
+        };
+
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> outDrawCommands{
+            &_frame->visibleFirstLodInstancedFlatMeshes,
+            &_frame->visibleFirstLodInstancedDynamicPbrMeshes,
+            &_frame->visibleFirstLodInstancedStaticPbrMeshes
+        };
+
+        // Extract the 6 frustum planes from the transposed view-projection matrix
+        const glm::mat4 vp = _frame->projection * _frame->camera->getViewTransform();
+        // glm uses right-handed coordinate system by default so we take the transpose
+        const glm::mat4 vpt = glm::transpose(vp);
+        const glm::mat4 ivp = glm::inverse(vp);
+        glm::vec4 frustumPlanes[6];
+        
+        // left
+        frustumPlanes[0] = vpt[3] + vpt[0];
+        // right
+        frustumPlanes[1] = vpt[3] - vpt[0];
+        // bottom
+        frustumPlanes[2] = vpt[3] + vpt[1];
+        // top
+        frustumPlanes[3] = vpt[3] - vpt[1];
+        // near
+        frustumPlanes[4] = vpt[3] + vpt[2];
+        // far
+        frustumPlanes[5] = vpt[3] - vpt[2];
+
+        // Generate the 8 frustum corner points
+        // This is done by taking the unit cube, transforming it by the inverse view-projection matrix,
+        // then manually performing the perspective divide
+        glm::vec4 frustumCorners[] = {
+            glm::vec4(-1, -1, -1, 1), 
+            glm::vec4( 1, -1, -1, 1),    
+            glm::vec4( 1,  1, -1, 1), 
+            glm::vec4(-1,  1, -1, 1),    
+            glm::vec4(-1, -1,  1, 1), 
+            glm::vec4( 1, -1,  1, 1),    
+            glm::vec4( 1,  1,  1, 1), 
+            glm::vec4(-1,  1,  1, 1)
+        };
+
+        for (size_t i = 0; i < 8; ++i) {
+            const glm::vec4 invCorner = ivp * frustumCorners[i];
+            frustumCorners[i] = invCorner / invCorner.w;
+        }
+
+        _viscull->bind();
+
+        for (size_t i = 0; i < 6; ++i) {
+            _viscull->setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
+        }
+
+        for (size_t i = 0; i < 8; ++i) {
+            _viscull->setVec4("frustumCorners[" + std::to_string(i) + "]", frustumCorners[i]);
+        }
+
+        for (size_t i = 0; i < inDrawCommands.size(); ++i) {
+            auto& inMap = inDrawCommands[i];
+            auto& outMap = outDrawCommands[i];
+            for (const auto& cull : culling) {
+                auto inIt = inMap->find(cull);
+                if (inIt->second->NumDrawCommands() == 0) continue;
+                auto outIt = outMap->find(cull);
+
+                inIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+                outIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+                outIt->second->BindModelTransformBuffer(2);
+                outIt->second->BindAabbBuffer(3);
+                outIt->second->BindGlobalTransformBuffer(4);
+
+                _viscull->setUint("numDrawCalls", unsigned int(inIt->second->NumDrawCommands()));
+                _viscull->setMat4("view", _frame->camera->getViewTransform());
+                _viscull->setMat4("projection", _frame->projection);
+                _viscull->dispatchCompute(1, 1, 1);
+                _viscull->synchronizeCompute();
+            }
+        }
+
+        _viscull->unbind();
     }
 }

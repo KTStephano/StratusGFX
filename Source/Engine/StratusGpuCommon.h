@@ -166,7 +166,7 @@ namespace stratus {
 #ifndef __GNUC__
     #pragma pack(push, 1)
 #endif
-    struct PACKED_STRUCT_ATTRIBUTE alignas(32) GpuVplStage1PerTileOutputs {
+    struct PACKED_STRUCT_ATTRIBUTE GpuVplStage1PerTileOutputs {
         GpuVec averageLocalPosition;
         GpuVec averageLocalNormal;
     };
@@ -177,7 +177,7 @@ namespace stratus {
 #ifndef __GNUC__
     #pragma pack(push, 1)
 #endif
-    struct PACKED_STRUCT_ATTRIBUTE alignas(32) GpuVplStage2PerTileOutputs {
+    struct PACKED_STRUCT_ATTRIBUTE GpuVplStage2PerTileOutputs {
         int numVisible;
         int _1;
         int indices[MAX_VPLS_PER_TILE];
@@ -192,7 +192,7 @@ namespace stratus {
 #ifndef __GNUC__
     #pragma pack(push, 1)
 #endif
-    struct PACKED_STRUCT_ATTRIBUTE alignas(64) GpuVplData {
+    struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         GpuVec color;
         GpuVec _3;
@@ -212,6 +212,26 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    // Axis-Aligned Bounding Box from aabb.glsl
+    struct PACKED_STRUCT_ATTRIBUTE GpuAABB {
+        GpuVec vmin;
+        GpuVec vmax;
+        //GpuVec center;
+        //GpuVec size;
+
+        GpuAABB() :
+            vmin(0.0f),
+            vmax(1.0f) {}
+            //center(0.0f),
+            //size(1.0f) {}
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
@@ -219,5 +239,6 @@ namespace stratus {
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplData) == 64);
+    static_assert(sizeof(GpuAABB) == 32);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

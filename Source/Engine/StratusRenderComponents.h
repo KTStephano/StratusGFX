@@ -63,6 +63,7 @@ namespace stratus {
         // resource manager can do this asynchronously before moving to the graphics
         // application thread.
         void PackCpuData();
+        void CalculateAabbs(const glm::mat4& transform);
 
         // Temporary - to be removed
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
@@ -71,6 +72,8 @@ namespace stratus {
         uint32_t GetVertexOffset() const;
         uint32_t GetIndexOffset(size_t lod) const;
         uint32_t GetNumIndices(size_t lod) const;
+
+        const GpuAABB& GetAABB() const;
 
     private:
         void _GenerateGpuData();
@@ -92,6 +95,7 @@ namespace stratus {
 
     private:
         _MeshCpuData * _cpuData;
+        GpuAABB _aabb;
         size_t _dataSizeBytes;
         uint32_t _numVertices;
         uint32_t _numIndices;

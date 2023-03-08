@@ -174,6 +174,9 @@ namespace stratus {
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedFlatMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedStaticPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedFlatMeshes;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpate; // shadow map data is invalid
@@ -308,6 +311,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> vplColoring;
             std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
             std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
+            // Draws axis-aligned bounding boxes
+            std::unique_ptr<Pipeline> aabbDraw;
             // Handles cascading shadow map depth buffer rendering
             // (we compile one depth shader per cascade - max 6)
             std::vector<std::unique_ptr<Pipeline>> csmDepth;
@@ -467,6 +472,8 @@ namespace stratus {
         void _PerformFxaaPostFx();
         void _FinalizeFrame();
         void _InitializePostFxBuffers();
+        void _RenderBoundingBoxes(GpuCommandBufferPtr&);
+        void _RenderBoundingBoxes(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);
         void _Render(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
         void _Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);

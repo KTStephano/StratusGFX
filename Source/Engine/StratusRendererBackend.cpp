@@ -202,6 +202,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     }));
     _state.shaders.push_back(_state.fxaaSmoothing.get());
 
+    _state.aabbDraw = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"aabb_draw.vs", ShaderType::VERTEX},
+        Shader{"aabb_draw.fs", ShaderType::FRAGMENT}
+    }));
+    _state.shaders.push_back(_state.aabbDraw.get());
+
     // Create skybox cube
     _state.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -699,6 +705,34 @@ static void SetCullState(const RenderFaceCulling & mode) {
 
 static bool ValidateTexture(const Async<Texture> & tex) {
     return tex.Completed() && !tex.Failed();
+}
+
+void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
+    if (buffer->NumDrawCommands() == 0 || buffer->aabbs.size() == 0) return;
+
+    SetCullState(RenderFaceCulling::CULLING_NONE);
+
+    buffer->BindModelTransformBuffer(13);
+    buffer->BindAabbBuffer(14);
+    buffer->BindGlobalTransformBuffer(15);
+
+    _BindShader(_state.aabbDraw.get());
+
+    _state.aabbDraw->setMat4("projection", _frame->projection);
+    _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
+
+    for (int i = 0; i < buffer->NumDrawCommands(); ++i) {
+        _state.aabbDraw->setInt("modelIndex", i);
+        glDrawArrays(GL_LINES, 0, 24);
+    }
+
+    _UnbindShader();
+}
+
+void RendererBackend::_RenderBoundingBoxes(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
+    for (auto& entry : map) {
+        _RenderBoundingBoxes(entry.second);
+    }
 }
 
 void RendererBackend::_RenderImmediate(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer) {
@@ -1397,8 +1431,8 @@ void RendererBackend::RenderScene() {
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
 
-    _Render(_frame->instancedStaticPbrMeshes[0], true);
-    _Render(_frame->instancedDynamicPbrMeshes[0], true);
+    _Render(_frame->visibleFirstLodInstancedDynamicPbrMeshes, true);
+    _Render(_frame->visibleFirstLodInstancedStaticPbrMeshes, true);
     
     _state.buffer.fbo.unbind();
 
@@ -1454,7 +1488,12 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     _RenderSkybox();
 
-    _Render(_frame->instancedFlatMeshes[0], false);
+    _Render(_frame->visibleFirstLodInstancedFlatMeshes, false);
+
+    // Render bounding boxes
+    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
+    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
+    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;

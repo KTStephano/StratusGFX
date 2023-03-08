@@ -224,9 +224,34 @@ namespace stratus {
         _cpuData->needsRepacking = false;
     }
 
+    // This comes from the Visibility and Occlusion chapter in "Foundations of Game Engine Development, Volume 2: Rendering"
+    void Mesh::CalculateAabbs(const glm::mat4& transform) {
+        assert(_cpuData->vertices.size() > 0);
+        _EnsureNotFinalized();
+
+        glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[0], 1.0f));
+        glm::vec3 vmin = vertex;
+        glm::vec3 vmax = vertex;
+        for (size_t i = 1; i < _cpuData->vertices.size(); ++i) {
+            glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[i], 1.0f));
+            vmin = glm::min(vmin, vertex);
+            vmax = glm::max(vmax, vertex);
+        }
+
+        _aabb.vmin = glm::vec4(vmin, 1.0f);
+        _aabb.vmax = glm::vec4(vmax, 1.0f);
+        //aabb.center = (vmin + vmax) * 0.5f;
+        //aabb.size = (vmax - vmin) * 0.5f;
+    }
+
     size_t Mesh::GetGpuSizeBytes() const {
         _EnsureFinalized();
         return _dataSizeBytes;
+    }
+
+    const GpuAABB& Mesh::GetAABB() const {
+        _EnsureFinalized();
+        return _aabb;
     }
 
     uint32_t Mesh::GetVertexOffset() const {

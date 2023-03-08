@@ -626,13 +626,21 @@ namespace stratus {
             const Bitfield flags = GPU_DYNAMIC_DATA;
 
             _materialIndices = GpuBuffer((const void *)materialIndices.data(), numElems * sizeof(uint32_t), flags);
+            _globalTransforms = GpuBuffer((const void *)globalTransforms.data(), numElems * sizeof(glm::mat4), flags);
             _modelTransforms = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             _indirectDrawCommands = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
+            if (aabbs.size() > 0) {
+                _aabbs = GpuBuffer((const void*)aabbs.data(), numElems * sizeof(GpuAABB), flags);
+            }
         }
         else {
             _materialIndices.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
+            _globalTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)globalTransforms.data());
             _modelTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
             _indirectDrawCommands.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
+            if (aabbs.size() > 0) {
+                _aabbs.CopyDataToBuffer(0, numElems * sizeof(GpuAABB), (const void*)aabbs.data());
+            }
         }
     }
 
@@ -643,11 +651,25 @@ namespace stratus {
         _materialIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
+    void GpuCommandBuffer::BindGlobalTransformBuffer(uint32_t index) {
+        if (_globalTransforms == GpuBuffer()) {
+            throw std::runtime_error("Null global transform GpuBuffer");
+        }
+        _globalTransforms.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+    }
+
     void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) {
         if (_modelTransforms == GpuBuffer()) {
             throw std::runtime_error("Null model transform GpuBuffer");
         }
         _modelTransforms.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+    }
+
+    void GpuCommandBuffer::BindAabbBuffer(uint32_t index) {
+        if (_aabbs == GpuBuffer()) {
+            throw std::runtime_error("Null aabb GpuBuffer");
+        }
+        _aabbs.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindIndirectDrawCommands() {
@@ -667,9 +689,16 @@ namespace stratus {
     void GpuCommandBuffer::_VerifyArraySizes() const {
         assert(//materialIndices.size() == handlesToIndicesMap.size() &&
                //materialIndices.size() == handles.size() &&
+               materialIndices.size() == globalTransforms.size() &&
                materialIndices.size() == modelTransforms.size() &&
                materialIndices.size() == indirectDrawCommands.size());
 
-        assert(NumDrawCommands() <= _maxDrawCalls);
+        if (aabbs.size() > 0) {
+            assert(aabbs.size() == indirectDrawCommands.size());
+        }
+    }
+
+    const GpuBuffer& GpuCommandBuffer::GetIndirectDrawCommandsBuffer() const {
+        return _indirectDrawCommands;
     }
 }

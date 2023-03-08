@@ -51,15 +51,15 @@ public:
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        requested.push_back(e);
+        //requested.push_back(e);
         requested.push_back(e2);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
             received.push_back(e.GetPtr());
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
-            transform->SetLocalPosition(glm::vec3(0.0f));
+            //transform->SetLocalPosition(glm::vec3(0.0f));
             //transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));  
@@ -67,7 +67,7 @@ public:
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
         };
 
-        e.AddCallback(callback);
+        //e.AddCallback(callback);
         e2.AddCallback(callback);
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));

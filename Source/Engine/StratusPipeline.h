@@ -122,6 +122,7 @@ public:
      * such as bool, int, float, vector, matrix.
      */
      void setBool(const std::string & uniform, bool b) const;
+     void setUint(const std::string& uniform, unsigned int i) const;
      void setInt(const std::string & uniform, int i) const;
      void setFloat(const std::string & uniform, float f) const;
      void setUVec2(const std::string & uniform, const unsigned int * vec, int num = 1) const;

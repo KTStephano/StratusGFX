@@ -16,6 +16,7 @@
 #include <vector>
 #include "StratusRenderComponents.h"
 #include "StratusGpuCommon.h"
+#include "StratusPipeline.h"
 
 namespace stratus {
     struct RendererParams {
@@ -85,6 +86,7 @@ namespace stratus {
         void _UpdateLights();
         void _UpdateMaterialSet();
         void _UpdateDrawCommands();
+        void _UpdateVisibility();
 
     private:
         // These are called by the private entity handler
@@ -119,6 +121,8 @@ namespace stratus {
         std::unique_ptr<RendererBackend> _renderer;
         // This forwards entity state changes to the renderer
         EntityProcessHandle _entityHandler;
+        // Compute pipeline which performs AABB checks against view frustum
+        std::unique_ptr<Pipeline> _viscull;
         mutable std::shared_mutex _mutex;
     };
 }

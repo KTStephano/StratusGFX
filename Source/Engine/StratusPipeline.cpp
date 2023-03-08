@@ -301,6 +301,10 @@ void Pipeline::setBool(const std::string &uniform, bool b) const {
     setInt(uniform, b ? 1 : 0);
 }
 
+void Pipeline::setUint(const std::string& uniform, unsigned int i) const {
+    glUniform1ui(getUniformLocation(uniform), i);
+}
+
 void Pipeline::setInt(const std::string &uniform, int i) const {
     glUniform1i(getUniformLocation(uniform), i);
 }
