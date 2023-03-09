@@ -391,6 +391,7 @@ namespace stratus {
         // Check for shader recompile request
         if (_recompileShaders) {
             _renderer->RecompileShaders();
+            _viscullLodSelect->recompile();
             _viscull->recompile();
             _recompileShaders = false;
         }
@@ -466,16 +467,20 @@ namespace stratus {
         const std::filesystem::path shaderRoot("../Source/Shaders");
         const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
-        _viscull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        _viscullLodSelect = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"visibility_culling.cs", ShaderType::COMPUTE}},
             // Defines
             { {"SELECT_LOD", "1"} }
         ));
 
+        _viscull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"visibility_culling.cs", ShaderType::COMPUTE} }
+        ));
+
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return _renderer->Valid() && _viscull->isValid();
+        return _renderer->Valid() && _viscullLodSelect->isValid() && _viscull->isValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -1199,27 +1204,28 @@ namespace stratus {
             drawCommandsPerLod[1].push_back(&_frame->instancedDynamicPbrMeshes[i]);
             drawCommandsPerLod[2].push_back(&_frame->instancedStaticPbrMeshes[i]);
         }
-
-        _viscull->bind();
         
-        _UpdateVisibility(_frame->projection, _frame->camera->getViewTransform(), drawCommands, drawCommandsPerLod);
+        _UpdateVisibility(*_viscullLodSelect.get(), _frame->projection, _frame->camera->getViewTransform(), drawCommands, drawCommandsPerLod);
 
-        // if (_frame->csc.worldLight->getEnabled()) {
-        //     size_t i = _frame->csc.cascades.size() - 1; {
-        //         drawCommands = {
-        //             &_frame->instancedFlatMeshes[i * 2],
-        //             &_frame->instancedDynamicPbrMeshes[i * 2],
-        //             &_frame->instancedStaticPbrMeshes[i * 2]
-        //         };
+        for (auto& array : drawCommandsPerLod) {
+            array.clear();
+        }
 
-        //         _UpdateVisibility(_frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands);
-        //     }
-        // }
+        if (_frame->csc.worldLight->getEnabled()) {
+            for (size_t i = 0; i < _frame->csc.cascades.size(); ++i) {
+                drawCommands = {
+                    &_frame->instancedFlatMeshes[i * 2],
+                    &_frame->instancedDynamicPbrMeshes[i * 2],
+                    &_frame->instancedStaticPbrMeshes[i * 2]
+                };
 
-        _viscull->unbind();
+                _UpdateVisibility(*_viscull.get(), _frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands, drawCommandsPerLod);
+            }
+        }
     }
 
     void RendererFrontend::_UpdateVisibility(
+        Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
         const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
@@ -1266,11 +1272,13 @@ namespace stratus {
             (vpt[3] - vpt[2]),
         };
 
+        pipeline.bind();
+
         for (size_t i = 0; i < 6; ++i) {
-            _viscull->setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
+            pipeline.setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
 
-        _viscull->setVec3("viewPosition", _frame->camera->getPosition());
+        pipeline.setVec3("viewPosition", _frame->camera->getPosition());
         
         for (size_t i = 0; i < drawCommands.size(); ++i) {
            auto& map = drawCommands[i];
@@ -1288,14 +1296,16 @@ namespace stratus {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                }
 
-               _viscull->setUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
-               _viscull->setMat4("view", view);
-               //_viscull->setMat4("view", _frame->camera->getViewTransform());
-               //_viscull->setMat4("projection", _frame->projection);
-               _viscull->dispatchCompute(1, 1, 1);
-               _viscull->synchronizeCompute();
+               pipeline.setUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+               pipeline.setMat4("view", view);
+               //pipeline.setMat4("view", _frame->camera->getViewTransform());
+               //pipeline.setMat4("projection", _frame->projection);
+               pipeline.dispatchCompute(1, 1, 1);
+               pipeline.synchronizeCompute();
            }
         }
+
+        pipeline.unbind();
 
         //for (size_t i = 0; i < drawCommands.size(); ++i) {
         //   auto& map = drawCommands[i];

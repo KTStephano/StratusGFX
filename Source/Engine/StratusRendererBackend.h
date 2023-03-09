@@ -216,7 +216,7 @@ namespace stratus {
             const int tileXDivisor = 2;
             const int tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int vplShadowCubeMapX = 128, vplShadowCubeMapY = 128;
+            int vplShadowCubeMapX = 64, vplShadowCubeMapY = 64;
             GpuBuffer vplDiffuseMaps;
             GpuBuffer vplShadowMaps;
             GpuBuffer vplStage1Results;

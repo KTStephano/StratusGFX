@@ -60,10 +60,10 @@ void main() {
             if (dist < 200) {
                 draw = drawCallsLod0[i];
             }
-            else if (dist < 300) {
+            else if (dist < 400) {
                 draw = drawCallsLod1[i];
             }
-            else if (dist < 400) {
+            else if (dist < 600) {
                 draw = drawCallsLod2[i];
             }
             else {

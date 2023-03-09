@@ -88,6 +88,7 @@ namespace stratus {
         void _UpdateDrawCommands();
         void _UpdateVisibility();
         void _UpdateVisibility(
+            Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
             const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
             const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
@@ -127,6 +128,7 @@ namespace stratus {
         // This forwards entity state changes to the renderer
         EntityProcessHandle _entityHandler;
         // Compute pipeline which performs AABB checks against view frustum
+        std::unique_ptr<Pipeline> _viscullLodSelect;
         std::unique_ptr<Pipeline> _viscull;
         mutable std::shared_mutex _mutex;
     };
