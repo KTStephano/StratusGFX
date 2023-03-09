@@ -57,13 +57,13 @@ void main() {
         }
         else {
             #ifdef SELECT_LOD
-            if (dist < 200) {
+            if (dist < 400) {
                 draw = drawCallsLod0[i];
             }
-            else if (dist < 400) {
+            else if (dist < 700) {
                 draw = drawCallsLod1[i];
             }
-            else if (dist < 600) {
+            else if (dist < 900) {
                 draw = drawCallsLod2[i];
             }
             else {

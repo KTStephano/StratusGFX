@@ -22,6 +22,7 @@
 #include "StratusEntityCommon.h"
 #include "LightComponents.h"
 #include "LightControllers.h"
+#include "FrameRateController.h"
 
 class StratusGFX : public stratus::Application {
 public:
@@ -55,6 +56,9 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor, warmMorningColor));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         //World()->SetAtmosphericShadowing(0.3f, 0.8f);

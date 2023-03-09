@@ -19,6 +19,8 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "WorldLightController.h"
+#include "FrameRateController.h"
 
 static void setupDayTime() {
     int spawned = 0;
@@ -400,6 +402,9 @@ public:
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor, warmMorningColor, 10));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene 

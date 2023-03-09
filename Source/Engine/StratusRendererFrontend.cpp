@@ -1207,21 +1207,21 @@ namespace stratus {
         
         _UpdateVisibility(*_viscullLodSelect.get(), _frame->projection, _frame->camera->getViewTransform(), drawCommands, drawCommandsPerLod);
 
-        for (auto& array : drawCommandsPerLod) {
-            array.clear();
-        }
+        // for (auto& array : drawCommandsPerLod) {
+        //     array.clear();
+        // }
 
-        if (_frame->csc.worldLight->getEnabled()) {
-            for (size_t i = 0; i < _frame->csc.cascades.size(); ++i) {
-                drawCommands = {
-                    &_frame->instancedFlatMeshes[i * 2],
-                    &_frame->instancedDynamicPbrMeshes[i * 2],
-                    &_frame->instancedStaticPbrMeshes[i * 2]
-                };
+        // if (_frame->csc.worldLight->getEnabled()) {
+        //     for (size_t i = 0; i < _frame->csc.cascades.size(); ++i) {
+        //         drawCommands = {
+        //             &_frame->instancedFlatMeshes[i * 2],
+        //             &_frame->instancedDynamicPbrMeshes[i * 2],
+        //             &_frame->instancedStaticPbrMeshes[i * 2]
+        //         };
 
-                _UpdateVisibility(*_viscull.get(), _frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands, drawCommandsPerLod);
-            }
-        }
+        //         _UpdateVisibility(*_viscull.get(), _frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands, drawCommandsPerLod);
+        //     }
+        // }
     }
 
     void RendererFrontend::_UpdateVisibility(

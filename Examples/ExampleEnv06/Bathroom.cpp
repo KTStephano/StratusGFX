@@ -19,6 +19,8 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "WorldLightController.h"
+#include "FrameRateController.h"
 
 class Bathroom : public stratus::Application {
 public:
@@ -53,6 +55,9 @@ public:
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
         controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, defaultSunColor, 10));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);

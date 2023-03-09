@@ -10,8 +10,8 @@ STRATUS_GLSL_VERSION
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
 
-// Each thread group processes 64*2 = 128 tiles
-layout (local_size_x = 64, local_size_y = 2, local_size_z = 1) in;
+// Each thread group processes 64 tiles
+layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "vpl_common.glsl"
 #include "common.glsl"
@@ -99,13 +99,13 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                if (ratio < 0.2 && fragDist < 300) {
+                //if (ratio < 0.2 && fragDist < 300) {
                 //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
                 //if (fragDist < 200) {
-                    float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
+                    //float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
                     // Light can't see current surface
-                    if (shadowFactor > 0.75) break;
-                }
+                    //if (shadowFactor > 0.75) break;
+                //}
 
                 SHUFFLE_DOWN(indicesVisibleThisTile, ii)
                 SHUFFLE_DOWN(distancesVisibleThisTile, ii)

@@ -20,6 +20,8 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "WorldLightController.h"
+#include "FrameRateController.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -41,6 +43,9 @@ public:
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         // Moonlight
@@ -72,7 +77,7 @@ public:
 
         INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
 
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
 
         bool running = true;
 
