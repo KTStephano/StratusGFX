@@ -881,7 +881,7 @@ void RendererBackend::_RenderCSMDepth() {
         // Render everything
         auto& csm = _frame->csc.cascades[cascade];
         shader->setMat4("shadowMatrix", csm.projectionViewRender);
-        const size_t lod = cascade * 2 + 1;
+        const size_t lod = cascade * 2;
         _RenderImmediate(_frame->instancedStaticPbrMeshes[lod]);
         _RenderImmediate(_frame->instancedDynamicPbrMeshes[lod]);
 

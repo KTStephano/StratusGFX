@@ -1089,7 +1089,7 @@ namespace stratus {
         GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true)
 
         for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, false)
+            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true)
         }
 
         // Generate pbr commands
@@ -1097,8 +1097,8 @@ namespace stratus {
         GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true)
 
         for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, false)
-            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, false)
+            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true)
+            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true)
         }
 
     #undef GENERATE_COMMANDS
@@ -1182,57 +1182,45 @@ namespace stratus {
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::_UpdateVisibility() {
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
+            &_frame->visibleFirstLodInstancedFlatMeshes,
+            &_frame->visibleFirstLodInstancedDynamicPbrMeshes,
+            &_frame->visibleFirstLodInstancedStaticPbrMeshes
+        };
+
+        _viscull->bind();
+        
+        _UpdateVisibility(_frame->projection, _frame->camera->getViewTransform(), drawCommands);
+
+        if (_frame->csc.worldLight->getEnabled()) {
+            size_t i = _frame->csc.cascades.size() - 1; {
+                drawCommands = {
+                    &_frame->instancedFlatMeshes[i * 2],
+                    &_frame->instancedDynamicPbrMeshes[i * 2],
+                    &_frame->instancedStaticPbrMeshes[i * 2]
+                };
+
+                _UpdateVisibility(_frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands);
+            }
+        }
+
+        _viscull->unbind();
+    }
+
+    void RendererFrontend::_UpdateVisibility(
+        const glm::mat4& projection, 
+        const glm::mat4& view, 
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands) {
+
         static const std::vector<RenderFaceCulling> culling{
             RenderFaceCulling::CULLING_CCW,
             RenderFaceCulling::CULLING_CW,
             RenderFaceCulling::CULLING_NONE  
         };
 
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> *> inDrawCommands{
-            &_frame->instancedFlatMeshes[0],
-            &_frame->instancedDynamicPbrMeshes[0],
-            &_frame->instancedStaticPbrMeshes[0]  
-        };
-
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> outDrawCommands{
-            &_frame->visibleFirstLodInstancedFlatMeshes,
-            &_frame->visibleFirstLodInstancedDynamicPbrMeshes,
-            &_frame->visibleFirstLodInstancedStaticPbrMeshes
-        };
-
-        // See page 55 of "Foundations of Game Engine Development, Volume 2: Rendering"
-        // const float n = _params.znear;
-        // const float f = _params.zfar;
-        // // Projection plane distance
-        // const float g = 1.0 / glm::tan(Radians(_params.fovy).value() / 2.0f);
-        // // Aspect ratio
-        // const float s = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
-        // const glm::mat4 view = _frame->camera->getViewTransform();
-        // const glm::mat4 invView = glm::inverse(view);
-
-        // // The planes are defined in camera space, so we use the inverse view transform to place them in world space which is the space
-        // // that the AABBs reside in
-        // const float mx = 1.0f / std::sqrtf(g * g + s * s);
-        // const float my = 1.0f / std::sqrtf(g * g + 1.0f);
-        // const float d  = glm::dot(view[2], view[3]);
-
-        // glm::vec4 frustumPlanes[6] = {
-        //     // left, right, top, bottom
-        //     glm::vec4(-g * mx,   0.0f, s * mx, 0.0f) * invView,
-        //     glm::vec4(   0.0f, g * my,     my, 0.0f) * invView,
-        //     glm::vec4(g * mx,    0.0f, s * mx, 0.0f) * invView,
-        //     glm::vec4(  0.0f, -g * my,     my, 0.0f) * invView,
-        //     // near, far
-        //     glm::vec4( view[2].x,  view[2].y,  view[2].z, -(d + n)),
-        //     glm::vec4(-view[2].x, -view[2].y, -view[2].z,   d + f)
-        //     //glm::vec4(0.0f, 0.0f,  1.0f, -n) * invView,
-        //     //glm::vec4(0.0f, 0.0f, -1.0f,  f) * invView
-        // };
-        const glm::mat4 projection = _frame->projection;
-        const glm::mat4 view = _frame->camera->getViewTransform();
         const glm::mat4 vp = projection * view;
         const glm::mat4 vpt = glm::transpose(vp);
-        const glm::mat4 ivp = glm::inverse(vp);
+        //const glm::mat4 ivp = glm::inverse(vp);
 
         // See https://gamedev.stackexchange.com/questions/29999/how-do-i-create-a-bounding-frustum-from-a-view-projection-matrix
         // These corners are in NDC (Normalized Device Coordinate) space which is the space we arrive at after using the view-projection
@@ -1254,25 +1242,6 @@ namespace stratus {
         //     corners[i] = q / q.w;
         // }
 
-        // std::vector<glm::vec4> frustumPlanes(6);
-
-        // // Now use the world space corners to construct world space frustum planes
-        // // See https://math.stackexchange.com/questions/2686606/equation-of-a-plane-passing-through-3-points
-        // for (int i = 0; i < 6; ++i) {
-        //     const glm::vec3 a = corners[i];
-        //     const glm::vec3 b = corners[i + 1];
-        //     const glm::vec3 c = corners[i + 2];
-
-        //     const glm::vec3 ab = b - a;
-        //     const glm::vec3 ac = c - a;
-
-        //     // Plane normal
-        //     const glm::vec3 n = glm::normalize(glm::cross(ab, ac));
-        //     const float d = -glm::dot(n, a);
-
-        //     frustumPlanes[i] = glm::vec4(n.x, n.y, n.z, d);
-        // }
-
         std::vector<glm::vec4> frustumPlanes = {
             // left, right, bottom, top
             (vpt[3] + vpt[0]),
@@ -1284,66 +1253,52 @@ namespace stratus {
             (vpt[3] - vpt[2]),
         };
 
-        _viscull->bind();
-
         for (size_t i = 0; i < 6; ++i) {
-            // Normalize first
-            // glm::vec4& fp = frustumPlanes[i];
-            // float length = std::sqrtf((fp.x * fp.x) + (fp.y * fp.y) + (fp.z * fp.z));
-            // fp.x /= length;
-            // fp.y /= length;
-            // fp.z /= length;
-            // fp.w /= length;
             _viscull->setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
         
-        // for (size_t i = 0; i < inDrawCommands.size(); ++i) {
-        //     auto& inMap = inDrawCommands[i];
-        //     auto& outMap = outDrawCommands[i];
-        //     for (const auto& cull : culling) {
-        //         auto inIt = inMap->find(cull);
-        //         if (inIt->second->NumDrawCommands() == 0) continue;
-        //         auto outIt = outMap->find(cull);
+        for (size_t i = 0; i < drawCommands.size(); ++i) {
+            auto& map = drawCommands[i];
+            for (const auto& cull : culling) {
+                auto it = map->find(cull);
+                if (it->second->NumDrawCommands() == 0) continue;
 
-        //         inIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-        //         outIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-        //         outIt->second->BindModelTransformBuffer(2);
-        //         outIt->second->BindAabbBuffer(3);
-        //         outIt->second->BindGlobalTransformBuffer(4);
+                it->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+                it->second->BindModelTransformBuffer(2);
+                it->second->BindAabbBuffer(3);
+                it->second->BindGlobalTransformBuffer(4);
 
-        //         _viscull->setUint("numDrawCalls", unsigned int(inIt->second->NumDrawCommands()));
-        //         _viscull->setMat4("view", _frame->camera->getViewTransform());
-        //         _viscull->setMat4("projection", _frame->projection);
-        //         _viscull->dispatchCompute(1, 1, 1);
-        //         _viscull->synchronizeCompute();
-        //     }
-        // }
-
-        for (size_t i = 0; i < outDrawCommands.size(); ++i) {
-           auto& outMap = outDrawCommands[i];
-           for (const auto& cull : culling) {
-               auto outIt = outMap->find(cull);
-               const auto& buffer = outIt->second;
-               if (buffer->NumDrawCommands() == 0) continue;
-               int numCommands = 0;
-
-               for (size_t k = 0; k < buffer->NumDrawCommands(); ++k) {
-                   GpuAABB aabb = TransformAabb(buffer->aabbs[k], buffer->globalTransforms[k]);
-                   if (!IsAabbVisible(aabb, frustumPlanes)) {
-                       buffer->indirectDrawCommands[k].instanceCount = 0;
-                   }
-                   else {
-                       buffer->indirectDrawCommands[k].instanceCount = 1;
-                       ++numCommands;
-                   }
-               }
-
-               buffer->UploadDataToGpu();
-
-               //STRATUS_LOG << "Before/After: " << buffer->NumDrawCommands() << "/" << numCommands << std::endl;
-           }
+                _viscull->setUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+                //_viscull->setMat4("view", _frame->camera->getViewTransform());
+                //_viscull->setMat4("projection", _frame->projection);
+                _viscull->dispatchCompute(1, 1, 1);
+                _viscull->synchronizeCompute();
+            }
         }
 
-        _viscull->unbind();
+        // for (size_t i = 0; i < drawCommands.size(); ++i) {
+        //    auto& map = drawCommands[i];
+        //    for (const auto& cull : culling) {
+        //        auto outIt = map->find(cull);
+        //        const auto& buffer = outIt->second;
+        //        if (buffer->NumDrawCommands() == 0) continue;
+        //        int numCommands = 0;
+
+        //        for (size_t k = 0; k < buffer->NumDrawCommands(); ++k) {
+        //            GpuAABB aabb = TransformAabb(buffer->aabbs[k], buffer->globalTransforms[k]);
+        //            if (!IsAabbVisible(aabb, frustumPlanes)) {
+        //                buffer->indirectDrawCommands[k].instanceCount = 0;
+        //            }
+        //            else {
+        //                buffer->indirectDrawCommands[k].instanceCount = 1;
+        //                ++numCommands;
+        //            }
+        //        }
+
+        //        buffer->UploadDataToGpu();
+
+        //        //STRATUS_LOG << "Before/After: " << buffer->NumDrawCommands() << "/" << numCommands << std::endl;
+        //    }
+        // }
     }
 }

@@ -200,13 +200,13 @@ namespace stratus {
     }
 
     void Engine::_InitWindow() {
-        EngineModuleInit::InitializeEngineModule(Window::_Instance(), new Window(1920, 1080), true);
+        EngineModuleInit::InitializeEngineModule(Window::_Instance(), new Window(1600, 900), true);
     }
 
     void Engine::_InitRenderer() {
         RendererParams params;
         params.appName = Application::Instance()->GetAppName();
-        params.fovy = Degrees(75.0f);
+        params.fovy = Degrees(90.0f);
         params.vsyncEnabled = false;
 
         EngineModuleInit::InitializeEngineModule(RendererFrontend::_Instance(), new RendererFrontend(params), true);

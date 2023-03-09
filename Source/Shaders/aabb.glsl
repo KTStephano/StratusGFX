@@ -90,18 +90,18 @@ bool isAabbVisible(in AABB aabb) {
     vec4 vmax = aabb.vmax;
 
     for (int i = 0; i < 6; ++i) {
-        int r = 0;
         vec4 g = frustumPlanes[i];
-        r += (dot(g, vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
-        r += (dot(g, vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
-		r += (dot(g, vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
-
-        if (r == 8) return false;
+        if ((dot(g, vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) &&
+            (dot(g, vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0))
+        {
+            return false;
+        }
     }
 
     return true;
