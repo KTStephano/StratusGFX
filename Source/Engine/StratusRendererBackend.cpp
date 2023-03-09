@@ -1822,21 +1822,21 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
             continue;
         }
 
-        if (point->castsShadows()) {
-            if (shadowLightIndex >= maxShadowLights) {
-                continue;
-            }
+        if (point->castsShadows() && shadowLightIndex < maxShadowLights) {
             s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
             //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _GetOrAllocateShadowMapHandleForLight(light));
             s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+            s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", true);
             ++shadowLightIndex;
+        }
+        else {
+            s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", false);
         }
 
         lightColor = point->getBaseColor() * point->getIntensity();
         s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", point->GetPosition());
         s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
         s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
-        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", point->castsShadows());
         //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
         ++lightIndex;
     }

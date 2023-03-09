@@ -14,7 +14,7 @@ uniform vec3 atmosphericLightPos;
 
 #define MAX_LIGHTS 200
 // Apple limits us to 16 total samplers active in the pipeline :(
-#define MAX_SHADOW_LIGHTS 48
+#define MAX_SHADOW_LIGHTS 16
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
 
