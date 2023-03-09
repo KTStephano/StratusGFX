@@ -32,8 +32,8 @@ struct FrameRateController : public stratus::InputHandler {
                     bool released = e.type == SDL_KEYUP;
                     SDL_Scancode key = e.key.keysym.scancode;
                     switch (key) {
-                        // Why B? Because F is used for flash light and R is recompile :(
-                        case SDL_SCANCODE_B:
+                        // Why M? Because F is used for flash light and R is recompile :(
+                        case SDL_SCANCODE_M:
                             if (released) {
                                 _frameRateIndex = (_frameRateIndex + 1) % _frameRates.size();
                                 INSTANCE(Engine)->SetMaxFrameRate(_frameRates[_frameRateIndex]);
