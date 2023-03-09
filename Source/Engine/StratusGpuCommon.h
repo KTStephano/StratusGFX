@@ -81,6 +81,10 @@ namespace stratus {
             return *this;
         }
 
+        glm::vec4 ToVec4() const {
+            return glm::vec4(v[0], v[1], v[2], v[3]);
+        }
+
     private:
         void _Copy(const glm::vec4& vec) {
             v[0] = vec.x;

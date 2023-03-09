@@ -229,11 +229,19 @@ namespace stratus {
         assert(_cpuData->vertices.size() > 0);
         _EnsureNotFinalized();
 
-        glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[0], 1.0f));
-        glm::vec3 vmin = vertex;
-        glm::vec3 vmax = vertex;
-        for (size_t i = 1; i < _cpuData->vertices.size(); ++i) {
-            glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[i], 1.0f));
+        // If no indices generate a buffer from [0, num vertices)
+        // This does not require CPU data to be repacked
+        if (_cpuData->indices.size() == 0) {
+            for (uint32_t i = 0; i < _numVertices; ++i) {
+                AddIndex(i);
+            }
+        }
+
+        glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[0]], 1.0f));
+		glm::vec3 vmin = vertex;
+		glm::vec3 vmax = vertex;
+        for (size_t i = 0; i < _cpuData->indices.size(); ++i) {
+            vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[i]], 1.0f));
             vmin = glm::min(vmin, vertex);
             vmax = glm::max(vmax, vertex);
         }

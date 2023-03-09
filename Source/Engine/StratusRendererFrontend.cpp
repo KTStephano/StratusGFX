@@ -500,7 +500,7 @@ namespace stratus {
         if (!_viewportDirty) return;
         _viewportDirty = false;
 
-        const float aspect = Window::Instance()->GetWindowDims().first / float(Window::Instance()->GetWindowDims().second);
+        const float aspect = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
         _projection        = glm::perspective(
             Radians(_params.fovy).value(),
             aspect,
@@ -1051,8 +1051,10 @@ namespace stratus {
             for (size_t i = 0; i < cmdList->size(); ++i) {
                 for (auto& entry : (*cmdList)[i]) {
                     entry.second->materialIndices.clear();
+                    entry.second->globalTransforms.clear();
                     entry.second->modelTransforms.clear();
                     entry.second->indirectDrawCommands.clear();
+                    entry.second->aabbs.clear();
                 }
             }
         }
@@ -1102,6 +1104,82 @@ namespace stratus {
     #undef GENERATE_COMMANDS
     }
 
+    std::vector<glm::vec4> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform) {
+        glm::vec4 vmin = aabb.vmin.ToVec4();
+        glm::vec4 vmax = aabb.vmax.ToVec4();
+
+        std::vector<glm::vec4> corners = {
+            transform * glm::vec4(vmin.x, vmin.y, vmin.z, 1.0),
+            transform * glm::vec4(vmin.x, vmax.y, vmin.z, 1.0),
+            transform * glm::vec4(vmin.x, vmin.y, vmax.z, 1.0),
+            transform * glm::vec4(vmin.x, vmax.y, vmax.z, 1.0),
+            transform * glm::vec4(vmax.x, vmin.y, vmin.z, 1.0),
+            transform * glm::vec4(vmax.x, vmax.y, vmin.z, 1.0),
+            transform * glm::vec4(vmax.x, vmin.y, vmax.z, 1.0),
+            transform * glm::vec4(vmax.x, vmax.y, vmax.z, 1.0)
+        };
+
+        return corners;
+    }
+
+    // This code was taken from "3D Graphics Rendering Cookbook" source code, shared/UtilsMath.h
+    GpuAABB TransformAabb(const GpuAABB& aabb, const glm::mat4& transform) {
+        std::vector<glm::vec4> corners = ComputeCornersWithTransform(aabb, transform);
+
+        glm::vec3 vmin3 = corners[0];
+        glm::vec3 vmax3 = corners[0];
+
+        for (int i = 1; i < 8; ++i) {
+            vmin3 = glm::min(vmin3, glm::vec3(corners[i]));
+            vmax3 = glm::max(vmax3, glm::vec3(corners[i]));
+        }
+
+        GpuAABB result;
+        result.vmin = glm::vec4(vmin3, 1.0);
+        result.vmax = glm::vec4(vmax3, 1.0); 
+
+        return result;
+    }
+
+    bool IsAabbVisible(const GpuAABB& aabb, const std::vector<glm::vec4>& frustumPlanes) {
+        glm::vec4 vmin = aabb.vmin.ToVec4();
+        glm::vec4 vmax = aabb.vmax.ToVec4();
+
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec4& g = frustumPlanes[i];
+    		if ((glm::dot(g, glm::vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) &&
+			    (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // bool IsAabbVisible(const GpuAABB& aabb, const std::vector<glm::vec4>& frustumPlanes) {
+    //     const glm::vec3 vmin   = aabb.vmin.ToVec4();
+    //     const glm::vec3 vmax   = aabb.vmax.ToVec4();
+    //     const glm::vec4 center = glm::vec4((vmin + vmax) * 0.5f, 1.0);
+    //     const glm::vec4 size   = glm::vec4((vmax - vmin) * 0.5f, 1.0);
+
+    //     for (int i = 0; i < 6; ++i) {
+    //         const glm::vec4& g = frustumPlanes[i];
+    //         const float rg = std::fabs(g.x * size.x) + std::fabs(g.y * size.y) + std::fabs(g.z * size.z);
+    //         if (glm::dot(g, center) <= -rg) {
+    //             return false;
+    //         }
+    //     }
+
+    //     return true;
+    // }
+
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::_UpdateVisibility() {
         static const std::vector<RenderFaceCulling> culling{
@@ -1122,75 +1200,148 @@ namespace stratus {
             &_frame->visibleFirstLodInstancedStaticPbrMeshes
         };
 
-        // Extract the 6 frustum planes from the transposed view-projection matrix
-        const glm::mat4 vp = _frame->projection * _frame->camera->getViewTransform();
-        // glm uses right-handed coordinate system by default so we take the transpose
+        // See page 55 of "Foundations of Game Engine Development, Volume 2: Rendering"
+        // const float n = _params.znear;
+        // const float f = _params.zfar;
+        // // Projection plane distance
+        // const float g = 1.0 / glm::tan(Radians(_params.fovy).value() / 2.0f);
+        // // Aspect ratio
+        // const float s = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
+        // const glm::mat4 view = _frame->camera->getViewTransform();
+        // const glm::mat4 invView = glm::inverse(view);
+
+        // // The planes are defined in camera space, so we use the inverse view transform to place them in world space which is the space
+        // // that the AABBs reside in
+        // const float mx = 1.0f / std::sqrtf(g * g + s * s);
+        // const float my = 1.0f / std::sqrtf(g * g + 1.0f);
+        // const float d  = glm::dot(view[2], view[3]);
+
+        // glm::vec4 frustumPlanes[6] = {
+        //     // left, right, top, bottom
+        //     glm::vec4(-g * mx,   0.0f, s * mx, 0.0f) * invView,
+        //     glm::vec4(   0.0f, g * my,     my, 0.0f) * invView,
+        //     glm::vec4(g * mx,    0.0f, s * mx, 0.0f) * invView,
+        //     glm::vec4(  0.0f, -g * my,     my, 0.0f) * invView,
+        //     // near, far
+        //     glm::vec4( view[2].x,  view[2].y,  view[2].z, -(d + n)),
+        //     glm::vec4(-view[2].x, -view[2].y, -view[2].z,   d + f)
+        //     //glm::vec4(0.0f, 0.0f,  1.0f, -n) * invView,
+        //     //glm::vec4(0.0f, 0.0f, -1.0f,  f) * invView
+        // };
+        const glm::mat4 projection = _frame->projection;
+        const glm::mat4 view = _frame->camera->getViewTransform();
+        const glm::mat4 vp = projection * view;
         const glm::mat4 vpt = glm::transpose(vp);
         const glm::mat4 ivp = glm::inverse(vp);
-        glm::vec4 frustumPlanes[6];
-        
-        // left
-        frustumPlanes[0] = vpt[3] + vpt[0];
-        // right
-        frustumPlanes[1] = vpt[3] - vpt[0];
-        // bottom
-        frustumPlanes[2] = vpt[3] + vpt[1];
-        // top
-        frustumPlanes[3] = vpt[3] - vpt[1];
-        // near
-        frustumPlanes[4] = vpt[3] + vpt[2];
-        // far
-        frustumPlanes[5] = vpt[3] - vpt[2];
 
-        // Generate the 8 frustum corner points
-        // This is done by taking the unit cube, transforming it by the inverse view-projection matrix,
-        // then manually performing the perspective divide
-        glm::vec4 frustumCorners[] = {
-            glm::vec4(-1, -1, -1, 1), 
-            glm::vec4( 1, -1, -1, 1),    
-            glm::vec4( 1,  1, -1, 1), 
-            glm::vec4(-1,  1, -1, 1),    
-            glm::vec4(-1, -1,  1, 1), 
-            glm::vec4( 1, -1,  1, 1),    
-            glm::vec4( 1,  1,  1, 1), 
-            glm::vec4(-1,  1,  1, 1)
+        // See https://gamedev.stackexchange.com/questions/29999/how-do-i-create-a-bounding-frustum-from-a-view-projection-matrix
+        // These corners are in NDC (Normalized Device Coordinate) space which is the space we arrive at after using the view-projection
+        // matrix
+        // glm::vec4 corners[] = {
+		//     glm::vec4(-1, -1, -1, 1), 
+        //     glm::vec4( 1, -1, -1, 1),
+		//     glm::vec4( 1,  1, -1, 1),  
+        //     glm::vec4(-1,  1, -1, 1),
+		//     glm::vec4(-1, -1,  1, 1), 
+        //     glm::vec4( 1, -1,  1, 1),
+		//     glm::vec4( 1,  1,  1, 1),  
+        //     glm::vec4(-1,  1,  1, 1)
+	    // };
+
+        // // This will convert the corners from NDC -> world space
+        // for (int i = 0; i < 8; i++) {
+        //     const glm::vec4 q = ivp * corners[i];
+        //     corners[i] = q / q.w;
+        // }
+
+        // std::vector<glm::vec4> frustumPlanes(6);
+
+        // // Now use the world space corners to construct world space frustum planes
+        // // See https://math.stackexchange.com/questions/2686606/equation-of-a-plane-passing-through-3-points
+        // for (int i = 0; i < 6; ++i) {
+        //     const glm::vec3 a = corners[i];
+        //     const glm::vec3 b = corners[i + 1];
+        //     const glm::vec3 c = corners[i + 2];
+
+        //     const glm::vec3 ab = b - a;
+        //     const glm::vec3 ac = c - a;
+
+        //     // Plane normal
+        //     const glm::vec3 n = glm::normalize(glm::cross(ab, ac));
+        //     const float d = -glm::dot(n, a);
+
+        //     frustumPlanes[i] = glm::vec4(n.x, n.y, n.z, d);
+        // }
+
+        std::vector<glm::vec4> frustumPlanes = {
+            // left, right, bottom, top
+            (vpt[3] + vpt[0]),
+            (vpt[3] - vpt[0]),
+            (vpt[3] + vpt[1]),
+            (vpt[3] - vpt[1]),
+            // near, far
+            (vpt[3] + vpt[2]),
+            (vpt[3] - vpt[2]),
         };
-
-        for (size_t i = 0; i < 8; ++i) {
-            const glm::vec4 invCorner = ivp * frustumCorners[i];
-            frustumCorners[i] = invCorner / invCorner.w;
-        }
 
         _viscull->bind();
 
         for (size_t i = 0; i < 6; ++i) {
+            // Normalize first
+            // glm::vec4& fp = frustumPlanes[i];
+            // float length = std::sqrtf((fp.x * fp.x) + (fp.y * fp.y) + (fp.z * fp.z));
+            // fp.x /= length;
+            // fp.y /= length;
+            // fp.z /= length;
+            // fp.w /= length;
             _viscull->setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
+        
+        // for (size_t i = 0; i < inDrawCommands.size(); ++i) {
+        //     auto& inMap = inDrawCommands[i];
+        //     auto& outMap = outDrawCommands[i];
+        //     for (const auto& cull : culling) {
+        //         auto inIt = inMap->find(cull);
+        //         if (inIt->second->NumDrawCommands() == 0) continue;
+        //         auto outIt = outMap->find(cull);
 
-        for (size_t i = 0; i < 8; ++i) {
-            _viscull->setVec4("frustumCorners[" + std::to_string(i) + "]", frustumCorners[i]);
-        }
+        //         inIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+        //         outIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+        //         outIt->second->BindModelTransformBuffer(2);
+        //         outIt->second->BindAabbBuffer(3);
+        //         outIt->second->BindGlobalTransformBuffer(4);
 
-        for (size_t i = 0; i < inDrawCommands.size(); ++i) {
-            auto& inMap = inDrawCommands[i];
-            auto& outMap = outDrawCommands[i];
-            for (const auto& cull : culling) {
-                auto inIt = inMap->find(cull);
-                if (inIt->second->NumDrawCommands() == 0) continue;
-                auto outIt = outMap->find(cull);
+        //         _viscull->setUint("numDrawCalls", unsigned int(inIt->second->NumDrawCommands()));
+        //         _viscull->setMat4("view", _frame->camera->getViewTransform());
+        //         _viscull->setMat4("projection", _frame->projection);
+        //         _viscull->dispatchCompute(1, 1, 1);
+        //         _viscull->synchronizeCompute();
+        //     }
+        // }
 
-                inIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-                outIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-                outIt->second->BindModelTransformBuffer(2);
-                outIt->second->BindAabbBuffer(3);
-                outIt->second->BindGlobalTransformBuffer(4);
+        for (size_t i = 0; i < outDrawCommands.size(); ++i) {
+           auto& outMap = outDrawCommands[i];
+           for (const auto& cull : culling) {
+               auto outIt = outMap->find(cull);
+               const auto& buffer = outIt->second;
+               if (buffer->NumDrawCommands() == 0) continue;
+               int numCommands = 0;
 
-                _viscull->setUint("numDrawCalls", unsigned int(inIt->second->NumDrawCommands()));
-                _viscull->setMat4("view", _frame->camera->getViewTransform());
-                _viscull->setMat4("projection", _frame->projection);
-                _viscull->dispatchCompute(1, 1, 1);
-                _viscull->synchronizeCompute();
-            }
+               for (size_t k = 0; k < buffer->NumDrawCommands(); ++k) {
+                   GpuAABB aabb = TransformAabb(buffer->aabbs[k], buffer->globalTransforms[k]);
+                   if (!IsAabbVisible(aabb, frustumPlanes)) {
+                       buffer->indirectDrawCommands[k].instanceCount = 0;
+                   }
+                   else {
+                       buffer->indirectDrawCommands[k].instanceCount = 1;
+                       ++numCommands;
+                   }
+               }
+
+               buffer->UploadDataToGpu();
+
+               //STRATUS_LOG << "Before/After: " << buffer->NumDrawCommands() << "/" << numCommands << std::endl;
+           }
         }
 
         _viscull->unbind();

@@ -37,12 +37,12 @@ void main() {
     uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
-        // AABB aabb = transformAabb(aabbs[i], globalTransforms[i]);
-        // DrawElementsIndirectCommand draw = inDrawCalls[i];
-        // //draw.vertexCount = 24;
-        // if (!isAabbInFrustum(aabb.vmin, aabb.vmax)) {
-        //     draw.instanceCount = 0;
-        // }
-        // outDrawCalls[i] = draw;
+        AABB aabb = transformAabb(aabbs[i], globalTransforms[i]);
+        DrawElementsIndirectCommand draw = inDrawCalls[i];
+        //draw.vertexCount = 24;
+        if (!isAabbVisible(aabb)) {
+            draw.instanceCount = 0;
+        }
+        outDrawCalls[i] = draw;
     }
 }

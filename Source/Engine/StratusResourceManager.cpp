@@ -684,6 +684,7 @@ namespace stratus {
             // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
         }
 
+        mesh->CalculateAabbs(glm::mat4(1.0f));
         _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
 
         // rmesh->GenerateCpuData();
@@ -714,6 +715,7 @@ namespace stratus {
         }
 
         mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
+        mesh->CalculateAabbs(glm::mat4(1.0f));
         _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
 
         // rmesh->GenerateCpuData();

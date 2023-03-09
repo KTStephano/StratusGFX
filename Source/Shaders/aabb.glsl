@@ -11,7 +11,6 @@ struct AABB {
 };
 
 uniform vec4 frustumPlanes[6];
-uniform vec4 frustumCorners[8];
 
 vec4[24] convertCornersToLineVertices(in vec4 corners[8]) {
     vec4 vertices[24] = vec4[](
@@ -47,16 +46,6 @@ vec4[8] computeCornersWithTransform(in AABB aabb, in mat4 transform) {
         transform * vec4(vmax.x, vmax.y, vmin.z, 1.0),
         transform * vec4(vmax.x, vmin.y, vmax.z, 1.0),
         transform * vec4(vmax.x, vmax.y, vmax.z, 1.0)
-        /*
-        transform * vec4(vmin.x, vmin.y, vmin.z, 1.0),
-        transform * vec4(vmin.x, vmin.y, vmax.z, 1.0),
-        transform * vec4(vmin.x, vmax.y, vmin.z, 1.0),
-        transform * vec4(vmax.x, vmin.y, vmin.z, 1.0),
-        transform * vec4(vmin.x, vmax.y, vmax.z, 1.0),
-        transform * vec4(vmax.x, vmin.y, vmax.z, 1.0),
-        transform * vec4(vmax.x, vmax.y, vmin.z, 1.0),
-        transform * vec4(vmax.x, vmax.y, vmax.z, 1.0)
-        */
     );
 
     return corners;
@@ -81,62 +70,39 @@ AABB transformAabb(in AABB aabb, in mat4 transform) {
     return result;
 }
 
-bool isAabbInFrustum(in vec4 vmin, in vec4 vmax) {    
+//bool isAabbVisible(in AABB aabb) {
+//    vec4 center = vec4((aabb.vmin.xyz + aabb.vmax.xyz) * 0.5f, 1.0);
+//    vec4 size   = vec4((aabb.vmax.xyz - aabb.vmin.xyz) * 0.5f, 1.0);
+//
+//    for (int i = 0; i < 6; ++i) {
+//        vec4 g = frustumPlanes[i];
+//        float rg = abs(g.x * size.x) + abs(g.y * size.y) + abs(g.z * size.z);
+//        if (dot(g, center) <= -rg) {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+//}
+
+bool isAabbVisible(in AABB aabb) {
+    vec4 vmin = aabb.vmin;
+    vec4 vmax = aabb.vmax;
+
     for (int i = 0; i < 6; ++i) {
         int r = 0;
-        r += (dot(frustumPlanes[i], vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0) ? 1 : 0;
-        r += (dot(frustumPlanes[i], vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0) ? 1 : 0; 
-        r += (dot(frustumPlanes[i], vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0) ? 1 : 0; 
+        vec4 g = frustumPlanes[i];
+        r += (dot(g, vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
+        r += (dot(g, vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
+		r += (dot(g, vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0) ? 1 : 0;
 
         if (r == 8) return false;
     }
-
-    return true;
-}
-
-bool isFrustumInAabb(in vec4 vmin, in vec4 vmax) {
-    int r;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].x > vmax.x) ? 1 : 0);
-    }
-    if (r == 8) return false;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].x < vmin.x) ? 1 : 0);
-    }
-    if (r == 8) return false;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].y > vmax.y) ? 1 : 0);
-    }
-    if (r == 8) return false;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].y < vmin.y) ? 1 : 0);
-    }
-    if (r == 8) return false;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].z > vmax.z) ? 1 : 0);
-    }
-    if (r == 8) return false;
-
-    r = 0;
-    for (int i = 0; i < 8; ++i) {
-        r += ((frustumCorners[i].z < vmin.z) ? 1 : 0);
-    }
-    if (r == 8) return false;
 
     return true;
 }

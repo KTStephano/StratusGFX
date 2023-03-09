@@ -630,7 +630,7 @@ namespace stratus {
             _modelTransforms = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             _indirectDrawCommands = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
             if (aabbs.size() > 0) {
-                _aabbs = GpuBuffer((const void*)aabbs.data(), numElems * sizeof(GpuAABB), flags);
+                _aabbs = GpuBuffer((const void *)aabbs.data(), numElems * sizeof(GpuAABB), flags);
             }
         }
         else {
@@ -639,7 +639,7 @@ namespace stratus {
             _modelTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
             _indirectDrawCommands.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
             if (aabbs.size() > 0) {
-                _aabbs.CopyDataToBuffer(0, numElems * sizeof(GpuAABB), (const void*)aabbs.data());
+                _aabbs.CopyDataToBuffer(0, numElems * sizeof(GpuAABB), (const void *)aabbs.data());
             }
         }
     }

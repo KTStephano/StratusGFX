@@ -22,7 +22,7 @@ namespace stratus {
     struct RendererParams {
         std::string appName;
         Degrees fovy;
-        float znear = 1.0f; //0.1f;
+        float znear = 0.1f;
         float zfar = 1000.0f;
         bool vsyncEnabled;
     };
