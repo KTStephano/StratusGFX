@@ -87,7 +87,11 @@ namespace stratus {
         void _UpdateMaterialSet();
         void _UpdateDrawCommands();
         void _UpdateVisibility();
-        void _UpdateVisibility(const glm::mat4&, const glm::mat4&, const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>&);
+        void _UpdateVisibility(
+            const glm::mat4&, const glm::mat4&, 
+            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
+            const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
+            );
 
     private:
         // These are called by the private entity handler

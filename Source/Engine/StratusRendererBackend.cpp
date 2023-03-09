@@ -1491,9 +1491,9 @@ void RendererBackend::RenderScene() {
     _Render(_frame->visibleFirstLodInstancedFlatMeshes, false);
 
     // Render bounding boxes
-    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
-    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
-    _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
+    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
+    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
+    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;

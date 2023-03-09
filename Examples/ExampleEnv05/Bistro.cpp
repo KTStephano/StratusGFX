@@ -402,7 +402,7 @@ public:
         controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor, warmMorningColor, 10));
         Input()->AddInputHandler(controller);
 
-        // Alpha testing doesn't work so well for this scene
+        // Alpha testing doesn't work so well for this scene 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
