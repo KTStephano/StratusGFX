@@ -93,7 +93,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = 0.0;
-        if (baseLightIndex < 6 && distToCamera < 300) {
+        if (distToCamera < 300) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be

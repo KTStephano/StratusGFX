@@ -277,8 +277,8 @@ namespace stratus {
     static void ProcessMesh(RenderComponent * renderNode, const aiMatrix4x4& transform, aiMesh * mesh, const aiScene * scene, MaterialPtr rootMat, const std::string& directory, const std::string& extension, RenderFaceCulling defaultCullMode, const ColorSpace& cspace) {
         
         //if (mesh->mNumUVComponents[0] == 0) return;
-        //if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
-        if (mesh->mNormals == nullptr) return;
+        if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) return;
+        //if (mesh->mNormals == nullptr) return;
 
         MeshPtr rmesh = Mesh::Create();
         // Process core primitive data
