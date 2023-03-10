@@ -236,6 +236,21 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+    // This is synchronized with the version inside of pbr.fs
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuPointLight {
+        GpuVec position;
+        GpuVec color;
+        float radius;
+        float farPlane;
+        float _1[2];
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
@@ -244,5 +259,6 @@ namespace stratus {
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplData) == 64);
     static_assert(sizeof(GpuAABB) == 32);
+    static_assert(sizeof(GpuPointLight) == 48);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

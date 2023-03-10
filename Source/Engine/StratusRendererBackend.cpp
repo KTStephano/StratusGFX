@@ -117,6 +117,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"pbr.fs", ShaderType::FRAGMENT}}));
     _state.shaders.push_back(_state.lighting.get());
 
+    _state.lightingWithInfiniteLight = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr.vs", ShaderType::VERTEX},
+        Shader{"pbr.fs", ShaderType::FRAGMENT} },
+        {{"INFINITE_LIGHTING_ENABLED", "1"}}));
+    _state.shaders.push_back(_state.lightingWithInfiniteLight.get());
+
     _state.bloom = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"bloom.vs", ShaderType::VERTEX},
         Shader{"bloom.fs", ShaderType::FRAGMENT}}));
@@ -237,6 +243,10 @@ void RendererBackend::_InitPointShadowMaps() {
     for (int i = 0; i < _state.numRegularShadowMaps; ++i) {
         _CreateShadowMap3D(_state.shadowCubeMapX, _state.shadowCubeMapY, false);
     }
+
+    // Initialize the point light buffers including shadow map texture buffer
+    const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+    _state.nonShadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * _state.maxTotalRegularLightsPerFrame, flags);
 
     // Create the virtual point light shadow map cache
     for (int i = 0; i < MAX_TOTAL_VPL_SHADOW_MAPS; ++i) {
@@ -1453,19 +1463,24 @@ void RendererBackend::RenderScene() {
     _state.lightingFbo.bind();
 
     //_unbindAllTextures();
-    _BindShader(_state.lighting.get());
-    _InitLights(_state.lighting.get(), perLightDistToViewer, _state.maxShadowCastingLightsPerFrame);
-    _state.lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
-    _state.lighting->bindTexture("gPosition", _state.buffer.position);
-    _state.lighting->bindTexture("gNormal", _state.buffer.normals);
-    _state.lighting->bindTexture("gAlbedo", _state.buffer.albedo);
-    _state.lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
-    _state.lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
-    _state.lighting->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
-    _state.lighting->setFloat("windowWidth", _frame->viewportWidth);
-    _state.lighting->setFloat("windowHeight", _frame->viewportHeight);
-    _state.lighting->setVec3("fogColor", _frame->fogColor);
-    _state.lighting->setFloat("fogDensity", _frame->fogDensity);
+    Pipeline* lighting = _state.lighting.get();
+    if (_frame->csc.worldLight->getEnabled()) {
+        lighting = _state.lightingWithInfiniteLight.get();
+    }
+
+    _BindShader(lighting);
+    _InitLights(lighting, perLightDistToViewer, _state.maxShadowCastingLightsPerFrame);
+    lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
+    lighting->bindTexture("gPosition", _state.buffer.position);
+    lighting->bindTexture("gNormal", _state.buffer.normals);
+    lighting->bindTexture("gAlbedo", _state.buffer.albedo);
+    lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
+    lighting->bindTexture("gRoughnessMetallicAmbient", _state.buffer.roughnessMetallicAmbient);
+    lighting->bindTexture("ssao", _state.ssaoOcclusionBlurredTexture);
+    lighting->setFloat("windowWidth", _frame->viewportWidth);
+    lighting->setFloat("windowHeight", _frame->viewportHeight);
+    lighting->setVec3("fogColor", _frame->fogColor);
+    lighting->setFloat("fogDensity", _frame->fogDensity);
     _RenderQuad();
     _state.lightingFbo.unbind();
     _UnbindShader();
@@ -1808,38 +1823,59 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
 
     const Camera& c = *_frame->camera;
     glm::vec3 lightColor;
-    int lightIndex = 0;
-    int shadowLightIndex = 0;
+    //int lightIndex = 0;
+    //int shadowLightIndex = 0;
+    //for (int i = 0; i < lights.size(); ++i) {
+    //    LightPtr light = lights[i].first;
+    //    PointLight * point = (PointLight *)light.get();
+    //    const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
+    //    // Skip lights too far from camera
+    //    //if (distance > (2 * light->getRadius())) continue;
+
+    //    // VPLs are handled as part of the global illumination compute pipeline
+    //    if (point->IsVirtualLight()) {
+    //        continue;
+    //    }
+
+    //    if (point->castsShadows() && shadowLightIndex < maxShadowLights) {
+    //        s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
+    //        //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _GetOrAllocateShadowMapHandleForLight(light));
+    //        s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
+    //        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", true);
+    //        ++shadowLightIndex;
+    //    }
+    //    else {
+    //        s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", false);
+    //    }
+
+    //    lightColor = point->getBaseColor() * point->getIntensity();
+    //    s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", point->GetPosition());
+    //    s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
+    //    s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
+    //    //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
+    //    ++lightIndex;
+    //}
+
+    std::vector<GpuPointLight> gpuLights;
+    gpuLights.reserve(lights.size());
     for (int i = 0; i < lights.size(); ++i) {
         LightPtr light = lights[i].first;
-        PointLight * point = (PointLight *)light.get();
-        const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
-        // Skip lights too far from camera
-        //if (distance > (2 * light->getRadius())) continue;
+        PointLight* point = (PointLight*)light.get();
 
-        // VPLs are handled as part of the global illumination compute pipeline
         if (point->IsVirtualLight()) {
             continue;
         }
 
-        if (point->castsShadows() && shadowLightIndex < maxShadowLights) {
-            s->setFloat("lightFarPlanes[" + std::to_string(shadowLightIndex) + "]", point->getFarPlane());
-            //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _GetOrAllocateShadowMapHandleForLight(light));
-            s->bindTexture("shadowCubeMaps[" + std::to_string(shadowLightIndex) + "]", _LookupShadowmapTexture(_GetOrAllocateShadowMapHandleForLight(light)));
-            s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", true);
-            ++shadowLightIndex;
-        }
-        else {
-            s->setBool("lightCastsShadows[" + std::to_string(lightIndex) + "]", false);
-        }
-
-        lightColor = point->getBaseColor() * point->getIntensity();
-        s->setVec3("lightPositions[" + std::to_string(lightIndex) + "]", point->GetPosition());
-        s->setVec3("lightColors[" + std::to_string(lightIndex) + "]", &lightColor[0]);
-        s->setFloat("lightRadii[" + std::to_string(lightIndex) + "]", point->getRadius());
-        //_bindShadowMapTexture(s, "shadowCubeMaps[" + std::to_string(lightIndex) + "]", light->getShadowMapHandle());
-        ++lightIndex;
+        GpuPointLight gpuLight;
+        gpuLight.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
+        gpuLight.color = GpuVec(glm::vec4(point->getColor(), 1.0f));
+        gpuLight.farPlane = point->getFarPlane();
+        gpuLight.radius = point->getRadius();
+        gpuLights.push_back(std::move(gpuLight));
     }
+
+    _state.nonShadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuLights.size(), (const void*)gpuLights.data());
+    _state.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     s->setFloat("ambientIntensity", 0.0001f);
     /*
@@ -1851,8 +1887,8 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     }
     */
 
-    s->setInt("numLights", lightIndex);
-    s->setInt("numShadowLights", shadowLightIndex);
+    s->setInt("numLights", int(gpuLights.size()));
+    s->setInt("numShadowLights", 0);
     s->setVec3("viewPosition", c.getPosition());
     const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
     s->setVec3("atmosphericLightPos", lightPosition);
@@ -1867,7 +1903,6 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
-    s->setBool("infiniteLightingEnabled", _frame->csc.worldLight->getEnabled());
     lightColor = _frame->csc.worldLight->getLuminance();
     s->setVec3("infiniteLightColor", lightColor);
     s->setFloat("worldLightAmbientIntensity", _frame->csc.worldLight->getAmbientIntensity());

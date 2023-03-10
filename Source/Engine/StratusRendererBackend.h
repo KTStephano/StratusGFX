@@ -235,6 +235,9 @@ namespace stratus {
             int shadowCubeMapX = 256, shadowCubeMapY = 256;
             int maxShadowCastingLightsPerFrame = 16; // per frame
             int maxTotalRegularLightsPerFrame = 200; // per frame
+            GpuBuffer nonShadowCastingPointLights;
+            GpuBuffer shadowCubeMaps;
+            GpuBuffer shadowCastingPointLights;
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
             // Lights are inserted into a queue to prevent any light from being
@@ -301,6 +304,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> atmosphericPostFx;
             // Handles the lighting stage
             std::unique_ptr<Pipeline> lighting;
+            std::unique_ptr<Pipeline> lightingWithInfiniteLight;
             // Handles global illuminatino stage
             std::unique_ptr<Pipeline> vplGlobalIllumination;
             std::unique_ptr<Pipeline> vplGlobalIlluminationBlurring;
