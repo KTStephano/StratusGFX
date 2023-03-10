@@ -233,7 +233,7 @@ namespace stratus {
         struct RenderState {
             int numRegularShadowMaps = 48;
             int shadowCubeMapX = 256, shadowCubeMapY = 256;
-            int maxShadowCastingLightsPerFrame = 16; // per frame
+            int maxShadowCastingLightsPerFrame = 18; // per frame
             int maxTotalRegularLightsPerFrame = 200; // per frame
             GpuBuffer nonShadowCastingPointLights;
             GpuBuffer shadowCubeMaps;

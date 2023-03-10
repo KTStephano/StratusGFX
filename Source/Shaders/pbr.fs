@@ -102,13 +102,29 @@ void main() {
         }
     }
 
+    for (int i = 0; i < numShadowLights; ++i) {
+        PointLight light = shadowCasters[i];
+        // calculate distance between light source and current fragment
+        float distance = length(light.position.xyz - fragPos);
+        if(distance < light.radius) {
+            float shadowFactor = 0.0;
+            if (viewDist < 100.0) {
+                shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
+            }
+            else if (viewDist < 650.0) {
+                shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
+            }
+            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        }
+    }
+
 #ifdef INFINITE_LIGHTING_ENABLED
     vec3 lightDir = infiniteLightDirection;
     // vec3 cascadeCoord0 = (cascade0ProjView * vec4(fragPos, 1.0)).rgb;
     // cascadeCoord0 = cascadeCoord0 * 0.5 + 0.5;
     vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(fragPos, 1.0)),
-                                dot(cascadePlanes[1], vec4(fragPos, 1.0)),
-                                dot(cascadePlanes[2], vec4(fragPos, 1.0)));
+                              dot(cascadePlanes[1], vec4(fragPos, 1.0)),
+                              dot(cascadePlanes[2], vec4(fragPos, 1.0)));
     float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal);
     //vec3 lightDir = infiniteLightDirection;
     //color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.003);

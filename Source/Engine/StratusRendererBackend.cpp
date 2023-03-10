@@ -247,6 +247,8 @@ void RendererBackend::_InitPointShadowMaps() {
     // Initialize the point light buffers including shadow map texture buffer
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     _state.nonShadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * _state.maxTotalRegularLightsPerFrame, flags);
+    _state.shadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * _state.maxShadowCastingLightsPerFrame, flags);
+    _state.shadowCubeMaps = GpuBuffer(nullptr, sizeof(GpuTextureHandle) * _state.maxShadowCastingLightsPerFrame, flags);
 
     // Create the virtual point light shadow map cache
     for (int i = 0; i < MAX_TOTAL_VPL_SHADOW_MAPS; ++i) {
@@ -1857,7 +1859,11 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     //}
 
     std::vector<GpuPointLight> gpuLights;
+    std::vector<GpuTextureHandle> gpuShadowCubeMaps;
+    std::vector<GpuPointLight> gpuShadowLights;
     gpuLights.reserve(lights.size());
+    gpuShadowCubeMaps.reserve(maxShadowLights);
+    gpuShadowLights.reserve(maxShadowLights);
     for (int i = 0; i < lights.size(); ++i) {
         LightPtr light = lights[i].first;
         PointLight* point = (PointLight*)light.get();
@@ -1871,11 +1877,24 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
         gpuLight.color = GpuVec(glm::vec4(point->getColor(), 1.0f));
         gpuLight.farPlane = point->getFarPlane();
         gpuLight.radius = point->getRadius();
-        gpuLights.push_back(std::move(gpuLight));
+
+        if (point->castsShadows() && gpuShadowLights.size() < maxShadowLights) {
+            gpuShadowLights.push_back(std::move(gpuLight));
+            auto smap = _GetOrAllocateShadowMapForLight(light);
+            gpuShadowCubeMaps.push_back(smap.shadowCubeMap.GpuHandle());
+        }
+        else {
+            gpuLights.push_back(std::move(gpuLight)); 
+        }
     }
 
     _state.nonShadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuLights.size(), (const void*)gpuLights.data());
+    _state.shadowCubeMaps.CopyDataToBuffer(0, sizeof(GpuTextureHandle) * gpuShadowCubeMaps.size(), (const void*)gpuShadowCubeMaps.data());
+    _state.shadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuShadowLights.size(), (const void*)gpuShadowLights.data());
+
     _state.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    _state.shadowCubeMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    _state.shadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
 
     s->setFloat("ambientIntensity", 0.0001f);
     /*
@@ -1888,7 +1907,7 @@ void RendererBackend::_InitLights(Pipeline * s, const std::vector<std::pair<Ligh
     */
 
     s->setInt("numLights", int(gpuLights.size()));
-    s->setInt("numShadowLights", 0);
+    s->setInt("numShadowLights", int(gpuShadowLights.size()));
     s->setVec3("viewPosition", c.getPosition());
     const glm::vec3 lightPosition = _CalculateAtmosphericLightPosition();
     s->setVec3("atmosphericLightPos", lightPosition);
