@@ -121,6 +121,12 @@ struct CameraController : public stratus::InputHandler {
                                 STRATUS_LOG << "Camera Position: " << INSTANCE(RendererFrontend)->GetCamera()->getPosition() << std::endl;
                             }
                             break;
+                        case SDL_SCANCODE_B:
+                            if (released) {
+                                _drawBoundingBoxes = !_drawBoundingBoxes;
+                                INSTANCE(RendererFrontend)->SetDrawBoundingBoxesEnabled(_drawBoundingBoxes);
+                            }
+                            break;
                     }
                 }
             }
@@ -151,6 +157,7 @@ private:
     bool _cameraLightEnabled = true;
     bool _cameraMoveEnabled = true;
     bool _cameraRotateEnabled = true;
+    bool _drawBoundingBoxes = false;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
     float _camSpeedDivide = 0.25f; // For slowing camera down
 };

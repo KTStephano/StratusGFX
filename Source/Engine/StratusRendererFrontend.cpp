@@ -369,6 +369,11 @@ namespace stratus {
         return _frame->globalIlluminationEnabled;
     }
 
+    void RendererFrontend::SetDrawBoundingBoxesEnabled(const bool enabled) {
+        auto ul = _LockWrite();
+        _frame->drawBoundingBoxes = enabled;
+    }
+
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         CHECK_IS_APPLICATION_THREAD();
 

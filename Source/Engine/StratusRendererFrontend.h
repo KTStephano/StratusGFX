@@ -56,6 +56,8 @@ namespace stratus {
         void SetGlobalIlluminationEnabled(const bool);
         bool GetGlobalIlluminationEnabled() const;
 
+        void SetDrawBoundingBoxesEnabled(const bool);
+
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;
 

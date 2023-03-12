@@ -19,6 +19,7 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "FrameRateController.h"
 
 class SanMiguel : public stratus::Application {
 public:
@@ -53,6 +54,9 @@ public:
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene
@@ -152,12 +156,24 @@ public:
 
             for (int x = 80; x < 240; x += 20) {
                 for (int y = 5; y < 120; y += 20) {
-                    for (int z = -5; z < 70; z += 20) {
+                    for (int z = -6; z < 6; z += 5) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
                                 false
                             );
+                    }
+                }
+            }
+
+            for (int x = 80; x < 240; x += 20) {
+                for (int y = 5; y < 60; y += 20) {
+                    for (int z = 6; z < 70; z += 20) {
+                        ++spawned;
+                        LightCreator::CreateVirtualPointLight(
+                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                            false
+                        );
                     }
                 }
             }
