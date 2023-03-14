@@ -310,6 +310,11 @@ namespace stratus {
         return _camera;
     }
 
+    glm::mat4 RendererFrontend::GetProjectionMatrix() const {
+        auto sl = _LockRead();
+        return _frame->projection;
+    }
+
     void RendererFrontend::SetFovY(const Degrees& fovy) {
         auto ul = _LockWrite();
         _params.fovy = fovy;
@@ -380,8 +385,6 @@ namespace stratus {
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
-        if (!_renderingLoopEnabled) return SystemStatus::SYSTEM_CONTINUE;
-
         CHECK_IS_APPLICATION_THREAD();
 
         auto ul = _LockWrite();
@@ -406,6 +409,10 @@ namespace stratus {
             _viscullLodSelect->recompile();
             _viscull->recompile();
             _recompileShaders = false;
+        }
+
+        if (!_renderingLoopEnabled) {
+            return SystemStatus::SYSTEM_CONTINUE;
         }
 
         // Begin the new frame

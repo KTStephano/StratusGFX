@@ -43,6 +43,7 @@ namespace stratus {
 
         void SetCamera(const CameraPtr&);
         CameraPtr GetCamera() const;
+        glm::mat4 GetProjectionMatrix() const;
         void SetFovY(const Degrees&);
         void SetNearFar(const float znear, const float zfar);
         void SetVsyncEnabled(const bool);
