@@ -120,6 +120,8 @@ public:
             data.push_back(std::move(v));
         }
 
+        numVertices = data.size();
+
         glCreateBuffers(1, &verticesBuffer);
         glNamedBufferStorage(
             verticesBuffer,
@@ -176,6 +178,14 @@ public:
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        bindless->bind();
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, verticesBuffer);
+
+        glDrawArrays(GL_TRIANGLES, 0, numVertices);
+
+        bindless->unbind();
+
         stratus::GraphicsDriver::SwapBuffers(true);
 
         return stratus::SystemStatus::SYSTEM_CONTINUE;
@@ -187,6 +197,7 @@ public:
     }
 
     std::unique_ptr<stratus::Pipeline> bindless;
+    int numVertices = 0;
     GLuint verticesBuffer;
 };
 
