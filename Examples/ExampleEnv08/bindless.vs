@@ -14,6 +14,10 @@ layout(binding = 0, std430) readonly buffer ssbo1 {
     VertexData data[];
 };
 
+layout(binding = 1, std430) readonly buffer ssbo2 {
+    mat4 modelTransforms[];
+};
+
 uniform mat4 projection;
 uniform mat4 view;
 
@@ -41,13 +45,15 @@ vec3 getNormal(int index) {
     );
 }
 
-out vec2 fsUv;
-out vec3 fsNormal;
+smooth out vec2 fsUv;
+flat out vec3 fsNormal;
+flat out int fsInstance;
 
 void main()
 {
-    gl_Position = projection * view * vec4(getPosition(gl_VertexID), 1.0);
+    gl_Position = projection * view * modelTransforms[gl_InstanceID] * vec4(getPosition(gl_VertexID), 1.0);
 
     fsUv = getUV(gl_VertexID);
     fsNormal = getNormal(gl_VertexID);
+    fsInstance = gl_InstanceID;
 }

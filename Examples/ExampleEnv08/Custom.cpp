@@ -87,6 +87,8 @@ public:
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
+
+        srand(time(nullptr));
         
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
@@ -127,6 +129,54 @@ public:
             verticesBuffer,
             sizeof(VertexData) * data.size(),
             (const void*)data.data(),
+            GL_DYNAMIC_STORAGE_BIT
+        );
+
+        std::vector<glm::mat4> instancedMatrices;
+
+        for (size_t x = 0; x < 200; x += 5) {
+            for (size_t y = 0; y < 200; y += 5) {
+                glm::mat4 mat(1.0f);
+                stratus::matTranslate(mat, glm::vec3(float(x), float(y), 0.0f));
+                instancedMatrices.push_back(std::move(mat));
+            }
+        }
+
+        numInstances = instancedMatrices.size();
+
+        glCreateBuffers(1, &modelMatrices);
+        glNamedBufferStorage(
+            modelMatrices,
+            sizeof(glm::mat4) * instancedMatrices.size(),
+            (const void*)instancedMatrices.data(),
+            GL_DYNAMIC_STORAGE_BIT
+        );
+
+        std::vector<GLuint> textures;
+        const size_t textureSize = 32 * 32 * 3;
+        unsigned char textureData[textureSize];
+        for (int i = 0; i < numInstances; ++i) {
+            const unsigned char limit = unsigned char(rand() % 231 + 25);
+            for (int j = 0; j < textureSize; ++j) {
+                textureData[j] = unsigned char(rand() % limit);
+            }
+
+            GLuint texture;
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+            glTextureStorage2D(texture, 1, GL_RGB8, 32, 32);
+            glTextureSubImage2D(texture, 0, 0, 0, 32, 32, GL_RGB, GL_UNSIGNED_BYTE, (const void *)&textureData[0]);
+            glGenerateTextureMipmap(texture);
+
+            const GLuint64 handle = glGetTextureHandleARB(texture);
+            STRATUS_LOG << handle << std::endl;
+            textureHandles.push_back(handle);
+        }
+
+        glCreateBuffers(1, &textureBuffer);
+        glNamedBufferStorage(
+            textureBuffer,
+            sizeof(GLuint64) * textureHandles.size(),
+            (const void *)textureHandles.data(),
             GL_DYNAMIC_STORAGE_BIT
         );
 
@@ -175,16 +225,32 @@ public:
 
         stratus::GraphicsDriver::MakeContextCurrent();
 
+        glEnable(GL_DEPTH_TEST);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Mark all as resident
+        for (GLuint64 handle : textureHandles) {
+            glMakeTextureHandleResidentARB(handle);
+        }
+
         bindless->bind();
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, verticesBuffer);
+        bindless->setMat4("view", camera->getViewTransform());
+        bindless->setMat4("projection", INSTANCE(RendererFrontend)->GetProjectionMatrix());
 
-        glDrawArrays(GL_TRIANGLES, 0, numVertices);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, verticesBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, modelMatrices);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, textureBuffer);
+
+        glDrawArraysInstanced(GL_TRIANGLES, 0, numVertices, numInstances);
 
         bindless->unbind();
+
+        // Mark all as non-resident
+        for (GLuint64 handle : textureHandles) {
+            glMakeTextureHandleNonResidentARB(handle);
+        }
 
         stratus::GraphicsDriver::SwapBuffers(true);
 
@@ -198,7 +264,11 @@ public:
 
     std::unique_ptr<stratus::Pipeline> bindless;
     int numVertices = 0;
+    int numInstances = 0;
+    std::vector<GLuint64> textureHandles;
     GLuint verticesBuffer;
+    GLuint modelMatrices;
+    GLuint textureBuffer;
 };
 
 STRATUS_ENTRY_POINT(Custom)
