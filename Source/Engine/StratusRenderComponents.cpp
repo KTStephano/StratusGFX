@@ -237,11 +237,11 @@ namespace stratus {
             }
         }
 
-        glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[0]], 1.0f));
+        glm::vec3 vertex = glm::vec3(glm::vec4(_cpuData->vertices[_cpuData->indices[0]], 1.0f));
 		glm::vec3 vmin = vertex;
 		glm::vec3 vmax = vertex;
         for (size_t i = 0; i < _cpuData->indices.size(); ++i) {
-            vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[i]], 1.0f));
+            vertex = glm::vec3(glm::vec4(_cpuData->vertices[_cpuData->indices[i]], 1.0f));
             vmin = glm::min(vmin, vertex);
             vmax = glm::max(vmax, vertex);
         }

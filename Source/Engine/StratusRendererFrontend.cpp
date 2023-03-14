@@ -374,7 +374,14 @@ namespace stratus {
         _frame->drawBoundingBoxes = enabled;
     }
 
+    void RendererFrontend::SetEnableRenderingLoop(const bool enabled) {
+        auto ul = _LockWrite();
+        _renderingLoopEnabled = enabled;
+    }
+
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
+        if (!_renderingLoopEnabled) return SystemStatus::SYSTEM_CONTINUE;
+
         CHECK_IS_APPLICATION_THREAD();
 
         auto ul = _LockWrite();

@@ -22,7 +22,7 @@ uniform mat4 view;
 uniform int modelIndex;
 
 void main() {
-    AABB aabb = transformAabb(aabbs[modelIndex], globalMatrices[modelIndex]);
+    AABB aabb = transformAabb(aabbs[modelIndex], modelMatrices[modelIndex]);
     vec4 corners[8] = computeCornersWithTransform(aabb, projection * view);
     vec4 vertices[24] = convertCornersToLineVertices(corners);
 

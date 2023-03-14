@@ -722,6 +722,8 @@ static bool ValidateTexture(const Async<Texture> & tex) {
 void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
     if (buffer->NumDrawCommands() == 0 || buffer->aabbs.size() == 0) return;
 
+    glEnable(GL_DEPTH_TEST);
+
     SetCullState(RenderFaceCulling::CULLING_NONE);
 
     buffer->BindModelTransformBuffer(13);
@@ -739,6 +741,8 @@ void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
     }
 
     _UnbindShader();
+
+    glDisable(GL_DEPTH_TEST);
 }
 
 void RendererBackend::_RenderBoundingBoxes(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
@@ -1313,7 +1317,7 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 16),
         (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 1),
         1
     );

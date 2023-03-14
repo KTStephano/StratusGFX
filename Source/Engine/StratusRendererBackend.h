@@ -214,8 +214,8 @@ namespace stratus {
 
         struct VirtualPointLightData {
             // For splitting viewport into tiles
-            const int tileXDivisor = 2;
-            const int tileYDivisor = 6;
+            const int tileXDivisor = 4;
+            const int tileYDivisor = 4;
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int vplShadowCubeMapX = 64, vplShadowCubeMapY = 64;
             GpuBuffer vplDiffuseMaps;

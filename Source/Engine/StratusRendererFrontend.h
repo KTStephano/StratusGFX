@@ -57,6 +57,7 @@ namespace stratus {
         bool GetGlobalIlluminationEnabled() const;
 
         void SetDrawBoundingBoxesEnabled(const bool);
+        void SetEnableRenderingLoop(const bool);
 
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;
@@ -125,6 +126,7 @@ namespace stratus {
         glm::mat4 _projection = glm::mat4(1.0f);
         bool _viewportDirty = true;
         bool _recompileShaders = false;
+        bool _renderingLoopEnabled = true;
         std::shared_ptr<RendererFrame> _frame;
         std::unique_ptr<RendererBackend> _renderer;
         // This forwards entity state changes to the renderer

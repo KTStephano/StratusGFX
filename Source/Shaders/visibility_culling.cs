@@ -47,7 +47,7 @@ void main() {
     uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
-        AABB aabb = transformAabb(aabbs[i], globalTransforms[i]);
+        AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
         vec3 center = (aabb.vmin.xyz + aabb.vmax.xyz) * 0.5;
         center = (view * vec4(center, 1.0)).xyz;
         float dist = length(center);
