@@ -89,7 +89,7 @@ public:
         environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
         environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
 
-        // stratus::Async<stratus::Entity> e;
+        stratus::Async<stratus::Entity> e;
         // e = Resources()->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR);
         // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
         //     outhouse = e.GetPtr(); 
@@ -109,15 +109,15 @@ public:
         //     PrintNodeHierarchy(clay, "Clay", "");
         // });
 
-        // e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     stump = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
-        //     transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        //     transform->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
-        //     INSTANCE(EntityManager)->AddEntity(stump);
-        //     PrintNodeHierarchy(stump, "Stump", "");
-        // });
+         e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB);
+         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+             stump = e.GetPtr(); 
+             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
+             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+             transform->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
+             INSTANCE(EntityManager)->AddEntity(stump);
+             PrintNodeHierarchy(stump, "Stump", "");
+         });
 
         // e = Resources()->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB);
         // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
