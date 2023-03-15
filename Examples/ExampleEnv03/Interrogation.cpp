@@ -19,6 +19,8 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "WorldLightController.h"
+#include "FrameRateController.h"
 
 class Interrogation : public stratus::Application {
 public:
@@ -50,20 +52,25 @@ public:
         stratus::InputHandlerPtr controller(new CameraController());
         Input()->AddInputHandler(controller);
 
+        controller = stratus::InputHandlerPtr(new FrameRateController());
+        Input()->AddInputHandler(controller);
+
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
         //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/InterrogationRoom/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/InterrogationRoom/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             interrogationRoom = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(interrogationRoom);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             INSTANCE(EntityManager)->AddEntity(interrogationRoom);
-            PrintNodeHierarchy(interrogationRoom, "Interrogation", "");
         });
+
+        INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
+        INSTANCE(RendererFrontend)->SetFogDensity(0.00125);
 
         bool running = true;
 
@@ -108,7 +115,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 1.0f, 0.5f),
                                         1200.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -119,7 +127,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         1200.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -130,7 +139,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         1500.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -141,7 +151,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         2000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -152,7 +163,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         3000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -163,7 +175,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         6000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -174,7 +187,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         12000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -185,7 +199,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         24000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -196,7 +211,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         48000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;
@@ -207,7 +223,8 @@ public:
                                     LightParams(camera->getPosition(),
                                         glm::vec3(1.0f),
                                         65000.0f
-                                    )
+                                    ),
+                                    false
                                 );
                             }
                             break;

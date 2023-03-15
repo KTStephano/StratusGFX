@@ -12,6 +12,7 @@ if (WIN32)
         $ENV{SYSROOT}/lib/cmake/assimp 
         $ENV{SYSROOT}/lib/cmake/assimp-5.0 
         $ENV{SYSROOT}/lib/cmake/Catch2
+        $ENV{SYSROOT}/lib/cmake/meshoptimizer
     )
 endif ()
 

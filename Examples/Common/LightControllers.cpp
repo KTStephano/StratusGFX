@@ -22,6 +22,7 @@ static void InitLight(const LightParams& p, stratus::LightPtr& light) {
     light->setIntensity(p.intensity);
     light->setColor(p.color);
     light->SetPosition(p.position);
+    light->setCastsShadows(p.castsShadows);
 }
 
 static void InitCube(const LightParams& p,
@@ -36,13 +37,13 @@ static void InitCube(const LightParams& p,
     auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
     rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
-    local->SetLocalScale(glm::vec3(1.0f));
+    local->SetLocalScale(glm::vec3(0.25f));
     local->SetLocalPosition(p.position);
     auto color = light->getColor();
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
-    color = (color / stratus::maxLightColor) * 30.0f;
-    rc->GetMaterialAt(0)->SetDiffuseColor(color);
+    color = (color / stratus::maxLightColor) * 100.0f;
+    rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
 }
 
 void LightCreator::CreateRandomLightMover(const LightParams& p) {
@@ -66,34 +67,46 @@ void LightCreator::CreateRandomLightMover(const LightParams& p) {
     //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
-void LightCreator::CreateStationaryLight(const LightParams& p) {
+void LightCreator::CreateStationaryLight(const LightParams& p, const bool spawnCube) {
     auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::PointLight(/* staticLight = */ false));
     InitLight(p, light);
 
-    stratus::EntityPtr cube = INSTANCE(ResourceManager)->CreateCube();
-    InitCube(p, light, cube);
+    stratus::EntityPtr cube;
+    if (spawnCube) {
+        cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(p, light, cube);
+    }
 
     ptr->Components().AttachComponent<LightComponent>(light);
-    ptr->Components().AttachComponent<LightCubeComponent>(cube);
+    if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);
 
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
-    INSTANCE(EntityManager)->AddEntity(cube);
+    if (spawnCube) INSTANCE(EntityManager)->AddEntity(cube);
     //INSTANCE(RendererFrontend)->AddDynamicEntity(cube);
 }
 
-void LightCreator::CreateVirtualPointLight(const LightParams& p) {
+void LightCreator::CreateVirtualPointLight(const LightParams& p, const bool spawnCube) {
     auto ptr = stratus::Entity::Create();
     stratus::LightPtr light(new stratus::VirtualPointLight());
     InitLight(p, light);
     ((stratus::VirtualPointLight *)light.get())->SetNumShadowSamples(p.numShadowSamples);
 
+    stratus::EntityPtr cube;
+    if (spawnCube) {
+        cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(p, light, cube);
+        cube->Components().DisableComponent<stratus::StaticObjectComponent>();
+    }
+
     STRATUS_LOG << "VPL Radius: " << light->getRadius() << std::endl;
 
     ptr->Components().AttachComponent<LightComponent>(light);
+    if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);
     INSTANCE(EntityManager)->AddEntity(ptr);
     INSTANCE(RendererFrontend)->AddLight(light);
+    if (spawnCube) INSTANCE(EntityManager)->AddEntity(cube);
 }
 
 struct LightDeleteController : public stratus::InputHandler {
@@ -127,6 +140,10 @@ struct LightDeleteController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_L: {
+                            printLights = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -135,6 +152,7 @@ struct LightDeleteController : public stratus::InputHandler {
 
     std::vector<stratus::EntityPtr> entitiesToRemove;
     std::vector<stratus::EntityPtr> entities;
+    bool printLights = false;
 };
 
 LightDeleteController * ConvertHandlerToLightDelete(const stratus::InputHandlerPtr& input) {
@@ -159,6 +177,21 @@ static bool EntityIsRelevant(const stratus::EntityPtr& entity) {
 }
 
 void LightProcess::Process(const double deltaSeconds) {
+    if (ConvertHandlerToLightDelete(input)->printLights) {
+        ConvertHandlerToLightDelete(input)->printLights = false;
+        const auto& lights = ConvertHandlerToLightDelete(input)->entities;
+        for (const auto& light : lights) {
+            auto ptr = stratus::GetComponent<LightComponent>(light)->light;
+            const bool containsCube = stratus::ContainsComponent<LightCubeComponent>(light);
+            STRATUS_LOG << "LightCreator::CreateStationaryLight(\n"
+                        << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
+                        << "glm::vec3" << ptr->getBaseColor() << ", "
+                        << ptr->getIntensity() << ", "
+                        << (ptr->castsShadows() ? "true" : "false") << "), \n"
+                        << "    " << (containsCube ? "true" : "false") << "\n);";
+        }
+    }
+
     for (stratus::EntityPtr& entity : ConvertHandlerToLightDelete(input)->entitiesToRemove) {
         if (entity->Components().ContainsComponent<LightComponent>()) {
             INSTANCE(RendererFrontend)->RemoveLight(

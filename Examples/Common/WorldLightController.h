@@ -10,12 +10,16 @@
 #include "StratusEngine.h"
 #include "StratusResourceManager.h"
 #include "StratusUtils.h"
+#include <algorithm>
+#include <cmath>
 
 struct WorldLightController : public stratus::InputHandler {
-    WorldLightController(const glm::vec3& lightColor) {
+    WorldLightController(const glm::vec3& lightColor, const glm::vec3& atmosphereColor, const float intensity = 4.0f) {
         _worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
         _worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
         _worldLight->setColor(lightColor);
+        _worldLight->SetAtmosphereColor(atmosphereColor);
+        _worldLight->setIntensity(intensity);
         INSTANCE(RendererFrontend)->SetWorldLight(_worldLight);
     }
 
@@ -24,14 +28,15 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
-        const float lightRotationSpeed = 3.0f;
-        const float lightIncreaseSpeed = 5.0f;
-        const float minLightBrightness = 0.25f;
-        const float maxLightBrightness = 30.0f;
-        const float atmosphericIncreaseSpeed = 1.0f;
-        float fogDensity = INSTANCE(RendererFrontend)->GetAtmosphericFogDensity();
-        float scatterControl = INSTANCE(RendererFrontend)->GetAtmosphericScatterControl();
-        float lightIntensity = _worldLight->getIntensity();
+        const double lightRotationSpeed = _rotationSpeeds[_rotationIndex];
+        const double lightIncreaseSpeed = 5.0;
+        const double minLightBrightness = 0.25;
+        const double maxLightBrightness = 30.0;
+        const double atmosphericIncreaseSpeed = 0.15;
+        const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
+        double particleDensity = _worldLight->GetAtmosphericParticleDensity();
+        double scatterControl = _worldLight->GetAtmosphericScatterControl();
+        double lightIntensity = _worldLight->getIntensity();
         
         for (auto e : input) {
             switch (e.type) {
@@ -66,6 +71,13 @@ struct WorldLightController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_O: {
+                            if (released) {
+                                _rotationIndex = (_rotationIndex + 1) % _rotationSpeeds.size();
+                                STRATUS_LOG << "Rotation Speed: " << _rotationSpeeds[_rotationIndex] << std::endl;
+                            }
+                            break;
+                        }
                         case SDL_SCANCODE_MINUS:
                             if (released) {
                                 lightIntensity = lightIntensity - lightIncreaseSpeed * deltaSeconds;
@@ -84,29 +96,29 @@ struct WorldLightController : public stratus::InputHandler {
                             break;
                         case SDL_SCANCODE_UP: {
                             if (released) {
-                                scatterControl = scatterControl + atmosphericIncreaseSpeed * deltaSeconds;
+                                scatterControl = scatterControl + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_DOWN: {
                             if (released) {
-                                scatterControl = scatterControl - atmosphericIncreaseSpeed * deltaSeconds;
+                                scatterControl = scatterControl - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_LEFT: {
                             if (released) {
-                                fogDensity = fogDensity - atmosphericIncreaseSpeed * deltaSeconds;
-                                STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                                particleDensity = particleDensity - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_RIGHT: {
                             if (released) {
-                                fogDensity = fogDensity + atmosphericIncreaseSpeed * deltaSeconds;
-                                STRATUS_LOG << "Fog Density: " << fogDensity << std::endl;
+                                particleDensity = particleDensity + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;
                         }
@@ -115,8 +127,9 @@ struct WorldLightController : public stratus::InputHandler {
             }
         }
 
+        _worldLight->SetAtmosphericLightingConstants(particleDensity, scatterControl);
+
         if (!_worldLightPaused) {
-            INSTANCE(RendererFrontend)->SetAtmosphericShadowing(fogDensity, scatterControl);
             _worldLight->offsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
         }
 
@@ -124,6 +137,8 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
 private:
+    std::vector<double> _rotationSpeeds = std::vector<double>{ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0 };
+    size_t _rotationIndex = 0;
     float _worldLightMoveDirection = 1.0; // -1.0 reverses it
     stratus::InfiniteLightPtr _worldLight;
     bool _worldLightPaused = true;

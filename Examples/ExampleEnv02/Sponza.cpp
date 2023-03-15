@@ -20,6 +20,8 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "WorldLightController.h"
+#include "FrameRateController.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -39,7 +41,11 @@ public:
         Input()->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
+        const glm::vec3 defaultSunColor = glm::vec3(1.0f);
+        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
+        Input()->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         Input()->AddInputHandler(controller);
 
         // Moonlight
@@ -49,17 +55,29 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../local/sponza_scene/scene.gltf", stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-            sponza = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
-            transform->SetLocalPosition(glm::vec3(0.0f));
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        requested.push_back(e);
+        requested.push_back(e2);
+        
+        auto callback = [this](stratus::Async<stratus::Entity> e) { 
+            received.push_back(e.GetPtr());
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            //transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
-            INSTANCE(EntityManager)->AddEntity(sponza);
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));  
+            INSTANCE(EntityManager)->AddEntity(e.GetPtr());
             //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
-        });
+        };
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../resources/textures/Skyboxes/learnopengl/sbox_", false, "jpg"));
+        e.AddCallback(callback);
+        e2.AddCallback(callback);
+
+        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/resources/textures/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
 
         bool running = true;
 
@@ -86,6 +104,7 @@ public:
 
         auto worldLight = World()->GetWorldLight();
         const glm::vec3 worldLightColor = worldLight->getColor();
+        const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -113,7 +132,9 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                    //LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), warmMorningColor, 600.0f),
+                                    false
                                 );
                             }
                             break;
@@ -121,7 +142,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 100.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 100.0f)
                                 );
                             }
                             break;
@@ -129,42 +150,20 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 50.0f)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 50.0f)
                                 );
                             }
                             break;
                         }
                         case SDL_SCANCODE_4: {
                             if (released) {
-                                const auto worldLightColor = glm::vec3(1.0f, 0.0f, 0.0f);
-                                const uint32_t numShadowSamples = 3;
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
+                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 15.0f)
                                 );
                             }
                             break;
                         }
                         case SDL_SCANCODE_5: {
-                            if (released) {
-                                const auto worldLightColor = glm::vec3(0.0f, 1.0f, 0.0f);
-                                const uint32_t numShadowSamples = 3;
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_6: {
-                            if (released) {
-                                const auto worldLightColor = glm::vec3(0.0f, 0.0f, 1.0f);
-                                const uint32_t numShadowSamples = 3;
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, worldLight->getIntensity() * 15.0f, numShadowSamples)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_7: {
                             if (released) {
                                 LightCreator::CreateRandomLightMover(
                                     LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
@@ -180,7 +179,34 @@ public:
             }
         }
 
-        
+        if (requested.size() == received.size()) {
+            received.clear();
+            int spawned = 0;
+            // for (int x = 45; x > 0; x -= 10) {
+            //     for (int y = 5; y < 270; y += 30) {
+            //         for (int z = -140; z < 180; z += 35) {
+            //                 ++spawned;
+            //                 LightCreator::CreateVirtualPointLight(
+            //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+            //                     true
+            //                 );
+            //         }
+            //     }
+            // }
+            for (int x = 60; x > 0; x -= 20) {
+                for (int y = 15; y < 260; y += 40) {
+                    for (int z = -140; z < 180; z += 20) {
+                            ++spawned;
+                            LightCreator::CreateVirtualPointLight(
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+                                false
+                            );
+                    }
+                }
+            }
+
+            STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
+        }
 
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -221,8 +247,8 @@ public:
     }
 
 private:
-    stratus::EntityPtr sponza;
-    std::vector<stratus::EntityPtr> entities;
+    std::vector<stratus::Async<stratus::Entity>> requested;
+    std::vector<stratus::EntityPtr> received;
 };
 
 STRATUS_ENTRY_POINT(Sponza)
