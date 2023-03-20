@@ -10,7 +10,7 @@
 
 struct FrameRateController : public stratus::InputHandler {
     FrameRateController() {
-        INSTANCE(RendererFrontend)->SetVsyncEnabled(true);
+        //INSTANCE(RendererFrontend)->SetVsyncEnabled(true);
         // 1000 fps is just to get the engine out of the way so SDL can control it with vsync
         _frameRates = {1000, 55, 50, 45, 40, 35, 30};
         INSTANCE(Engine)->SetMaxFrameRate(_frameRates[0]);

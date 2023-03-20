@@ -4,7 +4,7 @@ STRATUS_GLSL_VERSION
 // TODO: Find a better way to sync these values with renderer
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
 #define MAX_TOTAL_VPLS_PER_FRAME (160)
-#define MAX_VPLS_PER_TILE (6)
+#define MAX_VPLS_PER_TILE (8)
 
 // Needs to use uint for its memory backing since GLSL atomics only work on int and uint
 // See for reference:
@@ -40,7 +40,6 @@ struct VplStage1PerTileOutputs {
 
 struct VplStage2PerTileOutputs {
     int numVisible;
-    int _1;
     int indices[MAX_VPLS_PER_TILE];
 };
 
