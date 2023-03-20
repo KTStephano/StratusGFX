@@ -51,7 +51,7 @@ layout (std430, binding = 11) readonly buffer inputBlock3 {
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    if (length(screenColor) > 0.5) discard;
+    //if (length(screenColor) > 0.5) discard;
 
     ivec2 numTiles = ivec2(numTilesX, numTilesY);
     // For example: 16, 9
