@@ -26,7 +26,7 @@
 // Matches the definitions in vpl_common.glsl
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
 #define MAX_TOTAL_VPLS_PER_FRAME (160)
-#define MAX_VPLS_PER_TILE (6)
+#define MAX_VPLS_PER_TILE (8)
 
 namespace stratus {
     // Used with bindless textures
@@ -183,7 +183,6 @@ namespace stratus {
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuVplStage2PerTileOutputs {
         int numVisible;
-        int _1;
         int indices[MAX_VPLS_PER_TILE];
 
         GpuVplStage2PerTileOutputs() :
@@ -256,7 +255,7 @@ namespace stratus {
     static_assert(sizeof(GpuMaterial) == 128);
     static_assert(sizeof(GpuMeshData) == 64);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
-    static_assert(sizeof(GpuVplStage2PerTileOutputs) == 32);
+    static_assert(sizeof(GpuVplStage2PerTileOutputs) == 36);
     static_assert(sizeof(GpuVplData) == 64);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);

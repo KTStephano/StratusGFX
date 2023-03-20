@@ -343,7 +343,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Normal buffer
     buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    buffer.normals.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
@@ -353,11 +353,11 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Base reflectivity buffer
     buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    buffer.baseReflectivity.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Roughness-Metallic-Ambient buffer
     buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    buffer.roughnessMetallicAmbient.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
     buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
@@ -1313,8 +1313,8 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
-        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 1),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 8),
+        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 8),
         1
     );
     _state.vplTileDeferredCullingStage2->synchronizeCompute();

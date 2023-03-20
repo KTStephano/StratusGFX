@@ -459,7 +459,7 @@ namespace stratus {
                                                        aiProcess_SplitLargeMeshes | 
                                                        aiProcess_ImproveCacheLocality |
                                                        aiProcess_OptimizeMeshes |
-                                                       aiProcess_OptimizeGraph |
+                                                       //aiProcess_OptimizeGraph |
                                                        //aiProcess_FixInfacingNormals |
                                                        aiProcess_FindDegenerates |
                                                        aiProcess_FindInvalidData |

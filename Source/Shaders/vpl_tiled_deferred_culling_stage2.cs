@@ -11,7 +11,7 @@ STRATUS_GLSL_VERSION
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
 
 // Each thread group processes 32 tiles
-layout (local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 #include "vpl_common.glsl"
 #include "common.glsl"
