@@ -60,7 +60,7 @@ public:
         //Input()->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/InterrogationRoom/scene.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/InterrogationRoom/scene.gltf", stratus::ColorSpace::SRGB, false, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             interrogationRoom = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(interrogationRoom);
