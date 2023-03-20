@@ -137,7 +137,7 @@ namespace stratus {
         }
     }
 
-    Async<Entity> ResourceManager::LoadModel(const std::string& name, const ColorSpace& cspace, RenderFaceCulling defaultCullMode) {
+    Async<Entity> ResourceManager::LoadModel(const std::string& name, const ColorSpace& cspace, const bool optimizeGraph, RenderFaceCulling defaultCullMode) {
         {
             auto sl = _LockRead();
             if (_loadedModels.find(name) != _loadedModels.end()) {
@@ -148,8 +148,8 @@ namespace stratus {
 
         auto ul = _LockWrite();
         TaskSystem * tasks = TaskSystem::Instance();
-        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode, cspace]() {
-            return _LoadModel(name, cspace, defaultCullMode);
+        Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode, optimizeGraph, cspace]() {
+            return _LoadModel(name, cspace, optimizeGraph, defaultCullMode);
         });
 
         _loadedModels.insert(std::make_pair(name, e));
@@ -440,33 +440,37 @@ namespace stratus {
         }
     }
 
-    EntityPtr ResourceManager::_LoadModel(const std::string& name, const ColorSpace& cspace, RenderFaceCulling defaultCullMode) {
+    EntityPtr ResourceManager::_LoadModel(const std::string& name, const ColorSpace& cspace, const bool optimizeGraph, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
         importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4000);
+
+        unsigned int pflags = aiProcess_Triangulate |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_SortByPType |
+            aiProcess_GenNormals |
+            //aiProcess_GenSmoothNormals | 
+            aiProcess_FlipUVs |
+            aiProcess_GenUVCoords |
+            aiProcess_CalcTangentSpace |
+            aiProcess_SplitLargeMeshes |
+            aiProcess_ImproveCacheLocality |
+            aiProcess_OptimizeMeshes |
+            //aiProcess_OptimizeGraph |
+            //aiProcess_FixInfacingNormals |
+            aiProcess_FindDegenerates |
+            aiProcess_FindInvalidData |
+            aiProcess_FindInstances;
+
+        if (optimizeGraph) {
+            pflags |= aiProcess_OptimizeGraph;
+        }
+
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
-        const aiScene *scene = importer.ReadFile(name, aiProcess_Triangulate | 
-                                                       aiProcess_JoinIdenticalVertices |
-                                                       aiProcess_SortByPType |
-                                                       aiProcess_GenNormals |
-                                                       //aiProcess_GenSmoothNormals | 
-                                                       aiProcess_FlipUVs | 
-                                                       aiProcess_GenUVCoords | 
-                                                       aiProcess_CalcTangentSpace |
-                                                       aiProcess_SplitLargeMeshes | 
-                                                       aiProcess_ImproveCacheLocality |
-                                                       aiProcess_OptimizeMeshes |
-                                                       //aiProcess_OptimizeGraph |
-                                                       //aiProcess_FixInfacingNormals |
-                                                       aiProcess_FindDegenerates |
-                                                       aiProcess_FindInvalidData |
-                                                       aiProcess_FindInstances
-                                                       //aiProcess_PreTransformVertices
-                                                    //    aiProcess_FlipWindingOrder
-                                                );
+        const aiScene *scene = importer.ReadFile(name, pflags);
 
         auto material = MaterialManager::Instance()->CreateMaterial(name);
 

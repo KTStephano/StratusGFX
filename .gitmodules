@@ -1,6 +1,3 @@
-[submodule "assimp"]
-	path = assimp
-	url = https://github.com/assimp/assimp
 [submodule "Catch2"]
 	path = Catch2
 	url = https://github.com/catchorg/Catch2.git
@@ -10,3 +7,6 @@
 [submodule "meshoptimizer"]
 	path = meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
+[submodule "assimp"]
+	path = assimp
+	url = https://github.com/assimp/assimp.git

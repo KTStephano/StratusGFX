@@ -39,7 +39,7 @@ namespace stratus {
 
         virtual ~ResourceManager();
 
-        Async<Entity> LoadModel(const std::string&, const ColorSpace&, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
+        Async<Entity> LoadModel(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const ColorSpace&);
         // prefix is used to select all faces with one string. It ends up expanding to:
         //      prefix + "right." + fileExt
@@ -68,7 +68,7 @@ namespace stratus {
     private:
         std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
         std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&, const ColorSpace&, RenderFaceCulling);
+        EntityPtr _LoadModel(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
         TextureHandle _LoadTextureImpl(const std::vector<std::string>&, 
                                        const ColorSpace&,
