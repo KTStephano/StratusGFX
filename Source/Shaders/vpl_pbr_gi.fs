@@ -102,7 +102,6 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
         vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
-        if (length(vplColor) >= 1.0) break;
     }
 
     return boundHDR(vplColor);
