@@ -418,7 +418,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Code to create the Virtual Point Light Global Illumination fbo
     _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.vpls.vplGIColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIFbo = FrameBuffer({_state.vpls.vplGIColorBuffer});
     if (!_state.vpls.vplGIFbo.valid()) {
@@ -427,7 +427,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     _state.vpls.vplGIBlurredBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    _state.vpls.vplGIBlurredBuffer.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    _state.vpls.vplGIBlurredBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     _state.vpls.vplGIBlurredBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIBlurredFbo = FrameBuffer({_state.vpls.vplGIBlurredBuffer});
     if (!_state.vpls.vplGIBlurredBuffer.valid()) {
