@@ -55,7 +55,7 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         requested.push_back(e);
@@ -194,15 +194,15 @@ public:
             //     }
             // }
             for (int x = 60; x > 0; x -= 20) {
-                for (int y = 15; y < 240; y += 40) {
-                    for (int z = -140; z < 180; z += 20) {
-                            ++spawned;
-                            LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-                                false
-                            );
-                    }
-                }
+               for (int y = 15; y < 240; y += 40) {
+                   for (int z = -140; z < 180; z += 20) {
+                           ++spawned;
+                           LightCreator::CreateVirtualPointLight(
+                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+                               false
+                           );
+                   }
+               }
             }
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";

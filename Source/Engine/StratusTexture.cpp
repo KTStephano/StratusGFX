@@ -48,7 +48,7 @@ namespace stratus {
 
                 // Set anisotropic filtering
                 auto maxAnisotropy = GraphicsDriver::GetConfig().maxAnisotropy;
-                maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
+                //maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
                 glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
             }
             else if (config.type == TextureType::TEXTURE_2D_ARRAY) {

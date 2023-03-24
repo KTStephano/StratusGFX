@@ -136,7 +136,7 @@ vec3 BRDF(
     float metallic) {
     
     // Remaps from perceptually linear roughness to roughness
-    float remappedRoughness = roughness * roughness;
+    float remappedRoughness = clamp(roughness * roughness, 0.08, 1.0);//roughness * roughness;
 
     // Compute diffuse from base using metallic value
     vec3 diffuseColor = (1.0 - metallic) * baseColor;
@@ -174,7 +174,7 @@ vec3 BRDF_DiffuseOnly(
     float metallic) {
     
     // Remaps from perceptually linear roughness to roughness
-    float remappedRoughness = roughness * roughness;
+    float remappedRoughness = clamp(roughness * roughness, 0.08, 1.0);
 
     // Compute diffuse from base using metallic value
     vec3 diffuseColor = (1.0 - metallic) * baseColor;

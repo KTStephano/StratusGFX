@@ -17,6 +17,9 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 #include "common.glsl"
 #include "pbr.glsl"
 
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+
 uniform vec3 viewPosition;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
@@ -59,12 +62,17 @@ layout (std430, binding = 11) readonly buffer vplShadows {
     values[start] = 0;                            
 
 void main() {
+    // Defines local work group from layout local size tag above
     uvec2 numTiles = gl_NumWorkGroups.xy * gl_WorkGroupSize.xy;
     uvec2 tileCoords = gl_GlobalInvocationID.xy;
+    uvec2 viewportWidthHeight = gl_NumWorkGroups.xy * gl_WorkGroupSize.xy;
+    uvec2 pixelCoords = gl_GlobalInvocationID.xy;
+    // See https://stackoverflow.com/questions/40574677/how-to-normalize-image-coordinates-for-texture-space-in-opengl
+    vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidthHeight.x, viewportWidthHeight.y);
 
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
-    vec3 fragPos = stage1Data[tileIndex].averageLocalPosition.xyz;
-    vec3 normal = stage1Data[tileIndex].averageLocalNormal.xyz;
+    vec3 fragPos = textureLod(gPosition, texCoords, 0).xyz;
+    vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
     float fragDist = length(fragPos - viewPosition);
 
     int numVisibleThisTile = 0;

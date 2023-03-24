@@ -405,7 +405,7 @@ namespace stratus {
 
         const glm::mat4& gt = ToMat4(transform);
         rmesh->PackCpuData();
-        rmesh->CalculateAabbs(gt);
+        rmesh->CalculateAabbs(glm::mat4(1.0f));
         renderNode->meshes->meshes.push_back(rmesh);
         renderNode->meshes->transforms.push_back(gt);
         renderNode->AddMaterial(m);

@@ -418,7 +418,7 @@ void RendererBackend::_UpdateWindowDimensions() {
 
     // Code to create the Virtual Point Light Global Illumination fbo
     _state.vpls.vplGIColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.vpls.vplGIColorBuffer.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.vpls.vplGIColorBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIFbo = FrameBuffer({_state.vpls.vplGIColorBuffer});
     if (!_state.vpls.vplGIFbo.valid()) {
@@ -427,7 +427,7 @@ void RendererBackend::_UpdateWindowDimensions() {
     }
 
     _state.vpls.vplGIBlurredBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    _state.vpls.vplGIBlurredBuffer.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    _state.vpls.vplGIBlurredBuffer.setMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     _state.vpls.vplGIBlurredBuffer.setCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     _state.vpls.vplGIBlurredFbo = FrameBuffer({_state.vpls.vplGIBlurredBuffer});
     if (!_state.vpls.vplGIBlurredBuffer.valid()) {
@@ -1272,34 +1272,36 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     _state.vplColoring->unbind();
 
     // Now perform culling per tile since we now know which lights are active
-    _state.vplTileDeferredCullingStage1->bind();
+    // _state.vplTileDeferredCullingStage1->bind();
 
-    // Bind inputs
-    _state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
-    _state.vplTileDeferredCullingStage1->bindTexture("gNormal", _state.buffer.normals);
-    // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
-    // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
+    // // Bind inputs
+    // _state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    // _state.vplTileDeferredCullingStage1->bindTexture("gNormal", _state.buffer.normals);
+    // // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
+    // // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
 
-    _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+    // _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    // _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-    // Bind outputs
-    _state.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    // // Bind outputs
+    // _state.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    // Dispatch and synchronize
-    _state.vplTileDeferredCullingStage1->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / _state.vpls.tileXDivisor,
-        (unsigned int)_frame->viewportHeight / _state.vpls.tileYDivisor,
-        1
-    );
-    _state.vplTileDeferredCullingStage1->synchronizeCompute();
+    // // Dispatch and synchronize
+    // _state.vplTileDeferredCullingStage1->dispatchCompute(
+    //     (unsigned int)_frame->viewportWidth  / _state.vpls.tileXDivisor,
+    //     (unsigned int)_frame->viewportHeight / _state.vpls.tileYDivisor,
+    //     1
+    // );
+    // _state.vplTileDeferredCullingStage1->synchronizeCompute();
 
-    _state.vplTileDeferredCullingStage1->unbind();
+    // _state.vplTileDeferredCullingStage1->unbind();
 
     // Perform stage 2 of the tiled deferred culling
     _state.vplTileDeferredCullingStage2->bind();
 
     // Bind inputs
+    _state.vplTileDeferredCullingStage2->bindTexture("gPosition", _state.buffer.position);
+    _state.vplTileDeferredCullingStage2->bindTexture("gNormal", _state.buffer.normals);
     _state.vplTileDeferredCullingStage2->setVec3("viewPosition", _frame->camera->getPosition());
 
     _state.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
@@ -1508,9 +1510,9 @@ void RendererBackend::RenderScene() {
     _Render(_frame->visibleFirstLodInstancedFlatMeshes, false);
 
     // Render bounding boxes
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
+    //_RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
+    //_RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
+    //_RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
 
     _state.lightingFbo.unbind();
     _state.finalScreenTexture = _state.lightingColorBuffer;

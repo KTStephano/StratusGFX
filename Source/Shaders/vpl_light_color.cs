@@ -46,7 +46,7 @@ void main() {
         int index = vplVisibleIndex[i];
         // First four samples from the exact direction vector for a total of 12 samples after loop
         vec3 color = 2.0 * textureLod(diffuseCubeMaps[index], -infiniteLightDirection, 0).rgb * infiniteLightColor;
-        float offset = 0.35;
+        float offset = 1.0;
         float offsets[2] = float[](-offset, offset);
         // This should result in 2*2*2 = 8 samples, + 4 from above = 12
         for (int x = 0; x < 2; ++x) {
