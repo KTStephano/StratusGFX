@@ -9,6 +9,9 @@ STRATUS_GLSL_VERSION
 #define DOUBLE_MIN 2.2250738585072014e-308
 #define BITMASK_POW2(offset) (1 << offset)
 
+#define ALPHA_TEST_FACTOR 0.5
+#define ALPHA_DEPTH_OFFSET 0.000001
+
 // Matches the definitions in StratusGpuCommon.h
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
 #define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))

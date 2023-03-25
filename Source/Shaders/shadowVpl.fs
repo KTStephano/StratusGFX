@@ -22,7 +22,7 @@ void main() {
         baseColor = texture(material.diffuseMap, fsTexCoords);
     }
 
-    runAlphaTest(baseColor.a, 0.5);
+    runAlphaTest(baseColor.a, ALPHA_TEST_FACTOR);
 
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
