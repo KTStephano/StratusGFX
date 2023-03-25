@@ -193,6 +193,9 @@ namespace stratus {
         bool viewportDirty;
         bool vsyncEnabled;
         bool globalIlluminationEnabled = true;
+        bool volumetricLightingEnabled = true;
+        bool discardTransparentObjects = false;
+        bool drawBoundingBoxes = false;
     };
 
     class RendererBackend {

@@ -51,6 +51,7 @@ layout (std430, binding = 11) readonly buffer inputBlock3 {
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
+    //discard;
     if (length(screenColor) > 0.5) discard;
 
     ivec2 numTiles = ivec2(numTilesX, numTilesY);
@@ -66,19 +67,19 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numActiveVPLs = tileData[baseTileIndex].numVisible;
     if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
 
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    vec3 fragPos = textureLod(gPosition, texCoords, 0).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
     float distToCamera = length(viewPosition - fragPos);
 
-    vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
-    float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
-    float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
+    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
+    vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
+    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
+    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = texture(ssao, pixelCoords).r;
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * ambientOcclusion;
-    vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
+    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * ambientOcclusion;
+    vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
     vec3 vplColor = vec3(0.0); //screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
@@ -95,18 +96,20 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = 0.0;
-        if (distToCamera < 500) {
-            shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        if (ratio < 0.2 && distToCamera < 500) {
+            shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
         vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+
+        //if (length(vplColor) > 0.2) break;
     }
 
     return boundHDR(vplColor);
 }
 
 void main() {
-    color = performLightingCalculations(texture(screen, fsTexCoords).rgb, gl_FragCoord.xy, fsTexCoords);
+    color = performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
 }

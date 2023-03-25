@@ -180,7 +180,7 @@ vec3 BRDF_DiffuseOnly(
     vec3 diffuseColor = (1.0 - metallic) * baseColor;
 
     // Compute reflectance - for purely metallic materials this is used as the diffuse color
-    vec3 f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
+    //vec3 f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
 
     vec3 V = viewDir;
     vec3 L = normalize(lightDir);
@@ -192,11 +192,14 @@ vec3 BRDF_DiffuseOnly(
     float NdotH = saturate(dot(N, H));
     float LdotH = saturate(dot(L, H));
 
+    // Specular
+    //vec3 Fr = singleScatteringBRDF_Specular(NdotV, NdotL, NdotH, LdotH, remappedRoughness, f0);
+
     // Diffuse
     vec3 Fd = singleScatteringBRDF_Diffuse(NdotV, NdotL, NdotH, LdotH, remappedRoughness, diffuseColor);
 
     // Does not account for light color/intensity (functions below do that)
-    return Fd * NdotL;
+    return (Fd) * NdotL;
 }
 
 vec3 calculateLighting2(

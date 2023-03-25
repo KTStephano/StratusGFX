@@ -83,8 +83,11 @@ void main() {
         baseColor = texture(material.diffuseMap, texCoords);
     }
 
+#ifndef DISCARD_TRANSPARENT
     runAlphaTest(baseColor.a, ALPHA_TEST_FACTOR);
-    //if (baseColor.a < 1.0) discard;
+#else
+    if (baseColor.a < 1.0) discard;
+#endif
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
         normal = texture(material.normalMap, texCoords).rgb;
