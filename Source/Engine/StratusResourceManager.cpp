@@ -151,6 +151,7 @@ namespace stratus {
 
         const auto callback = [meshesToDelete](auto) {
             size_t totalBytes = 0;
+            STRATUS_LOG << "Generating GPU Data\n";
             for (auto mesh : meshesToDelete) {
                 mesh->FinalizeData();
                 totalBytes += mesh->GetGpuSizeBytes();

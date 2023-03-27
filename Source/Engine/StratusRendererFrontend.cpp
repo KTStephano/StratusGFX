@@ -796,6 +796,14 @@ namespace stratus {
         _CheckEntitySetForChanges(_dynamicEntities);
     }
 
+    void RendererFrontend::_MarkStaticLightsDirty() {
+        for (auto& light : _lights) {
+            if (!light->IsStaticLight()) continue;
+
+            _frame->lightsToUpate.PushBack(light);
+        }
+    }
+
     void RendererFrontend::_UpdateLights() {
         _frame->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
@@ -1071,7 +1079,7 @@ namespace stratus {
             }
         }
 
-    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB)                                                \
+    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB, stillDirty)                                    \
         for (const auto& entry : entityMap) {                                                                          \
             GlobalTransformComponent * gt = GetComponent<GlobalTransformComponent>(entry.first);                       \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
@@ -1079,7 +1087,7 @@ namespace stratus {
             bool quitEarly;                                                                                            \
             auto commands = _GenerateDrawCommands(c, lod, quitEarly);                                                  \
             if (quitEarly) {                                                                                           \
-                _drawCommandsDirty = true;                                                                             \
+                stillDirty = true;                                                                                     \
                 continue;                                                                                              \
             };                                                                                                         \
             bool shouldQuitEarly = false;                                                                              \
@@ -1104,19 +1112,26 @@ namespace stratus {
         }
 
         // Generate flat commands
-        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true)
+        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true, _drawCommandsDirty)
 
         for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true)
+            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true, _drawCommandsDirty)
         }
 
         // Generate pbr commands
-        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true)
-        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true)
+        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, _drawCommandsDirty)
+        bool staticCommandsDirty = false;
+        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
+        _drawCommandsDirty = _drawCommandsDirty || staticCommandsDirty;
+        
+        // If static commands are dirty then all static lights (including vpls) need to be re-generated
+        if (staticCommandsDirty) {
+            _MarkStaticLightsDirty();
+        }
 
         for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true)
-            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true)
+            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true, _drawCommandsDirty)
+            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true, _drawCommandsDirty)
         }
 
     #undef GENERATE_COMMANDS

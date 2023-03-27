@@ -85,6 +85,7 @@ namespace stratus {
         void _CheckForEntityChanges();
         void _UpdateLights();
         void _UpdateMaterialSet();
+        void _MarkStaticLightsDirty();
         void _UpdateDrawCommands();
         void _UpdateVisibility();
         void _UpdateVisibility(
