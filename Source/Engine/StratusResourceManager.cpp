@@ -93,6 +93,22 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
+        static constexpr size_t maxModelBytesPerFrame = 1024 * 1024 * 2;
+        // First generate GPU data for some of the meshes
+        size_t totalBytes = 0;
+        std::vector<MeshPtr> removeFromGpuDataQueue;
+        for (auto mesh : _generateMeshGpuDataQueue) {
+            mesh->FinalizeData();
+            totalBytes += mesh->GetGpuSizeBytes();
+            removeFromGpuDataQueue.push_back(mesh);
+            if (totalBytes >= maxModelBytesPerFrame) break;
+        }
+
+        for (auto mesh : removeFromGpuDataQueue) _generateMeshGpuDataQueue.erase(mesh);
+
+        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << removeFromGpuDataQueue.size() << " meshes" << std::endl;
+
+        // If none other left to finalize, end early
         if (_pendingFinalize.size() == 0) return;
 
         //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
@@ -149,15 +165,10 @@ namespace stratus {
            waiting.push_back(INSTANCE(TaskSystem)->ScheduleTask<bool>(process));
         }
 
-        const auto callback = [meshesToDelete](auto) {
-            size_t totalBytes = 0;
-            STRATUS_LOG << "Generating GPU Data\n";
+        const auto callback = [this, meshesToDelete](auto) {
             for (auto mesh : meshesToDelete) {
-                mesh->FinalizeData();
-                totalBytes += mesh->GetGpuSizeBytes();
+                _generateMeshGpuDataQueue.insert(mesh);
             }
-
-            if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
         };
 
         INSTANCE(TaskSystem)->WaitOnTaskGroup<bool>(callback, waiting);
