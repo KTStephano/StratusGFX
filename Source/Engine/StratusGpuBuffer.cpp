@@ -372,9 +372,12 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
     bool GpuMeshAllocator::_initialized = false;
-    static constexpr size_t minVertices = 1024 * 1024;
+    static constexpr size_t minVerticesPerAlloc = 1024 * 1024;
+    static constexpr size_t startVertices = 1024 * 1024 * 10;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
+    //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
+    //static constexpr size_t maxIndexBytes = startVertices * sizeof(uint32_t);
 
     GpuMeshAllocator::_MeshData * GpuMeshAllocator::_FindFreeSlot(std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t bytes) {
         for (_MeshData& data : freeList) {
@@ -403,7 +406,7 @@ namespace stratus {
             }
             // If not perform a resize
             else {
-                const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVertices) * byteMultiplier;
+                const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVerticesPerAlloc) * byteMultiplier;
                 if (newSizeBytes > maxBytes) {
                     throw std::runtime_error("Maximum GpuMesh bytes exceeded");
                 }
@@ -541,8 +544,8 @@ namespace stratus {
         _initialized = true;
         _lastVertex.nextByte = 0;
         _lastIndex.nextByte = 0;
-        _Resize(_vertices, _lastVertex, minVertices * sizeof(GpuMeshData));
-        _Resize(_indices, _lastIndex, minVertices * sizeof(uint32_t));
+        _Resize(_vertices, _lastVertex, startVertices * sizeof(GpuMeshData));
+        _Resize(_indices, _lastIndex, startVertices * sizeof(uint32_t));
     }
 
     void GpuMeshAllocator::_Shutdown() {

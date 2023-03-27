@@ -7,14 +7,15 @@ namespace stratus {
             
     bool TaskSystem::Initialize() {
         _taskThreads.clear();
-        unsigned int concurrency = 1;
-        if (std::thread::hardware_concurrency() > 2) {
+        // Important that this is > 1
+        unsigned int concurrency = 2;
+        if (std::thread::hardware_concurrency() > concurrency) {
             concurrency = std::thread::hardware_concurrency();
         }
 
         for (unsigned int i = 0; i < concurrency; ++i) {
             Thread * ptr = new Thread("TaskThread#" + std::to_string(i + 1), true);
-            _threadsWorking.push_back(0);
+            _threadsWorking.push_back(std::unique_ptr<std::atomic<size_t>>(new std::atomic<size_t>(0)));
             _threadToIndexMap.insert(std::make_pair(ptr->Id(), _threadsWorking.size() - 1));
             _taskThreads.push_back(ThreadPtr(std::move(ptr)));
         }

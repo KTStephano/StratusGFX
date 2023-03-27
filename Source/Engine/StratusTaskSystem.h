@@ -64,29 +64,32 @@ namespace stratus {
             auto ul = std::unique_lock<std::mutex>(_m);
             if (_taskThreads.size() == 0) throw std::runtime_error("Task threads size equal to 0");
 
-            // Try to find an open thread
+            // Enter the threads with their current number of work items in a list
             bool found = false;
+            const auto currentId = Thread::Current().Id();
+            std::vector<std::pair<ThreadHandle, size_t>> currentWorkLoads;
             for (const auto& entry : _threadToIndexMap) {
-                if (_threadsWorking[entry.second] == 0) {
-                    _nextTaskThread = entry.second;
-                    found = true;
-                    break;
-                }
+                if (entry.first == currentId) continue;
+                currentWorkLoads.push_back(std::make_pair(entry.first, _threadsWorking[entry.second]->load()));
             }
 
-            // Set the index
-            const size_t index = _nextTaskThread;
+            const auto comparison = [](const std::pair<ThreadHandle, size_t>& a, const std::pair<ThreadHandle, size_t>& b) {
+                return a.second < b.second;
+            };
 
-            // Always increment this
-            _nextTaskThread = (_nextTaskThread + 1) % _taskThreads.size();
+            // Sort the threads based on how much work they currently have
+            std::sort(currentWorkLoads.begin(), currentWorkLoads.end(), comparison);
+            
+            // Choose the first which should have the least work items
+            const size_t index = _threadToIndexMap.find(currentWorkLoads[0].first)->second;
 
             // Increment the working #
-            _threadsWorking[index] += 1;
+            _threadsWorking[index]->fetch_add(1);
 
             const auto processWithHook = [this, index, process]() {
                 auto result = process();
                 // Decrement working counter
-                _threadsWorking[index] -= 1;
+                _threadsWorking[index]->fetch_sub(1);
                 return result;
             };
 
@@ -121,7 +124,7 @@ namespace stratus {
         std::vector<ThreadPtr> _taskThreads;
         std::unordered_map<ThreadHandle, size_t> _threadToIndexMap;
         // Measures # of work items per thread
-        std::vector<size_t> _threadsWorking;
+        std::vector<std::unique_ptr<std::atomic<size_t>>> _threadsWorking;
         
         // This changes with every call to wait on task group
         //std::vector<std::pair<Thread *, std::vector<

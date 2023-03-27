@@ -33,16 +33,16 @@ public:
     }
 
     void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
-        auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
-        std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
-        if (rc) {
-            for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
-                std::cout << rc->GetMeshTransform(i) << std::endl;
-            }
-        }
-        for (auto& c : p->GetChildNodes()) {
-            PrintNodeHierarchy(c, name, prefix + "-> ");
-        }
+        // auto rc = stratus::GetComponent<stratus::RenderComponent>(p);
+        // std::cout << prefix << name << "{Meshes: " << (rc ? rc->GetMeshCount() : 0) << "}" << std::endl;
+        // if (rc) {
+        //     for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
+        //         std::cout << rc->GetMeshTransform(i) << std::endl;
+        //     }
+        // }
+        // for (auto& c : p->GetChildNodes()) {
+        //     PrintNodeHierarchy(c, name, prefix + "-> ");
+        // }
     }
 
     // Perform first-time initialization - true if success, false otherwise

@@ -144,7 +144,6 @@ namespace stratus {
         float normal[3];
         float tangent[3];
         float bitangent[3];
-        float _1[2];
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -253,7 +252,7 @@ namespace stratus {
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
-    static_assert(sizeof(GpuMeshData) == 64);
+    static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
     static_assert(sizeof(GpuVplData) == 64);

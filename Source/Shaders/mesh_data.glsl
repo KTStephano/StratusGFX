@@ -9,7 +9,6 @@ struct MeshData {
     float normal[3];
     float tangent[3];
     float bitangent[3];
-    float _1[2]; // round up to power of 2
 };
 
 layout (std430, binding = 32) readonly buffer MeshDataSSBO {
