@@ -62,6 +62,7 @@ public:
         requested.push_back(e2);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
+            STRATUS_LOG << "Adding\n";
             received.push_back(e.GetPtr());
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
             //transform->SetLocalPosition(glm::vec3(0.0f));
