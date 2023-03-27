@@ -372,7 +372,7 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
     bool GpuMeshAllocator::_initialized = false;
-    static constexpr size_t minVertices = 65536; //262144;
+    static constexpr size_t minVertices = 1024 * 1024;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
 
