@@ -89,77 +89,77 @@ public:
         environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
         environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
 
-        // stratus::Async<stratus::Entity> e;
-        // e = Resources()->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     outhouse = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
-        //     transform->SetLocalScale(glm::vec3(15.0f));
-        //     transform->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
-        //     INSTANCE(EntityManager)->AddEntity(outhouse);
-        // });
+        stratus::Async<stratus::Entity> e;
+        e = Resources()->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            outhouse = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
+            transform->SetLocalScale(glm::vec3(15.0f));
+            transform->SetLocalPosition(glm::vec3(-50.0f, -10.0f, -45.0f));
+            INSTANCE(EntityManager)->AddEntity(outhouse);
+        });
 
-        // e = Resources()->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     clay = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
-        //     transform->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
-        //     //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        //     INSTANCE(EntityManager)->AddEntity(clay);
-        //     PrintNodeHierarchy(clay, "Clay", "");
-        // });
+        e = Resources()->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            clay = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
+            transform->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
+            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            INSTANCE(EntityManager)->AddEntity(clay);
+            PrintNodeHierarchy(clay, "Clay", "");
+        });
 
-        // e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     stump = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
-        //     transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        //     transform->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
-        //     INSTANCE(EntityManager)->AddEntity(stump);
-        //     PrintNodeHierarchy(stump, "Stump", "");
-        // });
+        e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            stump = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalPosition(glm::vec3(0.0f, -15.0f, -20.0f));
+            INSTANCE(EntityManager)->AddEntity(stump);
+            PrintNodeHierarchy(stump, "Stump", "");
+        });
 
-        // e = Resources()->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     hall = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
-        //     transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        //     transform->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
-        //     transform->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
-        //     INSTANCE(EntityManager)->AddEntity(hall);
-        //     PrintNodeHierarchy(hall, "Hall", "");
-        // });
+        e = Resources()->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            hall = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalScale(glm::vec3(10.0f, 10.0f, 10.0f));
+            transform->SetLocalPosition(glm::vec3(-250.0f, -30.0f, 0.0f));
+            INSTANCE(EntityManager)->AddEntity(hall);
+            PrintNodeHierarchy(hall, "Hall", "");
+        });
 
-        // e = Resources()->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     ramparts = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
-        //     transform->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
-        //     transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
-        //     transform->SetLocalScale(glm::vec3(10.0f));
-        //     INSTANCE(EntityManager)->AddEntity(ramparts);
-        // });
+        e = Resources()->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            ramparts = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
+            transform->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalScale(glm::vec3(10.0f));
+            INSTANCE(EntityManager)->AddEntity(ramparts);
+        });
 
-        // e = Resources()->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     rocks = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
-        //     transform->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
-        //     transform->SetLocalScale(glm::vec3(15.0f));
-        //     INSTANCE(EntityManager)->AddEntity(rocks);
-        //     PrintNodeHierarchy(rocks, "Rocks", "");
-        // });
+        e = Resources()->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            rocks = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
+            transform->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            INSTANCE(EntityManager)->AddEntity(rocks);
+            PrintNodeHierarchy(rocks, "Rocks", "");
+        });
 
-        // // Disable culling for this model since there are some weird parts that seem to be reversed
-        // e = Resources()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        // e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-        //     sponza = e.GetPtr(); 
-        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
-        //     transform->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
-        //     transform->SetLocalScale(glm::vec3(15.0f));
-        //     INSTANCE(EntityManager)->AddEntity(sponza);
-        //     PrintNodeHierarchy(sponza, "Sponza", "");
-        // });
+        // Disable culling for this model since there are some weird parts that seem to be reversed
+        e = Resources()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            sponza = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
+            transform->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            INSTANCE(EntityManager)->AddEntity(sponza);
+            PrintNodeHierarchy(sponza, "Sponza", "");
+        });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
             auto cube = Resources()->CreateCube();
