@@ -9,11 +9,13 @@ namespace stratus {
         _taskThreads.clear();
         unsigned int concurrency = 1;
         if (std::thread::hardware_concurrency() > 2) {
-            concurrency = std::thread::hardware_concurrency() - 1;
+            concurrency = std::thread::hardware_concurrency();
         }
 
         for (unsigned int i = 0; i < concurrency; ++i) {
             Thread * ptr = new Thread("TaskThread#" + std::to_string(i + 1), true);
+            _threadsWorking.push_back(0);
+            _threadToIndexMap.insert(std::make_pair(ptr->Id(), _threadsWorking.size() - 1));
             _taskThreads.push_back(ThreadPtr(std::move(ptr)));
         }
 

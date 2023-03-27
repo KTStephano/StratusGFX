@@ -7,6 +7,7 @@
 #include <mutex>
 #include <vector>
 #include <cmath>
+#include <unordered_map>
 
 namespace stratus { 
     // Enables easy access to asynchronous processing by providing its own Task
@@ -30,8 +31,34 @@ namespace stratus {
             auto ul = std::unique_lock<std::mutex>(_m);
             if (_taskThreads.size() == 0) throw std::runtime_error("Task threads size equal to 0");
 
-            auto as = Async<E>(*_taskThreads[_nextTaskThread].get(), process);
-            _nextTaskThread = (_nextTaskThread + 1) % _taskThreads.size();
+            // Try to find an open thread
+            size_t index;
+            bool found = false;
+            for (const auto& entry : _threadToIndexMap) {
+                if (_threadsWorking[entry.second] == 0) {
+                    index = entry.second;
+                    found = true;
+                    break;
+                }
+            }
+
+            // If we failed to then just use a generic next index
+            if (!found) {
+                index = _nextTaskThread;
+                _nextTaskThread = (_nextTaskThread + 1) % _taskThreads.size();
+            }
+
+            // Increment the working #
+            _threadsWorking[index] += 1;
+
+            const auto processWithHook = [this, index, process]() {
+                auto result = process();
+                // Decrement working counter
+                _threadsWorking[index] -= 1;
+                return result;
+            };
+
+            auto as = Async<E>(*_taskThreads[index].get(), processWithHook);
             return as;
         }
 
@@ -48,7 +75,11 @@ namespace stratus {
 
     private:
         mutable std::mutex _m;
+        // The size of the following vectors/maps are immutable after initializing
         std::vector<ThreadPtr> _taskThreads;
+        std::unordered_map<ThreadHandle, size_t> _threadToIndexMap;
+        // Measures # of work items per thread
+        std::vector<size_t> _threadsWorking;
         size_t _nextTaskThread;
     };
 }
