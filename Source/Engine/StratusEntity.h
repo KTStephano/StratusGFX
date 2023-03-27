@@ -238,7 +238,7 @@ namespace stratus {
     // Convenience functions
     template<typename E>
     bool ContainsComponent(const EntityPtr& p) {
-        return p->Components().ContainsComponent<LightComponent>();
+        return p->Components().ContainsComponent<E>();
     }
 
     template<typename E>

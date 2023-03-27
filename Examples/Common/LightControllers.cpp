@@ -141,7 +141,9 @@ struct LightDeleteController : public stratus::InputHandler {
                             break;
                         }
                         case SDL_SCANCODE_L: {
-                            printLights = true;
+                            if (released) {
+                                printLights = true;
+                            }
                             break;
                         }
                     }
