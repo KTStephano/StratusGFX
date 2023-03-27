@@ -796,6 +796,14 @@ namespace stratus {
         _CheckEntitySetForChanges(_dynamicEntities);
     }
 
+    void RendererFrontend::_MarkStaticLightsDirty() {
+        for (auto& light : _lights) {
+            if (!light->IsStaticLight()) continue;
+
+            _frame->lightsToUpate.PushBack(light);
+        }
+    }
+
     void RendererFrontend::_UpdateLights() {
         _frame->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
@@ -1015,9 +1023,13 @@ namespace stratus {
         }
     }
 
-    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod) const {
+    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod, bool& quitEarly) const {
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
+            if (!c->GetMesh(i)->IsFinalized()) {
+                quitEarly = true;
+                return {};
+            }
             auto cull = c->GetMesh(i)->GetFaceCulling();
             if (commands.find(cull) == commands.end()) {
                 auto vec = std::vector<GpuDrawElementsIndirectCommand>();
@@ -1033,6 +1045,7 @@ namespace stratus {
             command.vertexCount = c->GetMesh(i)->GetNumIndices(lod);
             commandList.push_back(command);
         }
+        quitEarly = false;
         return commands;
     }
 
@@ -1066,12 +1079,18 @@ namespace stratus {
             }
         }
 
-    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB)                                                \
+    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB, stillDirty)                                    \
         for (const auto& entry : entityMap) {                                                                          \
             GlobalTransformComponent * gt = GetComponent<GlobalTransformComponent>(entry.first);                       \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
-            auto commands = _GenerateDrawCommands(c, lod);                                                             \
+            bool quitEarly;                                                                                            \
+            auto commands = _GenerateDrawCommands(c, lod, quitEarly);                                                  \
+            if (quitEarly) {                                                                                           \
+                stillDirty = true;                                                                                     \
+                continue;                                                                                              \
+            };                                                                                                         \
+            bool shouldQuitEarly = false;                                                                              \
             for (size_t __i = 0; __i < c->GetMeshCount(); ++__i) {                                                     \
                 auto cull = c->GetMesh(__i)->GetFaceCulling();                                                         \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
@@ -1093,19 +1112,26 @@ namespace stratus {
         }
 
         // Generate flat commands
-        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true)
+        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true, _drawCommandsDirty)
 
         for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true)
+            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true, _drawCommandsDirty)
         }
 
         // Generate pbr commands
-        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true)
-        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true)
+        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, _drawCommandsDirty)
+        bool staticCommandsDirty = false;
+        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
+        _drawCommandsDirty = _drawCommandsDirty || staticCommandsDirty;
+        
+        // If static commands are dirty then all static lights (including vpls) need to be re-generated
+        if (staticCommandsDirty) {
+            _MarkStaticLightsDirty();
+        }
 
         for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true)
-            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true)
+            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true, _drawCommandsDirty)
+            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true, _drawCommandsDirty)
         }
 
     #undef GENERATE_COMMANDS

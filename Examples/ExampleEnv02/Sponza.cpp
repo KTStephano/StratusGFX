@@ -42,7 +42,9 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, warmMorningColor, 5));
+        auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 5);
+        wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        controller = stratus::InputHandlerPtr(wc);
         Input()->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
@@ -55,13 +57,14 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/local/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         requested.push_back(e);
         requested.push_back(e2);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
+            //STRATUS_LOG << "Adding\n";
             received.push_back(e.GetPtr());
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
             //transform->SetLocalPosition(glm::vec3(0.0f));
@@ -82,7 +85,7 @@ public:
         bool running = true;
 
         // for (int i = 0; i < 64; ++i) {
-        //     float x = rand() % 600;gg
+        //     float x = rand() % 600;
         //     float y = rand() % 600;
         //     float z = rand() % 200;
         //     stratus::VirtualPointLight * vpl = new stratus::VirtualPointLight();
@@ -180,32 +183,21 @@ public:
         }
 
         if (requested.size() == received.size()) {
-            received.clear();
-            int spawned = 0;
-            // for (int x = 45; x > 0; x -= 10) {
-            //     for (int y = 5; y < 270; y += 30) {
-            //         for (int z = -140; z < 180; z += 35) {
-            //                 ++spawned;
-            //                 LightCreator::CreateVirtualPointLight(
-            //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-            //                     true
-            //                 );
-            //         }
-            //     }
-            // }
-            for (int x = 60; x > 0; x -= 20) {
-                for (int y = 15; y < 260; y += 40) {
-                    for (int z = -140; z < 180; z += 20) {
-                            ++spawned;
-                            LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-                                false
-                            );
-                    }
-                }
-            }
+           received.clear();
+           int spawned = 0;
+           for (int x = 60; x > 0; x -= 20) {
+               for (int y = 15; y < 240; y += 40) {
+                   for (int z = -140; z < 180; z += 20) {
+                           ++spawned;
+                           LightCreator::CreateVirtualPointLight(
+                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+                               false
+                           );
+                   }
+               }
+           }
 
-            STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
+           STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
         }
 
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));

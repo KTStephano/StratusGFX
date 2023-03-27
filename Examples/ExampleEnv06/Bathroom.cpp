@@ -54,7 +54,9 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(defaultSunColor, defaultSunColor, 10));
+        auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 10);
+        wc->SetRotation(stratus::Rotation(stratus::Degrees(21.0479f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        controller = stratus::InputHandlerPtr(wc);
         Input()->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());

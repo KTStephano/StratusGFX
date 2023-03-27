@@ -27,6 +27,10 @@ struct WorldLightController : public stratus::InputHandler {
         INSTANCE(RendererFrontend)->ClearWorldLight();
     }
 
+    void SetRotation(const stratus::Rotation& r) {
+        _worldLight->setRotation(r);
+    }
+
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
         const double lightRotationSpeed = _rotationSpeeds[_rotationIndex];
         const double lightIncreaseSpeed = 5.0;

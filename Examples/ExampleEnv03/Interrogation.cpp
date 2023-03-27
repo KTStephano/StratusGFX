@@ -67,7 +67,10 @@ public:
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             INSTANCE(EntityManager)->AddEntity(interrogationRoom);
+            received.push_back(e.GetPtr());
         });
+
+        requested.push_back(e);
 
         INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
         INSTANCE(RendererFrontend)->SetFogDensity(0.00125);
@@ -242,6 +245,23 @@ public:
 
         stratus::RendererFrontend::Instance()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
+        if (requested.size() == received.size()) {
+            requested.clear();
+
+            LightCreator::CreateStationaryLight(
+                LightParams(glm::vec3(-11.2298, 15.3294, 23.1447), glm::vec3(1, 1, 1), 1200, true),
+                false
+            );
+            LightCreator::CreateStationaryLight(
+                LightParams(glm::vec3(-17.5113, 15.3294, 19.8197), glm::vec3(1, 1, 1), 1200, true),
+                false
+            );
+            LightCreator::CreateStationaryLight(
+                LightParams(glm::vec3(-1.03776, 34.1635, -18.8183), glm::vec3(1, 1, 0.5), 1200, true),
+                false
+            );
+        }
+
         //renderer->addDrawable(rocks);
 
         // Add the camera's light
@@ -267,6 +287,8 @@ public:
 
 private:
     stratus::EntityPtr interrogationRoom;
+    std::vector<stratus::Async<stratus::Entity>> requested;
+    std::vector<stratus::EntityPtr> received;
 };
 
 STRATUS_ENTRY_POINT(Interrogation)

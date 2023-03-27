@@ -99,16 +99,18 @@ void main() {
         distance = ratio;
         for (int ii = 0; ii < MAX_VPLS_PER_TILE; ++ii) {
             if (distance < distancesVisibleThisTile[ii]) {
-                if (ratio < 0.2 && fragDist < 300) {
-                //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
-                //if (fragDist < 200) {
-                    float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
-                    // Light can't see current surface
-                    if (shadowFactor > 0.75) break;
-                }
+                // if (ratio < 0.2 && fragDist < 300) {
+                // //if (distancesVisibleThisTile[ii] < FLOAT_MAX) {
+                // //if (fragDist < 200) {
+                //     float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], radius, fragPos, lightPosition, dot(lightMinusFrag, normal));
+                //     // Light can't see current surface
+                //     if (shadowFactor > 0.75) break;
+                // }
 
-                SHUFFLE_DOWN(indicesVisibleThisTile, ii)
-                SHUFFLE_DOWN(distancesVisibleThisTile, ii)
+                if (distancesVisibleThisTile[ii] != FLOAT_MAX) {
+                    SHUFFLE_DOWN(indicesVisibleThisTile, ii)
+                    SHUFFLE_DOWN(distancesVisibleThisTile, ii)
+                }
                 indicesVisibleThisTile[ii] = lightIndex;
                 distancesVisibleThisTile[ii] = distance;
 
