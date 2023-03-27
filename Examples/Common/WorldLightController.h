@@ -138,8 +138,6 @@ struct WorldLightController : public stratus::InputHandler {
         }
 
         _worldLight->setPosition(INSTANCE(RendererFrontend)->GetCamera()->getPosition());
-
-        STRATUS_LOG << _worldLight->getRotation() << std::endl;
     }
 
 private:

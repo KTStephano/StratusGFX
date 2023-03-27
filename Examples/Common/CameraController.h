@@ -148,7 +148,7 @@ struct CameraController : public stratus::InputHandler {
 private:
     stratus::CameraPtr _camera;
     stratus::LightPtr _cameraLight;
-    bool _cameraLightEnabled = true;
+    bool _cameraLightEnabled = false;
     bool _cameraMoveEnabled = true;
     bool _cameraRotateEnabled = true;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
