@@ -32,6 +32,21 @@ namespace stratus {
                 thread->Dispatch();
             }
         }
+
+        auto ul = std::unique_lock<std::mutex>(_m);
+        if (_waiting.size() == 0) return SystemStatus::SYSTEM_CONTINUE;
+
+        std::vector<__TaskWait *> waiting;
+        for (__TaskWait* wait : _waiting) {
+            if (wait->CheckForCompletion()) {
+                delete wait;
+            }
+            else {
+                waiting.push_back(wait);
+            }
+        }
+
+        _waiting = std::move(waiting);
         
         return SystemStatus::SYSTEM_CONTINUE;
     }

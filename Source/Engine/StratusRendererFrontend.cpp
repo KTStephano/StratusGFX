@@ -1015,9 +1015,13 @@ namespace stratus {
         }
     }
 
-    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod) const {
+    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod, bool& quitEarly) const {
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
+            if (!c->GetMesh(i)->IsFinalized()) {
+                quitEarly = true;
+                return {};
+            }
             auto cull = c->GetMesh(i)->GetFaceCulling();
             if (commands.find(cull) == commands.end()) {
                 auto vec = std::vector<GpuDrawElementsIndirectCommand>();
@@ -1033,6 +1037,7 @@ namespace stratus {
             command.vertexCount = c->GetMesh(i)->GetNumIndices(lod);
             commandList.push_back(command);
         }
+        quitEarly = false;
         return commands;
     }
 
@@ -1071,7 +1076,13 @@ namespace stratus {
             GlobalTransformComponent * gt = GetComponent<GlobalTransformComponent>(entry.first);                       \
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
-            auto commands = _GenerateDrawCommands(c, lod);                                                             \
+            bool quitEarly;                                                                                            \
+            auto commands = _GenerateDrawCommands(c, lod, quitEarly);                                                  \
+            if (quitEarly) {                                                                                           \
+                _drawCommandsDirty = true;                                                                             \
+                continue;                                                                                              \
+            };                                                                                                         \
+            bool shouldQuitEarly = false;                                                                              \
             for (size_t __i = 0; __i < c->GetMeshCount(); ++__i) {                                                     \
                 auto cull = c->GetMesh(__i)->GetFaceCulling();                                                         \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \

@@ -64,6 +64,7 @@ namespace stratus {
         // application thread.
         void PackCpuData();
         void CalculateAabbs(const glm::mat4& transform);
+        void GenerateLODs();
 
         // Temporary - to be removed
         void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
@@ -90,6 +91,7 @@ namespace stratus {
             std::vector<glm::vec3> bitangents;
             std::vector<uint32_t> indices;
             std::vector<GpuMeshData> data;
+            std::vector<std::vector<uint32_t>> indicesPerLod;
             bool needsRepacking = false;
         };
 

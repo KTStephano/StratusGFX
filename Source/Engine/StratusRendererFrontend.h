@@ -77,7 +77,7 @@ namespace stratus {
         void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
         void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
         void _RecalculateMaterialSet();
-        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> _GenerateDrawCommands(RenderComponent *, const size_t) const;
+        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> _GenerateDrawCommands(RenderComponent *, const size_t, bool&) const;
 
     private:
         void _UpdateViewport();

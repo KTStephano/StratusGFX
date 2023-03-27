@@ -93,6 +93,8 @@ namespace stratus {
     }
 
     void ResourceManager::_ClearAsyncModelData() {
+        if (_pendingFinalize.size() == 0) return;
+
         //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : _pendingFinalize) {
@@ -108,19 +110,70 @@ namespace stratus {
            _pendingFinalize.erase(name);
         }
 
-        size_t totalBytes = 0;
-        std::vector<MeshPtr> meshesToDelete;
+        if (_meshFinalizeQueue.size() == 0) return;
 
-        for (MeshPtr mesh : _meshFinalizeQueue) {
-            mesh->FinalizeData();
-            totalBytes += mesh->GetGpuSizeBytes();
-            meshesToDelete.push_back(mesh);
-            //if (totalBytes >= maxBytes) break;
+        //size_t totalBytes = 0;
+        std::vector<MeshPtr> meshesToDelete(_meshFinalizeQueue.size());
+        size_t idx = 0;
+        for (auto& mesh : _meshFinalizeQueue) {
+            meshesToDelete[idx] = mesh;
+            ++idx;
         }
 
-        for (MeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
+        _meshFinalizeQueue.clear();
 
-        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
+        // for (MeshPtr mesh : _meshFinalizeQueue) {
+        //     mesh->FinalizeData();
+        //     totalBytes += mesh->GetGpuSizeBytes();
+        //     meshesToDelete.push_back(mesh);
+        //     //if (totalBytes >= maxBytes) break;
+        // }
+
+        std::vector<Async<bool>> waiting;
+        const size_t numThreads = INSTANCE(TaskSystem)->Size();
+        for (size_t i = 0; i < numThreads; ++i) {
+            const size_t threadIndex = i;
+
+            const auto process = [this, threadIndex, numThreads, meshesToDelete]() {
+                STRATUS_LOG << "Processing " << meshesToDelete.size() << " as a task group" << std::endl;
+                for (size_t i = threadIndex; i < meshesToDelete.size(); i += numThreads) {
+                    MeshPtr mesh = meshesToDelete[i];
+                    mesh->PackCpuData();
+                    mesh->CalculateAabbs(glm::mat4(1.0f));
+                    mesh->GenerateLODs();
+                }
+
+                return new bool(true);
+            };
+
+           waiting.push_back(INSTANCE(TaskSystem)->ScheduleTask<bool>(process));
+        }
+
+        const auto callback = [meshesToDelete](auto) {
+            size_t totalBytes = 0;
+            for (auto mesh : meshesToDelete) {
+                mesh->FinalizeData();
+                totalBytes += mesh->GetGpuSizeBytes();
+            }
+
+            if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
+        };
+
+        INSTANCE(TaskSystem)->WaitOnTaskGroup<bool>(callback, waiting);
+
+        // for (auto& wait : waiting) {
+        //    while (!wait.Completed())
+        //        ;
+        // }
+
+        // for (auto mesh : meshesToDelete) {
+        //    mesh->FinalizeData();
+        //    totalBytes += mesh->GetGpuSizeBytes();
+        // }
+
+        // for (MeshPtr mesh : meshesToDelete) _meshFinalizeQueue.erase(mesh);
+
+        //if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
     }
 
     void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
@@ -404,8 +457,6 @@ namespace stratus {
         }
 
         const glm::mat4& gt = ToMat4(transform);
-        rmesh->PackCpuData();
-        rmesh->CalculateAabbs(gt);
         renderNode->meshes->meshes.push_back(rmesh);
         renderNode->meshes->transforms.push_back(gt);
         renderNode->AddMaterial(m);

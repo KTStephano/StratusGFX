@@ -252,6 +252,37 @@ namespace stratus {
         //aabb.size = (vmax - vmin) * 0.5f;
     }
 
+    void Mesh::GenerateLODs() {
+        assert(_cpuData->vertices.size() > 0);
+        _EnsureNotFinalized();
+
+        // If no indices generate a buffer from [0, num vertices)
+        // This does not require CPU data to be repacked
+        if (_cpuData->indices.size() == 0) {
+            for (uint32_t i = 0; i < _numVertices; ++i) {
+                AddIndex(i);
+            }
+        }
+
+        _cpuData->indicesPerLod.clear();
+        _cpuData->indicesPerLod.push_back(_cpuData->indices);
+        _numIndicesPerLod.clear();
+        _numIndicesPerLod.push_back(_cpuData->indices.size());
+        for (int i = 0; i < 7; ++i) {
+            auto& prevIndices = _cpuData->indicesPerLod[_cpuData->indicesPerLod.size() - 1];
+            std::vector<uint32_t> simplified(prevIndices.size());
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            // If we didn't see at least a 10% reduction, try the more aggressive algorithm
+            // if ((prevIndices.size() * 0.9) < double(size)) {
+            //    size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            // }
+            simplified.resize(size);
+            _cpuData->indicesPerLod.push_back(std::move(simplified));
+            _numIndicesPerLod.push_back(size);
+            if (size < 1024) break;
+        }
+    }
+
     size_t Mesh::GetGpuSizeBytes() const {
         _EnsureFinalized();
         return _dataSizeBytes;
@@ -279,34 +310,14 @@ namespace stratus {
     void Mesh::_GenerateGpuData() {
         _EnsureNotFinalized();
 
-        // If no indices generate a buffer from [0, num vertices)
-        // This does not require CPU data to be repacked
-        if (_cpuData->indices.size() == 0) {
-            for (uint32_t i = 0; i < _numVertices; ++i) {
-                AddIndex(i);
-            }
-        }
-
-        std::vector<std::vector<uint32_t>> indicesPerLod;
-        indicesPerLod.push_back(_cpuData->indices);
-        _numIndicesPerLod.push_back(_cpuData->indices.size());
-        for (int i = 0; i < 7; ++i) {
-            auto& prevIndices = indicesPerLod[indicesPerLod.size() - 1];
-            std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
-            // If we didn't see at least a 10% reduction, try the more aggressive algorithm
-            // if ((prevIndices.size() * 0.9) < double(size)) {
-            //    size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
-            // }
-            simplified.resize(size);
-            indicesPerLod.push_back(std::move(simplified));
-            _numIndicesPerLod.push_back(size);
-            if (size < 1024) break;
+        if (_cpuData->indicesPerLod.size() == 0) {
+            GenerateLODs();
         }
 
         _vertexOffset = GpuMeshAllocator::AllocateVertexData(_numVertices);
 
-        for (auto& indices : indicesPerLod) {
+        _indexOffsetPerLod.clear();
+        for (auto& indices : _cpuData->indicesPerLod) {
             _indexOffsetPerLod.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
             // Account for the fact that all vertices are stored in a global GpuBuffer and so
             // the indices need to be offset
