@@ -377,6 +377,7 @@ namespace stratus {
 
         _camera->update(deltaSeconds);
         _frame->camera = _camera->Copy();
+        _frame->view = _camera->getViewTransform();
 
         _UpdateViewport();
         _UpdateCascadeTransforms();
@@ -385,6 +386,10 @@ namespace stratus {
         _UpdateMaterialSet();
         _UpdateDrawCommands();
         _UpdateVisibility();
+
+        // Update view projection and its inverse
+        _frame->projectionView = _frame->projection * _frame->view;
+        _frame->invProjectionView = glm::inverse(_frame->projectionView);
 
         //_SwapFrames();
 

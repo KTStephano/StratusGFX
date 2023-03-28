@@ -730,8 +730,9 @@ void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
 
     _BindShader(_state.aabbDraw.get());
 
-    _state.aabbDraw->setMat4("projection", _frame->projection);
-    _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
+    // _state.aabbDraw->setMat4("projection", _frame->projection);
+    // _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
+    _state.aabbDraw->setMat4("projectionView", _frame->projectionView);
 
     for (int i = 0; i < buffer->NumDrawCommands(); ++i) {
         _state.aabbDraw->setInt("modelIndex", i);
@@ -772,12 +773,15 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
     glm::mat4 view;
+    glm::mat4 projectionView;
     if (removeViewTranslation) {
         // Remove the translation component of the view matrix
-        view = glm::mat4(glm::mat3(camera.getViewTransform()));
+        view = glm::mat4(glm::mat3(_frame->view));
+        projectionView = _frame->projection * view;
     }
     else {
-        view = camera.getViewTransform();
+        view = _frame->view;
+        projectionView = _frame->projectionView;
     }
 
     // Unbind current shader if one is bound
@@ -799,8 +803,9 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
         s->setVec3("viewPosition", &camera.getPosition()[0]);
     }
 
-    s->setMat4("projection", &projection[0][0]);
-    s->setMat4("view", &view[0][0]);
+    s->setMat4("projectionView", projectionView);
+    //s->setMat4("projectionView", &projection[0][0]);
+    //s->setMat4("view", &view[0][0]);
 
     _RenderImmediate(cull, buffer);
 
@@ -832,9 +837,12 @@ void RendererBackend::_RenderSkybox() {
     if (ValidateTexture(sky)) {
         const glm::mat4& projection = _frame->projection;
         const glm::mat4 view = glm::mat4(glm::mat3(_frame->camera->getViewTransform()));
+        const glm::mat4 projectionView = projection * view;
 
-        _state.skybox->setMat4("projection", projection);
-        _state.skybox->setMat4("view", view);
+        // _state.skybox->setMat4("projection", projection);
+        // _state.skybox->setMat4("view", view);
+        _state.skybox->setMat4("projectionView", projectionView);
+
         _state.skybox->setVec3("colorMask", _frame->skyboxColorMask);
         _state.skybox->setFloat("intensity", _frame->skyboxIntensity);
         _state.skybox->bindTexture("skybox", sky.Get());

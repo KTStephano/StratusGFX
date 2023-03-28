@@ -19,7 +19,7 @@ uniform vec3 viewPosition;
  * in world space.
  */
 smooth in vec3 fsPosition;
-in vec3 fsViewSpacePos;
+//in vec3 fsViewSpacePos;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;

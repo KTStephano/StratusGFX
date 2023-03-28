@@ -184,6 +184,9 @@ namespace stratus {
         float znear;
         float zfar;
         glm::mat4 projection;
+        glm::mat4 view;
+        glm::mat4 projectionView;
+        glm::mat4 invProjectionView;
         glm::vec4 clearColor;
         TextureHandle skybox = TextureHandle::Null();
         glm::vec3 skyboxColorMask = glm::vec3(1.0f);

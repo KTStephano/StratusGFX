@@ -17,13 +17,12 @@ layout (std430, binding = 14) readonly buffer inputBlock3 {
     AABB aabbs[];
 };
 
-uniform mat4 projection;
-uniform mat4 view;
+uniform mat4 projectionView;
 uniform int modelIndex;
 
 void main() {
     AABB aabb = transformAabb(aabbs[modelIndex], modelMatrices[modelIndex]);
-    vec4 corners[8] = computeCornersWithTransform(aabb, projection * view);
+    vec4 corners[8] = computeCornersWithTransform(aabb, projectionView);
     vec4 vertices[24] = convertCornersToLineVertices(corners);
 
     gl_Position = vertices[gl_VertexID];
