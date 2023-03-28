@@ -338,8 +338,8 @@ void RendererBackend::_UpdateWindowDimensions() {
     // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    //buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
     buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
@@ -369,7 +369,8 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the frame buffer with all its texture attachments
-    buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
+    //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
+    buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
     if (!buffer.fbo.valid()) {
         _isValid = false;
         return;
@@ -1283,7 +1284,9 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     _state.vplTileDeferredCullingStage1->bind();
 
     // Bind inputs
-    _state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    _state.vplTileDeferredCullingStage1->setMat4("invProjectionView", _frame->invProjectionView);
+    _state.vplTileDeferredCullingStage1->bindTexture("gDepth", _state.buffer.depth);
     _state.vplTileDeferredCullingStage1->bindTexture("gNormal", _state.buffer.normals);
     // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
@@ -1379,8 +1382,9 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
+    _state.vplGlobalIllumination->setMat4("invProjectionView", _frame->invProjectionView);
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
-    _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
+    _state.vplGlobalIllumination->bindTexture("gDepth", _state.buffer.depth);
     _state.vplGlobalIllumination->bindTexture("gNormal", _state.buffer.normals);
     _state.vplGlobalIllumination->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.vplGlobalIllumination->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
@@ -1481,7 +1485,8 @@ void RendererBackend::RenderScene() {
     _BindShader(lighting);
     _InitLights(lighting, perLightDistToViewer, _state.maxShadowCastingLightsPerFrame);
     lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
-    lighting->bindTexture("gPosition", _state.buffer.position);
+    lighting->setMat4("invProjectionView", _frame->invProjectionView);
+    lighting->bindTexture("gDepth", _state.buffer.depth);
     lighting->bindTexture("gNormal", _state.buffer.normals);
     lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);

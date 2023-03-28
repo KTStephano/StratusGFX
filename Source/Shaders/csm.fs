@@ -21,17 +21,17 @@ void main() {
         baseColor = texture(material.diffuseMap, fsTexCoords);
     }
 
-	runAlphaTest(baseColor.a, 0.25);
+	runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
 
 	// Written automatically - if used here it may disable early Z test but need to verify this
 	//gl_FragDepth = gl_FragCoord.z;// + fsTanTheta;
 
 	// Small offset to help prevent z fighting in certain cases
-    // if (baseColor.a < 1.0) {
-    //     gl_FragDepth = gl_FragCoord.z - 0.00001;
-    // }
-    // else {
-    //     gl_FragDepth = gl_FragCoord.z;
-    // }
+    if (baseColor.a < 1.0) {
+        gl_FragDepth = gl_FragCoord.z - ALPHA_DEPTH_OFFSET;
+    }
+    else {
+        gl_FragDepth = gl_FragCoord.z;
+    }
 #endif
 }

@@ -24,12 +24,14 @@ struct PointLight {
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
 
-uniform sampler2D gPosition;
+uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
 uniform sampler2DRect ssao;
+
+uniform mat4 invProjectionView;
 
 uniform float windowWidth;
 uniform float windowHeight;
@@ -75,7 +77,9 @@ layout (location = 0) out vec3 fsColor;
 
 void main() {
     vec2 texCoords = fsTexCoords;
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    float depth = textureLod(gDepth, texCoords, 0).r;
+    vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
+    //vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewMinusFrag = viewPosition - fragPos;
     vec3 viewDir = normalize(viewMinusFrag);
     float viewDist = length(viewMinusFrag);

@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 
 // GBuffer information
-uniform sampler2D gPosition;
+uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
@@ -37,6 +37,8 @@ uniform sampler2D screen;
 // Screen tile information
 uniform int numTilesX;
 uniform int numTilesY;
+
+uniform mat4 invProjectionView;
 
 layout (std430, binding = 0) readonly buffer inputBlock1 {
     VplData lightData[];
@@ -66,7 +68,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numActiveVPLs = tileData[baseTileIndex].numVisible;
     if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
 
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    float depth = textureLod(gDepth, texCoords, 0).r;
+    vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
+    //vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
     float distToCamera = length(viewPosition - fragPos);
 
