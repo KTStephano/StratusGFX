@@ -776,15 +776,15 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
     //const glm::mat4 & view = c.getViewTransform();
     glm::mat4 view = _frame->view;
     glm::mat4 projectionView = _frame->projectionView;
-    if (removeViewTranslation) {
-        // Remove the translation component of the view matrix
-        view = glm::mat4(glm::mat3(_frame->view));
-        projectionView = _frame->projection * view;
-    }
-    else {
-        view = _frame->view;
-        projectionView = _frame->projectionView;
-    }
+    // if (removeViewTranslation) {
+    //     // Remove the translation component of the view matrix
+    //     view = glm::mat4(glm::mat3(_frame->view));
+    //     projectionView = _frame->projection * view;
+    // }
+    // else {
+    //     view = _frame->view;
+    //     projectionView = _frame->projectionView;
+    // }
 
     // Unbind current shader if one is bound
     _UnbindShader();
@@ -1325,8 +1325,8 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 8),
-        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 8),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
+        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 2),
         1
     );
     _state.vplTileDeferredCullingStage2->synchronizeCompute();
