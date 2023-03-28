@@ -666,6 +666,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
+    glDepthRangef(0.0f, 1.0f);
 }
 
 /**
@@ -773,8 +774,8 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
-    glm::mat4 view;
-    glm::mat4 projectionView;
+    glm::mat4 view = _frame->view;
+    glm::mat4 projectionView = _frame->projectionView;
     if (removeViewTranslation) {
         // Remove the translation component of the view matrix
         view = glm::mat4(glm::mat3(_frame->view));

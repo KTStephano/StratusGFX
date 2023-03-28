@@ -19,8 +19,8 @@ STRATUS_GLSL_VERSION
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
-#define ALPHA_DEPTH_TEST 0.5
-#define ALPHA_DEPTH_OFFSET 0.00001
+#define ALPHA_DEPTH_TEST 0.25
+#define ALPHA_DEPTH_OFFSET 0.000001
 
 // Matches the definition in StratusGpuCommon.h
 struct Material {
