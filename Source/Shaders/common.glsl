@@ -125,7 +125,7 @@ vec3 worldPositionFromDepth(in vec2 uv, in float depth, in mat4 invProjectionVie
     float z = depth * 2.0 - 1.0;
 
     // Set up NDC using -1, 1 tex coords and -1, 1 z coordinate
-    vec4 ndc = vec3(uv * 2.0 - 1.0, z, 1.0);
+    vec4 ndc = vec4(uv * 2.0 - 1.0, z, 1.0);
 
     // Convert to world space
     vec4 worldPosition = invProjectionView * ndc;
