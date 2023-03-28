@@ -19,6 +19,9 @@ STRATUS_GLSL_VERSION
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
+#define ALPHA_DEPTH_TEST 0.25
+#define ALPHA_DEPTH_OFFSET 0.000001
+
 // Matches the definition in StratusGpuCommon.h
 struct Material {
     vec4 diffuseColor;
@@ -117,4 +120,19 @@ vec3 lerp(vec3 x, vec3 y, float a) {
 
 float lerp(float x, float y, float a) {
     return mix(x, y, a);
+}
+
+// See https://stackoverflow.com/questions/32227283/getting-world-position-from-depth-buffer-value
+vec3 worldPositionFromDepth(in vec2 uv, in float depth, in mat4 invProjectionView) {
+    // Convert depth from [0, 1] to [-1, 1]
+    float z = depth * 2.0 - 1.0;
+
+    // Set up NDC using -1, 1 tex coords and -1, 1 z coordinate
+    vec4 ndc = vec4(uv * 2.0 - 1.0, z, 1.0);
+
+    // Convert to world space
+    vec4 worldPosition = invProjectionView * ndc;
+
+    // Perform perspective divide to complete the transform
+    return worldPosition.xyz / worldPosition.w;
 }

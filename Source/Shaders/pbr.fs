@@ -24,12 +24,14 @@ struct PointLight {
 #define SPECULAR_MULTIPLIER 128.0
 //#define AMBIENT_INTENSITY 0.00025
 
-uniform sampler2D gPosition;
+uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
 uniform sampler2DRect ssao;
+
+uniform mat4 invProjectionView;
 
 uniform float windowWidth;
 uniform float windowHeight;
@@ -69,28 +71,30 @@ uniform vec3 infiniteLightColor;
 // Allows us to take the texture coordinates and convert them to light space texture coordinates for cascade 0
 // uniform mat4 cascade0ProjView;
 
-in vec2 fsTexCoords;
+smooth in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
 
 void main() {
     vec2 texCoords = fsTexCoords;
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    float depth = textureLod(gDepth, texCoords, 0).r;
+    vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
+    //vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewMinusFrag = viewPosition - fragPos;
     vec3 viewDir = normalize(viewMinusFrag);
     float viewDist = length(viewMinusFrag);
 
-    vec3 baseColor = texture(gAlbedo, texCoords).rgb;
+    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-    float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
-    float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
+    vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
+    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
+    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
-    vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
+    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
+    vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
     vec3 color = vec3(0.0);
     for (int i = 0; i < numLights; ++i) {

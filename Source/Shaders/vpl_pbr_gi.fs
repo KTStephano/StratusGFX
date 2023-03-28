@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 
 // GBuffer information
-uniform sampler2D gPosition;
+uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
@@ -37,6 +37,8 @@ uniform sampler2D screen;
 // Screen tile information
 uniform int numTilesX;
 uniform int numTilesY;
+
+uniform mat4 invProjectionView;
 
 layout (std430, binding = 0) readonly buffer inputBlock1 {
     VplData lightData[];
@@ -66,19 +68,21 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numActiveVPLs = tileData[baseTileIndex].numVisible;
     if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
 
-    vec3 fragPos = texture(gPosition, texCoords).rgb;
+    float depth = textureLod(gDepth, texCoords, 0).r;
+    vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
+    //vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
     float distToCamera = length(viewPosition - fragPos);
 
-    vec3 baseColor = texture(gAlbedo, texCoords).rgb;
-    vec3 normal = normalize(texture(gNormal, texCoords).rgb * 2.0 - vec3(1.0));
-    float roughness = texture(gRoughnessMetallicAmbient, texCoords).r;
-    float metallic = texture(gRoughnessMetallicAmbient, texCoords).g;
+    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
+    vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
+    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
+    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = texture(ssao, pixelCoords).r;
-    float ambient = texture(gRoughnessMetallicAmbient, texCoords).b * ambientOcclusion;
-    vec3 baseReflectivity = texture(gBaseReflectivity, texCoords).rgb;
+    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * ambientOcclusion;
+    vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
     vec3 vplColor = vec3(0.0); //screenColor;
     for (int baseLightIndex = 0 ; baseLightIndex < numActiveVPLs; baseLightIndex += 1) {
@@ -108,5 +112,5 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 }
 
 void main() {
-    color = performLightingCalculations(texture(screen, fsTexCoords).rgb, gl_FragCoord.xy, fsTexCoords);
+    color = performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
 }

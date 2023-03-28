@@ -8,8 +8,7 @@ layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 
-uniform mat4 projection;
-uniform mat4 view;
+uniform mat4 projectionView;
 
 /**
  * Information about the camera
@@ -17,7 +16,7 @@ uniform mat4 view;
 uniform vec3 viewPosition;
 
 smooth out vec3 fsPosition;
-smooth out vec3 fsViewSpacePos;
+//smooth out vec3 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 
@@ -33,9 +32,9 @@ void main() {
     vec4 pos = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     //vec4 pos = vec4(getPosition(gl_VertexID), 1.0);
 
-    vec4 viewSpacePos = view * pos;
+    //vec4 viewSpacePos = view * pos;
     fsPosition = pos.xyz;
-    fsViewSpacePos = viewSpacePos.xyz;
+    //fsViewSpacePos = viewSpacePos.xyz;
     fsTexCoords = getTexCoord(gl_VertexID);
 
     fsModelNoTranslate = mat3(modelMatrices[gl_DrawID]);
@@ -60,5 +59,5 @@ void main() {
 
     fsDrawID = gl_DrawID;
     
-    gl_Position = projection * viewSpacePos;
+    gl_Position = projectionView * pos;
 }

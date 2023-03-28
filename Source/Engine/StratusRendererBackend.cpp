@@ -338,17 +338,17 @@ void RendererBackend::_UpdateWindowDimensions() {
     // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
 
     // Position buffer
-    buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    //buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.normals.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the color buffer - notice that is uses higher
     // than normal precision. This allows us to write color values
     // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
     buffer.albedo.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Base reflectivity buffer
@@ -369,7 +369,8 @@ void RendererBackend::_UpdateWindowDimensions() {
     buffer.depth.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Create the frame buffer with all its texture attachments
-    buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
+    //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
+    buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
     if (!buffer.fbo.valid()) {
         _isValid = false;
         return;
@@ -665,6 +666,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // This is important! It prevents z-fighting if you do multiple passes.
     glDepthFunc(GL_LEQUAL);
+    glDepthRangef(0.0f, 1.0f);
 }
 
 /**
@@ -730,8 +732,9 @@ void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
 
     _BindShader(_state.aabbDraw.get());
 
-    _state.aabbDraw->setMat4("projection", _frame->projection);
-    _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
+    // _state.aabbDraw->setMat4("projection", _frame->projection);
+    // _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
+    _state.aabbDraw->setMat4("projectionView", _frame->projectionView);
 
     for (int i = 0; i < buffer->NumDrawCommands(); ++i) {
         _state.aabbDraw->setInt("modelIndex", i);
@@ -771,14 +774,17 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
     const Camera& camera = *_frame->camera;
     const glm::mat4 & projection = _frame->projection;
     //const glm::mat4 & view = c.getViewTransform();
-    glm::mat4 view;
-    if (removeViewTranslation) {
-        // Remove the translation component of the view matrix
-        view = glm::mat4(glm::mat3(camera.getViewTransform()));
-    }
-    else {
-        view = camera.getViewTransform();
-    }
+    glm::mat4 view = _frame->view;
+    glm::mat4 projectionView = _frame->projectionView;
+    // if (removeViewTranslation) {
+    //     // Remove the translation component of the view matrix
+    //     view = glm::mat4(glm::mat3(_frame->view));
+    //     projectionView = _frame->projection * view;
+    // }
+    // else {
+    //     view = _frame->view;
+    //     projectionView = _frame->projectionView;
+    // }
 
     // Unbind current shader if one is bound
     _UnbindShader();
@@ -799,8 +805,9 @@ void RendererBackend::_Render(const RenderFaceCulling cull, GpuCommandBufferPtr&
         s->setVec3("viewPosition", &camera.getPosition()[0]);
     }
 
-    s->setMat4("projection", &projection[0][0]);
-    s->setMat4("view", &view[0][0]);
+    s->setMat4("projectionView", projectionView);
+    //s->setMat4("projectionView", &projection[0][0]);
+    //s->setMat4("view", &view[0][0]);
 
     _RenderImmediate(cull, buffer);
 
@@ -832,9 +839,12 @@ void RendererBackend::_RenderSkybox() {
     if (ValidateTexture(sky)) {
         const glm::mat4& projection = _frame->projection;
         const glm::mat4 view = glm::mat4(glm::mat3(_frame->camera->getViewTransform()));
+        const glm::mat4 projectionView = projection * view;
 
-        _state.skybox->setMat4("projection", projection);
-        _state.skybox->setMat4("view", view);
+        // _state.skybox->setMat4("projection", projection);
+        // _state.skybox->setMat4("view", view);
+        _state.skybox->setMat4("projectionView", projectionView);
+
         _state.skybox->setVec3("colorMask", _frame->skyboxColorMask);
         _state.skybox->setFloat("intensity", _frame->skyboxIntensity);
         _state.skybox->bindTexture("skybox", sky.Get());
@@ -1275,7 +1285,9 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     _state.vplTileDeferredCullingStage1->bind();
 
     // Bind inputs
-    _state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    _state.vplTileDeferredCullingStage1->setMat4("invProjectionView", _frame->invProjectionView);
+    _state.vplTileDeferredCullingStage1->bindTexture("gDepth", _state.buffer.depth);
     _state.vplTileDeferredCullingStage1->bindTexture("gNormal", _state.buffer.normals);
     // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
@@ -1313,8 +1325,8 @@ void RendererBackend::_PerformVirtualPointLightCullingStage2(
     
     // Dispatch and synchronize
     _state.vplTileDeferredCullingStage2->dispatchCompute(
-        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 8),
-        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 8),
+        (unsigned int)_frame->viewportWidth  / (_state.vpls.tileXDivisor * 32),
+        (unsigned int)_frame->viewportHeight / (_state.vpls.tileYDivisor * 2),
         1
     );
     _state.vplTileDeferredCullingStage2->synchronizeCompute();
@@ -1371,8 +1383,9 @@ void RendererBackend::_ComputeVirtualPointLightGlobalIllumination(const std::vec
     _state.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     _state.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
+    _state.vplGlobalIllumination->setMat4("invProjectionView", _frame->invProjectionView);
     _state.vplGlobalIllumination->bindTexture("screen", _state.lightingColorBuffer);
-    _state.vplGlobalIllumination->bindTexture("gPosition", _state.buffer.position);
+    _state.vplGlobalIllumination->bindTexture("gDepth", _state.buffer.depth);
     _state.vplGlobalIllumination->bindTexture("gNormal", _state.buffer.normals);
     _state.vplGlobalIllumination->bindTexture("gAlbedo", _state.buffer.albedo);
     _state.vplGlobalIllumination->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);
@@ -1473,7 +1486,8 @@ void RendererBackend::RenderScene() {
     _BindShader(lighting);
     _InitLights(lighting, perLightDistToViewer, _state.maxShadowCastingLightsPerFrame);
     lighting->bindTexture("atmosphereBuffer", _state.atmosphericTexture);
-    lighting->bindTexture("gPosition", _state.buffer.position);
+    lighting->setMat4("invProjectionView", _frame->invProjectionView);
+    lighting->bindTexture("gDepth", _state.buffer.depth);
     lighting->bindTexture("gNormal", _state.buffer.normals);
     lighting->bindTexture("gAlbedo", _state.buffer.albedo);
     lighting->bindTexture("gBaseReflectivity", _state.buffer.baseReflectivity);

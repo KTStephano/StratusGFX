@@ -19,7 +19,7 @@ uniform vec3 viewPosition;
  * in world space.
  */
 smooth in vec3 fsPosition;
-in vec3 fsViewSpacePos;
+//in vec3 fsViewSpacePos;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
@@ -32,14 +32,14 @@ flat in int fsDrawID;
 in mat3 fsTbnMatrix;
 
 // GBuffer outputs
-layout (location = 0) out vec3 gPosition;
-layout (location = 1) out vec3 gNormal;
-layout (location = 2) out vec3 gAlbedo;
-layout (location = 3) out vec3 gBaseReflectivity;
-layout (location = 4) out vec3 gRoughnessMetallicAmbient;
+//layout (location = 0) out vec3 gPosition;
+layout (location = 0) out vec3 gNormal;
+layout (location = 1) out vec3 gAlbedo;
+layout (location = 2) out vec3 gBaseReflectivity;
+layout (location = 3) out vec3 gRoughnessMetallicAmbient;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
-layout (location = 5) out vec4 gStructureBuffer;
+layout (location = 4) out vec4 gStructureBuffer;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -83,7 +83,7 @@ void main() {
         baseColor = texture(material.diffuseMap, texCoords);
     }
 
-    runAlphaTest(baseColor.a, 0.25);
+    runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
         normal = texture(material.normalMap, texCoords).rgb;
@@ -120,7 +120,7 @@ void main() {
     }
 
     // Coordinate space is set to world
-    gPosition = fsPosition;
+    //gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = baseColor.rgb;
@@ -131,7 +131,7 @@ void main() {
 
     // Small offset to help prevent z fighting in certain cases
     if (baseColor.a < 1.0) {
-        gl_FragDepth = gl_FragCoord.z - 0.00001;
+        gl_FragDepth = gl_FragCoord.z - ALPHA_DEPTH_OFFSET;
     }
     else {
         gl_FragDepth = gl_FragCoord.z;

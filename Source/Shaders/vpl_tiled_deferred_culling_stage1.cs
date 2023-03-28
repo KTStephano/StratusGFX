@@ -19,8 +19,9 @@ layout (local_size_x = 5, local_size_y = 5, local_size_z = 1) in;
 #include "pbr.glsl"
 
 // GBuffer information
-uniform sampler2D gPosition;
+uniform sampler2D gDepth;
 uniform sampler2D gNormal;
+uniform mat4 invProjectionView;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -57,7 +58,9 @@ void main() {
     vec2 texCoords = (vec2(pixelCoords) + vec2(0.5)) / vec2(viewportWidthHeight.x, viewportWidthHeight.y);
 
     int tileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
-    vec3 fragPos = textureLod(gPosition, texCoords, 0).xyz;
+    float depth = textureLod(gDepth, texCoords, 0).r;
+    vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
+    //vec3 fragPos = textureLod(gPosition, texCoords, 0).xyz;
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
 
     // Each thread will now add their local contribution to position and normal to compute averages

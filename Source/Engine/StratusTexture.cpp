@@ -260,9 +260,10 @@ namespace stratus {
             }
         }
 
+        // See https://gamedev.stackexchange.com/questions/168241/is-gl-depth-component32-deprecated-in-opengl-4-5 for more info on depth component
         static GLint _convertInternalFormat(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
             // If the bits are default we just mirror the format for the internal format option
-            if (format == TextureComponentFormat::DEPTH || format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
+            if (format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
                 switch (format) {
                     case TextureComponentFormat::RED: return GL_RED;
                     case TextureComponentFormat::RGB: return GL_RGB;
@@ -329,6 +330,7 @@ namespace stratus {
                         case TextureComponentFormat::RED: return GL_R16F;
                         case TextureComponentFormat::RGB: return GL_RGB16F;
                         case TextureComponentFormat::RGBA: return GL_RGBA16F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT16;
                         default: throw std::runtime_error("Unknown combination");
                     }
                 }
@@ -356,6 +358,7 @@ namespace stratus {
                         case TextureComponentFormat::RED: return GL_R32F;
                         case TextureComponentFormat::RGB: return GL_RGB32F;
                         case TextureComponentFormat::RGBA: return GL_RGBA32F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT32F;
                         default: throw std::runtime_error("Unknown combination");
                     }
                 }

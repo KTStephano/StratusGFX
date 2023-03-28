@@ -184,6 +184,9 @@ namespace stratus {
         float znear;
         float zfar;
         glm::mat4 projection;
+        glm::mat4 view;
+        glm::mat4 projectionView;
+        glm::mat4 invProjectionView;
         glm::vec4 clearColor;
         TextureHandle skybox = TextureHandle::Null();
         glm::vec3 skyboxColorMask = glm::vec3(1.0f);
@@ -196,15 +199,16 @@ namespace stratus {
     };
 
     class RendererBackend {
+        // Geometry buffer
         struct GBuffer {
             FrameBuffer fbo;
-            Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
+            //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB16F
             Texture albedo;                   // RGB16F
             Texture baseReflectivity;         // RGB16F
             Texture roughnessMetallicAmbient; // RGB16F
             Texture structure;                // RGBA16F
-            Texture depth;                    // R16F
+            Texture depth;                    // Default bit depth
         };
 
         struct PostFXBuffer {

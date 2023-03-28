@@ -4,7 +4,7 @@ STRATUS_GLSL_VERSION
 
 #include "mesh_data.glsl"
 
-out vec2 fsTexCoords;
+smooth out vec2 fsTexCoords;
 
 void main() {
     fsTexCoords = getTexCoord(gl_VertexID);
