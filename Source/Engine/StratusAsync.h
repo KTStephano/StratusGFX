@@ -36,21 +36,27 @@ namespace stratus {
 
             std::shared_ptr<__AsyncImpl> shared = this->shared_from_this();
             _context->Queue([this, shared]() {
+                bool failed = false;
                 try {
                     std::shared_ptr<E> result = this->_compute();
                     auto ul = this->_LockWrite();
                     this->_result = result;
                     this->_complete = true;
                     this->_failed = this->_result == nullptr;
+                    failed = this->_failed;
                 }
                 catch (const std::exception& e) {
                     auto ul = this->_LockWrite();
                     this->_complete = true;
                     this->_failed = true;
                     this->_exceptionMessage = e.what();
+                    failed = true;
                 }
 
-                // Notify everyone that we're done (even if failed)
+                // End early to prevent waiting callbacks from receiving null pointers
+                if (failed) return;
+
+                // Notify everyone that we're done
                 this->_ProcessCallbacks();
             });
         }
@@ -65,6 +71,11 @@ namespace stratus {
             if (!Completed()) {
                 throw std::runtime_error("stratus::Async::Get called before completion");
             }
+
+            if (Failed()) {
+                throw std::runtime_error("Get() called on a failed Async operation");
+            }
+
             return *_result;
         }
 
@@ -72,6 +83,11 @@ namespace stratus {
             if (!Completed()) {
                 throw std::runtime_error("stratus::Async::Get called before completion");
             }
+
+            if (Failed()) {
+                throw std::runtime_error("Get() called on a failed Async operation");
+            }
+
             return *_result;
         }
 
@@ -79,13 +95,18 @@ namespace stratus {
             if (!Completed()) {
                 throw std::runtime_error("stratus::Async::Get called before completion");
             }
+
+            if (Failed()) {
+                throw std::runtime_error("Get() called on a failed Async operation");
+            }
+
             return _result;
         }
 
         void AddCallback(const Thread::ThreadFunction & callback) {
             Thread * thread = &Thread::Current();
             // If completed then schedule it immediately
-            if (Completed()) {
+            if (Completed() && !Failed()) {
                 thread->Queue(callback);
             }
             else {

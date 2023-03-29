@@ -906,7 +906,7 @@ namespace stratus {
             Texture::MakeResident(diffuse.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (diffuseHandle != TextureHandle::Null()) {
+        else if (diffuseHandle != TextureHandle::Null() && !diffuse.Failed()) {
             _materialsDirty = true;
         }
 
@@ -916,7 +916,7 @@ namespace stratus {
             Texture::MakeResident(ambient.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (ambientHandle != TextureHandle::Null()) {
+        else if (ambientHandle != TextureHandle::Null() && !ambient.Failed()) {
             _materialsDirty = true;
         }
 
@@ -926,7 +926,7 @@ namespace stratus {
             Texture::MakeResident(normal.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (normalHandle != TextureHandle::Null()) {
+        else if (normalHandle != TextureHandle::Null() && !normal.Failed()) {
             _materialsDirty = true;
         }
 
@@ -936,7 +936,7 @@ namespace stratus {
             Texture::MakeResident(depth.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (depthHandle != TextureHandle::Null()) {
+        else if (depthHandle != TextureHandle::Null() && !depth.Failed()) {
             _materialsDirty = true;
         }
 
@@ -946,7 +946,7 @@ namespace stratus {
             Texture::MakeResident(roughness.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (roughnessHandle != TextureHandle::Null()) {
+        else if (roughnessHandle != TextureHandle::Null() && !roughness.Failed()) {
             _materialsDirty = true;
         }
 
@@ -956,7 +956,7 @@ namespace stratus {
             Texture::MakeResident(metallic.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (metallicHandle != TextureHandle::Null()) {
+        else if (metallicHandle != TextureHandle::Null() && !metallic.Failed()) {
             _materialsDirty = true;
         }
 
@@ -966,7 +966,7 @@ namespace stratus {
             Texture::MakeResident(metallicRoughness.Get());
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (metallicRoughnessHandle != TextureHandle::Null()) {
+        else if (metallicRoughnessHandle != TextureHandle::Null() && !metallicRoughness.Failed()) {
             _materialsDirty = true;
         }
     }

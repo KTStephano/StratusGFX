@@ -8,6 +8,7 @@ namespace stratus {
     EntityManager::EntityManager() {}
 
     void EntityManager::AddEntity(const EntityPtr& e) {
+        if (e == nullptr) return;
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - must add root node");
         }
@@ -16,6 +17,7 @@ namespace stratus {
     }
 
     void EntityManager::RemoveEntity(const EntityPtr& e) {
+        if (e == nullptr) return;
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - tree structure is immutable after adding to manager");
         }

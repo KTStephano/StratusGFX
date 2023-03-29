@@ -55,7 +55,9 @@ public:
         Input()->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
-        controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor, warmMorningColor));
+        auto wc = new WorldLightController(warmMorningColor, warmMorningColor, 5);
+        wc->SetRotation(stratus::Rotation(stratus::Degrees(35.0f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        controller = stratus::InputHandlerPtr(wc);
         Input()->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
