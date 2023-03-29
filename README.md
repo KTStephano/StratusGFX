@@ -18,11 +18,13 @@ First install SDL from [https://www.libsdl.org](https://www.libsdl.org)
 Somewhere on your hard drive create a folder where you will install dependencies. Set that as an environment variable called SYSROOT.
 
 Next set up the repo
+
     git clone https://github.com/KTStephano/StratusGFX.git
     git submodule init
     git submodule update
 
 Build Catch2, assimp, and meshoptimizer using cmake. Install their files to ${SYSROOT} under
+
     bin/
     cmake/
     include/
@@ -30,16 +32,19 @@ Build Catch2, assimp, and meshoptimizer using cmake. Install their files to ${SY
     share/
 
 Now generate the GL3W headers with extensions (--ext)
+
     cd gl3w
     python3 ./gl3w_gen.py --ext
     cd ../
 
 Now build the source
+
     mkdir build; cd build
     cmake ..
     cmake --build . --config RelWithDebInfo
 
 All executables will be put into StratusGFX/Bin. Good ones to run to see if it worked are 
+
     StratusGFX/Bin/Ex00_StartupShutdown.exe (runs through initialize, run one frame, shutdown sequence)
     StratusGFX/Bin/Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
     StratusGFX/Bin/StratusEngineUnitTests.exe
