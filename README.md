@@ -12,7 +12,8 @@ I worked on this project in my spare time and I would consider its current state
 
 This code base will not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
 
-**Windows**
+### Windows
+
 First install SDL from [https://www.libsdl.org](https://www.libsdl.org)
 
 Somewhere on your hard drive create a folder where you will install dependencies. Set that as an environment variable called SYSROOT.
@@ -50,7 +51,8 @@ All executables will be put into StratusGFX/Bin. Good ones to run to see if it w
     StratusGFX/Bin/StratusEngineUnitTests.exe
     StratusGFX/Bin/StratusEngineIntegrationTests.exe
 
-**Linux**
+### Linux
+
 This should be roughly the same setup as with Windows except you can skip the SYSROOT step and either build from source + install or install the components with a package manager.
 
 # First Places to Look
