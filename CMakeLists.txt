@@ -15,6 +15,8 @@ if (WIN32)
     )
 endif ()
 
+include_directories(${CMAKE_CURRENT_LIST_DIR}/stb)
+
 add_subdirectory(Source/)
 add_subdirectory(Examples/)
 

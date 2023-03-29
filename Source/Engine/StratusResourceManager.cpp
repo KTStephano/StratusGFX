@@ -12,7 +12,7 @@
 #include "StratusTransformComponent.h"
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
-#include "STBImage.h"
+#include "stb_image.h"
 
 namespace stratus {
     ResourceManager::ResourceManager() {}
