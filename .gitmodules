@@ -1,9 +1,6 @@
 [submodule "Catch2"]
 	path = Catch2
 	url = https://github.com/catchorg/Catch2.git
-[submodule "gl3w"]
-	path = gl3w
-	url = https://github.com/skaslev/gl3w.git
 [submodule "meshoptimizer"]
 	path = meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
