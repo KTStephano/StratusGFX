@@ -25,7 +25,7 @@ There are two use cases that might apply to this project:
 
 1) Taking it and using it as a learning resource.
 
-2) Integrating it into other more general purpose engines or modeling tools. This is because Stratus is primarily a rendering engine so it should be possible to fold it into other feature complete tools. It could also be used as the rendering backend for new engine projects.
+2) Integrating it as a rendering backend into other more general purpose engines or modeling tools.
 
 Due to the MPL 2.0 license, any extensions to the rendering code that are made public will enable other projects to benefit from the changes!
 
@@ -34,12 +34,12 @@ Due to the MPL 2.0 license, any extensions to the rendering code that are made p
 ### Graphics
 
 * Physically based metallic-roughness pipeline
-* Realtime global illumination
-* Raymarched volumetric lighting and shadowing
+* Realtime global illumination and indirect shadowing
+* Raymarched volumetric lighting
 * Cascaded shadow mapping
-* Deferred lighting
+* Deferred lighting and soft shadowing
 * Mesh LOD generation and selection
-* GPU Frustum Culling
+* GPU frustum culling
 * Screen Space Ambient Occlusion (SSAO)
 * Filmic tonemapping
 * Fog
@@ -64,7 +64,7 @@ Due to the MPL 2.0 license, any extensions to the rendering code that are made p
 
 # Building
 
-This code base will not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
+This code base will currently not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
 
 ### Windows
 
