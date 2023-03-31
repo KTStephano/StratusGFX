@@ -2,7 +2,7 @@
 
 I worked on this project in my spare time and I would consider its current state to still be pre-release/beta-release. Expect bugs and instability. Current versions have been set to the MPL 2.0 license.
 
--> [Image Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
+-> [Graphics Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
 -> [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture)
 
@@ -33,34 +33,34 @@ Due to the MPL 2.0 license, any extensions to the rendering code that are made p
 
 ### Graphics
 
-Physically based metallic-roughness pipeline
-Realtime global illumination
-Raymarched volumetric lighting and shadowing
-Cascaded shadow mapping
-Deferred lighting
-Mesh LOD generation and selection
-GPU Frustum Culling
-Screen Space Ambient Occlusion (SSAO)
-Filmic tonemapping
-Fog
-Bloom
-Fast Approximate Anti-Aliasing (FXAA)
+* Physically based metallic-roughness pipeline
+* Realtime global illumination
+* Raymarched volumetric lighting and shadowing
+* Cascaded shadow mapping
+* Deferred lighting
+* Mesh LOD generation and selection
+* GPU Frustum Culling
+* Screen Space Ambient Occlusion (SSAO)
+* Filmic tonemapping
+* Fog
+* Bloom
+* Fast Approximate Anti-Aliasing (FXAA)
 
 ### Engine
 
-Pool allocators
-Multi threaded utilities
-Concurrent hash map
-Entity-Component System (ECS)
-Logging
+* Pool allocators
+* Multi threaded utilities
+* Concurrent hash map
+* Entity-Component System (ECS)
+* Logging
 
 ### Modern graphics API features used
 
-Compute shaders
-Direct state access
-Programmable vertex pulling
-Multi draw elements indirect
-Shader storage buffers
+* Compute shaders
+* Direct state access
+* Programmable vertex pulling
+* Multi draw elements indirect
+* Shader storage buffers
 
 # Building
 
