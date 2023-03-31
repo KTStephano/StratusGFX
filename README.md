@@ -84,7 +84,7 @@ Build Catch2
 
 Build and rest of the third party libraries
 
-    mkdir ThirdParty; cd ThirdParty
+    cd ThirdParty
     cmake .. -DDEPENDENCY_BUILD=ON -DBUILD_TESTING=OFF
     cmake --build . -j 8 --config RelWithDebInfo
     cmake --install . --prefix . --config RelWithDebInfo
