@@ -147,6 +147,20 @@ Bathroom: https://sketchfab.com/3d-models/the-bathroom-free-d5e5035dda434b8d9bea
 
 Interrogation Room: https://sketchfab.com/3d-models/interogation-room-6e9151ec29494469a74081ddc054d569
 
+# Controls For Example Environments
+
+WASD to move
+
+Left mouse to fly up, right mouse to fly down
+
+F toggles camera light
+
+E toggles directional light
+
+G toggles global illumination
+
+R recompiles all shaders
+
 # Future of StratusGFX
 
 ### Short Term Goals
