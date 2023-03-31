@@ -70,24 +70,31 @@ This code base will currently not work on MacOS. Linux and Windows should both b
 
 First install SDL from [https://www.libsdl.org](https://www.libsdl.org)
 
-Somewhere on your hard drive create a folder where you will install dependencies. Set that as an environment variable called SYSROOT.
-
 Next set up the repo
 
-    git clone https://github.com/KTStephano/StratusGFX.git
-    git submodule init
-    git submodule update
+    git clone --recursive https://github.com/KTStephano/StratusGFX.git
 
-Build Catch2, assimp, and meshoptimizer using cmake. Install their files to ${SYSROOT} under
+Build Catch2
 
-    bin/
-    cmake/
-    include/
-    lib/
-    share/
+    cd Catch2
+    cmake -Bbuild -S. -DBUILD_TESTING=OFF
+    cmake --build build/ -j 8 --config RelWithDebInfo
+    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
+    cd ../
+
+Build and rest of the third party libraries
+
+    mkdir ThirdParty; cd ThirdParty
+    cmake .. -DDEPENDENCY_BUILD=ON -DBUILD_TESTING=OFF
+    cmake --build . -j 8 --config RelWithDebInfo
+    cmake --install . --prefix . --config RelWithDebInfo
+    (if you get an error that Assimp install can't find ThirdParty/assimp/code/RelWithDebInfo/assimp-vc143-mt.pdb, copy ThirdParty/assimp/bin/RelWithDebInfo into ThirdParty/assimp/code and re-run the --install step)
+
+    Copy the StratusGFX/assimp/contrib directory into StratusGFX/ThirdParty/ so that you have StratusGFX/ThirdParty/contrib
 
 Now generate the GL3W headers with extensions (--ext)
 
+    cd ../
     cd gl3w
     python3 ./gl3w_gen.py --ext
     cd ../
@@ -96,7 +103,7 @@ Now build the source
 
     mkdir build; cd build
     cmake ..
-    cmake --build . --config RelWithDebInfo
+    cmake --build . -j 8 --config RelWithDebInfo
 
 All executables will be put into StratusGFX/Bin. Good ones to run to see if it worked are 
 
@@ -107,7 +114,7 @@ All executables will be put into StratusGFX/Bin. Good ones to run to see if it w
 
 ### Linux
 
-This should be roughly the same setup as with Windows except you can skip the SYSROOT step and either build from source + install or install the components with a package manager.
+The steps will be almost the same except that you can use your system's package manager to install Catch2 and the other third party libraries if you prefer. You will still need to do the GL3W header generation step.
 
 # First Places to Look
 

@@ -19,6 +19,12 @@ namespace stratus {
         SRGB
     };
 
+    enum class TextureLoadingStatus : int {
+        LOADING,
+        FAILED,
+        LOADING_DONE
+    };
+
     SYSTEM_MODULE_CLASS(ResourceManager)
     private:
         struct RawTextureData {
@@ -47,8 +53,7 @@ namespace stratus {
         //      ...
         //      prefix + "back." + fileExt
         TextureHandle LoadCubeMap(const std::string& prefix, const ColorSpace&, const std::string& fileExt = "jpg");
-        bool GetTexture(const TextureHandle, Async<Texture>&) const;
-        Async<Texture> LookupTexture(TextureHandle handle) const;
+        Texture LookupTexture(const TextureHandle, TextureLoadingStatus&) const;
 
         // Default shapes
         EntityPtr CreateCube();
@@ -97,6 +102,7 @@ namespace stratus {
         std::unordered_set<MeshPtr> _generateMeshGpuDataQueue;
         //std::vector<MeshPtr> _meshFinalizeQueue;
         std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
+        std::unordered_set<TextureHandle> _texturesStillLoading;
         std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
         std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;
         mutable std::shared_mutex _mutex;

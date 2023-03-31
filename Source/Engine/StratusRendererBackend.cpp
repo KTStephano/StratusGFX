@@ -717,8 +717,8 @@ static void SetCullState(const RenderFaceCulling & mode) {
     }
 }
 
-static bool ValidateTexture(const Async<Texture> & tex) {
-    return tex.Completed() && !tex.Failed();
+static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& status) {
+    return status == TextureLoadingStatus::LOADING_DONE;
 }
 
 void RendererBackend::_RenderBoundingBoxes(GpuCommandBufferPtr& buffer) {
@@ -835,8 +835,9 @@ void RendererBackend::_RenderSkybox() {
     _BindShader(_state.skybox.get());
     glDepthMask(GL_FALSE);
 
-    Async<Texture> sky = _LookupTexture(_frame->skybox);
-    if (ValidateTexture(sky)) {
+    TextureLoadingStatus status;
+    Texture sky = INSTANCE(ResourceManager)->LookupTexture(_frame->skybox, status);
+    if (ValidateTexture(sky, status)) {
         const glm::mat4& projection = _frame->projection;
         const glm::mat4 view = glm::mat4(glm::mat3(_frame->camera->getViewTransform()));
         const glm::mat4 projectionView = projection * view;
@@ -847,7 +848,7 @@ void RendererBackend::_RenderSkybox() {
 
         _state.skybox->setVec3("colorMask", _frame->skyboxColorMask);
         _state.skybox->setFloat("intensity", _frame->skyboxIntensity);
-        _state.skybox->bindTexture("skybox", sky.Get());
+        _state.skybox->bindTexture("skybox", sky);
 
         GetMesh(_state.skyboxCube, 0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
@@ -1777,10 +1778,6 @@ TextureHandle RendererBackend::_CreateShadowMap3D(uint32_t resolutionX, uint32_t
     if (vpl) Texture::MakeResident(smap.diffuseCubeMap);
 
     return handle;
-}
-
-Async<Texture> RendererBackend::_LookupTexture(TextureHandle handle) const {
-    return INSTANCE(ResourceManager)->LookupTexture(handle);
 }
 
 Texture RendererBackend::_LookupShadowmapTexture(TextureHandle handle) const {
