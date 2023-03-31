@@ -2,8 +2,7 @@
 
 I worked on this project in my spare time and I would consider its current state to still be pre-release/beta-release. Expect bugs and instability. Current versions have been set to the MPL 2.0 license.
 
-![sponza](https://ktstephano.github.io/assets/portfolio/Sponza2022_gi_2.png "Sponza in StratusGFX")
-(Intel Sponza rendered in realtime with StratusGFX)
+![sponza](https://drive.google.com/file/d/1-iU013xi6jaM3IWLDnGrYrB3N7zZVhSK/preview)
 
 -> [Image Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
@@ -12,6 +11,7 @@ I worked on this project in my spare time and I would consider its current state
 -> [How A Frame Is Rendered](https://ktstephano.github.io/rendering/stratusgfx/frame_analysis)
 
 -> [Video Feature Reel](https://www.youtube.com/watch?v=s5aIsgzwNPE)
+
 (The video feature reel will be redone with latest features including better image smoothing in hopefully the next release)
 
 # Building
