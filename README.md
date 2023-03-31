@@ -145,16 +145,21 @@ Interrogation Room: https://sketchfab.com/3d-models/interogation-room-6e9151ec29
 ### Short Term Goals
 
 -> Addition of either TAA or TSSAA to help with image stability while in motion
+
 -> Performance improvements
 
 ### Medium Term Goals
 
 -> Order independent transparency
+
 -> Better handling of LOD generation and transition
+
 -> Screen Space Reflections (SSR)
 
 ### Long Term Goals
 
 -> Switch backend to Vulkan which will enable the engine to run on MacOS and not just Windows/Linux
+
 -> Addition of baked lighting features so that weaker hardware has a fallback option
+
 -> Addition of other modern global illumination techniques to either replace or complement what is already there
