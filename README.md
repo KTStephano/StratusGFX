@@ -12,6 +12,9 @@ I worked on this project in my spare time and I would consider its current state
 
 (The video feature reel will be redone with latest features including better image smoothing in hopefully the next release)
 
+![Sponza](https://user-images.githubusercontent.com/8399235/229018578-a9ae9609-5378-43de-a909-2ca2661ca2f5.png)
+(Intel Sponza rendered with StratusGFX)
+
 # Building
 
 This code base will not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
