@@ -64,6 +64,8 @@ namespace stratus {
         // Getters for checking internal state
         bool Failed()                  const { auto sl = _LockRead(); return _failed; }
         bool Completed()               const { auto sl = _LockRead(); return _complete; }
+        bool CompleteAndValid()        const { auto sl = _LockRead(); return _complete && !_failed; }
+        bool CompleteAndInvalid()      const { auto sl = _LockRead(); return _complete && _failed; }
         std::string ExceptionMessage() const { auto sl = _LockRead(); return _exceptionMessage; }
 
         // Getters for retrieving result
@@ -178,6 +180,8 @@ namespace stratus {
         // Getters for checking internal state
         bool Failed()                  const { return _impl == nullptr || _impl->Failed(); }
         bool Completed()               const { return _impl == nullptr || _impl->Completed(); }
+        bool CompleteAndValid()        const { return _impl != nullptr && _impl->CompleteAndValid(); }
+        bool CompleteAndInvalid()      const { return _impl == nullptr || _impl->CompleteAndInvalid(); }
         std::string ExceptionMessage() const { return _impl == nullptr ? "" : _impl->ExceptionMessage(); }
 
         // Getters for retrieving result
