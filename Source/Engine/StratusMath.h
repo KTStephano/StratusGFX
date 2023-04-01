@@ -11,7 +11,7 @@
 #include <glm/gtc/quaternion.hpp> 
 #include <glm/gtx/quaternion.hpp>
 
-#define STRATUS_PI (M_PI)
+#define STRATUS_PI 3.14159265358979323846
 
 namespace stratus {
 	class Degrees;

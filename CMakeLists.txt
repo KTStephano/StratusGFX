@@ -16,7 +16,6 @@ set(CMAKE_CXX_STANDARD 17)
 # endif ()
 
 list(APPEND CMAKE_PREFIX_PATH
-    #${CMAKE_CURRENT_LIST_DIR}/ThirdParty
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/cmake
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/Catch2
@@ -29,6 +28,11 @@ option(DEPENDENCY_BUILD "Third party dependencies only" OFF)
 if (${DEPENDENCY_BUILD})
     add_subdirectory(assimp/)
     add_subdirectory(meshoptimizer/)
+
+    file(
+        COPY ${CMAKE_CURRENT_SOURCE_DIR}/assimp/contrib
+        DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
+    )
 
 else ()
     file(GLOB BIN_DLLS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bin/*)

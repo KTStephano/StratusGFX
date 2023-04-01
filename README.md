@@ -21,13 +21,13 @@ This project was created as a hobby research project for learning low level engi
 
 # Use Cases
 
-There are two use cases that might apply to this project:
+At its core Stratus is a rendering engine first with minimal features found in general purpose engines. Its focus is on modern 3D graphics capabilities. Because of this it has two main use cases:
 
-1) Taking it and using it as a learning resource.
+1) People taking it and using it as a learning resource.
 
-2) Integrating it as a rendering backend into other more general purpose engines or modeling tools.
+2) Integration into other general purpose engines (new or existing) and modeling tools.
 
-Due to the MPL 2.0 license, any extensions to the rendering code that are made public will enable other projects to benefit from the changes!
+Because of the MPL license, any community changes made to the rendering code will continue to help others in new and existing projects that use it.
 
 # Current Supported Features
 
@@ -68,13 +68,12 @@ This code base will currently not work on MacOS. Linux and Windows should both b
 
 ### Windows
 
-First install SDL from [https://www.libsdl.org](https://www.libsdl.org)
-
-Next set up the repo
+First set up the repo
 
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
+    cd StratusGFX
 
-Build Catch2
+Build Catch2 -> should only need to do this once per clone
 
     cd Catch2
     cmake -Bbuild -S. -DBUILD_TESTING=OFF
@@ -82,7 +81,15 @@ Build Catch2
     cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
     cd ../
 
-Build and rest of the third party libraries
+Build SDL -> should only need to do this once per clone
+
+    cd SDL
+    cmake -Bbuild -S. -DBUILD_TESTING=OFF
+    cmake --build build/ -j 8 --config RelWithDebInfo
+    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
+    cd ../
+
+Build and rest of the third party libraries -> should only need to do this once per clone
 
     cd ThirdParty
     cmake .. -DDEPENDENCY_BUILD=ON -DBUILD_TESTING=OFF
@@ -90,16 +97,14 @@ Build and rest of the third party libraries
     cmake --install . --prefix . --config RelWithDebInfo
     (if you get an error that Assimp install can't find ThirdParty/assimp/code/RelWithDebInfo/assimp-vc143-mt.pdb, copy ThirdParty/assimp/bin/RelWithDebInfo into ThirdParty/assimp/code and re-run the --install step)
 
-    Copy the StratusGFX/assimp/contrib directory into StratusGFX/ThirdParty/ so that you have StratusGFX/ThirdParty/contrib
-
-Now generate the GL3W headers with extensions (--ext)
+Now generate the GL3W headers with extensions (--ext) -> should only need to do this once per clone
 
     cd ../
     cd gl3w
     python3 ./gl3w_gen.py --ext
     cd ../
 
-Now build the source
+Now build the StratusGFX source
 
     mkdir build; cd build
     cmake ..
@@ -164,6 +169,8 @@ R recompiles all shaders
 # Future of StratusGFX
 
 ### Short Term Goals
+
+-> Improving build system to make it easier for people to get up and running with the code
 
 -> Addition of either TAA or TSSAA to help with image stability while in motion
 
