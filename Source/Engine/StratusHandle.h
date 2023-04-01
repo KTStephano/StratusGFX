@@ -6,7 +6,7 @@
 #include <ostream>
 
 namespace stratus {
-    inline uint64_t __NextHandle() {
+    inline uint64_t NextHandle_() {
         static std::atomic<uint64_t> next(1);
         return next.fetch_add(1);
     }
@@ -18,7 +18,7 @@ namespace stratus {
     template<typename E>
     class Handle {
         // Private: only accessible by NextHandle()
-        Handle(const uint64_t handle) : _handle(handle) {}
+        Handle(const uint64_t handle) : handle_(handle) {}
 
     public:
         // Default constructor creates the Null Handle
@@ -33,32 +33,32 @@ namespace stratus {
 
         // Static methods for creating new handles
         static Handle<E> NextHandle() {
-            return Handle<E>(__NextHandle());
+            return Handle<E>(NextHandle_());
         }
         
         static Handle<E> Null() { return Handle<E>(); }
 
-        size_t HashCode() const { return std::hash<uint64_t>{}(_handle); }
+        size_t HashCode() const { return std::hash<uint64_t>{}(handle_); }
         // Unsigned 64-bit integer representation
-        uint64_t Integer() const { return _handle; }
+        uint64_t Integer() const { return handle_; }
 
         // Comparison operators
 
-        bool operator==(const Handle<E>& other) const { return _handle == other._handle; }
-        bool operator!=(const Handle<E>& other) const { return _handle != other._handle; }
-        bool operator< (const Handle<E>& other) const { return _handle <  other._handle; }
-        bool operator<=(const Handle<E>& other) const { return _handle <= other._handle; }
-        bool operator> (const Handle<E>& other) const { return _handle >  other._handle; }
-        bool operator>=(const Handle<E>& other) const { return _handle >= other._handle; }
-        operator bool() const { return _handle != 0; }
+        bool operator==(const Handle<E>& other) const { return handle_ == other.handle_; }
+        bool operator!=(const Handle<E>& other) const { return handle_ != other.handle_; }
+        bool operator< (const Handle<E>& other) const { return handle_ <  other.handle_; }
+        bool operator<=(const Handle<E>& other) const { return handle_ <= other.handle_; }
+        bool operator> (const Handle<E>& other) const { return handle_ >  other.handle_; }
+        bool operator>=(const Handle<E>& other) const { return handle_ >= other.handle_; }
+        operator bool() const { return handle_ != 0; }
 
         friend std::ostream& operator<<(std::ostream& os, const Handle<E>& h) {
-            return os << "Handle{" << h._handle << "}";
+            return os << "Handle{" << h.handle_ << "}";
         }
 
     private:
         // Local 64-bit unsigned handle - 0 == Null Handle
-        uint64_t _handle = 0;
+        uint64_t handle_ = 0;
     };
 }
 

@@ -299,7 +299,7 @@ const Pipeline *RendererBackend::GetCurrentShader() const {
 void RendererBackend::RecalculateCascadeData_() {
     const uint32_t cascadeResolutionXY = frame_->csc.cascadeResolutionXY;
     const uint32_t numCascades = frame_->csc.cascades.size();
-    if (frame_->csc.regenerateFbo || !frame_->csc.fbo.valid()) {
+    if (frame_->csc.regenerateFbo || !frame_->csc.fbo.Valid()) {
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
         Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, numCascades, false }, NoTextureData);
@@ -371,7 +371,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     // Create the frame buffer with all its texture attachments
     //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
     buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
-    if (!buffer.fbo.valid()) {
+    if (!buffer.fbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -392,7 +392,7 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Attach the textures to the FBO
     state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});
-    if (!state_.lightingFbo.valid()) {
+    if (!state_.lightingFbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -402,7 +402,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.ssaoOcclusionTexture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.ssaoOcclusionTexture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.ssaoOcclusionBuffer = FrameBuffer({state_.ssaoOcclusionTexture});
-    if (!state_.ssaoOcclusionBuffer.valid()) {
+    if (!state_.ssaoOcclusionBuffer.Valid()) {
         isValid_ = false;
         return;
     }
@@ -412,7 +412,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.ssaoOcclusionBlurredTexture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.ssaoOcclusionBlurredTexture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.ssaoOcclusionBlurredBuffer = FrameBuffer({state_.ssaoOcclusionBlurredTexture});
-    if (!state_.ssaoOcclusionBlurredBuffer.valid()) {
+    if (!state_.ssaoOcclusionBlurredBuffer.Valid()) {
         isValid_ = false;
         return;
     }
@@ -422,7 +422,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.vpls.vplGIColorBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.vpls.vplGIColorBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.vpls.vplGIFbo = FrameBuffer({state_.vpls.vplGIColorBuffer});
-    if (!state_.vpls.vplGIFbo.valid()) {
+    if (!state_.vpls.vplGIFbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -441,7 +441,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.atmosphericTexture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.atmosphericTexture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.atmosphericFbo = FrameBuffer({state_.atmosphericTexture});
-    if (!state_.atmosphericFbo.valid()) {
+    if (!state_.atmosphericFbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -465,7 +465,7 @@ void RendererBackend::InitializePostFxBuffers_() {
         color.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
-        if (!buffer.fbo.valid()) {
+        if (!buffer.fbo.Valid()) {
             isValid_ = false;
             STRATUS_ERROR << "Unable to initialize bloom buffer" << std::endl;
             return;
@@ -486,7 +486,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
     std::vector<std::pair<uint32_t, uint32_t>> sizes;
     for (int i = state_.numDownsampleIterations - 2; i >= 0; --i) {
-        auto tex = state_.postFxBuffers[i].fbo.getColorAttachments()[0];
+        auto tex = state_.postFxBuffers[i].fbo.GetColorAttachments()[0];
         sizes.push_back(std::make_pair(tex.Width(), tex.Height()));
     }
     sizes.push_back(std::make_pair(frame_->viewportWidth, frame_->viewportHeight));
@@ -498,7 +498,7 @@ void RendererBackend::InitializePostFxBuffers_() {
         color.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         color.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE); // TODO: Does this make sense for bloom textures?
         buffer.fbo = FrameBuffer({ color });
-        if (!buffer.fbo.valid()) {
+        if (!buffer.fbo.Valid()) {
             isValid_ = false;
             STRATUS_ERROR << "Unable to initialize bloom buffer" << std::endl;
             return;
@@ -511,7 +511,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     atmosphericTexture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     atmosphericTexture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
-    if (!state_.atmosphericPostFxBuffer.fbo.valid()) {
+    if (!state_.atmosphericPostFxBuffer.fbo.Valid()) {
         isValid_ = false;
         STRATUS_ERROR << "Unable to initialize atmospheric post fx buffer" << std::endl;
         return;
@@ -523,7 +523,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo1.fbo = FrameBuffer({fxaa});
-    if (!state_.fxaaFbo1.fbo.valid()) {
+    if (!state_.fxaaFbo1.fbo.Valid()) {
         isValid_ = false;
         STRATUS_ERROR << "Unable to initialize fxaa luminance buffer" << std::endl;
         return;
@@ -534,7 +534,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo2.fbo = FrameBuffer({fxaa});
-    if (!state_.fxaaFbo2.fbo.valid()) {
+    if (!state_.fxaaFbo2.fbo.Valid()) {
         isValid_ = false;
         STRATUS_ERROR << "Unable to initialize fxaa smoothing buffer" << std::endl;
         return;
@@ -553,30 +553,30 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
 
     if (clearScreen) {
         const glm::vec4& color = frame_->clearColor;
-        state_.buffer.fbo.clear(color);
-        state_.ssaoOcclusionBuffer.clear(color);
-        state_.ssaoOcclusionBlurredBuffer.clear(color);
-        state_.atmosphericFbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.lightingFbo.clear(color);
-        state_.vpls.vplGIFbo.clear(color);
-        state_.vpls.vplGIBlurredFbo.clear(color);
+        state_.buffer.fbo.Clear(color);
+        state_.ssaoOcclusionBuffer.Clear(color);
+        state_.ssaoOcclusionBlurredBuffer.Clear(color);
+        state_.atmosphericFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.lightingFbo.Clear(color);
+        state_.vpls.vplGIFbo.Clear(color);
+        state_.vpls.vplGIBlurredFbo.Clear(color);
 
         // Depending on when this happens we may not have generated cascadeFbo yet
-        if (frame_->csc.fbo.valid()) {
-            frame_->csc.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        if (frame_->csc.fbo.Valid()) {
+            frame_->csc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             //const int index = Engine::Instance()->FrameCount() % 4;
             //_frame->csc.fbo.ClearDepthStencilLayer(index);
         }
 
         for (auto& gaussian : state_.gaussianBuffers) {
-            gaussian.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            gaussian.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         }
 
         for (auto& postFx : state_.postFxBuffers) {
-            postFx.fbo.clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            postFx.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         }
 
-        state_.atmosphericPostFxBuffer.fbo.clear(glm::vec4(0.0f));
+        state_.atmosphericPostFxBuffer.fbo.Clear(glm::vec4(0.0f));
     }
 }
 
@@ -875,7 +875,7 @@ void RendererBackend::RenderCSMDepth_() {
     // glDisable(GL_CULL_FACE);
 
     frame_->csc.fbo.Bind();
-    const Texture * depth = frame_->csc.fbo.getDepthStencilAttachment();
+    const Texture * depth = frame_->csc.fbo.GetDepthStencilAttachment();
     if (!depth) {
         throw std::runtime_error("Critical error: depth attachment not present");
     }
@@ -998,7 +998,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.buffer.structure);
-    state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
+    state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
     
     // Set up cascade data
     for (int i = 0; i < 4; ++i) {
@@ -1020,7 +1020,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
     state_.atmospheric->SetVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
     state_.atmospheric->SetVec2("noiseShift", noiseShift);
-    const Texture& colorTex = state_.atmosphericFbo.getColorAttachments()[0];
+    const Texture& colorTex = state_.atmosphericFbo.GetColorAttachments()[0];
     state_.atmospheric->SetFloat("windowWidth", float(colorTex.Width()));
     state_.atmospheric->SetFloat("windowHeight", float(colorTex.Height()));
 
@@ -1139,7 +1139,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.Width()) / smap.shadowCubeMap.Height(), point->GetNearPlane(), point->GetFarPlane());
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
-        smap.frameBuffer.clear(glm::vec4(1.0f));
+        smap.frameBuffer.Clear(glm::vec4(1.0f));
         smap.frameBuffer.Bind();
         glViewport(0, 0, smap.shadowCubeMap.Width(), smap.shadowCubeMap.Height());
         // Current pass only cares about depth buffer
@@ -1416,7 +1416,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     UnbindShader_();
     state_.vpls.vplGIBlurredFbo.Unbind();
 
-    state_.lightingFbo.copyFrom(state_.vpls.vplGIBlurredFbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
+    state_.lightingFbo.CopyFrom(state_.vpls.vplGIBlurredFbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 }
 
 void RendererBackend::RenderScene() {
@@ -1511,7 +1511,7 @@ void RendererBackend::RenderScene() {
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
-    state_.lightingFbo.copyFrom(state_.buffer.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
+    state_.lightingFbo.CopyFrom(state_.buffer.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
@@ -1572,7 +1572,7 @@ void RendererBackend::PerformBloomPostFx_() {
     bloom->SetBool("gaussianStage", false);
     for (int i = 0, gaussian = 0; i < state_.numDownsampleIterations; ++i, gaussian += 2) {
         PostFXBuffer& buffer = state_.postFxBuffers[i];
-        Texture colorTex = buffer.fbo.getColorAttachments()[0];
+        Texture colorTex = buffer.fbo.GetColorAttachments()[0];
         auto width = colorTex.Width();
         auto height = colorTex.Height();
         bloom->SetFloat("viewportX", float(width));
@@ -1583,7 +1583,7 @@ void RendererBackend::PerformBloomPostFx_() {
             bloom->BindTexture("mainTexture", state_.finalScreenTexture);
         }
         else {
-            bloom->BindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+            bloom->BindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.GetColorAttachments()[0]);
         }
         RenderQuad_();
         buffer.fbo.Unbind();
@@ -1604,7 +1604,7 @@ void RendererBackend::PerformBloomPostFx_() {
             }
 
             bloom->SetBool("horizontal", horizontal);
-            bloom->BindTexture("mainTexture", copyFromFbo.getColorAttachments()[0]);
+            bloom->BindTexture("mainTexture", copyFromFbo.GetColorAttachments()[0]);
             horizontal = !horizontal;
             blurFbo.Bind();
             RenderQuad_();
@@ -1624,27 +1624,27 @@ void RendererBackend::PerformBloomPostFx_() {
     int postFXIndex = state_.numDownsampleIterations;
     for (int i = state_.numDownsampleIterations - 1; i >= 0; --i, ++postFXIndex) {
         PostFXBuffer& buffer = state_.postFxBuffers[postFXIndex];
-        auto width = buffer.fbo.getColorAttachments()[0].Width();
-        auto height = buffer.fbo.getColorAttachments()[0].Height();
+        auto width = buffer.fbo.GetColorAttachments()[0].Width();
+        auto height = buffer.fbo.GetColorAttachments()[0].Height();
         bloom->SetFloat("viewportX", float(width));
         bloom->SetFloat("viewportY", float(height));
         buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         //bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
-        bloom->BindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.getColorAttachments()[0]);
+        bloom->BindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.GetColorAttachments()[0]);
         if (i == 0) {
             bloom->BindTexture("bloomTexture", state_.lightingColorBuffer);
             bloom->SetBool("finalStage", true);
         }
         else {
             //bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
-            bloom->BindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.getColorAttachments()[0]);
+            bloom->BindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.GetColorAttachments()[0]);
         }
         RenderQuad_();
         buffer.fbo.Unbind();
         
         finalizedPostFxFrames[postFXIndex] = buffer;
-        state_.finalScreenTexture = buffer.fbo.getColorAttachments()[0];
+        state_.finalScreenTexture = buffer.fbo.GetColorAttachments()[0];
     }
 
     UnbindShader_();
@@ -1687,7 +1687,7 @@ void RendererBackend::PerformAtmosphericPostFx_() {
     state_.atmosphericPostFxBuffer.fbo.Unbind();
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.atmosphericPostFxBuffer.fbo.getColorAttachments()[0];
+    state_.finalScreenTexture = state_.atmosphericPostFxBuffer.fbo.GetColorAttachments()[0];
 }
 
 void RendererBackend::PerformFxaaPostFx_() {
@@ -1703,7 +1703,7 @@ void RendererBackend::PerformFxaaPostFx_() {
 
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.fxaaFbo1.fbo.getColorAttachments()[0];
+    state_.finalScreenTexture = state_.fxaaFbo1.fbo.GetColorAttachments()[0];
 
     // Perform smoothing pass
     BindShader_(state_.fxaaSmoothing.get());
@@ -1715,7 +1715,7 @@ void RendererBackend::PerformFxaaPostFx_() {
 
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.fxaaFbo2.fbo.getColorAttachments()[0];
+    state_.finalScreenTexture = state_.fxaaFbo2.fbo.GetColorAttachments()[0];
 }
 
 void RendererBackend::FinalizeFrame_() {
@@ -1763,7 +1763,7 @@ TextureHandle RendererBackend::CreateShadowMap3D_(uint32_t resolutionX, uint32_t
         smap.frameBuffer = FrameBuffer({smap.shadowCubeMap});
     }
     
-    if (!smap.frameBuffer.valid()) {
+    if (!smap.frameBuffer.Valid()) {
         isValid_ = false;
         return TextureHandle::Null();
     }
@@ -1805,7 +1805,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     const glm::vec3 direction = lightCam.getDirection();
 
     s->SetVec3("infiniteLightDirection", direction);    
-    s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
+    s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
     for (int i = 0; i < frame_->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);

@@ -159,16 +159,16 @@ namespace stratus {
 
         Async() {}
         Async(const std::shared_ptr<E>& result)
-            : _impl(std::make_shared<__AsyncImpl<E>>(result)) {}
+            : impl_(std::make_shared<__AsyncImpl<E>>(result)) {}
 
         Async(Thread& context, std::function<E *(void)> function)
-            : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
-            _impl->Start();
+            : impl_(std::make_shared<__AsyncImpl<E>>(context, function)) {
+            impl_->Start();
         }
 
         Async(Thread& context, std::function<std::shared_ptr<E> (void)> function)
-            : _impl(std::make_shared<__AsyncImpl<E>>(context, function)) {
-            _impl->Start();
+            : impl_(std::make_shared<__AsyncImpl<E>>(context, function)) {
+            impl_->Start();
         }
 
         Async(const Async&) = default;
@@ -178,24 +178,24 @@ namespace stratus {
         ~Async() = default;
 
         // Getters for checking internal state
-        bool Failed()                  const { return _impl == nullptr || _impl->Failed(); }
-        bool Completed()               const { return _impl == nullptr || _impl->Completed(); }
-        bool CompleteAndValid()        const { return _impl != nullptr && _impl->CompleteAndValid(); }
-        bool CompleteAndInvalid()      const { return _impl == nullptr || _impl->CompleteAndInvalid(); }
-        std::string ExceptionMessage() const { return _impl == nullptr ? "" : _impl->ExceptionMessage(); }
+        bool Failed()                  const { return impl_ == nullptr || impl_->Failed(); }
+        bool Completed()               const { return impl_ == nullptr || impl_->Completed(); }
+        bool CompleteAndValid()        const { return impl_ != nullptr && impl_->CompleteAndValid(); }
+        bool CompleteAndInvalid()      const { return impl_ == nullptr || impl_->CompleteAndInvalid(); }
+        std::string ExceptionMessage() const { return impl_ == nullptr ? "" : impl_->ExceptionMessage(); }
 
         // Getters for retrieving result
-        const E& Get()              const { return _impl->Get(); }
-        E& Get()                          { return _impl->Get(); }
-        std::shared_ptr<E> GetPtr() const { return _impl->GetPtr(); }
+        const E& Get()              const { return impl_->Get(); }
+        E& Get()                          { return impl_->Get(); }
+        std::shared_ptr<E> GetPtr() const { return impl_->GetPtr(); }
 
         // Callback support
         void AddCallback(const AsyncCallback & callback) {
             Async<E> copy = *this;
-            _impl->AddCallback([copy, callback]() { callback(copy); });
+            impl_->AddCallback([copy, callback]() { callback(copy); });
         }
 
     private:
-        std::shared_ptr<__AsyncImpl<E>> _impl;
+        std::shared_ptr<__AsyncImpl<E>> impl_;
     };
 }

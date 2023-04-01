@@ -99,7 +99,7 @@ namespace stratus {
 
         bool operator==(const GpuBuffer& other) const {
             // Pointer comparison
-            return this->_impl == other._impl;
+            return this->impl_ == other.impl_;
         }
 
         bool operator!=(const GpuBuffer& other) const {
@@ -107,7 +107,7 @@ namespace stratus {
         }
 
     protected:
-        std::shared_ptr<GpuBufferImpl> _impl;
+        std::shared_ptr<GpuBufferImpl> impl_;
     };
 
     struct GpuPrimitiveBuffer final : public GpuBuffer {
@@ -119,7 +119,7 @@ namespace stratus {
         void Unbind() const;
 
     private:
-        GpuPrimitiveBindingPoint _type;
+        GpuPrimitiveBindingPoint type_;
     };
 
     // Holds different gpu buffers and can bind/unbind them all as a group
@@ -139,7 +139,7 @@ namespace stratus {
         void Clear();
 
     private:
-        std::shared_ptr<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>> _buffers;
+        std::shared_ptr<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>> buffers_;
     };
 
     // Responsible for allocating vertex and index data. All data is stored
@@ -185,35 +185,35 @@ namespace stratus {
         static uint32_t FreeIndices();
 
     private:
-        static _MeshData * _FindFreeSlot(std::vector<_MeshData>&, const size_t bytes);
-        static uint32_t _AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+        static _MeshData * FindFreeSlot_(std::vector<_MeshData>&, const size_t bytes);
+        static uint32_t AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
                                       GpuBuffer&, _MeshData&, std::vector<GpuMeshAllocator::_MeshData>&);
-        static void _DeallocateData(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const size_t offsetBytes, const size_t lastByte);
-        static void _Initialize();
-        static void _Shutdown();
-        static void _Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
-        static size_t _RemainingBytes(const _MeshData& data);
+        static void DeallocateData_(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const size_t offsetBytes, const size_t lastByte);
+        static void Initialize_();
+        static void Shutdown_();
+        static void Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
+        static size_t RemainingBytes_(const _MeshData& data);
 
     private:
-        static GpuBuffer _vertices;
-        static GpuBuffer _indices;
+        static GpuBuffer vertices_;
+        static GpuBuffer indices_;
         // Allows for O(1) allocation when data is available
-        static _MeshData _lastVertex;
-        static _MeshData _lastIndex;
+        static _MeshData lastVertex_;
+        static _MeshData lastIndex_;
         // Allows for O(N) allocation by searching for previously deallocated
         // chunks of memory
-        static std::vector<_MeshData> _freeVertices;
-        static std::vector<_MeshData> _freeIndices;
-        static bool _initialized;
+        static std::vector<_MeshData> freeVertices_;
+        static std::vector<_MeshData> freeIndices_;
+        static bool initialized_;
     };
 
     // Stores material indices, model transforms and indirect draw commands
     class GpuCommandBuffer final {
-        GpuBuffer _materialIndices;
-        GpuBuffer _globalTransforms;
-        GpuBuffer _modelTransforms;
-        GpuBuffer _indirectDrawCommands;
-        GpuBuffer _aabbs;
+        GpuBuffer materialIndices_;
+        GpuBuffer globalTransforms_;
+        GpuBuffer modelTransforms_;
+        GpuBuffer indirectDrawCommands_;
+        GpuBuffer aabbs_;
 
     public:
         GpuCommandBuffer();
@@ -253,6 +253,6 @@ namespace stratus {
         const GpuBuffer& GetIndirectDrawCommandsBuffer() const;
 
     private:
-        void _VerifyArraySizes() const;
+        void VerifyArraySizes_() const;
     };
 }

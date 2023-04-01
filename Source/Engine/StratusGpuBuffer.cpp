@@ -208,115 +208,115 @@ namespace stratus {
     };
 
     GpuBuffer::GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage)
-        : _impl(std::make_shared<GpuBufferImpl>(data, sizeBytes, usage)) {}
+        : impl_(std::make_shared<GpuBufferImpl>(data, sizeBytes, usage)) {}
 
     void GpuBuffer::EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType storage, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor) {
-        _impl->EnableAttribute(attribute, sizePerElem, storage, normalized, stride, offset, divisor);
+        impl_->EnableAttribute(attribute, sizePerElem, storage, normalized, stride, offset, divisor);
     }
 
     void GpuBuffer::Bind(const GpuBindingPoint point) const {
-        _impl->Bind(point);
+        impl_->Bind(point);
     }
 
     void GpuBuffer::Unbind(const GpuBindingPoint point) const {
-        _impl->Unbind(point);
+        impl_->Unbind(point);
     }
 
     void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const uint32_t index) const {
-        _impl->BindBase(point, index);
+        impl_->BindBase(point, index);
     }
 
     void * GpuBuffer::MapMemory(const Bitfield access) const {
-        return _impl->MapMemory(access);
+        return impl_->MapMemory(access);
     }
 
     void GpuBuffer::UnmapMemory() const {
-        _impl->UnmapMemory();
+        impl_->UnmapMemory();
     }
 
     bool GpuBuffer::IsMemoryMapped() const {
-        return _impl->IsMemoryMapped();
+        return impl_->IsMemoryMapped();
     }
 
     uintptr_t GpuBuffer::SizeBytes() const {
-        return _impl->SizeBytes();
+        return impl_->SizeBytes();
     }
 
     void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
-        _impl->CopyDataToBuffer(offset, size, data);
+        impl_->CopyDataToBuffer(offset, size, data);
     }
 
     void GpuBuffer::CopyDataFromBuffer(const GpuBuffer& buffer) {
-        if (_impl == nullptr || buffer._impl == nullptr) {
+        if (impl_ == nullptr || buffer.impl_ == nullptr) {
             throw std::runtime_error("Attempt to use null GpuBuffer");
         }
-        _impl->CopyDataFromBuffer(*buffer._impl);
+        impl_->CopyDataFromBuffer(*buffer.impl_);
     }
 
     void GpuBuffer::CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
-        _impl->CopyDataFromBufferToSysMem(offset, size, data);
+        impl_->CopyDataFromBufferToSysMem(offset, size, data);
     }
 
     void GpuBuffer::FinalizeMemory() {
-        _impl->FinalizeMemory();
+        impl_->FinalizeMemory();
     }
 
     GpuPrimitiveBuffer::GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage)
         : GpuBuffer(data, sizeBytes, usage),
-          _type(type) {}
+          type_(type) {}
 
     void GpuPrimitiveBuffer::Bind() const {
-        GpuBuffer::Bind(static_cast<GpuBindingPoint>(_type));
+        GpuBuffer::Bind(static_cast<GpuBindingPoint>(type_));
     }
 
     void GpuPrimitiveBuffer::Unbind() const {
-        GpuBuffer::Unbind(static_cast<GpuBindingPoint>(_type));
+        GpuBuffer::Unbind(static_cast<GpuBindingPoint>(type_));
     }
 
     GpuArrayBuffer::GpuArrayBuffer()
-        : _buffers(std::make_shared<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>>()) {}
+        : buffers_(std::make_shared<std::vector<std::unique_ptr<GpuPrimitiveBuffer>>>()) {}
 
     void GpuArrayBuffer::AddBuffer(const GpuPrimitiveBuffer& buffer) {
-        _buffers->push_back(std::make_unique<GpuPrimitiveBuffer>(buffer));
+        buffers_->push_back(std::make_unique<GpuPrimitiveBuffer>(buffer));
     }
 
     void GpuArrayBuffer::Bind() const {
-        for (auto& buffer : *_buffers) buffer->Bind();
+        for (auto& buffer : *buffers_) buffer->Bind();
     }
 
     void GpuArrayBuffer::Unbind() const {
-        for (auto& buffer : *_buffers) buffer->Unbind();
+        for (auto& buffer : *buffers_) buffer->Unbind();
     }
 
     void GpuArrayBuffer::Clear() {
-        _buffers->clear();
+        buffers_->clear();
     }
 
     size_t GpuArrayBuffer::GetNumBuffers() const {
-        return _buffers->size();
+        return buffers_->size();
     }
 
     GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) {
-        return *(*_buffers)[index];
+        return *(*buffers_)[index];
     }
 
     const GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) const {
-        return *(*_buffers)[index];
+        return *(*buffers_)[index];
     }
 
     void GpuArrayBuffer::UnmapAllMemory() const {
-        for (auto& buffer : *_buffers) buffer->UnmapMemory();
+        for (auto& buffer : *buffers_) buffer->UnmapMemory();
     }
 
     bool GpuArrayBuffer::IsMemoryMapped() const {
-        for (auto& buffer : *_buffers) {
+        for (auto& buffer : *buffers_) {
             if (buffer->IsMemoryMapped()) return true;
         }
         return false;
     }
 
     void GpuArrayBuffer::FinalizeAllMemory() {
-        for (auto& buffer : *_buffers) {
+        for (auto& buffer : *buffers_) {
             buffer->FinalizeMemory();
         }
     }
@@ -365,13 +365,13 @@ namespace stratus {
     //     static bool _initialized;
     // };
 
-    GpuBuffer GpuMeshAllocator::_vertices;
-    GpuBuffer GpuMeshAllocator::_indices;
-    GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastVertex;
-    GpuMeshAllocator::_MeshData GpuMeshAllocator::_lastIndex;
-    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeVertices;
-    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::_freeIndices;
-    bool GpuMeshAllocator::_initialized = false;
+    GpuBuffer GpuMeshAllocator::vertices_;
+    GpuBuffer GpuMeshAllocator::indices_;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::lastVertex_;
+    GpuMeshAllocator::_MeshData GpuMeshAllocator::lastIndex_;
+    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeVertices_;
+    std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeIndices_;
+    bool GpuMeshAllocator::initialized_ = false;
     static constexpr size_t minVerticesPerAlloc = 1024 * 1024;
     static constexpr size_t startVertices = 1024 * 1024 * 10;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
@@ -379,9 +379,9 @@ namespace stratus {
     //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
     //static constexpr size_t maxIndexBytes = startVertices * sizeof(uint32_t);
 
-    GpuMeshAllocator::_MeshData * GpuMeshAllocator::_FindFreeSlot(std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t bytes) {
+    GpuMeshAllocator::_MeshData * GpuMeshAllocator::FindFreeSlot_(std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t bytes) {
         for (_MeshData& data : freeList) {
-            auto remaining = _RemainingBytes(data);
+            auto remaining = RemainingBytes_(data);
             // TODO: Instead choose smallest buffer that will work rather than first available?
             if (remaining >= bytes) {
                 return &data;
@@ -390,17 +390,17 @@ namespace stratus {
         return nullptr;
     }
 
-    uint32_t GpuMeshAllocator::_AllocateData(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+    uint32_t GpuMeshAllocator::AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
                                              GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
         assert(size > 0);
 
         _MeshData * dataPtr = &data;
         const size_t totalSizeBytes = size_t(size) * byteMultiplier;
-        const size_t remainingBytes = _RemainingBytes(data);
+        const size_t remainingBytes = RemainingBytes_(data);
 
         if (totalSizeBytes > remainingBytes) {
             // See if one of the slots has data we can use
-            _MeshData * freeSlot = _FindFreeSlot(freeList, totalSizeBytes);
+            _MeshData * freeSlot = FindFreeSlot_(freeList, totalSizeBytes);
             if (freeSlot) {
                 dataPtr = freeSlot;
             }
@@ -410,7 +410,7 @@ namespace stratus {
                 if (newSizeBytes > maxBytes) {
                     throw std::runtime_error("Maximum GpuMesh bytes exceeded");
                 }
-                _Resize(buffer, data, newSizeBytes);
+                Resize_(buffer, data, newSizeBytes);
             }
         }
 
@@ -418,7 +418,7 @@ namespace stratus {
         dataPtr->nextByte += totalSizeBytes;
 
         // We pulled from a free list - delete if empty
-        if (dataPtr != &data && _RemainingBytes(*dataPtr) == 0) {
+        if (dataPtr != &data && RemainingBytes_(*dataPtr) == 0) {
             std::stable_partition(freeList.begin(), freeList.end(),
                 [dataPtr](_MeshData& d) { return &d != dataPtr; }
             );
@@ -429,14 +429,14 @@ namespace stratus {
     }
 
     uint32_t GpuMeshAllocator::AllocateVertexData(const uint32_t numVertices) {
-        return _AllocateData(numVertices, sizeof(GpuMeshData), maxVertexBytes, _vertices, _lastVertex, _freeVertices);
+        return AllocateData_(numVertices, sizeof(GpuMeshData), maxVertexBytes, vertices_, lastVertex_, freeVertices_);
     }
 
     uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
-        return _AllocateData(numIndices, sizeof(uint32_t), maxIndexBytes, _indices, _lastIndex, _freeIndices);
+        return AllocateData_(numIndices, sizeof(uint32_t), maxIndexBytes, indices_, lastIndex_, freeIndices_);
     }
 
-    void GpuMeshAllocator::_DeallocateData(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t offsetBytes, const size_t lastByte) {
+    void GpuMeshAllocator::DeallocateData_(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t offsetBytes, const size_t lastByte) {
         // If it's at the end just return it to the last vertex to allow O(1) allocation
         if (lastByte == last.lastByte) {
             last.nextByte = offsetBytes;
@@ -486,7 +486,7 @@ namespace stratus {
                 // Clear out dead entries
                 if (numElements != freeList.size()) {
                     auto it = std::stable_partition(freeList.begin(), freeList.end(),
-                        [](const _MeshData& d) { return _RemainingBytes(d) != 0; }
+                        [](const _MeshData& d) { return RemainingBytes_(d) != 0; }
                     );
                     auto removed = std::distance(it, freeList.end());
                     for (int i = 0; i < removed; ++i) {
@@ -508,53 +508,53 @@ namespace stratus {
     void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
         const size_t offsetBytes = offset * sizeof(GpuMeshData);
         const size_t lastByte = offsetBytes + numVertices * sizeof(GpuMeshData);
-        _DeallocateData(_lastVertex, _freeVertices, offsetBytes, lastByte);
+        DeallocateData_(lastVertex_, freeVertices_, offsetBytes, lastByte);
     }
 
     void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
         const size_t offsetBytes = offset * sizeof(uint32_t);
         const size_t lastByte = offsetBytes + numIndices * sizeof(uint32_t);
-        _DeallocateData(_lastIndex, _freeIndices, offsetBytes, lastByte);
+        DeallocateData_(lastIndex_, freeIndices_, offsetBytes, lastByte);
     }
 
     void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const uint32_t offset) {
         const intptr_t byteOffset = intptr_t(offset) * sizeof(GpuMeshData);
-        _vertices.CopyDataToBuffer(byteOffset, data.size() * sizeof(GpuMeshData), (const void *)data.data());
+        vertices_.CopyDataToBuffer(byteOffset, data.size() * sizeof(GpuMeshData), (const void *)data.data());
     }
 
     void GpuMeshAllocator::CopyIndexData(const std::vector<uint32_t>& data, const uint32_t offset) {
         const intptr_t byteOffset = intptr_t(offset) * sizeof(uint32_t);
-        _indices.CopyDataToBuffer(byteOffset, data.size() * sizeof(uint32_t), (const void *)data.data());
+        indices_.CopyDataToBuffer(byteOffset, data.size() * sizeof(uint32_t), (const void *)data.data());
     }
 
     void GpuMeshAllocator::BindBase(const GpuBaseBindingPoint& point, const uint32_t index) {
-        _vertices.BindBase(point, index);
+        vertices_.BindBase(point, index);
     }
 
     void GpuMeshAllocator::BindElementArrayBuffer() {
-        _indices.Bind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
+        indices_.Bind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
     }
 
     void GpuMeshAllocator::UnbindElementArrayBuffer() {
-        _indices.Unbind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
+        indices_.Unbind(GpuBindingPoint::ELEMENT_ARRAY_BUFFER);
     }
 
-    void GpuMeshAllocator::_Initialize() {
-        if (_initialized) return;
-        _initialized = true;
-        _lastVertex.nextByte = 0;
-        _lastIndex.nextByte = 0;
-        _Resize(_vertices, _lastVertex, startVertices * sizeof(GpuMeshData));
-        _Resize(_indices, _lastIndex, startVertices * sizeof(uint32_t));
+    void GpuMeshAllocator::Initialize_() {
+        if (initialized_) return;
+        initialized_ = true;
+        lastVertex_.nextByte = 0;
+        lastIndex_.nextByte = 0;
+        Resize_(vertices_, lastVertex_, startVertices * sizeof(GpuMeshData));
+        Resize_(indices_, lastIndex_, startVertices * sizeof(uint32_t));
     }
 
-    void GpuMeshAllocator::_Shutdown() {
-        _vertices = GpuBuffer();
-        _indices = GpuBuffer();
-        _initialized = false;
+    void GpuMeshAllocator::Shutdown_() {
+        vertices_ = GpuBuffer();
+        indices_ = GpuBuffer();
+        initialized_ = false;
     }
 
-    void GpuMeshAllocator::_Resize(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
+    void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
         GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         // Null check
         if (buffer != GpuBuffer()) {
@@ -564,22 +564,22 @@ namespace stratus {
         buffer = resized;
     }
 
-    size_t GpuMeshAllocator::_RemainingBytes(const _MeshData& data) {
+    size_t GpuMeshAllocator::RemainingBytes_(const _MeshData& data) {
         return data.lastByte - data.nextByte;
     }
 
     uint32_t GpuMeshAllocator::FreeVertices() {
-        uint32_t vertices = static_cast<uint32_t>(_RemainingBytes(_lastVertex) / sizeof(GpuMeshData));
-        for (auto& data : _freeVertices) {
-            vertices += static_cast<uint32_t>(_RemainingBytes(data) / sizeof(GpuMeshData));
+        uint32_t vertices = static_cast<uint32_t>(RemainingBytes_(lastVertex_) / sizeof(GpuMeshData));
+        for (auto& data : freeVertices_) {
+            vertices += static_cast<uint32_t>(RemainingBytes_(data) / sizeof(GpuMeshData));
         }
         return vertices;
     }
 
     uint32_t GpuMeshAllocator::FreeIndices() {
-        uint32_t indices = static_cast<uint32_t>(_RemainingBytes(_lastIndex) / sizeof(uint32_t));
-        for (auto& data : _freeIndices) {
-            indices += static_cast<uint32_t>(_RemainingBytes(data) / sizeof(uint32_t));
+        uint32_t indices = static_cast<uint32_t>(RemainingBytes_(lastIndex_) / sizeof(uint32_t));
+        for (auto& data : freeIndices_) {
+            indices += static_cast<uint32_t>(RemainingBytes_(data) / sizeof(uint32_t));
         }
         return indices;
     }
@@ -589,7 +589,7 @@ namespace stratus {
     }
 
     void GpuCommandBuffer::RemoveCommandsAt(const std::unordered_set<size_t>& indices) {
-        _VerifyArraySizes();
+        VerifyArraySizes_();
         if (indices.size() == 0) return;
 
         // std::vector<uint64_t> newHandles;
@@ -620,76 +620,76 @@ namespace stratus {
     }
 
     void GpuCommandBuffer::UploadDataToGpu() {
-        _VerifyArraySizes();
+        VerifyArraySizes_();
 
         const size_t numElems = NumDrawCommands();
         if (numElems == 0) return;
 
-        if (_indirectDrawCommands == GpuBuffer() || _indirectDrawCommands.SizeBytes() < (numElems * sizeof(GpuDrawElementsIndirectCommand))) {
+        if (indirectDrawCommands_ == GpuBuffer() || indirectDrawCommands_.SizeBytes() < (numElems * sizeof(GpuDrawElementsIndirectCommand))) {
             const Bitfield flags = GPU_DYNAMIC_DATA;
 
-            _materialIndices = GpuBuffer((const void *)materialIndices.data(), numElems * sizeof(uint32_t), flags);
-            _globalTransforms = GpuBuffer((const void *)globalTransforms.data(), numElems * sizeof(glm::mat4), flags);
-            _modelTransforms = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
-            _indirectDrawCommands = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
+            materialIndices_ = GpuBuffer((const void *)materialIndices.data(), numElems * sizeof(uint32_t), flags);
+            globalTransforms_ = GpuBuffer((const void *)globalTransforms.data(), numElems * sizeof(glm::mat4), flags);
+            modelTransforms_ = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
+            indirectDrawCommands_ = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
             if (aabbs.size() > 0) {
-                _aabbs = GpuBuffer((const void *)aabbs.data(), numElems * sizeof(GpuAABB), flags);
+                aabbs_ = GpuBuffer((const void *)aabbs.data(), numElems * sizeof(GpuAABB), flags);
             }
         }
         else {
-            _materialIndices.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
-            _globalTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)globalTransforms.data());
-            _modelTransforms.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
-            _indirectDrawCommands.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
+            materialIndices_.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
+            globalTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)globalTransforms.data());
+            modelTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
+            indirectDrawCommands_.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
             if (aabbs.size() > 0) {
-                _aabbs.CopyDataToBuffer(0, numElems * sizeof(GpuAABB), (const void *)aabbs.data());
+                aabbs_.CopyDataToBuffer(0, numElems * sizeof(GpuAABB), (const void *)aabbs.data());
             }
         }
     }
 
     void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index) {
-        if (_materialIndices == GpuBuffer()) {
+        if (materialIndices_ == GpuBuffer()) {
             throw std::runtime_error("Null material indices GpuBuffer");
         }
-        _materialIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+        materialIndices_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindGlobalTransformBuffer(uint32_t index) {
-        if (_globalTransforms == GpuBuffer()) {
+        if (globalTransforms_ == GpuBuffer()) {
             throw std::runtime_error("Null global transform GpuBuffer");
         }
-        _globalTransforms.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+        globalTransforms_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) {
-        if (_modelTransforms == GpuBuffer()) {
+        if (modelTransforms_ == GpuBuffer()) {
             throw std::runtime_error("Null model transform GpuBuffer");
         }
-        _modelTransforms.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+        modelTransforms_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindAabbBuffer(uint32_t index) {
-        if (_aabbs == GpuBuffer()) {
+        if (aabbs_ == GpuBuffer()) {
             throw std::runtime_error("Null aabb GpuBuffer");
         }
-        _aabbs.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+        aabbs_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindIndirectDrawCommands() {
-        if (_indirectDrawCommands == GpuBuffer()) {
+        if (indirectDrawCommands_ == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
         }
-        _indirectDrawCommands.Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
+        indirectDrawCommands_.Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
     void GpuCommandBuffer::UnbindIndirectDrawCommands() {
-        if (_indirectDrawCommands == GpuBuffer()) {
+        if (indirectDrawCommands_ == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
         }
-        _indirectDrawCommands.Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
+        indirectDrawCommands_.Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
-    void GpuCommandBuffer::_VerifyArraySizes() const {
+    void GpuCommandBuffer::VerifyArraySizes_() const {
         assert(//materialIndices.size() == handlesToIndicesMap.size() &&
                //materialIndices.size() == handles.size() &&
                materialIndices.size() == globalTransforms.size() &&
@@ -702,6 +702,6 @@ namespace stratus {
     }
 
     const GpuBuffer& GpuCommandBuffer::GetIndirectDrawCommandsBuffer() const {
-        return _indirectDrawCommands;
+        return indirectDrawCommands_;
     }
 }

@@ -26,7 +26,7 @@ namespace stratus {
 
     class FrameBufferImpl;
     class FrameBuffer {
-        std::shared_ptr<FrameBufferImpl> _fbo;
+        std::shared_ptr<FrameBufferImpl> fbo_;
 
     public:
         FrameBuffer();
@@ -40,14 +40,14 @@ namespace stratus {
         FrameBuffer & operator=(FrameBuffer &&) = default;
 
         // Clears the color, depth and stencil buffers using rgba
-        void clear(const glm::vec4 & rgba);
+        void Clear(const glm::vec4 & rgba);
         void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer);
         void ClearDepthStencilLayer(const int layer);
         // from = rectangular region in *other* to copy from
         // to = rectangular region in *this* to copy to
-        void copyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);
-        const std::vector<Texture> & getColorAttachments() const;
-        const Texture * getDepthStencilAttachment() const;
+        void CopyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);
+        const std::vector<Texture> & GetColorAttachments() const;
+        const Texture * GetDepthStencilAttachment() const;
 
         void Bind() const;
         void Unbind() const;
@@ -56,7 +56,7 @@ namespace stratus {
         void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer);
         void SetDepthTextureLayer(const int layer);
 
-        bool valid() const;
-        void * underlying() const;
+        bool Valid() const;
+        void * Underlying() const;
     };
 }

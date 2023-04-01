@@ -17,12 +17,12 @@ namespace stratus {
         GLuint _texture;
         TextureConfig _config;
         mutable int _activeTexture = -1;
-        TextureHandle _handle;
+        TextureHandle handle_;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
             if (initHandle) {
-                _handle = TextureHandle::NextHandle();
+                handle_ = TextureHandle::NextHandle();
             }
 
             glGenTextures(1, &_texture);
@@ -135,10 +135,10 @@ namespace stratus {
         }
 
         void setHandle(const TextureHandle handle) {
-            _handle = handle;
+            handle_ = handle;
         }
 
-        void clear(const int mipLevel, const void * clearValue) {
+        void Clear(const int mipLevel, const void * clearValue) {
             glClearTexImage(_texture, mipLevel,
                 _convertFormat(_config.format), // format (e.g. RGBA)
                 _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
@@ -151,7 +151,7 @@ namespace stratus {
         // This does not work for compressed textures or texture buffers.
         void clearLayer(const int mipLevel, const int layer, const void * clearValue) {
             if (type() == TextureType::TEXTURE_2D || type() == TextureType::TEXTURE_RECTANGLE) {
-                clear(mipLevel, clearValue);
+                Clear(mipLevel, clearValue);
             }
             else {
                 const int xoffset = 0, yoffset = 0;
@@ -166,7 +166,7 @@ namespace stratus {
 
         TextureType type() const               { return _config.type; }
         TextureComponentFormat format() const  { return _config.format; }
-        TextureHandle handle() const           { return _handle; }
+        TextureHandle handle() const           { return handle_; }
 
         // These cause RenderDoc to disable frame capture... super unfortunate
         GpuTextureHandle GpuHandle() const {
@@ -191,7 +191,7 @@ namespace stratus {
         uint32_t width() const                 { return _config.width; }
         uint32_t height() const                { return _config.height; }
         uint32_t depth() const                 { return _config.depth; }
-        void * underlying() const              { return (void *)&_texture; }
+        void * Underlying() const              { return (void *)&_texture; }
 
     public:
         void bind(int activeTexture = 0) const {
@@ -494,10 +494,10 @@ namespace stratus {
     void Texture::Unbind() const { impl_->unbind(); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::Clear(const int mipLevel, const void * clearValue) { impl_->clear(mipLevel, clearValue); }
+    void Texture::Clear(const int mipLevel, const void * clearValue) { impl_->Clear(mipLevel, clearValue); }
     void Texture::ClearLayer(const int mipLevel, const int layer, const void * clearValue) { impl_->clearLayer(mipLevel, layer, clearValue); }
 
-    const void * Texture::Underlying() const { return impl_->underlying(); }
+    const void * Texture::Underlying() const { return impl_->Underlying(); }
 
     size_t Texture::HashCode() const {
         return std::hash<void *>{}((void *)impl_.get());

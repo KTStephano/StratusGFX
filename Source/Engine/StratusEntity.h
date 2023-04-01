@@ -314,7 +314,7 @@ namespace stratus {
 
     private:
         mutable std::shared_mutex _m;
-        EntityHandle _handle;
+        EntityHandle handle_;
         // List of unique components
         EntityComponentSet * _components;
         EntityWeakPtr _parent;
