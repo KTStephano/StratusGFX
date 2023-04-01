@@ -37,13 +37,13 @@ namespace stratus {
         const glm::mat4& GetLocalTransform() const;
 
     private:
-        void _MarkChangedAndRecalculate();
+        void MarkChangedAndRecalculate_();
 
     private:
-        glm::vec3 _scale = glm::vec3(1.0f);
-        glm::mat3 _rotation = glm::mat3(1.0f);
-        glm::vec3 _position = glm::vec3(0.0f);
-        glm::mat4 _transform = glm::mat4(1.0f);
+        glm::vec3 scale_ = glm::vec3(1.0f);
+        glm::mat3 rotation_ = glm::mat3(1.0f);
+        glm::vec3 position_ = glm::vec3(0.0f);
+        glm::mat4 transform_ = glm::mat4(1.0f);
     };
 
     ENTITY_COMPONENT_STRUCT(GlobalTransformComponent)
@@ -55,10 +55,10 @@ namespace stratus {
         const glm::mat4& GetGlobalTransform() const;
 
     private:
-        void _SetGlobalTransform(const glm::mat4&);
+        void SetGlobalTransform_(const glm::mat4&);
 
     private:
-        glm::mat4 _transform = glm::mat4(1.0f);
+        glm::mat4 transform_ = glm::mat4(1.0f);
     };
 
     class TransformProcess : public EntityProcess {
@@ -71,14 +71,14 @@ namespace stratus {
         void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&) override;
 
     private:
-        static bool _IsEntityRelevant(const EntityPtr&);
+        static bool IsEntityRelevant_(const EntityPtr&);
 
     private:
-        void _ProcessNode(const EntityPtr& p);
+        void ProcessNode_(const EntityPtr& p);
 
     private:
-        std::unordered_set<EntityPtr> _rootNodes;
+        std::unordered_set<EntityPtr> rootNodes_;
         // For quick access without needing to query the entity
-        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> _components;
+        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> components_;
     };
 }

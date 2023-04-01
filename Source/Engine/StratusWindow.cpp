@@ -7,52 +7,52 @@ namespace stratus {
     InputManager::InputManager() {}
 
     void InputManager::AddInputHandler(const InputHandlerPtr& ptr) {
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        _inputHandlersToAdd.insert(ptr);
+        auto ul = std::unique_lock<std::shared_mutex>(m_);
+        inputHandlersToAdd_.insert(ptr);
     }
 
     void InputManager::RemoveInputHandler(const InputHandlerPtr& ptr) {
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        _inputHandlersToRemove.insert(ptr);
+        auto ul = std::unique_lock<std::shared_mutex>(m_);
+        inputHandlersToRemove_.insert(ptr);
     }
 
     std::vector<SDL_Event> InputManager::GetInputEventsLastFrame() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _inputEvents;
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return inputEvents_;
     }
 
     MouseState InputManager::GetMouseStateLastFrame() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _mouse;
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return mouse_;
     }
 
     bool InputManager::Initialize() { return true; }
 
     SystemStatus InputManager::Update(const double deltaSeconds) {
         // Commit input handler changes
-        _inputHandlers.insert(_inputHandlersToAdd.begin(), _inputHandlersToAdd.end());
-        _inputHandlers.erase(_inputHandlersToRemove.begin(), _inputHandlersToRemove.end());
-        _inputHandlersToAdd.clear();
-        _inputHandlersToRemove.clear();
+        inputHandlers_.insert(inputHandlersToAdd_.begin(), inputHandlersToAdd_.end());
+        inputHandlers_.erase(inputHandlersToRemove_.begin(), inputHandlersToRemove_.end());
+        inputHandlersToAdd_.clear();
+        inputHandlersToRemove_.clear();
 
         // Allow all input handlers to update
-        for (const InputHandlerPtr& ptr : _inputHandlers) {
-            ptr->HandleInput(_mouse, _inputEvents, deltaSeconds);
+        for (const InputHandlerPtr& ptr : inputHandlers_) {
+            ptr->HandleInput(mouse_, inputEvents_, deltaSeconds);
         }
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
     void InputManager::Shutdown() {
-        _inputHandlers.clear();
-        _inputHandlersToAdd.clear();
-        _inputHandlersToRemove.clear();
+        inputHandlers_.clear();
+        inputHandlersToAdd_.clear();
+        inputHandlersToRemove_.clear();
     }
 
-    void InputManager::_SetInputData(std::vector<SDL_Event>& events, const MouseState& mouse) {
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        _inputEvents = std::move(events);
-        _mouse = mouse;
+    void InputManager::SetInputData_(std::vector<SDL_Event>& events, const MouseState& mouse) {
+        auto ul = std::unique_lock<std::shared_mutex>(m_);
+        inputEvents_ = std::move(events);
+        mouse_ = mouse;
     }
 
     Window::Window() : Window(1920, 1080) {}
@@ -74,11 +74,11 @@ namespace stratus {
         }
 
         STRATUS_LOG << "Initializing SDL window" << std::endl;
-        _window = SDL_CreateWindow(Application::Instance()->GetAppName(),
+        window_ = SDL_CreateWindow(Application::Instance()->GetAppName(),
                 100, 100, // location x/y on screen
-                _width, _height, // width/height of window
+                width_, height_, // width/height of window
                 SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
-        if (_window == nullptr) {
+        if (window_ == nullptr) {
             STRATUS_ERROR << "Failed to create sdl window" << std::endl;
             STRATUS_ERROR << SDL_GetError() << std::endl;
             SDL_Quit();
@@ -94,12 +94,12 @@ namespace stratus {
         CHECK_IS_APPLICATION_THREAD();
 
         // Check for window dims change
-        _resized = false;
-        if (_width != _prevWidth || _height != _prevHeight) {
-            _resized = true;
+        resized_ = false;
+        if (width_ != prevWidth_ || height_ != prevHeight_) {
+            resized_ = true;
         }
-        _prevWidth = _width;
-        _prevHeight = _height;
+        prevWidth_ = width_;
+        prevHeight_ = height_;
 
         // Collect window input events
         std::vector<SDL_Event> inputEvents;
@@ -122,10 +122,10 @@ namespace stratus {
         }
 
         // Check mouse
-        _mouse.mask = SDL_GetMouseState(&_mouse.x, &_mouse.y);
+        mouse_.mask = SDL_GetMouseState(&mouse_.x, &mouse_.y);
 
         // Tell InputManager about state change
-        InputManager::Instance()->_SetInputData(inputEvents, _mouse);
+        InputManager::Instance()->SetInputData_(inputEvents, mouse_);
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
@@ -135,32 +135,32 @@ namespace stratus {
         // graphics backend to some extent
         CHECK_IS_APPLICATION_THREAD();
 
-        if (_window) {
-            SDL_DestroyWindow(_window);
-            _window = nullptr;
+        if (window_) {
+            SDL_DestroyWindow(window_);
+            window_ = nullptr;
             SDL_Quit();
         }
     }
 
     std::pair<uint32_t, uint32_t> Window::GetWindowDims() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return std::make_pair(_width, _height);
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return std::make_pair(width_, height_);
     }
 
     void Window::SetWindowDims(const uint32_t width, const uint32_t height) {
         assert(width > 0 && height > 0);
-        auto ul = std::unique_lock<std::shared_mutex>(_m);
-        _width = width;
-        _height = height;
+        auto ul = std::unique_lock<std::shared_mutex>(m_);
+        width_ = width;
+        height_ = height;
     }
 
     bool Window::WindowResizedWithinLastFrame() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _resized;
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return resized_;
     }
 
     void * Window::GetWindowObject() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return (void *)_window;
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return (void *)window_;
     }
 }
