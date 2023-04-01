@@ -62,47 +62,18 @@ Because of the MPL license, any community changes made to the rendering code wil
 * Multi draw elements indirect
 * Shader storage buffers
 
-# Building
+# Building For Windows & Linux
 
 This code base will currently not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
-
-### Windows
 
 First set up the repo
 
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
 
-Build Catch2 -> should only need to do this once per clone
+Build 3rd party dependencies -> should only need to do this once per clone
 
-    cd Catch2
-    cmake -Bbuild -S. -DBUILD_TESTING=OFF
-    cmake --build build/ -j 8 --config RelWithDebInfo
-    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
-    cd ../
-
-Build SDL -> should only need to do this once per clone
-
-    cd SDL
-    cmake -Bbuild -S. -DBUILD_TESTING=OFF
-    cmake --build build/ -j 8 --config RelWithDebInfo
-    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
-    cd ../
-
-Build and rest of the third party libraries -> should only need to do this once per clone
-
-    cd ThirdParty
-    cmake .. -DDEPENDENCY_BUILD=ON -DBUILD_TESTING=OFF
-    cmake --build . -j 8 --config RelWithDebInfo
-    cmake --install . --prefix . --config RelWithDebInfo
-    (if you get an error that Assimp install can't find ThirdParty/assimp/code/RelWithDebInfo/assimp-vc143-mt.pdb, copy ThirdParty/assimp/bin/RelWithDebInfo into ThirdParty/assimp/code and re-run the --install step)
-
-Now generate the GL3W headers with extensions (--ext) -> should only need to do this once per clone
-
-    cd ../
-    cd gl3w
-    python3 ./gl3w_gen.py --ext
-    cd ../
+    python3 ./dependency_build.py
 
 Now build the StratusGFX source
 
@@ -116,10 +87,6 @@ All executables will be put into StratusGFX/Bin. Good ones to run to see if it w
     StratusGFX/Bin/Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
     StratusGFX/Bin/StratusEngineUnitTests.exe
     StratusGFX/Bin/StratusEngineIntegrationTests.exe
-
-### Linux
-
-The steps will be almost the same except that you can use your system's package manager to install Catch2 and the other third party libraries if you prefer. You will still need to do the GL3W header generation step.
 
 # First Places to Look
 
