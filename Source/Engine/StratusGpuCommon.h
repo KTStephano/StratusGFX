@@ -122,7 +122,7 @@ namespace stratus {
         // total bytes next 3 entries = GpuVec
         GpuTextureHandle metallicRoughnessMap;
         unsigned int flags = 0;
-        unsigned int _1;
+        unsigned int placeholder1_;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -197,11 +197,11 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         GpuVec color;
-        GpuVec _3;
+        GpuVec placeholder1_;
         float radius;
         float farPlane;
         float intensity;
-        float  _2;
+        float placeholder2_;
 
         GpuVplData() :
             position(0.0f),
@@ -243,7 +243,7 @@ namespace stratus {
         GpuVec color;
         float radius;
         float farPlane;
-        float _1[2];
+        float placeholder1_[2];
     };
 #ifndef __GNUC__
     #pragma pack(pop)

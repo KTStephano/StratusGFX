@@ -218,7 +218,7 @@ namespace stratus {
 
         public:
             Bucket(size_type capacity) {
-                _InitMemory(capacity);
+                InitMemory_(capacity);
             }
 
             Bucket(Bucket && other) {
@@ -231,8 +231,8 @@ namespace stratus {
                     std::unique_lock<std::shared_mutex> ulOther(other.lock);
                     std::unique_lock<std::shared_mutex> ulThis(lock, std::defer_lock);
                     if (!ulThis.try_lock()) continue; // Try again to prevent deadlock
-                    _Move(std::forward<Bucket &&>(other));
-                    other._InitMemory(16); // Reset the other Bucket to a default state of 16 empty slots
+                    Move_(std::forward<Bucket &&>(other));
+                    other.InitMemory_(16); // Reset the other Bucket to a default state of 16 empty slots
                     break;
                 }
                 return *this;
@@ -245,16 +245,16 @@ namespace stratus {
 
             bool Contains(const key_type & key, size_t hashCode) const {
                 std::shared_lock<std::shared_mutex> sl(lock);
-                hashCode = _Hash(hashCode);
-                auto[entry, index, oldVal] = _FindSlotForRead(key, hashCode);
+                hashCode = Hash_(hashCode);
+                auto[entry, index, oldVal] = FindSlotForRead_(key, hashCode);
                 return oldVal == OCCUPIED_SLOT;
             }
 
             std::pair<std::shared_ptr<const_entry_type>, size_type> Find(const key_type & key,
                                                         size_t hashCode) const {
                 std::shared_lock<std::shared_mutex> sl(lock);
-                hashCode = _Hash(hashCode);
-                auto[entry, index, marker] = _FindSlotForRead(key, hashCode);
+                hashCode = Hash_(hashCode);
+                auto[entry, index, marker] = FindSlotForRead_(key, hashCode);
                 return (marker == OCCUPIED_SLOT) ? std::make_pair(entry->entry, index) :
                     std::make_pair(nullptr, 0);
             }
@@ -262,37 +262,37 @@ namespace stratus {
             template<typename E>
             bool Insert(E && entry, size_t hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
-                if (Size() > threshold) _Rehash(capacity << 1);
-                hashCode = _Hash(hashCode);
-                return std::get<2>(_Insert<E &&>(std::forward<E &&>(entry), hashCode));
+                if (Size() > threshold) Rehash_(capacity << 1);
+                hashCode = Hash_(hashCode);
+                return std::get<2>(Insert_<E &&>(std::forward<E &&>(entry), hashCode));
             }
 
             template<typename E>
             bool InsertIfAbsent(E && entry, size_t hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
-                if (Size() > threshold) _Rehash(capacity << 1);
-                hashCode = _Hash(hashCode);
-                return std::get<2>(_InsertIfAbsent<E &&>(std::forward<E &&>(entry), hashCode));
+                if (Size() > threshold) Rehash_(capacity << 1);
+                hashCode = Hash_(hashCode);
+                return std::get<2>(InsertIfAbsent_<E &&>(std::forward<E &&>(entry), hashCode));
             }
 
             std::shared_ptr<const_entry_type> Remove(const key_type & key, size_t hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
-                hashCode = _Hash(hashCode);
-                auto[entry, index, oldVal] = _FindSlotForRead(key, hashCode);
+                hashCode = Hash_(hashCode);
+                auto[entry, index, oldVal] = FindSlotForRead_(key, hashCode);
                 if (entry == nullptr) return std::shared_ptr<const_entry_type>();
                 if (oldVal != OCCUPIED_SLOT) {
-                    _ReleaseEntry(entry, oldVal);
+                    ReleaseEntry_(entry, oldVal);
                     return std::shared_ptr<const_entry_type>();
                 }
                 else {
                     //entry->~Entry();
                     std::shared_ptr<const_entry_type> e = entry->entry;
-                    _ReleaseEntry(entry, TOMBSTONE_SLOT);
+                    ReleaseEntry_(entry, TOMBSTONE_SLOT);
                     --numEntries;
                     auto tab = table.get();
-                    if (*_GetControlBlock(_GetEntry(tab, _NextIndex(index, 1))) ==
+                    if (*GetControlBlock_(GetEntry_(tab, NextIndex_(index, 1))) ==
                         EMPTY_SLOT) {
-                        _ReclaimTombstones(entry, index);
+                        ReclaimTombstones_(entry, index);
                     }
                     return e;
                 }
@@ -302,40 +302,40 @@ namespace stratus {
                 std::unique_lock<std::shared_mutex> ul(lock);
                 uint8_t * tab = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
-                    auto entry = _GetEntry(tab, i);
-                    auto control = _GetControlBlock(entry);
+                    auto entry = GetEntry_(tab, i);
+                    auto control = GetControlBlock_(entry);
                     auto markerVal = *control;
                     if (markerVal == OCCUPIED_SLOT || markerVal == TOMBSTONE_SLOT) entry->~Entry();
-                    _ReleaseEntry(entry, EMPTY_SLOT);
+                    ReleaseEntry_(entry, EMPTY_SLOT);
                 }
                 numEntries = 0;
             }
 
         private:
-            void _ReclaimTombstones(Entry * start, size_type index) {
+            void ReclaimTombstones_(Entry * start, size_type index) {
                 //std::cout << "RECLAIMING!\n";
                 auto tab = table.get();
                 auto curr = start;
-                auto control = _GetControlBlock(curr);
+                auto control = GetControlBlock_(curr);
                 while (*control == TOMBSTONE_SLOT) {
                     curr->~Entry();
                     *control = EMPTY_SLOT;
-                    index = _PrevIndex(index, 1);
-                    curr = _GetEntry(tab, index);
-                    control = _GetControlBlock(curr);
+                    index = PrevIndex_(index, 1);
+                    curr = GetEntry_(tab, index);
+                    control = GetControlBlock_(curr);
                 }
             }
 
             template<typename E>
-            std::tuple<Entry *, size_type, bool> _Insert(E && entry, size_t hashCode) {
-                auto[entryPtr, index, oldVal] = _FindSlotForEntry(_GetKey(entry), hashCode);
+            std::tuple<Entry *, size_type, bool> Insert_(E && entry, size_t hashCode) {
+                auto[entryPtr, index, oldVal] = FindSlotForEntry_(GetKey_(entry), hashCode);
                 bool existing = false;
                 if (oldVal == OCCUPIED_SLOT) {
                     existing = true;
                     entryPtr->~Entry();
                 }
                 new ((void *)entryPtr) Entry(std::forward<E &&>(entry), hashCode);
-                _ReleaseEntry(entryPtr, OCCUPIED_SLOT);
+                ReleaseEntry_(entryPtr, OCCUPIED_SLOT);
                 if (!existing) {
                     auto cachedNumEntries = numEntries;
                     numEntries = cachedNumEntries + 1;
@@ -344,34 +344,34 @@ namespace stratus {
             }
 
             template<typename E>
-            std::tuple<Entry *, size_type, bool> _InsertIfAbsent(E && entry, size_t hashCode) {
-                auto[entryPtr, index, oldVal] = _FindSlotForEntry(_GetKey(entry), hashCode);
+            std::tuple<Entry *, size_type, bool> InsertIfAbsent_(E && entry, size_t hashCode) {
+                auto[entryPtr, index, oldVal] = FindSlotForEntry_(GetKey_(entry), hashCode);
                 if (oldVal == OCCUPIED_SLOT) return std::make_tuple(entryPtr, index, false);
                 new ((void *)entryPtr) Entry(std::forward<E &&>(entry), hashCode);
-                _ReleaseEntry(entryPtr, OCCUPIED_SLOT);
+                ReleaseEntry_(entryPtr, OCCUPIED_SLOT);
                 auto cachedNumEntries = numEntries;
                 numEntries = cachedNumEntries + 1;
                 return std::make_tuple(entryPtr, index, true);
             }
 
-            std::tuple<Entry *, size_type, uint32_t> _FindSlotForEntry(const key_type & key, size_t hashCode) {
-                auto result = _FindSlotForRead(key, hashCode);
+            std::tuple<Entry *, size_type, uint32_t> FindSlotForEntry_(const key_type & key, size_t hashCode) {
+                auto result = FindSlotForRead_(key, hashCode);
                 if (std::get<0>(result) != nullptr) return result;
-                _Rehash(capacity << 1);
-                return _FindSlotForEntry(key, hashCode);
+                Rehash_(capacity << 1);
+                return FindSlotForEntry_(key, hashCode);
             }
 
-            std::tuple<Entry *, size_type, uint32_t> _FindSlotForRead(const key_type & key, size_t hashCode) const {
+            std::tuple<Entry *, size_type, uint32_t> FindSlotForRead_(const key_type & key, size_t hashCode) const {
                 uint8_t * tab = table.get();
-                auto index = _GetIndex(hashCode, mask);
+                auto index = GetIndex_(hashCode, mask);
                 auto startIndex = index;
-                auto rootEntry = _GetEntry(tab, index);
+                auto rootEntry = GetEntry_(tab, index);
                 //auto collisions = _getCollisionCount(rootEntry);
                 size_t reprobes = 0;
                 for (auto entry = rootEntry; reprobes < reprobeLimit; ++reprobes,
-                    index = _NextIndex(startIndex, reprobes),
-                    entry = _GetEntry(tab, index)) {
-                    auto control = _GetControlBlock(entry);
+                    index = NextIndex_(startIndex, reprobes),
+                    entry = GetEntry_(tab, index)) {
+                    auto control = GetControlBlock_(entry);
                     auto oldVal = *control;// control->load();
                     //auto[entry, oldVal] = _acquireEntry(tab, index, SlotAcquireType::WRITE);
                     if (oldVal == EMPTY_SLOT || (oldVal == OCCUPIED_SLOT && entry->hashCode == hashCode && entry->GetKey() == key)) {
@@ -382,41 +382,41 @@ namespace stratus {
                 return std::make_tuple(nullptr, 0, 0);
             }
 
-            static const key_type & _GetKey(const entry_type & entry) {
+            static const key_type & GetKey_(const entry_type & entry) {
                 return entry.first;
             }
 
-            static const key_type & _GetKey(const std::shared_ptr<const_entry_type> & entry) {
+            static const key_type & GetKey_(const std::shared_ptr<const_entry_type> & entry) {
                 return entry->first;
             }
 
-            static const value_type & _GetValue(const entry_type & entry) {
+            static const value_type & GetValue_(const entry_type & entry) {
                 return entry.second;
             }
 
-            static const value_type & _GetValue(const std::shared_ptr<const_entry_type> & entry) {
+            static const value_type & GetValue_(const std::shared_ptr<const_entry_type> & entry) {
                 return entry->second;
             }
 
-            static void _ReleaseEntry(Entry * entry, uint32_t newTag) {
-                auto control = _GetControlBlock(entry);
+            static void ReleaseEntry_(Entry * entry, uint32_t newTag) {
+                auto control = GetControlBlock_(entry);
                 *control = newTag;
                 //control->store(newTag);
             }
             
-            static Entry * _GetEntry(uint8_t * table, size_type index) {
+            static Entry * GetEntry_(uint8_t * table, size_type index) {
                 return (Entry *)(table + ELEM_OFFSET * index);
             }
 
-            static control_block_type * _GetControlBlock(uint8_t * table, size_type index) {
+            static control_block_type * GetControlBlock_(uint8_t * table, size_type index) {
                 return (control_block_type *)(table + ELEM_OFFSET * index + sizeof(Entry));
             }
 
-            static control_block_type * _GetControlBlock(Entry * entry) {
+            static control_block_type * GetControlBlock_(Entry * entry) {
                 return (control_block_type *)(entry + 1);
             }
 
-            size_t _Hash(size_t hashCode) const {
+            size_t Hash_(size_t hashCode) const {
                 static std::hash<size_t> hashFunc;
                 //return hashFunc(hashCode);
                 //return hashCode;
@@ -426,41 +426,41 @@ namespace stratus {
                 return ((hashCode & upperBits) >> halfSizeTBits) + ((hashCode & lowerBits) << halfSizeTBits);
             }
 
-            void _Rehash(size_type newCapacity) {
+            void Rehash_(size_type newCapacity) {
                 //std::cout << "Resizing to " << newCapacity << std::endl;
                 Bucket newBucket(newCapacity);
                 uint8_t * tab = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
                     //auto[entry, oldVal] = _acquireEntry(tab, i, SlotAcquireType::WRITE);
-                    auto entry = _GetEntry(tab, i);
-                    auto control = _GetControlBlock(entry);
+                    auto entry = GetEntry_(tab, i);
+                    auto control = GetControlBlock_(entry);
                     auto oldVal = *control;// control->load();
                     if (oldVal == OCCUPIED_SLOT) {
-                        auto[newEntry, unused_, unused2_] = newBucket._Insert(std::move(entry->entry), entry->hashCode);
+                        auto[newEntry, unused_, unused2_] = newBucket.Insert_(std::move(entry->entry), entry->hashCode);
                         //entry->redirect = newEntry;
                     }
-                    _ReleaseEntry(entry, MOVED_SLOT);
+                    ReleaseEntry_(entry, MOVED_SLOT);
                 }
-                _Move(std::move(newBucket));
+                Move_(std::move(newBucket));
             }
 
-            size_t _GetIndex(size_t hashCode, size_type mask) const {
+            size_t GetIndex_(size_t hashCode, size_type mask) const {
                 return hashCode & mask;
             }
 
-            size_t _NextIndex(size_t index, size_t step) const {
+            size_t NextIndex_(size_t index, size_t step) const {
                 //index = index + step;
                 //return index < capacity ? index : 0;
                 return (index + step) & mask;
             }
 
-            size_t _PrevIndex(size_t index, size_t step) const {
+            size_t PrevIndex_(size_t index, size_t step) const {
                 //index = index + step;
                 //return index < capacity ? index : 0;
                 return (index - step) & mask;
             }
 
-            void _Move(Bucket && other) {
+            void Move_(Bucket && other) {
                 table = other.table;
                 capacity = other.capacity;
                 mask = other.mask;
@@ -475,7 +475,7 @@ namespace stratus {
                 other.numEntries = 0;
             }
 
-            void _InitMemory(size_type capacity) {
+            void InitMemory_(size_type capacity) {
                 this->capacity = capacity;
                 this->mask = capacity - 1;
                 this->reprobeLimit = capacity >> 2;
@@ -483,17 +483,17 @@ namespace stratus {
                 auto ptr = new uint8_t[sizeof(size_type) + ELEM_OFFSET * capacity]();
                 size_type * internalCapacity = (size_type *)ptr;
                 *internalCapacity = capacity;
-                table = std::shared_ptr<uint8_t>(ptr + sizeof(size_type), _FreeMemory);
+                table = std::shared_ptr<uint8_t>(ptr + sizeof(size_type), FreeMemory_);
                 ptr = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
-                    auto control = _GetControlBlock(ptr, i);
+                    auto control = GetControlBlock_(ptr, i);
                     //auto collisions = _getCollisionCount(ptr, i);
                     new (control) control_block_type(EMPTY_SLOT);
                     //new (collisions) size_t(0);
                 }
             }
 
-            static void _FreeMemory(uint8_t * ptr) {
+            static void FreeMemory_(uint8_t * ptr) {
                 auto originalPtr = (ptr - sizeof(size_type));
                 // First pull out the capacity information
                 size_type capacity = *(size_type *)originalPtr;
@@ -514,14 +514,14 @@ namespace stratus {
              * Const pointer to a concurrent hash map's list of buckets. This pointer
              * is not owned by this class and will not be modified/deleted by an iterator.
              */
-            const std::vector<std::unique_ptr<Bucket>> * _buckets;
+            const std::vector<std::unique_ptr<Bucket>> * buckets_;
 
             /**
              * Iterator into the _buckets array. This is used to determine which
              * bucket we are currently on as well as to know when we have run
              * out of buckets to iterate over.
              */
-            typename std::vector<std::unique_ptr<Bucket>>::const_iterator _iter;
+            typename std::vector<std::unique_ptr<Bucket>>::const_iterator iter_;
 
             /**
              * Since each bucket maintains an internal segment which is implemented as a
@@ -532,28 +532,28 @@ namespace stratus {
              * tables, a resize will cause elements to either stay in their same spot or move
              * up, but never down.
              */
-            size_type _segmentIndex = 0;
+            size_type segmentIndex_ = 0;
 
             /**
              * Cached reference to the current table of the bucket we are working on iterating over.
              * Keeping this reference prevents it from being garbage collected while
              * we are still working with it.
              */
-            std::shared_ptr<uint8_t> _currentTable;
+            std::shared_ptr<uint8_t> currentTable_;
 
             /**
              * Raw table pointer which is needed to call certain Bucket static functions. This is cached
              * just so that we don't need to make a function call every time we want to
              * get the pointer that _currentTable manages.
              */
-            uint8_t * _currentTablePtr;
+            uint8_t * currentTablePtr_;
 
             /**
              * Current entry we are looking at from the current table. We need to store a strong
              * reference to it since the one inside the table itself isn't guaranteed to
              * stay valid once the table is unlocked.
              */
-            std::shared_ptr<const_entry_type> _currentEntry;
+            std::shared_ptr<const_entry_type> currentEntry_;
 
         public:
             typedef std::input_iterator_tag iterator_category;
@@ -567,15 +567,15 @@ namespace stratus {
                             typename std::vector<std::unique_ptr<Bucket>>::const_iterator iter,
                             size_type segmentIndex)
                 :
-                _buckets(&buckets),
-                _iter(iter) {
+                buckets_(&buckets),
+                iter_(iter) {
                 if (iter == buckets.end()) {
-                    _segmentIndex = 0;
+                    segmentIndex_ = 0;
                     return;
                 }
-                _segmentIndex = segmentIndex;
+                segmentIndex_ = segmentIndex;
                 std::shared_lock<std::shared_mutex> sl((*iter)->lock);
-                _GetTable();
+                GetTable_();
                 next(1);
             }
 
@@ -584,29 +584,29 @@ namespace stratus {
                             const std::shared_ptr<const_entry_type> & entry,
                             size_type segmentIndex)
                 :
-                _buckets(&buckets),
-                _iter(iter),
-                _segmentIndex(segmentIndex),
-                _currentEntry(entry) {
+                buckets_(&buckets),
+                iter_(iter),
+                segmentIndex_(segmentIndex),
+                currentEntry_(entry) {
                 if (iter == buckets.end()) return;
                 std::shared_lock<std::shared_mutex> sl((*iter)->lock);
-                _GetTable();
+                GetTable_();
             }
 
             pointer operator->() {
-                return _currentEntry.get();
+                return currentEntry_.get();
             }
 
             reference operator*() {
-                return *_currentEntry;
+                return *currentEntry_;
             }
 
             const pointer operator->() const {
-                return _currentEntry.get();
+                return currentEntry_.get();
             }
 
             const_reference operator*() const {
-                return *_currentEntry;
+                return *currentEntry_;
             }
 
             ConcurrentIterator & operator++() {
@@ -628,13 +628,13 @@ namespace stratus {
 
             ConcurrentIterator & operator+=(size_t index) {
                 next(index);
-                return this->_iter;
+                return this->iter_;
             }
 
             bool operator==(const ConcurrentIterator & other) const {
-                return _buckets == other._buckets &&
-                    _iter == other._iter &&
-                    _segmentIndex == other._segmentIndex;
+                return buckets_ == other.buckets_ &&
+                    iter_ == other.iter_ &&
+                    segmentIndex_ == other.segmentIndex_;
             }
 
             bool operator!=(const ConcurrentIterator & other) const {
@@ -642,34 +642,34 @@ namespace stratus {
             }
 
             void next(size_type distance) {
-                if (_iter == _buckets->end()) return;
-                std::shared_lock<std::shared_mutex> sl((*_iter)->lock);
+                if (iter_ == buckets_->end()) return;
+                std::shared_lock<std::shared_mutex> sl((*iter_)->lock);
                 for (;;) {
-                    if (_segmentIndex == 0) {
-                        if ((_iter + 1) != _buckets->end()) {
-                            ++_iter;
+                    if (segmentIndex_ == 0) {
+                        if ((iter_ + 1) != buckets_->end()) {
+                            ++iter_;
                             sl.unlock();
-                            sl = std::shared_lock<std::shared_mutex>((*_iter)->lock);
-                            _GetTable();
-                            _segmentIndex = (*_iter)->capacity;
+                            sl = std::shared_lock<std::shared_mutex>((*iter_)->lock);
+                            GetTable_();
+                            segmentIndex_ = (*iter_)->capacity;
                         }
                         else {
-                            _iter = _buckets->end();
-                            _currentEntry = nullptr;
+                            iter_ = buckets_->end();
+                            currentEntry_ = nullptr;
                             break;
                         }
                     }
-                    --_segmentIndex;
-                    auto entry = Bucket::_GetEntry(_currentTablePtr, _segmentIndex);
-                    auto control = Bucket::_GetControlBlock(entry);
+                    --segmentIndex_;
+                    auto entry = Bucket::GetEntry_(currentTablePtr_, segmentIndex_);
+                    auto control = Bucket::GetControlBlock_(entry);
                     auto marker = *control;
                     if (marker == Bucket::MOVED_SLOT) {
-                        ++_segmentIndex;
-                        _GetTable();
+                        ++segmentIndex_;
+                        GetTable_();
                         continue;
                     }
                     if (marker == Bucket::OCCUPIED_SLOT) {
-                        _currentEntry = entry->entry;
+                        currentEntry_ = entry->entry;
                         --distance;
                         if (distance == 0) break;
                     }
@@ -677,9 +677,9 @@ namespace stratus {
             }
 
         private:
-            void _GetTable() {
-                _currentTable = (*_iter)->table;
-                _currentTablePtr = _currentTable.get();
+            void GetTable_() {
+                currentTable_ = (*iter_)->table;
+                currentTablePtr_ = currentTable_.get();
             }
         };
         
@@ -690,12 +690,12 @@ namespace stratus {
          * copy/move operations are available at the constructor level, but both
          * copy/move operator= are marked deleted.
          */
-        std::vector<std::unique_ptr<Bucket>> _buckets;
+        std::vector<std::unique_ptr<Bucket>> buckets_;
 
         /**
          * Hash function
          */
-        H _hashFunc;
+        H hashFunc_;
 
         /**
          * This essentially marks the theoretical number of threads that can modify
@@ -703,7 +703,7 @@ namespace stratus {
          * bucket for each thread, and if different threads write to different buckets then
          * they will not block each other.
          */
-        size_type _numThreads;
+        size_type numThreads_;
 
         /**
          * Concurrent hash map ensures that both the number of threads and the internal
@@ -711,19 +711,19 @@ namespace stratus {
          * made such that (hashCode % capacity) becomes (hashCode % (capacity - 1)) to determine
          * the index for an entry. The value of capacity - 1 is stored in _mask.
          */
-        size_type _mask;
+        size_type mask_;
 
     public:
         typedef ConcurrentIterator iterator;
         typedef ConcurrentIterator const_iterator;
 
         ConcurrentHashMap(size_type capacity = 16, size_type numThreads = 16) {
-            _numThreads = _RoundToPowerOf2(numThreads);
-            capacity = _RoundToPowerOf2(capacity);
+            numThreads_ = RoundToPowerOf2_(numThreads);
+            capacity = RoundToPowerOf2_(capacity);
             capacity = (capacity < 16) ? 16 : capacity;
-            _mask = _numThreads - 1;
-            for (size_type i = 0; i < _numThreads; ++i) {
-                _buckets.push_back(std::make_unique<Bucket>(capacity));
+            mask_ = numThreads_ - 1;
+            for (size_type i = 0; i < numThreads_; ++i) {
+                buckets_.push_back(std::make_unique<Bucket>(capacity));
             }
         }
 
@@ -734,19 +734,19 @@ namespace stratus {
         }
 
         ConcurrentHashMap(const ConcurrentHashMap & other) {
-            _numThreads = other._numThreads;
-            _mask = other._mask;
-            for (size_type i = 0; i < _numThreads; ++i) {
-                _buckets.push_back(std::make_unique<Bucket>(other._buckets[i]->capacity));
+            numThreads_ = other.numThreads_;
+            mask_ = other.mask_;
+            for (size_type i = 0; i < numThreads_; ++i) {
+                buckets_.push_back(std::make_unique<Bucket>(other.buckets_[i]->capacity));
             }
             Insert(other.begin(), other.end());
         }
 
         ConcurrentHashMap(ConcurrentHashMap && other) {
-            _numThreads = other._numThreads;
-            _mask = other._mask;
-            for (size_type i = 0; i < _numThreads; ++i) {
-                _buckets.push_back(std::make_unique<Bucket>(std::move(*other._buckets[i])));
+            numThreads_ = other.numThreads_;
+            mask_ = other.mask_;
+            for (size_type i = 0; i < numThreads_; ++i) {
+                buckets_.push_back(std::make_unique<Bucket>(std::move(*other.buckets_[i])));
             }
         }
 
@@ -755,7 +755,7 @@ namespace stratus {
 
         size_type Size() const {
             size_type numElems = 0;
-            for (auto & bucket : _buckets) {
+            for (auto & bucket : buckets_) {
                 numElems += bucket->Size();
             }
             return numElems;
@@ -766,55 +766,55 @@ namespace stratus {
         }
 
         iterator Begin() {
-            auto iter = _buckets.begin();
-            return iterator(_buckets, iter, (*iter)->capacity);
+            auto iter = buckets_.begin();
+            return iterator(buckets_, iter, (*iter)->capacity);
         }
 
         iterator End() {
-            return iterator(_buckets, _buckets.end(), nullptr, 0);
+            return iterator(buckets_, buckets_.end(), nullptr, 0);
         }
 
         const_iterator Begin() const {
-            auto iter = _buckets.begin();
-            return const_iterator(_buckets, iter, (*iter)->capacity);
+            auto iter = buckets_.begin();
+            return const_iterator(buckets_, iter, (*iter)->capacity);
         }
 
         const_iterator End() const {
-            return const_iterator(_buckets, _buckets.end(), nullptr, 0);
+            return const_iterator(buckets_, buckets_.end(), nullptr, 0);
         }
 
         bool Contains(const key_type & key) const {
-            auto hashCode = _Hash(key);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->Contains(key, hashCode);
+            auto hashCode = Hash_(key);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->Contains(key, hashCode);
         }
 
         iterator Find(const key_type & key) {
-            auto hashCode = _Hash(key);
-            auto index = _GetIndex(hashCode);
-            auto[entry, entryIndex] = _buckets[index]->Find(key, hashCode);
+            auto hashCode = Hash_(key);
+            auto index = GetIndex_(hashCode);
+            auto[entry, entryIndex] = buckets_[index]->Find(key, hashCode);
             if (entry == nullptr) return End();
-            return iterator(_buckets, _buckets.begin() + index, entry, entryIndex);
+            return iterator(buckets_, buckets_.begin() + index, entry, entryIndex);
         }
 
         const_iterator Find(const key_type & key) const {
-            auto hashCode = _Hash(key);
-            auto index = _GetIndex(hashCode);
-            auto[entry, entryIndex] = _buckets[index]->Find(key, hashCode);
+            auto hashCode = Hash_(key);
+            auto index = GetIndex_(hashCode);
+            auto[entry, entryIndex] = buckets_[index]->Find(key, hashCode);
             if (entry == nullptr) return End();
-            return const_iterator(_buckets, _buckets.begin() + index, entry, entryIndex);
+            return const_iterator(buckets_, buckets_.begin() + index, entry, entryIndex);
         }
 
         bool Insert(const entry_type & entry) {
-            auto hashCode = _Hash(entry.first);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->Insert(entry, hashCode);
+            auto hashCode = Hash_(entry.first);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->Insert(entry, hashCode);
         }
 
         bool Insert(entry_type && entry) {
-            auto hashCode = _Hash(entry.first);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->Insert(std::forward<entry_type>(entry), hashCode);
+            auto hashCode = Hash_(entry.first);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->Insert(std::forward<entry_type>(entry), hashCode);
         }
 
         template<typename Iterator>
@@ -825,15 +825,15 @@ namespace stratus {
         }
 
         bool InsertIfAbsent(const entry_type & entry) {
-            auto hashCode = _Hash(entry.first);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->InsertIfAbsent(entry, hashCode);
+            auto hashCode = Hash_(entry.first);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->InsertIfAbsent(entry, hashCode);
         }
 
         bool InsertIfAbsent(entry_type && entry) {
-            auto hashCode = _Hash(entry.first);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->InsertIfAbsent(std::forward<entry_type>(entry), hashCode);
+            auto hashCode = Hash_(entry.first);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->InsertIfAbsent(std::forward<entry_type>(entry), hashCode);
         }
 
         template<typename Iterator>
@@ -844,13 +844,13 @@ namespace stratus {
         }
 
         std::shared_ptr<const_entry_type> Remove(const key_type & entry) {
-            auto hashCode = _Hash(entry);
-            auto index = _GetIndex(hashCode);
-            return _buckets[index]->Remove(entry, hashCode);
+            auto hashCode = Hash_(entry);
+            auto index = GetIndex_(hashCode);
+            return buckets_[index]->Remove(entry, hashCode);
         }
 
         void Clear() {
-            for (auto & bucket : _buckets) {
+            for (auto & bucket : buckets_) {
                 bucket->Clear();
             }
         }
@@ -868,16 +868,16 @@ namespace stratus {
         }
 
     private:
-        size_t _Hash(const key_type & key) const {
-            return _hashFunc(key);
+        size_t Hash_(const key_type & key) const {
+            return hashFunc_(key);
         }
 
-        size_t _GetIndex(size_t hashCode) const {
-            return hashCode & _mask;
+        size_t GetIndex_(size_t hashCode) const {
+            return hashCode & mask_;
         }
 
         // @see https://stackoverflow.com/questions/466204/rounding-up-to-next-power-of-2
-        static size_type _RoundToPowerOf2(size_type val) {
+        static size_type RoundToPowerOf2_(size_type val) {
             auto bits = sizeof(size_type) * 8;
             auto halfBits = bits / 2;
             --val;

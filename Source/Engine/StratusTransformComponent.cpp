@@ -13,11 +13,11 @@ namespace stratus {
     }
 
     void LocalTransformComponent::SetLocalScale(const glm::vec3& scale) {
-        SetLocalTransform(scale, _rotation, _position);
+        SetLocalTransform(scale, rotation_, position_);
     }
 
     const glm::vec3& LocalTransformComponent::GetLocalScale() const {
-        return _scale;
+        return scale_;
     }
 
     void LocalTransformComponent::SetLocalRotation(const Rotation& rot) {
@@ -25,19 +25,19 @@ namespace stratus {
     }
 
     void LocalTransformComponent::SetLocalRotation(const glm::mat3& m) {
-        SetLocalTransform(_scale, m, _position);
+        SetLocalTransform(scale_, m, position_);
     }
 
     const glm::mat3& LocalTransformComponent::GetLocalRotation() const {
-        return _rotation;
+        return rotation_;
     }
 
     void LocalTransformComponent::SetLocalPosition(const glm::vec3& position) {
-        SetLocalTransform(_scale, _rotation, position);
+        SetLocalTransform(scale_, rotation_, position);
     }
 
     const glm::vec3& LocalTransformComponent::GetLocalPosition() const {
-        return _position;
+        return position_;
     }
 
     void LocalTransformComponent::SetLocalTransform(const glm::vec3& scale, const Rotation& rot, const glm::vec3& position) {
@@ -45,25 +45,25 @@ namespace stratus {
     }
 
     void LocalTransformComponent::SetLocalTransform(const glm::vec3& scale, const glm::mat3& rot, const glm::vec3& position) {
-        if (&scale != &_scale) _scale = scale;
-        if (&rot != &_rotation) _rotation = rot;
-        if (&position != &_position) _position = position;
-        _MarkChangedAndRecalculate();
+        if (&scale != &scale_) scale_ = scale;
+        if (&rot != &rotation_) rotation_ = rot;
+        if (&position != &position_) position_ = position;
+        MarkChangedAndRecalculate_();
     }
 
     const glm::mat4& LocalTransformComponent::GetLocalTransform() const {
-        return _transform;
+        return transform_;
     }
 
-    void LocalTransformComponent::_MarkChangedAndRecalculate() {
+    void LocalTransformComponent::MarkChangedAndRecalculate_() {
         this->MarkChanged();
         auto S = glm::mat4(1.0f);
-        matScale(S, _scale);
+        matScale(S, scale_);
         auto R = glm::mat4(1.0f);
-        matInset(R, _rotation); 
+        matInset(R, rotation_); 
         auto T = glm::mat4(1.0f);
-        matTranslate(T, _position);
-        _transform = T * R * S;
+        matTranslate(T, position_);
+        transform_ = T * R * S;
         /*
         glm::mat3 RS = _rotation;
         matScale(RS, _scale);
@@ -74,35 +74,35 @@ namespace stratus {
     }
 
     const glm::mat4& GlobalTransformComponent::GetGlobalTransform() const {
-        return _transform;
+        return transform_;
     }
 
-    void GlobalTransformComponent::_SetGlobalTransform(const glm::mat4& m) {
+    void GlobalTransformComponent::SetGlobalTransform_(const glm::mat4& m) {
         this->MarkChanged();
-        _transform = m;
+        transform_ = m;
     }
 
     TransformProcess::~TransformProcess() {}
 
     void TransformProcess::Process(const double deltaSeconds) {
-        for (auto root : _rootNodes) {
-            _ProcessNode(root);
+        for (auto root : rootNodes_) {
+            ProcessNode_(root);
         }
     }
 
     void TransformProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& entities) {
         for (auto ptr : entities) {
-            if (_IsEntityRelevant(ptr)) {
+            if (IsEntityRelevant_(ptr)) {
                 std::vector<EntityComponent *> components{
                     ptr->Components().GetComponent<LocalTransformComponent>().component,
                     ptr->Components().GetComponent<GlobalTransformComponent>().component
                 };
                 
-                _components.insert(std::make_pair(ptr, std::move(components)));
+                components_.insert(std::make_pair(ptr, std::move(components)));
 
                 if (ptr->GetParentNode() == nullptr) {
-                    _rootNodes.insert(ptr);
-                    _ProcessNode(ptr);
+                    rootNodes_.insert(ptr);
+                    ProcessNode_(ptr);
                 }
             }
         }
@@ -110,15 +110,15 @@ namespace stratus {
 
     void TransformProcess::EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& entities) {
         for (auto ptr : entities) {
-            _rootNodes.erase(ptr);
-            _components.erase(ptr);
+            rootNodes_.erase(ptr);
+            components_.erase(ptr);
         }
     }
 
     void TransformProcess::EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& entities) {
         std::unordered_set<EntityPtr> added;
         for (auto p : entities) {
-            if (_IsEntityRelevant(p.first)) {
+            if (IsEntityRelevant_(p.first)) {
                 added.insert(p.first);
             }
         }
@@ -130,7 +130,7 @@ namespace stratus {
         std::unordered_set<EntityPtr> added;
         std::unordered_set<EntityPtr> removed;
         for (auto ptr : entities) {
-            if (_IsEntityRelevant(ptr)) {
+            if (IsEntityRelevant_(ptr)) {
                 added.insert(ptr);
             }
             else {
@@ -142,7 +142,7 @@ namespace stratus {
         EntitiesRemoved(removed);
     }
 
-    bool TransformProcess::_IsEntityRelevant(const EntityPtr& e) {
+    bool TransformProcess::IsEntityRelevant_(const EntityPtr& e) {
         auto& components = e->Components();
         auto local = components.GetComponent<LocalTransformComponent>();
         auto global = components.GetComponent<GlobalTransformComponent>();
@@ -151,16 +151,16 @@ namespace stratus {
             global.status == EntityComponentStatus::COMPONENT_ENABLED;
     }
 
-    void TransformProcess::_ProcessNode(const EntityPtr& p) {
-        auto it = _components.find(p);
-        if (it == _components.end()) return;
+    void TransformProcess::ProcessNode_(const EntityPtr& p) {
+        auto it = components_.find(p);
+        if (it == components_.end()) return;
 
         bool parentChanged = false;
         auto parent = p->GetParentNode();
         GlobalTransformComponent * parentGlobal = nullptr;
         if (parent != nullptr) {
-            auto itparent = _components.find(parent);
-            if (itparent != _components.end()) {
+            auto itparent = components_.find(parent);
+            if (itparent != components_.end()) {
                 auto local = (LocalTransformComponent *)itparent->second[0];
                 auto global = (GlobalTransformComponent *)itparent->second[1];
                 parentChanged = local->ChangedLastFrame() || global->ChangedThisFrame();
@@ -173,14 +173,14 @@ namespace stratus {
 
         // See if local or parent changed requiring recompute of global transform
         if (parentChanged || local->ChangedLastFrame()) {
-            global->_SetGlobalTransform(
+            global->SetGlobalTransform_(
                 (parentGlobal ? parentGlobal->GetGlobalTransform() : glm::mat4(1.0f)) * local->GetLocalTransform()
             );
         }
 
         // Process each child node recursively
         for (auto c : p->GetChildNodes()) {
-            _ProcessNode(c);
+            ProcessNode_(c);
         }
     }
 }

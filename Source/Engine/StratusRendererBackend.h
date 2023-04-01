@@ -117,32 +117,32 @@ namespace stratus {
         }
 
         void PushBack(const LightPtr& ptr) {
-            if (_existing.find(ptr) != _existing.end() || !ptr->castsShadows()) return;
-            _queue.push_back(ptr);
-            _existing.insert(ptr);
+            if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
+            queue_.push_back(ptr);
+            existing_.insert(ptr);
         }
 
         LightPtr PopFront() {
             if (Size() == 0) return nullptr;
             auto front = Front();
-            _existing.erase(front);
-            _queue.pop_front();
+            existing_.erase(front);
+            queue_.pop_front();
             return front;
         }
 
         LightPtr Front() const {
             if (Size() == 0) return nullptr;
-            return _queue.front();
+            return queue_.front();
         }
 
         // In case a light needs to be removed without being updated
         void Erase(const LightPtr& ptr) {
-            if (_existing.find(ptr) == _existing.end()) return;
-            _existing.erase(ptr);
-            for (auto it = _queue.begin(); it != _queue.end(); ++it) {
+            if (existing_.find(ptr) == existing_.end()) return;
+            existing_.erase(ptr);
+            for (auto it = queue_.begin(); it != queue_.end(); ++it) {
                 const LightPtr& light = *it;
                 if (ptr == light) {
-                    _queue.erase(it);
+                    queue_.erase(it);
                     return;
                 }
             }
@@ -150,17 +150,17 @@ namespace stratus {
 
         // In case all lights need to be removed without being updated
         void Clear() {
-            _queue.clear();
-            _existing.clear();
+            queue_.clear();
+            existing_.clear();
         }
 
         size_t Size() const {
-            return _queue.size();
+            return queue_.size();
         }
 
     private:
-        std::deque<LightPtr> _queue;
-        std::unordered_set<LightPtr> _existing;
+        std::deque<LightPtr> queue_;
+        std::unordered_set<LightPtr> existing_;
     };
 
     // Represents data for current active frame
@@ -376,21 +376,21 @@ namespace stratus {
         };
 
         // Contains the cache for regular lights
-        ShadowMapCache _smapCache;
+        ShadowMapCache smapCache_;
 
         // Contains the cache for virtual point lights
-        ShadowMapCache _vplSmapCache;
+        ShadowMapCache vplSmapCache_;
 
         /**
          * Contains information about various different settings
          * which will affect final rendering.
          */
-        RenderState _state;
+        RenderState state_;
 
         /**
          * Contains all of the shaders that are used by the renderer.
          */
-        std::vector<Pipeline *> _shaders;
+        std::vector<Pipeline *> shaders_;
 
         /**
          * This encodes the same information as the _textures map, except
@@ -400,13 +400,13 @@ namespace stratus {
         //mutable std::unordered_map<TextureHandle, TextureCache> _textureHandles;
 
         // Current frame data used for drawing
-        std::shared_ptr<RendererFrame> _frame;
+        std::shared_ptr<RendererFrame> frame_;
 
         /**
          * If the renderer was setup properly then this will be marked
          * true.
          */
-        bool _isValid = false;
+        bool isValid_ = false;
 
     public:
         explicit RendererBackend(const uint32_t width, const uint32_t height, const std::string&);
@@ -459,60 +459,60 @@ namespace stratus {
         // RendererMouseState GetMouseState() const;
 
     private:
-        void _InitializeVplData();
-        void _ClearGBuffer();
-        void _UpdateWindowDimensions();
-        void _ClearFramebufferData(const bool);
-        void _InitPointShadowMaps();
+        void InitializeVplData_();
+        void ClearGBuffer_();
+        void UpdateWindowDimensions_();
+        void ClearFramebufferData_(const bool);
+        void InitPointShadowMaps_();
         // void _InitAllEntityMeshData();
-        void _InitCoreCSMData(Pipeline *);
-        void _InitLights(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
-        void _InitSSAO();
-        void _InitAtmosphericShadowing();
+        void InitCoreCSMData_(Pipeline *);
+        void InitLights_(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights);
+        void InitSSAO_();
+        void InitAtmosphericShadowing_();
         // void _InitEntityMeshData(RendererEntityData &);
         // void _ClearEntityMeshData();
-        void _ClearRemovedLightData();
-        void _BindShader(Pipeline *);
-        void _UnbindShader();
-        void _PerformPostFxProcessing();
-        void _PerformBloomPostFx();
-        void _PerformAtmosphericPostFx();
-        void _PerformFxaaPostFx();
-        void _FinalizeFrame();
-        void _InitializePostFxBuffers();
-        void _RenderBoundingBoxes(GpuCommandBufferPtr&);
-        void _RenderBoundingBoxes(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void _RenderImmediate(const RenderFaceCulling, GpuCommandBufferPtr&);
-        void _Render(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
-        void _Render(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
-        void _InitVplFrameData(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
-        void _RenderImmediate(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void _UpdatePointLights(std::vector<std::pair<LightPtr, double>>&, 
+        void ClearRemovedLightData_();
+        void BindShader_(Pipeline *);
+        void UnbindShader_();
+        void PerformPostFxProcessing_();
+        void PerformBloomPostFx_();
+        void PerformAtmosphericPostFx_();
+        void PerformFxaaPostFx_();
+        void FinalizeFrame_();
+        void InitializePostFxBuffers_();
+        void RenderBoundingBoxes_(GpuCommandBufferPtr&);
+        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&);
+        void Render_(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
+        void UpdatePointLights_(std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&,
                                 std::vector<int>& visibleVplIndices);
-        void _PerformVirtualPointLightCullingStage1(const std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
-        void _PerformVirtualPointLightCullingStage2(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
-        void _ComputeVirtualPointLightGlobalIllumination(const std::vector<std::pair<LightPtr, double>>&);
-        void _RenderCSMDepth();
-        void _RenderQuad();
-        void _RenderSkybox();
-        void _RenderSsaoOcclude();
-        void _RenderSsaoBlur();
-        glm::vec3 _CalculateAtmosphericLightPosition() const;
-        void _RenderAtmosphericShadowing();
-        TextureHandle _CreateShadowMap3D(uint32_t resolutionX, uint32_t resolutionY, bool vpl);
-        TextureHandle _GetOrAllocateShadowMapHandleForLight(LightPtr);
-        ShadowMap3D _GetOrAllocateShadowMapForLight(LightPtr);
-        void _SetLightShadowMapHandle(LightPtr, TextureHandle);
-        void _EvictLightFromShadowMapCache(LightPtr);
-        void _AddLightToShadowMapCache(LightPtr);
-        void _RemoveLightFromShadowMapCache(LightPtr);
-        bool _ShadowMapExistsForLight(LightPtr);
-        ShadowMapCache& _GetSmapCacheForLight(LightPtr);
-        Texture _LookupShadowmapTexture(TextureHandle handle) const;
-        void _RecalculateCascadeData();
-        void _ValidateAllShaders();
+        void PerformVirtualPointLightCullingStage1_(const std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
+        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
+        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&);
+        void RenderCSMDepth_();
+        void RenderQuad_();
+        void RenderSkybox_();
+        void RenderSsaoOcclude_();
+        void RenderSsaoBlur_();
+        glm::vec3 CalculateAtmosphericLightPosition_() const;
+        void RenderAtmosphericShadowing_();
+        TextureHandle CreateShadowMap3D_(uint32_t resolutionX, uint32_t resolutionY, bool vpl);
+        TextureHandle GetOrAllocateShadowMapHandleForLight_(LightPtr);
+        ShadowMap3D GetOrAllocateShadowMapForLight_(LightPtr);
+        void SetLightShadowMapHandle_(LightPtr, TextureHandle);
+        void EvictLightFromShadowMapCache_(LightPtr);
+        void AddLightToShadowMapCache_(LightPtr);
+        void RemoveLightFromShadowMapCache_(LightPtr);
+        bool ShadowMapExistsForLight_(LightPtr);
+        ShadowMapCache& GetSmapCacheForLight_(LightPtr);
+        Texture LookupShadowmapTexture_(TextureHandle handle) const;
+        void RecalculateCascadeData_();
+        void ValidateAllShaders_();
     };
 }
 

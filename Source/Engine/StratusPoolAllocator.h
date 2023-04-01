@@ -11,7 +11,7 @@
 // for some more information
 
 namespace stratus {
-    struct __NoOpLock {
+    struct NoOpLock_ {
         struct NoOpLockHeld{};
         typedef NoOpLockHeld value_type;
 
@@ -27,7 +27,7 @@ namespace stratus {
     // Allocates memory of a pre-defined size provide optimal data locality
     // with zero fragmentation
     template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks>
-    struct __PoolAllocator {
+    struct PoolAllocatorImpl_ {
         static_assert(ElemsPerChunk > 0);
         static_assert(Chunks > 0);
 
@@ -35,40 +35,40 @@ namespace stratus {
         static constexpr size_t BytesPerElem = std::max<size_t>(sizeof(void *), sizeof(E));
         static constexpr size_t BytesPerChunk = BytesPerElem * ElemsPerChunk;
 
-        __PoolAllocator() {
+        PoolAllocatorImpl_() {
             for (size_t i = 0; i < Chunks; ++i) {
-                _InitChunk();
+                InitChunk_();
             }
         }
 
         // Copying is not supported at all
-        __PoolAllocator(__PoolAllocator&&) = delete;
-        __PoolAllocator(const __PoolAllocator&) = delete;
-        __PoolAllocator& operator=(__PoolAllocator&&) = delete;
-        __PoolAllocator& operator=(const __PoolAllocator&) = delete;
+        PoolAllocatorImpl_(PoolAllocatorImpl_&&) = delete;
+        PoolAllocatorImpl_(const PoolAllocatorImpl_&) = delete;
+        PoolAllocatorImpl_& operator=(PoolAllocatorImpl_&&) = delete;
+        PoolAllocatorImpl_& operator=(const PoolAllocatorImpl_&) = delete;
 
-        virtual ~__PoolAllocator() {
-            _Chunk * c = _chunks;
+        virtual ~PoolAllocatorImpl_() {
+            Chunk_* c = chunks_;
             while (c != nullptr) {
-                _Chunk * tmp = c;
+                Chunk_* tmp = c;
                 c = c->next;
                 delete tmp;
             }
 
-            _frontBuffer = nullptr;
-            _chunks = nullptr;
+            frontBuffer_ = nullptr;
+            chunks_ = nullptr;
         }
 
     private:
         template<typename ... Types>
-        static E * _PlacementNew(uint8_t * memory, const Types&... args) {
+        static E * PlacementNew_(uint8_t * memory, const Types&... args) {
             return new (memory) E(args...);
         }
 
     public:
         template<typename ... Types>
         E * Allocate(const Types&... args) {
-            return AllocateCustomConstruct(_PlacementNew<Types...>, args...);
+            return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
         }
 
         template<typename Construct, typename ... Types>
@@ -76,21 +76,21 @@ namespace stratus {
             uint8_t * bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
-                if (!_frontBuffer) {
-                    auto wlb = _backBufferLock.LockWrite();
+                if (!frontBuffer_) {
+                    auto wlb = backBufferLock_.LockWrite();
                     // If back buffer has free nodes, swap front with back
-                    if (_backBuffer) {
-                        _frontBuffer = _backBuffer;
-                        _backBuffer = nullptr;
+                    if (backBuffer_) {
+                        frontBuffer_ = backBuffer_;
+                        backBuffer_ = nullptr;
                     }
                     // If not allocate a new chunk of memory
                     else {
-                        _InitChunk();
+                        InitChunk_();
                     }
                 }
 
-                _MemBlock * next = _frontBuffer;
-                _frontBuffer = _frontBuffer->next;
+                MemBlock_* next = frontBuffer_;
+                frontBuffer_ = frontBuffer_->next;
                 bytes = reinterpret_cast<uint8_t *>(next);
             }
             return c(bytes, args...);
@@ -98,72 +98,72 @@ namespace stratus {
 
         void Deallocate(E * ptr) {
             ptr->~E();
-            auto wlb = _backBufferLock.LockWrite();
+            auto wlb = backBufferLock_.LockWrite();
             uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
-            _MemBlock * b = reinterpret_cast<_MemBlock *>(bytes);
-            b->next = _backBuffer;
-            _backBuffer = b;
+            MemBlock_* b = reinterpret_cast<MemBlock_*>(bytes);
+            b->next = backBuffer_;
+            backBuffer_ = b;
         }
 
         size_t NumChunks() const {
             //auto sl = _frontBufferLock.LockRead();
-            return _numChunks;
+            return numChunks_;
         }
 
         size_t NumElems() const {
             //auto sl = _frontBufferLock.LockRead();
-            return _numElems;
+            return numElems_;
         }
 
     private:
         // Each _MemBlock sits in front of BytesPerElem memory
-        struct alignas(sizeof(void *)) _MemBlock {
-            _MemBlock * next;
+        struct alignas(sizeof(void *)) MemBlock_ {
+            MemBlock_ * next;
         };
 
-        struct _Chunk {
+        struct Chunk_ {
             alignas(E) uint8_t memory[BytesPerChunk];
-            _Chunk * next = nullptr;
+            Chunk_ * next = nullptr;
         };
 
         //Lock _frontBufferLock;
-        Lock _backBufferLock;
+        Lock backBufferLock_;
         // Having two allows us to largely decouple allocations from deallocations
         // and only synchronize the two when we run out of free memory
         //
         // (we are running with the assumption that only one thread can allocate but many
         //  can deallocate for the same allocator object)
-        _MemBlock * _frontBuffer = nullptr;
-        _MemBlock * _backBuffer = nullptr;
-        _Chunk * _chunks = nullptr;
-        size_t _numChunks = 0;
-        size_t _numElems = 0;
+        MemBlock_* frontBuffer_ = nullptr;
+        MemBlock_* backBuffer_ = nullptr;
+        Chunk_* chunks_ = nullptr;
+        size_t numChunks_ = 0;
+        size_t numElems_ = 0;
 
     private:
-        void _InitChunk() {
-            _Chunk * c = new _Chunk();
-            ++_numChunks;
-            _numElems += ElemsPerChunk;
+        void InitChunk_() {
+            Chunk_* c = new Chunk_();
+            ++numChunks_;
+            numElems_ += ElemsPerChunk;
 
             // Start at the end and add to freelist in reverse order
             uint8_t * mem = c->memory + BytesPerElem * (ElemsPerChunk - 1);
             for (size_t i = ElemsPerChunk; i > 0; --i, mem -= BytesPerElem) {
-                _MemBlock * b = reinterpret_cast<_MemBlock *>(mem);
-                b->next = _frontBuffer;
-                _frontBuffer = b;
+                MemBlock_* b = reinterpret_cast<MemBlock_*>(mem);
+                b->next = frontBuffer_;
+                frontBuffer_ = b;
             }
 
-            c->next = _chunks;
-            _chunks = c;
+            c->next = chunks_;
+            chunks_ = c;
         }
     };
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
-    struct PoolAllocator : public __PoolAllocator<E, __NoOpLock, ElemsPerChunk, Chunks> {
+    struct PoolAllocator : public PoolAllocatorImpl_<E, NoOpLock_, ElemsPerChunk, Chunks> {
         virtual ~PoolAllocator() = default;
     };
 
-    struct __Lock {
+    struct Lock_ {
         struct LockHeld {
             typedef void (*UnlockFunction)(std::shared_mutex *);
             UnlockFunction unlock;
@@ -184,12 +184,12 @@ namespace stratus {
         const std::thread::id owner;
         mutable std::shared_mutex m;
 
-        __Lock(const std::thread::id& owner = std::this_thread::get_id())
+        Lock_(const std::thread::id& owner = std::this_thread::get_id())
             : owner(owner) {}
 
         value_type LockRead() const {
-            _LockShared(&m);
-            return value_type(_UnlockShared, &m);
+            LockShared_(&m);
+            return value_type(UnlockShared_, &m);
         }
         
         value_type LockWrite() const {
@@ -197,31 +197,31 @@ namespace stratus {
             if (std::this_thread::get_id() == owner) {
                 return LockRead();
             }
-            _LockUnique(&m);
-            return value_type(_UnlockUnique, &m);
+            LockUnique_(&m);
+            return value_type(UnlockUnique_, &m);
         }
 
     private:
-        static void _LockShared(std::shared_mutex * m) {
+        static void LockShared_(std::shared_mutex * m) {
             m->lock_shared();
         }
 
-        static void _UnlockShared(std::shared_mutex * m) {
+        static void UnlockShared_(std::shared_mutex * m) {
             m->unlock_shared();
         }
 
-        static void _LockUnique(std::shared_mutex * m) {
+        static void LockUnique_(std::shared_mutex * m) {
             m->lock();
         }
 
-        static void _UnlockUnique(std::shared_mutex * m) {
+        static void UnlockUnique_(std::shared_mutex * m) {
             m->unlock();
         }
     };
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
     struct ThreadSafePoolAllocator {
-        typedef __PoolAllocator<E, __Lock, ElemsPerChunk, Chunks> Allocator;
+        typedef PoolAllocatorImpl_<E, Lock_, ElemsPerChunk, Chunks> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
@@ -229,16 +229,16 @@ namespace stratus {
         // This is a control structure which allows us to keep track of which
         // thread pool allocators are still in use and which need to be deleted
         // (lightweight ref counted pointer)
-        struct _AllocatorData {
+        struct AllocatorData_ {
             std::atomic<size_t> counter;
             Allocator * allocator;
 
-            _AllocatorData() {
+            AllocatorData_() {
                 counter.store(0);
                 allocator = new Allocator();
             }
 
-            ~_AllocatorData() {
+            ~AllocatorData_() {
                 delete allocator;
                 allocator = nullptr;
             }
@@ -246,9 +246,9 @@ namespace stratus {
 
     public:
         struct Deleter {
-            _AllocatorData ** allocator;
+            AllocatorData_ ** allocator;
 
-            Deleter(_AllocatorData ** allocator)
+            Deleter(AllocatorData_ ** allocator)
                 : allocator(allocator) { (*allocator)->counter.fetch_add(1); }
 
             Deleter(Deleter&& other)
@@ -295,36 +295,36 @@ namespace stratus {
 
         template<typename ... Types>
         static UniquePtr Allocate(const Types&... args) {
-            _EnsureValid();
-            return UniquePtr(_GetAllocator()->Allocate(args...), Deleter(&_alloc));
+            EnsureValid_();
+            return UniquePtr(GetAllocator_()->Allocate(args...), Deleter(&_alloc));
         }
 
         template<typename ... Types>
         static SharedPtr AllocateShared(const Types&... args) {
-            _EnsureValid();
-            return SharedPtr(_GetAllocator()->Allocate(args...), Deleter(&_alloc));
+            EnsureValid_();
+            return SharedPtr(GetAllocator_()->Allocate(args...), Deleter(&_alloc));
         }
 
         template<typename Construct, typename ... Types>
         static UniquePtr AllocateCustomConstruct(Construct c, const Types&... args) {
-            _EnsureValid();
-            return UniquePtr(_GetAllocator()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
+            EnsureValid_();
+            return UniquePtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
         }
 
         template<typename Construct, typename ... Types>
         static SharedPtr AllocateSharedCustomConstruct(Construct c, const Types&... args) {
-            _EnsureValid();
-            return SharedPtr(_GetAllocator()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
+            EnsureValid_();
+            return SharedPtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
         }
 
         static size_t NumChunks() {
             if (!_alloc) return 0;
-            return _GetAllocator()->NumChunks();
+            return GetAllocator_()->NumChunks();
         }
 
         static size_t NumElems() {
             if (!_alloc) return 0;
-            return _GetAllocator()->NumElems();
+            return GetAllocator_()->NumElems();
         }
 
         template<typename Base>
@@ -336,16 +336,16 @@ namespace stratus {
         }
 
     private:
-        static void _EnsureValid() {
-            if (!_alloc) _alloc = new _AllocatorData();
+        static void EnsureValid_() {
+            if (!_alloc) _alloc = new AllocatorData_();
         }
 
-        static Allocator * _GetAllocator() {
+        static Allocator * GetAllocator_() {
             return _alloc->allocator;
         }
 
     private:
-        inline thread_local static _AllocatorData * _alloc = nullptr;
+        inline thread_local static AllocatorData_ * _alloc = nullptr;
     };
 
     /* This implementation works but may be slightly less cache efficient due to

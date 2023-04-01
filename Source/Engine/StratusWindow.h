@@ -39,15 +39,15 @@ namespace stratus {
 
         // end SystemModule interface
 
-        void _SetInputData(std::vector<SDL_Event>&, const MouseState&);
+        void SetInputData_(std::vector<SDL_Event>&, const MouseState&);
 
     private:
-        mutable std::shared_mutex _m;
-        std::vector<SDL_Event> _inputEvents;
-        MouseState _mouse;
-        std::unordered_set<InputHandlerPtr> _inputHandlers;
-        std::unordered_set<InputHandlerPtr> _inputHandlersToAdd;
-        std::unordered_set<InputHandlerPtr> _inputHandlersToRemove;
+        mutable std::shared_mutex m_;
+        std::vector<SDL_Event> inputEvents_;
+        MouseState mouse_;
+        std::unordered_set<InputHandlerPtr> inputHandlers_;
+        std::unordered_set<InputHandlerPtr> inputHandlersToAdd_;
+        std::unordered_set<InputHandlerPtr> inputHandlersToRemove_;
     };
 
     SYSTEM_MODULE_CLASS(Window)
@@ -70,13 +70,13 @@ namespace stratus {
         void * GetWindowObject() const;
 
     private:
-        mutable std::shared_mutex _m;
-        SDL_Window * _window;
-        MouseState _mouse;
-        uint32_t _width = 0;
-        uint32_t _height = 0;
-        uint32_t _prevWidth = 0;
-        uint32_t _prevHeight = 0;
-        bool _resized = false;
+        mutable std::shared_mutex m_;
+        SDL_Window * window_;
+        MouseState mouse_;
+        uint32_t width_ = 0;
+        uint32_t height_ = 0;
+        uint32_t prevWidth_ = 0;
+        uint32_t prevHeight_ = 0;
+        bool resized_ = false;
     };
 }

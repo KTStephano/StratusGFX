@@ -115,7 +115,7 @@ namespace stratus {
         friend class ResourceManager;
         friend class TextureImpl;
         // Underlying implementation which may change from platform to platform
-        std::shared_ptr<TextureImpl> _impl;
+        std::shared_ptr<TextureImpl> impl_;
 
         Texture(std::shared_ptr<TextureImpl>) {}
 
@@ -129,13 +129,13 @@ namespace stratus {
         Texture & operator=(const Texture &) = default;
         Texture & operator=(Texture &&) = default;
 
-        void setCoordinateWrapping(TextureCoordinateWrapping);
-        void setMinMagFilter(TextureMinificationFilter, TextureMagnificationFilter);
-        void setTextureCompare(TextureCompareMode, TextureCompareFunc);
+        void SetCoordinateWrapping(TextureCoordinateWrapping);
+        void SetMinMagFilter(TextureMinificationFilter, TextureMagnificationFilter);
+        void SetTextureCompare(TextureCompareMode, TextureCompareFunc);
 
-        TextureType type() const;
-        TextureComponentFormat format() const;
-        TextureHandle handle() const;
+        TextureType Type() const;
+        TextureComponentFormat Format() const;
+        TextureHandle Handle() const;
         
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
@@ -144,32 +144,32 @@ namespace stratus {
         // Removes residency
         static void MakeNonResident(const Texture&);
 
-        uint32_t width() const;
-        uint32_t height() const;
-        uint32_t depth() const;
+        uint32_t Width() const;
+        uint32_t Height() const;
+        uint32_t Depth() const;
 
-        void bind(int activeTexture = 0) const;
-        void unbind() const;
+        void Bind(int activeTexture = 0) const;
+        void Unbind() const;
 
-        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
 
-        bool valid() const;
+        bool Valid() const;
 
-        void clear(const int mipLevel, const void * clearValue);
-        void clearLayer(const int mipLevel, const int layer, const void * clearValue);
+        void Clear(const int mipLevel, const void * clearValue);
+        void ClearLayer(const int mipLevel, const int layer, const void * clearValue);
 
         // Gets a pointer to the underlying data (implementation-dependent)
-        const void * underlying() const;
+        const void * Underlying() const;
 
-        size_t hashCode() const;
+        size_t HashCode() const;
         bool operator==(const Texture & other) const;
 
         // Creates a new texture and copies this texture into it
-        Texture copy(uint32_t newWidth, uint32_t newHeight);
-        const TextureConfig & getConfig() const;
+        Texture Copy(uint32_t newWidth, uint32_t newHeight);
+        const TextureConfig & GetConfig() const;
 
     private:
-        void _setHandle(const TextureHandle);
+        void SetHandle_(const TextureHandle);
     };
 }
 
@@ -177,7 +177,7 @@ namespace std {
     template<>
     struct hash<stratus::Texture> {
         size_t operator()(const stratus::Texture & tex) const {
-            return tex.hashCode();
+            return tex.HashCode();
         }
     };
 }

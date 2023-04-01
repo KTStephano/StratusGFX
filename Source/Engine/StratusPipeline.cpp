@@ -10,13 +10,13 @@ Pipeline::Pipeline(const std::filesystem::path& rootPath,
                    const ShaderApiVersion& version, 
                    const std::vector<Shader> & shaders, 
                    const std::vector<std::pair<std::string, std::string>> defines)
-    : _shaders(shaders), _rootPath(rootPath), _version(version), _defines(defines) {
+    : shaders_(shaders), rootPath_(rootPath), version_(version), defines_(defines) {
 
-    this->_compile();
+    this->Compile_();
 }
 
 Pipeline::~Pipeline() {
-    glDeleteProgram(_program);
+    glDeleteProgram(program_);
 }
 
 static void PrintSourceWithLineNums(const std::string& source) {
@@ -215,22 +215,22 @@ static void PreprocessShaderSource(std::string& source,
     ReplaceFirst(source, "STRATUS_GLSL_DEFINES", defineList);
 }
 
-void Pipeline::_compile() {
-    const std::unordered_set<std::string> allShaders = BuildFileList(_rootPath);
-    const std::string versionTag = BuildShaderApiVersion(_version);
+void Pipeline::Compile_() {
+    const std::unordered_set<std::string> allShaders = BuildFileList(rootPath_);
+    const std::string versionTag = BuildShaderApiVersion(version_);
 
-    _isValid = true;
+    isValid_ = true;
     std::vector<GLuint> shaderBinaries;
-    for (Shader & s : this->_shaders) {
-        const std::string shaderFile = _rootPath.string() + "/" + s.filename;
+    for (Shader & s : this->shaders_) {
+        const std::string shaderFile = rootPath_.string() + "/" + s.filename;
         STRATUS_LOG << "Loading shader: " << shaderFile << std::endl;
         std::string buffer = Filesystem::ReadAscii(shaderFile);
         if (buffer.empty()) {
-            _isValid = false;
+            isValid_ = false;
             return;
         }
 
-        PreprocessShaderSource(buffer, _rootPath, versionTag, allShaders, _defines);
+        PreprocessShaderSource(buffer, rootPath_, versionTag, allShaders, defines_);
 
         GLenum type;
         switch (s.type) {
@@ -248,7 +248,7 @@ void Pipeline::_compile() {
             break;
         default:
             STRATUS_ERROR << "Unknown shader type" << std::endl;
-            _isValid = false;
+            isValid_ = false;
             return;
         }
 
@@ -258,7 +258,7 @@ void Pipeline::_compile() {
         glCompileShader(bin);
 
         if (!checkShaderError(bin, s.filename, buffer)) {
-            _isValid = false;
+            isValid_ = false;
             return;
         }
 
@@ -266,11 +266,11 @@ void Pipeline::_compile() {
     }
 
     // Link all the compiled binaries into a program
-    _program = glCreateProgram();
+    program_ = glCreateProgram();
     for (auto bin : shaderBinaries) {
-        glAttachShader(_program, bin);
+        glAttachShader(program_, bin);
     }
-    glLinkProgram(_program);
+    glLinkProgram(program_);
 
     // We can safely delete the shaders now
     for (auto bin : shaderBinaries) {
@@ -278,171 +278,171 @@ void Pipeline::_compile() {
     }
 
     // Make sure no errors during linking came up
-    if (!checkProgramError(_program, this->_shaders)) {
-        _isValid = false;
+    if (!checkProgramError(program_, this->shaders_)) {
+        isValid_ = false;
         return;
     }
 }
 
-void Pipeline::recompile() {
-    _compile();
+void Pipeline::Recompile() {
+    Compile_();
 }
 
-void Pipeline::bind() {
-    glUseProgram(_program);
+void Pipeline::Bind() {
+    glUseProgram(program_);
 }
 
-void Pipeline::unbind() {
-    unbindAllTextures();
+void Pipeline::Unbind() {
+    UnbindAllTextures();
     glUseProgram(0);
 }
 
-void Pipeline::setBool(const std::string &uniform, bool b) const {
-    setInt(uniform, b ? 1 : 0);
+void Pipeline::SetBool(const std::string &uniform, bool b) const {
+    SetInt(uniform, b ? 1 : 0);
 }
 
-void Pipeline::setUint(const std::string& uniform, unsigned int i) const {
-    glUniform1ui(getUniformLocation(uniform), i);
+void Pipeline::SetUint(const std::string& uniform, unsigned int i) const {
+    glUniform1ui(GetUniformLocation(uniform), i);
 }
 
-void Pipeline::setInt(const std::string &uniform, int i) const {
-    glUniform1i(getUniformLocation(uniform), i);
+void Pipeline::SetInt(const std::string &uniform, int i) const {
+    glUniform1i(GetUniformLocation(uniform), i);
 }
 
-void Pipeline::setFloat(const std::string &uniform, float f) const {
-    glUniform1f(getUniformLocation(uniform), f);
+void Pipeline::SetFloat(const std::string &uniform, float f) const {
+    glUniform1f(GetUniformLocation(uniform), f);
 }
 
-void Pipeline::setUVec2(const std::string & uniform, const unsigned int * vec, int num) const {
-    glUniform2uiv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetUVec2(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform2uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setUVec3(const std::string & uniform, const unsigned int * vec, int num) const {
-    glUniform3uiv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetUVec3(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform3uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setUVec4(const std::string & uniform, const unsigned int * vec, int num) const {
-    glUniform4uiv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetUVec4(const std::string & uniform, const unsigned int * vec, int num) const {
+    glUniform4uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setVec2(const std::string &uniform, const float *vec, int num) const {
-    glUniform2fv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetVec2(const std::string &uniform, const float *vec, int num) const {
+    glUniform2fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setVec3(const std::string &uniform, const float *vec, int num) const {
-    glUniform3fv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetVec3(const std::string &uniform, const float *vec, int num) const {
+    glUniform3fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setVec4(const std::string &uniform, const float *vec, int num) const {
-    glUniform4fv(getUniformLocation(uniform), num, vec);
+void Pipeline::SetVec4(const std::string &uniform, const float *vec, int num) const {
+    glUniform4fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::setMat2(const std::string &uniform, const float *mat, int num) const {
-    glUniformMatrix2fv(getUniformLocation(uniform), num, GL_FALSE, mat);
+void Pipeline::SetMat2(const std::string &uniform, const float *mat, int num) const {
+    glUniformMatrix2fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Pipeline::setMat3(const std::string &uniform, const float *mat, int num) const {
-    glUniformMatrix3fv(getUniformLocation(uniform), num, GL_FALSE, mat);
+void Pipeline::SetMat3(const std::string &uniform, const float *mat, int num) const {
+    glUniformMatrix3fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Pipeline::setMat4(const std::string &uniform, const float *mat, int num) const {
-    glUniformMatrix4fv(getUniformLocation(uniform), num, GL_FALSE, mat);
+void Pipeline::SetMat4(const std::string &uniform, const float *mat, int num) const {
+    glUniformMatrix4fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Pipeline::setUVec2(const std::string & uniform, const glm::uvec2& v) const {
-    setUVec2(uniform, &v[0]);
+void Pipeline::SetUVec2(const std::string & uniform, const glm::uvec2& v) const {
+    SetUVec2(uniform, &v[0]);
 }
 
-void Pipeline::setUVec3(const std::string & uniform, const glm::uvec3& v) const {
-    setUVec3(uniform, &v[0]);
+void Pipeline::SetUVec3(const std::string & uniform, const glm::uvec3& v) const {
+    SetUVec3(uniform, &v[0]);
 }
 
-void Pipeline::setUVec4(const std::string & uniform, const glm::uvec4& v) const {
-    setUVec4(uniform, &v[0]);
+void Pipeline::SetUVec4(const std::string & uniform, const glm::uvec4& v) const {
+    SetUVec4(uniform, &v[0]);
 }
 
-void Pipeline::setVec2(const std::string & uniform, const glm::vec2& v) const {
-    setVec2(uniform, (const float *)&v[0]);
+void Pipeline::SetVec2(const std::string & uniform, const glm::vec2& v) const {
+    SetVec2(uniform, (const float *)&v[0]);
 }
 
-void Pipeline::setVec3(const std::string & uniform, const glm::vec3& v) const {
-    setVec3(uniform, (const float *)&v[0]);
+void Pipeline::SetVec3(const std::string & uniform, const glm::vec3& v) const {
+    SetVec3(uniform, (const float *)&v[0]);
 }
 
-void Pipeline::setVec4(const std::string & uniform, const glm::vec4& v) const {
-    setVec4(uniform, (const float *)&v[0]);
+void Pipeline::SetVec4(const std::string & uniform, const glm::vec4& v) const {
+    SetVec4(uniform, (const float *)&v[0]);
 }
 
-void Pipeline::setMat2(const std::string & uniform, const glm::mat2& m) const {
-    setMat2(uniform, (const float *)&m[0][0]);
+void Pipeline::SetMat2(const std::string & uniform, const glm::mat2& m) const {
+    SetMat2(uniform, (const float *)&m[0][0]);
 }
 
-void Pipeline::setMat3(const std::string & uniform, const glm::mat3& m) const {
-    setMat3(uniform, (const float *)&m[0][0]);
+void Pipeline::SetMat3(const std::string & uniform, const glm::mat3& m) const {
+    SetMat3(uniform, (const float *)&m[0][0]);
 }
 
-void Pipeline::setMat4(const std::string & uniform, const glm::mat4& m) const {
-    setMat4(uniform, (const float *)&m[0][0]);
+void Pipeline::SetMat4(const std::string & uniform, const glm::mat4& m) const {
+    SetMat4(uniform, (const float *)&m[0][0]);
 }
 
-GLint Pipeline::getUniformLocation(const std::string &uniform) const {
-    return glGetUniformLocation(_program, &uniform[0]);
+GLint Pipeline::GetUniformLocation(const std::string &uniform) const {
+    return glGetUniformLocation(program_, &uniform[0]);
 }
 
-GLint Pipeline::getAttribLocation(const std::string &attrib) const {
-    return glGetAttribLocation(_program, &attrib[0]);
+GLint Pipeline::GetAttribLocation(const std::string &attrib) const {
+    return glGetAttribLocation(program_, &attrib[0]);
 }
 
-std::vector<std::string> Pipeline::getFileNames() const {
+std::vector<std::string> Pipeline::GetFileNames() const {
     std::vector<std::string> filenames;
-    for (Shader s : this->_shaders) {
+    for (Shader s : this->shaders_) {
         filenames.push_back(s.filename);
     }
     return filenames;
 }
 
-void Pipeline::print() const {
+void Pipeline::Print() const {
     auto & log = STRATUS_LOG;
-    for (auto & s : getFileNames()) {
+    for (auto & s : GetFileNames()) {
         log << s << ", ";
     }
     log << std::endl;
 }
 
-void Pipeline::dispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups) {
+void Pipeline::DispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups) {
     glDispatchCompute(xGroups, yGroups, zGroups);
 }
 
-void Pipeline::synchronizeCompute() {
+void Pipeline::SynchronizeCompute() {
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferStorage.xhtml regarding GL_MAP_COHERENT_BIT
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFenceSync.xhtml
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
-void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
-    if (!tex.valid()) {
+void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {
+    if (!tex.Valid()) {
         STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
         return;
     }
     // See if the uniform is already bound to a texture
-    auto it = _boundTextures.find(uniform);
-    if (it != _boundTextures.end()) {
-        it->second.unbind();
+    auto it = boundTextures_.find(uniform);
+    if (it != boundTextures_.end()) {
+        it->second.Unbind();
     }
 
-    const int activeTexture = _activeTextureIndex++;
-    tex.bind(activeTexture);
-    setInt(uniform, activeTexture);
-    _boundTextures.insert(std::make_pair(uniform, tex));
+    const int activeTexture = activeTextureIndex_++;
+    tex.Bind(activeTexture);
+    SetInt(uniform, activeTexture);
+    boundTextures_.insert(std::make_pair(uniform, tex));
 }
 
-void Pipeline::unbindAllTextures() {
-    for (auto & binding : _boundTextures) {
-        binding.second.unbind();
-        setInt(binding.first, 0);
+void Pipeline::UnbindAllTextures() {
+    for (auto & binding : boundTextures_) {
+        binding.second.Unbind();
+        SetInt(binding.first, 0);
     }
-    _boundTextures.clear();
-    _activeTextureIndex = 0;
+    boundTextures_.clear();
+    activeTextureIndex_ = 0;
 }
 }

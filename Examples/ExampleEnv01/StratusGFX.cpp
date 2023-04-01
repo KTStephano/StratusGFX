@@ -261,8 +261,8 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateRandomLightMover(
-                                    LightParams(camera->getPosition(),
-                                        worldLight->getColor(),
+                                    LightParams(camera->GetPosition(),
+                                        worldLight->GetColor(),
                                         1000.0f
                                     )
                                 );
@@ -272,7 +272,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         1000.0f
                                     )
@@ -283,7 +283,7 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         1500.0f
                                     )
@@ -294,7 +294,7 @@ public:
                         case SDL_SCANCODE_4: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         2000.0f
                                     )
@@ -305,7 +305,7 @@ public:
                         case SDL_SCANCODE_5: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         3000.0f
                                     )
@@ -316,7 +316,7 @@ public:
                         case SDL_SCANCODE_6: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         6000.0f
                                     )
@@ -327,7 +327,7 @@ public:
                         case SDL_SCANCODE_7: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         12000.0f
                                     )
@@ -338,7 +338,7 @@ public:
                         case SDL_SCANCODE_8: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         24000.0f
                                     )
@@ -349,7 +349,7 @@ public:
                         case SDL_SCANCODE_9: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f, 0.75f, 0.5f),
                                         48000.0f
                                     )
@@ -360,7 +360,7 @@ public:
                         case SDL_SCANCODE_0: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(camera->getPosition(),
+                                    LightParams(camera->GetPosition(),
                                         glm::vec3(1.0f),
                                         65000.0f
                                     )

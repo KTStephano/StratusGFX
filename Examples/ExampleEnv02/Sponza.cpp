@@ -106,7 +106,7 @@ public:
         }
 
         auto worldLight = World()->GetWorldLight();
-        const glm::vec3 worldLightColor = worldLight->getColor();
+        const glm::vec3 worldLightColor = worldLight->GetColor();
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
@@ -136,7 +136,7 @@ public:
                             if (released) {
                                 LightCreator::CreateStationaryLight(
                                     //LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
-                                    LightParams(World()->GetCamera()->getPosition(), warmMorningColor, 600.0f),
+                                    LightParams(World()->GetCamera()->GetPosition(), warmMorningColor, 600.0f),
                                     false
                                 );
                             }
@@ -145,7 +145,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 100.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 100.0f)
                                 );
                             }
                             break;
@@ -153,7 +153,7 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 50.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 50.0f)
                                 );
                             }
                             break;
@@ -161,7 +161,7 @@ public:
                         case SDL_SCANCODE_4: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 15.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 15.0f)
                                 );
                             }
                             break;
@@ -169,7 +169,7 @@ public:
                         case SDL_SCANCODE_5: {
                             if (released) {
                                 LightCreator::CreateRandomLightMover(
-                                    LightParams(World()->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
                                 );
                             }
                             break;

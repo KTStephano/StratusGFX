@@ -174,13 +174,13 @@ namespace stratus {
         PrintGLInfo();
 
         // Initialize GpuBuffer memory
-        GpuMeshAllocator::_Initialize();
+        GpuMeshAllocator::Initialize_();
 
         return true;
     }
 
     void GraphicsDriver::Shutdown() {
-        GpuMeshAllocator::_Shutdown();
+        GpuMeshAllocator::Shutdown_();
 
         if (GetContext().context) {
             SDL_GL_DeleteContext(GetContext().context);

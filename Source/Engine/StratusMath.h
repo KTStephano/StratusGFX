@@ -16,24 +16,24 @@
 namespace stratus {
 	class Degrees;
 	class Radians {
-		float _rad;
+		float rad_;
 
 	public:
 		Radians() : Radians(0.0f) {}
 		// Constructor assumes input is already in radians
-		explicit Radians(float rad) : _rad(rad) {}
+		explicit Radians(float rad) : rad_(rad) {}
 		Radians(const Degrees&);
 		Radians(const Radians&) = default;
 		Radians(Radians&&) = default;
 
-		float value() const { return _rad; }
+		float value() const { return rad_; }
 
 		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
 		Radians operator*(const float f) const { return Radians(value() * f); }
 		Radians operator/(const float f) const { return Radians(value() / f); }
 		
-		Radians& operator*=(const float f) { _rad *= f; return *this; }
-		Radians& operator/=(const float f) { _rad /= f; return *this; }
+		Radians& operator*=(const float f) { rad_ *= f; return *this; }
+		Radians& operator/=(const float f) { rad_ /= f; return *this; }
 
 		// Operators which require no conversions
 		Radians& operator=(const Radians&) = default;
@@ -44,13 +44,13 @@ namespace stratus {
 		Radians operator*(const Radians& r) const { return Radians(value() * r.value()); }
 		Radians operator/(const Radians& r) const { return Radians(value() / r.value()); }
 
-		Radians& operator+=(const Radians& r) { _rad += r.value(); return *this; }
-		Radians& operator-=(const Radians& r) { _rad -= r.value(); return *this; }
-		Radians& operator*=(const Radians& r) { _rad *= r.value(); return *this; }
-		Radians& operator/=(const Radians& r) { _rad /= r.value(); return *this; }
+		Radians& operator+=(const Radians& r) { rad_ += r.value(); return *this; }
+		Radians& operator-=(const Radians& r) { rad_ -= r.value(); return *this; }
+		Radians& operator*=(const Radians& r) { rad_ *= r.value(); return *this; }
+		Radians& operator/=(const Radians& r) { rad_ /= r.value(); return *this; }
 
 		// Operators that need a conversion
-		Radians& operator=(const Degrees& d) { _rad = Radians(d).value(); return *this; }
+		Radians& operator=(const Degrees& d) { rad_ = Radians(d).value(); return *this; }
 
 		Radians operator+(const Degrees& d) const { return (*this) + Radians(d); }
 		Radians operator-(const Degrees& d) const { return (*this) - Radians(d); }
@@ -69,24 +69,24 @@ namespace stratus {
 	};
 
 	class Degrees {
-		float _deg;
+		float deg_;
 	
 	public:
 		Degrees() : Degrees(0.0f) {}
 		// Constructor assumes input is already in degrees
-		explicit Degrees(float deg) : _deg(deg) {}
+		explicit Degrees(float deg) : deg_(deg) {}
 		Degrees(const Radians&);
 		Degrees(const Degrees&) = default;
 		Degrees(Degrees&&) = default;
 
-		float value() const { return _deg; }
+		float value() const { return deg_; }
 
 		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
 		Degrees operator*(const float f) const { return Degrees(value() * f); }
 		Degrees operator/(const float f) const { return Degrees(value() / f); }
 		
-		Degrees& operator*=(const float f) { _deg *= f; return *this; }
-		Degrees& operator/=(const float f) { _deg /= f; return *this; }
+		Degrees& operator*=(const float f) { deg_ *= f; return *this; }
+		Degrees& operator/=(const float f) { deg_ /= f; return *this; }
 
 		// Operators which require no conversions
 		Degrees& operator=(const Degrees&) = default;
@@ -97,13 +97,13 @@ namespace stratus {
 		Degrees operator*(const Degrees& d) const { return Degrees(value() * d.value()); }
 		Degrees operator/(const Degrees& d) const { return Degrees(value() / d.value()); }
 
-		Degrees& operator+=(const Degrees& d) { _deg += d.value(); return *this; }
-		Degrees& operator-=(const Degrees& d) { _deg -= d.value(); return *this; }
-		Degrees& operator*=(const Degrees& d) { _deg *= d.value(); return *this; }
-		Degrees& operator/=(const Degrees& d) { _deg /= d.value(); return *this; }
+		Degrees& operator+=(const Degrees& d) { deg_ += d.value(); return *this; }
+		Degrees& operator-=(const Degrees& d) { deg_ -= d.value(); return *this; }
+		Degrees& operator*=(const Degrees& d) { deg_ *= d.value(); return *this; }
+		Degrees& operator/=(const Degrees& d) { deg_ /= d.value(); return *this; }
 
 		// Operators that need a conversion
-		Degrees& operator=(const Radians& r) { _deg = Degrees(r).value(); return *this; }
+		Degrees& operator=(const Radians& r) { deg_ = Degrees(r).value(); return *this; }
 
 		Degrees operator+(const Radians& r) const { return (*this) + Degrees(r); }
 		Degrees operator-(const Radians& r) const { return (*this) - Degrees(r); }

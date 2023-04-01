@@ -21,22 +21,22 @@ namespace stratus {
 
         void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
-            if (rf) rf->_EntitiesAdded(e);
+            if (rf) rf->EntitiesAdded_(e);
         }
 
         void EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
-            if (rf) rf->_EntitiesRemoved(e);
+            if (rf) rf->EntitiesRemoved_(e);
         }
 
         void EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) override {
             auto rf = INSTANCE(RendererFrontend);
-            if (rf) rf->_EntityComponentsAdded(e);
+            if (rf) rf->EntityComponentsAdded_(e);
         }
 
         void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
-            if (rf) rf->_EntityComponentsEnabledDisabled(e);
+            if (rf) rf->EntityComponentsEnabledDisabled_(e);
         }
     };
 
@@ -105,101 +105,101 @@ namespace stratus {
     }
 
     RendererFrontend::RendererFrontend(const RendererParams& p)
-        : _params(p) {
+        : params_(p) {
     }
 
-    void RendererFrontend::_AddAllMaterialsForEntity(const EntityPtr& p) {
-        _materialsDirty = true;
+    void RendererFrontend::AddAllMaterialsForEntity_(const EntityPtr& p) {
+        materialsDirty_ = true;
         RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
         for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-            _frame->materialInfo.availableMaterials.insert(c->GetMaterialAt(i));
+            frame_->materialInfo.availableMaterials.insert(c->GetMaterialAt(i));
         }
     }
 
-    void RendererFrontend::_EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
-        auto ul = _LockWrite();
+    void RendererFrontend::EntitiesAdded_(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = LockWrite_();
         bool added = false;
         for (auto ptr : e) {
-            added |= _AddEntity(ptr);
+            added |= AddEntity_(ptr);
         }
 
-        _drawCommandsDirty = _drawCommandsDirty || added;
+        drawCommandsDirty_ = drawCommandsDirty_ || added;
     }
 
-    void RendererFrontend::_EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
-        auto ul = _LockWrite();
+    void RendererFrontend::EntitiesRemoved_(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = LockWrite_();
         bool removed = false;
         for (auto& ptr : e) {
-            removed = removed || _RemoveEntity(ptr);
+            removed = removed || RemoveEntity_(ptr);
         }
 
-        _drawCommandsDirty = _drawCommandsDirty || removed;
+        drawCommandsDirty_ = drawCommandsDirty_ || removed;
         if (removed) {
-            _RecalculateMaterialSet();
+            RecalculateMaterialSet_();
         }
     }
 
-    void RendererFrontend::_EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) {
-        auto ul = _LockWrite();
+    void RendererFrontend::EntityComponentsAdded_(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>& e) {
+        auto ul = LockWrite_();
         bool changed = false;
         for (auto& entry : e) {
             auto ptr = entry.first;
-            if (_RemoveEntity(ptr)) {
+            if (RemoveEntity_(ptr)) {
                 changed = true;
-                _AddEntity(ptr);
+                AddEntity_(ptr);
             }
         }
 
-        _drawCommandsDirty = _drawCommandsDirty || changed;
+        drawCommandsDirty_ = drawCommandsDirty_ || changed;
         if (changed) {
-            _RecalculateMaterialSet();
+            RecalculateMaterialSet_();
         }
     }
 
-    void RendererFrontend::_EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& e) {
-        auto ul = _LockWrite();
+    void RendererFrontend::EntityComponentsEnabledDisabled_(const std::unordered_set<stratus::EntityPtr>& e) {
+        auto ul = LockWrite_();
         bool changed = false;
         for (auto& ptr : e) {
-            if (_RemoveEntity(ptr)) {
+            if (RemoveEntity_(ptr)) {
                 changed = true;
-                _AddEntity(ptr);
+                AddEntity_(ptr);
             }
         }
 
-        _drawCommandsDirty = _drawCommandsDirty || changed;
+        drawCommandsDirty_ = drawCommandsDirty_ || changed;
         if (changed) {
-            _RecalculateMaterialSet();
+            RecalculateMaterialSet_();
         }
     }
 
-    bool RendererFrontend::_AddEntity(const EntityPtr& p) {
-        if (p == nullptr || _entities.find(p) != _entities.end()) return false;
+    bool RendererFrontend::AddEntity_(const EntityPtr& p) {
+        if (p == nullptr || entities_.find(p) != entities_.end()) return false;
         
         if (IsRenderable(p)) {
             InitializeMeshTransformComponent(p);
 
-            _entities.insert(p);
+            entities_.insert(p);
 
             const bool isStatic = IsStaticEntity(p);
 
             if (!isStatic) {
-                _dynamicEntities.insert(p);
+                dynamicEntities_.insert(p);
             }
 
-            _AddAllMaterialsForEntity(p);
+            AddAllMaterialsForEntity_(p);
             //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    if (isStatic) InsertMesh(_staticPbrEntities, p, i);
-                    else InsertMesh(_dynamicPbrEntities, p, i);
+                    if (isStatic) InsertMesh(staticPbrEntities_, p, i);
+                    else InsertMesh(dynamicPbrEntities_, p, i);
 
-                    for (auto& entry : _lights) {
-                        if (!entry->castsShadows()) continue;
+                    for (auto& entry : lights_) {
+                        if (!entry->CastsShadows()) continue;
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
-                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->getRadius()) {
-                                _frame->lightsToUpate.PushBack(entry);
+                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
+                                frame_->lightsToUpate.PushBack(entry);
                             }
                         }
                     }
@@ -207,7 +207,7 @@ namespace stratus {
             }
             else {
                 for (size_t i = 0; i < GetMeshCount(p); ++i) {
-                    InsertMesh(_flatEntities, p, i);
+                    InsertMesh(flatEntities_, p, i);
                 }
             }
 
@@ -218,25 +218,25 @@ namespace stratus {
         }
     }
 
-    bool RendererFrontend::_RemoveEntity(const EntityPtr& p) {
-        if (p == nullptr || _entities.find(p) == _entities.end()) return false;
+    bool RendererFrontend::RemoveEntity_(const EntityPtr& p) {
+        if (p == nullptr || entities_.find(p) == entities_.end()) return false;
 
-        _entities.erase(p);
-        _dynamicEntities.erase(p);
-        _dynamicPbrEntities.erase(p);
-        _staticPbrEntities.erase(p);
-        _flatEntities.erase(p);
+        entities_.erase(p);
+        dynamicEntities_.erase(p);
+        dynamicPbrEntities_.erase(p);
+        staticPbrEntities_.erase(p);
+        flatEntities_.erase(p);
 
-        for (auto& entry : _lights) {
-            if (!entry->castsShadows()) continue;
+        for (auto& entry : lights_) {
+            if (!entry->CastsShadows()) continue;
             //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
                     if (IsStaticEntity(p)) {
-                        _frame->lightsToUpate.PushBack(entry);
+                        frame_->lightsToUpate.PushBack(entry);
                     }
                 }
                 else {
-                    _frame->lightsToUpate.PushBack(entry);
+                    frame_->lightsToUpate.PushBack(entry);
                 }
             //}
         }
@@ -245,171 +245,171 @@ namespace stratus {
     }
 
     void RendererFrontend::AddLight(const LightPtr& light) {
-        auto ul = _LockWrite();
-        if (_lights.find(light) != _lights.end()) return;
+        auto ul = LockWrite_();
+        if (lights_.find(light) != lights_.end()) return;
 
-        _lights.insert(light);
-        _frame->lights.insert(light);
+        lights_.insert(light);
+        frame_->lights.insert(light);
 
-        if ( light->IsVirtualLight() ) _virtualPointLights.insert(light);
+        if ( light->IsVirtualLight() ) virtualPointLights_.insert(light);
 
-        if ( !light->IsStaticLight() ) _dynamicLights.insert(light);
+        if ( !light->IsStaticLight() ) dynamicLights_.insert(light);
 
-        if ( !light->castsShadows() ) return;
+        if ( !light->CastsShadows() ) return;
 
-        _frame->lightsToUpate.PushBack(light);
+        frame_->lightsToUpate.PushBack(light);
 
         //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
 
     void RendererFrontend::RemoveLight(const LightPtr& light) {
-        auto ul = _LockWrite();
-        if (_lights.find(light) == _lights.end()) return;
-        _lights.erase(light);
-        _dynamicLights.erase(light);
-        _virtualPointLights.erase(light);
-        _lightsToRemove.insert(light);
-        _frame->lightsToUpate.Erase(light);
+        auto ul = LockWrite_();
+        if (lights_.find(light) == lights_.end()) return;
+        lights_.erase(light);
+        dynamicLights_.erase(light);
+        virtualPointLights_.erase(light);
+        lightsToRemove_.insert(light);
+        frame_->lightsToUpate.Erase(light);
     }
 
     void RendererFrontend::ClearLights() {
-        auto ul = _LockWrite();
-        for (auto& light : _lights) {
-            _lightsToRemove.insert(light);
+        auto ul = LockWrite_();
+        for (auto& light : lights_) {
+            lightsToRemove_.insert(light);
         }
-        _lights.clear();
-        _dynamicLights.clear();
-        _virtualPointLights.clear();
-        _frame->lightsToUpate.Clear();
+        lights_.clear();
+        dynamicLights_.clear();
+        virtualPointLights_.clear();
+        frame_->lightsToUpate.Clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
         if (light == nullptr) return;
-        auto ul = _LockWrite();
-        _worldLight = light;
+        auto ul = LockWrite_();
+        worldLight_ = light;
     }
 
     InfiniteLightPtr RendererFrontend::GetWorldLight() {
-        auto sl = _LockRead();
-        return _worldLight;
+        auto sl = LockRead_();
+        return worldLight_;
     }
 
     void RendererFrontend::ClearWorldLight() {
-        auto ul = _LockWrite();
+        auto ul = LockWrite_();
         // Create a dummy world light that is disabled
-        _worldLight = InfiniteLightPtr(new InfiniteLight(false));
+        worldLight_ = InfiniteLightPtr(new InfiniteLight(false));
     }
 
     void RendererFrontend::SetCamera(const CameraPtr& camera) {
-        auto ul = _LockWrite();
-        _camera = camera;
+        auto ul = LockWrite_();
+        camera_ = camera;
     }
 
     CameraPtr RendererFrontend::GetCamera() const {
-        auto sl = _LockRead();
-        return _camera;
+        auto sl = LockRead_();
+        return camera_;
     }
 
     void RendererFrontend::SetFovY(const Degrees& fovy) {
-        auto ul = _LockWrite();
-        _params.fovy = fovy;
-        _viewportDirty = true;
+        auto ul = LockWrite_();
+        params_.fovy = fovy;
+        viewportDirty_ = true;
     }
 
     void RendererFrontend::SetNearFar(const float znear, const float zfar) {
-        auto ul = _LockWrite();
-        _params.znear = znear;
-        _params.zfar  = zfar;
-        _viewportDirty = true;
+        auto ul = LockWrite_();
+        params_.znear = znear;
+        params_.zfar  = zfar;
+        viewportDirty_ = true;
     }
 
     void RendererFrontend::SetVsyncEnabled(const bool enabled) {
-        auto ul = _LockWrite();
-        _params.vsyncEnabled = enabled;
-        _frame->vsyncEnabled = enabled;
+        auto ul = LockWrite_();
+        params_.vsyncEnabled = enabled;
+        frame_->vsyncEnabled = enabled;
     }
 
     void RendererFrontend::SetClearColor(const glm::vec4& color) {
-        auto ul = _LockWrite();
-        _frame->clearColor = color;
+        auto ul = LockWrite_();
+        frame_->clearColor = color;
     }
 
     void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
-        auto ul = _LockWrite();
-        _frame->skybox = skybox;
+        auto ul = LockWrite_();
+        frame_->skybox = skybox;
     }
 
     void RendererFrontend::SetSkyboxColorMask(const glm::vec3& mask) {
-        auto ul = _LockWrite();
-        _frame->skyboxColorMask = mask;
+        auto ul = LockWrite_();
+        frame_->skyboxColorMask = mask;
     }
 
     void RendererFrontend::SetSkyboxIntensity(const float intensity) {
-        auto ul = _LockWrite();
-        _frame->skyboxIntensity = std::max(intensity, 0.0f);
+        auto ul = LockWrite_();
+        frame_->skyboxIntensity = std::max(intensity, 0.0f);
     }
 
     void RendererFrontend::SetFogColor(const glm::vec3& color) {
-        auto ul = _LockWrite();
-        _frame->fogColor = color;
+        auto ul = LockWrite_();
+        frame_->fogColor = color;
     }
 
     void RendererFrontend::SetFogDensity(const float density) {
-        auto ul = _LockWrite();
-        _frame->fogDensity = std::max(density, 0.0f);
+        auto ul = LockWrite_();
+        frame_->fogDensity = std::max(density, 0.0f);
     }
 
     void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
-        auto ul = _LockWrite();
-        _frame->globalIlluminationEnabled = enabled;
+        auto ul = LockWrite_();
+        frame_->globalIlluminationEnabled = enabled;
     }
 
     bool RendererFrontend::GetGlobalIlluminationEnabled() const {
-        auto sl = _LockRead();
-        return _frame->globalIlluminationEnabled;
+        auto sl = LockRead_();
+        return frame_->globalIlluminationEnabled;
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         CHECK_IS_APPLICATION_THREAD();
 
-        auto ul = _LockWrite();
-        if (_camera == nullptr) return SystemStatus::SYSTEM_CONTINUE;
+        auto ul = LockWrite_();
+        if (camera_ == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
-        _camera->update(deltaSeconds);
-        _frame->camera = _camera->Copy();
-        _frame->view = _camera->getViewTransform();
+        camera_->Update(deltaSeconds);
+        frame_->camera = camera_->Copy();
+        frame_->view = camera_->GetViewTransform();
 
-        _UpdateViewport();
-        _UpdateCascadeTransforms();
-        _CheckForEntityChanges();
-        _UpdateLights();
-        _UpdateMaterialSet();
-        _UpdateDrawCommands();
-        _UpdateVisibility();
+        UpdateViewport_();
+        UpdateCascadeTransforms_();
+        CheckForEntityChanges_();
+        UpdateLights_();
+        UpdateMaterialSet_();
+        UpdateDrawCommands_();
+        UpdateVisibility_();
 
         // Update view projection and its inverse
-        _frame->projectionView = _frame->projection * _frame->view;
-        _frame->invProjectionView = glm::inverse(_frame->projectionView);
+        frame_->projectionView = frame_->projection * frame_->view;
+        frame_->invProjectionView = glm::inverse(frame_->projectionView);
 
         //_SwapFrames();
 
         // Check for shader recompile request
-        if (_recompileShaders) {
-            _renderer->RecompileShaders();
-            _viscullLodSelect->recompile();
-            _viscull->recompile();
-            _recompileShaders = false;
+        if (recompileShaders_) {
+            renderer_->RecompileShaders();
+            viscullLodSelect_->Recompile();
+            viscull_->Recompile();
+            recompileShaders_ = false;
         }
 
         // Begin the new frame
-        _renderer->Begin(_frame, true);
+        renderer_->Begin(frame_, true);
 
         // Complete the frame
-        _renderer->RenderScene();
-        _renderer->End();
+        renderer_->RenderScene();
+        renderer_->End();
 
         // This needs to be unset
-        _frame->csc.regenerateFbo = false;
+        frame_->csc.regenerateFbo = false;
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
@@ -417,19 +417,19 @@ namespace stratus {
     bool RendererFrontend::Initialize() {
         CHECK_IS_APPLICATION_THREAD();
         // Create the renderer on the renderer thread only
-        _renderer = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, _params.appName);
+        renderer_ = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, params_.appName);
 
-        _frame = std::make_shared<RendererFrame>();
+        frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        _frame->csc.cascades.resize(4);
-        _frame->csc.cascadeResolutionXY = 2048;
-        _frame->csc.regenerateFbo = true;
+        frame_->csc.cascades.resize(4);
+        frame_->csc.cascadeResolutionXY = 2048;
+        frame_->csc.regenerateFbo = true;
 
         // Set materials per frame and initialize material buffer
-        _frame->materialInfo.maxMaterials = 4096;
+        frame_->materialInfo.maxMaterials = 4096;
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-        _frame->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * _frame->materialInfo.maxMaterials, flags);
+        frame_->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * frame_->materialInfo.maxMaterials, flags);
 
         //_frame->instancedFlatMeshes.resize(1);
         //_frame->instancedDynamicPbrMeshes.resize(1);
@@ -444,27 +444,27 @@ namespace stratus {
 
         // Initialize the LODs
         for (size_t i = 0; i < 8; ++i) {
-            _frame->instancedFlatMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
-            _frame->instancedDynamicPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
-            _frame->instancedStaticPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+            frame_->instancedFlatMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+            frame_->instancedDynamicPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
+            frame_->instancedStaticPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
         }
 
         for (auto cull : culling) {
-            _frame->visibleFirstLodInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            _frame->visibleFirstLodInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            _frame->visibleFirstLodInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleFirstLodInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleFirstLodInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleFirstLodInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
         }
 
-        for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
+        for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
             for (auto cull : culling) {
-                _frame->instancedFlatMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-                _frame->instancedDynamicPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-                _frame->instancedStaticPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                frame_->instancedFlatMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                frame_->instancedDynamicPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                frame_->instancedStaticPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
             }
         }
 
         // Initialize entity processing
-        _entityHandler = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
+        entityHandler_ = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
 
         ClearWorldLight();
 
@@ -472,70 +472,70 @@ namespace stratus {
         const std::filesystem::path shaderRoot("../Source/Shaders");
         const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
-        _viscullLodSelect = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        viscullLodSelect_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"visibility_culling.cs", ShaderType::COMPUTE}},
             // Defines
             { {"SELECT_LOD", "1"} }
         ));
 
-        _viscull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        viscull_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"visibility_culling.cs", ShaderType::COMPUTE} }
         ));
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return _renderer->Valid() && _viscullLodSelect->isValid() && _viscull->isValid();
+        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid();
     }
 
     void RendererFrontend::Shutdown() {
-        _frame.reset();
-        _renderer.reset();
+        frame_.reset();
+        renderer_.reset();
 
-        _entities.clear();
-        _dynamicEntities.clear();
-        _lights.clear();
-        _lightsToRemove.clear();
+        entities_.clear();
+        dynamicEntities_.clear();
+        lights_.clear();
+        lightsToRemove_.clear();
 
-        INSTANCE(EntityManager)->UnregisterEntityProcess(_entityHandler);
+        INSTANCE(EntityManager)->UnregisterEntityProcess(entityHandler_);
     }
 
     void RendererFrontend::RecompileShaders() {
-        auto ul = _LockWrite();
-        _recompileShaders = true;
+        auto ul = LockWrite_();
+        recompileShaders_ = true;
     }
 
-    void RendererFrontend::_UpdateViewport() {
-        _viewportDirty = _viewportDirty || Window::Instance()->WindowResizedWithinLastFrame();
-        _frame->viewportDirty = _viewportDirty;
+    void RendererFrontend::UpdateViewport_() {
+        viewportDirty_ = viewportDirty_ || Window::Instance()->WindowResizedWithinLastFrame();
+        frame_->viewportDirty = viewportDirty_;
 
-        if (!_viewportDirty) return;
-        _viewportDirty = false;
+        if (!viewportDirty_) return;
+        viewportDirty_ = false;
 
         const float aspect = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
-        _projection        = glm::perspective(
-            Radians(_params.fovy).value(),
+        projection_        = glm::perspective(
+            Radians(params_.fovy).value(),
             aspect,
-            _params.znear,
-            _params.zfar
+            params_.znear,
+            params_.zfar
         );
 
-        _frame->znear          = _params.znear;
-        _frame->zfar           = _params.zfar;
-        _frame->projection     = _projection;
-        _frame->viewportWidth  = Window::Instance()->GetWindowDims().first;
-        _frame->viewportHeight = Window::Instance()->GetWindowDims().second;
-        _frame->fovy           = Radians(_params.fovy);
+        frame_->znear          = params_.znear;
+        frame_->zfar           = params_.zfar;
+        frame_->projection     = projection_;
+        frame_->viewportWidth  = Window::Instance()->GetWindowDims().first;
+        frame_->viewportHeight = Window::Instance()->GetWindowDims().second;
+        frame_->fovy           = Radians(params_.fovy);
     }
 
-    void RendererFrontend::_UpdateCascadeTransforms() {
-        const float cascadeResReciprocal = 1.0f / _frame->csc.cascadeResolutionXY;
+    void RendererFrontend::UpdateCascadeTransforms_() {
+        const float cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
         const float cascadeDelta = cascadeResReciprocal;
-        const size_t numCascades = _frame->csc.cascades.size();
+        const size_t numCascades = frame_->csc.cascades.size();
 
-        _frame->csc.worldLightCamera = CameraPtr(new Camera(false));
-        auto worldLightCamera = _frame->csc.worldLightCamera;
-        worldLightCamera->setAngle(_worldLight->getRotation());
+        frame_->csc.worldLightCamera = CameraPtr(new Camera(false));
+        auto worldLightCamera = frame_->csc.worldLightCamera;
+        worldLightCamera->SetAngle(worldLight_->GetRotation());
 
         // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
         //
@@ -544,8 +544,8 @@ namespace stratus {
         // where s is the aspect ratio (width / height)
 
         // Set up the shadow texture offsets
-        _frame->csc.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
-        _frame->csc.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+        frame_->csc.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+        frame_->csc.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
         // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
         // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
 
@@ -553,18 +553,18 @@ namespace stratus {
         // Camera light(false);
         // light.setAngle(_state.worldLight.getRotation());
         const Camera & light = *worldLightCamera;
-        const Camera & c = *_camera;
+        const Camera & c = *camera_;
 
-        const glm::mat4& lightWorldTransform = light.getWorldTransform();
-        const glm::mat4& lightViewTransform = light.getViewTransform();
-        const glm::mat4& cameraWorldTransform = c.getWorldTransform();
-        const glm::mat4& cameraViewTransform = c.getViewTransform();
+        const glm::mat4& lightWorldTransform = light.GetWorldTransform();
+        const glm::mat4& lightViewTransform = light.GetViewTransform();
+        const glm::mat4& cameraWorldTransform = c.GetWorldTransform();
+        const glm::mat4& cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
         // See page 152, eq. 8.21
         const glm::vec3 worldLightDirWorldSpace = -lightWorldTransform[2];
         const glm::vec3 worldLightDirCamSpace = glm::normalize(glm::mat3(cameraViewTransform) * worldLightDirWorldSpace);
-        _frame->csc.worldLightDirectionCameraSpace = worldLightDirCamSpace;
+        frame_->csc.worldLightDirectionCameraSpace = worldLightDirCamSpace;
 
         const glm::mat4 L = lightViewTransform * cameraWorldTransform;
 
@@ -573,11 +573,11 @@ namespace stratus {
         const float ar = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
-        const float projPlaneDist = glm::tan(Radians(_params.fovy).value() / 2.0f);
-        const float znear = _params.znear; //0.001f; //_params.znear;
+        const float projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
+        const float znear = params_.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
-        const float zfar  = _params.zfar; //std::min(800.0f, _params.zfar);
+        const float zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
 
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -613,8 +613,8 @@ namespace stratus {
         for (size_t i = 0; i < numCascades; ++i) {
             const float ak = cascadeBegins[i];
             const float bk = cascadeEnds[i];
-            _frame->csc.cascades[i].cascadeBegins = ak;
-            _frame->csc.cascades[i].cascadeEnds   = bk;
+            frame_->csc.cascades[i].cascadeBegins = ak;
+            frame_->csc.cascades[i].cascadeEnds   = bk;
             aks.push_back(ak);
             bks.push_back(bk);
 
@@ -658,8 +658,8 @@ namespace stratus {
             const float dk = ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            const float T = dk / _frame->csc.cascadeResolutionXY;
-            _frame->csc.cascades[i].cascadeRadius = dk / 2.0f;
+            const float T = dk / frame_->csc.cascadeResolutionXY;
+            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;
@@ -697,8 +697,8 @@ namespace stratus {
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             // STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);
-            _frame->csc.cascades[i].cascadePositionLightSpace = sk;
-            _frame->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
+            frame_->csc.cascades[i].cascadePositionLightSpace = sk;
+            frame_->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
 
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
@@ -734,15 +734,15 @@ namespace stratus {
             // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
             //
             // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
-            _frame->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
-            _frame->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
+            frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
+            frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
             //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
                 // See page 187, eq. 8.82
                 // Ck = Mk_shadow * (M0_shadow) ^ -1
-                glm::mat4 Ck = _frame->csc.cascades[i].projectionViewSample * glm::inverse(_frame->csc.cascades[0].projectionViewSample);
-                _frame->csc.cascades[i].sampleCascade0ToCurrent = Ck;
+                glm::mat4 Ck = frame_->csc.cascades[i].projectionViewSample * glm::inverse(frame_->csc.cascades[0].projectionViewSample);
+                frame_->csc.cascades[i].sampleCascade0ToCurrent = Ck;
 
                 // This will allow us to calculate the cascade blending weights in the vertex shader and then
                 // the cascade indices in the pixel shader
@@ -751,43 +751,43 @@ namespace stratus {
                 // fk now represents a plane along the direction of the view frustum. Its normal is equal to the camera's forward
                 // direction in world space and it contains the point c + ak*n.
                 const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
-                _frame->csc.cascades[i].cascadePlane = fk;
+                frame_->csc.cascades[i].cascadePlane = fk;
                 //STRATUS_LOG << fk << std::endl;
                 //_frame->csc.cascades[i].cascadePlane = glm::vec4(10.0f);
             }
         }
     }
 
-    bool RendererFrontend::_EntityChanged(const EntityPtr& p) {
+    bool RendererFrontend::EntityChanged_(const EntityPtr& p) {
         auto tc = p->Components().GetComponent<GlobalTransformComponent>().component;
         auto rc = p->Components().GetComponent<RenderComponent>().component;
         return tc->ChangedWithinLastFrame() || rc->ChangedWithinLastFrame();
     }
 
-    void RendererFrontend::_CheckEntitySetForChanges(std::unordered_set<EntityPtr>& set) {
+    void RendererFrontend::CheckEntitySetForChanges_(std::unordered_set<EntityPtr>& set) {
         for (auto& entity : set) {
             // If this is a light-interacting node, run through all the lights to see if they need to be updated
-            if (_EntityChanged(entity)) {               
+            if (EntityChanged_(entity)) {               
 
                 InitializeMeshTransformComponent(entity);
 
-                _drawCommandsDirty = true;
+                drawCommandsDirty_ = true;
 
                 if (IsLightInteracting(entity)) {
-                    for (const auto& light : _lights) {
+                    for (const auto& light : lights_) {
                         // Static lights don't care about entity movement changes
                         if (light->IsStaticLight()) continue;
 
                         auto lightPos = light->GetPosition();
-                        auto lightRadius = light->getRadius();
+                        auto lightRadius = light->GetRadius();
                         //If the EntityView is in the light's visible set, its shadows are now out of date
                         for (size_t i = 0; i < GetMeshCount(entity); ++i) {
                             if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
-                                _frame->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpate.PushBack(light);
                             }
                             // If the EntityView has moved inside the light's radius, add it
                             else if (glm::distance(GetWorldTransform(entity, i), lightPos) < lightRadius) {
-                                _frame->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpate.PushBack(light);
                             }
                         }
                     }
@@ -796,39 +796,39 @@ namespace stratus {
         }
     }
 
-    void RendererFrontend::_CheckForEntityChanges() {
+    void RendererFrontend::CheckForEntityChanges_() {
         // We only care about dynamic light-interacting entities
-        _CheckEntitySetForChanges(_dynamicEntities);
+        CheckEntitySetForChanges_(dynamicEntities_);
     }
 
-    void RendererFrontend::_MarkStaticLightsDirty() {
-        for (auto& light : _lights) {
+    void RendererFrontend::MarkStaticLightsDirty_() {
+        for (auto& light : lights_) {
             if (!light->IsStaticLight()) continue;
 
-            _frame->lightsToUpate.PushBack(light);
+            frame_->lightsToUpate.PushBack(light);
         }
     }
 
-    void RendererFrontend::_UpdateLights() {
-        _frame->lightsToRemove.clear();
+    void RendererFrontend::UpdateLights_() {
+        frame_->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
-        for (auto& light : _lightsToRemove) {
-            _frame->lights.erase(light);
-            _frame->virtualPointLights.erase(light);
-            _frame->lightsToRemove.insert(light);
+        for (auto& light : lightsToRemove_) {
+            frame_->lights.erase(light);
+            frame_->virtualPointLights.erase(light);
+            frame_->lightsToRemove.insert(light);
         }
-        _lightsToRemove.clear();
+        lightsToRemove_.clear();
 
         // Update the world light
-        _frame->csc.worldLight = _worldLight;//->Copy();
+        frame_->csc.worldLight = worldLight_;//->Copy();
 
         // Now go through and update all lights that have changed in some way
-        for (auto& light : _lights) {
-            if ( !light->castsShadows() ) continue;
+        for (auto& light : lights_) {
+            if ( !light->CastsShadows() ) continue;
 
             // See if the light moved or its radius changed
             if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
-                _frame->lightsToUpate.PushBack(light);
+                frame_->lightsToUpate.PushBack(light);
             }
         }
     }
@@ -837,18 +837,18 @@ namespace stratus {
         return status == TextureLoadingStatus::LOADING_DONE;
     }
 
-    void RendererFrontend::_RecalculateMaterialSet() {
-        _frame->materialInfo.availableMaterials.clear();
-        _materialsDirty = true;
+    void RendererFrontend::RecalculateMaterialSet_() {
+        frame_->materialInfo.availableMaterials.clear();
+        materialsDirty_ = true;
 
-        for (const EntityPtr& p : _entities) {
-            _AddAllMaterialsForEntity(p);
+        for (const EntityPtr& p : entities_) {
+            AddAllMaterialsForEntity_(p);
         }
 
         // After this loop anything left in indices is no longer referenced
         // by an entity
-        for (const MaterialPtr& m : _frame->materialInfo.availableMaterials) {
-            _frame->materialInfo.indices.erase(m);
+        for (const MaterialPtr& m : frame_->materialInfo.availableMaterials) {
+            frame_->materialInfo.indices.erase(m);
         }
 
     #define MAKE_NON_RESIDENT(handle)                                        \
@@ -861,7 +861,7 @@ namespace stratus {
         }
 
         // Erase what is no longer referenced
-        for (auto& entry : _frame->materialInfo.indices) {
+        for (auto& entry : frame_->materialInfo.indices) {
             MaterialPtr material = entry.first;
             MAKE_NON_RESIDENT(material->GetDiffuseTexture())
             MAKE_NON_RESIDENT(material->GetAmbientTexture())
@@ -872,12 +872,12 @@ namespace stratus {
             MAKE_NON_RESIDENT(material->GetMetallicRoughnessMap())
         }
 
-        _frame->materialInfo.indices.clear();
+        frame_->materialInfo.indices.clear();
     
     #undef MAKE_NON_RESIDENT
     }
 
-    void RendererFrontend::_CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
+    void RendererFrontend::CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
         gpuMaterial->flags = 0;
 
         gpuMaterial->diffuseColor = material->GetDiffuseColor();
@@ -915,7 +915,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (diffuseHandle != TextureHandle::Null() && diffuseStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(ambient, ambientStatus)) {
@@ -925,7 +925,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (ambientHandle != TextureHandle::Null() && ambientStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(normal, normalStatus)) {
@@ -935,7 +935,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (normalHandle != TextureHandle::Null() && normalStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(depth, depthStatus)) {
@@ -945,7 +945,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (depthHandle != TextureHandle::Null() && depthStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(roughness, roughnessStatus)) {
@@ -955,7 +955,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (roughnessHandle != TextureHandle::Null() && roughnessStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(metallic, metallicStatus)) {
@@ -965,7 +965,7 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (metallicHandle != TextureHandle::Null() && metallicStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
 
         if (ValidateTexture(metallicRoughness, metallicRoughnessStatus)) {
@@ -975,20 +975,20 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (metallicRoughnessHandle != TextureHandle::Null() && metallicRoughnessStatus != TextureLoadingStatus::FAILED) {
-            _materialsDirty = true;
+            materialsDirty_ = true;
         }
     }
 
-    void RendererFrontend::_UpdateMaterialSet() {
+    void RendererFrontend::UpdateMaterialSet_() {
         // static int frame = 0;
         // ++frame;
         // if (frame % 10 == 0) _materialsDirty = true;
 
         // See if any materials were changed within the last frame
-        if ( !_materialsDirty ) {
-            for (auto& entry : _frame->materialInfo.indices) {
+        if ( !materialsDirty_ ) {
+            for (auto& entry : frame_->materialInfo.indices) {
                 if (entry.first->ChangedWithinLastFrame()) {
-                    _materialsDirty = true;
+                    materialsDirty_ = true;
                     break;
                 }
             }
@@ -997,22 +997,22 @@ namespace stratus {
         // Update for the next 3 frames after the frame indices were recalculated (solved a strange performance issue possible related to shaders
         // accessing invalid data)
         const uint64_t frameCount = INSTANCE(Engine)->FrameCount();
-        const bool updateMaterialResidency = _materialsDirty || ((frameCount - _lastFrameMaterialIndicesRecomputed) < 3);
+        const bool updateMaterialResidency = materialsDirty_ || ((frameCount - lastFrameMaterialIndicesRecomputed_) < 3);
 
         // If no materials to update then no need to recompute the index set
-        if (_materialsDirty) {
-            _drawCommandsDirty = true;
-            _materialsDirty = false;
-            _lastFrameMaterialIndicesRecomputed = frameCount;
+        if (materialsDirty_) {
+            drawCommandsDirty_ = true;
+            materialsDirty_ = false;
+            lastFrameMaterialIndicesRecomputed_ = frameCount;
 
-            if (_frame->materialInfo.availableMaterials.size() >= _frame->materialInfo.maxMaterials) {
+            if (frame_->materialInfo.availableMaterials.size() >= frame_->materialInfo.maxMaterials) {
                 throw std::runtime_error("Maximum number of materials exceeded");
             }
 
-            std::unordered_map<MaterialPtr, uint32_t>& indices = _frame->materialInfo.indices;
+            std::unordered_map<MaterialPtr, uint32_t>& indices = frame_->materialInfo.indices;
             indices.clear();
 
-            for (auto material : _frame->materialInfo.availableMaterials) {
+            for (auto material : frame_->materialInfo.availableMaterials) {
                 int nextIndex = int(indices.size());
                 indices.insert(std::make_pair(material, nextIndex));
             }
@@ -1021,22 +1021,22 @@ namespace stratus {
         // If we don't update these either every frame or every few frames, performance degrades. I do not yet know 
         // why this happens.
         if (updateMaterialResidency) {
-            if (_frame->materialInfo.materials.size() < _frame->materialInfo.availableMaterials.size()) {
-                _frame->materialInfo.materials.resize(_frame->materialInfo.availableMaterials.size());
+            if (frame_->materialInfo.materials.size() < frame_->materialInfo.availableMaterials.size()) {
+                frame_->materialInfo.materials.resize(frame_->materialInfo.availableMaterials.size());
             }
 
-            for (const auto& entry : _frame->materialInfo.indices) {
-                GpuMaterial * material = &_frame->materialInfo.materials[entry.second];
-                _CopyMaterialToGpuAndMarkForUse(entry.first, material);
+            for (const auto& entry : frame_->materialInfo.indices) {
+                GpuMaterial * material = &frame_->materialInfo.materials[entry.second];
+                CopyMaterialToGpuAndMarkForUse_(entry.first, material);
             }
 
-            _frame->materialInfo.materialsBuffer.CopyDataToBuffer(0, 
-                                                                sizeof(GpuMaterial) * _frame->materialInfo.materials.size(),
-                                                                (const void *)_frame->materialInfo.materials.data());
+            frame_->materialInfo.materialsBuffer.CopyDataToBuffer(0, 
+                                                                sizeof(GpuMaterial) * frame_->materialInfo.materials.size(),
+                                                                (const void *)frame_->materialInfo.materials.data());
         }
     }
 
-    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::_GenerateDrawCommands(RenderComponent * c, const size_t lod, bool& quitEarly) const {
+    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::GenerateDrawCommands_(RenderComponent * c, const size_t lod, bool& quitEarly) const {
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
             if (!c->GetMesh(i)->IsFinalized()) {
@@ -1062,19 +1062,19 @@ namespace stratus {
         return commands;
     }
 
-    void RendererFrontend::_UpdateDrawCommands() {
-        if (!_drawCommandsDirty) return;
-        _drawCommandsDirty = false;
+    void RendererFrontend::UpdateDrawCommands_() {
+        if (!drawCommandsDirty_) return;
+        drawCommandsDirty_ = false;
 
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { _frame->visibleFirstLodInstancedFlatMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ _frame->visibleFirstLodInstancedDynamicPbrMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ _frame->visibleFirstLodInstancedStaticPbrMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { frame_->visibleFirstLodInstancedFlatMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ frame_->visibleFirstLodInstancedDynamicPbrMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ frame_->visibleFirstLodInstancedStaticPbrMeshes };
 
         // Clear old commands
         std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> *> oldCommands{
-            &_frame->instancedFlatMeshes,
-            &_frame->instancedDynamicPbrMeshes,
-            &_frame->instancedStaticPbrMeshes,
+            &frame_->instancedFlatMeshes,
+            &frame_->instancedDynamicPbrMeshes,
+            &frame_->instancedStaticPbrMeshes,
             &vfm,
             &vdpm,
             &vspm
@@ -1098,20 +1098,20 @@ namespace stratus {
             RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
             MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
             bool quitEarly;                                                                                            \
-            auto commands = _GenerateDrawCommands(c, lod, quitEarly);                                                  \
+            auto commands = GenerateDrawCommands_(c, lod, quitEarly);                                                  \
             if (quitEarly) {                                                                                           \
                 stillDirty = true;                                                                                     \
                 continue;                                                                                              \
             };                                                                                                         \
             bool shouldQuitEarly = false;                                                                              \
-            for (size_t __i = 0; __i < c->GetMeshCount(); ++__i) {                                                     \
-                auto cull = c->GetMesh(__i)->GetFaceCulling();                                                         \
+            for (size_t i_ = 0; i_ < c->GetMeshCount(); ++i_) {                                                        \
+                auto cull = c->GetMesh(i_)->GetFaceCulling();                                                          \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
-                buffer->materialIndices.push_back(_frame->materialInfo.indices.find(c->GetMaterialAt(__i))->second);   \
+                buffer->materialIndices.push_back(frame_->materialInfo.indices.find(c->GetMaterialAt(i_))->second);    \
                 buffer->globalTransforms.push_back(gt->GetGlobalTransform());                                          \
-                buffer->modelTransforms.push_back(mt->transforms[__i]);                                                \
+                buffer->modelTransforms.push_back(mt->transforms[i_]);                                                 \
                 if (uploadAABB) {                                                                                      \
-                    buffer->aabbs.push_back(c->GetMesh(__i)->GetAABB());                                               \
+                    buffer->aabbs.push_back(c->GetMesh(i_)->GetAABB());                                                \
                 }                                                                                                      \
             }                                                                                                          \
             for (auto& entry : commands) {                                                                             \
@@ -1125,26 +1125,26 @@ namespace stratus {
         }
 
         // Generate flat commands
-        GENERATE_COMMANDS(_flatEntities, _frame->visibleFirstLodInstancedFlatMeshes, 0, true, _drawCommandsDirty)
+        GENERATE_COMMANDS(flatEntities_, frame_->visibleFirstLodInstancedFlatMeshes, 0, true, drawCommandsDirty_)
 
-        for (size_t i = 0; i < _frame->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_flatEntities, _frame->instancedFlatMeshes[i], i, true, _drawCommandsDirty)
+        for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
+            GENERATE_COMMANDS(flatEntities_, frame_->instancedFlatMeshes[i], i, true, drawCommandsDirty_)
         }
 
         // Generate pbr commands
-        GENERATE_COMMANDS(_dynamicPbrEntities, _frame->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, _drawCommandsDirty)
+        GENERATE_COMMANDS(dynamicPbrEntities_, frame_->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, drawCommandsDirty_)
         bool staticCommandsDirty = false;
-        GENERATE_COMMANDS(_staticPbrEntities, _frame->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
-        _drawCommandsDirty = _drawCommandsDirty || staticCommandsDirty;
+        GENERATE_COMMANDS(staticPbrEntities_, frame_->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
+        drawCommandsDirty_ = drawCommandsDirty_ || staticCommandsDirty;
         
         // If static commands are dirty then all static lights (including vpls) need to be re-generated
         if (staticCommandsDirty) {
-            _MarkStaticLightsDirty();
+            MarkStaticLightsDirty_();
         }
 
-        for (size_t i = 0; i < _frame->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(_dynamicPbrEntities, _frame->instancedDynamicPbrMeshes[i], i, true, _drawCommandsDirty)
-            GENERATE_COMMANDS(_staticPbrEntities, _frame->instancedStaticPbrMeshes[i], i, true, _drawCommandsDirty)
+        for (size_t i = 0; i < frame_->instancedDynamicPbrMeshes.size(); ++i) {
+            GENERATE_COMMANDS(dynamicPbrEntities_, frame_->instancedDynamicPbrMeshes[i], i, true, drawCommandsDirty_)
+            GENERATE_COMMANDS(staticPbrEntities_, frame_->instancedStaticPbrMeshes[i], i, true, drawCommandsDirty_)
         }
 
     #undef GENERATE_COMMANDS
@@ -1227,11 +1227,11 @@ namespace stratus {
     // }
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
-    void RendererFrontend::_UpdateVisibility() {
+    void RendererFrontend::UpdateVisibility_() {
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
-            &_frame->visibleFirstLodInstancedFlatMeshes,
-            &_frame->visibleFirstLodInstancedDynamicPbrMeshes,
-            &_frame->visibleFirstLodInstancedStaticPbrMeshes
+            &frame_->visibleFirstLodInstancedFlatMeshes,
+            &frame_->visibleFirstLodInstancedDynamicPbrMeshes,
+            &frame_->visibleFirstLodInstancedStaticPbrMeshes
         };
 
         std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>> drawCommandsPerLod = {
@@ -1239,12 +1239,12 @@ namespace stratus {
         };
 
         for (size_t i = 0; i < 4; ++i) {
-            drawCommandsPerLod[0].push_back(&_frame->instancedFlatMeshes[i]);
-            drawCommandsPerLod[1].push_back(&_frame->instancedDynamicPbrMeshes[i]);
-            drawCommandsPerLod[2].push_back(&_frame->instancedStaticPbrMeshes[i]);
+            drawCommandsPerLod[0].push_back(&frame_->instancedFlatMeshes[i]);
+            drawCommandsPerLod[1].push_back(&frame_->instancedDynamicPbrMeshes[i]);
+            drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);
         }
         
-        _UpdateVisibility(*_viscullLodSelect.get(), _frame->projection, _frame->camera->getViewTransform(), drawCommands, drawCommandsPerLod);
+        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, drawCommandsPerLod);
 
         // for (auto& array : drawCommandsPerLod) {
         //     array.clear();
@@ -1263,7 +1263,7 @@ namespace stratus {
         // }
     }
 
-    void RendererFrontend::_UpdateVisibility(
+    void RendererFrontend::UpdateVisibility_(
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
@@ -1311,13 +1311,13 @@ namespace stratus {
             (vpt[3] - vpt[2]),
         };
 
-        pipeline.bind();
+        pipeline.Bind();
 
         for (size_t i = 0; i < 6; ++i) {
-            pipeline.setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
+            pipeline.SetVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
 
-        pipeline.setVec3("viewPosition", _frame->camera->getPosition());
+        pipeline.SetVec3("viewPosition", frame_->camera->GetPosition());
         
         for (size_t i = 0; i < drawCommands.size(); ++i) {
            auto& map = drawCommands[i];
@@ -1335,16 +1335,16 @@ namespace stratus {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                }
 
-               pipeline.setUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
-               pipeline.setMat4("view", view);
+               pipeline.SetUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+               pipeline.SetMat4("view", view);
                //pipeline.setMat4("view", _frame->camera->getViewTransform());
                //pipeline.setMat4("projection", _frame->projection);
-               pipeline.dispatchCompute(1, 1, 1);
-               pipeline.synchronizeCompute();
+               pipeline.DispatchCompute(1, 1, 1);
+               pipeline.SynchronizeCompute();
            }
         }
 
-        pipeline.unbind();
+        pipeline.Unbind();
 
         //for (size_t i = 0; i < drawCommands.size(); ++i) {
         //   auto& map = drawCommands[i];

@@ -13,7 +13,7 @@
 #include <mutex>
 
 namespace stratus {
-    Engine * Engine::_instance = nullptr;
+    Engine * Engine::instance_ = nullptr;
 
     bool Engine::EngineMain(Application * app, const int numArgs, const char ** args) {
         static std::mutex preventMultipleMainCalls;
@@ -26,18 +26,18 @@ namespace stratus {
         EngineInitParams params;
         params.numCmdArgs = numArgs;
         params.cmdArgs = args;
-        Application::_Instance() = app;
+        Application::Instance_() = app;
 
         // Delete the instance in case it's left over from a previous run
-        delete Engine::_instance;
-        Engine::_instance = new Engine(params);
+        delete Engine::instance_;
+        Engine::instance_ = new Engine(params);
 
         // Pre-initialize to set up things like the ApplicationThread
         Engine::Instance()->PreInitialize();
         ApplicationThread::Instance()->Queue([]() {
             Engine::Instance()->Initialize();
         });
-        ApplicationThread::Instance()->_DispatchAndSynchronize();
+        ApplicationThread::Instance()->DispatchAndSynchronize_();
 
         // Set up shut down sequence
         const auto shutdown = []() {
@@ -56,7 +56,7 @@ namespace stratus {
         while (running) {
             ApplicationThread::Instance()->Queue(runFrame);
             // No need to synchronize since ApplicationThread uses this thread's context
-            ApplicationThread::Instance()->_Dispatch();
+            ApplicationThread::Instance()->Dispatch_();
 
             // Check the system status message and decide what to do next
             switch (status.load()) {
@@ -76,7 +76,7 @@ namespace stratus {
 
         // Queue and dispatch shutdown sequence
         ApplicationThread::Instance()->Queue(shutdown);
-        ApplicationThread::Instance()->_Dispatch();
+        ApplicationThread::Instance()->Dispatch_();
 
         // If this is true the boot function will call EngineMain again
         return shouldRestart;
@@ -86,38 +86,38 @@ namespace stratus {
         : _params(params) {}
 
     bool Engine::IsInitializing() const {
-        return _isInitializing.load();
+        return isInitializing_.load();
     }
 
     bool Engine::IsShuttingDown() const {
-        return _isShuttingDown.load();
+        return isShuttingDown_.load();
     }
 
     void Engine::SetMaxFrameRate(const uint32_t rate) {
-        std::unique_lock<std::shared_mutex> ul(_mainLoop);
+        std::unique_lock<std::shared_mutex> ul(mainLoop_);
         _params.maxFrameRate = std::max<uint32_t>(rate, 30);
     }
 
     uint64_t Engine::FrameCount() const {
-        return _stats.currentFrame;
+        return stats_.currentFrame;
     }
 
     double Engine::LastFrameTimeSeconds() const {
-        return _stats.lastFrameTimeSeconds;
+        return stats_.lastFrameTimeSeconds;
     }
 
     void Engine::PreInitialize() {
         if (IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize called twice");
         }
-        std::unique_lock<std::shared_mutex> ul(_startupShutdown);
-        _isInitializing.store(true);
+        std::unique_lock<std::shared_mutex> ul(startupShutdown_);
+        isInitializing_.store(true);
 
-        _InitLog();
-        _InitApplicationThread();
+        InitLog_();
+        InitApplicationThread_();
 
         // Pull the main thread
-        _main = ApplicationThread::Instance()->_thread.get();
+        main_ = ApplicationThread::Instance()->thread_.get();
     }
 
     struct EngineModuleInit {
@@ -147,75 +147,75 @@ namespace stratus {
         if (!IsInitializing()) {
             throw std::runtime_error("Engine::PreInitialize not called");
         }
-        std::unique_lock<std::shared_mutex> ul(_startupShutdown);
+        std::unique_lock<std::shared_mutex> ul(startupShutdown_);
 
         STRATUS_LOG << "Engine initializing" << std::endl;
 
-        _InitInput();
-        _InitEntityManager();
-        _InitTaskSystem();
-        _InitMaterialManager();
-        _InitResourceManager();
-        _InitWindow();
-        _InitGraphicsDriver();
-        _InitRenderer();
+        InitInput_();
+        InitEntityManager_();
+        InitTaskSystem_();
+        InitMaterialManager_();
+        InitResourceManager_();
+        InitWindow_();
+        InitGraphicsDriver_();
+        InitRenderer_();
 
         // Initialize application last
         EngineModuleInit::InitializeEngineModule(Application::Instance(), true);
 
         STRATUS_LOG << "Initialization complete" << std::endl;
-        _isInitializing.store(false);
+        isInitializing_.store(false);
     }
 
-    void Engine::_InitLog() {
-        EngineModuleInit::InitializeEngineModule(Log::_Instance(), new Log(), false);
+    void Engine::InitLog_() {
+        EngineModuleInit::InitializeEngineModule(Log::Instance_(), new Log(), false);
     }
 
-    void Engine::_InitInput() {
-        EngineModuleInit::InitializeEngineModule(InputManager::_Instance(), new InputManager(), true);
+    void Engine::InitInput_() {
+        EngineModuleInit::InitializeEngineModule(InputManager::Instance_(), new InputManager(), true);
     }
 
-    void Engine::_InitGraphicsDriver() {
+    void Engine::InitGraphicsDriver_() {
         GraphicsDriver::Initialize();
     }
 
-    void Engine::_InitEntityManager() {
-        EngineModuleInit::InitializeEngineModule(EntityManager::_Instance(), new EntityManager(), true);
+    void Engine::InitEntityManager_() {
+        EngineModuleInit::InitializeEngineModule(EntityManager::Instance_(), new EntityManager(), true);
     }
 
-    void Engine::_InitApplicationThread() {
-        ApplicationThread::_Instance() = new ApplicationThread();
+    void Engine::InitApplicationThread_() {
+        ApplicationThread::Instance_() = new ApplicationThread();
     }
 
-    void Engine::_InitTaskSystem() {
-        EngineModuleInit::InitializeEngineModule(TaskSystem::_Instance(), new TaskSystem(), true);
+    void Engine::InitTaskSystem_() {
+        EngineModuleInit::InitializeEngineModule(TaskSystem::Instance_(), new TaskSystem(), true);
     }
 
-    void Engine::_InitMaterialManager() {
-        EngineModuleInit::InitializeEngineModule(MaterialManager::_Instance(), new MaterialManager(), true);
+    void Engine::InitMaterialManager_() {
+        EngineModuleInit::InitializeEngineModule(MaterialManager::Instance_(), new MaterialManager(), true);
     }
 
-    void Engine::_InitResourceManager() {
-        EngineModuleInit::InitializeEngineModule(ResourceManager::_Instance(), new ResourceManager(), true);
+    void Engine::InitResourceManager_() {
+        EngineModuleInit::InitializeEngineModule(ResourceManager::Instance_(), new ResourceManager(), true);
     }
 
-    void Engine::_InitWindow() {
-        EngineModuleInit::InitializeEngineModule(Window::_Instance(), new Window(1600, 900), true);
+    void Engine::InitWindow_() {
+        EngineModuleInit::InitializeEngineModule(Window::Instance_(), new Window(1600, 900), true);
     }
 
-    void Engine::_InitRenderer() {
+    void Engine::InitRenderer_() {
         RendererParams params;
         params.appName = Application::Instance()->GetAppName();
         params.fovy = Degrees(75.0f);
         params.vsyncEnabled = false;
 
-        EngineModuleInit::InitializeEngineModule(RendererFrontend::_Instance(), new RendererFrontend(params), true);
+        EngineModuleInit::InitializeEngineModule(RendererFrontend::Instance_(), new RendererFrontend(params), true);
     }
 
     // Should be called before Shutdown()
     void Engine::BeginShutDown() {
         if (IsShuttingDown()) return;
-        _isShuttingDown.store(true);
+        isShuttingDown_.store(true);
     }
 
     // Begins shutdown sequence for engine and all core subsystems
@@ -227,19 +227,19 @@ namespace stratus {
         STRATUS_LOG << "Engine shutting down" << std::endl;
 
         // Application should shut down first
-        _ShutdownResourceAndDelete(Application::_Instance());
-        _ShutdownResourceAndDelete(InputManager::_Instance());
-        _ShutdownResourceAndDelete(ResourceManager::_Instance());
-        _ShutdownResourceAndDelete(MaterialManager::_Instance());
-        _ShutdownResourceAndDelete(RendererFrontend::_Instance());
-        _ShutdownResourceAndDelete(Window::_Instance());
-        _ShutdownResourceAndDelete(EntityManager::_Instance());
-        _ShutdownResourceAndDelete(TaskSystem::_Instance());
+        ShutdownResourceAndDelete_(Application::Instance_());
+        ShutdownResourceAndDelete_(InputManager::Instance_());
+        ShutdownResourceAndDelete_(ResourceManager::Instance_());
+        ShutdownResourceAndDelete_(MaterialManager::Instance_());
+        ShutdownResourceAndDelete_(RendererFrontend::Instance_());
+        ShutdownResourceAndDelete_(Window::Instance_());
+        ShutdownResourceAndDelete_(EntityManager::Instance_());
+        ShutdownResourceAndDelete_(TaskSystem::Instance_());
         // This one does not have a specialized instance
         GraphicsDriver::Shutdown();
         // This one does not have a shutdown routine
-        _DeleteResource(ApplicationThread::_Instance());
-        _ShutdownResourceAndDelete(Log::_Instance());
+        DeleteResource_(ApplicationThread::Instance_());
+        ShutdownResourceAndDelete_(Log::Instance_());
     }
 
     // Processes the next full system frame, including rendering. Returns false only
@@ -256,7 +256,7 @@ namespace stratus {
         // Calculate new frame time
         const auto end = std::chrono::system_clock::now();
         //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
-        const double duration = std::chrono::duration<double, std::milli>(end - _stats.prevFrameStart).count();
+        const double duration = std::chrono::duration<double, std::milli>(end - stats_.prevFrameStart).count();
         const auto requestedFrameTimingMsec = 1000.0 / double(_params.maxFrameRate);
         // Make sure we haven't exceeded the max frame rate
         //if (frameRate > _params.maxFrameRate) {
@@ -274,10 +274,10 @@ namespace stratus {
         //std::unique_lock<std::shared_mutex> ul(_mainLoop);
 
         // Frame counter should always be +1 for each valid frame
-        ++_stats.currentFrame;
+        ++stats_.currentFrame;
 
         // Update prev frame start to be the beginning of this current frame
-        _stats.prevFrameStart = end;
+        stats_.prevFrameStart = end;
 
         //ul.unlock();
 
@@ -304,6 +304,6 @@ namespace stratus {
 
     // Main thread is where both engine + application run
     Thread * Engine::GetMainThread() const {
-        return _main;
+        return main_;
     }
 }

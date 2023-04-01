@@ -23,39 +23,39 @@ namespace stratus {
 
     SystemStatus ResourceManager::Update(const double deltaSeconds) {
         {
-            auto ul = _LockWrite();
-            _ClearAsyncTextureData();
-            _ClearAsyncModelData();
+            auto ul = LockWrite_();
+            ClearAsyncTextureData_();
+            ClearAsyncModelData_();
         }
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
     bool ResourceManager::Initialize() {
-        _InitCube();
-        _InitQuad();
+        InitCube_();
+        InitQuad_();
 
         return true;
     }
 
     void ResourceManager::Shutdown() {
-        auto ul = _LockWrite();
-        _loadedModels.clear();
-        _pendingFinalize.clear();
-        _meshFinalizeQueue.clear();
-        _asyncLoadedTextureData.clear();
-        _loadedTextures.clear();
-        _loadedTexturesByFile.clear();
+        auto ul = LockWrite_();
+        loadedModels_.clear();
+        pendingFinalize_.clear();
+        meshFinalizeQueue_.clear();
+        asyncLoadedTextureData_.clear();
+        loadedTextures_.clear();
+        loadedTexturesByFile_.clear();
     }
 
-    void ResourceManager::_ClearAsyncTextureData() {
+    void ResourceManager::ClearAsyncTextureData_() {
         std::vector<TextureHandle> toDelete;
         //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         size_t totalTex = 0;
         size_t totalBytes = 0;
         std::vector<TextureHandle> handles;
         std::vector<std::shared_ptr<RawTextureData>> rawTexData;
-        for (auto& tpair : _asyncLoadedTextureData) {
+        for (auto& tpair : asyncLoadedTextureData_) {
             //if (totalBytes > maxBytes) break;
             if (tpair.second.Completed()) {
                 toDelete.push_back(tpair.first);
@@ -77,66 +77,66 @@ namespace stratus {
             STRATUS_LOG << "Texture data bytes processed: " << totalBytes << ", " << totalTex << std::endl;
         }
 
-        for (auto handle : toDelete) _asyncLoadedTextureData.erase(handle);
+        for (auto handle : toDelete) asyncLoadedTextureData_.erase(handle);
 
         ApplicationThread::Instance()->Queue([this, handles, rawTexData]() {
             std::vector<Texture *> ptrs(rawTexData.size());
             for (int i = 0; i < rawTexData.size(); ++i) {
-                ptrs[i] = _FinalizeTexture(*rawTexData[i]);
+                ptrs[i] = FinalizeTexture_(*rawTexData[i]);
             }
 
-            auto ul = _LockWrite();
+            auto ul = LockWrite_();
             for (int i = 0; i < handles.size(); ++i) {
-                _loadedTextures.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
+                loadedTextures_.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
             }
         });
     }
 
-    void ResourceManager::_ClearAsyncModelData() {
+    void ResourceManager::ClearAsyncModelData_() {
         static constexpr size_t maxModelBytesPerFrame = 1024 * 1024 * 2;
         // First generate GPU data for some of the meshes
         size_t totalBytes = 0;
         std::vector<MeshPtr> removeFromGpuDataQueue;
-        for (auto mesh : _generateMeshGpuDataQueue) {
+        for (auto mesh : generateMeshGpuDataQueue_) {
             mesh->FinalizeData();
             totalBytes += mesh->GetGpuSizeBytes();
             removeFromGpuDataQueue.push_back(mesh);
             if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
-        for (auto mesh : removeFromGpuDataQueue) _generateMeshGpuDataQueue.erase(mesh);
+        for (auto mesh : removeFromGpuDataQueue) generateMeshGpuDataQueue_.erase(mesh);
 
         if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << removeFromGpuDataQueue.size() << " meshes" << std::endl;
 
         // If none other left to finalize, end early
-        if (_pendingFinalize.size() == 0) return;
+        if (pendingFinalize_.size() == 0) return;
 
         //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
-        for (auto& mpair : _pendingFinalize) {
+        for (auto& mpair : pendingFinalize_) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
                 toDelete.push_back(mpair.first);
                 auto ptr = mpair.second.GetPtr();
 
-                _ClearAsyncModelData(ptr);
+                ClearAsyncModelData_(ptr);
            }
         }
 
         for (const std::string& name : toDelete) {
-           _pendingFinalize.erase(name);
+           pendingFinalize_.erase(name);
         }
 
-        if (_meshFinalizeQueue.size() == 0) return;
+        if (meshFinalizeQueue_.size() == 0) return;
 
         //size_t totalBytes = 0;
-        std::vector<MeshPtr> meshesToDelete(_meshFinalizeQueue.size());
+        std::vector<MeshPtr> meshesToDelete(meshFinalizeQueue_.size());
         size_t idx = 0;
-        for (auto& mesh : _meshFinalizeQueue) {
+        for (auto& mesh : meshFinalizeQueue_) {
             meshesToDelete[idx] = mesh;
             ++idx;
         }
 
-        _meshFinalizeQueue.clear();
+        meshFinalizeQueue_.clear();
 
         // for (MeshPtr mesh : _meshFinalizeQueue) {
         //     mesh->FinalizeData();
@@ -167,7 +167,7 @@ namespace stratus {
 
         const auto callback = [this, meshesToDelete](auto) {
             for (auto mesh : meshesToDelete) {
-                _generateMeshGpuDataQueue.insert(mesh);
+                generateMeshGpuDataQueue_.insert(mesh);
             }
         };
 
@@ -188,46 +188,46 @@ namespace stratus {
         //if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << meshesToDelete.size() << " meshes" << std::endl;
     }
 
-    void ResourceManager::_ClearAsyncModelData(EntityPtr ptr) {
+    void ResourceManager::ClearAsyncModelData_(EntityPtr ptr) {
         if (ptr == nullptr) return;
         for (auto& child : ptr->GetChildNodes()) {
-            _ClearAsyncModelData(child);
+            ClearAsyncModelData_(child);
         }
 
         auto rnode = ptr->Components().GetComponent<RenderComponent>().component;
         if (rnode == nullptr) return;
 
         for (int i = 0; i < rnode->meshes->meshes.size(); ++i) {
-            _meshFinalizeQueue.insert(rnode->meshes->meshes[i]);
+            meshFinalizeQueue_.insert(rnode->meshes->meshes[i]);
         }
     }
 
     Async<Entity> ResourceManager::LoadModel(const std::string& name, const ColorSpace& cspace, const bool optimizeGraph, RenderFaceCulling defaultCullMode) {
         {
-            auto sl = _LockRead();
-            if (_loadedModels.find(name) != _loadedModels.end()) {
-                Async<Entity> e = _loadedModels.find(name)->second;
+            auto sl = LockRead_();
+            if (loadedModels_.find(name) != loadedModels_.end()) {
+                Async<Entity> e = loadedModels_.find(name)->second;
                 return (e.Completed() && !e.Failed()) ? Async<Entity>(e.GetPtr()->Copy()) : e;
             }
         }
 
-        auto ul = _LockWrite();
+        auto ul = LockWrite_();
         TaskSystem * tasks = TaskSystem::Instance();
         Async<Entity> e = tasks->ScheduleTask<Entity>([this, name, defaultCullMode, optimizeGraph, cspace]() {
-            return _LoadModel(name, cspace, optimizeGraph, defaultCullMode);
+            return LoadModel_(name, cspace, optimizeGraph, defaultCullMode);
         });
 
-        _loadedModels.insert(std::make_pair(name, e));
-        _pendingFinalize.insert(std::make_pair(name, e));
+        loadedModels_.insert(std::make_pair(name, e));
+        pendingFinalize_.insert(std::make_pair(name, e));
         return e;
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const ColorSpace& cspace) {
-        return _LoadTextureImpl({name}, cspace);
+        return LoadTextureImpl_({name}, cspace);
     }
 
     TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const ColorSpace& cspace, const std::string& fileExt) {
-        return _LoadTextureImpl({prefix + "right." + fileExt,
+        return LoadTextureImpl_({prefix + "right." + fileExt,
                                  prefix + "left." + fileExt,
                                  prefix + "top." + fileExt,
                                  prefix + "bottom." + fileExt,
@@ -240,7 +240,7 @@ namespace stratus {
                                 TextureMagnificationFilter::LINEAR);
     }
 
-    TextureHandle ResourceManager::_LoadTextureImpl(const std::vector<std::string>& files, 
+    TextureHandle ResourceManager::LoadTextureImpl_(const std::vector<std::string>& files, 
                                                     const ColorSpace& cspace,
                                                     const TextureType type,
                                                     const TextureCoordinateWrapping wrap,
@@ -255,34 +255,34 @@ namespace stratus {
 
         {
             // Check if we have already loaded this texture file combination before
-            auto sl = _LockRead();
-            if (_loadedTexturesByFile.find(name) != _loadedTexturesByFile.end()) {
-                return _loadedTexturesByFile.find(name)->second;
+            auto sl = LockRead_();
+            if (loadedTexturesByFile_.find(name) != loadedTexturesByFile_.end()) {
+                return loadedTexturesByFile_.find(name)->second;
             }
         }
 
-        auto ul = _LockWrite();
+        auto ul = LockWrite_();
         auto handle = TextureHandle::NextHandle();
         TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
         Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
-            auto result = _LoadTexture(files, handle, cspace, type, wrap, min, mag);
-            auto ul = this->_LockWrite();
-            this->_texturesStillLoading.erase(handle);
+            auto result = LoadTexture_(files, handle, cspace, type, wrap, min, mag);
+            auto ul = this->LockWrite_();
+            this->texturesStillLoading_.erase(handle);
             return result;
         });
 
-        _texturesStillLoading.insert(handle);
-        _loadedTexturesByFile.insert(std::make_pair(name, handle));
-        _asyncLoadedTextureData.insert(std::make_pair(handle, as));
+        texturesStillLoading_.insert(handle);
+        loadedTexturesByFile_.insert(std::make_pair(name, handle));
+        asyncLoadedTextureData_.insert(std::make_pair(handle, as));
 
         return handle;
     }
 
     Texture ResourceManager::LookupTexture(const TextureHandle handle, TextureLoadingStatus& status) const {
-        auto sl = _LockRead();
-        if (_loadedTextures.find(handle) == _loadedTextures.end()) {
-            if (_texturesStillLoading.find(handle) == _texturesStillLoading.end()) {
+        auto sl = LockRead_();
+        if (loadedTextures_.find(handle) == loadedTextures_.end()) {
+            if (texturesStillLoading_.find(handle) == texturesStillLoading_.end()) {
                 status = TextureLoadingStatus::FAILED;
             }
             else {
@@ -294,7 +294,7 @@ namespace stratus {
 
         status = TextureLoadingStatus::LOADING_DONE;
 
-        return _loadedTextures.find(handle)->second.Get();
+        return loadedTextures_.find(handle)->second.Get();
     }
 
     static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
@@ -558,7 +558,7 @@ namespace stratus {
         }
     }
 
-    EntityPtr ResourceManager::_LoadModel(const std::string& name, const ColorSpace& cspace, const bool optimizeGraph, RenderFaceCulling defaultCullMode) {
+    EntityPtr ResourceManager::LoadModel_(const std::string& name, const ColorSpace& cspace, const bool optimizeGraph, RenderFaceCulling defaultCullMode) {
         STRATUS_LOG << "Attempting to load model: " << name << std::endl;
 
         Assimp::Importer importer;
@@ -640,16 +640,16 @@ namespace stratus {
         while (counter.load() < meshes.size())
             ;
 
-        auto ul = _LockWrite();
+        auto ul = LockWrite_();
         // Create an internal copy for thread safety
-        _loadedModels.insert(std::make_pair(name, Async<Entity>(e->Copy())));
+        loadedModels_.insert(std::make_pair(name, Async<Entity>(e->Copy())));
 
         STRATUS_LOG << "Model loaded [" << name << "] with [" << meshes.size() << "] meshes" << std::endl;
 
         return e->Copy();
     }
 
-    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::_LoadTexture(const std::vector<std::string>& files, 
+    std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::LoadTexture_(const std::vector<std::string>& files, 
                                                                                    const TextureHandle handle, 
                                                                                    const ColorSpace& cspace,
                                                                                    const TextureType type,
@@ -743,15 +743,15 @@ namespace stratus {
         return texdata;
     }
 
-    Texture * ResourceManager::_FinalizeTexture(const RawTextureData& data) {
+    Texture * ResourceManager::FinalizeTexture_(const RawTextureData& data) {
         stratus::TextureArrayData texArrayData(data.data.size());
         for (size_t i = 0; i < texArrayData.size(); ++i) {
             texArrayData[i].data = (const void *)data.data[i];
         }
         Texture* texture = new Texture(data.config, texArrayData, false);
-        texture->_setHandle(data.handle);
-        texture->setCoordinateWrapping(data.wrap);
-        texture->setMinMagFilter(data.min, data.mag);
+        texture->SetHandle_(data.handle);
+        texture->SetCoordinateWrapping(data.wrap);
+        texture->SetMinMagFilter(data.min, data.mag);
         
         for (uint8_t * ptr : data.data) {
             stbi_image_free((void *)ptr);
@@ -761,11 +761,11 @@ namespace stratus {
     }
 
     EntityPtr ResourceManager::CreateCube() {
-        return _cube->Copy();
+        return cube_->Copy();
     }
 
     EntityPtr ResourceManager::CreateQuad() {
-        return _quad->Copy();
+        return quad_->Copy();
     }
 
     static const std::vector<GLfloat> cubeData = std::vector<GLfloat>{
@@ -824,9 +824,9 @@ namespace stratus {
         -1.0f,  1.0f, 0.0f,	    0.0f, 0.0f, -1.0f,		0.0f, 1.0f,             1, 0, 0,     0, 1, 0,
     };
 
-    void ResourceManager::_InitCube() {
-        _cube = CreateRenderEntity();
-        RenderComponent * rc = _cube->Components().GetComponent<RenderComponent>().component;
+    void ResourceManager::InitCube_() {
+        cube_ = CreateRenderEntity();
+        RenderComponent * rc = cube_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
@@ -845,7 +845,7 @@ namespace stratus {
         }
 
         mesh->CalculateAabbs(glm::mat4(1.0f));
-        _pendingFinalize.insert(std::make_pair("DefaultCube", Async<Entity>(_cube)));
+        pendingFinalize_.insert(std::make_pair("DefaultCube", Async<Entity>(cube_)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});
@@ -854,9 +854,9 @@ namespace stratus {
         // _cube->SetRenderNode(rnode);
     }
 
-    void ResourceManager::_InitQuad() {
-        _quad = CreateRenderEntity();
-        RenderComponent * rc = _quad->Components().GetComponent<RenderComponent>().component;
+    void ResourceManager::InitQuad_() {
+        quad_ = CreateRenderEntity();
+        RenderComponent * rc = quad_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
@@ -876,7 +876,7 @@ namespace stratus {
 
         mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
         mesh->CalculateAabbs(glm::mat4(1.0f));
-        _pendingFinalize.insert(std::make_pair("DefaultQuad", Async<Entity>(_quad)));
+        pendingFinalize_.insert(std::make_pair("DefaultQuad", Async<Entity>(quad_)));
 
         // rmesh->GenerateCpuData();
         // rnode->AddMeshContainer(RenderMeshContainer{rmesh, mat});

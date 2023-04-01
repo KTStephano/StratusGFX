@@ -36,15 +36,15 @@ namespace stratus {
     Thread::Thread(bool ownsExecutionContext) : Thread(NextThreadName(), ownsExecutionContext) {}
 
     Thread::Thread(const std::string& name, bool ownsExecutionContext)
-        : _name(name),
-          _ownsExecutionContext(ownsExecutionContext),
-          _id(ThreadHandle::NextHandle()) {
+        : name_(name),
+          ownsExecutionContext_(ownsExecutionContext),
+          id_(ThreadHandle::NextHandle()) {
 
         if (ownsExecutionContext) {
-            _context = std::thread([this]() {
+            context_ = std::thread([this]() {
                 SetCurrentThread(this);
-                while (this->_running.load()) {
-                    this->_ProcessNext();
+                while (this->running_.load()) {
+                    this->ProcessNext_();
                 }
             });
         }
@@ -56,26 +56,26 @@ namespace stratus {
 
     void Thread::Dispatch() {
         {
-            std::unique_lock<std::mutex> ul(_mutex);
+            std::unique_lock<std::mutex> ul(mutex_);
 
             // If we're still processing a previous dispatch, don't try to process another
-            if (_processing.load()) return;
+            if (processing_.load()) return;
             
             // If nothing to process, return early
-            if (_frontQueue.size() == 0) return;
+            if (frontQueue_.size() == 0) return;
 
             // Copy contents of front buffer to back buffer for processing
-            for (const auto & func : _frontQueue) _backQueue.push_back(func);
-            _frontQueue.clear();
+            for (const auto & func : frontQueue_) backQueue_.push_back(func);
+            frontQueue_.clear();
 
             // Signal ready for processing
-            _processing.store(true);
+            processing_.store(true);
         }
 
         // If we don't own the context, use the current thread
-        if (!_ownsExecutionContext) {
+        if (!ownsExecutionContext_) {
             SetCurrentThread(this);
-            _ProcessNext();
+            ProcessNext_();
             NullifyCurrentThread();
         }
     }
@@ -86,24 +86,24 @@ namespace stratus {
     }
 
     bool Thread::Idle() const {
-        return !_processing.load();
+        return !processing_.load();
     }
 
     void Thread::Dispose() {
-        _running.store(false);
-        if (_ownsExecutionContext) _context.join();
+        running_.store(false);
+        if (ownsExecutionContext_) context_.join();
     }
 
     void Thread::Synchronize() const {
         // Wait until processing is complete
-        while (_processing.load()) std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        while (processing_.load()) std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
 
-    void Thread::_ProcessNext() {
-        if (_processing.load()) {
-            for (const ThreadFunction & func : _backQueue) func();
-            _backQueue.clear();
-            _processing.store(false); // Signal completion
+    void Thread::ProcessNext_() {
+        if (processing_.load()) {
+            for (const ThreadFunction & func : backQueue_) func();
+            backQueue_.clear();
+            processing_.store(false); // Signal completion
         }
         else {
             // Sleep a bit to prevent hogging CPU core
@@ -112,10 +112,10 @@ namespace stratus {
     }
 
     const std::string& Thread::Name() const {
-        return _name;
+        return name_;
     }
 
     const ThreadHandle& Thread::Id() const {
-        return _id;
+        return id_;
     }
 }

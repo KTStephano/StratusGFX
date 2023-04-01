@@ -6,94 +6,94 @@
 #include "StratusUtils.h"
 
 namespace stratus {
-    Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {}
+    Camera::Camera(bool rangeCheckAngles) : rangeCheckAngles_(rangeCheckAngles) {}
 
-    void Camera::modifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll) {
-        setAngle(Rotation(_rotation.x + deltaYaw, _rotation.y + deltaPitch, _rotation.z + deltaRoll));
+    void Camera::ModifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll) {
+        SetAngle(Rotation(rotation_.x + deltaYaw, rotation_.y + deltaPitch, rotation_.z + deltaRoll));
     }
 
-    void Camera::setAngle(const Rotation & rotation) {
-        _rotation = rotation;
-        if (_rangeCheckAngles) {
-            if (_rotation.x.value() > 89) _rotation.x = Degrees(89.0f);
-            else if (_rotation.x.value() < -89.0f) _rotation.x = Degrees(-89.0f);
+    void Camera::SetAngle(const Rotation & rotation) {
+        rotation_ = rotation;
+        if (rangeCheckAngles_) {
+            if (rotation_.x.value() > 89) rotation_.x = Degrees(89.0f);
+            else if (rotation_.x.value() < -89.0f) rotation_.x = Degrees(-89.0f);
         }
-        _invalidateView();
+        InvalidateView_();
     }
 
-    const Rotation & Camera::getRotation() const {
-        return _rotation;
+    const Rotation & Camera::GetRotation() const {
+        return rotation_;
     }
 
-    void Camera::setPosition(float x, float y, float z) {
-        setPosition(glm::vec3(x, y, z));
+    void Camera::SetPosition(float x, float y, float z) {
+        SetPosition(glm::vec3(x, y, z));
     }
 
-    void Camera::setPosition(const glm::vec3 & position) {
-        _position = position;
-        _invalidateView();
+    void Camera::SetPosition(const glm::vec3 & position) {
+        position_ = position;
+        InvalidateView_();
     }
 
-    const glm::vec3 & Camera::getPosition() const {
-        return _position;
+    const glm::vec3 & Camera::GetPosition() const {
+        return position_;
     }
 
-    glm::vec3 Camera::getDirection() const {
-        return glm::normalize(-getWorldTransform()[2]);
+    glm::vec3 Camera::GetDirection() const {
+        return glm::normalize(-GetWorldTransform()[2]);
     }
 
-    glm::vec3 Camera::getUp() const {
-        return glm::normalize(-getWorldTransform()[1]);
+    glm::vec3 Camera::GetUp() const {
+        return glm::normalize(-GetWorldTransform()[1]);
     }
 
-    glm::vec3 Camera::getSide() const {
-        return -glm::cross(getDirection(), getUp());
+    glm::vec3 Camera::GetSide() const {
+        return -glm::cross(GetDirection(), GetUp());
     }
 
-    void Camera::setSpeed(float forward, float up, float strafe) {
-        setSpeed(glm::vec3(forward, up, strafe));
+    void Camera::SetSpeed(float forward, float up, float strafe) {
+        SetSpeed(glm::vec3(forward, up, strafe));
     }
 
-    void Camera::setSpeed(const glm::vec3 & speed) {
-        _speed = speed;
+    void Camera::SetSpeed(const glm::vec3 & speed) {
+        speed_ = speed;
     }
 
-    const glm::vec3 & Camera::getSpeed() const {
-        return _speed;
+    const glm::vec3 & Camera::GetSpeed() const {
+        return speed_;
     }
 
-    void Camera::update(double deltaSeconds) {
-        const glm::vec3 dir = getDirection();
-        const glm::vec3 up = getUp();
-        const glm::vec3 side = getSide();
+    void Camera::Update(double deltaSeconds) {
+        const glm::vec3 dir = GetDirection();
+        const glm::vec3 up = GetUp();
+        const glm::vec3 side = GetSide();
 
         // Update the position
-        _position += dir  * _speed.z * (float)deltaSeconds;
-        _position += up   * _speed.y * (float)deltaSeconds;
-        _position += side * _speed.x * (float)deltaSeconds;
+        position_ += dir  * speed_.z * (float)deltaSeconds;
+        position_ += up   * speed_.y * (float)deltaSeconds;
+        position_ += side * speed_.x * (float)deltaSeconds;
 
-        _invalidateView();
+        InvalidateView_();
     }
 
-    const glm::mat4 & Camera::getViewTransform() const {
-        _updateViewTransform();
-        return _viewTransform;
+    const glm::mat4 & Camera::GetViewTransform() const {
+        UpdateViewTransform_();
+        return viewTransform_;
     }
 
-    const glm::mat4 & Camera::getWorldTransform() const {
-        _updateViewTransform();
-        return _worldTransform;
+    const glm::mat4 & Camera::GetWorldTransform() const {
+        UpdateViewTransform_();
+        return worldTransform_;
     }
 
-    void Camera::_invalidateView() {
-        _viewTransformValid = false;
+    void Camera::InvalidateView_() {
+        viewTransformValid_ = false;
     }
 
-    void Camera::_updateViewTransform() const {
-        if (_viewTransformValid) return;
-        _worldTransform = constructTransformMat(_rotation, _position, glm::vec3(1.0f));
-        _viewTransform = glm::inverse(_worldTransform);
-        _viewTransformValid = true;
+    void Camera::UpdateViewTransform_() const {
+        if (viewTransformValid_) return;
+        worldTransform_ = constructTransformMat(rotation_, position_, glm::vec3(1.0f));
+        viewTransform_ = glm::inverse(worldTransform_);
+        viewTransformValid_ = true;
     }
 
     CameraPtr Camera::Copy() const {

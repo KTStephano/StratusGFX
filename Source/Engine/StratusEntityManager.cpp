@@ -12,8 +12,8 @@ namespace stratus {
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - must add root node");
         }
-        std::unique_lock<std::shared_mutex> ul(_m);
-        _AddEntity(e);
+        std::unique_lock<std::shared_mutex> ul(m_);
+        AddEntity_(e);
     }
 
     void EntityManager::RemoveEntity(const EntityPtr& e) {
@@ -21,21 +21,21 @@ namespace stratus {
         if (e->GetParentNode() != nullptr) {
             throw std::runtime_error("Unsupported operation - tree structure is immutable after adding to manager");
         }
-        std::unique_lock<std::shared_mutex> ul(_m);
-        _RemoveEntity(e);
+        std::unique_lock<std::shared_mutex> ul(m_);
+        RemoveEntity_(e);
     }
 
-    void EntityManager::_AddEntity(const EntityPtr& e) {
-        _entitiesToAdd.insert(e);
+    void EntityManager::AddEntity_(const EntityPtr& e) {
+        entitiesToAdd_.insert(e);
         for (const EntityPtr& c : e->GetChildNodes()) {
-            _AddEntity(c);
+            AddEntity_(c);
         }
     }
 
-    void EntityManager::_RemoveEntity(const EntityPtr& e) {
-        _entitiesToRemove.insert(e);    
+    void EntityManager::RemoveEntity_(const EntityPtr& e) {
+        entitiesToRemove_.insert(e);    
         for (const EntityPtr& c : e->GetChildNodes()) {
-            _RemoveEntity(c);
+            RemoveEntity_(c);
         }
     }
 
@@ -51,15 +51,15 @@ namespace stratus {
 
         // Notify processes of added/removed entities and allow them to
         // perform their process routine
-        auto entitiesToAdd = std::move(_entitiesToAdd);
-        auto addedComponents = std::move(_addedComponents);
-        auto entitiesToRemove = std::move(_entitiesToRemove);
-        auto componentsEnabledDisabled = std::move(_componentsEnabledDisabled);
+        auto entitiesToAdd = std::move(entitiesToAdd_);
+        auto addedComponents = std::move(addedComponents_);
+        auto entitiesToRemove = std::move(entitiesToRemove_);
+        auto componentsEnabledDisabled = std::move(componentsEnabledDisabled_);
 
-        for (auto ptr : entitiesToAdd) ptr->_AddToWorld();
-        for (auto ptr : entitiesToRemove) ptr->_RemoveFromWorld();
+        for (auto ptr : entitiesToAdd) ptr->AddToWorld_();
+        for (auto ptr : entitiesToRemove) ptr->RemoveFromWorld_();
 
-        for (EntityProcessPtr& ptr : _processes) {
+        for (EntityProcessPtr& ptr : processes_) {
             if (entitiesToAdd.size() > 0) ptr->EntitiesAdded(entitiesToAdd);
             if (addedComponents.size() > 0) ptr->EntityComponentsAdded(addedComponents);
             if (entitiesToRemove.size() > 0) ptr->EntitiesRemoved(entitiesToRemove);
@@ -68,72 +68,72 @@ namespace stratus {
         }
 
         // Commit added/removed entities
-        for (auto& e : entitiesToAdd) _entities.insert(e);
-        for (auto& e : entitiesToRemove) _entities.erase(e);
+        for (auto& e : entitiesToAdd) entities_.insert(e);
+        for (auto& e : entitiesToRemove) entities_.erase(e);
 
         // If any processes have been added, tell them about all available entities
         // and allow them to perform their process routine for the first time
-        auto processesToAdd = std::move(_processesToAdd);
+        auto processesToAdd = std::move(processesToAdd_);
         for (EntityProcessPtr& ptr : processesToAdd) {
-            if (_entities.size() > 0) ptr->EntitiesAdded(_entities);
+            if (entities_.size() > 0) ptr->EntitiesAdded(entities_);
             ptr->Process(deltaSeconds);
 
             // Commit process to list
-            _processes.push_back(ptr);
-            _handlesToPtrs.insert(std::make_pair((EntityProcessHandle)ptr.get(), ptr));
+            processes_.push_back(ptr);
+            handlesToPtrs_.insert(std::make_pair((EntityProcessHandle)ptr.get(), ptr));
         }
 
         // If any processes have been removed then remove them now
-        auto processesToRemove = std::move(_processesToRemove);
+        auto processesToRemove = std::move(processesToRemove_);
         for (EntityProcessHandle handle : processesToRemove) {
-            auto handleIt = _handlesToPtrs.find(handle);
-            if (handleIt == _handlesToPtrs.end()) continue;
+            auto handleIt = handlesToPtrs_.find(handle);
+            if (handleIt == handlesToPtrs_.end()) continue;
             auto remove = handleIt->second;
-            for (auto it = _processes.begin(); it != _processes.end(); ++it) {
+            for (auto it = processes_.begin(); it != processes_.end(); ++it) {
                 EntityProcessPtr process = *it;
                 if (process == remove) {
-                    _processes.erase(it);
+                    processes_.erase(it);
                     break;
                 }
             }
-            _handlesToPtrs.erase(handle);
+            handlesToPtrs_.erase(handle);
         }
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
     
     void EntityManager::Shutdown() {
-        _entities.clear();
-        _entitiesToAdd.clear();
-        _entitiesToRemove.clear();
-        _processes.clear();
-        _processesToAdd.clear();
-        _addedComponents.clear();
+        entities_.clear();
+        entitiesToAdd_.clear();
+        entitiesToRemove_.clear();
+        processes_.clear();
+        processesToAdd_.clear();
+        addedComponents_.clear();
     }
     
-    void EntityManager::_RegisterEntityProcess(EntityProcessPtr& ptr) {
-        std::unique_lock<std::shared_mutex> ul(_m);
-        _processesToAdd.push_back(std::move(ptr));
+    void EntityManager::RegisterEntityProcess_(EntityProcessPtr& ptr) {
+        std::unique_lock<std::shared_mutex> ul(m_);
+        processesToAdd_.push_back(std::move(ptr));
     }
 
     void EntityManager::UnregisterEntityProcess(EntityProcessHandle handle) {
-        std::unique_lock<std::shared_mutex> ul(_m);
-        _processesToRemove.insert(handle);
+        std::unique_lock<std::shared_mutex> ul(m_);
+        processesToRemove_.insert(handle);
     }
     
-    void EntityManager::_NotifyComponentsAdded(const EntityPtr& ptr, EntityComponent * component) {
-        std::unique_lock<std::shared_mutex> ul(_m);
-        auto it = _addedComponents.find(ptr);
-        if (it == _addedComponents.end()) {
-            _addedComponents.insert(std::make_pair(ptr, std::vector<EntityComponent *>{component}));
+    void EntityManager::NotifyComponentsAdded_(const EntityPtr& ptr, EntityComponent * component) {
+        std::unique_lock<std::shared_mutex> ul(m_);
+        auto it = addedComponents_.find(ptr);
+        if (it == addedComponents_.end()) {
+            addedComponents_.insert(std::make_pair(ptr, std::vector<EntityComponent *>{component}));
         }
         else {
             it->second.push_back(component);
         }
     }
 
-    void EntityManager::_NotifyComponentsEnabledDisabled(const EntityPtr& ptr) {
-        std::unique_lock<std::shared_mutex> ul(_m);
-        _componentsEnabledDisabled.insert(ptr);
+    void EntityManager::NotifyComponentsEnabledDisabled_(const EntityPtr& ptr) {
+        std::unique_lock<std::shared_mutex> ul(m_);
+        componentsEnabledDisabled_.insert(ptr);
     }
 }

@@ -34,7 +34,7 @@ namespace stratus {
         Mesh();
 
     private:
-        static Mesh * _PlacementNew(uint8_t *);
+        static Mesh * PlacementNew_(uint8_t *);
 
     public:
         static MeshPtr Create();
@@ -77,13 +77,13 @@ namespace stratus {
         const GpuAABB& GetAABB() const;
 
     private:
-        void _GenerateGpuData();
-        void _CalculateTangentsBitangents();
-        void _EnsureFinalized() const;
-        void _EnsureNotFinalized() const;
+        void GenerateGpuData_();
+        void CalculateTangentsBitangents_();
+        void EnsureFinalized_() const;
+        void EnsureNotFinalized_() const;
 
     private:
-        struct _MeshCpuData {
+        struct MeshCpuData_ {
             std::vector<glm::vec3> vertices;
             std::vector<glm::vec2> uvs;
             std::vector<glm::vec3> normals;
@@ -96,15 +96,15 @@ namespace stratus {
         };
 
     private:
-        _MeshCpuData * _cpuData;
-        GpuAABB _aabb;
-        size_t _dataSizeBytes;
-        uint32_t _numVertices;
-        uint32_t _numIndices;
-        uint32_t _vertexOffset; // Into global GpuBuffer
-        std::vector<uint32_t> _numIndicesPerLod;
-        std::vector<uint32_t> _indexOffsetPerLod; // Into global GpuBuffer
-        RenderFaceCulling _cullMode = RenderFaceCulling::CULLING_CCW;
+        MeshCpuData_ * cpuData_;
+        GpuAABB aabb_;
+        size_t dataSizeBytes_;
+        uint32_t numVertices_;
+        uint32_t numIndices_;
+        uint32_t vertexOffset_; // Into global GpuBuffer
+        std::vector<uint32_t> numIndicesPerLod_;
+        std::vector<uint32_t> indexOffsetPerLod_; // Into global GpuBuffer
+        RenderFaceCulling cullMode_ = RenderFaceCulling::CULLING_CCW;
     };
 
     struct MeshData {
@@ -140,7 +140,7 @@ namespace stratus {
     private:
         // This is per RenderComponent which means the same mesh may end up being
         // used with multiple different materials
-        std::vector<MaterialPtr> _materials;
+        std::vector<MaterialPtr> materials_;
     };
 
     // If enabled then the entity interacts with light, otherwise it is flat shaded

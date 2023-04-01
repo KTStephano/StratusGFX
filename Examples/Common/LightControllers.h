@@ -6,7 +6,7 @@ struct LightParams {
     glm::vec3 position;
     glm::vec3 color;
     float intensity;
-    bool castsShadows;
+    bool CastsShadows;
     uint32_t numShadowSamples; // only valid for Virtual Point Lights (VPLs)
 
     LightParams()
@@ -15,11 +15,11 @@ struct LightParams {
     LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity)
         : LightParams(position, color, intensity, true) {}
 
-    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool castsShadows)
-        : LightParams(position, color, intensity, castsShadows, 3) {}
+    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool CastsShadows)
+        : LightParams(position, color, intensity, CastsShadows, 3) {}
 
-    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool castsShadows, const uint32_t numShadowSamples)
-        : position(position), color(color), intensity(intensity), castsShadows(castsShadows), numShadowSamples(numShadowSamples) {}
+    LightParams(const glm::vec3& position, const glm::vec3& color, const float intensity, const bool CastsShadows, const uint32_t numShadowSamples)
+        : position(position), color(color), intensity(intensity), CastsShadows(CastsShadows), numShadowSamples(numShadowSamples) {}
 };
 
 struct LightCreator {
@@ -60,5 +60,5 @@ private:
     static void _ChangeDirection(RandomLightMoverComponent *);
 
 private:
-    std::unordered_set<stratus::EntityPtr> _entities;
+    std::unordered_set<stratus::EntityPtr> entities_;
 };

@@ -66,45 +66,45 @@ namespace stratus {
         virtual void Shutdown();
 
     private:
-        void _ClearAsyncTextureData();
-        void _ClearAsyncModelData();
-        void _ClearAsyncModelData(EntityPtr);
+        void ClearAsyncTextureData_();
+        void ClearAsyncModelData_();
+        void ClearAsyncModelData_(EntityPtr);
 
     private:
-        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        EntityPtr _LoadModel(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling);
+        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
+        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
+        EntityPtr LoadModel_(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
-        TextureHandle _LoadTextureImpl(const std::vector<std::string>&, 
+        TextureHandle LoadTextureImpl_(const std::vector<std::string>&, 
                                        const ColorSpace&,
                                        const TextureType type = TextureType::TEXTURE_2D,
                                        const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
                                        const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                        const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
-        std::shared_ptr<RawTextureData> _LoadTexture(const std::vector<std::string>&, 
+        std::shared_ptr<RawTextureData> LoadTexture_(const std::vector<std::string>&, 
                                                      const TextureHandle, 
                                                      const ColorSpace&,
                                                      const TextureType type = TextureType::TEXTURE_2D,
                                                      const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
                                                      const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                                      const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
-        Texture * _FinalizeTexture(const RawTextureData&);
+        Texture * FinalizeTexture_(const RawTextureData&);
 
-        void _InitCube();
-        void _InitQuad();
+        void InitCube_();
+        void InitQuad_();
 
     private:
-        EntityPtr _cube;
-        EntityPtr _quad;
-        std::unordered_map<std::string, Async<Entity>> _loadedModels;
-        std::unordered_map<std::string, Async<Entity>> _pendingFinalize;
-        std::unordered_set<MeshPtr> _meshFinalizeQueue;
-        std::unordered_set<MeshPtr> _generateMeshGpuDataQueue;
+        EntityPtr cube_;
+        EntityPtr quad_;
+        std::unordered_map<std::string, Async<Entity>> loadedModels_;
+        std::unordered_map<std::string, Async<Entity>> pendingFinalize_;
+        std::unordered_set<MeshPtr> meshFinalizeQueue_;
+        std::unordered_set<MeshPtr> generateMeshGpuDataQueue_;
         //std::vector<MeshPtr> _meshFinalizeQueue;
-        std::unordered_map<TextureHandle, Async<RawTextureData>> _asyncLoadedTextureData;
-        std::unordered_set<TextureHandle> _texturesStillLoading;
-        std::unordered_map<TextureHandle, Async<Texture>> _loadedTextures;
-        std::unordered_map<std::string, TextureHandle> _loadedTexturesByFile;
-        mutable std::shared_mutex _mutex;
+        std::unordered_map<TextureHandle, Async<RawTextureData>> asyncLoadedTextureData_;
+        std::unordered_set<TextureHandle> texturesStillLoading_;
+        std::unordered_map<TextureHandle, Async<Texture>> loadedTextures_;
+        std::unordered_map<std::string, TextureHandle> loadedTexturesByFile_;
+        mutable std::shared_mutex mutex_;
     };
 }

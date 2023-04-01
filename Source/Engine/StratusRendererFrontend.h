@@ -68,27 +68,27 @@ namespace stratus {
         virtual void Shutdown();
 
     private:
-        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
-        void _AddAllMaterialsForEntity(const EntityPtr&);
-        bool _AddEntity(const EntityPtr& p);
-        static bool _EntityChanged(const EntityPtr&);
-        bool _RemoveEntity(const EntityPtr&);
-        void _CheckEntitySetForChanges(std::unordered_set<EntityPtr>&);
-        void _CopyMaterialToGpuAndMarkForUse(const MaterialPtr& material, GpuMaterial* gpuMaterial);
-        void _RecalculateMaterialSet();
-        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> _GenerateDrawCommands(RenderComponent *, const size_t, bool&) const;
+        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
+        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
+        void AddAllMaterialsForEntity_(const EntityPtr&);
+        bool AddEntity_(const EntityPtr& p);
+        static bool EntityChanged_(const EntityPtr&);
+        bool RemoveEntity_(const EntityPtr&);
+        void CheckEntitySetForChanges_(std::unordered_set<EntityPtr>&);
+        void CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial);
+        void RecalculateMaterialSet_();
+        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> GenerateDrawCommands_(RenderComponent *, const size_t, bool&) const;
 
     private:
-        void _UpdateViewport();
-        void _UpdateCascadeTransforms();
-        void _CheckForEntityChanges();
-        void _UpdateLights();
-        void _UpdateMaterialSet();
-        void _MarkStaticLightsDirty();
-        void _UpdateDrawCommands();
-        void _UpdateVisibility();
-        void _UpdateVisibility(
+        void UpdateViewport_();
+        void UpdateCascadeTransforms_();
+        void CheckForEntityChanges_();
+        void UpdateLights_();
+        void UpdateMaterialSet_();
+        void MarkStaticLightsDirty_();
+        void UpdateDrawCommands_();
+        void UpdateVisibility_();
+        void UpdateVisibility_(
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
             const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
@@ -98,39 +98,39 @@ namespace stratus {
     private:
         // These are called by the private entity handler
         friend struct RenderEntityProcess;
-        void _EntitiesAdded(const std::unordered_set<stratus::EntityPtr>&);
-        void _EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>&);
-        void _EntityComponentsAdded(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&);
-        void _EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>&);
+        void EntitiesAdded_(const std::unordered_set<stratus::EntityPtr>&);
+        void EntitiesRemoved_(const std::unordered_set<stratus::EntityPtr>&);
+        void EntityComponentsAdded_(const std::unordered_map<stratus::EntityPtr, std::vector<stratus::EntityComponent *>>&);
+        void EntityComponentsEnabledDisabled_(const std::unordered_set<stratus::EntityPtr>&);
 
     private:
-        RendererParams _params;
-        std::unordered_set<EntityPtr> _entities;
+        RendererParams params_;
+        std::unordered_set<EntityPtr> entities_;
         // These are entities we need to check for position/orientation/scale updates
-        std::unordered_set<EntityPtr> _dynamicEntities;
+        std::unordered_set<EntityPtr> dynamicEntities_;
         //std::vector<GpuMaterial> _gpuMaterials;
-        std::unordered_set<LightPtr> _lights;
-        std::unordered_set<LightPtr> _dynamicLights;
-        std::unordered_set<LightPtr> _virtualPointLights;
-        InfiniteLightPtr _worldLight;
-        std::unordered_set<LightPtr> _lightsToRemove;
-        EntityMeshData _flatEntities;
-        EntityMeshData _dynamicPbrEntities;
-        EntityMeshData _staticPbrEntities;
-        uint64_t _lastFrameMaterialIndicesRecomputed = 0;
-        bool _materialsDirty = false;
-        bool _drawCommandsDirty = false;
-        CameraPtr _camera;
-        glm::mat4 _projection = glm::mat4(1.0f);
-        bool _viewportDirty = true;
-        bool _recompileShaders = false;
-        std::shared_ptr<RendererFrame> _frame;
-        std::unique_ptr<RendererBackend> _renderer;
+        std::unordered_set<LightPtr> lights_;
+        std::unordered_set<LightPtr> dynamicLights_;
+        std::unordered_set<LightPtr> virtualPointLights_;
+        InfiniteLightPtr worldLight_;
+        std::unordered_set<LightPtr> lightsToRemove_;
+        EntityMeshData flatEntities_;
+        EntityMeshData dynamicPbrEntities_;
+        EntityMeshData staticPbrEntities_;
+        uint64_t lastFrameMaterialIndicesRecomputed_ = 0;
+        bool materialsDirty_ = false;
+        bool drawCommandsDirty_ = false;
+        CameraPtr camera_;
+        glm::mat4 projection_ = glm::mat4(1.0f);
+        bool viewportDirty_ = true;
+        bool recompileShaders_ = false;
+        std::shared_ptr<RendererFrame> frame_;
+        std::unique_ptr<RendererBackend> renderer_;
         // This forwards entity state changes to the renderer
-        EntityProcessHandle _entityHandler;
+        EntityProcessHandle entityHandler_;
         // Compute pipeline which performs AABB checks against view frustum
-        std::unique_ptr<Pipeline> _viscullLodSelect;
-        std::unique_ptr<Pipeline> _viscull;
-        mutable std::shared_mutex _mutex;
+        std::unique_ptr<Pipeline> viscullLodSelect_;
+        std::unique_ptr<Pipeline> viscull_;
+        mutable std::shared_mutex mutex_;
     };
 }
