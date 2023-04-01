@@ -20,13 +20,13 @@ namespace stratus {
     }
 
     void ApplicationThread::_QueueFront(const Thread::ThreadFunction& function) {
-        auto ul = _LockWrite();
+        auto ul = LockWrite_();
         _queue.push_front(function);
     }
 
     void ApplicationThread::_Dispatch() {
         {
-            auto ul = _LockWrite();
+            auto ul = LockWrite_();
             _thread->QueueMany(_queue);
             _queue.clear();
         }

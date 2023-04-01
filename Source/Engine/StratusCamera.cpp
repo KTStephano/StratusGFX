@@ -9,33 +9,33 @@ namespace stratus {
     Camera::Camera(bool rangeCheckAngles) : _rangeCheckAngles(rangeCheckAngles) {}
 
     void Camera::modifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll) {
-        setAngle(Rotation(_rotation.x + deltaYaw, _rotation.y + deltaPitch, _rotation.z + deltaRoll));
+        setAngle(Rotation(rotation_.x + deltaYaw, rotation_.y + deltaPitch, rotation_.z + deltaRoll));
     }
 
     void Camera::setAngle(const Rotation & rotation) {
-        _rotation = rotation;
+        rotation_ = rotation;
         if (_rangeCheckAngles) {
-            if (_rotation.x.value() > 89) _rotation.x = Degrees(89.0f);
-            else if (_rotation.x.value() < -89.0f) _rotation.x = Degrees(-89.0f);
+            if (rotation_.x.value() > 89) rotation_.x = Degrees(89.0f);
+            else if (rotation_.x.value() < -89.0f) rotation_.x = Degrees(-89.0f);
         }
         _invalidateView();
     }
 
-    const Rotation & Camera::getRotation() const {
-        return _rotation;
+    const Rotation & Camera::GetRotation() const {
+        return rotation_;
     }
 
-    void Camera::setPosition(float x, float y, float z) {
-        setPosition(glm::vec3(x, y, z));
+    void Camera::SetPosition(float x, float y, float z) {
+        SetPosition(glm::vec3(x, y, z));
     }
 
-    void Camera::setPosition(const glm::vec3 & position) {
-        _position = position;
+    void Camera::SetPosition(const glm::vec3 & position) {
+        position_ = position;
         _invalidateView();
     }
 
-    const glm::vec3 & Camera::getPosition() const {
-        return _position;
+    const glm::vec3 & Camera::GetPosition() const {
+        return position_;
     }
 
     glm::vec3 Camera::getDirection() const {
@@ -68,9 +68,9 @@ namespace stratus {
         const glm::vec3 side = getSide();
 
         // Update the position
-        _position += dir  * _speed.z * (float)deltaSeconds;
-        _position += up   * _speed.y * (float)deltaSeconds;
-        _position += side * _speed.x * (float)deltaSeconds;
+        position_ += dir  * _speed.z * (float)deltaSeconds;
+        position_ += up   * _speed.y * (float)deltaSeconds;
+        position_ += side * _speed.x * (float)deltaSeconds;
 
         _invalidateView();
     }
@@ -91,7 +91,7 @@ namespace stratus {
 
     void Camera::_updateViewTransform() const {
         if (_viewTransformValid) return;
-        _worldTransform = constructTransformMat(_rotation, _position, glm::vec3(1.0f));
+        _worldTransform = constructTransformMat(rotation_, position_, glm::vec3(1.0f));
         _viewTransform = glm::inverse(_worldTransform);
         _viewTransformValid = true;
     }

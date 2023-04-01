@@ -39,14 +39,14 @@ namespace stratus {
                 bool failed = false;
                 try {
                     std::shared_ptr<E> result = this->_compute();
-                    auto ul = this->_LockWrite();
+                    auto ul = this->LockWrite_();
                     this->_result = result;
                     this->_complete = true;
                     this->_failed = this->_result == nullptr;
                     failed = this->_failed;
                 }
                 catch (const std::exception& e) {
-                    auto ul = this->_LockWrite();
+                    auto ul = this->LockWrite_();
                     this->_complete = true;
                     this->_failed = true;
                     this->_exceptionMessage = e.what();
@@ -62,11 +62,11 @@ namespace stratus {
         }
 
         // Getters for checking internal state
-        bool Failed()                  const { auto sl = _LockRead(); return _failed; }
-        bool Completed()               const { auto sl = _LockRead(); return _complete; }
-        bool CompleteAndValid()        const { auto sl = _LockRead(); return _complete && !_failed; }
-        bool CompleteAndInvalid()      const { auto sl = _LockRead(); return _complete && _failed; }
-        std::string ExceptionMessage() const { auto sl = _LockRead(); return _exceptionMessage; }
+        bool Failed()                  const { auto sl = LockRead_(); return _failed; }
+        bool Completed()               const { auto sl = LockRead_(); return _complete; }
+        bool CompleteAndValid()        const { auto sl = LockRead_(); return _complete && !_failed; }
+        bool CompleteAndInvalid()      const { auto sl = LockRead_(); return _complete && _failed; }
+        std::string ExceptionMessage() const { auto sl = LockRead_(); return _exceptionMessage; }
 
         // Getters for retrieving result
         const E& Get() const {
@@ -112,7 +112,7 @@ namespace stratus {
                 thread->Queue(callback);
             }
             else {
-                auto ul = _LockWrite();
+                auto ul = LockWrite_();
                 if (_callbacks.find(thread) == _callbacks.end()) {
                     _callbacks.insert(std::make_pair(thread, std::vector<Thread::ThreadFunction>()));
                 }
@@ -121,13 +121,13 @@ namespace stratus {
         }
 
     private:
-        std::unique_lock<std::shared_mutex> _LockWrite() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> _LockRead()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(_mutex); }
+        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
 
         void _ProcessCallbacks() {
             std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> callbacks;
             {
-                auto ul = _LockWrite();
+                auto ul = LockWrite_();
                 callbacks = std::move(_callbacks);
             }
             for (auto entry : callbacks) {

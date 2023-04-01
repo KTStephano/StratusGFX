@@ -16,9 +16,9 @@ namespace stratus {
 class Camera {
     mutable glm::mat4 _viewTransform;
     mutable glm::mat4 _worldTransform;
-    glm::vec3 _position = glm::vec3(0.0f);
+    glm::vec3 position_ = glm::vec3(0.0f);
     glm::vec3 _speed = glm::vec3(0.0f);
-    Rotation _rotation;
+    Rotation rotation_;
     bool _rangeCheckAngles;
     mutable bool _viewTransformValid = false;
 
@@ -37,11 +37,11 @@ public:
 
     // Sets the x, y and z angles in degrees
     void setAngle(const Rotation & rotation);
-    const Rotation & getRotation() const;
+    const Rotation & GetRotation() const;
 
-    void setPosition(float x, float y, float z);
-    void setPosition(const glm::vec3 & position);
-    const glm::vec3 & getPosition() const;
+    void SetPosition(float x, float y, float z);
+    void SetPosition(const glm::vec3 & position);
+    const glm::vec3 & GetPosition() const;
 
     glm::vec3 getDirection() const;
     glm::vec3 getUp() const;

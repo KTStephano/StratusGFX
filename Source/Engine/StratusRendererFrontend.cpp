@@ -195,10 +195,10 @@ namespace stratus {
                     else InsertMesh(dynamicPbrEntities_, p, i);
 
                     for (auto& entry : lights_) {
-                        if (!entry->castsShadows()) continue;
+                        if (!entry->CastsShadows()) continue;
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
-                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->getRadius()) {
+                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
                                 frame_->lightsToUpate.PushBack(entry);
                             }
                         }
@@ -228,7 +228,7 @@ namespace stratus {
         flatEntities_.erase(p);
 
         for (auto& entry : lights_) {
-            if (!entry->castsShadows()) continue;
+            if (!entry->CastsShadows()) continue;
             //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
                     if (IsStaticEntity(p)) {
@@ -255,7 +255,7 @@ namespace stratus {
 
         if ( !light->IsStaticLight() ) dynamicLights_.insert(light);
 
-        if ( !light->castsShadows() ) return;
+        if ( !light->CastsShadows() ) return;
 
         frame_->lightsToUpate.PushBack(light);
 
@@ -535,7 +535,7 @@ namespace stratus {
 
         frame_->csc.worldLightCamera = CameraPtr(new Camera(false));
         auto worldLightCamera = frame_->csc.worldLightCamera;
-        worldLightCamera->setAngle(worldLight_->getRotation());
+        worldLightCamera->setAngle(worldLight_->GetRotation());
 
         // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
         //
@@ -779,7 +779,7 @@ namespace stratus {
                         if (light->IsStaticLight()) continue;
 
                         auto lightPos = light->GetPosition();
-                        auto lightRadius = light->getRadius();
+                        auto lightRadius = light->GetRadius();
                         //If the EntityView is in the light's visible set, its shadows are now out of date
                         for (size_t i = 0; i < GetMeshCount(entity); ++i) {
                             if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
@@ -824,7 +824,7 @@ namespace stratus {
 
         // Now go through and update all lights that have changed in some way
         for (auto& light : lights_) {
-            if ( !light->castsShadows() ) continue;
+            if ( !light->CastsShadows() ) continue;
 
             // See if the light moved or its radius changed
             if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
@@ -1317,7 +1317,7 @@ namespace stratus {
             pipeline.SetVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
 
-        pipeline.SetVec3("viewPosition", frame_->camera->getPosition());
+        pipeline.SetVec3("viewPosition", frame_->camera->GetPosition());
         
         for (size_t i = 0; i < drawCommands.size(); ++i) {
            auto& map = drawCommands[i];

@@ -3,18 +3,18 @@
 
 namespace stratus {
     Material::Material(const std::string& name, bool registerSelf)
-        : _name(name), _registerSelf(registerSelf) {}
+        : name_(name), registerSelf_(registerSelf) {}
 
     Material::~Material() {}
 
     void Material::MarkChanged() {
-        auto ul = _LockWrite();
-        _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+        auto ul = LockWrite_();
+        lastFrameChanged_ = INSTANCE(Engine)->FrameCount();
     }
 
     bool Material::ChangedWithinLastFrame() {
-        auto sl = _LockRead();
-        auto diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        auto sl = LockRead_();
+        auto diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff <= 1;
     }
 
@@ -22,168 +22,168 @@ namespace stratus {
     void Material::SetName(const std::string& name) {
         std::string old;
         {
-            auto ul = _LockWrite();
-            old = _name;
-            _name = name;
+            auto ul = LockWrite_();
+            old = name_;
+            name_ = name;
         }
         
         // If the material manager can't change our name then revert it
         if (!MaterialManager::Instance()->NotifyNameChanged(old, shared_from_this())) {
             MarkChanged();
-            auto ul = _LockWrite();
-            _name = old;
+            auto ul = LockWrite_();
+            name_ = old;
         }
     }
 
     std::string Material::GetName() const {
-        auto sl = _LockRead();
-        return _name;
+        auto sl = LockRead_();
+        return name_;
     }
 
     MaterialPtr Material::CreateSubMaterial() {
-        auto ul = _LockWrite();
-        auto mat = MaterialPtr(new Material(_name + std::to_string(_subMats.size() + 1), false));
-        _subMats.push_back(mat);
+        auto ul = LockWrite_();
+        auto mat = MaterialPtr(new Material(name_ + std::to_string(subMats_.size() + 1), false));
+        subMats_.push_back(mat);
         return mat;
     }
 
-    void Material::_Release() {
-        auto ul = _LockWrite();
-        _registerSelf = false;
+    void Material::Release_() {
+        auto ul = LockWrite_();
+        registerSelf_ = false;
     }
 
     // Get and set material properties
     const glm::vec4& Material::GetDiffuseColor() const {
-        auto sl = _LockRead();
-        return _diffuseColor;
+        auto sl = LockRead_();
+        return diffuseColor_;
     }
 
     const glm::vec3& Material::GetAmbientColor() const {
-        auto sl = _LockRead();
-        return _ambientColor;
+        auto sl = LockRead_();
+        return ambientColor_;
     }
 
     const glm::vec3& Material::GetBaseReflectivity() const {
-        auto sl = _LockRead();
-        return _baseReflectivity;
+        auto sl = LockRead_();
+        return baseReflectivity_;
     }
 
     float Material::GetRoughness() const {
-        auto sl = _LockRead();
-        return _roughness;
+        auto sl = LockRead_();
+        return roughness_;
     }
 
     float Material::GetMetallic() const {
-        auto sl = _LockRead();
-        return _metallic;
+        auto sl = LockRead_();
+        return metallic_;
     }
 
     void Material::SetDiffuseColor(const glm::vec4& diffuse) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _diffuseColor = diffuse;
+        auto ul = LockWrite_();
+        diffuseColor_ = diffuse;
     }
 
     void Material::SetAmbientColor(const glm::vec3& ambient) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _ambientColor = ambient;
+        auto ul = LockWrite_();
+        ambientColor_ = ambient;
     }
 
     void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _baseReflectivity = reflectivity;
+        auto ul = LockWrite_();
+        baseReflectivity_ = reflectivity;
     }
 
     void Material::SetRoughness(float roughness) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _roughness = roughness;
+        auto ul = LockWrite_();
+        roughness_ = roughness;
     }
 
     void Material::SetMetallic(float metallic) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _metallic = metallic;
+        auto ul = LockWrite_();
+        metallic_ = metallic;
     }
 
     // Get and set material properties as textures
     TextureHandle Material::GetDiffuseTexture() const {
-        auto sl = _LockRead();
-        return _diffuseTexture;
+        auto sl = LockRead_();
+        return diffuseTexture_;
     }
 
     TextureHandle Material::GetAmbientTexture() const {
-        auto sl = _LockRead();
-        return _ambientTexture;
+        auto sl = LockRead_();
+        return ambientTexture_;
     }
 
     TextureHandle Material::GetNormalMap() const {
-        auto sl = _LockRead();
-        return _normalMap;
+        auto sl = LockRead_();
+        return normalMap_;
     }
 
     TextureHandle Material::GetDepthMap() const {
-        auto sl = _LockRead();
-        return _depthMap;
+        auto sl = LockRead_();
+        return depthMap_;
     }
 
     TextureHandle Material::GetRoughnessMap() const {
-        auto sl = _LockRead();
-        return _roughnessMap;
+        auto sl = LockRead_();
+        return roughnessMap_;
     }
 
     TextureHandle Material::GetMetallicMap() const {
-        auto sl = _LockRead();
-        return _metallicMap;
+        auto sl = LockRead_();
+        return metallicMap_;
     }
 
     TextureHandle Material::GetMetallicRoughnessMap() const {
-        auto sl = _LockRead();
-        return _metallicRoughnessMap;
+        auto sl = LockRead_();
+        return metallicRoughnessMap_;
     }
 
     void Material::SetDiffuseTexture(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _diffuseTexture = handle;
+        auto ul = LockWrite_();
+        diffuseTexture_ = handle;
     }
 
     void Material::SetAmbientTexture(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _ambientTexture = handle;
+        auto ul = LockWrite_();
+        ambientTexture_ = handle;
     }
 
     void Material::SetNormalMap(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _normalMap = handle;
+        auto ul = LockWrite_();
+        normalMap_ = handle;
     }
 
     void Material::SetDepthMap(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _depthMap = handle;
+        auto ul = LockWrite_();
+        depthMap_ = handle;
     }
 
     void Material::SetRoughnessMap(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _roughnessMap = handle;
+        auto ul = LockWrite_();
+        roughnessMap_ = handle;
     }
 
     void Material::SetMetallicMap(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _metallicMap = handle;
+        auto ul = LockWrite_();
+        metallicMap_ = handle;
     }
 
     void Material::SetMetallicRoughnessMap(TextureHandle handle) {
         MarkChanged();
-        auto ul = _LockWrite();
-        _metallicRoughnessMap = handle;
+        auto ul = LockWrite_();
+        metallicRoughnessMap_ = handle;
     }
 
     MaterialManager::MaterialManager() {}
@@ -199,7 +199,7 @@ namespace stratus {
 
         mat = MaterialPtr(new Material(name, true));
         // If we fail to insert, return the one we have
-        if (!_materials.InsertIfAbsent(std::make_pair(name, mat))) {
+        if (!materials_.InsertIfAbsent(std::make_pair(name, mat))) {
             return GetMaterial(name);
         }
         return mat;
@@ -209,14 +209,14 @@ namespace stratus {
         STRATUS_LOG << "Releasing material: " << name << std::endl;
         auto mat = GetMaterial(name);
         if (mat) {
-            mat->_Release();
-            _materials.Remove(name);
+            mat->Release_();
+            materials_.Remove(name);
         }
     }
 
     MaterialPtr MaterialManager::GetMaterial(const std::string& name) const {
-        auto it = _materials.Find(name);
-        if (it != _materials.End()) return it->second;
+        auto it = materials_.Find(name);
+        if (it != materials_.End()) return it->second;
         return nullptr;
     }
 
@@ -227,22 +227,22 @@ namespace stratus {
     }
 
     bool MaterialManager::ContainsMaterial(const std::string& name) const {
-        return _materials.Find(name) != _materials.End();
+        return materials_.Find(name) != materials_.End();
     }
 
     std::vector<MaterialPtr> MaterialManager::GetAllMaterials() const {
         std::vector<MaterialPtr> mats;
-        mats.reserve(_materials.Size());
-        for (auto it = _materials.Begin(); it != _materials.End(); ++it) {
+        mats.reserve(materials_.Size());
+        for (auto it = materials_.Begin(); it != materials_.End(); ++it) {
             mats.push_back(it->second);
         }
         return mats;
     }
 
     bool MaterialManager::NotifyNameChanged(const std::string& oldName, MaterialPtr material) {
-        bool result = _materials.InsertIfAbsent(std::make_pair(material->GetName(), material));
+        bool result = materials_.InsertIfAbsent(std::make_pair(material->GetName(), material));
         if (result) {
-            _materials.Remove(oldName);
+            materials_.Remove(oldName);
         }        
         return result;
     }
@@ -260,6 +260,6 @@ namespace stratus {
     }
 
     void MaterialManager::Shutdown() {
-        _materials.Clear();
+        materials_.Clear();
     }
 }

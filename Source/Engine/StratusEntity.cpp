@@ -18,22 +18,22 @@ namespace stratus {
 
     void EntityComponent::MarkChanged() {
         if (INSTANCE(Engine)) {
-            _lastFrameChanged = INSTANCE(Engine)->FrameCount();
+            lastFrameChanged_ = INSTANCE(Engine)->FrameCount();
         }
     }
 
     bool EntityComponent::ChangedLastFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff == 1;
     }
 
     bool EntityComponent::ChangedThisFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff == 0;
     }
 
     bool EntityComponent::ChangedWithinLastFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - _lastFrameChanged;
+        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff <= 1;
     }
 

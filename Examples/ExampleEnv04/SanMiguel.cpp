@@ -93,7 +93,7 @@ public:
 
         auto camera = World()->GetCamera();
         auto worldLight = World()->GetWorldLight();
-        const glm::vec3 worldLightColor = worldLight->getColor();
+        const glm::vec3 worldLightColor = worldLight->GetColor();
 
         // Check for key/mouse events
         auto events = Input()->GetInputEventsLastFrame();
@@ -119,7 +119,7 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 100.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 100.0f)
                                 );
                             }
                             break;
@@ -127,7 +127,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 50.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 50.0f)
                                 );
                             }
                             break;
@@ -135,7 +135,7 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->getPosition(), worldLightColor, 15.0f)
+                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 15.0f)
                                 );
                             }
                             break;

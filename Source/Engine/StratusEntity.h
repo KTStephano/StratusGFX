@@ -87,7 +87,7 @@ namespace stratus {
 
     protected:
         // Last engine frame this component was modified
-        uint64_t _lastFrameChanged = 0;
+        uint64_t lastFrameChanged_ = 0;
 
     };
 

@@ -16,10 +16,10 @@
 struct WorldLightController : public stratus::InputHandler {
     WorldLightController(const glm::vec3& lightColor, const glm::vec3& atmosphereColor, const float intensity = 4.0f) {
         _worldLight = stratus::InfiniteLightPtr(new stratus::InfiniteLight(true));
-        _worldLight->setRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
-        _worldLight->setColor(lightColor);
+        _worldLight->SetRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(10.0f), stratus::Degrees(0.0f)));
+        _worldLight->SetColor(lightColor);
         _worldLight->SetAtmosphereColor(atmosphereColor);
-        _worldLight->setIntensity(intensity);
+        _worldLight->SetIntensity(intensity);
         INSTANCE(RendererFrontend)->SetWorldLight(_worldLight);
     }
 
@@ -28,7 +28,7 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
     void SetRotation(const stratus::Rotation& r) {
-        _worldLight->setRotation(r);
+        _worldLight->SetRotation(r);
     }
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
@@ -40,7 +40,7 @@ struct WorldLightController : public stratus::InputHandler {
         const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
         double particleDensity = _worldLight->GetAtmosphericParticleDensity();
         double scatterControl = _worldLight->GetAtmosphericScatterControl();
-        double lightIntensity = _worldLight->getIntensity();
+        double lightIntensity = _worldLight->GetIntensity();
         
         for (auto e : input) {
             switch (e.type) {
@@ -64,7 +64,7 @@ struct WorldLightController : public stratus::InputHandler {
                         case SDL_SCANCODE_E:
                             if (released) {
                                 STRATUS_LOG << "World Lighting Toggled" << std::endl;
-                                _worldLight->setEnabled( !_worldLight->getEnabled() );
+                                _worldLight->SetEnabled( !_worldLight->GetEnabled() );
                             }
                             break;
                         case SDL_SCANCODE_G: {
@@ -87,7 +87,7 @@ struct WorldLightController : public stratus::InputHandler {
                                 lightIntensity = lightIntensity - lightIncreaseSpeed * deltaSeconds;
                                 lightIntensity = std::max(minLightBrightness, std::min(maxLightBrightness, lightIntensity));
                                 STRATUS_LOG << "Light Intensity: " << lightIntensity << std::endl;
-                                _worldLight->setIntensity(lightIntensity);
+                                _worldLight->SetIntensity(lightIntensity);
                             }
                             break;
                         case SDL_SCANCODE_EQUALS:
@@ -95,7 +95,7 @@ struct WorldLightController : public stratus::InputHandler {
                                 lightIntensity = lightIntensity + lightIncreaseSpeed * deltaSeconds;
                                 lightIntensity = std::max(minLightBrightness, std::min(maxLightBrightness, lightIntensity));
                                 STRATUS_LOG << "Light Intensity: " << lightIntensity << std::endl;
-                                _worldLight->setIntensity(lightIntensity);
+                                _worldLight->SetIntensity(lightIntensity);
                             }
                             break;
                         case SDL_SCANCODE_UP: {
@@ -134,10 +134,10 @@ struct WorldLightController : public stratus::InputHandler {
         _worldLight->SetAtmosphericLightingConstants(particleDensity, scatterControl);
 
         if (!_worldLightPaused) {
-            _worldLight->offsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
+            _worldLight->OffsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
         }
 
-        _worldLight->setPosition(INSTANCE(RendererFrontend)->GetCamera()->getPosition());
+        _worldLight->SetPosition(INSTANCE(RendererFrontend)->GetCamera()->GetPosition());
     }
 
 private:

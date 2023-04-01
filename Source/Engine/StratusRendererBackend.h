@@ -117,7 +117,7 @@ namespace stratus {
         }
 
         void PushBack(const LightPtr& ptr) {
-            if (existing_.find(ptr) != existing_.end() || !ptr->castsShadows()) return;
+            if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
             queue_.push_back(ptr);
             existing_.insert(ptr);
         }

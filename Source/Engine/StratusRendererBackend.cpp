@@ -802,7 +802,7 @@ void RendererBackend::Render_(const RenderFaceCulling cull, GpuCommandBufferPtr&
     BindShader_(s);
 
     if (isLightInteracting) {
-        s->SetVec3("viewPosition", &camera.getPosition()[0]);
+        s->SetVec3("viewPosition", &camera.GetPosition()[0]);
     }
 
     s->SetMat4("projectionView", projectionView);
@@ -965,7 +965,7 @@ void RendererBackend::RenderSsaoBlur_() {
 }
 
 void RendererBackend::RenderAtmosphericShadowing_() {
-    if (!frame_->csc.worldLight->getEnabled()) return;
+    if (!frame_->csc.worldLight->GetEnabled()) return;
 
     constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
 
@@ -990,7 +990,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
     const glm::mat4 shadowMatrix = frame_->csc.cascades[0].projectionViewSample * frame_->camera->getWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
-    const glm::vec4 shadowSpaceCameraPos = frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->getPosition(), 1.0f);
+    const glm::vec4 shadowSpaceCameraPos = frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
     const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
 
     BindShader_(state_.atmospheric.get());
@@ -1040,9 +1040,9 @@ void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, do
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
-        data.farPlane = point->getFarPlane();
-        data.radius = point->getRadius();
-        data.intensity = point->getIntensity();
+        data.farPlane = point->GetFarPlane();
+        data.radius = point->GetRadius();
+        data.intensity = point->GetIntensity();
     }
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
@@ -1053,7 +1053,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                                          std::vector<int>& visibleVplIndices) {
     const Camera& c = *frame_->camera;
 
-    const bool worldLightEnabled = frame_->csc.worldLight->getEnabled();
+    const bool worldLightEnabled = frame_->csc.worldLight->GetEnabled();
 
     perLightDistToViewer.reserve(state_.maxTotalRegularLightsPerFrame);
     perLightShadowCastingDistToViewer.reserve(state_.maxShadowCastingLightsPerFrame);
@@ -1063,7 +1063,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
     // Init per light instance data
     for (auto& light : frame_->lights) {
-        const double distance = glm::distance(c.getPosition(), light->GetPosition());
+        const double distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
             if (worldLightEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
                 perVPLDistToViewer.push_back(std::make_pair(light, distance));
@@ -1073,7 +1073,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
             perLightDistToViewer.push_back(std::make_pair(light, distance));
         }
 
-        if ( !light->IsVirtualLight() && light->castsShadows() ) {
+        if ( !light->IsVirtualLight() && light->CastsShadows() ) {
             perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
         }
     }
@@ -1128,7 +1128,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpate.Size() > 0; ++shadowUpdates) {
         auto light = frame_->lightsToUpate.PopFront();
         // Ideally this won't be needed but just in case
-        if ( !light->castsShadows() ) continue;
+        if ( !light->CastsShadows() ) continue;
         //const double distance = perLightShadowCastingDistToViewer.find(light)->second;
     
         // TODO: Make this work with spotlights
@@ -1136,7 +1136,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         PointLight * point = (PointLight *)light.get();
         ShadowMap3D smap = GetOrAllocateShadowMapForLight_(light);
 
-        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.Width()) / smap.shadowCubeMap.Height(), point->getNearPlane(), point->getFarPlane());
+        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(smap.shadowCubeMap.Width()) / smap.shadowCubeMap.Height(), point->GetNearPlane(), point->GetFarPlane());
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
         smap.frameBuffer.clear(glm::vec4(1.0f));
@@ -1152,7 +1152,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
             shader->SetMat4("shadowMatrix", transforms[i]);
             shader->SetVec3("lightPos", light->GetPosition());
-            shader->SetFloat("farPlane", point->getFarPlane());
+            shader->SetFloat("farPlane", point->GetFarPlane());
 
             RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
             if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
@@ -1267,7 +1267,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     // Bind inputs
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
-    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->getLuminance());
+    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
 
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
@@ -1313,7 +1313,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplTileDeferredCullingStage2->Bind();
 
     // Bind inputs
-    state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->getPosition());
+    state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->GetPosition());
 
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
@@ -1373,7 +1373,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vpls.vplGIFbo.Bind();
 
     // Set up infinite light color
-    const glm::vec3 lightColor = frame_->csc.worldLight->getLuminance();
+    const glm::vec3 lightColor = frame_->csc.worldLight->GetLuminance();
     state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
 
     state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
@@ -1397,7 +1397,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->fogDensity);
 
     const Camera& camera = frame_->camera.get();
-    state_.vplGlobalIllumination->SetVec3("viewPosition", camera.getPosition());
+    state_.vplGlobalIllumination->SetVec3("viewPosition", camera.GetPosition());
     state_.vplGlobalIllumination->SetInt("viewportWidth", frame_->viewportWidth);
     state_.vplGlobalIllumination->SetInt("viewportHeight", frame_->viewportHeight);
 
@@ -1430,7 +1430,7 @@ void RendererBackend::RenderScene() {
 
     // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
     // do this first
-    if (frame_->csc.worldLight->getEnabled()) {
+    if (frame_->csc.worldLight->GetEnabled()) {
         RenderCSMDepth_();
     }
 
@@ -1480,7 +1480,7 @@ void RendererBackend::RenderScene() {
 
     //_unbindAllTextures();
     Pipeline* lighting = state_.lighting.get();
-    if (frame_->csc.worldLight->getEnabled()) {
+    if (frame_->csc.worldLight->GetEnabled()) {
         lighting = state_.lightingWithInfiniteLight.get();
     }
 
@@ -1504,7 +1504,7 @@ void RendererBackend::RenderScene() {
     state_.finalScreenTexture = state_.lightingColorBuffer;
 
     // If world light is enabled perform VPL Global Illumination pass
-    if (frame_->csc.worldLight->getEnabled() && frame_->globalIlluminationEnabled) {
+    if (frame_->csc.worldLight->GetEnabled() && frame_->globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
         PerformVirtualPointLightCullingStage2_(perVPLDistToViewer, visibleVplIndices);
         ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer);
@@ -1668,7 +1668,7 @@ glm::vec3 RendererBackend::CalculateAtmosphericLightPosition_() const {
 }
 
 void RendererBackend::PerformAtmosphericPostFx_() {
-    if (!frame_->csc.worldLight->getEnabled()) return;
+    if (!frame_->csc.worldLight->GetEnabled()) return;
 
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
@@ -1885,11 +1885,11 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
 
         GpuPointLight gpuLight;
         gpuLight.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
-        gpuLight.color = GpuVec(glm::vec4(point->getColor(), 1.0f));
-        gpuLight.farPlane = point->getFarPlane();
-        gpuLight.radius = point->getRadius();
+        gpuLight.color = GpuVec(glm::vec4(point->GetColor(), 1.0f));
+        gpuLight.farPlane = point->GetFarPlane();
+        gpuLight.radius = point->GetRadius();
 
-        if (point->castsShadows() && gpuShadowLights.size() < maxShadowLights) {
+        if (point->CastsShadows() && gpuShadowLights.size() < maxShadowLights) {
             gpuShadowLights.push_back(std::move(gpuLight));
             auto smap = GetOrAllocateShadowMapForLight_(light);
             gpuShadowCubeMaps.push_back(smap.shadowCubeMap.GpuHandle());
@@ -1919,7 +1919,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
 
     s->SetInt("numLights", int(gpuLights.size()));
     s->SetInt("numShadowLights", int(gpuShadowLights.size()));
-    s->SetVec3("viewPosition", c.getPosition());
+    s->SetVec3("viewPosition", c.GetPosition());
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();
     s->SetVec3("atmosphericLightPos", lightPosition);
 
@@ -1933,9 +1933,9 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
-    lightColor = frame_->csc.worldLight->getLuminance();
+    lightColor = frame_->csc.worldLight->GetLuminance();
     s->SetVec3("infiniteLightColor", lightColor);
-    s->SetFloat("worldLightAmbientIntensity", frame_->csc.worldLight->getAmbientIntensity());
+    s->SetFloat("worldLightAmbientIntensity", frame_->csc.worldLight->GetAmbientIntensity());
 
     InitCoreCSMData_(s);
 

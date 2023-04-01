@@ -14,8 +14,8 @@ struct CameraController : public stratus::InputHandler {
         stratus::RendererFrontend::Instance()->SetCamera(_camera);
 
         _cameraLight = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
-        _cameraLight->setCastsShadows(false);
-        _cameraLight->setIntensity(600.0f);
+        _cameraLight->SetCastsShadows(false);
+        _cameraLight->SetIntensity(600.0f);
 
         if (_cameraLightEnabled) {
             stratus::RendererFrontend::Instance()->AddLight(_cameraLight);
@@ -118,7 +118,7 @@ struct CameraController : public stratus::InputHandler {
                             break;
                         case SDL_SCANCODE_V:
                             if (released) {
-                                STRATUS_LOG << "Camera Position: " << INSTANCE(RendererFrontend)->GetCamera()->getPosition() << std::endl;
+                                STRATUS_LOG << "Camera Position: " << INSTANCE(RendererFrontend)->GetCamera()->GetPosition() << std::endl;
                             }
                             break;
                     }
@@ -142,7 +142,7 @@ struct CameraController : public stratus::InputHandler {
         glm::vec3 tmpCamSpeed = _cameraSpeed * _camSpeedDivide;
         _camera->setSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
 
-        _cameraLight->SetPosition(_camera->getPosition());
+        _cameraLight->SetPosition(_camera->GetPosition());
     }
 
 private:
