@@ -62,11 +62,9 @@ Because of the MPL license, any community changes made to the rendering code wil
 * Multi draw elements indirect
 * Shader storage buffers
 
-# Building
+# Building For Windows & Linux
 
 This code base will currently not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
-
-### Windows
 
 First set up the repo
 
@@ -89,10 +87,6 @@ All executables will be put into StratusGFX/Bin. Good ones to run to see if it w
     StratusGFX/Bin/Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
     StratusGFX/Bin/StratusEngineUnitTests.exe
     StratusGFX/Bin/StratusEngineIntegrationTests.exe
-
-### Linux
-
-The steps will be almost the same except that you can use your system's package manager to install Catch2 and the other third party libraries if you prefer. You will still need to do the GL3W header generation step.
 
 # First Places to Look
 
