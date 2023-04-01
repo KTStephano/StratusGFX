@@ -37,14 +37,14 @@ namespace stratus {
         void clear(const glm::vec4 & rgba) {
             bool bindAndUnbind = true;
             if (_currentBindingPoint != 0) bindAndUnbind = false;
-            if (bindAndUnbind) bind();
+            if (bindAndUnbind) Bind();
             glDepthMask(GL_TRUE);
             glStencilMask(GL_TRUE);
             glDrawBuffers(_glColorAttachments.size(), _glColorAttachments.data());
             glClearColor(rgba.r, rgba.g, rgba.b, rgba.a);
             glClearDepthf(1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            if (bindAndUnbind) unbind();
+            if (bindAndUnbind) Unbind();
         }
 
         void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {
@@ -72,11 +72,11 @@ namespace stratus {
             _depthStencilAttachment.ClearLayer(0, layer, (const void *)&val);
         }
 
-        void bind() const {
+        void Bind() const {
             _bind(GL_FRAMEBUFFER);
         }
 
-        void unbind() const {
+        void Unbind() const {
             if (_currentBindingPoint == -1) return;
             glBindFramebuffer(_currentBindingPoint, 0);
             _currentBindingPoint = 0;
@@ -112,7 +112,7 @@ namespace stratus {
             if (_colorAttachments.size() > 0 || _depthStencilAttachment.Valid()) throw std::runtime_error("setAttachments called twice");
             _valid = true;
 
-            bind();
+            Bind();
 
             // We can only have 1 max for each
             int numDepthStencilAttachments = 0;
@@ -181,7 +181,7 @@ namespace stratus {
                 _valid = false;
             }
 
-            unbind();
+            Unbind();
         }
 
         bool valid() const {
@@ -247,8 +247,8 @@ namespace stratus {
     const std::vector<Texture> & FrameBuffer::getColorAttachments() const { return _fbo->getColorAttachments(); }
     const Texture * FrameBuffer::getDepthStencilAttachment() const        { return _fbo->getDepthStencilAttachment(); }
 
-    void FrameBuffer::bind() const         { _fbo->bind(); }
-    void FrameBuffer::unbind() const       { _fbo->unbind(); }
+    void FrameBuffer::Bind() const         { _fbo->Bind(); }
+    void FrameBuffer::Unbind() const       { _fbo->Unbind(); }
     bool FrameBuffer::valid() const        { return _fbo != nullptr && _fbo->valid(); }
     void * FrameBuffer::underlying() const { return _fbo->underlying(); }
 

@@ -269,7 +269,7 @@ void RendererBackend::InitializeVplData_() {
 void RendererBackend::ValidateAllShaders_() {
     isValid_ = true;
     for (Pipeline * p : state_.shaders) {
-        isValid_ = isValid_ && p->isValid();
+        isValid_ = isValid_ && p->IsValid();
     }
 }
 
@@ -283,7 +283,7 @@ RendererBackend::~RendererBackend() {
 
 void RendererBackend::RecompileShaders() {
     for (Pipeline* p : state_.shaders) {
-        p->recompile();
+        p->Recompile();
     }
     ValidateAllShaders_();
 }
@@ -687,14 +687,14 @@ static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & proj
 
 void RendererBackend::BindShader_(Pipeline * s) {
     UnbindShader_();
-    s->bind();
+    s->Bind();
     state_.currentShader = s;
 }
 
 void RendererBackend::UnbindShader_() {
     if (!state_.currentShader) return;
     //_unbindAllTextures();
-    state_.currentShader->unbind();
+    state_.currentShader->Unbind();
     state_.currentShader = nullptr;
 }
 
@@ -734,10 +734,10 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
 
     // _state.aabbDraw->setMat4("projection", _frame->projection);
     // _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
-    state_.aabbDraw->setMat4("projectionView", frame_->projectionView);
+    state_.aabbDraw->SetMat4("projectionView", frame_->projectionView);
 
     for (int i = 0; i < buffer->NumDrawCommands(); ++i) {
-        state_.aabbDraw->setInt("modelIndex", i);
+        state_.aabbDraw->SetInt("modelIndex", i);
         glDrawArrays(GL_LINES, 0, 24);
     }
 
@@ -802,10 +802,10 @@ void RendererBackend::Render_(const RenderFaceCulling cull, GpuCommandBufferPtr&
     BindShader_(s);
 
     if (isLightInteracting) {
-        s->setVec3("viewPosition", &camera.getPosition()[0]);
+        s->SetVec3("viewPosition", &camera.getPosition()[0]);
     }
 
-    s->setMat4("projectionView", projectionView);
+    s->SetMat4("projectionView", projectionView);
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
@@ -844,11 +844,11 @@ void RendererBackend::RenderSkybox_() {
 
         // _state.skybox->setMat4("projection", projection);
         // _state.skybox->setMat4("view", view);
-        state_.skybox->setMat4("projectionView", projectionView);
+        state_.skybox->SetMat4("projectionView", projectionView);
 
-        state_.skybox->setVec3("colorMask", frame_->skyboxColorMask);
-        state_.skybox->setFloat("intensity", frame_->skyboxIntensity);
-        state_.skybox->bindTexture("skybox", sky);
+        state_.skybox->SetVec3("colorMask", frame_->skyboxColorMask);
+        state_.skybox->SetFloat("intensity", frame_->skyboxIntensity);
+        state_.skybox->BindTexture("skybox", sky);
 
         GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
@@ -874,7 +874,7 @@ void RendererBackend::RenderCSMDepth_() {
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
-    frame_->csc.fbo.bind();
+    frame_->csc.fbo.Bind();
     const Texture * depth = frame_->csc.fbo.getDepthStencilAttachment();
     if (!depth) {
         throw std::runtime_error("Critical error: depth attachment not present");
@@ -888,8 +888,8 @@ void RendererBackend::RenderCSMDepth_() {
 
         BindShader_(shader);
 
-        shader->setVec3("lightDir", &frame_->csc.worldLightCamera->getDirection()[0]);
-        shader->setFloat("nearClipPlane", frame_->znear);
+        shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->getDirection()[0]);
+        shader->SetFloat("nearClipPlane", frame_->znear);
 
         // Set up each individual view-projection matrix
         // for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
@@ -903,7 +903,7 @@ void RendererBackend::RenderCSMDepth_() {
 
         // Render everything
         auto& csm = frame_->csc.cascades[cascade];
-        shader->setMat4("shadowMatrix", csm.projectionViewRender);
+        shader->SetMat4("shadowMatrix", csm.projectionViewRender);
         const size_t lod = cascade * 2;
         RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
         RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
@@ -911,7 +911,7 @@ void RendererBackend::RenderCSMDepth_() {
         UnbindShader_();
     }
     
-    frame_->csc.fbo.unbind();
+    frame_->csc.fbo.Unbind();
 
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_DEPTH_CLAMP);
@@ -930,16 +930,16 @@ void RendererBackend::RenderSsaoOcclude_() {
     const float intensity = 5.0f;
 
     BindShader_(state_.ssaoOcclude.get());
-    state_.ssaoOcclusionBuffer.bind();
-    state_.ssaoOcclude->bindTexture("structureBuffer", state_.buffer.structure);
-    state_.ssaoOcclude->bindTexture("rotationLookup", state_.ssaoOffsetLookup);
-    state_.ssaoOcclude->setFloat("aspectRatio", ar);
-    state_.ssaoOcclude->setFloat("projPlaneZDist", g);
-    state_.ssaoOcclude->setFloat("windowHeight", frame_->viewportHeight);
-    state_.ssaoOcclude->setFloat("windowWidth", w);
-    state_.ssaoOcclude->setFloat("intensity", intensity);
+    state_.ssaoOcclusionBuffer.Bind();
+    state_.ssaoOcclude->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.ssaoOcclude->BindTexture("rotationLookup", state_.ssaoOffsetLookup);
+    state_.ssaoOcclude->SetFloat("aspectRatio", ar);
+    state_.ssaoOcclude->SetFloat("projPlaneZDist", g);
+    state_.ssaoOcclude->SetFloat("windowHeight", frame_->viewportHeight);
+    state_.ssaoOcclude->SetFloat("windowWidth", w);
+    state_.ssaoOcclude->SetFloat("intensity", intensity);
     RenderQuad_();
-    state_.ssaoOcclusionBuffer.unbind();
+    state_.ssaoOcclusionBuffer.Unbind();
     UnbindShader_();
 
     glEnable(GL_CULL_FACE);
@@ -951,13 +951,13 @@ void RendererBackend::RenderSsaoBlur_() {
     glDisable(GL_DEPTH_TEST);
 
     BindShader_(state_.ssaoBlur.get());
-    state_.ssaoOcclusionBlurredBuffer.bind();
-    state_.ssaoBlur->bindTexture("structureBuffer", state_.buffer.structure);
-    state_.ssaoBlur->bindTexture("occlusionBuffer", state_.ssaoOcclusionTexture);
-    state_.ssaoBlur->setFloat("windowWidth", frame_->viewportWidth);
-    state_.ssaoBlur->setFloat("windowHeight", frame_->viewportHeight);
+    state_.ssaoOcclusionBlurredBuffer.Bind();
+    state_.ssaoBlur->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.ssaoBlur->BindTexture("occlusionBuffer", state_.ssaoOcclusionTexture);
+    state_.ssaoBlur->SetFloat("windowWidth", frame_->viewportWidth);
+    state_.ssaoBlur->SetFloat("windowHeight", frame_->viewportHeight);
     RenderQuad_();
-    state_.ssaoOcclusionBlurredBuffer.unbind();
+    state_.ssaoOcclusionBlurredBuffer.Unbind();
     UnbindShader_();
 
     glEnable(GL_CULL_FACE);
@@ -994,39 +994,39 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
 
     BindShader_(state_.atmospheric.get());
-    state_.atmosphericFbo.bind();
-    state_.atmospheric->setVec3("frustumParams", frustumParams);
-    state_.atmospheric->setMat4("shadowMatrix", shadowMatrix);
-    state_.atmospheric->bindTexture("structureBuffer", state_.buffer.structure);
-    state_.atmospheric->bindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
+    state_.atmosphericFbo.Bind();
+    state_.atmospheric->SetVec3("frustumParams", frustumParams);
+    state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
+    state_.atmospheric->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
     
     // Set up cascade data
     for (int i = 0; i < 4; ++i) {
         const auto& cascade = frame_->csc.cascades[i];
         const std::string si = "[" + std::to_string(i) + "]";
-        state_.atmospheric->setFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
+        state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
         if (i > 0) {
             const std::string sim1 = "[" + std::to_string(i - 1) + "]";
-            state_.atmospheric->setMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
+            state_.atmospheric->SetMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
         }
     }
 
-    state_.atmospheric->bindTexture("noiseTexture", state_.atmosphericNoiseTexture);
-    state_.atmospheric->setFloat("minAtmosphereDepth", dmin);
-    state_.atmospheric->setFloat("atmosphereDepthDiff", dmax - dmin);
-    state_.atmospheric->setFloat("atmosphereDepthRatio", dmax / dmin);
-    state_.atmospheric->setFloat("atmosphereFogDensity", lambda);
-    state_.atmospheric->setVec3("anisotropyConstants", anisotropyConstants);
-    state_.atmospheric->setVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
-    state_.atmospheric->setVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
-    state_.atmospheric->setVec2("noiseShift", noiseShift);
+    state_.atmospheric->BindTexture("noiseTexture", state_.atmosphericNoiseTexture);
+    state_.atmospheric->SetFloat("minAtmosphereDepth", dmin);
+    state_.atmospheric->SetFloat("atmosphereDepthDiff", dmax - dmin);
+    state_.atmospheric->SetFloat("atmosphereDepthRatio", dmax / dmin);
+    state_.atmospheric->SetFloat("atmosphereFogDensity", lambda);
+    state_.atmospheric->SetVec3("anisotropyConstants", anisotropyConstants);
+    state_.atmospheric->SetVec4("shadowSpaceCameraPos", shadowSpaceCameraPos);
+    state_.atmospheric->SetVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
+    state_.atmospheric->SetVec2("noiseShift", noiseShift);
     const Texture& colorTex = state_.atmosphericFbo.getColorAttachments()[0];
-    state_.atmospheric->setFloat("windowWidth", float(colorTex.Width()));
-    state_.atmospheric->setFloat("windowHeight", float(colorTex.Height()));
+    state_.atmospheric->SetFloat("windowWidth", float(colorTex.Width()));
+    state_.atmospheric->SetFloat("windowHeight", float(colorTex.Height()));
 
     glViewport(0, 0, colorTex.Width(), colorTex.Height());
     RenderQuad_();
-    state_.atmosphericFbo.unbind();
+    state_.atmosphericFbo.Unbind();
     UnbindShader_();
 
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
@@ -1140,7 +1140,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
         smap.frameBuffer.clear(glm::vec4(1.0f));
-        smap.frameBuffer.bind();
+        smap.frameBuffer.Bind();
         glViewport(0, 0, smap.shadowCubeMap.Width(), smap.shadowCubeMap.Height());
         // Current pass only cares about depth buffer
         // glClear(GL_DEPTH_BUFFER_BIT);
@@ -1150,9 +1150,9 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
             Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows[i].get() : state_.shadows[i].get();
             BindShader_(shader);
 
-            shader->setMat4("shadowMatrix", transforms[i]);
-            shader->setVec3("lightPos", light->GetPosition());
-            shader->setFloat("farPlane", point->getFarPlane());
+            shader->SetMat4("shadowMatrix", transforms[i]);
+            shader->SetVec3("lightPos", light->GetPosition());
+            shader->SetFloat("farPlane", point->getFarPlane());
 
             RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
             if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
@@ -1161,7 +1161,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         }
 
         // Unbind
-        smap.frameBuffer.unbind();
+        smap.frameBuffer.Unbind();
     }
 }
 
@@ -1171,14 +1171,14 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     if (perVPLDistToViewer.size() == 0) return;
 
-    state_.vplCulling->bind();
+    state_.vplCulling->Bind();
 
     const Camera & lightCam = *frame_->csc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.getDirection();
 
-    state_.vplCulling->setVec3("infiniteLightDirection", direction);
-    state_.vplCulling->setInt("totalNumLights", perVPLDistToViewer.size());
+    state_.vplCulling->SetVec3("infiniteLightDirection", direction);
+    state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
 
     // Set up # visible atomic counter
     int numVisible = 0;
@@ -1190,10 +1190,10 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     InitCoreCSMData_(state_.vplCulling.get());
-    state_.vplCulling->dispatchCompute(1, 1, 1);
-    state_.vplCulling->synchronizeCompute();
+    state_.vplCulling->DispatchCompute(1, 1, 1);
+    state_.vplCulling->SynchronizeCompute();
 
-    state_.vplCulling->unbind();
+    state_.vplCulling->Unbind();
 
     int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
     state_.vpls.vplNumVisible.UnmapMemory();
@@ -1263,11 +1263,11 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.getDirection();
 
-    state_.vplColoring->bind();
+    state_.vplColoring->Bind();
 
     // Bind inputs
-    state_.vplColoring->setVec3("infiniteLightDirection", direction);
-    state_.vplColoring->setVec3("infiniteLightColor", frame_->csc.worldLight->getLuminance());
+    state_.vplColoring->SetVec3("infiniteLightDirection", direction);
+    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->getLuminance());
 
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
@@ -1277,19 +1277,19 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     // Dispatch and synchronize
-    state_.vplColoring->dispatchCompute(1, 1, 1);
-    state_.vplColoring->synchronizeCompute();
+    state_.vplColoring->DispatchCompute(1, 1, 1);
+    state_.vplColoring->SynchronizeCompute();
 
-    state_.vplColoring->unbind();
+    state_.vplColoring->Unbind();
 
     // Now perform culling per tile since we now know which lights are active
-    state_.vplTileDeferredCullingStage1->bind();
+    state_.vplTileDeferredCullingStage1->Bind();
 
     // Bind inputs
     //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
-    state_.vplTileDeferredCullingStage1->setMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplTileDeferredCullingStage1->bindTexture("gDepth", state_.buffer.depth);
-    state_.vplTileDeferredCullingStage1->bindTexture("gNormal", state_.buffer.normals);
+    state_.vplTileDeferredCullingStage1->SetMat4("invProjectionView", frame_->invProjectionView);
+    state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.buffer.depth);
+    state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.buffer.normals);
     // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
 
@@ -1300,20 +1300,20 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Dispatch and synchronize
-    state_.vplTileDeferredCullingStage1->dispatchCompute(
+    state_.vplTileDeferredCullingStage1->DispatchCompute(
         (unsigned int)frame_->viewportWidth  / state_.vpls.tileXDivisor,
         (unsigned int)frame_->viewportHeight / state_.vpls.tileYDivisor,
         1
     );
-    state_.vplTileDeferredCullingStage1->synchronizeCompute();
+    state_.vplTileDeferredCullingStage1->SynchronizeCompute();
 
-    state_.vplTileDeferredCullingStage1->unbind();
+    state_.vplTileDeferredCullingStage1->Unbind();
 
     // Perform stage 2 of the tiled deferred culling
-    state_.vplTileDeferredCullingStage2->bind();
+    state_.vplTileDeferredCullingStage2->Bind();
 
     // Bind inputs
-    state_.vplTileDeferredCullingStage2->setVec3("viewPosition", frame_->camera->getPosition());
+    state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->getPosition());
 
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
@@ -1325,14 +1325,14 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
     
     // Dispatch and synchronize
-    state_.vplTileDeferredCullingStage2->dispatchCompute(
+    state_.vplTileDeferredCullingStage2->DispatchCompute(
         (unsigned int)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
         (unsigned int)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
         1
     );
-    state_.vplTileDeferredCullingStage2->synchronizeCompute();
+    state_.vplTileDeferredCullingStage2->SynchronizeCompute();
 
-    state_.vplTileDeferredCullingStage2->unbind();
+    state_.vplTileDeferredCullingStage2->Unbind();
 
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
     // GpuVplStage2PerTileOutputs * tiles = (GpuVplStage2PerTileOutputs *)_state.vpls.vplVisiblePerTile.MapMemory();
@@ -1370,51 +1370,51 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
     glDisable(GL_DEPTH_TEST);
     BindShader_(state_.vplGlobalIllumination.get());
-    state_.vpls.vplGIFbo.bind();
+    state_.vpls.vplGIFbo.Bind();
 
     // Set up infinite light color
     const glm::vec3 lightColor = frame_->csc.worldLight->getLuminance();
-    state_.vplGlobalIllumination->setVec3("infiniteLightColor", lightColor);
+    state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
 
-    state_.vplGlobalIllumination->setInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
-    state_.vplGlobalIllumination->setInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
+    state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
+    state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-    state_.vplGlobalIllumination->setMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplGlobalIllumination->bindTexture("screen", state_.lightingColorBuffer);
-    state_.vplGlobalIllumination->bindTexture("gDepth", state_.buffer.depth);
-    state_.vplGlobalIllumination->bindTexture("gNormal", state_.buffer.normals);
-    state_.vplGlobalIllumination->bindTexture("gAlbedo", state_.buffer.albedo);
-    state_.vplGlobalIllumination->bindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
-    state_.vplGlobalIllumination->bindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
-    state_.vplGlobalIllumination->bindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
+    state_.vplGlobalIllumination->BindTexture("screen", state_.lightingColorBuffer);
+    state_.vplGlobalIllumination->BindTexture("gDepth", state_.buffer.depth);
+    state_.vplGlobalIllumination->BindTexture("gNormal", state_.buffer.normals);
+    state_.vplGlobalIllumination->BindTexture("gAlbedo", state_.buffer.albedo);
+    state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
+    state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
+    state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
 
-    state_.vplGlobalIllumination->setVec3("fogColor", frame_->fogColor);
-    state_.vplGlobalIllumination->setFloat("fogDensity", frame_->fogDensity);
+    state_.vplGlobalIllumination->SetVec3("fogColor", frame_->fogColor);
+    state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->fogDensity);
 
     const Camera& camera = frame_->camera.get();
-    state_.vplGlobalIllumination->setVec3("viewPosition", camera.getPosition());
-    state_.vplGlobalIllumination->setInt("viewportWidth", frame_->viewportWidth);
-    state_.vplGlobalIllumination->setInt("viewportHeight", frame_->viewportHeight);
+    state_.vplGlobalIllumination->SetVec3("viewPosition", camera.getPosition());
+    state_.vplGlobalIllumination->SetInt("viewportWidth", frame_->viewportWidth);
+    state_.vplGlobalIllumination->SetInt("viewportHeight", frame_->viewportHeight);
 
     RenderQuad_();
     
     UnbindShader_();
-    state_.vpls.vplGIFbo.unbind();
+    state_.vpls.vplGIFbo.Unbind();
 
     BindShader_(state_.vplGlobalIlluminationBlurring.get());
-    state_.vpls.vplGIBlurredFbo.bind();
-    state_.vplGlobalIlluminationBlurring->bindTexture("screen", state_.lightingColorBuffer);
-    state_.vplGlobalIlluminationBlurring->bindTexture("indirectIllumination", state_.vpls.vplGIColorBuffer);
+    state_.vpls.vplGIBlurredFbo.Bind();
+    state_.vplGlobalIlluminationBlurring->BindTexture("screen", state_.lightingColorBuffer);
+    state_.vplGlobalIlluminationBlurring->BindTexture("indirectIllumination", state_.vpls.vplGIColorBuffer);
 
     RenderQuad_();
 
     UnbindShader_();
-    state_.vpls.vplGIBlurredFbo.unbind();
+    state_.vpls.vplGIBlurredFbo.Unbind();
 
     state_.lightingFbo.copyFrom(state_.vpls.vplGIBlurredFbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 }
@@ -1448,7 +1448,7 @@ void RendererBackend::RenderScene() {
     //glm::vec3 lightColor(10.0f); 
 
     // Make sure to bind our own frame buffer for rendering
-    state_.buffer.fbo.bind();
+    state_.buffer.fbo.Bind();
     
     // Make sure some of our global GL states are set properly for primary rendering below
     glBlendFunc(state_.blendSFactor, state_.blendDFactor);
@@ -1460,7 +1460,7 @@ void RendererBackend::RenderScene() {
     Render_(frame_->visibleFirstLodInstancedDynamicPbrMeshes, true);
     Render_(frame_->visibleFirstLodInstancedStaticPbrMeshes, true);
     
-    state_.buffer.fbo.unbind();
+    state_.buffer.fbo.Unbind();
 
     //glEnable(GL_BLEND);
 
@@ -1476,7 +1476,7 @@ void RendererBackend::RenderScene() {
     // Begin deferred lighting pass
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-    state_.lightingFbo.bind();
+    state_.lightingFbo.Bind();
 
     //_unbindAllTextures();
     Pipeline* lighting = state_.lighting.get();
@@ -1486,20 +1486,20 @@ void RendererBackend::RenderScene() {
 
     BindShader_(lighting);
     InitLights_(lighting, perLightDistToViewer, state_.maxShadowCastingLightsPerFrame);
-    lighting->bindTexture("atmosphereBuffer", state_.atmosphericTexture);
-    lighting->setMat4("invProjectionView", frame_->invProjectionView);
-    lighting->bindTexture("gDepth", state_.buffer.depth);
-    lighting->bindTexture("gNormal", state_.buffer.normals);
-    lighting->bindTexture("gAlbedo", state_.buffer.albedo);
-    lighting->bindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
-    lighting->bindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
-    lighting->bindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
-    lighting->setFloat("windowWidth", frame_->viewportWidth);
-    lighting->setFloat("windowHeight", frame_->viewportHeight);
-    lighting->setVec3("fogColor", frame_->fogColor);
-    lighting->setFloat("fogDensity", frame_->fogDensity);
+    lighting->BindTexture("atmosphereBuffer", state_.atmosphericTexture);
+    lighting->SetMat4("invProjectionView", frame_->invProjectionView);
+    lighting->BindTexture("gDepth", state_.buffer.depth);
+    lighting->BindTexture("gNormal", state_.buffer.normals);
+    lighting->BindTexture("gAlbedo", state_.buffer.albedo);
+    lighting->BindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
+    lighting->BindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
+    lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    lighting->SetFloat("windowWidth", frame_->viewportWidth);
+    lighting->SetFloat("windowHeight", frame_->viewportHeight);
+    lighting->SetVec3("fogColor", frame_->fogColor);
+    lighting->SetFloat("fogDensity", frame_->fogDensity);
     RenderQuad_();
-    state_.lightingFbo.unbind();
+    state_.lightingFbo.Unbind();
     UnbindShader_();
     state_.finalScreenTexture = state_.lightingColorBuffer;
 
@@ -1515,7 +1515,7 @@ void RendererBackend::RenderScene() {
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
-    state_.lightingFbo.bind();
+    state_.lightingFbo.Bind();
     
     // Skybox is one that does not interact with light at all
     RenderSkybox_();
@@ -1527,7 +1527,7 @@ void RendererBackend::RenderScene() {
     // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
     // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
 
-    state_.lightingFbo.unbind();
+    state_.lightingFbo.Unbind();
     state_.finalScreenTexture = state_.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1566,32 +1566,32 @@ void RendererBackend::PerformBloomPostFx_() {
     BindShader_(bloom);
 
     // Downsample stage
-    bloom->setBool("downsamplingStage", true);
-    bloom->setBool("upsamplingStage", false);
-    bloom->setBool("finalStage", false);
-    bloom->setBool("gaussianStage", false);
+    bloom->SetBool("downsamplingStage", true);
+    bloom->SetBool("upsamplingStage", false);
+    bloom->SetBool("finalStage", false);
+    bloom->SetBool("gaussianStage", false);
     for (int i = 0, gaussian = 0; i < state_.numDownsampleIterations; ++i, gaussian += 2) {
         PostFXBuffer& buffer = state_.postFxBuffers[i];
         Texture colorTex = buffer.fbo.getColorAttachments()[0];
         auto width = colorTex.Width();
         auto height = colorTex.Height();
-        bloom->setFloat("viewportX", float(width));
-        bloom->setFloat("viewportY", float(height));
-        buffer.fbo.bind();
+        bloom->SetFloat("viewportX", float(width));
+        bloom->SetFloat("viewportY", float(height));
+        buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
-            bloom->bindTexture("mainTexture", state_.finalScreenTexture);
+            bloom->BindTexture("mainTexture", state_.finalScreenTexture);
         }
         else {
-            bloom->bindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
+            bloom->BindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
         }
         RenderQuad_();
-        buffer.fbo.unbind();
+        buffer.fbo.Unbind();
 
         // Now apply Gaussian blurring
         bool horizontal = false;
-        bloom->setBool("downsamplingStage", false);
-        bloom->setBool("gaussianStage", true);
+        bloom->SetBool("downsamplingStage", false);
+        bloom->SetBool("gaussianStage", true);
         BufferBounds bounds = BufferBounds{0, 0, width, height};
         for (int i = 0; i < 2; ++i) {
             FrameBuffer& blurFbo = state_.gaussianBuffers[gaussian + i].fbo;
@@ -1603,12 +1603,12 @@ void RendererBackend::PerformBloomPostFx_() {
                 copyFromFbo = state_.gaussianBuffers[gaussian].fbo;
             }
 
-            bloom->setBool("horizontal", horizontal);
-            bloom->bindTexture("mainTexture", copyFromFbo.getColorAttachments()[0]);
+            bloom->SetBool("horizontal", horizontal);
+            bloom->BindTexture("mainTexture", copyFromFbo.getColorAttachments()[0]);
             horizontal = !horizontal;
-            blurFbo.bind();
+            blurFbo.Bind();
             RenderQuad_();
-            blurFbo.unbind();
+            blurFbo.Unbind();
         }
 
         // Copy the end result back to the original buffer
@@ -1617,31 +1617,31 @@ void RendererBackend::PerformBloomPostFx_() {
     }
 
     // Upsample stage
-    bloom->setBool("downsamplingStage", false);
-    bloom->setBool("upsamplingStage", true);
-    bloom->setBool("finalStage", false);
-    bloom->setBool("gaussianStage", false);
+    bloom->SetBool("downsamplingStage", false);
+    bloom->SetBool("upsamplingStage", true);
+    bloom->SetBool("finalStage", false);
+    bloom->SetBool("gaussianStage", false);
     int postFXIndex = state_.numDownsampleIterations;
     for (int i = state_.numDownsampleIterations - 1; i >= 0; --i, ++postFXIndex) {
         PostFXBuffer& buffer = state_.postFxBuffers[postFXIndex];
         auto width = buffer.fbo.getColorAttachments()[0].Width();
         auto height = buffer.fbo.getColorAttachments()[0].Height();
-        bloom->setFloat("viewportX", float(width));
-        bloom->setFloat("viewportY", float(height));
-        buffer.fbo.bind();
+        bloom->SetFloat("viewportX", float(width));
+        bloom->SetFloat("viewportY", float(height));
+        buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         //bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
-        bloom->bindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.getColorAttachments()[0]);
+        bloom->BindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.getColorAttachments()[0]);
         if (i == 0) {
-            bloom->bindTexture("bloomTexture", state_.lightingColorBuffer);
-            bloom->setBool("finalStage", true);
+            bloom->BindTexture("bloomTexture", state_.lightingColorBuffer);
+            bloom->SetBool("finalStage", true);
         }
         else {
             //bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
-            bloom->bindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.getColorAttachments()[0]);
+            bloom->BindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.getColorAttachments()[0]);
         }
         RenderQuad_();
-        buffer.fbo.unbind();
+        buffer.fbo.Unbind();
         
         finalizedPostFxFrames[postFXIndex] = buffer;
         state_.finalScreenTexture = buffer.fbo.getColorAttachments()[0];
@@ -1678,13 +1678,13 @@ void RendererBackend::PerformAtmosphericPostFx_() {
     const glm::vec3 lightColor = frame_->csc.worldLight->GetAtmosphereColor();// * glm::vec3(cosX, cosX, sinX);
 
     BindShader_(state_.atmosphericPostFx.get());
-    state_.atmosphericPostFxBuffer.fbo.bind();
-    state_.atmosphericPostFx->bindTexture("atmosphereBuffer", state_.atmosphericTexture);
-    state_.atmosphericPostFx->bindTexture("screenBuffer", state_.finalScreenTexture);
-    state_.atmosphericPostFx->setVec3("lightPosition", lightPosition);
-    state_.atmosphericPostFx->setVec3("lightColor", lightColor);
+    state_.atmosphericPostFxBuffer.fbo.Bind();
+    state_.atmosphericPostFx->BindTexture("atmosphereBuffer", state_.atmosphericTexture);
+    state_.atmosphericPostFx->BindTexture("screenBuffer", state_.finalScreenTexture);
+    state_.atmosphericPostFx->SetVec3("lightPosition", lightPosition);
+    state_.atmosphericPostFx->SetVec3("lightColor", lightColor);
     RenderQuad_();
-    state_.atmosphericPostFxBuffer.fbo.unbind();
+    state_.atmosphericPostFxBuffer.fbo.Unbind();
     UnbindShader_();
 
     state_.finalScreenTexture = state_.atmosphericPostFxBuffer.fbo.getColorAttachments()[0];
@@ -1696,10 +1696,10 @@ void RendererBackend::PerformFxaaPostFx_() {
     // Perform luminance calculation pass
     BindShader_(state_.fxaaLuminance.get());
     
-    state_.fxaaFbo1.fbo.bind();
-    state_.fxaaLuminance->bindTexture("screen", state_.finalScreenTexture);
+    state_.fxaaFbo1.fbo.Bind();
+    state_.fxaaLuminance->BindTexture("screen", state_.finalScreenTexture);
     RenderQuad_();
-    state_.fxaaFbo1.fbo.unbind();
+    state_.fxaaFbo1.fbo.Unbind();
 
     UnbindShader_();
 
@@ -1708,10 +1708,10 @@ void RendererBackend::PerformFxaaPostFx_() {
     // Perform smoothing pass
     BindShader_(state_.fxaaSmoothing.get());
 
-    state_.fxaaFbo2.fbo.bind();
-    state_.fxaaSmoothing->bindTexture("screen", state_.finalScreenTexture);
+    state_.fxaaFbo2.fbo.Bind();
+    state_.fxaaSmoothing->BindTexture("screen", state_.finalScreenTexture);
     RenderQuad_();
-    state_.fxaaFbo2.fbo.unbind();
+    state_.fxaaFbo2.fbo.Unbind();
 
     UnbindShader_();
 
@@ -1726,7 +1726,7 @@ void RendererBackend::FinalizeFrame_() {
 
     // Now render the screen
     BindShader_(state_.hdrGamma.get());
-    state_.hdrGamma->bindTexture("screen", state_.finalScreenTexture);
+    state_.hdrGamma->BindTexture("screen", state_.finalScreenTexture);
     RenderQuad_();
     UnbindShader_();
 }
@@ -1804,22 +1804,22 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.getDirection();
 
-    s->setVec3("infiniteLightDirection", direction);    
-    s->bindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
+    s->SetVec3("infiniteLightDirection", direction);    
+    s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.getDepthStencilAttachment());
     for (int i = 0; i < frame_->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
-        s->setMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);
+        s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 
     for (int i = 0; i < 2; ++i) {
-        s->setVec4("shadowOffset[" + std::to_string(i) + "]", frame_->csc.cascadeShadowOffsets[i]);
+        s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->csc.cascadeShadowOffsets[i]);
     }
 
     for (int i = 0; i < frame_->csc.cascades.size() - 1; ++i) {
         // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
         // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
-        s->setVec4("cascadePlanes[" + std::to_string(i) + "]", frame_->csc.cascades[i + 1].cascadePlane);
+        s->SetVec4("cascadePlanes[" + std::to_string(i) + "]", frame_->csc.cascades[i + 1].cascadePlane);
     }
 }
 
@@ -1907,7 +1907,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     state_.shadowCubeMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.shadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
 
-    s->setFloat("ambientIntensity", 0.0001f);
+    s->SetFloat("ambientIntensity", 0.0001f);
     /*
     if (lightIndex == 0) {
         s->setFloat("ambientIntensity", 0.0001f);
@@ -1917,11 +1917,11 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     }
     */
 
-    s->setInt("numLights", int(gpuLights.size()));
-    s->setInt("numShadowLights", int(gpuShadowLights.size()));
-    s->setVec3("viewPosition", c.getPosition());
+    s->SetInt("numLights", int(gpuLights.size()));
+    s->SetInt("numShadowLights", int(gpuShadowLights.size()));
+    s->SetVec3("viewPosition", c.getPosition());
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();
-    s->setVec3("atmosphericLightPos", lightPosition);
+    s->SetVec3("atmosphericLightPos", lightPosition);
 
     // Set up world light if enabled
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), _state.worldLight.getPosition());
@@ -1934,8 +1934,8 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
     lightColor = frame_->csc.worldLight->getLuminance();
-    s->setVec3("infiniteLightColor", lightColor);
-    s->setFloat("worldLightAmbientIntensity", frame_->csc.worldLight->getAmbientIntensity());
+    s->SetVec3("infiniteLightColor", lightColor);
+    s->SetFloat("worldLightAmbientIntensity", frame_->csc.worldLight->getAmbientIntensity());
 
     InitCoreCSMData_(s);
 

@@ -49,8 +49,8 @@ namespace stratus {
         const std::vector<Texture> & getColorAttachments() const;
         const Texture * getDepthStencilAttachment() const;
 
-        void bind() const;
-        void unbind() const;
+        void Bind() const;
+        void Unbind() const;
 
         // Useful for layered rendering
         void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer);

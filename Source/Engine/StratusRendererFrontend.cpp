@@ -396,8 +396,8 @@ namespace stratus {
         // Check for shader recompile request
         if (recompileShaders_) {
             renderer_->RecompileShaders();
-            viscullLodSelect_->recompile();
-            viscull_->recompile();
+            viscullLodSelect_->Recompile();
+            viscull_->Recompile();
             recompileShaders_ = false;
         }
 
@@ -485,7 +485,7 @@ namespace stratus {
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return renderer_->Valid() && viscullLodSelect_->isValid() && viscull_->isValid();
+        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -1311,13 +1311,13 @@ namespace stratus {
             (vpt[3] - vpt[2]),
         };
 
-        pipeline.bind();
+        pipeline.Bind();
 
         for (size_t i = 0; i < 6; ++i) {
-            pipeline.setVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
+            pipeline.SetVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
 
-        pipeline.setVec3("viewPosition", frame_->camera->getPosition());
+        pipeline.SetVec3("viewPosition", frame_->camera->getPosition());
         
         for (size_t i = 0; i < drawCommands.size(); ++i) {
            auto& map = drawCommands[i];
@@ -1335,16 +1335,16 @@ namespace stratus {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                }
 
-               pipeline.setUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
-               pipeline.setMat4("view", view);
+               pipeline.SetUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+               pipeline.SetMat4("view", view);
                //pipeline.setMat4("view", _frame->camera->getViewTransform());
                //pipeline.setMat4("projection", _frame->projection);
-               pipeline.dispatchCompute(1, 1, 1);
-               pipeline.synchronizeCompute();
+               pipeline.DispatchCompute(1, 1, 1);
+               pipeline.SynchronizeCompute();
            }
         }
 
-        pipeline.unbind();
+        pipeline.Unbind();
 
         //for (size_t i = 0; i < drawCommands.size(); ++i) {
         //   auto& map = drawCommands[i];
