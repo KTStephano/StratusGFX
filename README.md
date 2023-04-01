@@ -81,12 +81,12 @@ Now build the StratusGFX source
     cmake ..
     cmake --build . -j 8 --config RelWithDebInfo
 
-All executables will be put into StratusGFX/Bin. Good ones to run to see if it worked are 
+All executables will be put into StratusGFX/Bin. Make sure you run them while inside Bin/. Good ones to run to see if it worked are 
 
-    StratusGFX/Bin/Ex00_StartupShutdown.exe (runs through initialize, run one frame, shutdown sequence)
-    StratusGFX/Bin/Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
-    StratusGFX/Bin/StratusEngineUnitTests.exe
-    StratusGFX/Bin/StratusEngineIntegrationTests.exe
+    Ex00_StartupShutdown.exe (runs through initialize, run one frame, shutdown sequence)
+    Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
+    StratusEngineUnitTests.exe
+    StratusEngineIntegrationTests.exe
 
 # First Places to Look
 
