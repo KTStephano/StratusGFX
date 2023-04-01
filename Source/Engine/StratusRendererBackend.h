@@ -510,7 +510,6 @@ namespace stratus {
         void _RemoveLightFromShadowMapCache(LightPtr);
         bool _ShadowMapExistsForLight(LightPtr);
         ShadowMapCache& _GetSmapCacheForLight(LightPtr);
-        Async<Texture> _LookupTexture(TextureHandle handle) const;
         Texture _LookupShadowmapTexture(TextureHandle handle) const;
         void _RecalculateCascadeData();
         void _ValidateAllShaders();

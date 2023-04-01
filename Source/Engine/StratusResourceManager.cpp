@@ -266,29 +266,35 @@ namespace stratus {
         TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
         Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
-            return _LoadTexture(files, handle, cspace, type, wrap, min, mag);
+            auto result = _LoadTexture(files, handle, cspace, type, wrap, min, mag);
+            auto ul = this->_LockWrite();
+            this->_texturesStillLoading.erase(handle);
+            return result;
         });
 
+        _texturesStillLoading.insert(handle);
         _loadedTexturesByFile.insert(std::make_pair(name, handle));
         _asyncLoadedTextureData.insert(std::make_pair(handle, as));
 
         return handle;
     }
 
-    bool ResourceManager::GetTexture(const TextureHandle handle, Async<Texture>& tex) const {
+    Texture ResourceManager::LookupTexture(const TextureHandle handle, TextureLoadingStatus& status) const {
         auto sl = _LockRead();
         if (_loadedTextures.find(handle) == _loadedTextures.end()) {
-            return false; // not loaded
+            if (_texturesStillLoading.find(handle) == _texturesStillLoading.end()) {
+                status = TextureLoadingStatus::FAILED;
+            }
+            else {
+                status = TextureLoadingStatus::LOADING;
+            }
+
+            return Texture();
         }
 
-        tex = _loadedTextures.find(handle)->second;
-        return true;
-    }
+        status = TextureLoadingStatus::LOADING_DONE;
 
-    Async<Texture> ResourceManager::LookupTexture(TextureHandle handle) const {
-        Async<Texture> ret;
-        GetTexture(handle, ret);
-        return ret;
+        return _loadedTextures.find(handle)->second.Get();
     }
 
     static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {

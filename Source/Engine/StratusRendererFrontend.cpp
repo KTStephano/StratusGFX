@@ -833,8 +833,8 @@ namespace stratus {
         }
     }
 
-    static bool ValidateTexture(const Async<Texture> & tex) {
-        return tex.CompleteAndValid();
+    static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& status) {
+        return status == TextureLoadingStatus::LOADING_DONE;
     }
 
     void RendererFrontend::_RecalculateMaterialSet() {
@@ -851,12 +851,13 @@ namespace stratus {
             _frame->materialInfo.indices.erase(m);
         }
 
-    #define MAKE_NON_RESIDENT(handle)                               \
-        {                                                           \
-        auto at = INSTANCE(ResourceManager)->LookupTexture(handle); \
-        if (ValidateTexture(at)) {                                  \
-            Texture::MakeNonResident(at.Get());                     \
-        }                                                           \
+    #define MAKE_NON_RESIDENT(handle)                                        \
+        {                                                                    \
+        TextureLoadingStatus status;                                         \
+        auto tex = INSTANCE(ResourceManager)->LookupTexture(handle, status); \
+        if (ValidateTexture(tex, status)) {                                  \
+            Texture::MakeNonResident(tex);                                   \
+        }                                                                    \
         }
 
         // Erase what is no longer referenced
@@ -892,81 +893,88 @@ namespace stratus {
         auto metallicHandle =  material->GetMetallicMap();
         auto metallicRoughnessHandle = material->GetMetallicRoughnessMap();
         
-        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle);
-        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle);
-        auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle);
-        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle);
-        auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle);
-        auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle);
-        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle);
+        TextureLoadingStatus diffuseStatus;
+        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle, diffuseStatus);
+        TextureLoadingStatus ambientStatus;
+        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle, ambientStatus);
+        TextureLoadingStatus normalStatus;
+        auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle, normalStatus);
+        TextureLoadingStatus depthStatus;
+        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle, depthStatus);
+        TextureLoadingStatus roughnessStatus;
+        auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle, roughnessStatus);
+        TextureLoadingStatus metallicStatus;
+        auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle, metallicStatus);
+        TextureLoadingStatus metallicRoughnessStatus;
+        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle, metallicRoughnessStatus);
 
-        if (ValidateTexture(diffuse)) {
-            gpuMaterial->diffuseMap = diffuse.Get().GpuHandle();
+        if (ValidateTexture(diffuse, diffuseStatus)) {
+            gpuMaterial->diffuseMap = diffuse.GpuHandle();
             gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
-            Texture::MakeResident(diffuse.Get());
+            Texture::MakeResident(diffuse);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (diffuseHandle != TextureHandle::Null() && !diffuse.CompleteAndInvalid()) {
+        else if (diffuseHandle != TextureHandle::Null() && diffuseStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(ambient)) {
-            gpuMaterial->ambientMap = ambient.Get().GpuHandle();
+        if (ValidateTexture(ambient, ambientStatus)) {
+            gpuMaterial->ambientMap = ambient.GpuHandle();
             gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
-            Texture::MakeResident(ambient.Get());
+            Texture::MakeResident(ambient);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (ambientHandle != TextureHandle::Null() && !ambient.CompleteAndInvalid()) {
+        else if (ambientHandle != TextureHandle::Null() && ambientStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(normal)) {
-            gpuMaterial->normalMap = normal.Get().GpuHandle();
+        if (ValidateTexture(normal, normalStatus)) {
+            gpuMaterial->normalMap = normal.GpuHandle();
             gpuMaterial->flags |= GPU_NORMAL_MAPPED;
-            Texture::MakeResident(normal.Get());
+            Texture::MakeResident(normal);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (normalHandle != TextureHandle::Null() && !normal.CompleteAndInvalid()) {
+        else if (normalHandle != TextureHandle::Null() && normalStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(depth)) {
-            gpuMaterial->depthMap = depth.Get().GpuHandle();
+        if (ValidateTexture(depth, depthStatus)) {
+            gpuMaterial->depthMap = depth.GpuHandle();
             gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
-            Texture::MakeResident(depth.Get());
+            Texture::MakeResident(depth);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (depthHandle != TextureHandle::Null() && !depth.CompleteAndInvalid()) {
+        else if (depthHandle != TextureHandle::Null() && depthStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(roughness)) {
-            gpuMaterial->roughnessMap = roughness.Get().GpuHandle();
+        if (ValidateTexture(roughness, roughnessStatus)) {
+            gpuMaterial->roughnessMap = roughness.GpuHandle();
             gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
-            Texture::MakeResident(roughness.Get());
+            Texture::MakeResident(roughness);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (roughnessHandle != TextureHandle::Null() && !roughness.CompleteAndInvalid()) {
+        else if (roughnessHandle != TextureHandle::Null() && roughnessStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(metallic)) {
-            gpuMaterial->metallicMap = metallic.Get().GpuHandle();
+        if (ValidateTexture(metallic, metallicStatus)) {
+            gpuMaterial->metallicMap = metallic.GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_MAPPED;
-            Texture::MakeResident(metallic.Get());
+            Texture::MakeResident(metallic);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (metallicHandle != TextureHandle::Null() && !metallic.CompleteAndInvalid()) {
+        else if (metallicHandle != TextureHandle::Null() && metallicStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
 
-        if (ValidateTexture(metallicRoughness)) {
-            gpuMaterial->metallicRoughnessMap = metallicRoughness.Get().GpuHandle();
+        if (ValidateTexture(metallicRoughness, metallicRoughnessStatus)) {
+            gpuMaterial->metallicRoughnessMap = metallicRoughness.GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
-            Texture::MakeResident(metallicRoughness.Get());
+            Texture::MakeResident(metallicRoughness);
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (metallicRoughnessHandle != TextureHandle::Null() && !metallicRoughness.CompleteAndInvalid()) {
+        else if (metallicRoughnessHandle != TextureHandle::Null() && metallicRoughnessStatus != TextureLoadingStatus::FAILED) {
             _materialsDirty = true;
         }
     }
