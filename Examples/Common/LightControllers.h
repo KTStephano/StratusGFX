@@ -60,5 +60,5 @@ private:
     static void _ChangeDirection(RandomLightMoverComponent *);
 
 private:
-    std::unordered_set<stratus::EntityPtr> _entities;
+    std::unordered_set<stratus::EntityPtr> entities_;
 };

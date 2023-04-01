@@ -11,9 +11,9 @@ namespace stratus {
 
     EntityPtr Entity::Create(EntityComponentSet * ptr) {
         if (ptr != nullptr) {
-           return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(_PlacementNew<EntityComponentSet *>, ptr);
+           return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<EntityComponentSet *>, ptr);
         }
-        return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(_PlacementNew<>);
+        return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<>);
     }
 
     void EntityComponent::MarkChanged() {
@@ -38,21 +38,21 @@ namespace stratus {
     }
 
     EntityComponentSet::~EntityComponentSet() {
-        _componentManagers.clear();
-        _components.clear();
-        _componentTypeNames.clear();
+        componentManagers_.clear();
+        components_.clear();
+        componentTypeNames_.clear();
     }
 
-    void EntityComponentSet::_SetOwner(Entity * owner) {
-        _owner = owner;
+    void EntityComponentSet::SetOwner_(Entity * owner) {
+        owner_ = owner;
     }
 
     Entity::Entity() : Entity(EntityComponentSet::Create()) {}
 
     Entity::Entity(EntityComponentSet * ptr) {
         handle_ = EntityHandle::NextHandle();
-        _components = ptr;
-        _components->_SetOwner(this);
+        components_ = ptr;
+        components_->SetOwner_(this);
     }
 
     const EntityHandle& Entity::GetHandle() const {
@@ -60,56 +60,56 @@ namespace stratus {
     }
 
     Entity::~Entity() {
-        _childNodes.clear();
-        EntityComponentSet::Destroy(_components);
+        childNodes_.clear();
+        EntityComponentSet::Destroy(components_);
     }
 
     bool Entity::IsInWorld() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _partOfWorld;
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return partOfWorld_;
     }
 
     EntityComponentSet * EntityComponentSet::Copy() const {
         //auto sl = std::shared_lock<std::shared_mutex>(_m);
         EntityComponentSet * copy = EntityComponentSet::Create();
-        for (const auto& manager : _componentManagers) {
-            auto mgrCopy = __CopyManager(manager);
-            copy->_AttachComponent(mgrCopy);
+        for (const auto& manager : componentManagers_) {
+            auto mgrCopy = CopyManager_(manager);
+            copy->AttachComponent_(mgrCopy);
         }
         return copy;
     }
 
-    void EntityComponentSet::_AttachComponent(std::unique_ptr<EntityComponentPointerManager>& ptr) {
+    void EntityComponentSet::AttachComponent_(std::unique_ptr<EntityComponentPointerManager>& ptr) {
         EntityComponentView view(ptr->component);
         const std::string name = view.component->TypeName();
-        _componentManagers.push_back(std::move(ptr));
-        _components.insert(view);
-        _componentTypeNames.insert(std::make_pair(name, std::make_pair(view, EntityComponentStatus::COMPONENT_ENABLED)));
+        componentManagers_.push_back(std::move(ptr));
+        components_.insert(view);
+        componentTypeNames_.insert(std::make_pair(name, std::make_pair(view, EntityComponentStatus::COMPONENT_ENABLED)));
 
-        if (_owner && _owner->IsInWorld()) {
-            INSTANCE(EntityManager)->_NotifyComponentsAdded(_owner->shared_from_this(), view.component);
+        if (owner_ && owner_->IsInWorld()) {
+            INSTANCE(EntityManager)->NotifyComponentsAdded_(owner_->shared_from_this(), view.component);
         }
     }
 
-    void EntityComponentSet::_NotifyEntityManagerComponentEnabledDisabled() {
-        if (_owner && _owner->IsInWorld()) {
-            INSTANCE(EntityManager)->_NotifyComponentsEnabledDisabled(_owner->shared_from_this());
+    void EntityComponentSet::NotifyEntityManagerComponentEnabledDisabled_() {
+        if (owner_ && owner_->IsInWorld()) {
+            INSTANCE(EntityManager)->NotifyComponentsEnabledDisabled_(owner_->shared_from_this());
         }
     }
 
     EntityComponentPair<EntityComponent> EntityComponentSet::GetComponentByName(const std::string& name) {
-        return _GetComponentByName<EntityComponent>(name);
+        return GetComponentByName_<EntityComponent>(name);
     }
 
     EntityComponentPair<const EntityComponent> EntityComponentSet::GetComponentByName(const std::string& name) const {
-        return _GetComponentByName<const EntityComponent>(name);
+        return GetComponentByName_<const EntityComponent>(name);
     }
 
     std::vector<EntityComponentPair<EntityComponent>> EntityComponentSet::GetAllComponents() {
         //auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<EntityComponentPair<EntityComponent>> v;
-        v.reserve(_components.size());
-        for (auto& component : _componentTypeNames) {
+        v.reserve(components_.size());
+        for (auto& component : componentTypeNames_) {
             v.push_back(EntityComponentPair<EntityComponent>{component.second.first.component, component.second.second});
         }
         return v;
@@ -118,28 +118,28 @@ namespace stratus {
     std::vector<EntityComponentPair<const EntityComponent>> EntityComponentSet::GetAllComponents() const {
         //auto sl = std::shared_lock<std::shared_mutex>(_m);
         std::vector<EntityComponentPair<const EntityComponent>> v;
-        v.reserve(_components.size());
-        for (const auto& component : _componentTypeNames) {
+        v.reserve(components_.size());
+        for (const auto& component : componentTypeNames_) {
             v.push_back(EntityComponentPair<const EntityComponent>{component.second.first.component, component.second.second});
         }
         return v;
     }
 
     EntityComponentSet& Entity::Components() {
-        return *_components;
+        return *components_;
     }
 
     const EntityComponentSet& Entity::Components() const {
-        return *_components;
+        return *components_;
     }
 
     // Called by World class
-    void Entity::_AddToWorld() {
-        _partOfWorld = true;
+    void Entity::AddToWorld_() {
+        partOfWorld_ = true;
     }
 
-    void Entity::_RemoveFromWorld() {
-        _partOfWorld = false;
+    void Entity::RemoveFromWorld_() {
+        partOfWorld_ = false;
     }
 
     void Entity::AttachChildNode(const EntityPtr& ptr) {
@@ -149,9 +149,9 @@ namespace stratus {
         // If there is already a parent then don't attempt to overwrite
         if (ptr->GetParentNode() != nullptr) return;
         //auto ul = std::unique_lock<std::shared_mutex>(_m);
-        if (_ContainsChildNode(ptr) || ptr->ContainsChildNode(self)) return;
-        _childNodes.push_back(ptr);
-        ptr->_parent = self;
+        if (ContainsChildNode_(ptr) || ptr->ContainsChildNode(self)) return;
+        childNodes_.push_back(ptr);
+        ptr->parent_ = self;
     }
 
     void Entity::DetachChildNode(const EntityPtr& ptr) {
@@ -159,11 +159,11 @@ namespace stratus {
         std::vector<EntityPtr> visited;
         {
             //auto ul = std::unique_lock<std::shared_mutex>(_m);
-            for (auto it = _childNodes.begin(); it != _childNodes.end(); ++it) {
+            for (auto it = childNodes_.begin(); it != childNodes_.end(); ++it) {
                 EntityPtr c = *it;
                 if (c == ptr) {
-                    _childNodes.erase(it);
-                    c->_parent.reset();
+                    childNodes_.erase(it);
+                    c->parent_.reset();
                     return;
                 }
                 visited.push_back(c);
@@ -174,35 +174,35 @@ namespace stratus {
     }
 
     EntityPtr Entity::GetParentNode() const {
-        return _parent.lock();
+        return parent_.lock();
     }
 
     const std::vector<EntityPtr>& Entity::GetChildNodes() const {
-        return _childNodes;
+        return childNodes_;
     }
 
     bool Entity::ContainsChildNode(const EntityPtr& ptr) const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _ContainsChildNode(ptr);
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return ContainsChildNode_(ptr);
     }
 
-    bool Entity::_ContainsChildNode(const EntityPtr& ptr) const {
-        for (const EntityPtr& c : _childNodes) {
+    bool Entity::ContainsChildNode_(const EntityPtr& ptr) const {
+        for (const EntityPtr& c : childNodes_) {
             if (c == ptr) return true;
-            const bool nestedCheck = c->_ContainsChildNode(ptr);
+            const bool nestedCheck = c->ContainsChildNode_(ptr);
             if (nestedCheck) return true;
         }
         return false;
     }
 
     EntityPtr Entity::Copy() const {
-        auto sl = std::shared_lock<std::shared_mutex>(_m);
-        auto components = _components->Copy();
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        auto components = components_->Copy();
         auto copy = Entity::Create(components);
-        for (auto& ptr : _childNodes) {
+        for (auto& ptr : childNodes_) {
             auto child = ptr->Copy();
-            copy->_childNodes.push_back(child);
-            child->_parent = copy;
+            copy->childNodes_.push_back(child);
+            child->parent_ = copy;
         }
         return copy;
     }

@@ -22,41 +22,41 @@ size_t ClassHashCode() {
 }
 
 template<typename Component>
-struct __ComponentAllocator {
+struct ComponentAllocator_ {
     std::mutex m;
     stratus::PoolAllocator<Component> allocator;
 };
 
 template<typename Component>
-__ComponentAllocator<Component>& __GetComponentAllocator() {
-    static __ComponentAllocator<Component> allocator;
+ComponentAllocator_<Component>& GetComponentAllocator_() {
+    static ComponentAllocator_<Component> allocator;
     return allocator;
 }
 
 #define ENTITY_COMPONENT_STRUCT(name)                                                       \
-    struct name final : public stratus::EntityComponent {                                  \
+    struct name final : public stratus::EntityComponent {                                   \
         static std::string STypeName() { return ClassName<name>(); }                        \
         static size_t SHashCode() { return ClassHashCode<name>(); }                         \
         std::string TypeName() const override { return STypeName(); }                       \
         size_t HashCode() const override { return SHashCode(); }                            \
-        bool operator==(const stratus::EntityComponent * other) const override {           \
+        bool operator==(const stratus::EntityComponent * other) const override {            \
             if (this == other) return true;                                                 \
             if (!other) return false;                                                       \
             return TypeName() == std::string(other->TypeName());                            \
         }                                                                                   \
-        stratus::EntityComponent * Copy() const override {                                 \
-            auto ptr = dynamic_cast<stratus::EntityComponent *>(name::Create(*this));      \
+        stratus::EntityComponent * Copy() const override {                                  \
+            auto ptr = dynamic_cast<stratus::EntityComponent *>(name::Create(*this));       \
             return ptr;                                                                     \
         }                                                                                   \
         template<typename ... Types>                                                        \
         static name * Create(const Types& ... args) {                                       \
-            auto& allocator = __GetComponentAllocator<name>();                              \
+            auto& allocator = GetComponentAllocator_<name>();                               \
             auto ul = std::unique_lock(allocator.m);                                        \
             return allocator.allocator.Allocate(args...);                                   \
         }                                                                                   \
         static void Destroy(name * ptr) {                                                   \
             if (ptr == nullptr) return;                                                     \
-            auto& allocator = __GetComponentAllocator<name>();                              \
+            auto& allocator = GetComponentAllocator_<name>();                               \
             auto ul = std::unique_lock(allocator.m);                                        \
             allocator.allocator.Deallocate(ptr);                                            \
         }
@@ -123,24 +123,24 @@ namespace stratus {
     };
 
     template<typename Component, typename ... Types>
-    std::unique_ptr<EntityComponentPointerManager> __ConstructComponent(const Types& ... args) {
-        struct _Pointer final : public EntityComponentPointerManager {
-            _Pointer(EntityComponent * c)
+    std::unique_ptr<EntityComponentPointerManager> ConstructComponent_(const Types& ... args) {
+        struct Pointer_ final : public EntityComponentPointerManager {
+            Pointer_(EntityComponent * c)
                 : EntityComponentPointerManager(c) {}
 
-            virtual ~_Pointer() {
+            virtual ~Pointer_() {
                 Component::Destroy(dynamic_cast<Component *>(component));
             }
 
             EntityComponentPointerManager * Copy() const override {
-                return new _Pointer(component->Copy());
+                return new Pointer_(component->Copy());
             }
         };
 
-        return std::unique_ptr<EntityComponentPointerManager>(new _Pointer(Component::Create(args...)));
+        return std::unique_ptr<EntityComponentPointerManager>(new Pointer_(Component::Create(args...)));
     }
 
-    inline std::unique_ptr<EntityComponentPointerManager> __CopyManager(const std::unique_ptr<EntityComponentPointerManager>& ptr) {
+    inline std::unique_ptr<EntityComponentPointerManager> CopyManager_(const std::unique_ptr<EntityComponentPointerManager>& ptr) {
         return std::unique_ptr<EntityComponentPointerManager>(ptr->Copy());
     }
 }
@@ -206,33 +206,33 @@ namespace stratus {
 
     private:
         template<typename E>
-        EntityComponentPair<E> _GetComponent() const;
+        EntityComponentPair<E> GetComponent_() const;
 
         template<typename E>
-        EntityComponentPair<E> _GetComponentByName(const std::string&) const;
+        EntityComponentPair<E> GetComponentByName_(const std::string&) const;
 
         template<typename E, typename ... Types>
-        void _AttachComponent(const Types& ... args);
+        void AttachComponent_(const Types& ... args);
 
         template<typename E>
-        bool _ContainsComponent() const;
+        bool ContainsComponent_() const;
 
         template<typename E>
-        void _SetComponentStatus(EntityComponentStatus);
+        void SetComponentStatus_(EntityComponentStatus);
 
-        void _AttachComponent(std::unique_ptr<EntityComponentPointerManager>&);
-        void _SetOwner(Entity *);
-        void _NotifyEntityManagerComponentEnabledDisabled();
+        void AttachComponent_(std::unique_ptr<EntityComponentPointerManager>&);
+        void SetOwner_(Entity *);
+        void NotifyEntityManagerComponentEnabledDisabled_();
 
     private:
         //mutable std::shared_mutex _m;
-        Entity * _owner;
+        Entity * owner_;
         // Component pointer managers (allocates and deallocates from shared pool)
-        std::vector<std::unique_ptr<EntityComponentPointerManager>> _componentManagers;
+        std::vector<std::unique_ptr<EntityComponentPointerManager>> componentManagers_;
         // List of unique components
-        std::unordered_set<EntityComponentView> _components;
+        std::unordered_set<EntityComponentView> components_;
         // List of components by type name
-        std::unordered_map<std::string, std::pair<EntityComponentView, EntityComponentStatus>> _componentTypeNames;
+        std::unordered_map<std::string, std::pair<EntityComponentView, EntityComponentStatus>> componentTypeNames_;
     };
 
     // Convenience functions
@@ -266,7 +266,7 @@ namespace stratus {
         // Since our constructor is private we provide the pool allocator with this
         // function to bypass it
         template<typename ... Types>
-        static Entity * _PlacementNew(uint8_t * memory, const Types& ... args) {
+        static Entity * PlacementNew_(uint8_t * memory, const Types& ... args) {
             return new (memory) Entity(args...);
         }
 
@@ -306,97 +306,97 @@ namespace stratus {
 
     private:
         // Called by EntityManager class
-        void _AddToWorld();
-        void _RemoveFromWorld();
+        void AddToWorld_();
+        void RemoveFromWorld_();
 
     private:
-        bool _ContainsChildNode(const EntityPtr&) const;
+        bool ContainsChildNode_(const EntityPtr&) const;
 
     private:
-        mutable std::shared_mutex _m;
+        mutable std::shared_mutex m_;
         EntityHandle handle_;
         // List of unique components
-        EntityComponentSet * _components;
-        EntityWeakPtr _parent;
-        std::vector<EntityPtr> _childNodes;
+        EntityComponentSet * components_;
+        EntityWeakPtr parent_;
+        std::vector<EntityPtr> childNodes_;
         // Keeps track of added/removed from world
-        bool _partOfWorld = false;
+        bool partOfWorld_ = false;
     };
 
     template<typename E, typename ... Types>
     void EntityComponentSet::AttachComponent(const Types& ... args) {
         static_assert(std::is_base_of<EntityComponent, E>::value);
         //auto ul = std::unique_lock<std::shared_mutex>(_m);
-        return _AttachComponent<E>(args...);
+        return AttachComponent_<E>(args...);
     }
 
     template<typename E>
     bool EntityComponentSet::ContainsComponent() const {
         static_assert(std::is_base_of<EntityComponent, E>::value);
         //auto sl = std::shared_lock<std::shared_mutex>(_m);
-        return _ContainsComponent<E>();
+        return ContainsComponent_<E>();
     }
 
     template<typename E, typename ... Types>
-    void EntityComponentSet::_AttachComponent(const Types& ... args) {
-        if (_ContainsComponent<E>()) return;
-        auto ptr = __ConstructComponent<E>(args...);
-        _AttachComponent(ptr);
+    void EntityComponentSet::AttachComponent_(const Types& ... args) {
+        if (ContainsComponent_<E>()) return;
+        auto ptr = ConstructComponent_<E>(args...);
+        AttachComponent_(ptr);
     }
 
     template<typename E>
-    bool EntityComponentSet::_ContainsComponent() const {
+    bool EntityComponentSet::ContainsComponent_() const {
         std::string name = E::STypeName();
-        return _componentTypeNames.find(name) != _componentTypeNames.end();
+        return componentTypeNames_.find(name) != componentTypeNames_.end();
     }
 
     template<typename E>
     EntityComponentPair<E> EntityComponentSet::GetComponent() {
-        return _GetComponent<E>();
+        return GetComponent_<E>();
     }
 
     template<typename E>
     EntityComponentPair<const E> EntityComponentSet::GetComponent() const {
-        return _GetComponent<const E>();
+        return GetComponent_<const E>();
     }
 
     template<typename E>
-    EntityComponentPair<E> EntityComponentSet::_GetComponent() const {
+    EntityComponentPair<E> EntityComponentSet::GetComponent_() const {
         static_assert(std::is_base_of<EntityComponent, E>::value);
         std::string name = E::STypeName();
-        return _GetComponentByName<E>(name);
+        return GetComponentByName_<E>(name);
     }
 
     template<typename E>
-    EntityComponentPair<E> EntityComponentSet::_GetComponentByName(const std::string& name) const {
+    EntityComponentPair<E> EntityComponentSet::GetComponentByName_(const std::string& name) const {
         static_assert(std::is_base_of<EntityComponent, E>::value);
         //auto sl = std::shared_lock<std::shared_mutex>(_m);
-        auto it = _componentTypeNames.find(name);
-        return it != _componentTypeNames.end() ? 
+        auto it = componentTypeNames_.find(name);
+        return it != componentTypeNames_.end() ? 
             EntityComponentPair<E>{dynamic_cast<E *>(it->second.first.component), it->second.second} : 
             EntityComponentPair<E>();
     }
 
     template<typename E>
     void EntityComponentSet::EnableComponent() {
-        _SetComponentStatus<E>(EntityComponentStatus::COMPONENT_ENABLED);
+        SetComponentStatus_<E>(EntityComponentStatus::COMPONENT_ENABLED);
     }
     
     template<typename E>
     void EntityComponentSet::DisableComponent() {
-        _SetComponentStatus<E>(EntityComponentStatus::COMPONENT_DISABLED);
+        SetComponentStatus_<E>(EntityComponentStatus::COMPONENT_DISABLED);
     }
 
     template<typename E>
-    void EntityComponentSet::_SetComponentStatus(EntityComponentStatus status) {
+    void EntityComponentSet::SetComponentStatus_(EntityComponentStatus status) {
         static_assert(std::is_base_of<EntityComponent, E>::value);
         //auto ul = std::unique_lock<std::shared_mutex>(_m);
         std::string name = E::STypeName();
-        auto it = _componentTypeNames.find(name);
-        if (it != _componentTypeNames.end()) {
+        auto it = componentTypeNames_.find(name);
+        if (it != componentTypeNames_.end()) {
             if (it->second.second != status) {
                 it->second.second = status;
-                _NotifyEntityManagerComponentEnabledDisabled();
+                NotifyEntityManagerComponentEnabledDisabled_();
             }
         }
     }

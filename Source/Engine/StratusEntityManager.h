@@ -35,34 +35,34 @@ namespace stratus {
         void Shutdown() override;
 
     private:
-        void _RegisterEntityProcess(EntityProcessPtr&);
-        void _AddEntity(const EntityPtr&);
-        void _RemoveEntity(const EntityPtr&);
+        void RegisterEntityProcess_(EntityProcessPtr&);
+        void AddEntity_(const EntityPtr&);
+        void RemoveEntity_(const EntityPtr&);
 
     private:
         // Meant to be called by Entity
-        void _NotifyComponentsAdded(const EntityPtr&, EntityComponent *);
-        void _NotifyComponentsEnabledDisabled(const EntityPtr&);
+        void NotifyComponentsAdded_(const EntityPtr&, EntityComponent *);
+        void NotifyComponentsEnabledDisabled_(const EntityPtr&);
 
     private:
-        mutable std::shared_mutex _m;
+        mutable std::shared_mutex m_;
         // All entities currently tracked
-        std::unordered_set<EntityPtr> _entities;
+        std::unordered_set<EntityPtr> entities_;
         // Entities added within the last frame
-        std::unordered_set<EntityPtr> _entitiesToAdd;
+        std::unordered_set<EntityPtr> entitiesToAdd_;
         // Entities which are pending removal (removed during Update)
-        std::unordered_set<EntityPtr> _entitiesToRemove;
+        std::unordered_set<EntityPtr> entitiesToRemove_;
         // Processes removed within last frame
-        std::unordered_set<EntityProcessHandle> _processesToRemove;
+        std::unordered_set<EntityProcessHandle> processesToRemove_;
         // Processes added within last frame
-        std::vector<EntityProcessPtr> _processesToAdd;
+        std::vector<EntityProcessPtr> processesToAdd_;
         // Systems which operate on entities
-        std::vector<EntityProcessPtr> _processes;
+        std::vector<EntityProcessPtr> processes_;
         // Convert handle to process ptr
-        std::unordered_map<EntityProcessHandle, EntityProcessPtr> _handlesToPtrs;
+        std::unordered_map<EntityProcessHandle, EntityProcessPtr> handlesToPtrs_;
         // Component change lists
-        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> _addedComponents;
-        std::unordered_set<EntityPtr> _componentsEnabledDisabled;
+        std::unordered_map<EntityPtr, std::vector<EntityComponent *>> addedComponents_;
+        std::unordered_set<EntityPtr> componentsEnabledDisabled_;
     };
 
     template<typename E, typename ... Types>
@@ -70,7 +70,7 @@ namespace stratus {
         static_assert(std::is_base_of<EntityProcess, E>::value);
         EntityProcess * p = dynamic_cast<EntityProcess *>(new E(args...));
         EntityProcessPtr ptr(p);
-        _RegisterEntityProcess(ptr);
+        RegisterEntityProcess_(ptr);
         return (EntityProcessHandle)p;
     }
 }

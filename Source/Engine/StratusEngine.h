@@ -89,41 +89,41 @@ namespace stratus {
         Thread * GetMainThread() const;
 
     private:
-        void _InitLog();
-        void _InitInput();
-        void _InitGraphicsDriver();
-        void _InitEntityManager();
-        void _InitApplicationThread();
-        void _InitTaskSystem();
-        void _InitMaterialManager();
-        void _InitResourceManager();
-        void _InitWindow();
-        void _InitRenderer();
+        void InitLog_();
+        void InitInput_();
+        void InitGraphicsDriver_();
+        void InitEntityManager_();
+        void InitApplicationThread_();
+        void InitTaskSystem_();
+        void InitMaterialManager_();
+        void InitResourceManager_();
+        void InitWindow_();
+        void InitRenderer_();
 
         template<typename E>
-        void _DeleteResource(E *& ptr) {
+        void DeleteResource_(E *& ptr) {
             delete ptr;
             ptr = nullptr;
         }
 
         template<typename E>
-        void _ShutdownResourceAndDelete(E *& ptr) {
+        void ShutdownResourceAndDelete_(E *& ptr) {
             ptr->Shutdown();
-            _DeleteResource(ptr);
+            DeleteResource_(ptr);
         }
 
     private:
         // Global engine instance - should only be set by EngineMain function
         static Engine * instance_;
-        EngineStatistics _stats;
+        EngineStatistics stats_;
         EngineInitParams _params;
-        Thread * _main;
-        std::atomic<bool> _isInitializing{false};
-        std::atomic<bool> _isShuttingDown{false};
+        Thread * main_;
+        std::atomic<bool> isInitializing_{false};
+        std::atomic<bool> isShuttingDown_{false};
 
         // Set of locks for synchronizing different engine operations
-        mutable std::shared_mutex _startupShutdown;
-        mutable std::shared_mutex _mainLoop;
+        mutable std::shared_mutex startupShutdown_;
+        mutable std::shared_mutex mainLoop_;
     };
        
     template<typename E>

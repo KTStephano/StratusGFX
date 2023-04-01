@@ -241,7 +241,7 @@ void LightProcess::EntityComponentsEnabledDisabled(const std::unordered_set<stra
 
 void RandomLightMoverProcess::Process(const double deltaSeconds) {
     static const glm::vec3 speed(5.0f);
-    for (auto ptr : _entities) {
+    for (auto ptr : entities_) {
         LightComponent * light = ptr->Components().GetComponent<LightComponent>().component;
         LightCubeComponent * cube = ptr->Components().GetComponent<LightCubeComponent>().component;
         RandomLightMoverComponent * c = ptr->Components().GetComponent<RandomLightMoverComponent>().component;
@@ -263,7 +263,7 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
 void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
         if (_IsEntityRelevant(ptr)) {
-            _entities.insert(ptr);
+            entities_.insert(ptr);
             _ChangeDirection(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
         }
     }
@@ -271,7 +271,7 @@ void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::En
 
 void RandomLightMoverProcess::EntitiesRemoved(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
-        _entities.erase(ptr);
+        entities_.erase(ptr);
     }
 }
 

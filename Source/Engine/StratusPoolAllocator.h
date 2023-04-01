@@ -61,14 +61,14 @@ namespace stratus {
 
     private:
         template<typename ... Types>
-        static E * _PlacementNew(uint8_t * memory, const Types&... args) {
+        static E * PlacementNew_(uint8_t * memory, const Types&... args) {
             return new (memory) E(args...);
         }
 
     public:
         template<typename ... Types>
         E * Allocate(const Types&... args) {
-            return AllocateCustomConstruct(_PlacementNew<Types...>, args...);
+            return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
         }
 
         template<typename Construct, typename ... Types>
