@@ -1753,7 +1753,7 @@ TextureHandle RendererBackend::CreateShadowMap3D_(uint32_t resolutionX, uint32_t
     //smap.shadowCubeMap.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
     if (vpl) {
-        smap.diffuseCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
+        smap.diffuseCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
         smap.diffuseCubeMap.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         smap.diffuseCubeMap.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
