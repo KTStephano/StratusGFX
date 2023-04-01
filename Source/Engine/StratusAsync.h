@@ -9,47 +9,47 @@ namespace stratus {
     // It's important to know that whatever thread calls AddCallback will be the same thread that is executes
     // the callback to let you know it completed.
     template<typename E>
-    class __AsyncImpl : public std::enable_shared_from_this<__AsyncImpl<E>> {
+    class AsyncImpl_ : public std::enable_shared_from_this<AsyncImpl_<E>> {
     public:        
-        __AsyncImpl(const std::shared_ptr<E>& result) {
-            _result = result;
-            _complete = true;
-            _failed = result == nullptr;
+        AsyncImpl_(const std::shared_ptr<E>& result) {
+            result_ = result;
+            complete_ = true;
+            failed_ = result == nullptr;
         }
 
-        __AsyncImpl(Thread& context, std::function<E *(void)> compute) 
-            : __AsyncImpl(context, [compute]() { return std::shared_ptr<E>(compute()); }) {}
+        AsyncImpl_(Thread& context, std::function<E *(void)> compute) 
+            : AsyncImpl_(context, [compute]() { return std::shared_ptr<E>(compute()); }) {}
 
-        __AsyncImpl(Thread& context, std::function<std::shared_ptr<E> (void)> compute)
-            : _context(&context),
-              _compute(compute) {}
+        AsyncImpl_(Thread& context, std::function<std::shared_ptr<E> (void)> compute)
+            : context_(&context),
+              compute_(compute) {}
 
-        __AsyncImpl(const __AsyncImpl&) = delete;
-        __AsyncImpl(__AsyncImpl&&) = delete;
-        __AsyncImpl& operator=(const __AsyncImpl&) = delete;
-        __AsyncImpl& operator=(__AsyncImpl&&) = delete;
-        ~__AsyncImpl() = default;
+        AsyncImpl_(const AsyncImpl_&) = delete;
+        AsyncImpl_(AsyncImpl_&&) = delete;
+        AsyncImpl_& operator=(const AsyncImpl_&) = delete;
+        AsyncImpl_& operator=(AsyncImpl_&&) = delete;
+        ~AsyncImpl_() = default;
 
         // Should only be called by the wrapper class Async
         void Start() {
             if (Completed()) return;
 
-            std::shared_ptr<__AsyncImpl> shared = this->shared_from_this();
-            _context->Queue([this, shared]() {
+            std::shared_ptr<AsyncImpl_> shared = this->shared_from_this();
+            context_->Queue([this, shared]() {
                 bool failed = false;
                 try {
-                    std::shared_ptr<E> result = this->_compute();
+                    std::shared_ptr<E> result = this->compute_();
                     auto ul = this->LockWrite_();
-                    this->_result = result;
-                    this->_complete = true;
-                    this->_failed = this->_result == nullptr;
-                    failed = this->_failed;
+                    this->result_ = result;
+                    this->complete_ = true;
+                    this->failed_ = this->result_ == nullptr;
+                    failed = this->failed_;
                 }
                 catch (const std::exception& e) {
                     auto ul = this->LockWrite_();
-                    this->_complete = true;
-                    this->_failed = true;
-                    this->_exceptionMessage = e.what();
+                    this->complete_ = true;
+                    this->failed_ = true;
+                    this->exceptionMessage_ = e.what();
                     failed = true;
                 }
 
@@ -57,16 +57,16 @@ namespace stratus {
                 if (failed) return;
 
                 // Notify everyone that we're done
-                this->_ProcessCallbacks();
+                this->ProcessCallbacks_();
             });
         }
 
         // Getters for checking internal state
-        bool Failed()                  const { auto sl = LockRead_(); return _failed; }
-        bool Completed()               const { auto sl = LockRead_(); return _complete; }
-        bool CompleteAndValid()        const { auto sl = LockRead_(); return _complete && !_failed; }
-        bool CompleteAndInvalid()      const { auto sl = LockRead_(); return _complete && _failed; }
-        std::string ExceptionMessage() const { auto sl = LockRead_(); return _exceptionMessage; }
+        bool Failed()                  const { auto sl = LockRead_(); return failed_; }
+        bool Completed()               const { auto sl = LockRead_(); return complete_; }
+        bool CompleteAndValid()        const { auto sl = LockRead_(); return complete_ && !failed_; }
+        bool CompleteAndInvalid()      const { auto sl = LockRead_(); return complete_ && failed_; }
+        std::string ExceptionMessage() const { auto sl = LockRead_(); return exceptionMessage_; }
 
         // Getters for retrieving result
         const E& Get() const {
@@ -78,7 +78,7 @@ namespace stratus {
                 throw std::runtime_error("Get() called on a failed Async operation");
             }
 
-            return *_result;
+            return *result_;
         }
 
         E& Get() {
@@ -90,7 +90,7 @@ namespace stratus {
                 throw std::runtime_error("Get() called on a failed Async operation");
             }
 
-            return *_result;
+            return *result_;
         }
 
         std::shared_ptr<E> GetPtr() const {
@@ -102,7 +102,7 @@ namespace stratus {
                 throw std::runtime_error("Get() called on a failed Async operation");
             }
 
-            return _result;
+            return result_;
         }
 
         void AddCallback(const Thread::ThreadFunction & callback) {
@@ -113,22 +113,22 @@ namespace stratus {
             }
             else {
                 auto ul = LockWrite_();
-                if (_callbacks.find(thread) == _callbacks.end()) {
-                    _callbacks.insert(std::make_pair(thread, std::vector<Thread::ThreadFunction>()));
+                if (callbacks_.find(thread) == callbacks_.end()) {
+                    callbacks_.insert(std::make_pair(thread, std::vector<Thread::ThreadFunction>()));
                 }
-                _callbacks.find(thread)->second.push_back(callback);
+                callbacks_.find(thread)->second.push_back(callback);
             }
         }
 
     private:
-        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(_mutex); }
-        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(_mutex); }
+        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
+        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
 
-        void _ProcessCallbacks() {
+        void ProcessCallbacks_() {
             std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> callbacks;
             {
                 auto ul = LockWrite_();
-                callbacks = std::move(_callbacks);
+                callbacks = std::move(callbacks_);
             }
             for (auto entry : callbacks) {
                 entry.first->QueueMany(entry.second);
@@ -136,14 +136,14 @@ namespace stratus {
         }
 
     private:
-        std::shared_ptr<E> _result = nullptr;
-        Thread * _context;
-        std::function<std::shared_ptr<E> (void)> _compute;
-        mutable std::shared_mutex _mutex;
-        std::string _exceptionMessage;
-        bool _failed = false;
-        bool _complete = false;
-        std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> _callbacks;
+        std::shared_ptr<E> result_ = nullptr;
+        Thread * context_;
+        std::function<std::shared_ptr<E> (void)> compute_;
+        mutable std::shared_mutex mutex_;
+        std::string exceptionMessage_;
+        bool failed_ = false;
+        bool complete_ = false;
+        std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> callbacks_;
     };
 
     // To use this class, do something like the following:
@@ -159,15 +159,15 @@ namespace stratus {
 
         Async() {}
         Async(const std::shared_ptr<E>& result)
-            : impl_(std::make_shared<__AsyncImpl<E>>(result)) {}
+            : impl_(std::make_shared<AsyncImpl_<E>>(result)) {}
 
         Async(Thread& context, std::function<E *(void)> function)
-            : impl_(std::make_shared<__AsyncImpl<E>>(context, function)) {
+            : impl_(std::make_shared<AsyncImpl_<E>>(context, function)) {
             impl_->Start();
         }
 
         Async(Thread& context, std::function<std::shared_ptr<E> (void)> function)
-            : impl_(std::make_shared<__AsyncImpl<E>>(context, function)) {
+            : impl_(std::make_shared<AsyncImpl_<E>>(context, function)) {
             impl_->Start();
         }
 
@@ -196,6 +196,6 @@ namespace stratus {
         }
 
     private:
-        std::shared_ptr<__AsyncImpl<E>> impl_;
+        std::shared_ptr<AsyncImpl_<E>> impl_;
     };
 }

@@ -14,13 +14,13 @@ namespace stratus {
  * from a certain perspective.
  */
 class Camera {
-    mutable glm::mat4 _viewTransform;
-    mutable glm::mat4 _worldTransform;
+    mutable glm::mat4 viewTransform_;
+    mutable glm::mat4 worldTransform_;
     glm::vec3 position_ = glm::vec3(0.0f);
-    glm::vec3 _speed = glm::vec3(0.0f);
+    glm::vec3 speed_ = glm::vec3(0.0f);
     Rotation rotation_;
-    bool _rangeCheckAngles;
-    mutable bool _viewTransformValid = false;
+    bool rangeCheckAngles_;
+    mutable bool viewTransformValid_ = false;
 
 public:
     Camera(bool rangeCheckAngles = true);
@@ -33,19 +33,19 @@ public:
      * @param deltaPitch change in angle pitch
      * @param deltaRoll change angle in roll
      */
-    void modifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll);
+    void ModifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll);
 
     // Sets the x, y and z angles in degrees
-    void setAngle(const Rotation & rotation);
+    void SetAngle(const Rotation & rotation);
     const Rotation & GetRotation() const;
 
     void SetPosition(float x, float y, float z);
     void SetPosition(const glm::vec3 & position);
     const glm::vec3 & GetPosition() const;
 
-    glm::vec3 getDirection() const;
-    glm::vec3 getUp() const;
-    glm::vec3 getSide() const;
+    glm::vec3 GetDirection() const;
+    glm::vec3 GetUp() const;
+    glm::vec3 GetSide() const;
 
     /**
      * Sets the speed x/y/z of the camera.
@@ -57,32 +57,32 @@ public:
      * @param strafe negative values send it left, positive send
      *      it right
      */
-    void setSpeed(float forward, float up, float strafe);
-    void setSpeed(const glm::vec3 &);
-    const glm::vec3 & getSpeed() const;
+    void SetSpeed(float forward, float up, float strafe);
+    void SetSpeed(const glm::vec3 &);
+    const glm::vec3 & GetSpeed() const;
 
     /**
      * Helper functions that return the pitch/yaw.
      */
-    float getYaw() const;
-    float getPitch() const;
+    float GetYaw() const;
+    float GetPitch() const;
 
     // Applies position += speed * deltaSeconds
-    void update(double deltaSeconds);
+    void Update(double deltaSeconds);
 
     /**
      * @return view transform associated with this camera (world -> camera)
      */
-    const glm::mat4& getViewTransform() const;
+    const glm::mat4& GetViewTransform() const;
 
     // Gets the camera -> world transform
-    const glm::mat4& getWorldTransform() const;
+    const glm::mat4& GetWorldTransform() const;
 
     CameraPtr Copy() const;
 
 private:
-    void _invalidateView();
-    void _updateViewTransform() const;
+    void InvalidateView_();
+    void UpdateViewTransform_() const;
     // void _updateCameraAxes();
 };
 }

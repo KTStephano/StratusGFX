@@ -37,7 +37,7 @@ namespace stratus {
         ApplicationThread::Instance()->Queue([]() {
             Engine::Instance()->Initialize();
         });
-        ApplicationThread::Instance()->_DispatchAndSynchronize();
+        ApplicationThread::Instance()->DispatchAndSynchronize_();
 
         // Set up shut down sequence
         const auto shutdown = []() {
@@ -56,7 +56,7 @@ namespace stratus {
         while (running) {
             ApplicationThread::Instance()->Queue(runFrame);
             // No need to synchronize since ApplicationThread uses this thread's context
-            ApplicationThread::Instance()->_Dispatch();
+            ApplicationThread::Instance()->Dispatch_();
 
             // Check the system status message and decide what to do next
             switch (status.load()) {
@@ -76,7 +76,7 @@ namespace stratus {
 
         // Queue and dispatch shutdown sequence
         ApplicationThread::Instance()->Queue(shutdown);
-        ApplicationThread::Instance()->_Dispatch();
+        ApplicationThread::Instance()->Dispatch_();
 
         // If this is true the boot function will call EngineMain again
         return shouldRestart;
@@ -117,7 +117,7 @@ namespace stratus {
         InitApplicationThread_();
 
         // Pull the main thread
-        main_ = ApplicationThread::Instance()->_thread.get();
+        main_ = ApplicationThread::Instance()->thread_.get();
     }
 
     struct EngineModuleInit {

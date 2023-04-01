@@ -33,7 +33,7 @@ namespace stratus {
         void QueueMany(const E& functions) {
             auto ul = LockWrite_();
             for (const Thread::ThreadFunction& function : functions) {
-                _queue.push_back(function);
+                queue_.push_back(function);
             }
         }
 
@@ -41,15 +41,15 @@ namespace stratus {
         bool CurrentIsApplicationThread() const;
 
     private:
-        std::unique_lock<std::mutex> LockWrite_() const { return std::unique_lock<std::mutex>(_mutex); }
-        void _QueueFront(const Thread::ThreadFunction&);
-        void _Dispatch();
-        void _Synchronize();
-        void _DispatchAndSynchronize();
+        std::unique_lock<std::mutex> LockWrite_() const { return std::unique_lock<std::mutex>(mutex_); }
+        void QueueFront_(const Thread::ThreadFunction&);
+        void Dispatch_();
+        void Synchronize_();
+        void DispatchAndSynchronize_();
 
     private:
-        mutable std::mutex _mutex;
-        std::list<Thread::ThreadFunction> _queue;
-        std::unique_ptr<Thread> _thread;
+        mutable std::mutex mutex_;
+        std::list<Thread::ThreadFunction> queue_;
+        std::unique_ptr<Thread> thread_;
     };
 }

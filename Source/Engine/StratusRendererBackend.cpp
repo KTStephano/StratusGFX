@@ -839,7 +839,7 @@ void RendererBackend::RenderSkybox_() {
     Texture sky = INSTANCE(ResourceManager)->LookupTexture(frame_->skybox, status);
     if (ValidateTexture(sky, status)) {
         const glm::mat4& projection = frame_->projection;
-        const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->getViewTransform()));
+        const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
         const glm::mat4 projectionView = projection * view;
 
         // _state.skybox->setMat4("projection", projection);
@@ -888,7 +888,7 @@ void RendererBackend::RenderCSMDepth_() {
 
         BindShader_(shader);
 
-        shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->getDirection()[0]);
+        shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->GetDirection()[0]);
         shader->SetFloat("nearClipPlane", frame_->znear);
 
         // Set up each individual view-projection matrix
@@ -988,7 +988,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     // g in frustum parameters
     const float projDist = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
     const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
-    const glm::mat4 shadowMatrix = frame_->csc.cascades[0].projectionViewSample * frame_->camera->getWorldTransform();
+    const glm::mat4 shadowMatrix = frame_->csc.cascades[0].projectionViewSample * frame_->camera->GetWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
     const glm::vec4 shadowSpaceCameraPos = frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
     const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
@@ -1175,7 +1175,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     const Camera & lightCam = *frame_->csc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
-    const glm::vec3 direction = lightCam.getDirection();
+    const glm::vec3 direction = lightCam.GetDirection();
 
     state_.vplCulling->SetVec3("infiniteLightDirection", direction);
     state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
@@ -1261,7 +1261,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     const Camera & lightCam = *frame_->csc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
-    const glm::vec3 direction = lightCam.getDirection();
+    const glm::vec3 direction = lightCam.GetDirection();
 
     state_.vplColoring->Bind();
 
@@ -1802,7 +1802,7 @@ Texture RendererBackend::LookupShadowmapTexture_(TextureHandle handle) const {
 void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     const Camera & lightCam = *frame_->csc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
-    const glm::vec3 direction = lightCam.getDirection();
+    const glm::vec3 direction = lightCam.GetDirection();
 
     s->SetVec3("infiniteLightDirection", direction);    
     s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
@@ -1929,9 +1929,9 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     // Camera lightCam(false);
     // lightCam.setAngle(_state.worldLight.getRotation());
     const Camera & lightCam = *frame_->csc.worldLightCamera;
-    glm::mat4 lightWorld = lightCam.getWorldTransform();
+    glm::mat4 lightWorld = lightCam.GetWorldTransform();
     // glm::mat4 lightView = lightCam.getViewTransform();
-    glm::vec3 direction = lightCam.getDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
+    glm::vec3 direction = lightCam.GetDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
     lightColor = frame_->csc.worldLight->GetLuminance();
     s->SetVec3("infiniteLightColor", lightColor);

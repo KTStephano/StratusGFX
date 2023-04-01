@@ -375,9 +375,9 @@ namespace stratus {
         auto ul = LockWrite_();
         if (camera_ == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
-        camera_->update(deltaSeconds);
+        camera_->Update(deltaSeconds);
         frame_->camera = camera_->Copy();
-        frame_->view = camera_->getViewTransform();
+        frame_->view = camera_->GetViewTransform();
 
         UpdateViewport_();
         UpdateCascadeTransforms_();
@@ -535,7 +535,7 @@ namespace stratus {
 
         frame_->csc.worldLightCamera = CameraPtr(new Camera(false));
         auto worldLightCamera = frame_->csc.worldLightCamera;
-        worldLightCamera->setAngle(worldLight_->GetRotation());
+        worldLightCamera->SetAngle(worldLight_->GetRotation());
 
         // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
         //
@@ -555,10 +555,10 @@ namespace stratus {
         const Camera & light = *worldLightCamera;
         const Camera & c = *camera_;
 
-        const glm::mat4& lightWorldTransform = light.getWorldTransform();
-        const glm::mat4& lightViewTransform = light.getViewTransform();
-        const glm::mat4& cameraWorldTransform = c.getWorldTransform();
-        const glm::mat4& cameraViewTransform = c.getViewTransform();
+        const glm::mat4& lightWorldTransform = light.GetWorldTransform();
+        const glm::mat4& lightViewTransform = light.GetViewTransform();
+        const glm::mat4& cameraWorldTransform = c.GetWorldTransform();
+        const glm::mat4& cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
         // See page 152, eq. 8.21
@@ -1244,7 +1244,7 @@ namespace stratus {
             drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);
         }
         
-        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->getViewTransform(), drawCommands, drawCommandsPerLod);
+        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, drawCommandsPerLod);
 
         // for (auto& array : drawCommandsPerLod) {
         //     array.clear();
