@@ -73,36 +73,9 @@ First set up the repo
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
 
-Build Catch2 -> should only need to do this once per clone
+Build 3rd party dependencies -> should only need to do this once per clone
 
-    cd Catch2
-    cmake -Bbuild -S. -DBUILD_TESTING=OFF
-    cmake --build build/ -j 8 --config RelWithDebInfo
-    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
-    cd ../
-
-Build SDL -> should only need to do this once per clone
-
-    cd SDL
-    cmake -Bbuild -S. -DBUILD_TESTING=OFF
-    cmake --build build/ -j 8 --config RelWithDebInfo
-    cmake --install build/ --prefix ../ThirdParty --config RelWithDebInfo
-    cd ../
-
-Build and rest of the third party libraries -> should only need to do this once per clone
-
-    cd ThirdParty
-    cmake .. -DDEPENDENCY_BUILD=ON -DBUILD_TESTING=OFF
-    cmake --build . -j 8 --config RelWithDebInfo
-    cmake --install . --prefix . --config RelWithDebInfo
-    (if you get an error that Assimp install can't find ThirdParty/assimp/code/RelWithDebInfo/assimp-vc143-mt.pdb, copy ThirdParty/assimp/bin/RelWithDebInfo into ThirdParty/assimp/code and re-run the --install step)
-
-Now generate the GL3W headers with extensions (--ext) -> should only need to do this once per clone
-
-    cd ../
-    cd gl3w
-    python3 ./gl3w_gen.py --ext
-    cd ../
+    python3 ./dependency_build.py
 
 Now build the StratusGFX source
 

@@ -25,44 +25,32 @@ list(APPEND CMAKE_PREFIX_PATH
 
 option(DEPENDENCY_BUILD "Third party dependencies only" OFF)
 
-if (${DEPENDENCY_BUILD})
-    add_subdirectory(assimp/)
-    add_subdirectory(meshoptimizer/)
-
-    file(
-        COPY ${CMAKE_CURRENT_SOURCE_DIR}/assimp/contrib
-        DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
-    )
-
-else ()
-    file(GLOB BIN_DLLS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bin/*)
+file(GLOB BIN_DLLS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bin/*)
     
-    file(
-        COPY ${BIN_DLLS}
-        DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Bin
-    )
+file(
+    COPY ${BIN_DLLS}
+    DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Bin
+)
 
-    # See https://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
-    # First for the generic no-config case (e.g. with mingw)
-    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
-    set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
-    set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
-    # Second, for multi-config builds (e.g. msvc)
-    foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
-        string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
-        set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
-        set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
-        set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
-    endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
+# See https://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
+# First for the generic no-config case (e.g. with mingw)
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Bin )
+# Second, for multi-config builds (e.g. msvc)
+foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
+    string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
+    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
+    set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
+    set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_CURRENT_LIST_DIR}/Bin )
+endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/stb)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/stb)
 
-    add_subdirectory(Source/)
-    add_subdirectory(Examples/)
+add_subdirectory(Source/)
+add_subdirectory(Examples/)
 
-    #include(CTest)
-    #enable_testing()
+#include(CTest)
+#enable_testing()
 
-    add_subdirectory(Tests)
-
-endif()
+add_subdirectory(Tests)
