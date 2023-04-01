@@ -19,14 +19,14 @@ namespace stratus {
         return allocator;
     }
 
-    MeshPtr Mesh::_PlacementNew(uint8_t * memory) {
+    MeshPtr Mesh::PlacementNew_(uint8_t * memory) {
         return new (memory) Mesh();
     }
 
     MeshPtr Mesh::Create() {
         auto& allocator = GetAllocator();
         auto ul = std::unique_lock<std::mutex>(allocator.m);
-        return allocator.allocator.AllocateCustomConstruct(_PlacementNew);
+        return allocator.allocator.AllocateCustomConstruct(PlacementNew_);
     }
 
     void Mesh::Destroy(MeshPtr ptr) {
@@ -49,17 +49,17 @@ namespace stratus {
     }
 
     Mesh::Mesh() {
-        _cpuData = new _MeshCpuData();
+        cpuData_ = new MeshCpuData_();
     }
 
     Mesh::~Mesh() {
-        delete _cpuData;
-        _cpuData = nullptr;
+        delete cpuData_;
+        cpuData_ = nullptr;
 
-        auto vertexOffset = _vertexOffset;
-        auto numVertices = _numVertices;
-        auto indexOffsetPerLod = _indexOffsetPerLod;
-        auto numIndicesPerLod = _numIndicesPerLod;
+        auto vertexOffset = vertexOffset_;
+        auto numVertices = numVertices_;
+        auto indexOffsetPerLod = indexOffsetPerLod_;
+        auto numIndicesPerLod = numIndicesPerLod_;
         const auto deallocate = [vertexOffset, numVertices, indexOffsetPerLod, numIndicesPerLod]() {
             GpuMeshAllocator::DeallocateVertexData(vertexOffset, numVertices);
             for (size_t i = 0; i < indexOffsetPerLod.size(); ++i) {
@@ -76,96 +76,96 @@ namespace stratus {
     }
 
     bool Mesh::IsFinalized() const {
-        return _cpuData == nullptr;
+        return cpuData_ == nullptr;
     }
 
-    void Mesh::_EnsureFinalized() const {
+    void Mesh::EnsureFinalized_() const {
         if (!IsFinalized()) {
             throw std::runtime_error("Attempt to read GPU Mesh data before finalized");
         }
     }
 
-    void Mesh::_EnsureNotFinalized() const {
+    void Mesh::EnsureNotFinalized_() const {
         if (IsFinalized()) {
             throw std::runtime_error("Attempt to write GPU Mesh data after finalized");
         }
     }
 
     void Mesh::AddVertex(const glm::vec3& v) {
-        _EnsureNotFinalized();
-        _cpuData->vertices.push_back(v);
-        _cpuData->needsRepacking = true;
-        _numVertices = _cpuData->vertices.size();
+        EnsureNotFinalized_();
+        cpuData_->vertices.push_back(v);
+        cpuData_->needsRepacking = true;
+        numVertices_ = cpuData_->vertices.size();
     }
 
     void Mesh::AddUV(const glm::vec2& uv) {
-        _EnsureNotFinalized();
-        _cpuData->uvs.push_back(uv);
-        _cpuData->needsRepacking = true;
+        EnsureNotFinalized_();
+        cpuData_->uvs.push_back(uv);
+        cpuData_->needsRepacking = true;
     }
 
     void Mesh::AddNormal(const glm::vec3& n) {
-        _EnsureNotFinalized();
-        _cpuData->normals.push_back(n);
-        _cpuData->needsRepacking = true;
+        EnsureNotFinalized_();
+        cpuData_->normals.push_back(n);
+        cpuData_->needsRepacking = true;
     }
 
     void Mesh::AddTangent(const glm::vec3& t) {
-        _EnsureNotFinalized();
-        _cpuData->tangents.push_back(t);
-        _cpuData->needsRepacking = true;
+        EnsureNotFinalized_();
+        cpuData_->tangents.push_back(t);
+        cpuData_->needsRepacking = true;
     }
 
     void Mesh::AddBitangent(const glm::vec3& bt) {
-        _EnsureNotFinalized();
-        _cpuData->bitangents.push_back(bt);
-        _cpuData->needsRepacking = true;
+        EnsureNotFinalized_();
+        cpuData_->bitangents.push_back(bt);
+        cpuData_->needsRepacking = true;
     }
 
     void Mesh::AddIndex(uint32_t i) {
-        _EnsureNotFinalized();
-        _cpuData->indices.push_back(i);
-        _numIndices = _cpuData->indices.size();
+        EnsureNotFinalized_();
+        cpuData_->indices.push_back(i);
+        numIndices_ = cpuData_->indices.size();
     }
 
-    void Mesh::_CalculateTangentsBitangents() {
-        _EnsureNotFinalized();
-        _cpuData->needsRepacking = true;
-        _cpuData->tangents.clear();
-        _cpuData->bitangents.clear();
+    void Mesh::CalculateTangentsBitangents_() {
+        EnsureNotFinalized_();
+        cpuData_->needsRepacking = true;
+        cpuData_->tangents.clear();
+        cpuData_->bitangents.clear();
 
         std::vector<uint32_t> indexBuffer;
         const std::vector<uint32_t> * order;
-        if (_numIndices == 0) {
-            indexBuffer.resize(_numVertices);
-            for (uint32_t i = 0; i < _numVertices; ++i) indexBuffer[i] = i;
+        if (numIndices_ == 0) {
+            indexBuffer.resize(numVertices_);
+            for (uint32_t i = 0; i < numVertices_; ++i) indexBuffer[i] = i;
             order = &indexBuffer;
         }
         else {
-            order = &_cpuData->indices;
+            order = &cpuData_->indices;
         }
 
-        _cpuData->tangents = std::vector<glm::vec3>(_numVertices, glm::vec3(0.0f));
-        _cpuData->bitangents = std::vector<glm::vec3>(_numVertices, glm::vec3(0.0f));
+        cpuData_->tangents = std::vector<glm::vec3>(numVertices_, glm::vec3(0.0f));
+        cpuData_->bitangents = std::vector<glm::vec3>(numVertices_, glm::vec3(0.0f));
         for (int i = 0; i < order->size(); i += 3) {
             const uint32_t i0 = (*order)[i];
             const uint32_t i1 = (*order)[i + 1];
             const uint32_t i2 = (*order)[i + 2];
-            auto tanBitan = calculateTangentAndBitangent(_cpuData->vertices[i0], _cpuData->vertices[i1], _cpuData->vertices[i2], _cpuData->uvs[i0], _cpuData->uvs[i1], _cpuData->uvs[i2]);
+            auto tanBitan = calculateTangentAndBitangent(cpuData_->vertices[i0], cpuData_->vertices[i1], cpuData_->vertices[i2], cpuData_->uvs[i0], cpuData_->uvs[i1], cpuData_->uvs[i2]);
             
-            _cpuData->tangents[i0] += tanBitan.tangent;
-            _cpuData->tangents[i1] += tanBitan.tangent;
-            _cpuData->tangents[i2] += tanBitan.tangent;
+            cpuData_->tangents[i0] += tanBitan.tangent;
+            cpuData_->tangents[i1] += tanBitan.tangent;
+            cpuData_->tangents[i2] += tanBitan.tangent;
 
-            _cpuData->bitangents[i0] += tanBitan.bitangent;
-            _cpuData->bitangents[i1] += tanBitan.bitangent;
-            _cpuData->bitangents[i2] += tanBitan.bitangent;
+            cpuData_->bitangents[i0] += tanBitan.bitangent;
+            cpuData_->bitangents[i1] += tanBitan.bitangent;
+            cpuData_->bitangents[i2] += tanBitan.bitangent;
         }
 
-        for (size_t i = 0; i < _numVertices; ++i) {
-            glm::vec3 & tangent = _cpuData->tangents[i];
-            glm::vec3 & bitangent = _cpuData->bitangents[i];
-            const glm::vec3 & normal = _cpuData->normals[i];
+        for (size_t i = 0; i < numVertices_; ++i) {
+            glm::vec3 & tangent = cpuData_->tangents[i];
+            glm::vec3 & bitangent = cpuData_->bitangents[i];
+            const glm::vec3 & normal = cpuData_->normals[i];
             glm::vec3 t = tangent - (normal * glm::dot(normal, tangent));
             t = glm::normalize(t);
 
@@ -177,17 +177,17 @@ namespace stratus {
     }
 
     void Mesh::PackCpuData() {
-        _EnsureNotFinalized();
+        EnsureNotFinalized_();
 
-        if (_cpuData->tangents.size() == 0 || _cpuData->bitangents.size() == 0) _CalculateTangentsBitangents();
+        if (cpuData_->tangents.size() == 0 || cpuData_->bitangents.size() == 0) CalculateTangentsBitangents_();
 
-        if (!_cpuData->needsRepacking) return;
+        if (!cpuData_->needsRepacking) return;
 
         // Pack all data into a single buffer
-        _cpuData->data.clear();
-        _cpuData->data.resize(_numVertices);
+        cpuData_->data.clear();
+        cpuData_->data.resize(numVertices_);
         //_cpuData->data.reserve(_cpuData->vertices.size() * 3 + _cpuData->uvs.size() * 2 + _cpuData->normals.size() * 3 + _cpuData->tangents.size() * 3 + _cpuData->bitangents.size() * 3);
-        for (int i = 0; i < _numVertices; ++i) {
+        for (int i = 0; i < numVertices_; ++i) {
             // _cpuData->data.push_back(_cpuData->vertices[i].x);
             // _cpuData->data.push_back(_cpuData->vertices[i].y);
             // _cpuData->data.push_back(_cpuData->vertices[i].z);
@@ -202,133 +202,133 @@ namespace stratus {
             // _cpuData->data.push_back(_cpuData->bitangents[i].x);
             // _cpuData->data.push_back(_cpuData->bitangents[i].y);
             // _cpuData->data.push_back(_cpuData->bitangents[i].z);
-            GpuMeshData * data = &_cpuData->data[i];
-            data->position[0] = _cpuData->vertices[i].x;
-            data->position[1] = _cpuData->vertices[i].y;
-            data->position[2] = _cpuData->vertices[i].z;
-            data->texCoord[0] = _cpuData->uvs[i].x;
-            data->texCoord[1] = _cpuData->uvs[i].y;
-            data->normal[0] = _cpuData->normals[i].x;
-            data->normal[1] = _cpuData->normals[i].y;
-            data->normal[2] = _cpuData->normals[i].z;
-            data->tangent[0] = _cpuData->tangents[i].x;
-            data->tangent[1] = _cpuData->tangents[i].y;
-            data->tangent[2] = _cpuData->tangents[i].z;
-            data->bitangent[0] = _cpuData->bitangents[i].x;
-            data->bitangent[1] = _cpuData->bitangents[i].y;
-            data->bitangent[2] = _cpuData->bitangents[i].z;
+            GpuMeshData * data = &cpuData_->data[i];
+            data->position[0] = cpuData_->vertices[i].x;
+            data->position[1] = cpuData_->vertices[i].y;
+            data->position[2] = cpuData_->vertices[i].z;
+            data->texCoord[0] = cpuData_->uvs[i].x;
+            data->texCoord[1] = cpuData_->uvs[i].y;
+            data->normal[0] = cpuData_->normals[i].x;
+            data->normal[1] = cpuData_->normals[i].y;
+            data->normal[2] = cpuData_->normals[i].z;
+            data->tangent[0] = cpuData_->tangents[i].x;
+            data->tangent[1] = cpuData_->tangents[i].y;
+            data->tangent[2] = cpuData_->tangents[i].z;
+            data->bitangent[0] = cpuData_->bitangents[i].x;
+            data->bitangent[1] = cpuData_->bitangents[i].y;
+            data->bitangent[2] = cpuData_->bitangents[i].z;
         }
 
-        _dataSizeBytes = _cpuData->data.size() * sizeof(GpuMeshData);
+        dataSizeBytes_ = cpuData_->data.size() * sizeof(GpuMeshData);
 
-        _cpuData->needsRepacking = false;
+        cpuData_->needsRepacking = false;
     }
 
     // This comes from the Visibility and Occlusion chapter in "Foundations of Game Engine Development, Volume 2: Rendering"
     void Mesh::CalculateAabbs(const glm::mat4& transform) {
-        assert(_cpuData->vertices.size() > 0);
-        _EnsureNotFinalized();
+        assert(cpuData_->vertices.size() > 0);
+        EnsureNotFinalized_();
 
         // If no indices generate a buffer from [0, num vertices)
         // This does not require CPU data to be repacked
-        if (_cpuData->indices.size() == 0) {
-            for (uint32_t i = 0; i < _numVertices; ++i) {
+        if (cpuData_->indices.size() == 0) {
+            for (uint32_t i = 0; i < numVertices_; ++i) {
                 AddIndex(i);
             }
         }
 
-        glm::vec3 vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[0]], 1.0f));
+        glm::vec3 vertex = glm::vec3(transform * glm::vec4(cpuData_->vertices[cpuData_->indices[0]], 1.0f));
 		glm::vec3 vmin = vertex;
 		glm::vec3 vmax = vertex;
-        for (size_t i = 0; i < _cpuData->indices.size(); ++i) {
-            vertex = glm::vec3(transform * glm::vec4(_cpuData->vertices[_cpuData->indices[i]], 1.0f));
+        for (size_t i = 0; i < cpuData_->indices.size(); ++i) {
+            vertex = glm::vec3(transform * glm::vec4(cpuData_->vertices[cpuData_->indices[i]], 1.0f));
             vmin = glm::min(vmin, vertex);
             vmax = glm::max(vmax, vertex);
         }
 
-        _aabb.vmin = glm::vec4(vmin, 1.0f);
-        _aabb.vmax = glm::vec4(vmax, 1.0f);
+        aabb_.vmin = glm::vec4(vmin, 1.0f);
+        aabb_.vmax = glm::vec4(vmax, 1.0f);
         //aabb.center = (vmin + vmax) * 0.5f;
         //aabb.size = (vmax - vmin) * 0.5f;
     }
 
     void Mesh::GenerateLODs() {
-        assert(_cpuData->vertices.size() > 0);
-        _EnsureNotFinalized();
+        assert(cpuData_->vertices.size() > 0);
+        EnsureNotFinalized_();
 
         // If no indices generate a buffer from [0, num vertices)
         // This does not require CPU data to be repacked
-        if (_cpuData->indices.size() == 0) {
-            for (uint32_t i = 0; i < _numVertices; ++i) {
+        if (cpuData_->indices.size() == 0) {
+            for (uint32_t i = 0; i < numVertices_; ++i) {
                 AddIndex(i);
             }
         }
 
-        _cpuData->indicesPerLod.clear();
-        _cpuData->indicesPerLod.push_back(_cpuData->indices);
-        _numIndicesPerLod.clear();
-        _numIndicesPerLod.push_back(_cpuData->indices.size());
+        cpuData_->indicesPerLod.clear();
+        cpuData_->indicesPerLod.push_back(cpuData_->indices);
+        numIndicesPerLod_.clear();
+        numIndicesPerLod_.push_back(cpuData_->indices.size());
         for (int i = 0; i < 7; ++i) {
-            auto& prevIndices = _cpuData->indicesPerLod[_cpuData->indicesPerLod.size() - 1];
+            auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
             std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
             // if ((prevIndices.size() * 0.9) < double(size)) {
             //    size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &_cpuData->vertices[0][0], _numVertices, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
             // }
             simplified.resize(size);
-            _cpuData->indicesPerLod.push_back(std::move(simplified));
-            _numIndicesPerLod.push_back(size);
+            cpuData_->indicesPerLod.push_back(std::move(simplified));
+            numIndicesPerLod_.push_back(size);
             if (size < 1024) break;
         }
     }
 
     size_t Mesh::GetGpuSizeBytes() const {
-        _EnsureFinalized();
-        return _dataSizeBytes;
+        EnsureFinalized_();
+        return dataSizeBytes_;
     }
 
     const GpuAABB& Mesh::GetAABB() const {
-        _EnsureFinalized();
-        return _aabb;
+        EnsureFinalized_();
+        return aabb_;
     }
 
     uint32_t Mesh::GetVertexOffset() const {
-        return _vertexOffset;
+        return vertexOffset_;
     }
 
     uint32_t Mesh::GetIndexOffset(size_t lod) const {
-        lod = lod >= _indexOffsetPerLod.size() ? _indexOffsetPerLod.size() - 1 : lod;
-        return _indexOffsetPerLod[lod];
+        lod = lod >= indexOffsetPerLod_.size() ? indexOffsetPerLod_.size() - 1 : lod;
+        return indexOffsetPerLod_[lod];
     }
 
     uint32_t Mesh::GetNumIndices(size_t lod) const {
-        lod = lod >= _numIndicesPerLod.size() ? _numIndicesPerLod.size() - 1 : lod;
-        return _numIndicesPerLod[lod];
+        lod = lod >= numIndicesPerLod_.size() ? numIndicesPerLod_.size() - 1 : lod;
+        return numIndicesPerLod_[lod];
     }
 
-    void Mesh::_GenerateGpuData() {
-        _EnsureNotFinalized();
+    void Mesh::GenerateGpuData_() {
+        EnsureNotFinalized_();
 
-        if (_cpuData->indicesPerLod.size() == 0) {
+        if (cpuData_->indicesPerLod.size() == 0) {
             GenerateLODs();
         }
 
-        _vertexOffset = GpuMeshAllocator::AllocateVertexData(_numVertices);
+        vertexOffset_ = GpuMeshAllocator::AllocateVertexData(numVertices_);
 
-        _indexOffsetPerLod.clear();
-        for (auto& indices : _cpuData->indicesPerLod) {
-            _indexOffsetPerLod.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
+        indexOffsetPerLod_.clear();
+        for (auto& indices : cpuData_->indicesPerLod) {
+            indexOffsetPerLod_.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
             // Account for the fact that all vertices are stored in a global GpuBuffer and so
             // the indices need to be offset
             for (size_t i = 0; i < indices.size(); ++i) {
-                indices[i] += _vertexOffset;
+                indices[i] += vertexOffset_;
             }
             
-            GpuMeshAllocator::CopyIndexData(indices, _indexOffsetPerLod[_indexOffsetPerLod.size() - 1]);
+            GpuMeshAllocator::CopyIndexData(indices, indexOffsetPerLod_[indexOffsetPerLod_.size() - 1]);
         }
 
-        GpuMeshAllocator::CopyVertexData(_cpuData->data, _vertexOffset);
+        GpuMeshAllocator::CopyVertexData(cpuData_->data, vertexOffset_);
 
         //_meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
         //_indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
@@ -358,21 +358,21 @@ namespace stratus {
         // buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
 
         // Clear CPU memory
-        delete _cpuData;
-        _cpuData = nullptr;
+        delete cpuData_;
+        cpuData_ = nullptr;
     }
 
     void Mesh::FinalizeData() {
-        _EnsureNotFinalized();
+        EnsureNotFinalized_();
 
         PackCpuData();
 
         if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
-            _GenerateGpuData();
+            GenerateGpuData_();
         }
         else {
             ApplicationThread::Instance()->Queue([this]() {
-                _GenerateGpuData();
+                GenerateGpuData_();
             });
         }
     }
@@ -389,18 +389,18 @@ namespace stratus {
         // Matches the location in mesh_data.glsl
         additionalBuffers.Bind();
 
-        glDrawElementsInstanced(GL_TRIANGLES, _numIndices, GL_UNSIGNED_INT, (const void *)(GetIndexOffset(0) * sizeof(uint32_t)), numInstances);
+        glDrawElementsInstanced(GL_TRIANGLES, numIndices_, GL_UNSIGNED_INT, (const void *)(GetIndexOffset(0) * sizeof(uint32_t)), numInstances);
 
         additionalBuffers.Unbind();
         //GpuMeshAllocator::UnbindElementArrayBuffer();
     }
 
     void Mesh::SetFaceCulling(const RenderFaceCulling& cullMode) {
-        _cullMode = cullMode;
+        cullMode_ = cullMode;
     }
 
     RenderFaceCulling Mesh::GetFaceCulling() const {
-        return _cullMode;
+        return cullMode_;
     }
 
     RenderComponent::RenderComponent()
@@ -408,7 +408,7 @@ namespace stratus {
 
     RenderComponent::RenderComponent(const RenderComponent& other) {
         this->meshes = other.meshes;
-        this->_materials = other._materials;
+        this->materials_ = other.materials_;
     }
 
     MeshPtr RenderComponent::GetMesh(const size_t meshIndex) const {
@@ -424,24 +424,24 @@ namespace stratus {
     }
 
     size_t RenderComponent::GetMaterialCount() const {
-        return _materials.size();
+        return materials_.size();
     }
 
     const std::vector<MaterialPtr>& RenderComponent::GetAllMaterials() const {
-        return _materials;
+        return materials_;
     }
 
     const MaterialPtr& RenderComponent::GetMaterialAt(size_t index) const {
-        return _materials[index];
+        return materials_[index];
     }
 
     void RenderComponent::AddMaterial(MaterialPtr material) {
-        _materials.push_back(material);
+        materials_.push_back(material);
         MarkChanged();
     }
 
     void RenderComponent::SetMaterialAt(MaterialPtr material, size_t index) {
-        _materials[index] = material;
+        materials_[index] = material;
         MarkChanged();
     }
 }
