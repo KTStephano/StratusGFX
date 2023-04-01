@@ -56,7 +56,7 @@ namespace stratus {
             // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFramebufferTextureLayer.xhtml
             // Followed by a regular glClear of the color attachment
             Texture& color = _colorAttachments[colorIndex];
-            color.clearLayer(0, layer, (const void *)&rgba[0]);
+            color.ClearLayer(0, layer, (const void *)&rgba[0]);
         }
 
         void ClearDepthStencilLayer(const int layer) {
@@ -69,7 +69,7 @@ namespace stratus {
             // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFramebufferTextureLayer.xhtml
             // Followed by a regular glClear of the depth stencil attachment
             //std::vector<float> data(_depthStencilAttachment.width() * _depthStencilAttachment.height(), val);
-            _depthStencilAttachment.clearLayer(0, layer, (const void *)&val);
+            _depthStencilAttachment.ClearLayer(0, layer, (const void *)&val);
         }
 
         void bind() const {
@@ -90,7 +90,7 @@ namespace stratus {
             glNamedFramebufferTextureLayer(
                 _fbo, 
                 GL_COLOR_ATTACHMENT0 + attachmentNum,
-                *(GLuint *)getColorAttachments()[attachmentNum].underlying(),
+                *(GLuint *)getColorAttachments()[attachmentNum].Underlying(),
                 mipLevel, layer
             );
         }
@@ -103,13 +103,13 @@ namespace stratus {
             glNamedFramebufferTextureLayer(
                 _fbo, 
                 GL_DEPTH_ATTACHMENT,
-                *(GLuint *)getDepthStencilAttachment()->underlying(),
+                *(GLuint *)getDepthStencilAttachment()->Underlying(),
                 0, layer
             );
         }
 
         void setAttachments(const std::vector<Texture> & attachments) {
-            if (_colorAttachments.size() > 0 || _depthStencilAttachment.valid()) throw std::runtime_error("setAttachments called twice");
+            if (_colorAttachments.size() > 0 || _depthStencilAttachment.Valid()) throw std::runtime_error("setAttachments called twice");
             _valid = true;
 
             bind();
@@ -121,9 +121,9 @@ namespace stratus {
             std::vector<uint32_t> drawBuffers;
 
             for (Texture tex : attachments) {
-                tex.bind();
-                GLuint underlying = *(GLuint *)tex.underlying();
-                if (tex.format() == TextureComponentFormat::DEPTH) {
+                tex.Bind();
+                GLuint underlying = *(GLuint *)tex.Underlying();
+                if (tex.Format() == TextureComponentFormat::DEPTH) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth attachment present");
                     /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER,
@@ -136,7 +136,7 @@ namespace stratus {
                     ++numDepthStencilAttachments;
                     _depthStencilAttachment = tex;
                 }
-                else if (tex.format() == TextureComponentFormat::DEPTH_STENCIL) {
+                else if (tex.Format() == TextureComponentFormat::DEPTH_STENCIL) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth_stencil attachment present");
                     /*
                     glFramebufferTexture2D(GL_FRAMEBUFFER,
@@ -163,7 +163,7 @@ namespace stratus {
                     glFramebufferTexture(GL_FRAMEBUFFER, color, underlying, 0);
                     _colorAttachments.push_back(tex);
                 }
-                tex.unbind();
+                tex.Unbind();
             }
 
             if (drawBuffers.size() == 0) {

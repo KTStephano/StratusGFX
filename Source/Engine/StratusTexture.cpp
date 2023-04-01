@@ -179,12 +179,12 @@ namespace stratus {
         }
 
         static void MakeResident(const Texture& texture) { 
-            if (texture._impl == nullptr) return;
+            if (texture.impl_ == nullptr) return;
             glMakeTextureHandleResidentARB((GLuint64)texture.GpuHandle()); 
         }
 
         static void MakeNonResident(const Texture& texture) { 
-            if (texture._impl == nullptr) return;
+            if (texture.impl_ == nullptr) return;
             glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle());
         }
 
@@ -465,58 +465,58 @@ namespace stratus {
 
     Texture::Texture() {}
     Texture::Texture(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
-        _impl = std::make_shared<TextureImpl>(config, data, initHandle);
+        impl_ = std::make_shared<TextureImpl>(config, data, initHandle);
     }
 
     Texture::~Texture() {}
 
-    void Texture::setCoordinateWrapping(TextureCoordinateWrapping wrap) { _impl->setCoordinateWrapping(wrap); }
-    void Texture::setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { _impl->setMinMagFilter(min, mag); }
-    void Texture::setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { _impl->setTextureCompare(mode, func); }
+    void Texture::SetCoordinateWrapping(TextureCoordinateWrapping wrap) { impl_->setCoordinateWrapping(wrap); }
+    void Texture::SetMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { impl_->setMinMagFilter(min, mag); }
+    void Texture::SetTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { impl_->setTextureCompare(mode, func); }
 
-    TextureType Texture::type() const { return _impl->type(); }
-    TextureComponentFormat Texture::format() const { return _impl->format(); }
-    TextureHandle Texture::handle() const { return _impl->handle(); }
+    TextureType Texture::Type() const { return impl_->type(); }
+    TextureComponentFormat Texture::Format() const { return impl_->format(); }
+    TextureHandle Texture::Handle() const { return impl_->handle(); }
 
-    GpuTextureHandle Texture::GpuHandle() const { return _impl->GpuHandle(); }
+    GpuTextureHandle Texture::GpuHandle() const { return impl_->GpuHandle(); }
 
     void Texture::MakeResident(const Texture& texture) { TextureImpl::MakeResident(texture); }
     void Texture::MakeNonResident(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
-    uint32_t Texture::width() const { return _impl->width(); }
-    uint32_t Texture::height() const { return _impl->height(); }
-    uint32_t Texture::depth() const { return _impl->depth(); }
+    uint32_t Texture::Width() const { return impl_->width(); }
+    uint32_t Texture::Height() const { return impl_->height(); }
+    uint32_t Texture::Depth() const { return impl_->depth(); }
 
-    void Texture::bind(int activeTexture) const { _impl->bind(activeTexture); }
-    void Texture::bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
-        _impl->bindAsImageTexture(unit, layered, layer, access);
+    void Texture::Bind(int activeTexture) const { impl_->bind(activeTexture); }
+    void Texture::BindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+        impl_->bindAsImageTexture(unit, layered, layer, access);
     }
-    void Texture::unbind() const { _impl->unbind(); }
-    bool Texture::valid() const { return _impl != nullptr; }
+    void Texture::Unbind() const { impl_->unbind(); }
+    bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::clear(const int mipLevel, const void * clearValue) { _impl->clear(mipLevel, clearValue); }
-    void Texture::clearLayer(const int mipLevel, const int layer, const void * clearValue) { _impl->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::Clear(const int mipLevel, const void * clearValue) { impl_->clear(mipLevel, clearValue); }
+    void Texture::ClearLayer(const int mipLevel, const int layer, const void * clearValue) { impl_->clearLayer(mipLevel, layer, clearValue); }
 
-    const void * Texture::underlying() const { return _impl->underlying(); }
+    const void * Texture::Underlying() const { return impl_->underlying(); }
 
-    size_t Texture::hashCode() const {
-        return std::hash<void *>{}((void *)_impl.get());
+    size_t Texture::HashCode() const {
+        return std::hash<void *>{}((void *)impl_.get());
     }
 
     bool Texture::operator==(const Texture & other) const {
-        return _impl == other._impl;
+        return impl_ == other.impl_;
     }
 
     // Creates a new texture and copies this texture into it
-    Texture Texture::copy(uint32_t newWidth, uint32_t newHeight) {
+    Texture Texture::Copy(uint32_t newWidth, uint32_t newHeight) {
         throw std::runtime_error("Must implement");
     }
 
-    const TextureConfig & Texture::getConfig() const {
-        return _impl->getConfig();
+    const TextureConfig & Texture::GetConfig() const {
+        return impl_->getConfig();
     }
 
-    void Texture::_setHandle(const TextureHandle handle) {
-        _impl->setHandle(handle);
+    void Texture::SetHandle_(const TextureHandle handle) {
+        impl_->setHandle(handle);
     }
 }

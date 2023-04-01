@@ -60,7 +60,7 @@ namespace stratus {
         friend void EngineBoot(const int numArgs, const char** args);
 
         // Global engine instance
-        static Engine * Instance() { return _instance; }
+        static Engine * Instance() { return instance_; }
 
         // Sets max frame rate
         void SetMaxFrameRate(const uint32_t);
@@ -114,7 +114,7 @@ namespace stratus {
 
     private:
         // Global engine instance - should only be set by EngineMain function
-        static Engine * _instance;
+        static Engine * instance_;
         EngineStatistics _stats;
         EngineInitParams _params;
         Thread * _main;

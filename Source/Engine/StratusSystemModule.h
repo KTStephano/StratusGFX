@@ -9,7 +9,7 @@ namespace stratus {
             friend class Engine;                             \
             friend struct EngineModuleInit;                  \
             name();                                          \
-            static name *& _Instance() {                     \
+            static name *& Instance_() {                     \
                 static name * instance = nullptr;            \
                 return instance;                             \
             }                                                \
@@ -17,7 +17,7 @@ namespace stratus {
             const char * Name() const override {             \
                 return #name;                                \
             }                                                \
-            static name * Instance() { return _Instance(); }
+            static name * Instance() { return Instance_(); }
 
     // Interface for consistent initialize/shutdown behavior for modules such as
     // log, resource manager, renderer frontend, etc.

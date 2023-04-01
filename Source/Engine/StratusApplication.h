@@ -16,13 +16,13 @@ namespace stratus {
     class Application : public SystemModule {
         friend class Engine;
 
-        static Application *& _Instance() {
+        static Application *& Instance_() {
             static Application * instance = nullptr;
             return instance;
         }
 
     public:
-        static Application * Instance() { return _Instance(); }
+        static Application * Instance() { return Instance_(); }
 
         virtual ~Application() = default;
 

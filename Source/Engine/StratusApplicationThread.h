@@ -14,13 +14,13 @@ namespace stratus {
         friend class Engine;
         ApplicationThread();
 
-        static ApplicationThread *& _Instance() {
+        static ApplicationThread *& Instance_() {
             static ApplicationThread * instance = nullptr;
             return instance;
         }
 
     public:
-        static ApplicationThread * Instance() { return _Instance(); }
+        static ApplicationThread * Instance() { return Instance_(); }
 
         virtual ~ApplicationThread();
 

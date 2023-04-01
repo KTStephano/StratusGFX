@@ -421,25 +421,25 @@ void Pipeline::synchronizeCompute() {
 }
 
 void Pipeline::bindTexture(const std::string & uniform, const Texture & tex) {
-    if (!tex.valid()) {
+    if (!tex.Valid()) {
         STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
         return;
     }
     // See if the uniform is already bound to a texture
     auto it = _boundTextures.find(uniform);
     if (it != _boundTextures.end()) {
-        it->second.unbind();
+        it->second.Unbind();
     }
 
     const int activeTexture = _activeTextureIndex++;
-    tex.bind(activeTexture);
+    tex.Bind(activeTexture);
     setInt(uniform, activeTexture);
     _boundTextures.insert(std::make_pair(uniform, tex));
 }
 
 void Pipeline::unbindAllTextures() {
     for (auto & binding : _boundTextures) {
-        binding.second.unbind();
+        binding.second.Unbind();
         setInt(binding.first, 0);
     }
     _boundTextures.clear();

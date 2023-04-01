@@ -42,8 +42,8 @@ namespace stratus {
 
         template<typename E>
         void QueueMany(const E& functions) {
-            std::unique_lock<std::mutex> ul(_mutex);
-            for (auto & func : functions) _frontQueue.push_back(func);
+            std::unique_lock<std::mutex> ul(mutex_);
+            for (auto & func : functions) frontQueue_.push_back(func);
         }
 
         void Queue(const ThreadFunction& function) {
@@ -70,29 +70,29 @@ namespace stratus {
         // Gets a reference to the underlying Thread object for the current active context it is called from
         static Thread& Current();
 
-        bool operator==(const Thread & other) const { return this->_id == other._id; }
+        bool operator==(const Thread & other) const { return this->id_ == other.id_; }
         bool operator!=(const Thread & other) const { return !((*this) == other); }
 
     private:
-        void _ProcessNext();
+        void ProcessNext_();
 
     private:
         // May be empty if ownsExecutionContext is false
-        std::thread _context;
+        std::thread context_;
         // Friendly name of thread
-        const std::string _name;
+        const std::string name_;
         // True if a private thread is used for all function executions, false otherwise
-        const bool _ownsExecutionContext;
+        const bool ownsExecutionContext_;
         // Uniquely identifies the thread
-        const ThreadHandle _id;
+        const ThreadHandle id_;
         // While true the thread can continue servicing calls to Dispatch
-        std::atomic<bool> _running{true};
+        std::atomic<bool> running_{true};
         // List of functions to execute on next call to Dispatch
-        std::vector<ThreadFunction> _frontQueue;
-        std::vector<ThreadFunction> _backQueue;
+        std::vector<ThreadFunction> frontQueue_;
+        std::vector<ThreadFunction> backQueue_;
         // Protects critical section
-        mutable std::mutex _mutex;
+        mutable std::mutex mutex_;
         // When true it signals to the dispatch thread that it should begin its next batch of work
-        std::atomic<bool> _processing{false};
+        std::atomic<bool> processing_{false};
     };
 }
