@@ -170,6 +170,8 @@ R recompiles all shaders
 
 ### Short Term Goals
 
+-> Improving build system to make it easier for people to get up and running with the code
+
 -> Addition of either TAA or TSSAA to help with image stability while in motion
 
 -> Performance improvements
