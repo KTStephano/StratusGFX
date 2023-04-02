@@ -71,8 +71,8 @@ Because of the MPL license, any community changes made to the rendering code wil
 | CPU | Ryzen 3 1200 (quad core) |
 | RAM | 8 GB |
 | GPU | Nvidia GTX 1050 Ti |
-| SSD (Source + Dependencies) | 7 GB |
-| SSD (Source + Demos + Dependencies | 16 GB |
+| Storage (Source + Dependencies) | 7 GB |
+| Storage (Source + Demos + Dependencies | 16 GB |
 
 # Building For Windows & Linux
 
