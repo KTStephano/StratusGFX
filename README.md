@@ -90,6 +90,8 @@ All executables will be put into StratusGFX/Bin. Make sure you run them while in
 
 # First Places to Look
 
+-> [Documentation](https://github.com/KTStephano/StratusGFX/wiki)
+
 You can check [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture), or you can start by looking through the code under Examples/ExampleEnv00 and Examples/ExampleEnv01. They both depend on code that is inside of Examples/Common which is another good place to look around.
 
 None of the test scenes are bundled with this source so the rest of the environments will be completely blank when running.
@@ -140,6 +142,8 @@ R recompiles all shaders
 -> Improving build system to make it easier for people to get up and running with the code
 
 -> Addition of either TAA or TSSAA to help with image stability while in motion
+
+-> Animation
 
 -> Performance improvements
 
