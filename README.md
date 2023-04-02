@@ -2,7 +2,7 @@
 
 Release State: **Pre-Release/Beta**
 
-Hobby research rendering engine which was open sourced once its core features were available. Expect bugs and instability as it is still under development. Licensed under MPL-2.0.
+Hobby research rendering engine which was open sourced once its core features were in a presentable state. Expect bugs and instability as it is still under development. Licensed under MPL-2.0.
 
 -> [Graphics Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
