@@ -75,7 +75,7 @@ Because of the MPL license, any community changes made to the rendering code wil
 | *Storage (Binaries + Source + Dependencies) | 7 GB |
 | *Storage (Binaries + Source + Demos + Dependencies) | 16 GB |
 
-* Uncompressed
+\* Uncompressed
 
 # Building For Windows & Linux
 
