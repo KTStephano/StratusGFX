@@ -1,6 +1,8 @@
 # StratusGFX / Stratus Engine
 
-I worked on this project in my spare time and I would consider its current state to still be pre-release/beta-release. Expect bugs and instability. Current versions have been set to the MPL 2.0 license.
+Release State: **Pre-Release/Beta**
+
+Hobby research rendering engine which was open sourced once its core features were available. Expect bugs and instability as it is still under development. Licensed under MPL-2.0.
 
 -> [Graphics Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
@@ -61,6 +63,16 @@ Because of the MPL license, any community changes made to the rendering code wil
 * Programmable vertex pulling
 * Multi draw elements indirect
 * Shader storage buffers
+
+# Minimum Hardware Requirements
+
+| Type | Minimum |
+| --- | --- |
+| CPU | Ryzen 3 1200 (quad core) |
+| RAM | 8 GB |
+| GPU | Nvidia GTX 1050 Ti |
+| SSD (Source + Dependencies) | 7 GB |
+| SSD (Source + Demos + Dependencies | 16 GB |
 
 # Building For Windows & Linux
 
