@@ -427,7 +427,7 @@ namespace stratus {
         frame_->csc.regenerateFbo = true;
 
         // Set materials per frame and initialize material buffer
-        frame_->materialInfo.maxMaterials = 4096;
+        frame_->materialInfo.maxMaterials = 65536;
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
         frame_->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * frame_->materialInfo.maxMaterials, flags);
 
@@ -1238,7 +1238,7 @@ namespace stratus {
             {}, {}, {}
         };
 
-        for (size_t i = 0; i < 4; ++i) {
+        for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
             drawCommandsPerLod[0].push_back(&frame_->instancedFlatMeshes[i]);
             drawCommandsPerLod[1].push_back(&frame_->instancedDynamicPbrMeshes[i]);
             drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);

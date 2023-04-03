@@ -884,10 +884,10 @@ void RendererBackend::RenderCSMDepth_() {
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    glEnable(GL_POLYGON_OFFSET_FILL);
+    //glEnable(GL_POLYGON_OFFSET_FILL);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
     glEnable(GL_DEPTH_CLAMP);
-    glPolygonOffset(3.0f, 1.0f);
+    //glPolygonOffset(3.0f, 1.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -924,6 +924,8 @@ void RendererBackend::RenderCSMDepth_() {
         const size_t lod = cascade * 2;
         RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
         RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
+        //RenderImmediate_(frame_->visibleFirstLodInstancedDynamicPbrMeshes);
+        //RenderImmediate_(frame_->visibleFirstLodInstancedStaticPbrMeshes);
 
         UnbindShader_();
     }

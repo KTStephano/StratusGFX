@@ -98,7 +98,7 @@ namespace stratus {
     };
 
     struct RendererMaterialInformation {
-        size_t maxMaterials = 2048;
+        size_t maxMaterials = 65536;
         // These are the materials we draw from to calculate the material-indices map
         std::unordered_set<MaterialPtr> availableMaterials;
         // Indices can change completely if new materials are added

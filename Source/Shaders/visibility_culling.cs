@@ -36,11 +36,32 @@ layout (std430, binding = 7) readonly buffer lod2 {
 layout (std430, binding = 8) readonly buffer lod3 {
     DrawElementsIndirectCommand drawCallsLod3[];
 };
+layout (std430, binding = 9) readonly buffer lod4 {
+    DrawElementsIndirectCommand drawCallsLod4[];
+};
+layout (std430, binding = 10) readonly buffer lod5 {
+    DrawElementsIndirectCommand drawCallsLod5[];
+};
+layout (std430, binding = 11) readonly buffer lod6 {
+    DrawElementsIndirectCommand drawCallsLod6[];
+};
+layout (std430, binding = 12) readonly buffer lod7 {
+    DrawElementsIndirectCommand drawCallsLod7[];
+};
 #endif
 
 uniform uint numDrawCalls;
 uniform vec3 viewPosition;
 uniform mat4 view;
+
+// See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
+float distanceFromPointToAABB(in AABB aabb, vec3 point) {
+    float dx = max(aabb.vmin.x - point.x, max(0.0, point.x - aabb.vmax.x));
+    float dy = max(aabb.vmin.y - point.y, max(0.0, point.y - aabb.vmax.y));
+    float dz = max(aabb.vmin.z - point.z, max(0.0, point.z - aabb.vmax.z));
+
+    return sqrt(dx * dx + dy * dy + dz + dz);
+}
 
 void main() {
     // Defines local work group from layout local size tag above
@@ -48,26 +69,45 @@ void main() {
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
-        vec3 center = (aabb.vmin.xyz + aabb.vmax.xyz) * 0.5;
-        center = (view * vec4(center, 1.0)).xyz;
-        float dist = length(center);
+        // World space center
+        //vec3 center = (aabb.vmin.xyz + aabb.vmax.xyz) * 0.5;
+        // Defines a ray originating from the camera moving towards the center of the AABB
+        float dist = distanceFromPointToAABB(aabb, viewPosition);
+        //center = center - viewPosition; //(view * vec4(center, 1.0)).xyz;
+        //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
         DrawElementsIndirectCommand draw = drawCalls[i];
         if (!isAabbVisible(aabb)) {
             draw.instanceCount = 0;
         }
         else {
             #ifdef SELECT_LOD
-            if (dist < 400) {
+            float initialDist = 100.0;
+            if (dist < initialDist) {
                 draw = drawCallsLod0[i];
             }
-            else if (dist < 700) {
+            // else {
+            //     draw = drawCallsLod7[i];
+            // }
+            else if (dist < initialDist * 2.0) {
                 draw = drawCallsLod1[i];
             }
-            else if (dist < 900) {
+            else if (dist < initialDist * 3.0) {
                 draw = drawCallsLod2[i];
             }
-            else {
+            else if (dist < initialDist * 4.0) {
                 draw = drawCallsLod3[i];
+            }
+            else if (dist < initialDist * 5.0) {
+                draw = drawCallsLod4[i];
+            }
+            else if (dist < initialDist * 6.0) {
+                draw = drawCallsLod5[i];
+            }
+            else if (dist < initialDist * 7.0) {
+                draw = drawCallsLod6[i];
+            }
+            else {
+                draw = drawCallsLod7[i];
             }
             #endif
             draw.instanceCount = 1;
