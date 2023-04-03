@@ -1,6 +1,8 @@
 # StratusGFX / Stratus Engine
 
-I worked on this project in my spare time and I would consider its current state to still be pre-release/beta-release. Expect bugs and instability. Current versions have been set to the MPL 2.0 license.
+Release State: **Pre-Release/Beta**
+
+Hobby research rendering engine which was open sourced once its core features were in a presentable state. Expect bugs and instability as it is still under development. Licensed under MPL-2.0.
 
 -> [Graphics Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
@@ -62,6 +64,19 @@ Because of the MPL license, any community changes made to the rendering code wil
 * Multi draw elements indirect
 * Shader storage buffers
 
+# Minimum Hardware Requirements
+
+| Type | Minimum |
+| --- | --- |
+| CPU | Ryzen 3 1200 (quad core) |
+| RAM | 8 GB |
+| GPU | Nvidia GTX 1050 Ti |
+| *Storage (Deploy Binaries) | 700 MB |
+| *Storage (Binaries + Source + Dependencies) | 7 GB |
+| *Storage (Binaries + Source + Demo Data + Dependencies) | 16 GB |
+
+\* Uncompressed
+
 # Building For Windows & Linux
 
 This code base will currently not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
@@ -90,15 +105,19 @@ All executables will be put into StratusGFX/Bin. Make sure you run them while in
 
 # First Places to Look
 
+-> [Documentation](https://github.com/KTStephano/StratusGFX/wiki)
+
 You can check [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture), or you can start by looking through the code under Examples/ExampleEnv00 and Examples/ExampleEnv01. They both depend on code that is inside of Examples/Common which is another good place to look around.
 
 None of the test scenes are bundled with this source so the rest of the environments will be completely blank when running.
 
 # Running Example Environments 2-6
 
+-> More in depth explanation here: [Examples](https://github.com/KTStephano/StratusGFX/wiki/Examples)
+
 1) A zip file containing Sponza, Interrogation Room, San Miguel, Bistro and Bathroom can be found here: [https://drive.google.com/file/d/1zuxILmOs9fX-w37EB65yOtOZA8em6nnP/view?usp=sharing](https://drive.google.com/file/d/1zuxILmOs9fX-w37EB65yOtOZA8em6nnP/view?usp=sharing)
 
-2) Extract the Resources.zip folder into the root of StratusGFX. It will then be at the same level as Bin/, Examples/, Source/, Tests/. 
+2) Extract the Resources.zip folder into the root of StratusGFX. It will then be at the same level as Bin/, Examples/, Source/, Tests/. Make sure that the folder structure looks like StratusGFX/Resources/* where * will be folders such as Sponza, Bistro, etc.
 
 3) Change directory into Bin/ and run the example environments.
 
@@ -140,6 +159,8 @@ R recompiles all shaders
 -> Improving build system to make it easier for people to get up and running with the code
 
 -> Addition of either TAA or TSSAA to help with image stability while in motion
+
+-> Animation
 
 -> Performance improvements
 
