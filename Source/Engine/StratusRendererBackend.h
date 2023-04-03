@@ -174,9 +174,12 @@ namespace stratus {
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedFlatMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedStaticPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedFlatMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedStaticPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedFlatMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsStaticPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsFlatMeshes;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpate; // shadow map data is invalid

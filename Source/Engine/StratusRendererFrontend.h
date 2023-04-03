@@ -92,6 +92,7 @@ namespace stratus {
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
             const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
+            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
             const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
             );
 

@@ -450,9 +450,13 @@ namespace stratus {
         }
 
         for (auto cull : culling) {
-            frame_->visibleFirstLodInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            frame_->visibleFirstLodInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            frame_->visibleFirstLodInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->visibleInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+
+            frame_->selectedLodsFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->selectedLodsDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            frame_->selectedLodsStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
         }
 
         for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
@@ -1066,9 +1070,18 @@ namespace stratus {
         if (!drawCommandsDirty_) return;
         drawCommandsDirty_ = false;
 
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { frame_->visibleFirstLodInstancedFlatMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ frame_->visibleFirstLodInstancedDynamicPbrMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ frame_->visibleFirstLodInstancedStaticPbrMeshes };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { 
+            frame_->visibleInstancedFlatMeshes,
+            frame_->selectedLodsFlatMeshes
+        };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ 
+            frame_->visibleInstancedDynamicPbrMeshes,
+            frame_->selectedLodsDynamicPbrMeshes
+        };
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ 
+            frame_->visibleInstancedStaticPbrMeshes,
+            frame_->selectedLodsStaticPbrMeshes
+        };
 
         // Clear old commands
         std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> *> oldCommands{
@@ -1125,17 +1138,20 @@ namespace stratus {
         }
 
         // Generate flat commands
-        GENERATE_COMMANDS(flatEntities_, frame_->visibleFirstLodInstancedFlatMeshes, 0, true, drawCommandsDirty_)
+        GENERATE_COMMANDS(flatEntities_, frame_->visibleInstancedFlatMeshes, 0, true, drawCommandsDirty_)
+        GENERATE_COMMANDS(flatEntities_, frame_->selectedLodsFlatMeshes, 0, true, drawCommandsDirty_)
 
         for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
             GENERATE_COMMANDS(flatEntities_, frame_->instancedFlatMeshes[i], i, true, drawCommandsDirty_)
         }
 
         // Generate pbr commands
-        GENERATE_COMMANDS(dynamicPbrEntities_, frame_->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, drawCommandsDirty_)
+        GENERATE_COMMANDS(dynamicPbrEntities_, frame_->visibleInstancedDynamicPbrMeshes, 0, true, drawCommandsDirty_)
+        GENERATE_COMMANDS(dynamicPbrEntities_, frame_->selectedLodsDynamicPbrMeshes, 0, true, drawCommandsDirty_)
         bool staticCommandsDirty = false;
-        GENERATE_COMMANDS(staticPbrEntities_, frame_->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
+        GENERATE_COMMANDS(staticPbrEntities_, frame_->visibleInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
         drawCommandsDirty_ = drawCommandsDirty_ || staticCommandsDirty;
+        GENERATE_COMMANDS(staticPbrEntities_, frame_->selectedLodsStaticPbrMeshes, 0, true, staticCommandsDirty)
         
         // If static commands are dirty then all static lights (including vpls) need to be re-generated
         if (staticCommandsDirty) {
@@ -1229,9 +1245,15 @@ namespace stratus {
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::UpdateVisibility_() {
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
-            &frame_->visibleFirstLodInstancedFlatMeshes,
-            &frame_->visibleFirstLodInstancedDynamicPbrMeshes,
-            &frame_->visibleFirstLodInstancedStaticPbrMeshes
+            &frame_->visibleInstancedFlatMeshes,
+            &frame_->visibleInstancedDynamicPbrMeshes,
+            &frame_->visibleInstancedStaticPbrMeshes
+        };
+
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> selectedLodDrawCommands{
+            &frame_->selectedLodsFlatMeshes,
+            &frame_->selectedLodsDynamicPbrMeshes,
+            &frame_->selectedLodsStaticPbrMeshes
         };
 
         std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>> drawCommandsPerLod = {
@@ -1244,7 +1266,7 @@ namespace stratus {
             drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);
         }
         
-        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, drawCommandsPerLod);
+        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, selectedLodDrawCommands, drawCommandsPerLod);
 
         // for (auto& array : drawCommandsPerLod) {
         //     array.clear();
@@ -1268,6 +1290,7 @@ namespace stratus {
         const glm::mat4& projection, 
         const glm::mat4& view, 
         const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
         const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod) {
 
         static const std::vector<RenderFaceCulling> culling{
@@ -1321,12 +1344,16 @@ namespace stratus {
         
         for (size_t i = 0; i < drawCommands.size(); ++i) {
            auto& map = drawCommands[i];
+           auto& lods = selectedLods[i];
            auto& mapPerLod = drawCommandsPerLod[i];
            for (const auto& cull : culling) {
                auto it = map->find(cull);
                if (it->second->NumDrawCommands() == 0) continue;
 
+               auto lodIt = lods->find(cull);
+
                it->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+               lodIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
                it->second->BindModelTransformBuffer(2);
                it->second->BindAabbBuffer(3);
                it->second->BindGlobalTransformBuffer(4);

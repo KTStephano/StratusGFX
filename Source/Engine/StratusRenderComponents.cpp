@@ -275,7 +275,7 @@ namespace stratus {
             auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
             if ((prevIndices.size() * 0.9) < double(size)) {
-               //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
+               //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
                error *= 2.0f;
                size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
             }

@@ -924,8 +924,8 @@ void RendererBackend::RenderCSMDepth_() {
         const size_t lod = cascade * 2;
         RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
         RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
-        //RenderImmediate_(frame_->visibleFirstLodInstancedDynamicPbrMeshes);
-        //RenderImmediate_(frame_->visibleFirstLodInstancedStaticPbrMeshes);
+        //RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes);
+        //RenderImmediate_(frame_->selectedLodsStaticPbrMeshes);
 
         UnbindShader_();
     }
@@ -1476,8 +1476,8 @@ void RendererBackend::RenderScene() {
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
 
-    Render_(frame_->visibleFirstLodInstancedDynamicPbrMeshes, true);
-    Render_(frame_->visibleFirstLodInstancedStaticPbrMeshes, true);
+    Render_(frame_->visibleInstancedDynamicPbrMeshes, true);
+    Render_(frame_->visibleInstancedStaticPbrMeshes, true);
     
     state_.buffer.fbo.Unbind();
 
@@ -1539,12 +1539,12 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     RenderSkybox_();
 
-    Render_(frame_->visibleFirstLodInstancedFlatMeshes, false);
+    Render_(frame_->visibleInstancedFlatMeshes, false);
 
     // Render bounding boxes
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedFlatMeshes);
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedDynamicPbrMeshes);
-    // _RenderBoundingBoxes(_frame->visibleFirstLodInstancedStaticPbrMeshes);
+    // _RenderBoundingBoxes(_frame->visibleInstancedFlatMeshes);
+    // _RenderBoundingBoxes(_frame->visibleInstancedDynamicPbrMeshes);
+    // _RenderBoundingBoxes(_frame->visibleInstancedStaticPbrMeshes);
 
     state_.lightingFbo.Unbind();
     state_.finalScreenTexture = state_.lightingColorBuffer;

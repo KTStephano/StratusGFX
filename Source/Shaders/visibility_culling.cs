@@ -23,31 +23,35 @@ layout (std430, binding = 1) buffer outputBlock1 {
     DrawElementsIndirectCommand drawCalls[];
 };
 
+layout (std430, binding = 13) buffer outputBlock2 {
+    DrawElementsIndirectCommand selectedLods[];
+};
+
 #ifdef SELECT_LOD
-layout (std430, binding = 5) readonly buffer lod0 {
-    DrawElementsIndirectCommand drawCallsLod0[];
-};
-layout (std430, binding = 6) readonly buffer lod1 {
-    DrawElementsIndirectCommand drawCallsLod1[];
-};
-layout (std430, binding = 7) readonly buffer lod2 {
-    DrawElementsIndirectCommand drawCallsLod2[];
-};
-layout (std430, binding = 8) readonly buffer lod3 {
-    DrawElementsIndirectCommand drawCallsLod3[];
-};
-layout (std430, binding = 9) readonly buffer lod4 {
-    DrawElementsIndirectCommand drawCallsLod4[];
-};
-layout (std430, binding = 10) readonly buffer lod5 {
-    DrawElementsIndirectCommand drawCallsLod5[];
-};
-layout (std430, binding = 11) readonly buffer lod6 {
-    DrawElementsIndirectCommand drawCallsLod6[];
-};
-layout (std430, binding = 12) readonly buffer lod7 {
-    DrawElementsIndirectCommand drawCallsLod7[];
-};
+    layout (std430, binding = 5) readonly buffer lod0 {
+        DrawElementsIndirectCommand drawCallsLod0[];
+    };
+    layout (std430, binding = 6) readonly buffer lod1 {
+        DrawElementsIndirectCommand drawCallsLod1[];
+    };
+    layout (std430, binding = 7) readonly buffer lod2 {
+        DrawElementsIndirectCommand drawCallsLod2[];
+    };
+    layout (std430, binding = 8) readonly buffer lod3 {
+        DrawElementsIndirectCommand drawCallsLod3[];
+    };
+    layout (std430, binding = 9) readonly buffer lod4 {
+        DrawElementsIndirectCommand drawCallsLod4[];
+    };
+    layout (std430, binding = 10) readonly buffer lod5 {
+        DrawElementsIndirectCommand drawCallsLod5[];
+    };
+    layout (std430, binding = 11) readonly buffer lod6 {
+        DrawElementsIndirectCommand drawCallsLod6[];
+    };
+    layout (std430, binding = 12) readonly buffer lod7 {
+        DrawElementsIndirectCommand drawCallsLod7[];
+    };
 #endif
 
 uniform uint numDrawCalls;
@@ -76,43 +80,52 @@ void main() {
         //center = center - viewPosition; //(view * vec4(center, 1.0)).xyz;
         //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
         DrawElementsIndirectCommand draw = drawCalls[i];
+
+    #ifdef SELECT_LOD
+        DrawElementsIndirectCommand lod;
+        float initialDist = 100.0;
+        if (dist < initialDist) {
+            draw = drawCallsLod0[i];
+        }
+        // else {
+        //     draw = drawCallsLod7[i];
+        // }
+        else if (dist < initialDist * 2.0) {
+            draw = drawCallsLod1[i];
+        }
+        else if (dist < initialDist * 3.0) {
+            draw = drawCallsLod2[i];
+        }
+        else if (dist < initialDist * 4.0) {
+            draw = drawCallsLod3[i];
+        }
+        else if (dist < initialDist * 5.0) {
+            draw = drawCallsLod4[i];
+        }
+        else if (dist < initialDist * 6.0) {
+            draw = drawCallsLod5[i];
+        }
+        else if (dist < initialDist * 7.0) {
+            draw = drawCallsLod6[i];
+        }
+        else {
+            draw = drawCallsLod7[i];
+        }
+
+        lod = draw;
+    #endif
+
         if (!isAabbVisible(aabb)) {
             draw.instanceCount = 0;
         }
         else {
-            #ifdef SELECT_LOD
-            float initialDist = 100.0;
-            if (dist < initialDist) {
-                draw = drawCallsLod0[i];
-            }
-            // else {
-            //     draw = drawCallsLod7[i];
-            // }
-            else if (dist < initialDist * 2.0) {
-                draw = drawCallsLod1[i];
-            }
-            else if (dist < initialDist * 3.0) {
-                draw = drawCallsLod2[i];
-            }
-            else if (dist < initialDist * 4.0) {
-                draw = drawCallsLod3[i];
-            }
-            else if (dist < initialDist * 5.0) {
-                draw = drawCallsLod4[i];
-            }
-            else if (dist < initialDist * 6.0) {
-                draw = drawCallsLod5[i];
-            }
-            else if (dist < initialDist * 7.0) {
-                draw = drawCallsLod6[i];
-            }
-            else {
-                draw = drawCallsLod7[i];
-            }
-            #endif
             draw.instanceCount = 1;
         }
 
         drawCalls[i] = draw;
+
+    #ifdef SELECT_LOD
+        selectedLods[i] = lod;
+    #endif
     }
 }
