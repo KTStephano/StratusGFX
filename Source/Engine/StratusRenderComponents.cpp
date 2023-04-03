@@ -268,17 +268,19 @@ namespace stratus {
         cpuData_->indicesPerLod.push_back(cpuData_->indices);
         numIndicesPerLod_.clear();
         numIndicesPerLod_.push_back(cpuData_->indices.size());
-        float error = 0.002f;
-        for (int i = 0; i < 7; ++i) {
+        std::vector<float> errors = {
+            0.002f, 0.0025f, 0.003f, 0.0035f, 0.004f, 0.0045f, 0.005f
+        };
+        for (int i = 0; i < errors.size(); ++i) {
             auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
             std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, errors[i]);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
-            if ((prevIndices.size() * 0.9) < double(size)) {
-               //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
-               error *= 2.0f;
-               size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
-            }
+            //if ((prevIndices.size() * 0.9) < double(size)) {
+            //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            //   error *= 2.0f;
+            //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
+            //}
             simplified.resize(size);
             cpuData_->indicesPerLod.push_back(std::move(simplified));
             numIndicesPerLod_.push_back(size);
