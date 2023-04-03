@@ -267,6 +267,8 @@ namespace stratus {
             FrameBuffer atmosphericFbo;
             Texture atmosphericTexture;
             Texture atmosphericNoiseTexture;
+            // Used for gamma-tonemapping
+            PostFXBuffer gammaTonemapFbo;
             // Used for fast approximate anti-aliasing (FXAA)
             PostFXBuffer fxaaFbo1;
             PostFXBuffer fxaaFbo2;
@@ -290,7 +292,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> skybox;
             // Postprocessing shader which allows for application
             // of hdr and gamma correction
-            std::unique_ptr<Pipeline> hdrGamma;
+            std::unique_ptr<Pipeline> gammaTonemap;
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
             std::vector<std::unique_ptr<Pipeline>> shadows;
             std::vector<std::unique_ptr<Pipeline>> vplShadows;
@@ -328,6 +330,8 @@ namespace stratus {
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;
             std::unique_ptr<Pipeline> fxaaSmoothing;
+            // Performs full screen pass through
+            std::unique_ptr<Pipeline> fullscreen;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;
@@ -478,6 +482,7 @@ namespace stratus {
         void PerformBloomPostFx_();
         void PerformAtmosphericPostFx_();
         void PerformFxaaPostFx_();
+        void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);

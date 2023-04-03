@@ -88,10 +88,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     // Set up the hdr/gamma postprocessing shader
 
-    state_.hdrGamma = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"hdr.vs", ShaderType::VERTEX},
-        Shader{"hdr.fs", ShaderType::FRAGMENT}}));
-    state_.shaders.push_back(state_.hdrGamma.get());
+    state_.gammaTonemap = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"gammaTonemap.vs", ShaderType::VERTEX},
+        Shader{"gammaTonemap.fs", ShaderType::FRAGMENT}}));
+    state_.shaders.push_back(state_.gammaTonemap.get());
 
     // Set up the shadow preprocessing shaders
     for (int i = 0; i < 6; ++i) {
@@ -213,6 +213,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"aabb_draw.fs", ShaderType::FRAGMENT}
     }));
     state_.shaders.push_back(state_.aabbDraw.get());
+
+    state_.fullscreen = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fullscreen.vs", ShaderType::VERTEX},
+        Shader{"fullscreen.fs", ShaderType::FRAGMENT}
+        }));
+    state_.shaders.push_back(state_.fullscreen.get());
 
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
@@ -518,8 +524,19 @@ void RendererBackend::InitializePostFxBuffers_() {
     }
     state_.postFxBuffers.push_back(state_.atmosphericPostFxBuffer);
 
+    // Create the Gamma-Tonemap buffer
+    Texture gammaTonemap = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    gammaTonemap.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    gammaTonemap.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    state_.gammaTonemapFbo.fbo = FrameBuffer({ gammaTonemap });
+    if (!state_.gammaTonemapFbo.fbo.Valid()) {
+        isValid_ = false;
+        STRATUS_ERROR << "Unable to initialize gamma tonemap buffer" << std::endl;
+        return;
+    }
+
     // Create the FXAA buffers
-    Texture fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    Texture fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
     fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo1.fbo = FrameBuffer({fxaa});
@@ -530,7 +547,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     }
     state_.postFxBuffers.push_back(state_.fxaaFbo1);
 
-    fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
     fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo2.fbo = FrameBuffer({fxaa});
@@ -1551,6 +1568,9 @@ void RendererBackend::PerformPostFxProcessing_() {
 
     PerformAtmosphericPostFx_();
 
+    PerformGammaTonemapPostFx_();
+
+    // Needs to come after gamma correction + tonemapping
     PerformFxaaPostFx_();
 
     glEnable(GL_CULL_FACE);
@@ -1718,6 +1738,18 @@ void RendererBackend::PerformFxaaPostFx_() {
     state_.finalScreenTexture = state_.fxaaFbo2.fbo.GetColorAttachments()[0];
 }
 
+void RendererBackend::PerformGammaTonemapPostFx_() {
+    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
+
+    BindShader_(state_.gammaTonemap.get());
+    state_.gammaTonemapFbo.fbo.Bind();
+    state_.gammaTonemap->BindTexture("screen", state_.finalScreenTexture);
+    RenderQuad_();
+    UnbindShader_();
+
+    state_.finalScreenTexture = state_.gammaTonemapFbo.fbo.GetColorAttachments()[0];
+}
+
 void RendererBackend::FinalizeFrame_() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
@@ -1725,8 +1757,8 @@ void RendererBackend::FinalizeFrame_() {
     //glEnable(GL_BLEND);
 
     // Now render the screen
-    BindShader_(state_.hdrGamma.get());
-    state_.hdrGamma->BindTexture("screen", state_.finalScreenTexture);
+    BindShader_(state_.fullscreen.get());
+    state_.fullscreen->BindTexture("screen", state_.finalScreenTexture);
     RenderQuad_();
     UnbindShader_();
 }
