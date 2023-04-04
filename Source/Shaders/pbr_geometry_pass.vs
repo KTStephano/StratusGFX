@@ -15,6 +15,8 @@ uniform mat4 projectionView;
  */
 uniform vec3 viewPosition;
 
+uniform vec2 jitter;
+
 smooth out vec3 fsPosition;
 //smooth out vec3 fsViewSpacePos;
 out vec3 fsNormal;
@@ -59,5 +61,8 @@ void main() {
 
     fsDrawID = gl_DrawID;
     
-    gl_Position = projectionView * pos;
+    vec4 clip = projectionView * pos;
+    clip.xy += jitter * clip.w;
+
+    gl_Position = clip;
 }

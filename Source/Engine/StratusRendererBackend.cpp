@@ -56,6 +56,29 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
+// These are the first 16 values of the Halton sequence. For more information see:
+//     https://en.wikipedia.org/wiki/Halton_sequence
+//     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
+
+static const std::vector<std::pair<float, float>> haltonSequence = {
+    { 1.0f /  2.0f,  1.0f /  3.0f},
+    { 1.0f /  4.0f,  2.0f /  3.0f},
+    { 3.0f /  4.0f,  1.0f /  9.0f},
+    { 1.0f /  8.0f,  4.0f /  9.0f},
+    { 5.0f /  8.0f,  7.0f /  9.0f},
+    { 3.0f /  8.0f,  2.0f /  9.0f},
+    { 7.0f /  8.0f,  5.0f /  9.0f},
+    { 1.0f / 16.0f,  8.0f /  9.0f},
+    { 9.0f / 16.0f,  1.0f / 27.0f},
+    { 5.0f / 16.0f, 10.0f / 27.0f},
+    {13.0f / 16.0f, 19.0f / 27.0f},
+    { 3.0f / 16.0f,  4.0f / 27.0f},
+    {11.0f / 16.0f, 13.0f / 27.0f},
+    { 7.0f / 16.0f, 22.0f / 27.0f},
+    {15.0f / 16.0f,  7.0f / 27.0f},
+    { 1.0f / 32.0f, 16.0f / 27.0f},
+};
+
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
     static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
 
@@ -330,7 +353,6 @@ void RendererBackend::InitGBuffer_() {
     ClearGBuffer_();
 
     std::vector<GBuffer *> buffers = {
-        &state_.prevFrame,
         &state_.currentFrame
     };
 
@@ -391,6 +413,17 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Re-initialize the GBuffer
     InitGBuffer_();
+
+    // Initialize previous frame buffer
+    Texture frame = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    frame.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    frame.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.previousFrameBuffer = FrameBuffer({frame});
+    if (!state_.previousFrameBuffer.Valid()) {
+        isValid_ = false;
+        return;
+    }
 
     // Code to create the lighting fbo
     state_.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
@@ -662,6 +695,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     frame_ = frame;
 
+    // Increment halton index
+    currentHaltonIndex_ = (currentHaltonIndex_ + 1) % haltonSequence.size();
+
     // Make sure we set our context as the active one
     GraphicsDriver::MakeContextCurrent();
 
@@ -792,7 +828,7 @@ void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandB
     buffer->UnbindIndirectDrawCommands();
 }
 
-void RendererBackend::Render_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, bool isLightInteracting, bool removeViewTranslation) {
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
@@ -813,42 +849,34 @@ void RendererBackend::Render_(const RenderFaceCulling cull, GpuCommandBufferPtr&
     //     projectionView = _frame->projectionView;
     // }
 
-    // Unbind current shader if one is bound
-    UnbindShader_();
-
-    // Set up the shader we will use for this batch of entities
-    Pipeline * s;
-    if (isLightInteracting == false) {
-        s = state_.forward.get();
-    }
-    else {
-        s = state_.geometry.get();
-    }
+    //// Set up the shader we will use for this batch of entities
+    //Pipeline * s;
+    //if (isLightInteracting == false) {
+    //    s = state_.forward.get();
+    //}
+    //else {
+    //    s = state_.geometry.get();
+    //}
 
     //s->print();
-    BindShader_(s);
 
     if (isLightInteracting) {
-        s->SetVec3("viewPosition", &camera.GetPosition()[0]);
+        s.SetVec3("viewPosition", &camera.GetPosition()[0]);
     }
 
-    s->SetMat4("projectionView", projectionView);
+    s.SetMat4("projectionView", projectionView);
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
     RenderImmediate_(cull, buffer);
 
-#undef SETUP_TEXTURE
-
-    UnbindShader_();
-
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, bool isLightInteracting, bool removeViewTranslation) {
     for (auto& entry : map) {
-        Render_(entry.first, entry.second, isLightInteracting, removeViewTranslation);
+        Render_(s, entry.first, entry.second, isLightInteracting, removeViewTranslation);
     }
 }
 
@@ -1480,20 +1508,11 @@ void RendererBackend::RenderScene() {
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
     //glm::vec3 lightColor(10.0f); 
 
-    // Make sure to bind our own frame buffer for rendering
-    state_.currentFrame.fbo.Bind();
-    
     // Make sure some of our global GL states are set properly for primary rendering below
     glBlendFunc(state_.blendSFactor, state_.blendDFactor);
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
-    // Begin geometry pass
-    glEnable(GL_DEPTH_TEST);
-
-    Render_(frame_->visibleInstancedDynamicPbrMeshes, true);
-    Render_(frame_->visibleInstancedStaticPbrMeshes, true);
-    
-    state_.currentFrame.fbo.Unbind();
+    RenderForwardPassPbr_();
 
     //glEnable(GL_BLEND);
 
@@ -1534,7 +1553,7 @@ void RendererBackend::RenderScene() {
     RenderQuad_();
     state_.lightingFbo.Unbind();
     UnbindShader_();
-    state_.finalScreenTexture = state_.lightingColorBuffer;
+    state_.finalScreenBuffer = state_.lightingFbo; // state_.lightingColorBuffer;
 
     // If world light is enabled perform VPL Global Illumination pass
     if (frame_->csc.worldLight->GetEnabled() && frame_->globalIlluminationEnabled) {
@@ -1553,7 +1572,10 @@ void RendererBackend::RenderScene() {
     // Skybox is one that does not interact with light at all
     RenderSkybox_();
 
-    Render_(frame_->visibleInstancedFlatMeshes, false);
+    // No light interaction
+    // TODO: Allow to cast shadows? May be useful in scenes that want to use
+    // purely diffuse non-pbr objects which still cast shadows.
+    RenderForwardPassFlat_();
 
     // Render bounding boxes
     // _RenderBoundingBoxes(_frame->visibleInstancedFlatMeshes);
@@ -1561,7 +1583,7 @@ void RendererBackend::RenderScene() {
     // _RenderBoundingBoxes(_frame->visibleInstancedStaticPbrMeshes);
 
     state_.lightingFbo.Unbind();
-    state_.finalScreenTexture = state_.lightingColorBuffer;
+    state_.finalScreenBuffer = state_.lightingFbo;// state_.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Enable post-FX effects such as bloom
@@ -1572,6 +1594,56 @@ void RendererBackend::RenderScene() {
 
     // Unbind element array buffer
     GpuMeshAllocator::UnbindElementArrayBuffer();
+}
+
+static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
+    glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
+    // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
+    jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
+
+    return jitter;
+}
+
+void RendererBackend::RenderForwardPassPbr_() {
+    // Make sure to bind our own frame buffer for rendering
+    state_.currentFrame.fbo.Bind();
+
+    BindShader_(state_.geometry.get());
+
+    glm::vec2 jitter(0.0f);
+
+    if (frame_->taaEnabled) {
+        jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+    }
+
+    state_.geometry->SetVec2("jitter", jitter);
+
+    // Begin geometry pass
+    glEnable(GL_DEPTH_TEST);
+
+    Render_(*state_.geometry.get(), frame_->visibleInstancedDynamicPbrMeshes, true);
+    Render_(*state_.geometry.get(), frame_->visibleInstancedStaticPbrMeshes, true);
+
+    state_.currentFrame.fbo.Unbind();
+
+    UnbindShader_();
+}
+
+void RendererBackend::RenderForwardPassFlat_() {
+    BindShader_(state_.forward.get());
+
+    glm::vec2 jitter(0.0f);
+
+    if (frame_->taaEnabled) {
+        jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+    }
+
+    state_.forward->SetVec2("jitter", jitter);
+
+    glEnable(GL_DEPTH_TEST);
+    Render_(*state_.forward.get(), frame_->visibleInstancedFlatMeshes, false);
+
+    UnbindShader_();
 }
 
 void RendererBackend::PerformPostFxProcessing_() {
@@ -1616,7 +1688,7 @@ void RendererBackend::PerformBloomPostFx_() {
         buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
-            bloom->BindTexture("mainTexture", state_.finalScreenTexture);
+            bloom->BindTexture("mainTexture", state_.finalScreenBuffer.GetColorAttachments()[0]);
         }
         else {
             bloom->BindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.GetColorAttachments()[0]);
@@ -1680,7 +1752,7 @@ void RendererBackend::PerformBloomPostFx_() {
         buffer.fbo.Unbind();
         
         finalizedPostFxFrames[postFXIndex] = buffer;
-        state_.finalScreenTexture = buffer.fbo.GetColorAttachments()[0];
+        state_.finalScreenBuffer = buffer.fbo; //buffer.fbo.GetColorAttachments()[0];
     }
 
     UnbindShader_();
@@ -1716,42 +1788,44 @@ void RendererBackend::PerformAtmosphericPostFx_() {
     BindShader_(state_.atmosphericPostFx.get());
     state_.atmosphericPostFxBuffer.fbo.Bind();
     state_.atmosphericPostFx->BindTexture("atmosphereBuffer", state_.atmosphericTexture);
-    state_.atmosphericPostFx->BindTexture("screenBuffer", state_.finalScreenTexture);
+    state_.atmosphericPostFx->BindTexture("screenBuffer", state_.finalScreenBuffer.GetColorAttachments()[0]);
     state_.atmosphericPostFx->SetVec3("lightPosition", lightPosition);
     state_.atmosphericPostFx->SetVec3("lightColor", lightColor);
     RenderQuad_();
     state_.atmosphericPostFxBuffer.fbo.Unbind();
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.atmosphericPostFxBuffer.fbo.GetColorAttachments()[0];
+    state_.finalScreenBuffer = state_.atmosphericPostFxBuffer.fbo; //state_.atmosphericPostFxBuffer.fbo.GetColorAttachments()[0];
 }
 
 void RendererBackend::PerformFxaaPostFx_() {
+    if (!frame_->fxaaEnabled) return;
+
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
     // Perform luminance calculation pass
     BindShader_(state_.fxaaLuminance.get());
     
     state_.fxaaFbo1.fbo.Bind();
-    state_.fxaaLuminance->BindTexture("screen", state_.finalScreenTexture);
+    state_.fxaaLuminance->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
     RenderQuad_();
     state_.fxaaFbo1.fbo.Unbind();
 
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.fxaaFbo1.fbo.GetColorAttachments()[0];
+    state_.finalScreenBuffer = state_.fxaaFbo1.fbo; // state_.fxaaFbo1.fbo.GetColorAttachments()[0];
 
     // Perform smoothing pass
     BindShader_(state_.fxaaSmoothing.get());
 
     state_.fxaaFbo2.fbo.Bind();
-    state_.fxaaSmoothing->BindTexture("screen", state_.finalScreenTexture);
+    state_.fxaaSmoothing->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
     RenderQuad_();
     state_.fxaaFbo2.fbo.Unbind();
 
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.fxaaFbo2.fbo.GetColorAttachments()[0];
+    state_.finalScreenBuffer = state_.fxaaFbo2.fbo; // state_.fxaaFbo2.fbo.GetColorAttachments()[0];
 }
 
 void RendererBackend::PerformGammaTonemapPostFx_() {
@@ -1759,14 +1833,17 @@ void RendererBackend::PerformGammaTonemapPostFx_() {
 
     BindShader_(state_.gammaTonemap.get());
     state_.gammaTonemapFbo.fbo.Bind();
-    state_.gammaTonemap->BindTexture("screen", state_.finalScreenTexture);
+    state_.gammaTonemap->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
     RenderQuad_();
     UnbindShader_();
 
-    state_.finalScreenTexture = state_.gammaTonemapFbo.fbo.GetColorAttachments()[0];
+    state_.finalScreenBuffer = state_.gammaTonemapFbo.fbo; //state_.gammaTonemapFbo.fbo.GetColorAttachments()[0];
 }
 
 void RendererBackend::FinalizeFrame_() {
+    // Copy final frame to current frame
+    //state_.gammaTonemapFbo.fbo.CopyFrom()
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
@@ -1774,7 +1851,7 @@ void RendererBackend::FinalizeFrame_() {
 
     // Now render the screen
     BindShader_(state_.fullscreen.get());
-    state_.fullscreen->BindTexture("screen", state_.finalScreenTexture);
+    state_.fullscreen->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
     RenderQuad_();
     UnbindShader_();
 }

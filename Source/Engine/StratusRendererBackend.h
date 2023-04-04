@@ -199,6 +199,8 @@ namespace stratus {
         bool viewportDirty;
         bool vsyncEnabled;
         bool globalIlluminationEnabled = true;
+        bool fxaaEnabled = true;
+        bool taaEnabled = true;
     };
 
     class RendererBackend {
@@ -254,7 +256,6 @@ namespace stratus {
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
-            GBuffer prevFrame;
             GBuffer currentFrame;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
@@ -289,7 +290,9 @@ namespace stratus {
             // Handles atmospheric post processing
             PostFXBuffer atmosphericPostFxBuffer;
             // End of the pipeline should write to this
-            Texture finalScreenTexture;
+            FrameBuffer finalScreenBuffer;
+            // Used for TAA
+            FrameBuffer previousFrameBuffer;
             // Used for a call to glBlendFunc
             GLenum blendSFactor = GL_ONE;
             GLenum blendDFactor = GL_ZERO;
@@ -411,6 +414,9 @@ namespace stratus {
         // Current frame data used for drawing
         std::shared_ptr<RendererFrame> frame_;
 
+        // Used for temporal anti-aliasing
+        size_t currentHaltonIndex_ = 0;
+
         /**
          * If the renderer was setup properly then this will be marked
          * true.
@@ -494,8 +500,8 @@ namespace stratus {
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);
         void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&);
-        void Render_(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
         void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void UpdatePointLights_(std::vector<std::pair<LightPtr, double>>&, 
@@ -508,6 +514,8 @@ namespace stratus {
         void RenderCSMDepth_();
         void RenderQuad_();
         void RenderSkybox_();
+        void RenderForwardPassPbr_();
+        void RenderForwardPassFlat_();
         void RenderSsaoOcclude_();
         void RenderSsaoBlur_();
         glm::vec3 CalculateAtmosphericLightPosition_() const;

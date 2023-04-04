@@ -11,11 +11,16 @@ layout (std430, binding = 13) readonly buffer SSBO3 {
 uniform mat4 projectionView;
 //uniform mat4 modelView;
 
+uniform vec2 jitter;
+
 smooth out vec2 fsTexCoords;
 flat out int fsDrawID;
 
 void main() {
-    gl_Position = projectionView * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    vec4 clip = projectionView * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    clip.xy += jitter * clip.w;
+    gl_Position = clip;
+    
     fsTexCoords = getTexCoord(gl_VertexID);
     fsDrawID = gl_DrawID;
 }
