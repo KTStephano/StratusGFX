@@ -1097,7 +1097,6 @@ namespace stratus {
             for (size_t i = 0; i < cmdList->size(); ++i) {
                 for (auto& entry : (*cmdList)[i]) {
                     entry.second->materialIndices.clear();
-                    entry.second->globalTransforms.clear();
                     entry.second->modelTransforms.clear();
                     entry.second->indirectDrawCommands.clear();
                     entry.second->aabbs.clear();
@@ -1121,7 +1120,6 @@ namespace stratus {
                 auto cull = c->GetMesh(i_)->GetFaceCulling();                                                          \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
                 buffer->materialIndices.push_back(frame_->materialInfo.indices.find(c->GetMaterialAt(i_))->second);    \
-                buffer->globalTransforms.push_back(gt->GetGlobalTransform());                                          \
                 buffer->modelTransforms.push_back(mt->transforms[i_]);                                                 \
                 if (uploadAABB) {                                                                                      \
                     buffer->aabbs.push_back(c->GetMesh(i_)->GetAABB());                                                \
@@ -1356,7 +1354,6 @@ namespace stratus {
                lodIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
                it->second->BindModelTransformBuffer(2);
                it->second->BindAabbBuffer(3);
-               it->second->BindGlobalTransformBuffer(4);
 
                for (size_t k = 0; k < mapPerLod.size(); ++k) {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);

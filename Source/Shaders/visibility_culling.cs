@@ -11,10 +11,6 @@ layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
 };
 
-layout (std430, binding = 4) readonly buffer inputBlock3 {
-    mat4 globalTransforms[];
-};
-
 layout (std430, binding = 3) readonly buffer inputBlock4 {
     AABB aabbs[];
 };

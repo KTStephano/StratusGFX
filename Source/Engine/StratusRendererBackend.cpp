@@ -791,7 +791,6 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
 
     buffer->BindModelTransformBuffer(13);
     buffer->BindAabbBuffer(14);
-    buffer->BindGlobalTransformBuffer(15);
 
     BindShader_(state_.aabbDraw.get());
 
@@ -1578,9 +1577,9 @@ void RendererBackend::RenderScene() {
     RenderForwardPassFlat_();
 
     // Render bounding boxes
-    // _RenderBoundingBoxes(_frame->visibleInstancedFlatMeshes);
-    // _RenderBoundingBoxes(_frame->visibleInstancedDynamicPbrMeshes);
-    // _RenderBoundingBoxes(_frame->visibleInstancedStaticPbrMeshes);
+    //RenderBoundingBoxes_(frame_->visibleInstancedFlatMeshes);
+    //RenderBoundingBoxes_(frame_->visibleInstancedDynamicPbrMeshes);
+    //RenderBoundingBoxes_(frame_->visibleInstancedStaticPbrMeshes);
 
     state_.lightingFbo.Unbind();
     state_.finalScreenBuffer = state_.lightingFbo;// state_.lightingColorBuffer;
@@ -1843,6 +1842,8 @@ void RendererBackend::PerformGammaTonemapPostFx_() {
 void RendererBackend::FinalizeFrame_() {
     // Copy final frame to current frame
     //state_.gammaTonemapFbo.fbo.CopyFrom()
+
+    state_.previousFrameBuffer.CopyFrom(state_.finalScreenBuffer, BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight }, BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight }, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
