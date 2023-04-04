@@ -578,7 +578,7 @@ namespace stratus {
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
-        const float znear = params_.znear; //0.001f; //_params.znear;
+        const float znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = params_.zfar; //std::min(800.0f, _params.zfar);

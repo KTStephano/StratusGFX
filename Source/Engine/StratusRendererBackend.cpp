@@ -320,9 +320,62 @@ void RendererBackend::RecalculateCascadeData_() {
 }
 
 void RendererBackend::ClearGBuffer_() {
-    state_.buffer = GBuffer();
+    state_.currentFrame = GBuffer();
     state_.gaussianBuffers.clear();
     state_.postFxBuffers.clear();
+}
+
+void RendererBackend::InitGBuffer_() {
+    // Regenerate the main frame buffer
+    ClearGBuffer_();
+
+    std::vector<GBuffer *> buffers = {
+        &state_.prevFrame,
+        &state_.currentFrame
+    };
+
+    for (GBuffer* gbptr : buffers) {
+        GBuffer& buffer = *gbptr;
+
+        // Position buffer
+        //buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
+        //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Normal buffer
+        buffer.normals = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.normals.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Create the color buffer - notice that is uses higher
+        // than normal precision. This allows us to write color values
+        // greater than 1.0 to support things like HDR.
+        buffer.albedo = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.albedo.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Base reflectivity buffer
+        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Roughness-Metallic-Ambient buffer
+        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
+        buffer.structure = Texture(TextureConfig{ TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.structure.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.structure.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+        // Create the depth buffer
+        buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
+        // Create the frame buffer with all its texture attachments
+        //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
+        if (!buffer.fbo.Valid()) {
+            isValid_ = false;
+            return;
+        }
+    }
 }
 
 void RendererBackend::UpdateWindowDimensions_() {
@@ -336,51 +389,8 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.vpls.vplStage1Results = GpuBuffer(nullptr, sizeof(GpuVplStage1PerTileOutputs) * totalTiles, flags);
     state_.vpls.vplVisiblePerTile = GpuBuffer((const void *)data.data(), sizeof(GpuVplStage2PerTileOutputs) * totalTiles, flags);
 
-    // Regenerate the main frame buffer
-    ClearGBuffer_();
-
-    GBuffer & buffer = state_.buffer;
-    // glGenFramebuffers(1, &buffer.fbo);
-    // glBindFramebuffer(GL_FRAMEBUFFER, buffer.fbo);
-
-    // Position buffer
-    //buffer.position = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, _frame->viewportWidth, _frame->viewportHeight, 0, false}, NoTextureData);
-    //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Normal buffer
-    buffer.normals = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.normals.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Create the color buffer - notice that is uses higher
-    // than normal precision. This allows us to write color values
-    // greater than 1.0 to support things like HDR.
-    buffer.albedo = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.albedo.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Base reflectivity buffer
-    buffer.baseReflectivity = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Roughness-Metallic-Ambient buffer
-    buffer.roughnessMetallicAmbient = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
-    buffer.structure = Texture(TextureConfig{TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.structure.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-    buffer.structure.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    // Create the depth buffer
-    buffer.depth = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-
-    // Create the frame buffer with all its texture attachments
-    //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
-    buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
-    if (!buffer.fbo.Valid()) {
-        isValid_ = false;
-        return;
-    }
+    // Re-initialize the GBuffer
+    InitGBuffer_();
 
     // Code to create the lighting fbo
     state_.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
@@ -570,7 +580,7 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
 
     if (clearScreen) {
         const glm::vec4& color = frame_->clearColor;
-        state_.buffer.fbo.Clear(color);
+        state_.currentFrame.fbo.Clear(color);
         state_.ssaoOcclusionBuffer.Clear(color);
         state_.ssaoOcclusionBlurredBuffer.Clear(color);
         state_.atmosphericFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -884,10 +894,14 @@ void RendererBackend::RenderCSMDepth_() {
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
-    //glEnable(GL_POLYGON_OFFSET_FILL);
+    // See https://blogs.igalia.com/itoral/2017/10/02/working-with-lights-and-shadows-part-iii-rendering-the-shadows/
+    // See https://community.khronos.org/t/can-anyone-explain-glpolygonoffset/35382
+    glEnable(GL_POLYGON_OFFSET_FILL);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
     glEnable(GL_DEPTH_CLAMP);
-    //glPolygonOffset(3.0f, 1.0f);
+    // First value is conditional on slope
+    // Second value is a constant unconditional offset
+    glPolygonOffset(3.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -950,7 +964,7 @@ void RendererBackend::RenderSsaoOcclude_() {
 
     BindShader_(state_.ssaoOcclude.get());
     state_.ssaoOcclusionBuffer.Bind();
-    state_.ssaoOcclude->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.ssaoOcclude->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.ssaoOcclude->BindTexture("rotationLookup", state_.ssaoOffsetLookup);
     state_.ssaoOcclude->SetFloat("aspectRatio", ar);
     state_.ssaoOcclude->SetFloat("projPlaneZDist", g);
@@ -971,7 +985,7 @@ void RendererBackend::RenderSsaoBlur_() {
 
     BindShader_(state_.ssaoBlur.get());
     state_.ssaoOcclusionBlurredBuffer.Bind();
-    state_.ssaoBlur->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.ssaoBlur->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.ssaoBlur->BindTexture("occlusionBuffer", state_.ssaoOcclusionTexture);
     state_.ssaoBlur->SetFloat("windowWidth", frame_->viewportWidth);
     state_.ssaoBlur->SetFloat("windowHeight", frame_->viewportHeight);
@@ -1016,7 +1030,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmosphericFbo.Bind();
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
-    state_.atmospheric->BindTexture("structureBuffer", state_.buffer.structure);
+    state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
     
     // Set up cascade data
@@ -1307,8 +1321,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // Bind inputs
     //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
     state_.vplTileDeferredCullingStage1->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.buffer.depth);
-    state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.buffer.normals);
+    state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.currentFrame.depth);
+    state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.currentFrame.normals);
     // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
     // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
 
@@ -1405,11 +1419,11 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
     state_.vplGlobalIllumination->BindTexture("screen", state_.lightingColorBuffer);
-    state_.vplGlobalIllumination->BindTexture("gDepth", state_.buffer.depth);
-    state_.vplGlobalIllumination->BindTexture("gNormal", state_.buffer.normals);
-    state_.vplGlobalIllumination->BindTexture("gAlbedo", state_.buffer.albedo);
-    state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
-    state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
+    state_.vplGlobalIllumination->BindTexture("gDepth", state_.currentFrame.depth);
+    state_.vplGlobalIllumination->BindTexture("gNormal", state_.currentFrame.normals);
+    state_.vplGlobalIllumination->BindTexture("gAlbedo", state_.currentFrame.albedo);
+    state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
+    state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
 
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->fogColor);
@@ -1467,7 +1481,7 @@ void RendererBackend::RenderScene() {
     //glm::vec3 lightColor(10.0f); 
 
     // Make sure to bind our own frame buffer for rendering
-    state_.buffer.fbo.Bind();
+    state_.currentFrame.fbo.Bind();
     
     // Make sure some of our global GL states are set properly for primary rendering below
     glBlendFunc(state_.blendSFactor, state_.blendDFactor);
@@ -1479,7 +1493,7 @@ void RendererBackend::RenderScene() {
     Render_(frame_->visibleInstancedDynamicPbrMeshes, true);
     Render_(frame_->visibleInstancedStaticPbrMeshes, true);
     
-    state_.buffer.fbo.Unbind();
+    state_.currentFrame.fbo.Unbind();
 
     //glEnable(GL_BLEND);
 
@@ -1507,11 +1521,11 @@ void RendererBackend::RenderScene() {
     InitLights_(lighting, perLightDistToViewer, state_.maxShadowCastingLightsPerFrame);
     lighting->BindTexture("atmosphereBuffer", state_.atmosphericTexture);
     lighting->SetMat4("invProjectionView", frame_->invProjectionView);
-    lighting->BindTexture("gDepth", state_.buffer.depth);
-    lighting->BindTexture("gNormal", state_.buffer.normals);
-    lighting->BindTexture("gAlbedo", state_.buffer.albedo);
-    lighting->BindTexture("gBaseReflectivity", state_.buffer.baseReflectivity);
-    lighting->BindTexture("gRoughnessMetallicAmbient", state_.buffer.roughnessMetallicAmbient);
+    lighting->BindTexture("gDepth", state_.currentFrame.depth);
+    lighting->BindTexture("gNormal", state_.currentFrame.normals);
+    lighting->BindTexture("gAlbedo", state_.currentFrame.albedo);
+    lighting->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
+    lighting->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     lighting->SetFloat("windowWidth", frame_->viewportWidth);
     lighting->SetFloat("windowHeight", frame_->viewportHeight);
@@ -1530,7 +1544,7 @@ void RendererBackend::RenderScene() {
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
-    state_.lightingFbo.CopyFrom(state_.buffer.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
+    state_.lightingFbo.CopyFrom(state_.currentFrame.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);

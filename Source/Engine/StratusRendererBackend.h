@@ -207,10 +207,11 @@ namespace stratus {
             FrameBuffer fbo;
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB16F
-            Texture albedo;                   // RGB16F
-            Texture baseReflectivity;         // RGB16F
-            Texture roughnessMetallicAmbient; // RGB16F
+            Texture albedo;                   // RGB8F
+            Texture baseReflectivity;         // RGB8F
+            Texture roughnessMetallicAmbient; // RGB8F
             Texture structure;                // RGBA16F
+            Texture velocity;
             Texture depth;                    // Default bit depth
         };
 
@@ -253,7 +254,8 @@ namespace stratus {
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
-            GBuffer buffer;
+            GBuffer prevFrame;
+            GBuffer currentFrame;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
             Texture lightingColorBuffer;
@@ -468,6 +470,7 @@ namespace stratus {
     private:
         void InitializeVplData_();
         void ClearGBuffer_();
+        void InitGBuffer_();
         void UpdateWindowDimensions_();
         void ClearFramebufferData_(const bool);
         void InitPointShadowMaps_();

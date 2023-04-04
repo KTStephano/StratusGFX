@@ -142,10 +142,11 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal) {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-	// float tanTheta = 3.0 * tan(acos(dot(normalize(infiniteLightDirection), normal)));
-    // float bias = 0.005 * tanTheta;
-    // bias = clamp(bias, 0.0, 0.001);
-    float bias = 2e-19;
+	//float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
+    //float bias = 0.005 * tanTheta;
+    //bias = -clamp(bias, 0.0, 0.01);
+    //float bias = 2e-19;
+    float bias = 0.0;
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];
