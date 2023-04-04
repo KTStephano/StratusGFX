@@ -411,6 +411,12 @@ namespace stratus {
         // This needs to be unset
         frame_->csc.regenerateFbo = false;
 
+        // Move current transforms -> previous transforms
+        UpdatePrevFrameModelTransforms_();
+
+        // Set previous projection view
+        frame_->prevProjectionView = frame_->projectionView;
+
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
@@ -486,10 +492,14 @@ namespace stratus {
             Shader{"visibility_culling.cs", ShaderType::COMPUTE} }
         ));
 
+        updateTransforms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"update_model_transforms.cs", ShaderType::COMPUTE} }
+        ));
+
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid();
+        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid() && updateTransforms_->IsValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -1097,6 +1107,7 @@ namespace stratus {
             for (size_t i = 0; i < cmdList->size(); ++i) {
                 for (auto& entry : (*cmdList)[i]) {
                     entry.second->materialIndices.clear();
+                    entry.second->prevFrameModelTransforms.clear();
                     entry.second->modelTransforms.clear();
                     entry.second->indirectDrawCommands.clear();
                     entry.second->aabbs.clear();
@@ -1120,6 +1131,7 @@ namespace stratus {
                 auto cull = c->GetMesh(i_)->GetFaceCulling();                                                          \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
                 buffer->materialIndices.push_back(frame_->materialInfo.indices.find(c->GetMaterialAt(i_))->second);    \
+                buffer->prevFrameModelTransforms.push_back(mt->transforms[i_]);                                        \
                 buffer->modelTransforms.push_back(mt->transforms[i_]);                                                 \
                 if (uploadAABB) {                                                                                      \
                     buffer->aabbs.push_back(c->GetMesh(i_)->GetAABB());                                                \
@@ -1394,5 +1406,44 @@ namespace stratus {
         //       //STRATUS_LOG << "Before/After: " << buffer->NumDrawCommands() << "/" << numCommands << std::endl;
         //   }
         //}
+    }
+
+    void RendererFrontend::UpdatePrevFrameModelTransforms_() {
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
+            &frame_->visibleInstancedFlatMeshes,
+            &frame_->visibleInstancedDynamicPbrMeshes,
+            &frame_->visibleInstancedStaticPbrMeshes
+        };
+
+        updateTransforms_->Bind();
+
+        for (const auto& entry : drawCommands) {
+            auto ccw = entry->find(RenderFaceCulling::CULLING_CCW);
+            auto cw = entry->find(RenderFaceCulling::CULLING_CW);
+            auto cnone = entry->find(RenderFaceCulling::CULLING_NONE);
+
+            if (ccw->second->modelTransforms.size() > 0) {
+                ccw->second->BindPrevFrameModelTransformBuffer(0);
+                ccw->second->BindModelTransformBuffer(1);
+            }
+            updateTransforms_->SetInt("cull0NumMatrices", ccw->second->modelTransforms.size());
+
+            if (cw->second->modelTransforms.size() > 0) {
+                cw->second->BindPrevFrameModelTransformBuffer(2);
+                cw->second->BindModelTransformBuffer(3);
+            }
+            updateTransforms_->SetInt("cull1NumMatrices", cw->second->modelTransforms.size());
+
+            if (cnone->second->modelTransforms.size() > 0) {
+                cnone->second->BindPrevFrameModelTransformBuffer(4);
+                cnone->second->BindModelTransformBuffer(5);
+            }
+            updateTransforms_->SetInt("cull2NumMatrices", cnone->second->modelTransforms.size());
+
+            updateTransforms_->DispatchCompute(100, 1, 1);
+            updateTransforms_->SynchronizeCompute();
+        }
+
+        updateTransforms_->Unbind();
     }
 }

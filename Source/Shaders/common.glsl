@@ -136,3 +136,18 @@ vec3 worldPositionFromDepth(in vec2 uv, in float depth, in mat4 invProjectionVie
     // Perform perspective divide to complete the transform
     return worldPosition.xyz / worldPosition.w;
 }
+
+// See https://sugulee.wordpress.com/2021/06/21/temporal-anti-aliasingtaa-tutorial/
+vec2 calculateVelocity(in vec4 currentClipPos, in vec4 prevClipPos, in vec2 viewSize) {
+    // Perform perspective divide
+    vec4 current = currentClipPos / currentClipPos.w;
+    vec4 prev = prevClipPos / prevClipPos.w;
+
+    current.xy = (current.xy + 1.0) * 0.5;
+    current.y = 1.0 - current.y;
+
+    prev.xy = (prev.xy + 1.0) * 0.5;
+    prev.y = 1.0 - prev.y;
+
+    return (current - prev).xy;
+}

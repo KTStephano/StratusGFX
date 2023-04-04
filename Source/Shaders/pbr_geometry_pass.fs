@@ -31,6 +31,8 @@ flat in int fsDrawID;
  */
 in mat3 fsTbnMatrix;
 
+flat in vec2 fsVelocity;
+
 // GBuffer outputs
 //layout (location = 0) out vec3 gPosition;
 layout (location = 0) out vec3 gNormal;
@@ -40,6 +42,7 @@ layout (location = 3) out vec3 gRoughnessMetallicAmbient;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
 layout (location = 4) out vec4 gStructureBuffer;
+layout (location = 5) out vec2 gVelocityBuffer;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -128,6 +131,7 @@ void main() {
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+    gVelocityBuffer = fsVelocity;
 
     // Small offset to help prevent z fighting in certain cases
     if (baseColor.a < 1.0) {

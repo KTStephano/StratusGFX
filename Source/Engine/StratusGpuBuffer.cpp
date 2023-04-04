@@ -594,6 +594,7 @@ namespace stratus {
 
         // std::vector<uint64_t> newHandles;
         std::vector<uint32_t> newMaterialIndices;
+        std::vector<glm::mat4> newPrevFrameModelTransforms;
         std::vector<glm::mat4> newModelTransforms;
         std::vector<GpuDrawElementsIndirectCommand> newIndirectDrawCommands;
         for (size_t i = 0; i < NumDrawCommands(); ++i) {
@@ -601,6 +602,7 @@ namespace stratus {
                 // handlesToIndicesMap.insert(std::make_pair(handles[i], newHandles.size()));
                 // newHandles.push_back(handles[i]);
                 newMaterialIndices.push_back(materialIndices[i]);
+                newPrevFrameModelTransforms.push_back(prevFrameModelTransforms[i]);
                 newModelTransforms.push_back(modelTransforms[i]);
                 newIndirectDrawCommands.push_back(indirectDrawCommands[i]);
             }
@@ -611,6 +613,7 @@ namespace stratus {
 
         // handles = std::move(newHandles);
         materialIndices = std::move(newMaterialIndices);
+        prevFrameModelTransforms = std::move(newPrevFrameModelTransforms);
         modelTransforms = std::move(newModelTransforms);
         indirectDrawCommands = std::move(newIndirectDrawCommands);
     }
@@ -629,6 +632,7 @@ namespace stratus {
             const Bitfield flags = GPU_DYNAMIC_DATA;
 
             materialIndices_ = GpuBuffer((const void *)materialIndices.data(), numElems * sizeof(uint32_t), flags);
+            prevFrameModelTransforms_ = GpuBuffer((const void*)prevFrameModelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             modelTransforms_ = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             indirectDrawCommands_ = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
             if (aabbs.size() > 0) {
@@ -637,6 +641,7 @@ namespace stratus {
         }
         else {
             materialIndices_.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
+            prevFrameModelTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void*)prevFrameModelTransforms.data());
             modelTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
             indirectDrawCommands_.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
             if (aabbs.size() > 0) {
@@ -650,6 +655,13 @@ namespace stratus {
             throw std::runtime_error("Null material indices GpuBuffer");
         }
         materialIndices_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+    }
+
+    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(uint32_t index) {
+        if (prevFrameModelTransforms_ == GpuBuffer()) {
+            throw std::runtime_error("Null previous frame model transform GpuBuffer");
+        }
+        prevFrameModelTransforms_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) {
@@ -681,11 +693,13 @@ namespace stratus {
     }
 
     void GpuCommandBuffer::VerifyArraySizes_() const {
-        assert(//materialIndices.size() == handlesToIndicesMap.size() &&
-               //materialIndices.size() == handles.size() &&
-               materialIndices.size() == globalTransforms.size() &&
-               materialIndices.size() == modelTransforms.size() &&
-               materialIndices.size() == indirectDrawCommands.size());
+        if (//materialIndices.size() == handlesToIndicesMap.size() &&
+            //materialIndices.size() == handles.size() &&
+            materialIndices.size() != prevFrameModelTransforms.size() ||
+            materialIndices.size() != modelTransforms.size() ||
+            materialIndices.size() != indirectDrawCommands.size()) {
+            throw std::runtime_error("Sizes do not match up in GpuBuffer");
+        }
 
         if (aabbs.size() > 0) {
             assert(aabbs.size() == indirectDrawCommands.size());

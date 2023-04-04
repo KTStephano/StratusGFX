@@ -21,6 +21,7 @@ namespace stratus {
     enum class TextureComponentFormat : int {
         RED,
         RGB,
+        RG,
         SRGB,
         RGBA,
         SRGB_ALPHA,

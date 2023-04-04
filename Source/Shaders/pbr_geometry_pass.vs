@@ -3,12 +3,21 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "mesh_data.glsl"
+#include "common.glsl"
 
 layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 
+layout (std430, binding = 14) readonly buffer SSBO4 {
+    mat4 prevModelMatrices[];
+};
+
 uniform mat4 projectionView;
+uniform mat4 prevProjectionView;
+
+uniform int viewWidth;
+uniform int viewHeight;
 
 /**
  * Information about the camera
@@ -21,6 +30,8 @@ smooth out vec3 fsPosition;
 //smooth out vec3 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
+
+flat out vec2 fsVelocity;
 
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
@@ -61,7 +72,11 @@ void main() {
 
     fsDrawID = gl_DrawID;
     
+    vec4 prevClip = prevProjectionView * prevModelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     vec4 clip = projectionView * pos;
+
+    fsVelocity = calculateVelocity(clip, prevClip, vec2(float(viewWidth), float(viewHeight)));
+
     clip.xy += jitter * clip.w;
 
     gl_Position = clip;

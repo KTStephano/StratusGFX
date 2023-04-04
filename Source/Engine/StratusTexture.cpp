@@ -250,6 +250,7 @@ namespace stratus {
         static GLenum _convertFormat(TextureComponentFormat format) {
             switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
+                case TextureComponentFormat::RG: return GL_RG;
                 case TextureComponentFormat::RGB: return GL_RGB;
                 case TextureComponentFormat::SRGB: return GL_RGB; // GL_RGB even for srgb
                 case TextureComponentFormat::RGBA: return GL_RGBA;
@@ -266,6 +267,7 @@ namespace stratus {
             if (format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
                 switch (format) {
                     case TextureComponentFormat::RED: return GL_RED;
+                    case TextureComponentFormat::RG: return GL_RG;
                     case TextureComponentFormat::RGB: return GL_RGB;
                     case TextureComponentFormat::SRGB: return GL_SRGB; // Here we specify SRGB since it's internal format
                     case TextureComponentFormat::RGBA: return GL_RGBA;
@@ -285,6 +287,7 @@ namespace stratus {
                 if (type == TextureComponentType::INT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R8I;
+                        case TextureComponentFormat::RG: return GL_RG8I;
                         case TextureComponentFormat::RGB: return GL_RGB8I;
                         case TextureComponentFormat::RGBA: return GL_RGBA8I;
                         default: throw std::runtime_error("Unknown combination");
@@ -293,6 +296,7 @@ namespace stratus {
                 if (type == TextureComponentType::UINT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R8UI;
+                        case TextureComponentFormat::RG: return GL_RG8UI;
                         case TextureComponentFormat::RGB: return GL_RGB8UI;
                         case TextureComponentFormat::RGBA: return GL_RGBA8UI;
                         default: throw std::runtime_error("Unknown combination");
@@ -301,6 +305,7 @@ namespace stratus {
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R8;
+                        case TextureComponentFormat::RG: return GL_RG8;
                         case TextureComponentFormat::RGB: return GL_RGB8;
                         case TextureComponentFormat::RGBA: return GL_RGBA8;
                         default: throw std::runtime_error("Unknown combination");
@@ -312,6 +317,7 @@ namespace stratus {
                 if (type == TextureComponentType::INT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R16I;
+                        case TextureComponentFormat::RG: return GL_RG16I;
                         case TextureComponentFormat::RGB: return GL_RGB16I;
                         case TextureComponentFormat::RGBA: return GL_RGBA16I;
                         default: throw std::runtime_error("Unknown combination");
@@ -320,6 +326,7 @@ namespace stratus {
                 if (type == TextureComponentType::UINT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R16UI;
+                        case TextureComponentFormat::RG: return GL_RG16UI;
                         case TextureComponentFormat::RGB: return GL_RGB16UI;
                         case TextureComponentFormat::RGBA: return GL_RGBA16UI;
                         default: throw std::runtime_error("Unknown combination");
@@ -328,6 +335,7 @@ namespace stratus {
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R16F;
+                        case TextureComponentFormat::RG: return GL_RG16F;
                         case TextureComponentFormat::RGB: return GL_RGB16F;
                         case TextureComponentFormat::RGBA: return GL_RGBA16F;
                         case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT16;
@@ -340,6 +348,7 @@ namespace stratus {
                 if (type == TextureComponentType::INT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R32I;
+                        case TextureComponentFormat::RG: return GL_RG32I;
                         case TextureComponentFormat::RGB: return GL_RGB32I;
                         case TextureComponentFormat::RGBA: return GL_RGBA32I;
                         default: throw std::runtime_error("Unknown combination");
@@ -348,6 +357,7 @@ namespace stratus {
                 if (type == TextureComponentType::UINT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R32UI;
+                        case TextureComponentFormat::RG: return GL_RG32UI;
                         case TextureComponentFormat::RGB: return GL_RGB32UI;
                         case TextureComponentFormat::RGBA: return GL_RGBA32UI;
                         default: throw std::runtime_error("Unknown combination");
@@ -356,6 +366,7 @@ namespace stratus {
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R32F;
+                        case TextureComponentFormat::RG: return GL_RG32F;
                         case TextureComponentFormat::RGB: return GL_RGB32F;
                         case TextureComponentFormat::RGBA: return GL_RGBA32F;
                         case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT32F;

@@ -190,6 +190,7 @@ namespace stratus {
         glm::mat4 view;
         glm::mat4 projectionView;
         glm::mat4 invProjectionView;
+        glm::mat4 prevProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
         TextureHandle skybox = TextureHandle::Null();
         glm::vec3 skyboxColorMask = glm::vec3(1.0f);
@@ -278,6 +279,8 @@ namespace stratus {
             // Used for fast approximate anti-aliasing (FXAA)
             PostFXBuffer fxaaFbo1;
             PostFXBuffer fxaaFbo2;
+            // Used for temporal anti-aliasing (TAA)
+            PostFXBuffer taaFbo;
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -338,6 +341,8 @@ namespace stratus {
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;
             std::unique_ptr<Pipeline> fxaaSmoothing;
+            // Handles temporal anti-aliasing
+            std::unique_ptr<Pipeline> taa;
             // Performs full screen pass through
             std::unique_ptr<Pipeline> fullscreen;
             std::vector<Pipeline *> shaders;
@@ -494,6 +499,7 @@ namespace stratus {
         void PerformBloomPostFx_();
         void PerformAtmosphericPostFx_();
         void PerformFxaaPostFx_();
+        void PerformTaaPostFx_();
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();

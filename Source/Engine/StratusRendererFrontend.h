@@ -95,6 +95,7 @@ namespace stratus {
             const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
             const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
             );
+        void UpdatePrevFrameModelTransforms_();
 
     private:
         // These are called by the private entity handler
@@ -132,6 +133,7 @@ namespace stratus {
         // Compute pipeline which performs AABB checks against view frustum
         std::unique_ptr<Pipeline> viscullLodSelect_;
         std::unique_ptr<Pipeline> viscull_;
+        std::unique_ptr<Pipeline> updateTransforms_;
         mutable std::shared_mutex mutex_;
     };
 }

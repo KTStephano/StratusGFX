@@ -231,6 +231,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     }));
     state_.shaders.push_back(state_.fxaaSmoothing.get());
 
+    state_.taa = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"taa.vs", ShaderType::VERTEX},
+        Shader{"taa.fs", ShaderType::FRAGMENT}
+    }));
+    state_.shaders.push_back(state_.taa.get());
+
     state_.aabbDraw = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"aabb_draw.vs", ShaderType::VERTEX},
         Shader{"aabb_draw.fs", ShaderType::FRAGMENT}
@@ -386,13 +392,17 @@ void RendererBackend::InitGBuffer_() {
         buffer.structure.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.structure.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
+        // Create velocity buffer
+        buffer.velocity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.velocity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
         // Create the frame buffer with all its texture attachments
         //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
-        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth });
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.depth });
         if (!buffer.fbo.Valid()) {
             isValid_ = false;
             return;
@@ -600,6 +610,18 @@ void RendererBackend::InitializePostFxBuffers_() {
         return;
     }
     state_.postFxBuffers.push_back(state_.fxaaFbo2);
+
+    // Initialize TAA buffer
+    Texture taa = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    taa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    taa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    state_.taaFbo.fbo = FrameBuffer({ taa });
+    if (!state_.taaFbo.fbo.Valid()) {
+        isValid_ = false;
+        STRATUS_ERROR << "Unable to initialize taa buffer" << std::endl;
+        return;
+    }
+    state_.postFxBuffers.push_back(state_.taaFbo);
 }
 
 void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
@@ -818,6 +840,7 @@ void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandB
     frame_->materialInfo.materialsBuffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
     buffer->BindMaterialIndicesBuffer(31);
     buffer->BindModelTransformBuffer(13);
+    buffer->BindPrevFrameModelTransformBuffer(14);
     buffer->BindIndirectDrawCommands();
 
     SetCullState(cull);
@@ -864,6 +887,10 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     }
 
     s.SetMat4("projectionView", projectionView);
+    s.SetMat4("prevProjectionView", frame_->prevProjectionView);
+
+    s.SetInt("viewWidth", frame_->viewportWidth);
+    s.SetInt("viewHeight", frame_->viewportHeight);
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
@@ -1633,9 +1660,9 @@ void RendererBackend::RenderForwardPassFlat_() {
 
     glm::vec2 jitter(0.0f);
 
-    if (frame_->taaEnabled) {
-        jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
-    }
+    // if (frame_->taaEnabled) {
+    //     jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+    // }
 
     state_.forward->SetVec2("jitter", jitter);
 
@@ -1659,6 +1686,8 @@ void RendererBackend::PerformPostFxProcessing_() {
 
     // Needs to come after gamma correction + tonemapping
     PerformFxaaPostFx_();
+
+    PerformTaaPostFx_();
 
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
@@ -1825,6 +1854,28 @@ void RendererBackend::PerformFxaaPostFx_() {
     UnbindShader_();
 
     state_.finalScreenBuffer = state_.fxaaFbo2.fbo; // state_.fxaaFbo2.fbo.GetColorAttachments()[0];
+}
+
+void RendererBackend::PerformTaaPostFx_() {
+    if (!frame_->taaEnabled) return;
+
+    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
+
+    BindShader_(state_.taa.get());
+
+    state_.taaFbo.fbo.Bind();
+
+    state_.taa->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
+    state_.taa->BindTexture("prevScreen", state_.previousFrameBuffer.GetColorAttachments()[0]);
+    state_.taa->BindTexture("velocity", state_.currentFrame.velocity);
+
+    RenderQuad_();
+
+    state_.taaFbo.fbo.Unbind();
+
+    UnbindShader_();
+
+    state_.finalScreenBuffer = state_.taaFbo.fbo;
 }
 
 void RendererBackend::PerformGammaTonemapPostFx_() {

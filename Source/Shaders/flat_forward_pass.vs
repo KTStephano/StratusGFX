@@ -8,7 +8,16 @@ layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 
+layout (std430, binding = 14) readonly buffer SSBO4 {
+    mat4 prevModelMatrices[];
+};
+
 uniform mat4 projectionView;
+uniform mat4 prevProjectionView;
+
+uniform int viewWidth;
+uniform int viewHeight;
+
 //uniform mat4 modelView;
 
 uniform vec2 jitter;
