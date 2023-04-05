@@ -8,7 +8,6 @@ float linearColorToLuminance(in vec3 linearColor) {
     return 0.2126 * linearColor.r + 0.7152 * linearColor.g + 0.0722 * linearColor.b;
 }
 	
-// Store weight in w component
 vec3 luminanceColorAdjust(in vec3 color)
 {
     float luminance = linearColorToLuminance(color);

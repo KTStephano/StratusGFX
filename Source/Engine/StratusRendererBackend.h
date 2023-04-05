@@ -258,6 +258,7 @@ namespace stratus {
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
             GBuffer currentFrame;
+            GBuffer previousFrame;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
             Texture lightingColorBuffer;

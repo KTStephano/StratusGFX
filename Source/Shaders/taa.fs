@@ -15,6 +15,7 @@ in vec2 fsTexCoords;
 uniform sampler2D screen;
 uniform sampler2D prevScreen;
 uniform sampler2D velocity;
+uniform sampler2D previousVelocity;
 
 out vec4 color;
 
@@ -27,19 +28,31 @@ void main() {
     // Adjust based on texture size
     //velocityVal /= vec2(textureSize(screen, 0).xy);
     vec2 prevTexCoords = fsTexCoords - velocityVal;
+    // vec2 prevVelocityVal = texture(previousVelocity, prevTexCoords).xy;
+
+    // float velocityDifference = length(prevVelocityVal - velocityVal);
 
     vec3 currentColor = texture(screen, fsTexCoords).rgb;
     vec3 prevColor = texture(prevScreen, prevTexCoords).rgb;
 
     // Collect information around the texture coordinate and use it
     // to apply clamping (otherwise we get extreme ghosting)
-    vec3 prevColor0 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
-    vec3 prevColor1 = textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb;
-    vec3 prevColor2 = textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb;
-    vec3 prevColor3 = textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb;
+    vec3 currColor1 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
+    vec3 currColor2 = textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb;
+    vec3 currColor3 = textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb;
+    vec3 currColor4 = textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb;
 
-    vec3 minColor = min(currentColor, min(prevColor0, min(prevColor1, min(prevColor2, prevColor3))));
-    vec3 maxColor = max(currentColor, max(prevColor0, max(prevColor1, max(prevColor2, prevColor3))));
+    vec3 minColor = min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4))));
+    vec3 maxColor = max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4))));
+
+    // float minLuminance = linearColorToLuminance(minColor);
+    // float maxLuminance = linearColorToLuminance(maxColor);
+
+    // float prevLuminance = linearColorToLuminance(prevColor);
+
+    // float luminance = clamp(prevLuminance, minLuminance, maxLuminance);
+    // float difference = abs(luminance - prevLuminance);
+    // float weight = difference > 0.05 ? 0.1 : 0.9;
 
     prevColor = clamp(prevColor, minColor, maxColor);
 
@@ -58,7 +71,11 @@ void main() {
     // }
 
     // prevColor = clamp(prevColor, minColor, maxColor);
+    // float velocityDisocclusion = saturate((velocityDifference - 0.001) * 10.0);
+    //vec3 averageCurrentColor = (currentColor + currColor1 + currColor2 + currColor3 + currColor4) / 5.0;
 
     //color = vec4(currentColor, 1.0);
+    //color = vec4(averageCurrentColor, 1.0);
     color = vec4(mix(currentColor, prevColor, 0.9), 1.0);
+    //color = vec4(mix(mix(currentColor, prevColor, 0.9), averageCurrentColor, velocityDisocclusion), 1.0);
 }
