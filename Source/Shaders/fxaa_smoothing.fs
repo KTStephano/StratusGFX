@@ -74,6 +74,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "common.glsl"
+#include "aa_common.glsl"
 
 in vec2 fsTexCoords;
 

@@ -32,15 +32,15 @@ void main() {
 
     // float velocityDifference = length(prevVelocityVal - velocityVal);
 
-    vec3 currentColor = texture(screen, fsTexCoords).rgb;
-    vec3 prevColor = texture(prevScreen, prevTexCoords).rgb;
+    vec3 currentColor = tonemap(texture(screen, fsTexCoords).rgb);
+    vec3 prevColor = tonemap(texture(prevScreen, prevTexCoords).rgb);
 
-    // Collect information around the texture coordinate and use it
+    // Collect information around the texture coordinate and use it 
     // to apply clamping (otherwise we get extreme ghosting)
-    vec3 currColor1 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
-    vec3 currColor2 = textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb;
-    vec3 currColor3 = textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb;
-    vec3 currColor4 = textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb;
+    vec3 currColor1 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb);
+    vec3 currColor2 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb);
+    vec3 currColor3 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb);
+    vec3 currColor4 = tonemap(textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb);
 
     vec3 minColor = min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4))));
     vec3 maxColor = max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4))));
@@ -73,6 +73,9 @@ void main() {
     // prevColor = clamp(prevColor, minColor, maxColor);
     // float velocityDisocclusion = saturate((velocityDifference - 0.001) * 10.0);
     //vec3 averageCurrentColor = (currentColor + currColor1 + currColor2 + currColor3 + currColor4) / 5.0;
+
+    currentColor = inverseTonemap(currentColor);
+    prevColor = inverseTonemap(prevColor);
 
     //color = vec4(currentColor, 1.0);
     //color = vec4(averageCurrentColor, 1.0);

@@ -445,12 +445,12 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Code to create the lighting fbo
     state_.lightingColorBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    state_.lightingColorBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    state_.lightingColorBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.lightingColorBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
     state_.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    state_.lightingHighBrightnessBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    state_.lightingHighBrightnessBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     state_.lightingHighBrightnessBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
@@ -620,7 +620,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     state_.postFxBuffers.push_back(state_.fxaaFbo2);
 
     // Initialize TAA buffer
-    Texture taa = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    Texture taa = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
     taa.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     taa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.taaFbo.fbo = FrameBuffer({ taa });
@@ -1695,16 +1695,16 @@ void RendererBackend::PerformPostFxProcessing_() {
     //glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
 
+    PerformTaaPostFx_();
+
     PerformBloomPostFx_();
 
     PerformAtmosphericPostFx_();
 
+    // Needs to happen before FXAA since FXAA works on color graded LDR values (not HDR)
     PerformGammaTonemapPostFx_();
 
-    // Needs to come after gamma correction + tonemapping
     PerformFxaaPostFx_();
-
-    PerformTaaPostFx_();
 
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
@@ -1717,6 +1717,8 @@ void RendererBackend::PerformBloomPostFx_() {
    
     Pipeline* bloom = state_.bloom.get();
     BindShader_(bloom);
+
+    Texture lightingColorBuffer = state_.finalScreenBuffer.GetColorAttachments()[0];
 
     // Downsample stage
     bloom->SetBool("downsamplingStage", true);
@@ -1733,7 +1735,7 @@ void RendererBackend::PerformBloomPostFx_() {
         buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
-            bloom->BindTexture("mainTexture", state_.finalScreenBuffer.GetColorAttachments()[0]);
+            bloom->BindTexture("mainTexture", lightingColorBuffer);
         }
         else {
             bloom->BindTexture("mainTexture", state_.postFxBuffers[i - 1].fbo.GetColorAttachments()[0]);
@@ -1786,7 +1788,7 @@ void RendererBackend::PerformBloomPostFx_() {
         //bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
         bloom->BindTexture("mainTexture", finalizedPostFxFrames[postFXIndex - 1].fbo.GetColorAttachments()[0]);
         if (i == 0) {
-            bloom->BindTexture("bloomTexture", state_.lightingColorBuffer);
+            bloom->BindTexture("bloomTexture", lightingColorBuffer);
             bloom->SetBool("finalStage", true);
         }
         else {
@@ -1894,6 +1896,15 @@ void RendererBackend::PerformTaaPostFx_() {
     UnbindShader_();
 
     state_.finalScreenBuffer = state_.taaFbo.fbo;
+
+    // Update history texture
+    state_.previousFrameBuffer.CopyFrom(
+        state_.finalScreenBuffer,
+        BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight },
+        BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight },
+        BufferBit::COLOR_BIT,
+        BufferFilter::NEAREST
+    );
 }
 
 void RendererBackend::PerformGammaTonemapPostFx_() {
@@ -1911,8 +1922,6 @@ void RendererBackend::PerformGammaTonemapPostFx_() {
 void RendererBackend::FinalizeFrame_() {
     // Copy final frame to current frame
     //state_.gammaTonemapFbo.fbo.CopyFrom()
-
-    state_.previousFrameBuffer.CopyFrom(state_.finalScreenBuffer, BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight }, BufferBounds{ 0, 0, frame_->viewportWidth, frame_->viewportHeight }, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_CULL_FACE);
