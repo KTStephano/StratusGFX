@@ -31,12 +31,13 @@ smooth out vec3 fsPosition;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 
-flat out vec2 fsVelocity;
-
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
 out mat4 fsModel;
 out mat3 fsModelNoTranslate;
+// Unjittered
+out vec4 fsCurrentClipPos;
+out vec4 fsPrevClipPos;
 
 flat out int fsDrawID;
 
@@ -72,12 +73,11 @@ void main() {
 
     fsDrawID = gl_DrawID;
     
-    vec4 prevClip = prevProjectionView * prevModelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    fsPrevClipPos = prevProjectionView * prevModelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     vec4 clip = projectionView * pos;
+    fsCurrentClipPos = clip;
 
-    fsVelocity = calculateVelocity(clip, prevClip, vec2(float(viewWidth), float(viewHeight)));
-
-    clip.xy += jitter * clip.w;
+    //clip.xy += jitter * clip.w;
 
     gl_Position = clip;
 }

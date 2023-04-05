@@ -31,7 +31,8 @@ flat in int fsDrawID;
  */
 in mat3 fsTbnMatrix;
 
-flat in vec2 fsVelocity;
+in vec4 fsCurrentClipPos;
+in vec4 fsPrevClipPos;
 
 // GBuffer outputs
 //layout (location = 0) out vec3 gPosition;
@@ -131,7 +132,7 @@ void main() {
     gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
-    gVelocityBuffer = fsVelocity;
+    gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
 
     // Small offset to help prevent z fighting in certain cases
     if (baseColor.a < 1.0) {
