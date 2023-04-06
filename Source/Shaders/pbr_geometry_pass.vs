@@ -84,7 +84,7 @@ void main() {
     mat4 jitterProjection = projection;
     jitterProjection[3][0] += jitter.x;
     jitterProjection[3][1] += jitter.y;
-    //clip = jitterProjection * view * pos;
+    clip = jitterProjection * view * pos;
 
     gl_Position = clip;
 }

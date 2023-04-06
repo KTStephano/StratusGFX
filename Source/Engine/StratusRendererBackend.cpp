@@ -1641,8 +1641,8 @@ static glm::vec2 GetJitterForIndex(const size_t index, const float width, const 
     glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
     // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
     //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
-    // Convert from [0, 1] to [-0.25, 0.25]
-    jitter = jitter - 0.25f;
+    // Convert from [0, 1] to [-0.5, 0.5]
+    jitter = jitter - 0.5f;
     // Scale to appropriate subpixel size by using viewport width/height
     jitter = jitter / glm::vec2(width, height);
 
