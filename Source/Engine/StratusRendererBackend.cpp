@@ -1472,7 +1472,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->fogColor);
     state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->fogDensity);
 
-    const Camera& camera = frame_->camera.get();
+    const Camera& camera = *frame_->camera;
     state_.vplGlobalIllumination->SetVec3("viewPosition", camera.GetPosition());
     state_.vplGlobalIllumination->SetInt("viewportWidth", frame_->viewportWidth);
     state_.vplGlobalIllumination->SetInt("viewportHeight", frame_->viewportHeight);

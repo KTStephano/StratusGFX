@@ -24,6 +24,8 @@ class Camera {
 
 public:
     Camera(bool rangeCheckAngles = true);
+    Camera(const Camera&) = default;
+    Camera(Camera&&) = default;
     ~Camera() = default;
 
     /**
