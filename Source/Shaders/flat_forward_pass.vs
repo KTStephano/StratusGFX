@@ -12,6 +12,8 @@ layout (std430, binding = 14) readonly buffer SSBO4 {
     mat4 prevModelMatrices[];
 };
 
+uniform mat4 projection;
+uniform mat4 view;
 uniform mat4 projectionView;
 uniform mat4 prevProjectionView;
 

@@ -13,6 +13,8 @@ layout (std430, binding = 14) readonly buffer SSBO4 {
     mat4 prevModelMatrices[];
 };
 
+uniform mat4 projection;
+uniform mat4 view;
 uniform mat4 projectionView;
 uniform mat4 prevProjectionView;
 
@@ -78,6 +80,11 @@ void main() {
     fsCurrentClipPos = clip;
 
     //clip.xy += jitter * clip.w;
+
+    mat4 jitterProjection = projection;
+    jitterProjection[3][0] += jitter.x;
+    jitterProjection[3][1] += jitter.y;
+    //clip = jitterProjection * view * pos;
 
     gl_Position = clip;
 }

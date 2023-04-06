@@ -899,6 +899,8 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
         s.SetVec3("viewPosition", &camera.GetPosition()[0]);
     }
 
+    s.SetMat4("projection", projection);
+    s.SetMat4("view", view);
     s.SetMat4("projectionView", projectionView);
     s.SetMat4("prevProjectionView", frame_->prevProjectionView);
 
@@ -1639,8 +1641,8 @@ static glm::vec2 GetJitterForIndex(const size_t index, const float width, const 
     glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
     // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
     //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
-    // Convert from [0, 1] to [-1, 1]
-    jitter = jitter * 2.0f - 1.0f;
+    // Convert from [0, 1] to [-0.25, 0.25]
+    jitter = jitter - 0.25f;
     // Scale to appropriate subpixel size by using viewport width/height
     jitter = jitter / glm::vec2(width, height);
 

@@ -2,6 +2,7 @@
 // https://ziyadbarakat.wordpress.com/2020/07/28/temporal-anti-aliasing-step-by-step/
 // https://www.elopezr.com/temporal-aa-and-the-quest-for-the-holy-trail/
 // http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+// https://de45xmedrsdbp.cloudfront.net/Resources/files/TemporalAA_small-59732822.pdf
 
 STRATUS_GLSL_VERSION
 
