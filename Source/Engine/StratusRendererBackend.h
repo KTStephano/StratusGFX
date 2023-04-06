@@ -189,6 +189,7 @@ namespace stratus {
         glm::mat4 projection;
         glm::mat4 view;
         glm::mat4 projectionView;
+        glm::mat4 jitterProjectionView;
         glm::mat4 invProjectionView;
         glm::mat4 prevProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
@@ -419,9 +420,6 @@ namespace stratus {
 
         // Current frame data used for drawing
         std::shared_ptr<RendererFrame> frame_;
-
-        // Used for temporal anti-aliasing
-        size_t currentHaltonIndex_ = 0;
 
         /**
          * If the renderer was setup properly then this will be marked

@@ -56,29 +56,6 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
-// These are the first 16 values of the Halton sequence. For more information see:
-//     https://en.wikipedia.org/wiki/Halton_sequence
-//     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
-
-static const std::vector<std::pair<float, float>> haltonSequence = {
-    { 1.0f /  2.0f,  1.0f /  3.0f},
-    { 1.0f /  4.0f,  2.0f /  3.0f},
-    { 3.0f /  4.0f,  1.0f /  9.0f},
-    { 1.0f /  8.0f,  4.0f /  9.0f},
-    { 5.0f /  8.0f,  7.0f /  9.0f},
-    { 3.0f /  8.0f,  2.0f /  9.0f},
-    { 7.0f /  8.0f,  5.0f /  9.0f},
-    { 1.0f / 16.0f,  8.0f /  9.0f},
-    { 9.0f / 16.0f,  1.0f / 27.0f},
-    { 5.0f / 16.0f, 10.0f / 27.0f},
-    {13.0f / 16.0f, 19.0f / 27.0f},
-    { 3.0f / 16.0f,  4.0f / 27.0f},
-    {11.0f / 16.0f, 13.0f / 27.0f},
-    { 7.0f / 16.0f, 22.0f / 27.0f},
-    {15.0f / 16.0f,  7.0f / 27.0f},
-    { 1.0f / 32.0f, 16.0f / 27.0f},
-};
-
 RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
     static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
 
@@ -724,9 +701,6 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     CHECK_IS_APPLICATION_THREAD();
 
     frame_ = frame;
-
-    // Increment halton index
-    currentHaltonIndex_ = (currentHaltonIndex_ + 1) % haltonSequence.size();
 
     // Make sure we set our context as the active one
     GraphicsDriver::MakeContextCurrent();
@@ -1637,31 +1611,13 @@ void RendererBackend::RenderScene() {
     GpuMeshAllocator::UnbindElementArrayBuffer();
 }
 
-static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
-    glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
-    // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
-    //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
-    // Convert from [0, 1] to [-0.5, 0.5]
-    jitter = jitter - 0.5f;
-    // Scale to appropriate subpixel size by using viewport width/height
-    jitter = jitter / glm::vec2(width, height);
-
-    return jitter;
-}
-
 void RendererBackend::RenderForwardPassPbr_() {
     // Make sure to bind our own frame buffer for rendering
     state_.currentFrame.fbo.Bind();
 
     BindShader_(state_.geometry.get());
 
-    glm::vec2 jitter(0.0f);
-
-    if (frame_->taaEnabled) {
-        jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
-    }
-
-    state_.geometry->SetVec2("jitter", jitter);
+    state_.geometry->SetMat4("jitterProjectionView", frame_->jitterProjectionView);
 
     // Begin geometry pass
     glEnable(GL_DEPTH_TEST);
@@ -1677,13 +1633,8 @@ void RendererBackend::RenderForwardPassPbr_() {
 void RendererBackend::RenderForwardPassFlat_() {
     BindShader_(state_.forward.get());
 
-    glm::vec2 jitter(0.0f);
-
-    // if (frame_->taaEnabled) {
-    //     jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
-    // }
-
-    state_.forward->SetVec2("jitter", jitter);
+    // TODO: Enable TAA for flat forward geometry
+    state_.forward->SetMat4("jitterProjectionView", frame_->projectionView);
 
     glEnable(GL_DEPTH_TEST);
     Render_(*state_.forward.get(), frame_->visibleInstancedFlatMeshes, false);

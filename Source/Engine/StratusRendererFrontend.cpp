@@ -369,6 +369,40 @@ namespace stratus {
         return frame_->globalIlluminationEnabled;
     }
 
+    // These are the first 16 values of the Halton sequence. For more information see:
+    //     https://en.wikipedia.org/wiki/Halton_sequence
+    //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
+    static const std::vector<std::pair<float, float>> haltonSequence = {
+        { 1.0f / 2.0f,  1.0f / 3.0f},
+        { 1.0f / 4.0f,  2.0f / 3.0f},
+        { 3.0f / 4.0f,  1.0f / 9.0f},
+        { 1.0f / 8.0f,  4.0f / 9.0f},
+        { 5.0f / 8.0f,  7.0f / 9.0f},
+        { 3.0f / 8.0f,  2.0f / 9.0f},
+        { 7.0f / 8.0f,  5.0f / 9.0f},
+        { 1.0f / 16.0f,  8.0f / 9.0f},
+        { 9.0f / 16.0f,  1.0f / 27.0f},
+        { 5.0f / 16.0f, 10.0f / 27.0f},
+        {13.0f / 16.0f, 19.0f / 27.0f},
+        { 3.0f / 16.0f,  4.0f / 27.0f},
+        {11.0f / 16.0f, 13.0f / 27.0f},
+        { 7.0f / 16.0f, 22.0f / 27.0f},
+        {15.0f / 16.0f,  7.0f / 27.0f},
+        { 1.0f / 32.0f, 16.0f / 27.0f},
+    };
+
+    static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
+        glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
+        // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
+        //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
+        // Convert from [0, 1] to [-0.5, 0.5]
+        jitter = jitter - 0.5f;
+        // Scale to appropriate subpixel size by using viewport width/height
+        jitter = jitter / glm::vec2(width, height);
+
+        return jitter;
+    }
+
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
         CHECK_IS_APPLICATION_THREAD();
 
@@ -390,6 +424,19 @@ namespace stratus {
         // Update view projection and its inverse
         frame_->projectionView = frame_->projection * frame_->view;
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
+
+        // Increment halton index
+        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % haltonSequence.size();
+
+        // Set up the jittered variant
+        glm::vec2 jitter(0.0f);
+        if (frame_->taaEnabled) {
+            jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+        }
+        frame_->jitterProjectionView = frame_->projection;
+        frame_->jitterProjectionView[3][0] += jitter.x;
+        frame_->jitterProjectionView[3][1] += jitter.y;
+        frame_->jitterProjectionView = frame_->jitterProjectionView * frame_->view;
 
         //_SwapFrames();
 

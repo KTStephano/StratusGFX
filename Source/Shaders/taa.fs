@@ -33,18 +33,18 @@ void main() {
 
     // float velocityDifference = length(prevVelocityVal - velocityVal);
 
-    vec3 currentColor = tonemap(texture(screen, fsTexCoords).rgb);
+    vec3 currentColor = texture(screen, fsTexCoords).rgb;
     vec3 prevColor = tonemap(texture(prevScreen, prevTexCoords).rgb);
 
     // Collect information around the texture coordinate and use it 
     // to apply clamping (otherwise we get extreme ghosting)
-    vec3 currColor1 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb);
-    vec3 currColor2 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb);
-    vec3 currColor3 = tonemap(textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb);
-    vec3 currColor4 = tonemap(textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb);
+    vec3 currColor1 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
+    vec3 currColor2 = textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb;
+    vec3 currColor3 = textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb;
+    vec3 currColor4 = textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb;
 
-    vec3 minColor = min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4))));
-    vec3 maxColor = max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4))));
+    vec3 minColor = tonemap(min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4)))));
+    vec3 maxColor = tonemap(max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4)))));
 
     // float minLuminance = linearColorToLuminance(minColor);
     // float maxLuminance = linearColorToLuminance(maxColor);
@@ -54,6 +54,8 @@ void main() {
     // float luminance = clamp(prevLuminance, minLuminance, maxLuminance);
     // float difference = abs(luminance - prevLuminance);
     // float weight = difference > 0.05 ? 0.1 : 0.9;
+
+    currentColor = tonemap(currentColor);
 
     prevColor = clamp(prevColor, minColor, maxColor);
 

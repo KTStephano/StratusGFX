@@ -134,6 +134,8 @@ namespace stratus {
         std::unique_ptr<Pipeline> viscullLodSelect_;
         std::unique_ptr<Pipeline> viscull_;
         std::unique_ptr<Pipeline> updateTransforms_;
+        // Used for temporal anti-aliasing
+        size_t currentHaltonIndex_ = 0;
         mutable std::shared_mutex mutex_;
     };
 }

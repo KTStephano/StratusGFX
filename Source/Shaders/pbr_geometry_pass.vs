@@ -13,9 +13,8 @@ layout (std430, binding = 14) readonly buffer SSBO4 {
     mat4 prevModelMatrices[];
 };
 
-uniform mat4 projection;
-uniform mat4 view;
 uniform mat4 projectionView;
+uniform mat4 jitterProjectionView;
 uniform mat4 prevProjectionView;
 
 uniform int viewWidth;
@@ -25,8 +24,6 @@ uniform int viewHeight;
  * Information about the camera
  */
 uniform vec3 viewPosition;
-
-uniform vec2 jitter;
 
 smooth out vec3 fsPosition;
 //smooth out vec3 fsViewSpacePos;
@@ -81,10 +78,7 @@ void main() {
 
     //clip.xy += jitter * clip.w;
 
-    mat4 jitterProjection = projection;
-    jitterProjection[3][0] += jitter.x;
-    jitterProjection[3][1] += jitter.y;
-    clip = jitterProjection * view * pos;
+    clip = jitterProjectionView * pos;
 
     gl_Position = clip;
 }
