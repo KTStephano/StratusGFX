@@ -154,7 +154,7 @@ R recompiles all shaders
 
 # Future of StratusGFX
 
-### Short Term Goals
+### Short Term
 
 -> Improving build system to make it easier for people to get up and running with the code
 
@@ -164,7 +164,7 @@ R recompiles all shaders
 
 -> Performance improvements
 
-### Medium Term Goals
+### Medium Term
 
 -> Order independent transparency
 
@@ -172,7 +172,7 @@ R recompiles all shaders
 
 -> Screen Space Reflections (SSR)
 
-### Long Term Goals
+### Long Term
 
 -> Switch backend to Vulkan which will enable the engine to run on MacOS and not just Windows/Linux
 
