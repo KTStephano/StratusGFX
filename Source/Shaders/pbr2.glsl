@@ -302,5 +302,6 @@ vec3 calculateVirtualPointLighting2(
     float adjustedShadowFactor = 1.0 - shadowFactor;
     adjustedShadowFactor = max(adjustedShadowFactor, 0.1);
 
-    return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
+    //return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
+    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
 }
