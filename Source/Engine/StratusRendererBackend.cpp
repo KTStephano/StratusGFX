@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <random>
 #include <numeric>
+#include <ctime>
 #include "StratusUtils.h"
 #include "StratusMath.h"
 #include "StratusLog.h"
@@ -1444,6 +1445,13 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
     if (perVPLDistToViewer.size() == 0) return;
 
+    // auto space = LogSpace<float>(1, 512, 30);
+    // for (const auto& s : space) std::cout << s << " ";
+    // std::cout << std::endl;
+
+    const auto timePoint = std::chrono::high_resolution_clock::now();
+    const float milliseconds = float(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
+
     glDisable(GL_DEPTH_TEST);
     BindShader_(state_.vplGlobalIllumination.get());
     state_.vpls.vplGIFbo.Bind();
@@ -1469,6 +1477,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
     state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    state_.vplGlobalIllumination->SetFloat("time", milliseconds);
 
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->fogColor);
     state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->fogDensity);

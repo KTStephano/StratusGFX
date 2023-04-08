@@ -10,6 +10,9 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
+#define MAX_SAMPLES_PER_PIXEL 20
+#define MAX_SHADOW_SAMPLES_PER_PIXEL 20
+
 // GBuffer information
 uniform sampler2D gDepth;
 uniform sampler2D gNormal;
@@ -39,6 +42,9 @@ uniform int numTilesX;
 uniform int numTilesY;
 
 uniform mat4 invProjectionView;
+
+// Used for random number generation
+uniform float time;
 
 layout (std430, binding = 0) readonly buffer inputBlock1 {
     VplData lightData[];
@@ -89,11 +95,34 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
     vec3 vplColor = vec3(0.0); //screenColor;
-    int maxLights = numVisible > 20 ? 20 : numVisible;
+
+    int maxLights = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
+    int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
+
+    // Used to seed the pseudo-random number generator
+    // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+    vec3 seed = vec3(0.0, 0.0, time);
+    float shadowFactor = 0.0;
+    for (int baseLightIndex = 0; baseLightIndex < maxShadowLights; ++baseLightIndex) {
+        // seed.z += 1.0;
+        // float rand = random(seed);
+        // int lightIndex = vplVisibleIndex[int(numVisible * rand)];
+        int lightIndex = vplVisibleIndex[baseLightIndex];
+        vec3 lightPosition = lightData[lightIndex].position.xyz;
+
+        shadowFactor += calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+    }
+
+    shadowFactor /= float(maxShadowLights);
+
+    seed = vec3(gl_FragCoord.xy, time);
     for (int baseLightIndex = 0 ; baseLightIndex < maxLights; baseLightIndex += 1) {
+        seed.z += 1.0;
+        float rand = random(seed);
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
-        int lightIndex = vplVisibleIndex[baseLightIndex];
+        //int lightIndex = vplVisibleIndex[baseLightIndex];
+        int lightIndex = vplVisibleIndex[int(numVisible * rand)];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightData[lightIndex].position.xyz;
@@ -104,10 +133,10 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
-        float shadowFactor = 0.0;
-        if (distToCamera < 500) {
-            shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-        }
+        // float shadowFactor = 0.0;
+        // if (distToCamera < 500) {
+        //     shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        // }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
@@ -119,4 +148,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
 void main() {
     color = performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
+    // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+    // vec3 point = vec3(gl_FragCoord.xy, time);
+    // point = vec3(random(point));
+
+    // color = point * 1.0;
 }

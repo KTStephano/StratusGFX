@@ -1,10 +1,12 @@
 #pragma once
 
 #include <utility>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <math.h>
 #include <iostream>
 #include <ostream>
+#include <vector>
 #include "glm/glm.hpp"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -319,6 +321,28 @@ namespace stratus {
     //     }
     //     return gm;
     // }
+
+    // Generates a vector of size count containing elements ranging from [start, end] where each element
+    // is logarithmically spaced.
+    // See https://www.codeproject.com/Questions/188926/Generating-a-logarithmically-spaced-numbers
+    template<typename T>
+    static std::vector<T> LogSpace(const T start, const T end, const size_t count) {
+        if (count < 2 || end <= start || start < 1) throw std::runtime_error("Bad range to LogSpace");
+
+        const T logBase = M_E;
+        const T logMin = std::log(start);
+        const T logMax = std::log(end);
+        const T delta = (logMax - logMin) / T(count - 1);
+        
+        std::vector<T> result(count);
+        T accDelta = T(0);
+        for (size_t i = 0; i < count; ++i) {
+            result[i] = std::pow(logBase, logMin + accDelta);
+            accDelta += delta;
+        }
+
+        return result;
+    }
 }
 
 // Printing helper functions --> Putting here due to bug in Windows compiler
