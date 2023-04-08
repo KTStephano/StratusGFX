@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 
 #define MAX_SAMPLES_PER_PIXEL 20
-#define MAX_SHADOW_SAMPLES_PER_PIXEL 20
+#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
 // GBuffer information
 uniform sampler2D gDepth;

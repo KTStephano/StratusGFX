@@ -79,7 +79,7 @@ void main() {
 
     #ifdef SELECT_LOD
         DrawElementsIndirectCommand lod;
-        float initialDist = 50.0;
+        float initialDist = 75.0;
         if (dist < initialDist) {
             draw = drawCallsLod0[i];
         }
