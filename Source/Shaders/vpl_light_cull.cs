@@ -73,7 +73,7 @@ void main() {
 
     if (gl_LocalInvocationIndex == 0) {
         int localNumVisible = 0;
-        for (int i = 0; i < totalNumLights; ++i) {
+        for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
             if (lightVisible[i]) {
                 vplVisibleIndex[localNumVisible] = i;
                 ++localNumVisible;

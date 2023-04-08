@@ -80,7 +80,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-    float ambientOcclusion = texture(ssao, pixelCoords).r;
+    float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
     float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * ambientOcclusion;
     vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 

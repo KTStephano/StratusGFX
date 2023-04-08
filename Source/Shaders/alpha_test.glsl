@@ -1,5 +1,8 @@
 STRATUS_GLSL_VERSION
 
+#define ALPHA_DEPTH_TEST 0.5
+#define ALPHA_DEPTH_OFFSET 0.000001
+
 // See "Implementing a material system" in 3D Graphics Rendering Cookbook
 // This *only* uses basic punch through transparency and is not a full transparency solution
 void runAlphaTest(float alpha, float alphaThreshold) {
