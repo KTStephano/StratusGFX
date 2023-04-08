@@ -1231,8 +1231,15 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
 
-            RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
-            if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
+            if (point->IsVirtualLight()) {
+                // Use lowest LOD
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1]);
+                RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
+            }
+            else {
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
+            }
 
             UnbindShader_();
         }

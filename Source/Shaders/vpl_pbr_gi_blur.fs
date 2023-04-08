@@ -25,5 +25,7 @@ void main() {
     
     vec3 illumAvg = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 6.0;
 
+    //vec3 illumAvg = texture(indirectIllumination, fsTexCoords).rgb;
+
     color = screenColor + illumAvg;
 }
