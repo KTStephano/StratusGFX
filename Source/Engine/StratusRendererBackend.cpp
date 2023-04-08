@@ -1359,56 +1359,56 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplColoring->Unbind();
 
     // Now perform culling per tile since we now know which lights are active
-    state_.vplTileDeferredCullingStage1->Bind();
+    // state_.vplTileDeferredCullingStage1->Bind();
 
-    // Bind inputs
-    //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
-    state_.vplTileDeferredCullingStage1->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.currentFrame.depth);
-    state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.currentFrame.normals);
-    // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
-    // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
+    // // Bind inputs
+    // //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
+    // state_.vplTileDeferredCullingStage1->SetMat4("invProjectionView", frame_->invProjectionView);
+    // state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.currentFrame.depth);
+    // state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.currentFrame.normals);
+    // // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
+    // // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
 
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+    // state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    // state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-    // Bind outputs
-    state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    // // Bind outputs
+    // state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    // Dispatch and synchronize
-    state_.vplTileDeferredCullingStage1->DispatchCompute(
-        (unsigned int)frame_->viewportWidth  / state_.vpls.tileXDivisor,
-        (unsigned int)frame_->viewportHeight / state_.vpls.tileYDivisor,
-        1
-    );
-    state_.vplTileDeferredCullingStage1->SynchronizeCompute();
+    // // Dispatch and synchronize
+    // state_.vplTileDeferredCullingStage1->DispatchCompute(
+    //     (unsigned int)frame_->viewportWidth  / state_.vpls.tileXDivisor,
+    //     (unsigned int)frame_->viewportHeight / state_.vpls.tileYDivisor,
+    //     1
+    // );
+    // state_.vplTileDeferredCullingStage1->SynchronizeCompute();
 
-    state_.vplTileDeferredCullingStage1->Unbind();
+    // state_.vplTileDeferredCullingStage1->Unbind();
 
-    // Perform stage 2 of the tiled deferred culling
-    state_.vplTileDeferredCullingStage2->Bind();
+    // // Perform stage 2 of the tiled deferred culling
+    // state_.vplTileDeferredCullingStage2->Bind();
 
-    // Bind inputs
-    state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->GetPosition());
+    // // Bind inputs
+    // state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->GetPosition());
 
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
+    // state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    // state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    // state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    // state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    // state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
-    // Bind outputs
-    state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    // // Bind outputs
+    // state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
     
-    // Dispatch and synchronize
-    state_.vplTileDeferredCullingStage2->DispatchCompute(
-        (unsigned int)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
-        (unsigned int)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
-        1
-    );
-    state_.vplTileDeferredCullingStage2->SynchronizeCompute();
+    // // Dispatch and synchronize
+    // state_.vplTileDeferredCullingStage2->DispatchCompute(
+    //     (unsigned int)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
+    //     (unsigned int)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
+    //     1
+    // );
+    // state_.vplTileDeferredCullingStage2->SynchronizeCompute();
 
-    state_.vplTileDeferredCullingStage2->Unbind();
+    // state_.vplTileDeferredCullingStage2->Unbind();
 
     // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
     // GpuVplStage2PerTileOutputs * tiles = (GpuVplStage2PerTileOutputs *)_state.vpls.vplVisiblePerTile.MapMemory();
@@ -1457,7 +1457,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
