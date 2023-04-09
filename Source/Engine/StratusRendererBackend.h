@@ -307,8 +307,8 @@ namespace stratus {
             // of hdr and gamma correction
             std::unique_ptr<Pipeline> gammaTonemap;
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
-            std::vector<std::unique_ptr<Pipeline>> shadows;
-            std::vector<std::unique_ptr<Pipeline>> vplShadows;
+            std::unique_ptr<Pipeline> shadows;
+            std::unique_ptr<Pipeline> vplShadows;
             // Geometry pass - handles all combinations of material properties
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass

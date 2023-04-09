@@ -67,6 +67,10 @@ namespace stratus {
                 );
             }
             else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
+                if (config.width != config.height || (config.depth % 6) != 0) {
+                    throw std::runtime_error("Unable to create cube map texture - invalid width/height or depth");
+                }
+
                 for (int face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 

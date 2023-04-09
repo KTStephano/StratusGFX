@@ -95,23 +95,19 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     state_.shaders.push_back(state_.gammaTonemap.get());
 
     // Set up the shadow preprocessing shaders
-    for (int i = 0; i < 6; ++i) {
-        state_.shadows.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-            Shader{"shadow.vs", ShaderType::VERTEX},
-            //Shader{"shadow.gs", ShaderType::GEOMETRY},
-            Shader{"shadow.fs", ShaderType::FRAGMENT}},
-            {{"DEPTH_LAYER", std::to_string(i)}}))
-        );
-        state_.shaders.push_back(state_.shadows[i].get());
+    state_.shadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"shadow.vs", ShaderType::VERTEX},
+        //Shader{"shadow.gs", ShaderType::GEOMETRY},
+        Shader{"shadow.fs", ShaderType::FRAGMENT}}
+    ));
+    state_.shaders.push_back(state_.shadows.get());
 
-        state_.vplShadows.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-            Shader{"shadow.vs", ShaderType::VERTEX},
-            //Shader{"shadow.gs", ShaderType::GEOMETRY},
-            Shader{"shadowVpl.fs", ShaderType::FRAGMENT}},
-            {{"DEPTH_LAYER", std::to_string(i)}}))
-        );
-        state_.shaders.push_back(state_.vplShadows[i].get());
-    }
+    state_.vplShadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"shadow.vs", ShaderType::VERTEX},
+        //Shader{"shadow.gs", ShaderType::GEOMETRY},
+        Shader{"shadowVpl.fs", ShaderType::FRAGMENT}}
+    ));
+    state_.shaders.push_back(state_.vplShadows.get());
 
     state_.lighting = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr.vs", ShaderType::VERTEX},
@@ -1227,11 +1223,12 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         // Current pass only cares about depth buffer
         // glClear(GL_DEPTH_BUFFER_BIT);
 
+        Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
+        BindShader_(shader);
         auto transforms = GenerateLightViewTransforms(lightPerspective, point->GetPosition());
         for (size_t i = 0; i < transforms.size(); ++i) {
-            Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows[i].get() : state_.shadows[i].get();
-            BindShader_(shader);
 
+            shader->SetInt("layer", int(i));
             shader->SetMat4("shadowMatrix", transforms[i]);
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
@@ -1239,15 +1236,14 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
             if (point->IsVirtualLight()) {
                 // Use lowest LOD
                 RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1]);
-                RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
+                //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
             }
             else {
                 RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
                 if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
             }
-
-            UnbindShader_();
         }
+        UnbindShader_();
 
         // Unbind
         smap.frameBuffer.Unbind();

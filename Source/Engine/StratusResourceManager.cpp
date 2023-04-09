@@ -685,7 +685,7 @@ namespace stratus {
                 config.dataType = TextureComponentType::UINT;
                 config.width = (uint32_t)width;
                 config.height = (uint32_t)height;
-                config.depth = 1;
+                config.depth = 0;
                 // This loads the textures with sRGB in mind so that they get converted back
                 // to linear color space. Warning: if the texture was not actually specified as an
                 // sRGB texture (common for normal/specular maps), this will cause problems.
