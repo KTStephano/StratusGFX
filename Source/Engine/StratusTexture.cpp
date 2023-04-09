@@ -66,7 +66,7 @@ namespace stratus {
                     CastTexDataToPtr(data, 0)
                 );
             }
-            else if (config.type == TextureType::TEXTURE_3D) {
+            else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
                 for (int face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 
@@ -116,7 +116,7 @@ namespace stratus {
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (_config.type == TextureType::TEXTURE_3D) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            if (_config.type == TextureType::TEXTURE_CUBE_MAP) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
             unbind();
         }
 
@@ -241,7 +241,7 @@ namespace stratus {
             switch (type) {
             case TextureType::TEXTURE_2D:  return GL_TEXTURE_2D;
             case TextureType::TEXTURE_2D_ARRAY: return GL_TEXTURE_2D_ARRAY;
-            case TextureType::TEXTURE_3D: return GL_TEXTURE_CUBE_MAP;
+            case TextureType::TEXTURE_CUBE_MAP: return GL_TEXTURE_CUBE_MAP;
             case TextureType::TEXTURE_RECTANGLE: return GL_TEXTURE_RECTANGLE;
             default: throw std::runtime_error("Unknown texture type");
             }

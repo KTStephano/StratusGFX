@@ -729,6 +729,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     // Generate the GPU data for all instanced entities
     //_InitAllInstancedData();
 
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     glDisable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
@@ -1924,14 +1925,14 @@ void RendererBackend::RenderQuad_() {
 
 TextureHandle RendererBackend::CreateShadowMap3D_(uint32_t resolutionX, uint32_t resolutionY, bool vpl) {
     ShadowMap3D smap;
-    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
+    smap.shadowCubeMap = Texture(TextureConfig{TextureType::TEXTURE_CUBE_MAP, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
     smap.shadowCubeMap.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     smap.shadowCubeMap.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     // We need to set this when using sampler2DShadow in the GLSL shader
     //smap.shadowCubeMap.setTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
     if (vpl) {
-        smap.diffuseCubeMap = Texture(TextureConfig{TextureType::TEXTURE_3D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
+        smap.diffuseCubeMap = Texture(TextureConfig{TextureType::TEXTURE_CUBE_MAP, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, 0, false}, NoTextureData);
         smap.diffuseCubeMap.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         smap.diffuseCubeMap.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 

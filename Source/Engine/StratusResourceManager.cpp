@@ -234,7 +234,7 @@ namespace stratus {
                                  prefix + "front." + fileExt,
                                  prefix + "back." + fileExt}, 
                                 cspace,
-                                TextureType::TEXTURE_3D,
+                                TextureType::TEXTURE_CUBE_MAP,
                                 TextureCoordinateWrapping::CLAMP_TO_EDGE,
                                 TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                 TextureMagnificationFilter::LINEAR);

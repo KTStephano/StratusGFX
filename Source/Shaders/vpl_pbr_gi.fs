@@ -117,7 +117,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     seed = vec3(gl_FragCoord.xy, time);
     for (int baseLightIndex = 0 ; baseLightIndex < maxLights; baseLightIndex += 1) {
-        seed.z += 10000.0;
+        seed.z += 1000.0;
         float rand = random(seed);
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];

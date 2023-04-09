@@ -13,7 +13,7 @@ namespace stratus {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
         // Corresponds to GL_TEXTURE_CUBE_MAP
-        TEXTURE_3D,
+        TEXTURE_CUBE_MAP,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
     };
