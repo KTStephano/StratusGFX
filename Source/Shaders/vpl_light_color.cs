@@ -27,16 +27,18 @@ layout (std430, binding = 0) buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 1) readonly buffer outputBlock1 {
+layout (std430, binding = 1) readonly buffer inputBlock1 {
     int numVisible;
 };
 
-layout (std430, binding = 3) readonly buffer outputBlock2 {
+layout (std430, binding = 3) readonly buffer inputBlock2 {
     int vplVisibleIndex[];
 };
 
-layout (std430, binding = 5) readonly buffer vplDiffuse {
-    samplerCube diffuseCubeMaps[];
+uniform samplerCubeArray diffuseCubeMaps;
+
+layout (std430, binding = 4) readonly buffer inputBlock3 {
+    int diffuseIndices[];
 };
 
 void main() {
@@ -44,8 +46,10 @@ void main() {
 
     for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
         int index = vplVisibleIndex[i];
+        VplData data = lightData[index];
+        float diffuseIndex = float(diffuseIndices[index]);
         // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = 2.0 * textureLod(diffuseCubeMaps[index], -infiniteLightDirection, 0).rgb * infiniteLightColor;
+        vec3 color = 2.0 * textureLod(diffuseCubeMaps, vec4(-infiniteLightDirection, diffuseIndex), 0).rgb * infiniteLightColor;
         float offset = 0.5;
         float offsets[2] = float[](-offset, offset);
         // This should result in 2*2*2 = 8 samples, + 2 from above = 10
@@ -53,11 +57,11 @@ void main() {
             for (int y = 0; y < 2; ++y) {
                 for (int z = 0; z < 2; ++z) {
                     vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
-                    color += textureLod(diffuseCubeMaps[index], -infiniteLightDirection + dirOffset, 0).rgb * infiniteLightColor;
+                    color += textureLod(diffuseCubeMaps, vec4(-infiniteLightDirection + dirOffset, diffuseIndex), 0).rgb * infiniteLightColor;
                 }
             }
         }
 
-        lightData[index].color = vec4(color * lightData[index].intensity, 1.0);
+        lightData[index].color = vec4(color * data.intensity, 1.0);
     }
 }

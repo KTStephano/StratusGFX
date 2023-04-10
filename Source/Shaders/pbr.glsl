@@ -64,7 +64,7 @@ uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
@@ -82,7 +82,7 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
     for (int x = 0; x < 2; ++x) {
         for (int y = 0; y < 2; ++y) {
             for (int z = 0; z < 2; ++z) {
-                float depth = textureLod(shadowMap, fragDir + vec3(offsets[x], offsets[y], offsets[z]), 0).r;
+                float depth = textureLod(shadowMaps, vec4(fragDir + vec3(offsets[x], offsets[y], offsets[z]), float(shadowIndex)), 0).r;
                 // It's very important to multiply by lightFarPlane. The recorded depth
                 // is on the range [0, 1] so we need to convert it back to what it was originally
                 // or else our depth comparison will fail.
@@ -98,7 +98,7 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
 }
 
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
@@ -107,7 +107,7 @@ float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, ve
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
     float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
     float shadow = 0.0;
-    float depth = textureLod(shadowMap, fragDir, 0).r;
+    float depth = textureLod(shadowMaps, vec4(fragDir, float(shadowIndex)), 0).r;
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.

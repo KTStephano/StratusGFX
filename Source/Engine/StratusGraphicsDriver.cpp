@@ -35,6 +35,7 @@ namespace stratus {
         log << "\tMax texture size 1D: "                    << config.maxTextureSize1D2D << std::endl;
         log << "\tMax texture size 2D: "                    << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
         log << "\tMax texture size 3D: "                    << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
+        log << "\tMax texture size cube map: "              << config.maxTextureSizeCubeMap << "x" << config.maxTextureSizeCubeMap << std::endl;
         log << "\tMax vertex attribs: "                     << config.maxVertexAttribs << std::endl;
         log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
         log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
@@ -123,6 +124,7 @@ namespace stratus {
         glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &context.config.maxTextureImageUnits);
         glGetIntegerv(GL_MAX_TEXTURE_SIZE, &context.config.maxTextureSize1D2D);
         glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &context.config.maxTextureSize3D);
+        glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &context.config.maxTextureSizeCubeMap);
         glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &context.config.maxVertexAttribs);
         glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &context.config.maxVertexUniformVectors);
         glGetIntegerv(GL_MAX_DRAW_BUFFERS, &context.config.maxDrawBuffers);

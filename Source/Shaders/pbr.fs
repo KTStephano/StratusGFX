@@ -54,9 +54,11 @@ uniform int numShadowLights = 0;
 layout (std430, binding = 0) readonly buffer input1 {
     PointLight nonShadowCasters[];
 };
- 
+
+uniform samplerCubeArray shadowCubeMaps;
+
 layout (std430, binding = 1) readonly buffer input2 {
-    samplerCube shadowCubeMaps[];
+    int shadowIndices[];
 };
 
 layout (std430, binding = 2) readonly buffer input3 {
@@ -113,10 +115,10 @@ void main() {
         if(distance < light.radius) {
             float shadowFactor = 0.0;
             if (viewDist < 100.0) {
-                shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
+                shadowFactor = calculateShadowValue8Samples(shadowCubeMaps, shadowIndices[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
             else if (viewDist < 650.0) {
-                shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
+                shadowFactor = calculateShadowValue1Sample(shadowCubeMaps, shadowIndices[i], light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
             color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, shadowFactor, baseReflectivity);
         }

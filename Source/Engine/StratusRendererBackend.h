@@ -229,8 +229,9 @@ namespace stratus {
             const int tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
             int vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
-            GpuBuffer vplDiffuseMaps;
-            GpuBuffer vplShadowMaps;
+            //GpuBuffer vplDiffuseMaps;
+            //GpuBuffer vplShadowMaps;
+            GpuBuffer shadowDiffuseIndices;
             GpuBuffer vplStage1Results;
             GpuBuffer vplVisiblePerTile;
             GpuBuffer vplData;
@@ -248,7 +249,8 @@ namespace stratus {
             int maxShadowCastingLightsPerFrame = 20; // per frame
             int maxTotalRegularLightsPerFrame = 200; // per frame
             GpuBuffer nonShadowCastingPointLights;
-            GpuBuffer shadowCubeMaps;
+            //GpuBuffer shadowCubeMaps;
+            GpuBuffer shadowIndices;
             GpuBuffer shadowCastingPointLights;
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
@@ -369,26 +371,18 @@ namespace stratus {
             bool loaded = true;
         };
 
-        struct ShadowMap3D {
-            // Each shadow map is rendered to a frame buffer backed by a 3D texture
-            FrameBuffer frameBuffer;
-            Texture shadowCubeMap;
-            // This is only set for VPLs so they can sample color values in the direction
-            // of the world light
-            Texture diffuseCubeMap;
-        };
+        // Each shadow map is actually a layer inside of a shadow map array
+        typedef int ShadowMap3D;
 
         struct ShadowMapCache {
-            /**
-             * Maps all shadow maps to a handle.
-             */
-            std::unordered_map<TextureHandle, ShadowMap3D> shadowMap3DHandles;
+            // Framebuffer which wraps around all available cube maps
+            FrameBuffer buffer;
 
             // Lights -> Handles map
-            std::unordered_map<LightPtr, TextureHandle> lightsToShadowMap;
+            std::unordered_map<LightPtr, ShadowMap3D> lightsToShadowMap;
 
-            // Marks which maps are in use by an active light
-            std::unordered_set<TextureHandle> usedShadowMaps;
+            // Lists all shadow maps which are currently available
+            std::list<ShadowMap3D> freeShadowMaps;
 
             // Marks which lights are currently in the cache
             std::list<LightPtr> lruLightCache;
@@ -525,16 +519,14 @@ namespace stratus {
         void RenderSsaoBlur_();
         glm::vec3 CalculateAtmosphericLightPosition_() const;
         void RenderAtmosphericShadowing_();
-        TextureHandle CreateShadowMap3D_(uint32_t resolutionX, uint32_t resolutionY, bool vpl);
-        TextureHandle GetOrAllocateShadowMapHandleForLight_(LightPtr);
+        ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl);
         ShadowMap3D GetOrAllocateShadowMapForLight_(LightPtr);
-        void SetLightShadowMapHandle_(LightPtr, TextureHandle);
+        void SetLightShadowMap3D_(LightPtr, ShadowMap3D);
         void EvictLightFromShadowMapCache_(LightPtr);
         void AddLightToShadowMapCache_(LightPtr);
         void RemoveLightFromShadowMapCache_(LightPtr);
         bool ShadowMapExistsForLight_(LightPtr);
         ShadowMapCache& GetSmapCacheForLight_(LightPtr);
-        Texture LookupShadowmapTexture_(TextureHandle handle) const;
         void RecalculateCascadeData_();
         void ValidateAllShaders_();
     };

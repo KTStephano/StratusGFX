@@ -51,14 +51,25 @@ namespace stratus {
                 //maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
                 glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
             }
-            else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
+            else if (config.type == TextureType::TEXTURE_2D_ARRAY || config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
+                if (config.width != config.height || config.depth < 1) {
+                    throw std::runtime_error("Unable to create array texture");
+                }
+
+                // Cube map array depth is in terms of faces, so it should be desired depth * 6
+                if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY && (config.depth % 6) != 0) {
+                    throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
+                }
+
+                STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
+
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
                 // for an example of glTexImage3D
-                glTexImage3D(GL_TEXTURE_2D_ARRAY, // target
+                glTexImage3D(_convertTexture(config.type), // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, 
-                    config.height, 
+                    config.height,  
                     config.depth,
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
@@ -67,8 +78,8 @@ namespace stratus {
                 );
             }
             else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
-                if (config.width != config.height || (config.depth % 6) != 0) {
-                    throw std::runtime_error("Unable to create cube map texture - invalid width/height or depth");
+                if (config.width != config.height) {
+                    throw std::runtime_error("Unable to create cube map texture");
                 }
 
                 for (int face = 0; face < 6; ++face) {
@@ -120,7 +131,7 @@ namespace stratus {
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (_config.type == TextureType::TEXTURE_CUBE_MAP) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            if (_config.type == TextureType::TEXTURE_CUBE_MAP || _config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
             unbind();
         }
 
@@ -142,29 +153,43 @@ namespace stratus {
             handle_ = handle;
         }
 
-        void Clear(const int mipLevel, const void * clearValue) {
-            glClearTexImage(_texture, mipLevel,
+        void Clear(const int mipLevel, const void * clearValue) const {
+            glClearTexImage(
+                _texture, 
+                mipLevel,
                 _convertFormat(_config.format), // format (e.g. RGBA)
                 _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
-                clearValue); 
+                clearValue
+            ); 
         }
 
         // See https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glClearTexSubImage.xhtml
         // for information about how to handle different texture types.
         //
         // This does not work for compressed textures or texture buffers.
-        void clearLayer(const int mipLevel, const int layer, const void * clearValue) {
+        void clearLayer(const int mipLevel, const int layer, const void * clearValue) const {
             if (type() == TextureType::TEXTURE_2D || type() == TextureType::TEXTURE_RECTANGLE) {
                 Clear(mipLevel, clearValue);
             }
             else {
+                // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
+                const int multiplier = type() == TextureType::TEXTURE_2D_ARRAY ? 1 : 6;
                 const int xoffset = 0, yoffset = 0;
-                const int zoffset = layer;
-                const int depth = 1; // number of layers to clear
-                glClearTexSubImage(_texture, mipLevel, xoffset, yoffset, zoffset, width(), height(), depth,
+                const int zoffset = layer * multiplier;
+                const int depth = multiplier; // number of layers to clear which for a cubemap is 6
+                glClearTexSubImage(
+                    _texture, 
+                    mipLevel, 
+                    xoffset, 
+                    yoffset, 
+                    zoffset, 
+                    width(), 
+                    height(), 
+                    depth,
                     _convertFormat(_config.format), // format (e.g. RGBA)
                     _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
-                    clearValue);
+                    clearValue
+                );
             }
         }
 
@@ -247,6 +272,7 @@ namespace stratus {
             case TextureType::TEXTURE_2D_ARRAY: return GL_TEXTURE_2D_ARRAY;
             case TextureType::TEXTURE_CUBE_MAP: return GL_TEXTURE_CUBE_MAP;
             case TextureType::TEXTURE_RECTANGLE: return GL_TEXTURE_RECTANGLE;
+            case TextureType::TEXTURE_CUBE_MAP_ARRAY: return GL_TEXTURE_CUBE_MAP_ARRAY;
             default: throw std::runtime_error("Unknown texture type");
             }
         }
@@ -509,8 +535,8 @@ namespace stratus {
     void Texture::Unbind() const { impl_->unbind(); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::Clear(const int mipLevel, const void * clearValue) { impl_->Clear(mipLevel, clearValue); }
-    void Texture::ClearLayer(const int mipLevel, const int layer, const void * clearValue) { impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::Clear(const int mipLevel, const void * clearValue) const { impl_->Clear(mipLevel, clearValue); }
+    void Texture::ClearLayer(const int mipLevel, const int layer, const void * clearValue) const { impl_->clearLayer(mipLevel, layer, clearValue); }
 
     const void * Texture::Underlying() const { return impl_->Underlying(); }
 
@@ -523,7 +549,7 @@ namespace stratus {
     }
 
     // Creates a new texture and copies this texture into it
-    Texture Texture::Copy(uint32_t newWidth, uint32_t newHeight) {
+    Texture Texture::Copy(uint32_t newWidth, uint32_t newHeight) const {
         throw std::runtime_error("Must implement");
     }
 

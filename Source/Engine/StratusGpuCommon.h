@@ -11,7 +11,7 @@
 
 // Once a VPL is further than this distance away it is automatically culled
 #define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
-#define MAX_TOTAL_VPL_SHADOW_MAPS (512)
+#define MAX_TOTAL_VPL_SHADOW_MAPS (256)
 
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
@@ -243,7 +243,7 @@ namespace stratus {
         GpuVec color;
         float radius;
         float farPlane;
-        float placeholder1_[2];
+        float placeholder_[2];
     };
 #ifndef __GNUC__
     #pragma pack(pop)
