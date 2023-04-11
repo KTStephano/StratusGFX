@@ -9,9 +9,14 @@
 #define PACKED_STRUCT_ATTRIBUTE
 #endif
 
+// Synchronized with definitions in pbr.glsl
+#define MAX_TOTAL_SHADOW_ATLASES (5)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
+
 // Once a VPL is further than this distance away it is automatically culled
 #define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
-#define MAX_TOTAL_VPL_SHADOW_MAPS (256)
+#define MAX_TOTAL_VPL_SHADOW_MAPS (1024)
 
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
@@ -25,7 +30,7 @@
 
 // Matches the definitions in vpl_common.glsl
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (512)
+#define MAX_TOTAL_VPLS_PER_FRAME (1024)
 #define MAX_VPLS_PER_TILE (12)
 
 namespace stratus {
@@ -249,6 +254,18 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+    // This is synchronized with the version inside of pbr.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuAtlasEntry {
+        int index = -1;
+        int layer = -1;
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
@@ -258,5 +275,6 @@ namespace stratus {
     static_assert(sizeof(GpuVplData) == 64);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
+    static_assert(sizeof(GpuAtlasEntry) == 8);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

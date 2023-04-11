@@ -63,6 +63,17 @@ uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
+// Synchronized with definition found in StratusGpuCommon.h
+#define MAX_TOTAL_SHADOW_ATLASES (5)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
+
+// Synchronized with definition found in StratusGpuCommon.h
+struct AtlasEntry {
+    int index;
+    int layer;
+};
+
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
 float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized

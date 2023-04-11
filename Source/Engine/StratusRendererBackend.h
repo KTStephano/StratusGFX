@@ -371,18 +371,15 @@ namespace stratus {
             bool loaded = true;
         };
 
-        // Each shadow map is actually a layer inside of a shadow map array
-        typedef int ShadowMap3D;
-
         struct ShadowMapCache {
             // Framebuffer which wraps around all available cube maps
-            FrameBuffer buffer;
+            std::vector<FrameBuffer> buffers;
 
             // Lights -> Handles map
-            std::unordered_map<LightPtr, ShadowMap3D> lightsToShadowMap;
+            std::unordered_map<LightPtr, GpuAtlasEntry> lightsToShadowMap;
 
             // Lists all shadow maps which are currently available
-            std::list<ShadowMap3D> freeShadowMaps;
+            std::list<GpuAtlasEntry> freeShadowMaps;
 
             // Marks which lights are currently in the cache
             std::list<LightPtr> lruLightCache;
@@ -520,8 +517,8 @@ namespace stratus {
         glm::vec3 CalculateAtmosphericLightPosition_() const;
         void RenderAtmosphericShadowing_();
         ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl);
-        ShadowMap3D GetOrAllocateShadowMapForLight_(LightPtr);
-        void SetLightShadowMap3D_(LightPtr, ShadowMap3D);
+        GpuAtlasEntry GetOrAllocateShadowMapForLight_(LightPtr);
+        void SetLightShadowMap3D_(LightPtr, GpuAtlasEntry);
         void EvictLightFromShadowMapCache_(LightPtr);
         void AddLightToShadowMapCache_(LightPtr);
         void RemoveLightFromShadowMapCache_(LightPtr);

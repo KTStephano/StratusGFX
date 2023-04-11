@@ -57,8 +57,14 @@ namespace stratus {
                 }
 
                 // Cube map array depth is in terms of faces, so it should be desired depth * 6
-                if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY && (config.depth % 6) != 0) {
-                    throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
+                // if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY && (config.depth % 6) != 0) {
+                //     throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
+                // }
+
+                uint32_t depth = config.depth;
+                // Cube map array depth is in terms of faces, so it should be desired depth * 6
+                if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
+                    depth *= 6;
                 }
 
                 STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
@@ -70,7 +76,7 @@ namespace stratus {
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, 
                     config.height,  
-                    config.depth,
+                    depth,
                     0,
                     _convertFormat(config.format), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)

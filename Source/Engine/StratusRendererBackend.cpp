@@ -54,7 +54,7 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     //if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
     if (severity == GL_DEBUG_SEVERITY_HIGH) {
-       std::cout << "[OpenGL] " << message << std::endl;
+       //std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -253,12 +253,16 @@ void RendererBackend::InitPointShadowMaps_() {
     // Initialize the point light buffers including shadow map texture buffer
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     state_.nonShadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * state_.maxTotalRegularLightsPerFrame, flags);
-    state_.shadowIndices = GpuBuffer(nullptr, sizeof(ShadowMap3D) * state_.maxShadowCastingLightsPerFrame, flags);
+    state_.shadowIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * state_.maxShadowCastingLightsPerFrame, flags);
     state_.shadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * state_.maxShadowCastingLightsPerFrame, flags);
+
+    STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
 
     // Create the virtual point light shadow map cache
     vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true);
-    state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(ShadowMap3D) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+    state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+
+    STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
 
 void RendererBackend::InitializeVplData_() {
@@ -1207,20 +1211,20 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         //PointLightPtr point = (PointLightPtr)light;
         PointLight * point = (PointLight *)light.get();
         auto& cache = GetSmapCacheForLight_(light);
-        ShadowMap3D smap = GetOrAllocateShadowMapForLight_(light);
+        GpuAtlasEntry smap = GetOrAllocateShadowMapForLight_(light);
 
-        const auto cubeMapWidth = cache.buffer.GetDepthStencilAttachment()->Width();
-        const auto cubeMapHeight = cache.buffer.GetDepthStencilAttachment()->Height();
+        const auto cubeMapWidth = cache.buffers[smap.index].GetDepthStencilAttachment()->Width();
+        const auto cubeMapHeight = cache.buffers[smap.index].GetDepthStencilAttachment()->Height();
         const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(cubeMapWidth) / float(cubeMapHeight), point->GetNearPlane(), point->GetFarPlane());
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
-        if (cache.buffer.GetColorAttachments().size() > 0) {
-            cache.buffer.GetColorAttachments()[0].ClearLayer(0, smap, nullptr);
+        if (cache.buffers[smap.index].GetColorAttachments().size() > 0) {
+            cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, nullptr);
         }
         float depthClear = 1.0f;
-        cache.buffer.GetDepthStencilAttachment()->ClearLayer(0, smap, &depthClear);
+        cache.buffers[smap.index].GetDepthStencilAttachment()->ClearLayer(0, smap.layer, &depthClear);
 
-        cache.buffer.Bind();
+        cache.buffers[smap.index].Bind();
         glViewport(0, 0, cubeMapWidth, cubeMapHeight);
         // Current pass only cares about depth buffer
         // glClear(GL_DEPTH_BUFFER_BIT);
@@ -1231,7 +1235,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         for (size_t i = 0; i < transforms.size(); ++i) {
 
             // * 6 since each cube map is accessed by a layer-face which is divisible by 6
-            shader->SetInt("layer", int(smap * 6 + i));
+            shader->SetInt("layer", int(smap.layer * 6 + i));
             shader->SetMat4("shadowMatrix", transforms[i]);
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
@@ -1249,7 +1253,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         UnbindShader_();
 
         // Unbind
-        cache.buffer.Unbind();
+        cache.buffers[smap.index].Unbind();
     }
 }
 
@@ -1335,7 +1339,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // Pack data into system memory
     std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
     std::vector<GpuTextureHandle> smapHandles(perVPLDistToViewer.size());
-    std::vector<ShadowMap3D> shadowDiffuseIndices(perVPLDistToViewer.size());
+    std::vector<GpuAtlasEntry> shadowDiffuseIndices(perVPLDistToViewer.size());
     for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
         const int index = visibleVplIndices[i];
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[index].first.get();
@@ -1344,7 +1348,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     }
 
     // Move data to GPU memory
-    state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(ShadowMap3D) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
+    state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
 
     const Camera & lightCam = *frame_->csc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
@@ -1356,7 +1360,9 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
     state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
-    state_.vplColoring->BindTexture("diffuseCubeMaps", cache.buffer.GetColorAttachments()[0]);
+    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+        state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
+    }
 
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
@@ -1483,7 +1489,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplGlobalIllumination->BindTexture("shadowCubeMaps", *cache.buffer.GetDepthStencilAttachment());
+    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+        state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
+    }
     state_.vplGlobalIllumination->BindTexture("screen", state_.lightingColorBuffer);
     state_.vplGlobalIllumination->BindTexture("gDepth", state_.currentFrame.depth);
     state_.vplGlobalIllumination->BindTexture("gNormal", state_.currentFrame.normals);
@@ -1926,36 +1934,54 @@ void RendererBackend::RenderQuad_() {
 }
 
 RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl) {
-    // Shadow maps have 6 faces per layer
-    const uint32_t numLayers = count * 6;
-
     ShadowMapCache cache;
     
-    std::vector<Texture> attachments;
-    Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    int remaining = int(count);
+    while (remaining > 0 && cache.buffers.size() < MAX_TOTAL_SHADOW_ATLASES) {
+        // Determine how many entries will be present in this atlas
+        int tmp = remaining - MAX_TOTAL_SHADOWS_PER_ATLAS;
+        int entries = MAX_TOTAL_SHADOWS_PER_ATLAS;
+        if (tmp < 0) {
+            entries = remaining;
+        }
+        remaining = tmp;
 
-    attachments.push_back(texture); 
+        const uint32_t numLayers = entries;
 
-    if (vpl) {
-        texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+        std::vector<Texture> attachments;
+        Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
         texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-        attachments.push_back(texture);
-    }
+        attachments.push_back(texture); 
 
-    cache.buffer = FrameBuffer(attachments);
+        if (vpl) {
+            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    if (!cache.buffer.Valid()) {
-        isValid_ = false;
-        return ShadowMapCache();
+            attachments.push_back(texture);
+        }
+
+        auto fbo = FrameBuffer(attachments);
+
+        if (!fbo.Valid()) {
+            isValid_ = false;
+            return ShadowMapCache();
+        }
+
+        cache.buffers.push_back(fbo);
     }
 
     // Initialize individual entries
-    for (ShadowMap3D smap = 0; smap < (ShadowMap3D)count; ++smap) {
-        cache.freeShadowMaps.push_back(smap);
+    for (int index = 0; index < cache.buffers.size(); ++index) {
+        const int depth = int(cache.buffers[index].GetDepthStencilAttachment()->Depth());
+        for (int layer = 0; layer < depth; ++layer) {
+            GpuAtlasEntry entry;
+            entry.index = index;
+            entry.layer = layer;
+            cache.freeShadowMaps.push_back(entry);
+        }
     }
 
     return cache;
@@ -2033,7 +2059,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     //}
 
     std::vector<GpuPointLight> gpuLights;
-    std::vector<ShadowMap3D> gpuShadowCubeMaps;
+    std::vector<GpuAtlasEntry> gpuShadowCubeMaps;
     std::vector<GpuPointLight> gpuShadowLights;
     gpuLights.reserve(lights.size());
     gpuShadowCubeMaps.reserve(maxShadowLights);
@@ -2063,7 +2089,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     }
 
     state_.nonShadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuLights.size(), (const void*)gpuLights.data());
-    state_.shadowIndices.CopyDataToBuffer(0, sizeof(ShadowMap3D) * gpuShadowCubeMaps.size(), (const void*)gpuShadowCubeMaps.data());
+    state_.shadowIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * gpuShadowCubeMaps.size(), (const void*)gpuShadowCubeMaps.data());
     state_.shadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuShadowLights.size(), (const void*)gpuShadowLights.data());
 
     state_.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
@@ -2084,7 +2110,9 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     s->SetInt("numLights", int(gpuLights.size()));
     s->SetInt("numShadowLights", int(gpuShadowLights.size()));
     s->SetVec3("viewPosition", c.GetPosition());
-    s->BindTexture("shadowCubeMaps", *cache.buffer.GetDepthStencilAttachment());
+    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+        s->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
+    }
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();
     s->SetVec3("atmosphericLightPos", lightPosition);
 
@@ -2107,20 +2135,20 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     // s->setMat4("cascade0ProjView", &_state.csms[0].projectionView[0][0]);
 }
 
-RendererBackend::ShadowMap3D RendererBackend::GetOrAllocateShadowMapForLight_(LightPtr light) {
+GpuAtlasEntry RendererBackend::GetOrAllocateShadowMapForLight_(LightPtr light) {
     auto& cache = GetSmapCacheForLight_(light);
     assert(cache.freeShadowMaps.size() > 0 || cache.lruLightCache.size() > 0);
 
     auto it = cache.lightsToShadowMap.find(light);
     // If not found, look for an existing shadow map
     if (it == cache.lightsToShadowMap.end()) {
-        ShadowMap3D smap = -1;
+        GpuAtlasEntry smap;
         if (cache.freeShadowMaps.size() > 0) {
             smap = cache.freeShadowMaps.front();
             cache.freeShadowMaps.pop_front();
         }
 
-        if (smap == -1) {
+        if (smap.index == -1) {
             // Evict oldest since we could not find an available handle
             LightPtr oldest = cache.lruLightCache.front();
             //cache.lruLightCache.pop_front();
@@ -2138,7 +2166,7 @@ RendererBackend::ShadowMap3D RendererBackend::GetOrAllocateShadowMapForLight_(Li
     return it->second;
 }
 
-void RendererBackend::SetLightShadowMap3D_(LightPtr light, RendererBackend::ShadowMap3D smap) {
+void RendererBackend::SetLightShadowMap3D_(LightPtr light, GpuAtlasEntry smap) {
     auto& cache = GetSmapCacheForLight_(light);
     cache.lightsToShadowMap.insert(std::make_pair(light, smap));
 }
@@ -2172,7 +2200,7 @@ void RendererBackend::RemoveLightFromShadowMapCache_(LightPtr light) {
     auto& cache = GetSmapCacheForLight_(light);
 
     // Deallocate its map
-    ShadowMap3D smap = cache.lightsToShadowMap.find(light)->second;
+    GpuAtlasEntry smap = cache.lightsToShadowMap.find(light)->second;
     cache.lightsToShadowMap.erase(light);
     cache.freeShadowMaps.push_back(smap);
 

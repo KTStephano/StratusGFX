@@ -58,10 +58,10 @@ layout (std430, binding = 2) readonly buffer inputBlock3 {
     int vplVisibleIndex[];
 };
 
-uniform samplerCubeArray shadowCubeMaps;
+uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
 layout (std430, binding = 3) readonly buffer inputBlock4 {
-    int shadowIndices[];
+    AtlasEntry shadowIndices[];
 };
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
@@ -111,8 +111,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // int lightIndex = vplVisibleIndex[int(numVisible * rand)];
         int lightIndex = vplVisibleIndex[baseLightIndex];
         vec3 lightPosition = lightData[lightIndex].position.xyz;
+        AtlasEntry entry = shadowIndices[lightIndex];
 
-        shadowFactor += calculateShadowValue1Sample(shadowCubeMaps, shadowIndices[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        shadowFactor += calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
     }
 
     shadowFactor /= float(maxShadowLights);
