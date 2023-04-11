@@ -104,19 +104,19 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     vec3 seed = vec3(0.0, 0.0, time);
-    float shadowFactor = 0.0;
-    for (int baseLightIndex = 0; baseLightIndex < maxShadowLights; ++baseLightIndex) {
-        // seed.z += 1.0;
-        // float rand = random(seed);
-        // int lightIndex = vplVisibleIndex[int(numVisible * rand)];
-        int lightIndex = vplVisibleIndex[baseLightIndex];
-        vec3 lightPosition = lightData[lightIndex].position.xyz;
-        AtlasEntry entry = shadowIndices[lightIndex];
+    // float shadowFactor = 0.0;
+    // for (int baseLightIndex = 0; baseLightIndex < maxShadowLights; ++baseLightIndex) {
+    //     // seed.z += 1.0;
+    //     // float rand = random(seed);
+    //     // int lightIndex = vplVisibleIndex[int(numVisible * rand)];
+    //     int lightIndex = vplVisibleIndex[baseLightIndex];
+    //     vec3 lightPosition = lightData[lightIndex].position.xyz;
+    //     AtlasEntry entry = shadowIndices[lightIndex];
 
-        shadowFactor += calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-    }
+    //     shadowFactor += calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+    // }
 
-    shadowFactor /= float(maxShadowLights);
+    // shadowFactor /= float(maxShadowLights);
 
     seed = vec3(gl_FragCoord.xy, time);
     for (int baseLightIndex = 0 ; baseLightIndex < maxLights; baseLightIndex += 1) {
@@ -126,6 +126,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];
         int lightIndex = vplVisibleIndex[int(numVisible * rand)];
+        AtlasEntry entry = shadowIndices[lightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightData[lightIndex].position.xyz;
@@ -136,10 +137,10 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
-        // float shadowFactor = 0.0;
-        // if (distToCamera < 500) {
-        //     shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[lightIndex], lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-        // }
+        float shadowFactor = 0.0;
+        if (distToCamera < 500) {
+            shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
