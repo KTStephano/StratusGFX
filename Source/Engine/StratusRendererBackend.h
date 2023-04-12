@@ -328,7 +328,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> lightingWithInfiniteLight;
             // Handles global illuminatino stage
             std::unique_ptr<Pipeline> vplGlobalIllumination;
-            std::unique_ptr<Pipeline> vplGlobalIlluminationBlurring;
+            std::unique_ptr<Pipeline> vplGlobalIlluminationDenoising;
             // Bloom stage
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling

@@ -98,17 +98,18 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     vec3 vplColor = vec3(0.0); //screenColor;
 
-    int maxLights = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
+    int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
     int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
 
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     vec3 seed = vec3(0.0, 0.0, time);
+    int maxRandomIndex = numVisible - 1;
     // float shadowFactor = 0.0;
     // for (int baseLightIndex = 0; baseLightIndex < maxShadowLights; ++baseLightIndex) {
-    //     // seed.z += 1.0;
-    //     // float rand = random(seed);
-    //     // int lightIndex = vplVisibleIndex[int(numVisible * rand)];
+    //     //seed.z += 1000.0;
+    //     //float rand = random(seed);
+    //     //int lightIndex = vplVisibleIndex[int(maxRandomIndex * rand)];
     //     int lightIndex = vplVisibleIndex[baseLightIndex];
     //     vec3 lightPosition = lightData[lightIndex].position.xyz;
     //     AtlasEntry entry = shadowIndices[lightIndex];
@@ -119,13 +120,13 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // shadowFactor /= float(maxShadowLights);
 
     seed = vec3(gl_FragCoord.xy, time);
-    for (int baseLightIndex = 0 ; baseLightIndex < maxLights; baseLightIndex += 1) {
+    for (int baseLightIndex = 0 ; baseLightIndex < maxSamples; baseLightIndex += 1) {
         seed.z += 1000.0;
         float rand = random(seed);
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];
-        int lightIndex = vplVisibleIndex[int(numVisible * rand)];
+        int lightIndex = vplVisibleIndex[int(maxRandomIndex * rand)];
         AtlasEntry entry = shadowIndices[lightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 

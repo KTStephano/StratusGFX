@@ -189,10 +189,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_pbr_gi.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.vplGlobalIllumination.get());
 
-    state_.vplGlobalIlluminationBlurring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    state_.vplGlobalIlluminationDenoising = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
-        Shader{"vpl_pbr_gi_blur.fs", ShaderType::FRAGMENT}}));
-    state_.shaders.push_back(state_.vplGlobalIlluminationBlurring.get());
+        Shader{"vpl_pbr_gi_denoise.fs", ShaderType::FRAGMENT}}));
+    state_.shaders.push_back(state_.vplGlobalIlluminationDenoising.get());
 
     state_.fxaaLuminance = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"fxaa.vs", ShaderType::VERTEX},
@@ -1514,10 +1514,10 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     UnbindShader_();
     state_.vpls.vplGIFbo.Unbind();
 
-    BindShader_(state_.vplGlobalIlluminationBlurring.get());
+    BindShader_(state_.vplGlobalIlluminationDenoising.get());
     state_.vpls.vplGIBlurredFbo.Bind();
-    state_.vplGlobalIlluminationBlurring->BindTexture("screen", state_.lightingColorBuffer);
-    state_.vplGlobalIlluminationBlurring->BindTexture("indirectIllumination", state_.vpls.vplGIColorBuffer);
+    state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
+    state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", state_.vpls.vplGIColorBuffer);
 
     RenderQuad_();
 
