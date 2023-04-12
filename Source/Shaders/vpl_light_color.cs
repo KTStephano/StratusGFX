@@ -62,6 +62,6 @@ void main() {
             }
         }
 
-        lightData[index].color = vec4(color * data.intensity, 1.0);
+        lightData[index].color = vec4(color * data.intensity * 20.0, 1.0);
     }
 }

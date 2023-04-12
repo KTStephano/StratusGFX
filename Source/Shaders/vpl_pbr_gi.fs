@@ -10,7 +10,7 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 20
+#define MAX_SAMPLES_PER_PIXEL 1
 #define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
 // GBuffer information
@@ -148,7 +148,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
-    return boundHDR(vplColor);
+    return boundHDR(vplColor / float(maxSamples));
 }
 
 void main() {
