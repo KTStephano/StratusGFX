@@ -1259,7 +1259,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 }
 
 void RendererBackend::PerformVirtualPointLightCullingStage1_(
-    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
+    std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
     std::vector<int>& visibleVplIndices) {
 
     if (perVPLDistToViewer.size() == 0) return;
@@ -1304,6 +1304,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
         state_.vpls.vplVisibleIndices.UnmapMemory();
     }
     else {
+        perVPLDistToViewer.clear();
         visibleVplIndices.clear();
     }
 
