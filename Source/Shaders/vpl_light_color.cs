@@ -31,10 +31,6 @@ layout (std430, binding = 1) readonly buffer inputBlock1 {
     int numVisible;
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock2 {
-    int vplVisibleIndex[];
-};
-
 uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
 layout (std430, binding = 4) readonly buffer inputBlock3 {
@@ -45,12 +41,12 @@ void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
     for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
-        int index = vplVisibleIndex[i];
+        int index = i;
         VplData data = lightData[index];
         AtlasEntry entry = diffuseIndices[index];
         // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = 2.0 * textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
-        float offset = 0.5;
+        vec3 color = textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
+        float offset = 0.25;
         float offsets[2] = float[](-offset, offset);
         // This should result in 2*2*2 = 8 samples, + 2 from above = 10
         for (int x = 0; x < 2; ++x) {

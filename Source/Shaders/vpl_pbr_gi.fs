@@ -10,7 +10,7 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 1
+#define MAX_SAMPLES_PER_PIXEL 4
 #define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
 // GBuffer information
@@ -52,10 +52,6 @@ layout (std430, binding = 0) readonly buffer inputBlock1 {
 
 layout (std430, binding = 1) readonly buffer inputBlock2 {
     int numVisible;
-};
-
-layout (std430, binding = 2) readonly buffer inputBlock3 {
-    int vplVisibleIndex[];
 };
 
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
@@ -126,7 +122,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];
-        int lightIndex = vplVisibleIndex[int(maxRandomIndex * rand)];
+        int lightIndex = int(maxRandomIndex * rand);
         AtlasEntry entry = shadowIndices[lightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 

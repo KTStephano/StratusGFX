@@ -28,6 +28,10 @@ layout (std430, binding = 0) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
+layout (std430, binding = 4) buffer inoutBlock2 {
+    VplData updatedLightData[];
+};
+
 layout (std430, binding = 1) buffer outputBlock1 {
     int numVisible;
 };
@@ -75,6 +79,7 @@ void main() {
         int localNumVisible = 0;
         for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
             if (lightVisible[i]) {
+                updatedLightData[localNumVisible] = lightData[i];
                 vplVisibleIndex[localNumVisible] = i;
                 ++localNumVisible;
             }

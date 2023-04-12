@@ -270,6 +270,7 @@ void RendererBackend::InitializeVplData_() {
     std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING, 0);
     state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
+    state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
     state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
@@ -1280,6 +1281,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     // Bind light data and visibility indices
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
@@ -1290,15 +1292,20 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
     state_.vpls.vplNumVisible.UnmapMemory();
 
-    // These should still be sorted since the GPU compute shader doesn't reorder them
-    int * indices = (int *)state_.vpls.vplVisibleIndices.MapMemory();
-    visibleVplIndices.resize(totalVisible);
+    if (totalVisible > 0) {
+        // These should still be sorted since the GPU compute shader doesn't reorder them
+        int* indices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
+        visibleVplIndices.resize(totalVisible);
 
-    for (int i = 0; i < totalVisible; ++i) {
-        visibleVplIndices[i] = indices[i];
+        for (int i = 0; i < totalVisible; ++i) {
+            visibleVplIndices[i] = indices[i];
+        }
+
+        state_.vpls.vplVisibleIndices.UnmapMemory();
     }
-
-    state_.vpls.vplVisibleIndices.UnmapMemory();
+    else {
+        visibleVplIndices.clear();
+    }
 
     //STRATUS_LOG << totalVisible << std::endl;
 
@@ -1334,17 +1341,18 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
     const std::vector<int>& visibleVplIndices) {
 
-    if (perVPLDistToViewer.size() == 0) return;
+    if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
 
     // Pack data into system memory
-    std::vector<GpuTextureHandle> diffuseHandles(perVPLDistToViewer.size());
-    std::vector<GpuTextureHandle> smapHandles(perVPLDistToViewer.size());
-    std::vector<GpuAtlasEntry> shadowDiffuseIndices(perVPLDistToViewer.size());
+    std::vector<GpuTextureHandle> diffuseHandles;
+    diffuseHandles.reserve(visibleVplIndices.size());
+    std::vector<GpuAtlasEntry> shadowDiffuseIndices;
+    shadowDiffuseIndices.reserve(visibleVplIndices.size());
     for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
         const int index = visibleVplIndices[i];
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[index].first.get();
         auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].first);
-        shadowDiffuseIndices[index] = smap;
+        shadowDiffuseIndices.push_back(smap);
     }
 
     // Move data to GPU memory
@@ -1365,11 +1373,11 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     }
 
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
     // Bind outputs
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
     // Dispatch and synchronize
     state_.vplColoring->DispatchCompute(1, 1, 1);
@@ -1483,9 +1491,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
@@ -1950,14 +1958,14 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_
 
         std::vector<Texture> attachments;
         Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-        texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         attachments.push_back(texture); 
 
         if (vpl) {
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);
