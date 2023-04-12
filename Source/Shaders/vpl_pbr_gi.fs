@@ -10,8 +10,9 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 20
-#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
+#define MAX_SAMPLES_PER_PIXEL 4
+
+//#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
 // GBuffer information
 uniform sampler2D gDepth;
@@ -94,8 +95,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     vec3 vplColor = vec3(0.0); //screenColor;
 
-    int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
-    int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
+    //int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
+    //int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
 
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
@@ -116,7 +117,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // shadowFactor /= float(maxShadowLights);
 
     seed = vec3(gl_FragCoord.xy, time);
-    for (int baseLightIndex = 0 ; baseLightIndex < maxSamples; baseLightIndex += 1) {
+    for (int i = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
         seed.z += 1000.0;
         float rand = random(seed);
         // Calculate true light index via lookup into active light table
@@ -144,7 +145,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
-    return boundHDR(vplColor / float(maxSamples));
+    return boundHDR(vplColor / float(MAX_SAMPLES_PER_PIXEL));
 }
 
 void main() {
