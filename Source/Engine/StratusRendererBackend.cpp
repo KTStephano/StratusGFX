@@ -244,6 +244,12 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
     // Virtual point lights
     InitializeVplData_();
+
+    // Initialize Halton sequence
+    if (haltonSequence.size() * sizeof(std::pair<float, float>) != haltonSequence.size() * sizeof(GpuHaltonEntry)) {
+        throw std::runtime_error("Halton sequence size check failed");
+    }
+    haltonSequence_ = GpuBuffer((const void *)haltonSequence.data(), sizeof(GpuHaltonEntry) * haltonSequence.size(), GPU_DYNAMIC_DATA);
 }
 
 void RendererBackend::InitPointShadowMaps_() {
@@ -1496,6 +1502,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vplGlobalIllumination->SetInt("haltonSize", int(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
     for (size_t i = 0; i < cache.buffers.size(); ++i) {

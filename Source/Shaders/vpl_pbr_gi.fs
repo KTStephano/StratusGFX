@@ -10,7 +10,7 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 2
+#define MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 2
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -61,6 +61,12 @@ uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 layout (std430, binding = 3) readonly buffer inputBlock4 {
     AtlasEntry shadowIndices[];
 };
+
+layout (std430, binding = 4) readonly buffer inputBlock5 {
+    HaltonEntry haltonSequence[];
+};
+
+uniform int haltonSize;
 
 vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     if (length(screenColor) > 0.5) discard;
@@ -120,10 +126,22 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     seed = vec3(gl_FragCoord.xy, time);
     //seed = vec3(distToCamera * 10.0, distToCamera * 10.0, time);
     //seed = vec3(distToCamera, distToCamera, time);
+    int haltonIndex = int(haltonSize * random(seed));
     float validSamples = 0.0;
+    bool useBase2 = false;
     for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
-        seed.z += 1000.0;
-        float rand = random(seed);
+        //seed.z += 1000.0;
+        //float rand = random(seed);
+        float rand = haltonSequence[haltonIndex].base3;
+        if (useBase2) {
+            rand = haltonSequence[haltonIndex].base2;
+            ++haltonIndex;
+            if (haltonIndex > haltonSize) {
+                haltonIndex = 0;
+            }
+        }
+        useBase2 = !useBase2;
+
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];

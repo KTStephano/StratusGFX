@@ -51,6 +51,11 @@ struct DrawElementsIndirectCommand {
     uint baseInstance;
 };
 
+struct HaltonEntry {
+    float base2;
+    float base3;
+};
+
 layout (std430, binding = 30) readonly buffer SSBO_Global1 {
     Material materials[];
 };

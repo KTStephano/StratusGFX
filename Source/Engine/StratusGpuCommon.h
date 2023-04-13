@@ -266,6 +266,18 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+    // This is synchronized with the version inside of common.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuHaltonEntry {
+        float base2;
+        float base3;
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 128);
@@ -276,5 +288,6 @@ namespace stratus {
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);
+    static_assert(sizeof(GpuHaltonEntry) == 8);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

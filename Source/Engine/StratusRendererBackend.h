@@ -413,6 +413,9 @@ namespace stratus {
         // Current frame data used for drawing
         std::shared_ptr<RendererFrame> frame_;
 
+        // Contains some number of Halton sequence values
+        GpuBuffer haltonSequence_;
+
         /**
          * If the renderer was setup properly then this will be marked
          * true.
