@@ -369,28 +369,6 @@ namespace stratus {
         return frame_->globalIlluminationEnabled;
     }
 
-    // These are the first 16 values of the Halton sequence. For more information see:
-    //     https://en.wikipedia.org/wiki/Halton_sequence
-    //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
-    static const std::vector<std::pair<float, float>> haltonSequence = {
-        { 1.0f / 2.0f,  1.0f / 3.0f},
-        { 1.0f / 4.0f,  2.0f / 3.0f},
-        { 3.0f / 4.0f,  1.0f / 9.0f},
-        { 1.0f / 8.0f,  4.0f / 9.0f},
-        { 5.0f / 8.0f,  7.0f / 9.0f},
-        { 3.0f / 8.0f,  2.0f / 9.0f},
-        { 7.0f / 8.0f,  5.0f / 9.0f},
-        { 1.0f / 16.0f,  8.0f / 9.0f},
-        { 9.0f / 16.0f,  1.0f / 27.0f},
-        { 5.0f / 16.0f, 10.0f / 27.0f},
-        {13.0f / 16.0f, 19.0f / 27.0f},
-        { 3.0f / 16.0f,  4.0f / 27.0f},
-        {11.0f / 16.0f, 13.0f / 27.0f},
-        { 7.0f / 16.0f, 22.0f / 27.0f},
-        {15.0f / 16.0f,  7.0f / 27.0f},
-        { 1.0f / 32.0f, 16.0f / 27.0f},
-    };
-
     static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
         glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
         // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset

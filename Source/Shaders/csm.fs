@@ -21,7 +21,7 @@ void main() {
         baseColor = texture(material.diffuseMap, fsTexCoords);
     }
 
-	runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
+	runAlphaTest(baseColor.a);
 
 	// Written automatically - if used here it may disable early Z test but need to verify this
 	//gl_FragDepth = gl_FragCoord.z;// + fsTanTheta;

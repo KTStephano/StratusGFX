@@ -10,7 +10,8 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 4
+#define MAX_SAMPLES_PER_PIXEL 2
+#define MAX_RESAMPLES_PER_PIXEL 2
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -117,7 +118,10 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // shadowFactor /= float(maxShadowLights);
 
     seed = vec3(gl_FragCoord.xy, time);
-    for (int i = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
+    //seed = vec3(distToCamera * 10.0, distToCamera * 10.0, time);
+    //seed = vec3(distToCamera, distToCamera, time);
+    float validSamples = 0.0;
+    for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
         seed.z += 1000.0;
         float rand = random(seed);
         // Calculate true light index via lookup into active light table
@@ -131,13 +135,25 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float lightRadius = lightData[lightIndex].radius;
         vec3 lightColor = lightData[lightIndex].color.xyz;
         float lightIntensity = length(lightColor);
-        //float distance = length(lightPosition - fragPos);
+        float distance = length(lightPosition - fragPos);
+
+        if (distance > lightRadius && resamples < MAX_RESAMPLES_PER_PIXEL) {
+            ++resamples;
+            --i;
+            continue;
+        }
+
+        validSamples += 1.0;
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = 0.0;
         if (distToCamera < 500) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+            if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
+                ++resamples;
+                --i;
+            }
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
@@ -145,7 +161,9 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
     }
 
-    return boundHDR(vplColor / float(MAX_SAMPLES_PER_PIXEL));
+    validSamples = max(validSamples, 1.0);
+
+    return boundHDR(vplColor / validSamples);
 }
 
 void main() {

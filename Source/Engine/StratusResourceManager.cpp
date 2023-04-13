@@ -477,9 +477,9 @@ namespace stratus {
             if (normalMap != TextureHandle::Null()) {
                 m->SetNormalMap(normalMap);
             }
-            else {
-                m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
-            }
+            //else {
+                //m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
+            //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
             m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));

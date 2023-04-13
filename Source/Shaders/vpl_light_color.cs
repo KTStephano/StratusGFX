@@ -40,6 +40,8 @@ layout (std430, binding = 4) readonly buffer inputBlock3 {
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
+    float colorMultiplier = clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.2, 1.0) * 100.0;
+
     for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
         int index = i;
         VplData data = lightData[index];
@@ -58,6 +60,6 @@ void main() {
             }
         }
 
-        lightData[index].color = vec4(color * data.intensity * 20.0, 1.0);
+        lightData[index].color = vec4(color * data.intensity * colorMultiplier, 1.0);
     }
 }

@@ -22,7 +22,7 @@ void main() {
         diffuse = texture(material.diffuseMap, fsTexCoords);
     }
 
-    runAlphaTest(diffuse.a, ALPHA_DEPTH_TEST);
+    runAlphaTest(diffuse.a);
 
     // Apply gamma correction
     //texColor = pow(texColor, vec3(1.0 / gamma));

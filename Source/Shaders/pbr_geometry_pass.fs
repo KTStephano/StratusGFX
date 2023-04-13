@@ -87,7 +87,7 @@ void main() {
         baseColor = texture(material.diffuseMap, texCoords);
     }
 
-    runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
+    runAlphaTest(baseColor.a);
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
         normal = texture(material.normalMap, texCoords).rgb;
