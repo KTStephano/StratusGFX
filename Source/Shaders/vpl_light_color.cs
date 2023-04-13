@@ -40,25 +40,25 @@ layout (std430, binding = 4) readonly buffer inputBlock3 {
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    float colorMultiplier = clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.2, 1.0) * 100.0;
+    float colorMultiplier = clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 100.0;
 
     for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
         int index = i;
         VplData data = lightData[index];
         AtlasEntry entry = diffuseIndices[index];
         // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
+        vec3 color = 10.0 * textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
         float offset = 0.5;
         float offsets[2] = float[](-offset, offset);
         // This should result in 2*2*2 = 8 samples, + 2 from above = 10
-        for (int x = 0; x < 2; ++x) {
-            for (int y = 0; y < 2; ++y) {
-                for (int z = 0; z < 2; ++z) {
-                    vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
-                    color += textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection + dirOffset, float(entry.layer)), 0).rgb * infiniteLightColor;
-                }
-            }
-        }
+        // for (int x = 0; x < 2; ++x) {
+        //     for (int y = 0; y < 2; ++y) {
+        //         for (int z = 0; z < 2; ++z) {
+        //             vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
+        //             color += textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection + dirOffset, float(entry.layer)), 0).rgb * infiniteLightColor;
+        //         }
+        //     }
+        // }
 
         lightData[index].color = vec4(color * data.intensity * colorMultiplier, 1.0);
     }

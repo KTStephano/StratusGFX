@@ -14,6 +14,26 @@ out vec3 color;
 uniform sampler2D screen;
 uniform sampler2D indirectIllumination;
 
+// void main() {
+//     vec3 screenColor = texture(screen, fsTexCoords).rgb;
+
+//     vec3 cmin = vec3(FLOAT_MAX);
+//     vec3 cmax = vec3(-FLOAT_MAX);
+
+//     for (int dx = -1; dx <= 1; ++dx) {
+//         for (int dy = -1; dy <= 1; ++dy) {
+//             vec3 c = textureOffset(indirectIllumination, fsTexCoords, ivec2(dx, dy)).rgb;
+//             cmin = min(cmin, c);
+//             cmax = max(cmax, c);
+//         }
+//     }
+
+//     //vec3 illumAvg = texture(indirectIllumination, fsTexCoords).rgb;
+//     vec3 illumAvg = (cmax + cmin) / 2.0;
+
+//     color = screenColor + illumAvg;
+// }
+
 void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
 

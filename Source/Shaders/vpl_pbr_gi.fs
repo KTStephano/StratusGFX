@@ -10,7 +10,7 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 out vec3 color;
 
-#define MAX_SAMPLES_PER_PIXEL 4
+#define MAX_SAMPLES_PER_PIXEL 1
 #define MAX_RESAMPLES_PER_PIXEL 2
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -123,10 +123,12 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     // shadowFactor /= float(maxShadowLights);
 
-    seed = vec3(gl_FragCoord.xy, time);
-    //seed = vec3(distToCamera * 10.0, distToCamera * 10.0, time);
-    //seed = vec3(distToCamera, distToCamera, time);
-    int haltonIndex = int(haltonSize * random(seed));
+    //seed = vec3(gl_FragCoord.xy, time);
+    //seed = vec3(distToCamera * 10.0, 0.0, time);
+    seed = vec3(distToCamera, 0.0, time);
+    //seed = vec3(fragPos.x, fragPos.y, fragPos.z + time);
+    //seed = vec3(0.0, gl_FragCoord.y, time);
+    int haltonIndex = int(ceil(haltonSize * random(seed)));
     float validSamples = 0.0;
     bool useBase2 = false;
     for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
@@ -139,6 +141,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
             if (haltonIndex > haltonSize) {
                 haltonIndex = 0;
             }
+            // seed.z += 1000.0;
+            // haltonIndex = int(ceil(haltonSize * random(seed)));
         }
         useBase2 = !useBase2;
 
