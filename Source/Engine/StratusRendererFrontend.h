@@ -45,16 +45,9 @@ namespace stratus {
         CameraPtr GetCamera() const;
         void SetFovY(const Degrees&);
         void SetNearFar(const float znear, const float zfar);
-        void SetVsyncEnabled(const bool);
         void SetClearColor(const glm::vec4&);
-        void SetSkybox(const TextureHandle&);
-        void SetSkyboxColorMask(const glm::vec3&);
-        void SetSkyboxIntensity(const float);
-        void SetFogColor(const glm::vec3&);
-        void SetFogDensity(const float);
-
-        void SetGlobalIlluminationEnabled(const bool);
-        bool GetGlobalIlluminationEnabled() const;
+        RendererSettings GetSettings() const;
+        void SetSettings(const RendererSettings&);
 
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;

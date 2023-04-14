@@ -78,7 +78,9 @@ public:
         e.AddCallback(callback);
         e2.AddCallback(callback);
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
 
@@ -185,13 +187,13 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 60; x > 0; x -= 20) {
-               for (int y = 15; y < 240; y += 40) {
+           for (int x = 60; x > 0; x -= 10) {
+               for (int y = 15; y < 240; y += 20) {
                    for (int z = -140; z < 180; z += 20) {
                            ++spawned;
                            LightCreator::CreateVirtualPointLight(
                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-                               false
+                               true
                            );
                    }
                }

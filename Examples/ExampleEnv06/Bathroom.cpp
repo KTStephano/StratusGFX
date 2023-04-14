@@ -23,7 +23,7 @@
 #include "FrameRateController.h"
 
 class Bathroom : public stratus::Application {
-public:
+public: 
     virtual ~Bathroom() = default;
 
     const char * GetAppName() const override {
@@ -80,8 +80,12 @@ public:
             INSTANCE(EntityManager)->AddEntity(bathroom);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
-        INSTANCE(RendererFrontend)->SetSkyboxIntensity(0.0125f);
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        settings.SetSkyboxIntensity(0.0125f);
+        
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 

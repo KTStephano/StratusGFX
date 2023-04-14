@@ -163,6 +163,73 @@ namespace stratus {
         std::unordered_set<LightPtr> existing_;
     };
 
+    // Settings which can be changed at runtime by the application
+    struct RendererSettings {
+        // These are values we don't need to range check
+        TextureHandle skybox = TextureHandle::Null();
+        bool vsyncEnabled = false;
+        bool globalIlluminationEnabled = true;
+        bool fxaaEnabled = true;
+        bool taaEnabled = true;
+        bool bloomEnabled = true;
+
+        float GetEmissionStrength() const {
+            return emissionStrength_;
+        }
+
+        void SetEmissionStrength(const float strength) {
+            emissionStrength_ = std::max<float>(strength, 0.0f);
+        }
+
+        glm::vec3 GetFogColor() const {
+            return fogColor_;
+        }
+
+        float GetFogDensity() const {
+            return fogDensity_;
+        }
+
+        void SetFogColor(const glm::vec3& color) {
+            fogColor_ = glm::vec3(
+                std::max<float>(color[0], 0.0f),
+                std::max<float>(color[1], 0.0f),
+                std::max<float>(color[2], 0.0f)
+            );
+        }
+
+        void SetFogDensity(const float density) {
+            fogDensity_ = std::max<float>(density, 0.0f);
+        }
+
+        glm::vec3 GetSkyboxColorMask() const {
+            return skyboxColorMask_;
+        }
+
+        float GetSkyboxIntensity() const {
+            return skyboxIntensity_;
+        }
+
+        void SetSkyboxColorMask(const glm::vec3& mask) {
+            skyboxColorMask_ = glm::vec3(
+                std::max<float>(mask[0], 0.0f),
+                std::max<float>(mask[1], 0.0f),
+                std::max<float>(mask[2], 0.0f)
+            );
+        }
+
+        void SetSkyboxIntensity(const float intensity) {
+            skyboxIntensity_ = std::max<float>(intensity, 0.0f);
+        }
+
+    private:
+        // These are all values we need to range check when they are set
+        glm::vec3 fogColor_ = glm::vec3(0.5f);
+        float fogDensity_ = 0.0f;
+        float emissionStrength_ = 0.0f;
+        glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
+        float skyboxIntensity_ = 3.0f;
+    };
+
     // Represents data for current active frame
     struct RendererFrame {
         uint32_t viewportWidth;
@@ -193,16 +260,8 @@ namespace stratus {
         glm::mat4 invProjectionView;
         glm::mat4 prevProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
-        TextureHandle skybox = TextureHandle::Null();
-        glm::vec3 skyboxColorMask = glm::vec3(1.0f);
-        float skyboxIntensity = 3.0f;
-        glm::vec3 fogColor = glm::vec3(0.5f);
-        float fogDensity = 0.0f;
+        RendererSettings settings;
         bool viewportDirty;
-        bool vsyncEnabled;
-        bool globalIlluminationEnabled = true;
-        bool fxaaEnabled = true;
-        bool taaEnabled = true;
     };
 
     class RendererBackend {

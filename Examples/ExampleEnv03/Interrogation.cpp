@@ -72,8 +72,10 @@ public:
 
         requested.push_back(e);
 
-        INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
-        INSTANCE(RendererFrontend)->SetFogDensity(0.00125);
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
+        settings.SetFogDensity(0.00125);
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 

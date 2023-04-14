@@ -909,7 +909,7 @@ void RendererBackend::RenderSkybox_() {
     glDepthMask(GL_FALSE);
 
     TextureLoadingStatus status;
-    Texture sky = INSTANCE(ResourceManager)->LookupTexture(frame_->skybox, status);
+    Texture sky = INSTANCE(ResourceManager)->LookupTexture(frame_->settings.skybox, status);
     if (ValidateTexture(sky, status)) {
         const glm::mat4& projection = frame_->projection;
         const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
@@ -919,8 +919,8 @@ void RendererBackend::RenderSkybox_() {
         // _state.skybox->setMat4("view", view);
         state_.skybox->SetMat4("projectionView", projectionView);
 
-        state_.skybox->SetVec3("colorMask", frame_->skyboxColorMask);
-        state_.skybox->SetFloat("intensity", frame_->skyboxIntensity);
+        state_.skybox->SetVec3("colorMask", frame_->settings.GetSkyboxColorMask());
+        state_.skybox->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
         state_.skybox->BindTexture("skybox", sky);
 
         GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
@@ -1518,8 +1518,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
 
-    state_.vplGlobalIllumination->SetVec3("fogColor", frame_->fogColor);
-    state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->fogDensity);
+    state_.vplGlobalIllumination->SetVec3("fogColor", frame_->settings.GetFogColor());
+    state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->settings.GetFogDensity());
 
     const Camera& camera = *frame_->camera;
     state_.vplGlobalIllumination->SetVec3("viewPosition", camera.GetPosition());
@@ -1612,15 +1612,15 @@ void RendererBackend::RenderScene() {
     lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     lighting->SetFloat("windowWidth", frame_->viewportWidth);
     lighting->SetFloat("windowHeight", frame_->viewportHeight);
-    lighting->SetVec3("fogColor", frame_->fogColor);
-    lighting->SetFloat("fogDensity", frame_->fogDensity);
+    lighting->SetVec3("fogColor", frame_->settings.GetFogColor());
+    lighting->SetFloat("fogDensity", frame_->settings.GetFogDensity());
     RenderQuad_();
     state_.lightingFbo.Unbind();
     UnbindShader_();
     state_.finalScreenBuffer = state_.lightingFbo; // state_.lightingColorBuffer;
 
     // If world light is enabled perform VPL Global Illumination pass
-    if (frame_->csc.worldLight->GetEnabled() && frame_->globalIlluminationEnabled) {
+    if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
         PerformVirtualPointLightCullingStage2_(perVPLDistToViewer, visibleVplIndices);
         ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer);
@@ -1714,6 +1714,8 @@ void RendererBackend::PerformPostFxProcessing_() {
 }
 
 void RendererBackend::PerformBloomPostFx_() {
+    if (!frame_->settings.bloomEnabled) return;
+
     // We use this so that we can avoid a final copy between the downsample and blurring stages
     std::vector<PostFXBuffer> finalizedPostFxFrames(state_.numDownsampleIterations + state_.numUpsampleIterations);
    
@@ -1848,7 +1850,7 @@ void RendererBackend::PerformAtmosphericPostFx_() {
 }
 
 void RendererBackend::PerformFxaaPostFx_() {
-    if (!frame_->fxaaEnabled) return;
+    if (!frame_->settings.fxaaEnabled) return;
 
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
@@ -1878,7 +1880,7 @@ void RendererBackend::PerformFxaaPostFx_() {
 }
 
 void RendererBackend::PerformTaaPostFx_() {
-    if (!frame_->taaEnabled) return;
+    if (!frame_->settings.taaEnabled) return;
 
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
@@ -1940,7 +1942,7 @@ void RendererBackend::FinalizeFrame_() {
 void RendererBackend::End() {
     CHECK_IS_APPLICATION_THREAD();
 
-    GraphicsDriver::SwapBuffers(frame_->vsyncEnabled);
+    GraphicsDriver::SwapBuffers(frame_->settings.vsyncEnabled);
 
     frame_.reset();
 }

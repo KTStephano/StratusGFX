@@ -323,50 +323,19 @@ namespace stratus {
         viewportDirty_ = true;
     }
 
-    void RendererFrontend::SetVsyncEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        params_.vsyncEnabled = enabled;
-        frame_->vsyncEnabled = enabled;
-    }
-
     void RendererFrontend::SetClearColor(const glm::vec4& color) {
         auto ul = LockWrite_();
         frame_->clearColor = color;
     }
 
-    void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
-        auto ul = LockWrite_();
-        frame_->skybox = skybox;
-    }
-
-    void RendererFrontend::SetSkyboxColorMask(const glm::vec3& mask) {
-        auto ul = LockWrite_();
-        frame_->skyboxColorMask = mask;
-    }
-
-    void RendererFrontend::SetSkyboxIntensity(const float intensity) {
-        auto ul = LockWrite_();
-        frame_->skyboxIntensity = std::max(intensity, 0.0f);
-    }
-
-    void RendererFrontend::SetFogColor(const glm::vec3& color) {
-        auto ul = LockWrite_();
-        frame_->fogColor = color;
-    }
-
-    void RendererFrontend::SetFogDensity(const float density) {
-        auto ul = LockWrite_();
-        frame_->fogDensity = std::max(density, 0.0f);
-    }
-
-    void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        frame_->globalIlluminationEnabled = enabled;
-    }
-
-    bool RendererFrontend::GetGlobalIlluminationEnabled() const {
+    RendererSettings RendererFrontend::GetSettings() const {
         auto sl = LockRead_();
-        return frame_->globalIlluminationEnabled;
+        return frame_->settings;
+    }
+
+    void RendererFrontend::SetSettings(const RendererSettings& settings) {
+        auto ul = LockWrite_();
+        frame_->settings = settings;
     }
 
     static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
@@ -408,7 +377,7 @@ namespace stratus {
 
         // Set up the jittered variant
         glm::vec2 jitter(0.0f);
-        if (frame_->taaEnabled) {
+        if (frame_->settings.taaEnabled) {
             jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
         }
         frame_->jitterProjectionView = frame_->projection;

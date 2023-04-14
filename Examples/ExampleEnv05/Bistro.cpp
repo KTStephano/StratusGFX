@@ -25,40 +25,44 @@
 static void setupDayTime() {
     int spawned = 0;
     for (int x = -150; x < 200; x += 50) {
-        for (int y = 10; y < 100; y += 50) {
-            for (int z = -200; z < -50; z += 50) {
+        for (int y = 10; y < 100; y += 20) {
+            for (int z = -350; z < -50; z += 50) {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+                        false
+                    );
+            } 
+        }
+    }
+
+    for (int x = -200; x < 95; x += 30) {
+        for (int y = 10; y < 150; y += 15) {
+            for (int z = -50; z < 200; z += 30) {
+                    ++spawned;
+                    LightCreator::CreateVirtualPointLight(
+                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
                         false
                     );
             }
         }
     }
 
-    for (int x = -95; x < 95; x += 50) {
-        for (int y = 10; y < 150; y += 30) {
-            for (int z = -50; z < 200; z += 50) {
-                    ++spawned;
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
-                        false
-                    );
-            }
-        }
-    }
-
-    INSTANCE(RendererFrontend)->SetFogDensity(0.0f);
-    INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5f));
-    INSTANCE(RendererFrontend)->SetSkyboxIntensity(3.0f);
+    auto settings = INSTANCE(RendererFrontend)->GetSettings();
+    settings.SetFogDensity(0.0f);
+    settings.SetFogColor(glm::vec3(0.5f));
+    settings.SetSkyboxIntensity(3.0f);
+    INSTANCE(RendererFrontend)->SetSettings(settings);
     
     STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
 }
 
 static void setupNightTime() {
-    INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
-    INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5, 0.5, 0.125));
-    INSTANCE(RendererFrontend)->SetSkyboxIntensity(0.025);
+    auto settings = INSTANCE(RendererFrontend)->GetSettings();
+    settings.SetFogDensity(0.00075);
+    settings.SetFogColor(glm::vec3(0.5, 0.5, 0.125));
+    settings.SetSkyboxIntensity(0.025);
+    INSTANCE(RendererFrontend)->SetSettings(settings);
 
     LightCreator::CreateStationaryLight(
         LightParams(glm::vec3(-12.0833, 24.51, -48.1222), glm::vec3(1, 1, 0.5), 800, true),
@@ -427,7 +431,9 @@ public:
             INSTANCE(EntityManager)->AddEntity(bistro);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 

@@ -70,8 +70,10 @@ struct WorldLightController : public stratus::InputHandler {
                         case SDL_SCANCODE_G: {
                             if (released) {
                                 STRATUS_LOG << "Global Illumination Toggled" << std::endl;
-                                const bool enabled = INSTANCE(RendererFrontend)->GetGlobalIlluminationEnabled();
-                                INSTANCE(RendererFrontend)->SetGlobalIlluminationEnabled( !enabled );
+                                auto settings = INSTANCE(RendererFrontend)->GetSettings();
+                                const bool enabled = settings.globalIlluminationEnabled;
+                                settings.globalIlluminationEnabled = !enabled;
+                                INSTANCE(RendererFrontend)->SetSettings(settings);
                             }
                             break;
                         }

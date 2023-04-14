@@ -80,8 +80,10 @@ public:
             INSTANCE(EntityManager)->AddEntity(warehouse);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
-        INSTANCE(RendererFrontend)->SetSkyboxIntensity(3.0f);
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        settings.SetSkyboxIntensity(3.0f);
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 
