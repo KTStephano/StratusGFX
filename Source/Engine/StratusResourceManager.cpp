@@ -450,6 +450,17 @@ namespace stratus {
             unsigned int max = 1;
             aiColor4D transparency;
 
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
+                m->SetMetallic(metallic);
+                if (metallic > 0.0f) {
+                    m->SetBaseReflectivity(glm::clamp(glm::vec3(metallic), glm::vec3(0.5f), glm::vec3(0.8f)));
+                }
+                //STRATUS_LOG << "M: " << metallic << std::endl;
+            }
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
+                m->SetRoughness(roughness);
+            }
+
             if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &diffuse) == AI_SUCCESS) {
                 m->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
                 //STRATUS_LOG << "Diffuse: " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
@@ -477,13 +488,6 @@ namespace stratus {
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_GLOSSINESS_FACTOR, &specularFactor) == AI_SUCCESS) {
                 // STRATUS_LOG << "G: " << specularFactor << std::endl;
-            }
-            if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
-                m->SetMetallic(metallic);
-                //STRATUS_LOG << "M: " << metallic << std::endl;
-            }
-            if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
-                m->SetRoughness(roughness);
             }
 
             // STRATUS_LOG << "RMS: " << roughness << " " << metallic << " " << specularFactor << " " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
