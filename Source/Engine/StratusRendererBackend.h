@@ -172,6 +172,7 @@ namespace stratus {
         bool fxaaEnabled = true;
         bool taaEnabled = true;
         bool bloomEnabled = true;
+        bool usePerceptualRoughness = true;
 
         float GetEmissionStrength() const {
             return emissionStrength_;
@@ -221,6 +222,14 @@ namespace stratus {
             skyboxIntensity_ = std::max<float>(intensity, 0.0f);
         }
 
+        float GetMinRoughness() const {
+            return minRoughness_;
+        }
+
+        void SetMinRoughness(const float roughness) {
+            minRoughness_ = std::max<float>(roughness, 0.0f);
+        }
+
     private:
         // These are all values we need to range check when they are set
         glm::vec3 fogColor_ = glm::vec3(0.5f);
@@ -228,6 +237,7 @@ namespace stratus {
         float emissionStrength_ = 0.0f;
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
         float skyboxIntensity_ = 3.0f;
+        float minRoughness_ = 0.08f;
     };
 
     // Represents data for current active frame

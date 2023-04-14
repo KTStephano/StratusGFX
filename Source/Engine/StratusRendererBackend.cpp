@@ -1509,6 +1509,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     for (size_t i = 0; i < cache.buffers.size(); ++i) {
         state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
+
+    state_.vplGlobalIllumination->SetFloat("minRoughness", frame_->settings.GetMinRoughness());
+    state_.vplGlobalIllumination->SetBool("usePerceptualRoughness", frame_->settings.usePerceptualRoughness);
     state_.vplGlobalIllumination->BindTexture("screen", state_.lightingColorBuffer);
     state_.vplGlobalIllumination->BindTexture("gDepth", state_.currentFrame.depth);
     state_.vplGlobalIllumination->BindTexture("gNormal", state_.currentFrame.normals);
@@ -2129,6 +2132,9 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     s->SetInt("numLights", int(gpuLights.size()));
     s->SetInt("numShadowLights", int(gpuShadowLights.size()));
     s->SetVec3("viewPosition", c.GetPosition());
+    s->SetFloat("emissionStrength", frame_->settings.GetEmissionStrength());
+    s->SetFloat("minRoughness", frame_->settings.GetMinRoughness());
+    s->SetBool("usePerceptualRoughness", frame_->settings.usePerceptualRoughness);
     for (size_t i = 0; i < cache.buffers.size(); ++i) {
         s->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }

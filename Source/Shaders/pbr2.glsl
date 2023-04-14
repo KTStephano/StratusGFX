@@ -3,7 +3,7 @@ STRATUS_GLSL_VERSION
 #include "pbr.glsl"
 #include "fog.glsl"
 
-uniform float minRoughness = 0.0;
+uniform float minRoughness = 0.08;
 uniform bool usePerceptualRoughness = true;
 
 // All of the information was taken from these two sources:

@@ -83,6 +83,8 @@ public:
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
         settings.SetSkyboxIntensity(0.001);
+        settings.SetEmissionStrength(5.0f);
+        settings.usePerceptualRoughness = false;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         // INSTANCE(RendererFrontend)->SetFogDensity(0.00075);

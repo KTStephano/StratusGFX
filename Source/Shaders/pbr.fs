@@ -41,6 +41,8 @@ uniform float windowHeight;
  */
 uniform vec3 viewPosition;
 
+uniform float emissionStrength = 0.0;
+
 /**
  * Lighting information. All values related
  * to positions should be in world space.
@@ -140,7 +142,7 @@ void main() {
     color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
 #endif
 
-    fsColor = boundHDR(color + emissive * 5.0);
+    fsColor = boundHDR(color + emissive * emissionStrength);
 }
 
 // void main() {
