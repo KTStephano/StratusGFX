@@ -903,7 +903,7 @@ namespace stratus {
         for (auto& entry : frame_->materialInfo.indices) {
             MaterialPtr material = entry.first;
             MAKE_NON_RESIDENT(material->GetDiffuseTexture())
-            MAKE_NON_RESIDENT(material->GetAmbientTexture())
+            MAKE_NON_RESIDENT(material->GetEmissiveTexture())
             MAKE_NON_RESIDENT(material->GetNormalMap())
             MAKE_NON_RESIDENT(material->GetDepthMap())
             MAKE_NON_RESIDENT(material->GetRoughnessMap())
@@ -920,12 +920,12 @@ namespace stratus {
         gpuMaterial->flags = 0;
 
         gpuMaterial->diffuseColor = material->GetDiffuseColor();
-        gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
+        gpuMaterial->emissiveColor = glm::vec4(material->GetEmissiveColor(), 1.0f);
         gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
         gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
 
         auto diffuseHandle =   material->GetDiffuseTexture();
-        auto ambientHandle =   material->GetAmbientTexture();
+        auto ambientHandle =   material->GetEmissiveTexture();
         auto normalHandle =    material->GetNormalMap();
         auto depthHandle =     material->GetDepthMap();
         auto roughnessHandle = material->GetRoughnessMap();
@@ -958,8 +958,8 @@ namespace stratus {
         }
 
         if (ValidateTexture(ambient, ambientStatus)) {
-            gpuMaterial->ambientMap = ambient.GpuHandle();
-            gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
+            gpuMaterial->emissiveMap = ambient.GpuHandle();
+            gpuMaterial->flags |= GPU_EMISSIVE_MAPPED;
             Texture::MakeResident(ambient);
         }
         // If this is true then the texture is still loading so we need to check again later

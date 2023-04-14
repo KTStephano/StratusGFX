@@ -11,7 +11,7 @@ STRATUS_GLSL_VERSION
 
 // Matches the definitions in StratusGpuCommon.h
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))
+#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
 #define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
 #define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
 #define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
@@ -22,14 +22,14 @@ STRATUS_GLSL_VERSION
 // Matches the definition in StratusGpuCommon.h
 struct Material {
     vec4 diffuseColor;
-    vec4 ambientColor;
+    vec4 emissiveColor;
     vec4 baseReflectivity;
     // First two values = metallic, roughness
     // last two values = padding
     vec4 metallicRoughness;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D diffuseMap;
-    sampler2D ambientMap;
+    sampler2D emissiveMap;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D normalMap;
     sampler2D depthMap;

@@ -440,29 +440,54 @@ namespace stratus {
             // PrintMatType(aimat, aiTextureType_UNKNOWN);
 
             aiColor4D diffuse;
-            aiColor4D ambient;
             aiColor4D reflective;
+            aiColor4D specular;
+            aiColor4D emissive;
             float metallic;
             float roughness;
             float opacity;
+            float specularFactor;
+            unsigned int max = 1;
             aiColor4D transparency;
 
-            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_DIFFUSE, &diffuse) == AI_SUCCESS) {
+            if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &diffuse) == AI_SUCCESS) {
                 m->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
-                //STRATUS_LOG << "Diffuse Alpha: " << diffuse.a << std::endl;
+                //STRATUS_LOG << "Diffuse: " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
             }
-            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_AMBIENT, &ambient) == AI_SUCCESS) {
-                m->SetAmbientColor(glm::vec3(ambient.r, ambient.g, ambient.b));
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_EMISSIVE, &emissive) == AI_SUCCESS) {
+                m->SetEmissiveColor(glm::vec3(emissive.r, emissive.g, emissive.b));
+            }
+            else {
+                m->SetEmissiveColor(glm::vec3(0.0f));
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
                 m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                //STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
+            }
+            //else if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &reflective) == AI_SUCCESS) {
+            //    m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+            //    STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
+            //}
+            else if (aiGetMaterialFloatArray(aimat, AI_MATKEY_REFRACTI, &specularFactor, &max) == AI_SUCCESS) {
+                //STRATUS_LOG << "SP: " << specularFactor << " " << max << std::endl;
+                float reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
+                reflectance = reflectance * reflectance;
+                m->SetBaseReflectivity(glm::vec3(reflectance));
+                //STRATUS_LOG << "Reflectance: " << reflectance << std::endl;
+            }
+            if (aiGetMaterialFloat(aimat, AI_MATKEY_GLOSSINESS_FACTOR, &specularFactor) == AI_SUCCESS) {
+                // STRATUS_LOG << "G: " << specularFactor << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
                 m->SetMetallic(metallic);
+                //STRATUS_LOG << "M: " << metallic << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
                 m->SetRoughness(roughness);
             }
+
+            // STRATUS_LOG << "RMS: " << roughness << " " << metallic << " " << specularFactor << " " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
+
             // TODO: Add material + renderer support for opacity/transparency values and mapping
             // if (aiGetMaterialFloat(aimat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
             //     STRATUS_LOG << "Opacity Value: " << opacity << std::endl;
@@ -482,7 +507,7 @@ namespace stratus {
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
-            m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
+            //m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
             m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
@@ -533,7 +558,30 @@ namespace stratus {
             // Process all node meshes (if any)
             for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
                 aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
-                if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) continue;
+                // aiMaterial* aimat = scene->mMaterials[mesh->mMaterialIndex];
+                // STRATUS_LOG << "Material Idx / Num Properties " << mesh->mMaterialIndex << " / " << aimat->mNumProperties << std::endl;
+                // std::vector<float> values(4);
+                // for (int i = 0; i < aimat->mNumProperties; ++i) {
+                //     STRATUS_LOG << aimat->mProperties[i]->mKey.C_Str() << " " << aimat->mProperties[i]->mDataLength << std::endl;
+                // }
+                // aiColor4D emissive;
+                // float metallic;
+                // float roughness;
+                // unsigned int max = 4;
+                // float refracti;
+                // aiGetMaterialFloatArray(aimat, AI_MATKEY_SHININESS, values.data(), &max);
+                // aiGetMaterialColor(aimat, AI_MATKEY_COLOR_EMISSIVE, &emissive);
+                // aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic);
+                // aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness);
+
+                // aiGetMaterialFloatArray(aimat, AI_MATKEY_REFRACTI, &refracti, &max);
+
+                // STRATUS_LOG << "RMS: " << roughness << " " << metallic << " " << values[0] << " " << max << std::endl;
+                // STRATUS_LOG << "E: " << emissive.r << " " << emissive.g << " " << emissive.b << std::endl;
+                // STRATUS_LOG << "RF: " << refracti << std::endl;
+
+                //if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) continue;
+                if (mesh->mNormals == nullptr) continue;
 
                 auto stratusMesh = Mesh::Create();
                 MaterialPtr m = rootMat->CreateSubMaterial();

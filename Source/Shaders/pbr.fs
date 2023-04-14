@@ -86,7 +86,8 @@ void main() {
     vec3 viewDir = normalize(viewMinusFrag);
     float viewDist = length(viewMinusFrag);
 
-    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
+    vec4 albedo = textureLod(gAlbedo, texCoords, 0).rgba;
+    vec3 baseColor = albedo.rgb;
     // Normals generally have values from [-1, 1], but inside
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
@@ -95,8 +96,9 @@ void main() {
     float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
+    float ambient = texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r; //textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
     vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
+    vec3 emissive = vec3(albedo.a, textureLod(gBaseReflectivity, texCoords, 0).a, textureLod(gRoughnessMetallicAmbient, texCoords, 0).b);
 
     vec3 color = vec3(0.0);
     for (int i = 0; i < numLights; ++i) {
@@ -138,7 +140,7 @@ void main() {
     color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
 #endif
 
-    fsColor = boundHDR(color);
+    fsColor = boundHDR(color + emissive * 5.0);
 }
 
 // void main() {

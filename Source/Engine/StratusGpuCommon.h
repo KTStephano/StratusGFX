@@ -20,7 +20,7 @@
 
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))
+#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
 #define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
 #define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
 #define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
@@ -109,14 +109,14 @@ namespace stratus {
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuMaterial {
         GpuVec diffuseColor;
-        GpuVec ambientColor;
+        GpuVec emissiveColor;
         GpuVec baseReflectivity;
         // First two values = metallic, roughness
         // last two values = padding
         GpuVec metallicRoughness;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle diffuseMap;
-        GpuTextureHandle ambientMap;
+        GpuTextureHandle emissiveMap;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle normalMap;
         GpuTextureHandle depthMap;

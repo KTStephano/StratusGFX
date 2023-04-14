@@ -58,9 +58,9 @@ namespace stratus {
         return diffuseColor_;
     }
 
-    const glm::vec3& Material::GetAmbientColor() const {
+    const glm::vec3& Material::GetEmissiveColor() const {
         auto sl = LockRead_();
-        return ambientColor_;
+        return emissiveColor;
     }
 
     const glm::vec3& Material::GetBaseReflectivity() const {
@@ -84,10 +84,10 @@ namespace stratus {
         diffuseColor_ = diffuse;
     }
 
-    void Material::SetAmbientColor(const glm::vec3& ambient) {
+    void Material::SetEmissiveColor(const glm::vec3& ambient) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientColor_ = ambient;
+        emissiveColor = ambient;
     }
 
     void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
@@ -114,9 +114,9 @@ namespace stratus {
         return diffuseTexture_;
     }
 
-    TextureHandle Material::GetAmbientTexture() const {
+    TextureHandle Material::GetEmissiveTexture() const {
         auto sl = LockRead_();
-        return ambientTexture_;
+        return emissiveTexture_;
     }
 
     TextureHandle Material::GetNormalMap() const {
@@ -153,7 +153,7 @@ namespace stratus {
     void Material::SetAmbientTexture(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientTexture_ = handle;
+        emissiveTexture_ = handle;
     }
 
     void Material::SetNormalMap(TextureHandle handle) {
