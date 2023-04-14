@@ -2153,6 +2153,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
     lightColor = frame_->csc.worldLight->GetLuminance();
     s->SetVec3("infiniteLightColor", lightColor);
+    s->SetFloat("infiniteLightDepthBias", frame_->csc.worldLight->GetDepthBias());
     s->SetFloat("worldLightAmbientIntensity", frame_->csc.worldLight->GetAmbientIntensity());
 
     InitCoreCSMData_(s);

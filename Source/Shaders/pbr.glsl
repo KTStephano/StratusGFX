@@ -51,6 +51,7 @@ STRATUS_GLSL_VERSION
 #include "common.glsl"
 
 uniform vec3 infiniteLightDirection;
+uniform float infiniteLightDepthBias = 0.0;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
@@ -157,7 +158,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     //float bias = 0.005 * tanTheta;
     //bias = -clamp(bias, 0.0, 0.01);
     //float bias = 2e-19;
-    float bias = 0.0;
+    float bias = infiniteLightDepthBias;
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];
