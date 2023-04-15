@@ -33,6 +33,14 @@
 #define MAX_TOTAL_VPLS_PER_FRAME (1024)
 #define MAX_VPLS_PER_TILE (12)
 
+#define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
+#define FLOAT3_TO_VEC3(f3) glm::vec3(f3[0], f3[1], f3[2])
+#define FLOAT4_TO_VEC4(f4) glm::vec4(f4[0], f4[1], f4[2], f4[3])
+
+#define SET_FLOAT2(f2, v2) f2[0] = v2[0]; f2[1] = v2[1];
+#define SET_FLOAT3(f3, v3) f3[0] = v3[0]; f3[1] = v3[1]; f3[2] = v3[2];
+#define SET_FLOAT4(f4, v4) f4[0] = v4[0]; f4[1] = v4[1]; f4[2] = v4[2]; f4[3] = v4[3];
+
 namespace stratus {
     // Used with bindless textures
     typedef uint64_t GpuTextureHandle;
@@ -108,12 +116,6 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuMaterial {
-        GpuVec diffuseColor;
-        GpuVec emissiveColor;
-        GpuVec baseReflectivity;
-        // First two values = metallic, roughness
-        // last two values = padding
-        GpuVec metallicRoughness;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle diffuseMap;
         GpuTextureHandle emissiveMap;
@@ -126,8 +128,17 @@ namespace stratus {
         GpuTextureHandle metallicMap;
         // total bytes next 3 entries = GpuVec
         GpuTextureHandle metallicRoughnessMap;
+        float diffuseColor[4];
+        float emissiveColor[3];
+        // Base and max are interpolated between based on metallic
+        // metallic of 0 = base reflectivity
+        // metallic of 1 = max reflectivity
+        float baseReflectivity[3];
+        float maxReflectivity[3];
+        // First two values = metallic, roughness
+        // last two values = padding
+        float metallicRoughness[2];
         unsigned int flags = 0;
-        unsigned int placeholder1_;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -280,7 +291,7 @@ namespace stratus {
 
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
-    static_assert(sizeof(GpuMaterial) == 128);
+    static_assert(sizeof(GpuMaterial) == 120);
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);

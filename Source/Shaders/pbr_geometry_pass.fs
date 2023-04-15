@@ -77,11 +77,11 @@ void main() {
         // }
     }
 
-    vec4 baseColor = material.diffuseColor;
+    vec4 baseColor = FLOAT4_TO_VEC4(material.diffuseColor);
     vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
-    float roughness = material.metallicRoughness.y;
-    vec3 emissive = material.emissiveColor.rgb;
-    float metallic = material.metallicRoughness.x;
+    float roughness = material.metallicRoughness[1];
+    vec3 emissive = FLOAT3_TO_VEC3(material.emissiveColor);
+    float metallic = material.metallicRoughness[0];
 
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         baseColor = texture(material.diffuseMap, texCoords);
@@ -128,7 +128,11 @@ void main() {
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = vec4(baseColor.rgb, emissive.r);
-    gBaseReflectivity = vec4(material.baseReflectivity.xyz, emissive.g);
+    vec3 baseReflectivity = FLOAT3_TO_VEC3(material.baseReflectivity);
+    vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
+    baseReflectivity = mix(baseReflectivity, maxReflectivity, (1.0 - roughness) * 0.5);
+    gBaseReflectivity = vec4(mix(baseReflectivity, maxReflectivity, metallic), emissive.g);
+    //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
     gRoughnessMetallicAmbient = vec3(roughness, metallic, emissive.b);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);

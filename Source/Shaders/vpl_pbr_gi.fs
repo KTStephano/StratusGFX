@@ -132,19 +132,19 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float validSamples = 0.0;
     bool useBase2 = false;
     for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
-        //seed.z += 1000.0;
-        //float rand = random(seed);
-        float rand = haltonSequence[haltonIndex].base3;
-        if (useBase2) {
-            rand = haltonSequence[haltonIndex].base2;
-            ++haltonIndex;
-            if (haltonIndex > haltonSize) {
-                haltonIndex = 0;
-            }
-            // seed.z += 1000.0;
-            // haltonIndex = int(ceil(haltonSize * random(seed)));
-        }
-        useBase2 = !useBase2;
+        seed.z += 1000.0;
+        float rand = random(seed);
+        // float rand = haltonSequence[haltonIndex].base3;
+        // if (useBase2) {
+        //     rand = haltonSequence[haltonIndex].base2;
+        //     ++haltonIndex;
+        //     if (haltonIndex > haltonSize) {
+        //         haltonIndex = 0;
+        //     }
+        //     // seed.z += 1000.0;
+        //     // haltonIndex = int(ceil(haltonSize * random(seed)));
+        // }
+        // useBase2 = !useBase2;
 
         // Calculate true light index via lookup into active light table
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];

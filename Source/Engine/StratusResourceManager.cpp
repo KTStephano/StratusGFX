@@ -452,9 +452,6 @@ namespace stratus {
 
             if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
                 m->SetMetallic(metallic);
-                if (metallic > 0.0f) {
-                    m->SetBaseReflectivity(glm::clamp(glm::vec3(metallic), glm::vec3(0.5f), glm::vec3(0.8f)));
-                }
                 //STRATUS_LOG << "M: " << metallic << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
@@ -473,6 +470,7 @@ namespace stratus {
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
                 m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                m->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
                 //STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
             }
             //else if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &reflective) == AI_SUCCESS) {
@@ -484,6 +482,7 @@ namespace stratus {
                 float reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
                 reflectance = reflectance * reflectance;
                 m->SetBaseReflectivity(glm::vec3(reflectance));
+                m->SetMaxReflectivity(glm::vec3(reflectance));
                 //STRATUS_LOG << "Reflectance: " << reflectance << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_GLOSSINESS_FACTOR, &specularFactor) == AI_SUCCESS) {
@@ -491,9 +490,7 @@ namespace stratus {
             }
 
             // STRATUS_LOG << "RMS: " << roughness << " " << metallic << " " << specularFactor << " " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
-
-            // TODO: Add material + renderer support for opacity/transparency values and mapping
-            // if (aiGetMaterialFloat(aimat, AI_MATKEY_OPACITY, &opacity) == AI_SUCCESS) {
+ 
             //     STRATUS_LOG << "Opacity Value: " << opacity << std::endl;
             // }
             // if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_TRANSPARENT, &transparency) == AI_SUCCESS) {

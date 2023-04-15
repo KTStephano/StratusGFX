@@ -17,7 +17,7 @@ out vec3 color;
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
-    vec4 diffuse = material.diffuseColor;
+    vec4 diffuse = FLOAT4_TO_VEC4(material.diffuseColor);
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         diffuse = texture(material.diffuseMap, fsTexCoords);
     }

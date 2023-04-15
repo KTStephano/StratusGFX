@@ -149,7 +149,8 @@ vec3 BRDF(
     float remappedRoughness = RemapRoughness(roughness);
 
     // Compute diffuse from base using metallic value
-    vec3 diffuseColor = (1.0 - clamp(metallic, 0.0, 0.95)) * baseColor;
+    //vec3 diffuseColor = (1.0 - clamp(metallic, 0.0, 0.95)) * baseColor;
+    vec3 diffuseColor = (1.0 - metallic) * baseColor;
 
     // Compute reflectance - for purely metallic materials this is used as the diffuse color
     vec3 f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
@@ -310,7 +311,7 @@ vec3 calculateVirtualPointLighting2(
 
     vec3 lightDir   = lightPos - fragPosition;
     float adjustedShadowFactor = 1.0 - shadowFactor;
-    adjustedShadowFactor = max(adjustedShadowFactor, 0.1);
+    //adjustedShadowFactor = max(adjustedShadowFactor, 0.0025);
 
     //return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
     return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);

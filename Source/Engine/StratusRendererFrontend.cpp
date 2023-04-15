@@ -888,10 +888,11 @@ namespace stratus {
     void RendererFrontend::CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
         gpuMaterial->flags = 0;
 
-        gpuMaterial->diffuseColor = material->GetDiffuseColor();
-        gpuMaterial->emissiveColor = glm::vec4(material->GetEmissiveColor(), 1.0f);
-        gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
-        gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
+        SET_FLOAT4(gpuMaterial->diffuseColor, material->GetDiffuseColor());
+        SET_FLOAT3(gpuMaterial->emissiveColor, material->GetEmissiveColor());
+        SET_FLOAT3(gpuMaterial->baseReflectivity, material->GetBaseReflectivity());
+        SET_FLOAT3(gpuMaterial->maxReflectivity, material->GetMaxReflectivity());
+        SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
 
         auto diffuseHandle =   material->GetDiffuseTexture();
         auto ambientHandle =   material->GetEmissiveTexture();

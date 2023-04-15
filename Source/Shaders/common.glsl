@@ -19,14 +19,13 @@ STRATUS_GLSL_VERSION
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
+#define FLOAT2_TO_VEC2(f2) vec2(f2[0], f2[1])
+#define FLOAT3_TO_VEC3(f3) vec3(f3[0], f3[1], f3[2])
+#define FLOAT3_TO_VEC4(f3) vec4(FLOAT3_TO_VEC3(f3), 1.0)
+#define FLOAT4_TO_VEC4(f4) vec4(f4[0], f4[1], f4[2], f4[3])
+
 // Matches the definition in StratusGpuCommon.h
 struct Material {
-    vec4 diffuseColor;
-    vec4 emissiveColor;
-    vec4 baseReflectivity;
-    // First two values = metallic, roughness
-    // last two values = padding
-    vec4 metallicRoughness;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D diffuseMap;
     sampler2D emissiveMap;
@@ -38,8 +37,16 @@ struct Material {
     sampler2D metallicMap;
     // total bytes next 3 entries = vec4 (for std430)
     sampler2D metallicRoughnessMap;
+    float diffuseColor[4];
+    float emissiveColor[3];
+    // Base and max are interpolated between based on metallic
+    // metallic of 0 = base reflectivity
+    // metallic of 1 = max reflectivity
+    float baseReflectivity[3];
+    float maxReflectivity[3];
+    // First two values = metallic, roughness
+    float metallicRoughness[2];
     uint flags;
-    uint _1;
 };
 
 struct DrawElementsIndirectCommand {

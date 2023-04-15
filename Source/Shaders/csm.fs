@@ -15,7 +15,7 @@ uniform float nearClipPlane;
 void main() {
 #ifdef RUN_CSM_ALPHA_TEST
 	Material material = materials[materialIndices[fsDrawID]];
-	vec4 baseColor = material.diffuseColor;
+	vec4 baseColor = FLOAT4_TO_VEC4(material.diffuseColor);
 
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         baseColor = texture(material.diffuseMap, fsTexCoords);
