@@ -308,9 +308,8 @@ namespace stratus {
             GpuBuffer vplVisibleIndices;
             GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
-            Texture vplGIColorBuffer;
-            FrameBuffer vplGIBlurredFbo;
-            Texture vplGIBlurredBuffer;
+            FrameBuffer vplGIDenoisedPrevFrameFbo;
+            FrameBuffer vplGIDenoisedFbo;
         };
 
         struct RenderState {

@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 
 #define MAX_SAMPLES_PER_PIXEL 1
-#define MAX_RESAMPLES_PER_PIXEL 2
+#define MAX_RESAMPLES_PER_PIXEL 3
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -154,16 +154,29 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
         vec3 lightPosition = lightData[lightIndex].position.xyz;
-        float lightRadius = lightData[lightIndex].radius;
-        vec3 lightColor = lightData[lightIndex].color.xyz;
-        float lightIntensity = length(lightColor);
-        float distance = length(lightPosition - fragPos);
 
-        if (distance > lightRadius && resamples < MAX_RESAMPLES_PER_PIXEL) {
+        // Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane.
+        // If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.
+        // See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane
+        vec3 lightMinusFrag = lightPosition - fragPos;
+        float sideCheck = dot(normal, normalize(lightMinusFrag));
+        if (resamples < MAX_RESAMPLES_PER_PIXEL && sideCheck < 0) {
             ++resamples;
             --i;
             continue;
         }
+
+        float lightRadius = lightData[lightIndex].radius;
+        float distance = length(lightMinusFrag);
+
+        if (resamples < MAX_RESAMPLES_PER_PIXEL && distance > lightRadius) {
+            ++resamples;
+            --i;
+            continue;
+        }
+
+        vec3 lightColor = lightData[lightIndex].color.xyz;
+        float lightIntensity = length(lightColor);
 
         validSamples += 1.0;
         //float ratio = distance / lightRadius;

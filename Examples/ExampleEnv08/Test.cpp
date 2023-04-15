@@ -93,7 +93,7 @@ public:
         bool running = true;
 
         const std::vector<float> ys = {-30.0f, 10.0f};
-        const float offset = 60.0f;
+        const float offset = 60.0f; 
 
         for (float y : ys) {
             for (float x = -10.0f; x < 60.0f; x += offset) {

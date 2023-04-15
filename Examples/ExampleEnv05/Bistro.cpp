@@ -417,7 +417,8 @@ public:
 
         // Alpha testing doesn't work so well for this scene 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
+        //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
