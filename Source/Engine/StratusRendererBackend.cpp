@@ -88,6 +88,13 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"skybox.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.skybox.get());
 
+    state_.skyboxLayered = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"skybox.vs", ShaderType::VERTEX},
+        Shader{"skybox.fs", ShaderType::FRAGMENT} },
+        // Defines
+        { {"USE_LAYERED_RENDERING", "1"} }));
+    state_.shaders.push_back(state_.skyboxLayered.get());
+
     // Set up the hdr/gamma postprocessing shader
 
     state_.gammaTonemap = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -767,15 +774,26 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
  * During the lighting phase, we need each of the 6 faces of the shadow map to have its own view transform matrix.
  * This enables us to convert vertices to be in various different light coordinate spaces.
  */
-static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & projection, const glm::vec3 & lightPos) {
+//static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::mat4 & projection, const glm::vec3 & lightPos) {
+//    return std::vector<glm::mat4>{
+//        //                       pos       pos + dir                                  up
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+//    };
+//}
+static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::vec3 & lightPos) {
     return std::vector<glm::mat4>{
-        //                       pos       pos + dir                                  up
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+        //          pos       pos + dir                                  up
+        glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
     };
 }
 
@@ -923,31 +941,39 @@ void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, Gpu
     }
 }
 
-void RendererBackend::RenderSkybox_() {
-    BindShader_(state_.skybox.get());
+void RendererBackend::RenderSkybox_(Pipeline * s, const glm::mat4& projectionView) { 
     glDepthMask(GL_FALSE);
 
     TextureLoadingStatus status;
     Texture sky = INSTANCE(ResourceManager)->LookupTexture(frame_->settings.skybox, status);
     if (ValidateTexture(sky, status)) {
-        const glm::mat4& projection = frame_->projection;
-        const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
-        const glm::mat4 projectionView = projection * view;
+        //const glm::mat4& projection = frame_->projection;
+        //const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
+        //const glm::mat4 projectionView = projection * view;
 
         // _state.skybox->setMat4("projection", projection);
         // _state.skybox->setMat4("view", view);
-        state_.skybox->SetMat4("projectionView", projectionView);
+        s->SetMat4("projectionView", projectionView);
 
-        state_.skybox->SetVec3("colorMask", frame_->settings.GetSkyboxColorMask());
-        state_.skybox->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
-        state_.skybox->BindTexture("skybox", sky);
+        s->SetVec3("colorMask", frame_->settings.GetSkyboxColorMask());
+        s->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
+        s->BindTexture("skybox", sky);
 
         GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
-    UnbindShader_();
     glDepthMask(GL_TRUE);
+}
+
+void RendererBackend::RenderSkybox_() {
+    const glm::mat4& projection = frame_->projection;
+    const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
+    const glm::mat4 projectionView = projection * view;
+
+    BindShader_(state_.skybox.get());
+    RenderSkybox_(state_.skybox.get(), projectionView);
+    UnbindShader_();
 }
 
 void RendererBackend::RenderCSMDepth_() {
@@ -1256,13 +1282,14 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         // glClear(GL_DEPTH_BUFFER_BIT);
 
         Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
-        BindShader_(shader);
-        auto transforms = GenerateLightViewTransforms(lightPerspective, point->GetPosition());
+        auto transforms = GenerateLightViewTransforms(point->GetPosition());
         for (size_t i = 0; i < transforms.size(); ++i) {
+            const glm::mat4 projectionView = lightPerspective * transforms[i];
 
+            BindShader_(shader);
             // * 6 since each cube map is accessed by a layer-face which is divisible by 6
             shader->SetInt("layer", int(smap.layer * 6 + i));
-            shader->SetMat4("shadowMatrix", transforms[i]);
+            shader->SetMat4("shadowMatrix", projectionView);
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
 
@@ -1270,13 +1297,20 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                 // Use lowest LOD
                 RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1]);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
+
+                const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
+
+                BindShader_(state_.skyboxLayered.get());
+                state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
+                
+                RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
             }
             else {
                 RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
                 if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
             }
+            UnbindShader_();
         }
-        UnbindShader_();
 
         // Unbind
         cache.buffers[smap.index].Unbind();
@@ -1539,6 +1573,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
+    state_.vplGlobalIllumination->SetInt("frameCount", int(INSTANCE(Engine)->FrameCount()));
 
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->settings.GetFogColor());
     state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->settings.GetFogDensity());
@@ -1556,6 +1591,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     BindShader_(state_.vplGlobalIlluminationDenoising.get());
     state_.vpls.vplGIDenoisedFbo.Bind();
     state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
+    state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
     state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);

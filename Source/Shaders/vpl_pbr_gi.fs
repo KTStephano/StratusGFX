@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 
 #define MAX_SAMPLES_PER_PIXEL 1
-#define MAX_RESAMPLES_PER_PIXEL 3
+#define MAX_RESAMPLES_PER_PIXEL 8
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -47,6 +47,7 @@ uniform mat4 invProjectionView;
 
 // Used for random number generation
 uniform float time;
+uniform int frameCount;
 
 layout (std430, binding = 0) readonly buffer inputBlock1 {
     VplData lightData[];
@@ -123,17 +124,21 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     // shadowFactor /= float(maxShadowLights);
 
-    //seed = vec3(gl_FragCoord.xy, time);
+    seed = vec3(gl_FragCoord.xy, time + float(frameCount));
+    //seed = vec3(gl_FragCoord.xy, 0.0);
     //seed = vec3(distToCamera * 10.0, 0.0, time);
-    seed = vec3(distToCamera, 0.0, time);
+    //seed = vec3(distToCamera, 0.0, time);
     //seed = vec3(fragPos.x, fragPos.y, fragPos.z + time);
     //seed = vec3(0.0, gl_FragCoord.y, time);
     int haltonIndex = int(ceil(haltonSize * random(seed)));
     float validSamples = 0.0;
     bool useBase2 = false;
+    //float rand = random(seed);
+    //int offset = frameCount % numVisible;
     for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
-        seed.z += 1000.0;
+        //seed.z += 1000.0;
         float rand = random(seed);
+        seed.z = time * rand;
         // float rand = haltonSequence[haltonIndex].base3;
         // if (useBase2) {
         //     rand = haltonSequence[haltonIndex].base2;
@@ -150,6 +155,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];
         int lightIndex = int(maxRandomIndex * rand);
+        //int lightIndex = (int(maxRandomIndex * rand) + i + resamples) % numVisible;
+        //int lightIndex = (int(maxRandomIndex * rand) + offset + i + resamples) % numVisible;
         AtlasEntry entry = shadowIndices[lightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
@@ -160,7 +167,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane
         vec3 lightMinusFrag = lightPosition - fragPos;
         float sideCheck = dot(normal, normalize(lightMinusFrag));
-        if (resamples < MAX_RESAMPLES_PER_PIXEL && sideCheck < 0) {
+        if (resamples < MAX_RESAMPLES_PER_PIXEL && sideCheck < 0.0) {
             ++resamples;
             --i;
             continue;
@@ -185,10 +192,10 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float shadowFactor = 0.0;
         if (distToCamera < 500) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-            if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
-                ++resamples;
-                --i;
-            }
+            // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
+            //     ++resamples;
+            //     --i;
+            // }
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);

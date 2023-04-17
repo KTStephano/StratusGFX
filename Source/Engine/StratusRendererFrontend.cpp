@@ -372,8 +372,9 @@ namespace stratus {
         frame_->projectionView = frame_->projection * frame_->view;
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
 
-        // Increment halton index
-        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % haltonSequence.size();
+        // Increment halton index - only use a max of the first 16 samples
+        const size_t maxIndex = std::min<size_t>(16, haltonSequence.size());
+        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % maxIndex;
 
         // Set up the jittered variant
         glm::vec2 jitter(0.0f);

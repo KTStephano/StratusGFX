@@ -374,6 +374,7 @@ namespace stratus {
             GLenum blendDFactor = GL_ZERO;
             // Skybox
             std::unique_ptr<Pipeline> skybox;
+            std::unique_ptr<Pipeline> skyboxLayered;
             // Postprocessing shader which allows for application
             // of hdr and gamma correction
             std::unique_ptr<Pipeline> gammaTonemap;
@@ -581,6 +582,7 @@ namespace stratus {
         void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&);
         void RenderCSMDepth_();
         void RenderQuad_();
+        void RenderSkybox_(Pipeline *, const glm::mat4&);
         void RenderSkybox_();
         void RenderForwardPassPbr_();
         void RenderForwardPassFlat_();
