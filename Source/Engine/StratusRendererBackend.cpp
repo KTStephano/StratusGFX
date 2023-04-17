@@ -1302,8 +1302,17 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
                 BindShader_(state_.skyboxLayered.get());
                 state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
+
+                auto tmp = frame_->settings.GetSkyboxIntensity();
+                if (tmp > 1.0f) {
+                    frame_->settings.SetSkyboxIntensity(1.0f);
+                }
                 
                 RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
+
+                if (tmp > 1.0f) {
+                    frame_->settings.SetSkyboxIntensity(tmp);
+                }
             }
             else {
                 RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
