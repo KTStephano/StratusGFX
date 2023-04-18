@@ -81,11 +81,11 @@ void main() {
     // prevGi = inverseTonemap(tmPrevGi);
 
     //vec3 illumAvg = centerIllum;
-    //vec3 illumAvg = gi;
+    vec3 illumAvg = gi;
     // a is effectively how many frames we can accumulate. So for example 1 / 0.1 = 10,
     // 1 / 0.05 = 20, etc.
     //vec3 illumAvg = mix(prevGi, gi, a);
-    vec3 illumAvg = mix(prevGi, gi, 0.016);
+    //vec3 illumAvg = mix(prevGi, gi, 1.0 / 16.0);
     //vec3 illumAvg = vec3(difference);
 
     combinedColor = screenColor + illumAvg;

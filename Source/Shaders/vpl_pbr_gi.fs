@@ -9,6 +9,7 @@ STRATUS_GLSL_VERSION
 // Input from vertex shader
 in vec2 fsTexCoords;
 out vec3 color;
+out float shadow;
 
 #define MAX_SAMPLES_PER_PIXEL 1
 #define MAX_RESAMPLES_PER_PIXEL 8
@@ -69,7 +70,7 @@ layout (std430, binding = 4) readonly buffer inputBlock5 {
 
 uniform int haltonSize;
 
-vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
+void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     if (length(screenColor) > 0.5) discard;
 
     // ivec2 numTiles = ivec2(numTilesX, numTilesY);
@@ -98,7 +99,7 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
-    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * ambientOcclusion;
+    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
     vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
     vec3 vplColor = vec3(0.0); //screenColor;
@@ -124,7 +125,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     // shadowFactor /= float(maxShadowLights);
 
-    seed = vec3(gl_FragCoord.xy, time + float(frameCount));
+    seed = vec3(gl_FragCoord.xy, time);
+    //seed = vec3(gl_FragCoord.xy, time + float(frameCount));
     //seed = vec3(gl_FragCoord.xy, 0.0);
     //seed = vec3(distToCamera * 10.0, 0.0, time);
     //seed = vec3(distToCamera, 0.0, time);
@@ -135,10 +137,12 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     bool useBase2 = false;
     //float rand = random(seed);
     //int offset = frameCount % numVisible;
+    float shadowFactor = 0.0;
     for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);
         seed.z = time * rand;
+        //seed.z += 1000.0;
         // float rand = haltonSequence[haltonIndex].base3;
         // if (useBase2) {
         //     rand = haltonSequence[haltonIndex].base2;
@@ -189,9 +193,8 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
-        float shadowFactor = 0.0;
         if (distToCamera < 500) {
-            shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+            shadowFactor += calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
             // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
             //     ++resamples;
             //     --i;
@@ -200,16 +203,17 @@ vec3 performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+        vplColor = vplColor + ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity);
     }
 
     validSamples = max(validSamples, 1.0);
 
-    return boundHDR(vplColor / validSamples);
+    color = boundHDR(vplColor / validSamples);
+    shadow = 
 }
 
 void main() {
-    color = performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
+    performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     // vec3 point = vec3(gl_FragCoord.xy, time);
     // point = vec3(random(point));
