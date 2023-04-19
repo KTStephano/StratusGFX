@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <mutex>
 
 namespace stratus {
     // Convenience functions for creating a new entity or initializing existing entity

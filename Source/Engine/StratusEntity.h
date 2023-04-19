@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include "StratusEntityCommon.h"
 #include "StratusPoolAllocator.h"
