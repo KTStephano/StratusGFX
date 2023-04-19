@@ -4,7 +4,7 @@ import os
 import threading
 from distutils.dir_util import copy_tree
 
-configure_build_install = "cmake -Bbuild -S. -DBUILD_TESTING=OFF && cmake --build build/ --config Release && cmake --install build/ --prefix ../ThirdParty --config Release"
+configure_build_install = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF && cmake --build build/ --config Release && cmake --install build/ --prefix ../ThirdParty --config Release"
 
 # Catch2
 cmd = "cd Catch2 && " + configure_build_install
