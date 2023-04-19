@@ -7,27 +7,4 @@
 #include "StratusCommon.h"
 
 namespace stratus {
-    ResourceManager * Application::Resources() {
-        return INSTANCE(ResourceManager);
-    }
-
-    RendererFrontend * Application::World() {
-        return INSTANCE(RendererFrontend);
-    }
-
-    MaterialManager * Application::Materials() {
-        return INSTANCE(MaterialManager);
-    }
-
-    Engine * Application::Engine() {
-        return INSTANCE(Engine);
-    }
-
-    InputManager * Application::Input() {
-        return INSTANCE(InputManager);
-    }
-
-    Window * Application::Window() {
-        return INSTANCE(Window);
-    }
 }

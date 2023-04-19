@@ -50,14 +50,14 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
-        //Input()->AddInputHandler(controller);
+        //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/InterrogationRoom/scene.gltf", stratus::ColorSpace::SRGB, false, stratus::RenderFaceCulling::CULLING_NONE);
@@ -83,16 +83,16 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        if (Engine()->FrameCount() % 100 == 0) {
+        if (INSTANCE(Engine)->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
-        auto camera = World()->GetCamera();
+        auto camera = INSTANCE(RendererFrontend)->GetCamera();
 
         // Check for key/mouse events
-        auto events = Input()->GetInputEventsLastFrame();
+        auto events = INSTANCE(InputManager)->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:

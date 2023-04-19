@@ -32,13 +32,5 @@ namespace stratus {
         virtual const char * Name() const {
             return GetAppName();
         }
-
-        // Convenience functions for common use cases
-        static ResourceManager * Resources();
-        static RendererFrontend * World();
-        static MaterialManager * Materials();
-        static Engine * Engine();
-        static InputManager * Input();
-        static Window * Window();
     };
 }

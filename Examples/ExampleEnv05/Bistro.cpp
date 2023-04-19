@@ -397,24 +397,24 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         WorldLightController * wc = new WorldLightController(warmMorningColor, warmMorningColor, 10);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(29.9668f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
-        //Input()->AddInputHandler(controller);
+        //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
@@ -437,19 +437,19 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        if (Engine()->FrameCount() % 100 == 0) {
+        if (INSTANCE(Engine)->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         } 
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
-        auto camera = World()->GetCamera();
-        auto worldLight = World()->GetWorldLight();
+        auto camera = INSTANCE(RendererFrontend)->GetCamera();
+        auto worldLight = INSTANCE(RendererFrontend)->GetWorldLight();
         const glm::vec3 worldLightColor = worldLight->GetColor();
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
 
         // Check for key/mouse events
-        auto events = Input()->GetInputEventsLastFrame();
+        auto events = INSTANCE(InputManager)->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -479,7 +479,7 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 100.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 100.0f)
                                 );
                             }
                             break;
@@ -487,7 +487,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 50.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 50.0f)
                                 );
                             }
                             break;
@@ -495,7 +495,7 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 15.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 15.0f)
                                 );
                             }
                             break;
@@ -503,7 +503,7 @@ public:
                         case SDL_SCANCODE_4: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 800.0f),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 800.0f),
                                     false
                                 );
                             }
@@ -512,7 +512,7 @@ public:
                         case SDL_SCANCODE_5: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 400.0f),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 400.0f),
                                     false
                                 );
                             }
@@ -521,7 +521,7 @@ public:
                         case SDL_SCANCODE_6: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(12.0f / 255.0f, 91.0f / 255.0f, 14.0f / 255.0f), 300.0f, false),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(12.0f / 255.0f, 91.0f / 255.0f, 14.0f / 255.0f), 300.0f, false),
                                     true
                                 );
                             }
@@ -530,7 +530,7 @@ public:
                         case SDL_SCANCODE_7: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(240.0f / 255.0f, 40.0f / 255.0f, 240.0f / 255.0f), 300.0f, false),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(240.0f / 255.0f, 40.0f / 255.0f, 240.0f / 255.0f), 300.0f, false),
                                     true
                                 );
                             }
@@ -539,7 +539,7 @@ public:
                         case SDL_SCANCODE_8: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), glm::vec3(97.0f / 255.0f, 46.0f / 255.0f, 56.0f / 255.0f), 300.0f, false),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(97.0f / 255.0f, 46.0f / 255.0f, 56.0f / 255.0f), 300.0f, false),
                                     true
                                 );
                             }
