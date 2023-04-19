@@ -48,21 +48,21 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 5);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(100.961f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
-        //Input()->AddInputHandler(controller);
+        //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
@@ -87,18 +87,18 @@ public:
     // Run a single update for the application (no infinite loops)
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
-        if (Engine()->FrameCount() % 100 == 0) {
+        if (INSTANCE(Engine)->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
-        auto camera = World()->GetCamera();
-        auto worldLight = World()->GetWorldLight();
+        auto camera = INSTANCE(RendererFrontend)->GetCamera();
+        auto worldLight = INSTANCE(RendererFrontend)->GetWorldLight();
         const glm::vec3 worldLightColor = worldLight->GetColor();
 
         // Check for key/mouse events
-        auto events = Input()->GetInputEventsLastFrame();
+        auto events = INSTANCE(InputManager)->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -121,7 +121,7 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 100.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 100.0f)
                                 );
                             }
                             break;
@@ -129,7 +129,7 @@ public:
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 50.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 50.0f)
                                 );
                             }
                             break;
@@ -137,7 +137,7 @@ public:
                         case SDL_SCANCODE_3: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(World()->GetCamera()->GetPosition(), worldLightColor, 15.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 15.0f)
                                 );
                             }
                             break;

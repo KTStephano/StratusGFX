@@ -155,9 +155,9 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
         }
 
         stratus::SystemStatus Update(const double deltaSeconds) override {
-            STRATUS_LOG << "Frame #" << Engine()->FrameCount() << std::endl;
+            STRATUS_LOG << "Frame #" << INSTANCE(Engine)->FrameCount() << std::endl;
 
-            if (Engine()->FrameCount() >= 30) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
+            if (INSTANCE(Engine)->FrameCount() >= 30) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
 
             if (previousUpdated) {
                 previousUpdated = false;
@@ -168,7 +168,7 @@ TEST_CASE("Stratus Transform Test", "[stratus_transform_test]") {
                 }
             }
 
-            if (nextFrameUpdate == Engine()->FrameCount()) {
+            if (nextFrameUpdate == INSTANCE(Engine)->FrameCount()) {
                 PerformEntityCopyTest();
 
                 nextFrameUpdate += 2;
