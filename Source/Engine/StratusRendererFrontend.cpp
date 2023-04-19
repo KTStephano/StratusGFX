@@ -1335,7 +1335,7 @@ namespace stratus {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                }
 
-               pipeline.SetUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+               pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));
                pipeline.SetMat4("view", view);
                //pipeline.setMat4("view", _frame->camera->getViewTransform());
                //pipeline.setMat4("projection", _frame->projection);
