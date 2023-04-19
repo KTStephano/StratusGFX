@@ -235,27 +235,6 @@ namespace stratus {
         std::unordered_map<std::string, std::pair<EntityComponentView, EntityComponentStatus>> componentTypeNames_;
     };
 
-    // Convenience functions
-    template<typename E>
-    bool ContainsComponent(const EntityPtr& p) {
-        return p->Components().ContainsComponent<E>();
-    }
-
-    template<typename E>
-    E * GetComponent(const EntityPtr& p) {
-        return p->Components().GetComponent<E>().component;
-    }
-
-    template<typename E>
-    EntityComponentStatus GetComponentStatus(const EntityPtr& p) {
-        return p->Components().GetComponent<E>().status;
-    }
-
-    template<typename E>
-    EntityComponentPair<E> GetComponentStatusPair(const EntityPtr& p) {
-        return p->Components().GetComponent<E>();
-    }
-
     // Collection of unque ID + configurable component data
     class Entity final : public std::enable_shared_from_this<Entity> {
         friend class EntityManager;
@@ -322,6 +301,27 @@ namespace stratus {
         // Keeps track of added/removed from world
         bool partOfWorld_ = false;
     };
+
+    // Convenience functions
+    template<typename E>
+    bool ContainsComponent(const EntityPtr& p) {
+        return p->Components().ContainsComponent<E>();
+    }
+
+    template<typename E>
+    E * GetComponent(const EntityPtr& p) {
+        return p->Components().GetComponent<E>().component;
+    }
+
+    template<typename E>
+    EntityComponentStatus GetComponentStatus(const EntityPtr& p) {
+        return p->Components().GetComponent<E>().status;
+    }
+
+    template<typename E>
+    EntityComponentPair<E> GetComponentStatusPair(const EntityPtr& p) {
+        return p->Components().GetComponent<E>();
+    }
 
     template<typename E, typename ... Types>
     void EntityComponentSet::AttachComponent(const Types& ... args) {
