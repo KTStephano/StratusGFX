@@ -5,8 +5,10 @@
 // For forcing 1-byte tight struct packing (we need to precisely control alignment and padding)
 #ifdef __GNUC__
 #define PACKED_STRUCT_ATTRIBUTE __attribute__ ((packed))
+#define GPU_ALIGNAS(x)
 #else
 #define PACKED_STRUCT_ATTRIBUTE
+#define GPU_ALIGNAS(x) alignas(x)
 #endif
 
 // Once a VPL is further than this distance away it is automatically culled
@@ -37,7 +39,7 @@ namespace stratus {
 #ifndef __GNUC__
     #pragma pack(push, 1)
 #endif
-    struct PACKED_STRUCT_ATTRIBUTE alignas(16) GpuVec {
+    struct PACKED_STRUCT_ATTRIBUTE GPU_ALIGNAS(16) GpuVec {
         float v[4];
 
         GpuVec(float x, float y, float z, float w) {
