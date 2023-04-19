@@ -479,7 +479,7 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    Texture texture2 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    Texture texture2 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
     texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -661,9 +661,9 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         state_.ssaoOcclusionBuffer.Clear(color);
         state_.ssaoOcclusionBlurredBuffer.Clear(color);
         state_.atmosphericFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.lightingFbo.Clear(color);
-        state_.vpls.vplGIFbo.Clear(color);
-        state_.vpls.vplGIDenoisedFbo.Clear(color);
+        state_.lightingFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vpls.vplGIFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vpls.vplGIDenoisedFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (frame_->csc.fbo.Valid()) {
@@ -1616,6 +1616,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", state_.vpls.vplGIFbo.GetColorAttachments()[0]);
+    state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", state_.vpls.vplGIFbo.GetColorAttachments()[1]);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
 
     RenderQuad_();
