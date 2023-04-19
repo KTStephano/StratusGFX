@@ -1613,6 +1613,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
     state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
+    state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", state_.vpls.vplGIFbo.GetColorAttachments()[0]);

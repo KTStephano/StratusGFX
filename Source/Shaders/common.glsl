@@ -192,3 +192,12 @@ float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
 float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+
+vec3 sampleNormalWithOffset(in sampler2D normals, in vec2 texCoords, in ivec2 offset) {
+    // Samples normal and maps from [0, 1] to [-1, 1]
+    return normalize(textureLodOffset(normals, texCoords, 0.0, offset).rgb * 2.0 - vec3(1.0));
+}
+
+vec3 sampleNormal(in sampler2D normals, in vec2 texCoords) {
+    return sampleNormalWithOffset(normals, texCoords, ivec2(0, 0));
+}

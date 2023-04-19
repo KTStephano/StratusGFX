@@ -134,13 +134,13 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //seed = vec3(distToCamera, 0.0, time);
     //seed = vec3(fragPos.x, fragPos.y, fragPos.z + time);
     //seed = vec3(0.0, gl_FragCoord.y, time);
-    int haltonIndex = int(ceil(haltonSize * random(seed)));
+    //int haltonIndex = int(ceil(haltonSize * random(seed)));
     float validSamples = 0.0;
     bool useBase2 = false;
     //float rand = random(seed);
     //int offset = frameCount % numVisible;
     vec3 colorNoShadow = vec3(0.0);
-    for (int i = 0, resamples = 0 ; i < MAX_SAMPLES_PER_PIXEL; i += 1) {
+    for (int i = 0, resamples = 0, count = 0; i < MAX_SAMPLES_PER_PIXEL; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);
         seed.z = time * rand;
@@ -162,7 +162,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //int lightIndex = vplVisibleIndex[baseLightIndex];
         int lightIndex = int(maxRandomIndex * rand);
         //int lightIndex = (int(maxRandomIndex * rand) + i + resamples) % numVisible;
-        //int lightIndex = (int(maxRandomIndex * rand) + offset + i + resamples) % numVisible;
+        //int lightIndex = (int(maxRandomIndex * rand) + offset + count) % numVisible;
         AtlasEntry entry = shadowIndices[lightIndex];
         //if (lightIndex > MAX_TOTAL_VPLS_PER_FRAME) continue;
 
