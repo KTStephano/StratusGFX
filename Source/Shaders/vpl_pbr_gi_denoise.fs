@@ -145,7 +145,7 @@ float filterInput(
     float wz = exp(-abs(centerDepth - currDepth));
 
     vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier);
-    float wn = max(0.0, dot(centerNormal, currNormal));
+    float wn = max(0.01, dot(centerNormal, currNormal));
 
     float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
     float wl = 1.0;
