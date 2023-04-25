@@ -56,23 +56,23 @@ uniform bool final = false;
 //     0.25
 // );
 
-// const float waveletFactors[3][3] = {
-// 	{ 1.0  , 0.5  , 0.25  },
-// 	{ 0.5  , 0.25 , 0.125 },
-//     { 0.125, 0.125, 0.125 }
-// };
 const float waveletFactors[3][3] = {
-	{ 3.0 / 8.0  , 1.0 / 4.0  , 1.0 / 16.0  },
-	{ 1.0 / 4.0  , 1.0 / 16.0  , 1.0 / 16.0 },
-    { 1.0 / 16.0, 1.0 / 16.0, 1.0 / 16.0 }
+	{ 1.0  , 0.5  , 0.25  },
+	{ 0.5  , 0.25 , 0.125 },
+    { 0.125, 0.125, 0.125 }
 };
+// const float waveletFactors[3][3] = {
+// 	{ 3.0 / 8.0  , 1.0 / 4.0  , 1.0 / 16.0  },
+// 	{ 1.0 / 4.0  , 1.0 / 16.0  , 1.0 / 16.0 },
+//     { 1.0 / 16.0, 1.0 / 16.0, 1.0 / 16.0 }
+// };
 
 const float sigmaZ = 1.0;
 const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 
 const int dminmax = 2;
-const int dminmaxVariance = 3;
+const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
 vec3 calculateVariance(in vec2 texCoords) {
@@ -138,14 +138,16 @@ float filterInput(
 
     vec2 texelStep = vec2(float(dx), float(dy)) * texelWidthHeight;
     vec2 pixelCoords = fsTexCoords * widthHeight;
+    vec2 newTexCoords = texCoords + texelStep;
 
     float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).r;
-    //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rg;
-    //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texelStep)) + 0.0001));
+    //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).xy;
+    //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texCoords - newTexCoords)) + 0.0001));
     float wz = exp(-abs(centerDepth - currDepth));
 
     vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier);
-    float wn = max(0.01, dot(centerNormal, currNormal));
+    float wn = max(0.0, dot(centerNormal, currNormal));
+    wn = pow(wn, sigmaN);
 
     float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
     float wl = 1.0;
@@ -157,7 +159,7 @@ float filterInput(
     float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return wn;// * wz * wl;
+    return hq * wn * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -174,11 +176,6 @@ void main() {
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
     float centerLum = linearColorToLuminance(centerIllum); 
-
-    vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
-    vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
-    vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
-    vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
     float centerDepth = texture(depth, fsTexCoords).r;
@@ -205,13 +202,20 @@ void main() {
             shadowFactor += filtered * textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
         }
     }
-    shadowFactor = shadowFactor / numShadowSamples;
+    shadowFactor = shadowFactor / max(PREVENT_DIV_BY_ZERO, numShadowSamples);
 
     //vec3 minColor = tonemap(min(centerIllum, min(topIllum, min(botIllum, min(rightIllum, leftIllum)))));
     //vec3 maxColor = tonemap(max(centerIllum, max(topIllum, max(botIllum, max(rightIllum, leftIllum)))));
 
     //vec3 gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
     vec3 gi = centerIllum;
+    if (final) {
+        vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
+        vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
+        vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
+        vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
+        gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
+    }
     //gi = gi * shadowFactor;// * variance;
     //vec3 shadow = shadowFactor;
     //vec3 shadow = centerShadow;
@@ -249,7 +253,7 @@ void main() {
     //vec3 illumAvg = centerIllum;
     vec3 illumAvg = shadowFactor;
     if (final) {
-        //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
+        //illumAvg = mix(prevGi, shadowFactor, 0.05);
         //illumAvg = gi * shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;
