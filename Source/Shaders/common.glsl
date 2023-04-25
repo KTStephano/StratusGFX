@@ -199,5 +199,5 @@ vec3 sampleNormalWithOffset(in sampler2D normals, in vec2 texCoords, in ivec2 of
 }
 
 vec3 sampleNormal(in sampler2D normals, in vec2 texCoords) {
-    return sampleNormalWithOffset(normals, texCoords, ivec2(0, 0));
+    return sampleNormalWithOffset(normals, texCoords, ivec2(0, 0))
 }

@@ -309,7 +309,8 @@ namespace stratus {
             GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;
-            FrameBuffer vplGIDenoisedFbo;
+            FrameBuffer vplGIDenoisedFbo1;
+            FrameBuffer vplGIDenoisedFbo2;
         };
 
         struct RenderState {

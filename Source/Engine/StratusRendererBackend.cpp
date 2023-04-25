@@ -497,8 +497,30 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedFbo = FrameBuffer({ texture, texture2 });
-    if (!state_.vpls.vplGIDenoisedFbo.Valid()) {
+    Texture texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedFbo1 = FrameBuffer({ texture, texture2, texture3 });
+    if (!state_.vpls.vplGIDenoisedFbo1.Valid()) {
+        isValid_ = false;
+        return;
+    }
+
+    texture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture2 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedFbo2 = FrameBuffer({ texture, texture2, texture3 });
+    if (!state_.vpls.vplGIDenoisedFbo2.Valid()) {
         isValid_ = false;
         return;
     }
@@ -511,7 +533,11 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2 });
+    texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2, texture3 });
     if (!state_.vpls.vplGIDenoisedPrevFrameFbo.Valid()) {
         isValid_ = false;
         return;
@@ -663,7 +689,8 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         state_.atmosphericFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         state_.lightingFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         state_.vpls.vplGIFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.vpls.vplGIDenoisedFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vpls.vplGIDenoisedFbo1.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vpls.vplGIDenoisedFbo2.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (frame_->csc.fbo.Valid()) {
@@ -1606,8 +1633,16 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     UnbindShader_();
     state_.vpls.vplGIFbo.Unbind();
 
+    std::vector<FrameBuffer *> buffers = {
+        &state_.vpls.vplGIDenoisedFbo1,
+        &state_.vpls.vplGIDenoisedFbo2
+    };
+
+    Texture indirectIllum = state_.vpls.vplGIFbo.GetColorAttachments()[0];
+    Texture indirectShadows = state_.vpls.vplGIFbo.GetColorAttachments()[1];
+
     BindShader_(state_.vplGlobalIlluminationDenoising.get());
-    state_.vpls.vplGIDenoisedFbo.Bind();
+
     state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
     state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
@@ -1616,20 +1651,41 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
-    state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", state_.vpls.vplGIFbo.GetColorAttachments()[0]);
-    state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", state_.vpls.vplGIFbo.GetColorAttachments()[1]);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
+    state_.vplGlobalIlluminationDenoising->SetBool("final", false);
 
-    RenderQuad_();
+    size_t bufferIndex = 0;
+    const int maxIterations = 5;
+    for (; bufferIndex < maxIterations; ++bufferIndex) {
+
+        const int multiplier = std::pow(2, bufferIndex) - 1;
+        FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
+
+        buffer->Bind();
+        state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", indirectIllum);
+        state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
+        state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
+        if (bufferIndex + 1 == maxIterations) {
+            state_.vplGlobalIlluminationDenoising->SetBool("final", true);
+        }
+
+        RenderQuad_();
+
+        buffer->Unbind();
+
+        indirectIllum = buffer->GetColorAttachments()[1];
+        indirectShadows = buffer->GetColorAttachments()[2];
+    }
 
     UnbindShader_();
-    state_.vpls.vplGIDenoisedFbo.Unbind();
+    --bufferIndex;
 
-    state_.lightingFbo.CopyFrom(state_.vpls.vplGIDenoisedFbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
+    FrameBuffer * last = buffers[bufferIndex % buffers.size()];
+    state_.lightingFbo.CopyFrom(*last, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
 
     // Swap current and previous frame
-    auto tmp = state_.vpls.vplGIDenoisedFbo;
-    state_.vpls.vplGIDenoisedFbo = state_.vpls.vplGIDenoisedPrevFrameFbo;
+    auto tmp = *last;
+    *last = state_.vpls.vplGIDenoisedPrevFrameFbo;
     state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
 }
 

@@ -130,6 +130,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     seed = vec3(gl_FragCoord.xy, time);
     //seed = vec3(gl_FragCoord.xy, time + float(frameCount));
     //seed = vec3(gl_FragCoord.xy, 0.0);
+    //seed = vec3(0.0, 0.0, time);
+    //seed = vec3(0.0, gl_FragCoord.y, 0.0);
     //seed = vec3(distToCamera * 10.0, 0.0, time);
     //seed = vec3(distToCamera, 0.0, time);
     //seed = vec3(fragPos.x, fragPos.y, fragPos.z + time);
@@ -140,6 +142,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //float rand = random(seed);
     //int offset = frameCount % numVisible;
     vec3 colorNoShadow = vec3(0.0);
+    //int startIndex = int(gl_FragCoord.x) + int(gl_FragCoord.y) * haltonSize;
+    //int startIndex = int(random(seed) * haltonSize);
+    //int startIndex = 0;
+    //int baseHaltonIndex = int((float(gl_FragCoord.x) / float(haltonSize)) * float(haltonSize)) % haltonSize;
     for (int i = 0, resamples = 0, count = 0; i < MAX_SAMPLES_PER_PIXEL; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);
@@ -161,6 +167,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //int lightIndex = tileData[baseTileIndex].indices[baseLightIndex];
         //int lightIndex = vplVisibleIndex[baseLightIndex];
         int lightIndex = int(maxRandomIndex * rand);
+        //int lightIndex = int(int(gl_FragCoord.x) + int(gl_FragCoord.y * numVisible) * rand) % numVisible;
+        //int lightIndex = int((fsTexCoords.x + rand) * maxRandomIndex) % numVisible;
+        // HaltonEntry baseHEntry = haltonSequence[baseHaltonIndex];
+        // HaltonEntry offsetHEntry = haltonSequence[int(rand * (haltonSize - 1))];
+        // rand = baseHEntry.base2 + offsetHEntry.base3;
+        // if ((startIndex % (2 * haltonSize)) % 2 == 0) {
+        //     rand = hentry.base3;
+        // }
+        //int lightIndex = int(numVisible * rand) % numVisible;
+        //int lightIndex = (int(maxRandomIndex * rand) + int(gl_FragCoord.x) * numVisible + int(gl_FragCoord.y)) % numVisible;
         //int lightIndex = (int(maxRandomIndex * rand) + i + resamples) % numVisible;
         //int lightIndex = (int(maxRandomIndex * rand) + offset + count) % numVisible;
         AtlasEntry entry = shadowIndices[lightIndex];

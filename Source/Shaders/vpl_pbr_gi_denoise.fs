@@ -19,6 +19,7 @@ in vec2 fsTexCoords;
 
 out vec3 combinedColor;
 out vec3 giColor;
+out vec3 shadowColor;
 
 // in/out frame texture
 uniform sampler2D screen;
@@ -35,41 +36,130 @@ uniform sampler2D indirectIllumination;
 uniform sampler2D indirectShadows;
 uniform sampler2D prevIndirectIllumination;
 
+uniform int multiplier = 0;
+uniform bool final = false;
+
 #define COMPONENT_WISE_MIN_VALUE 0.001
 
-const float waveletFactors[5] = float[](
-    1.0 / 16.0, 
-    1.0 / 4.0, 
-    3.0 / 8.0, 
-    1.0 / 4.0, 
-    1.0 / 16.0
-);
+// const float waveletFactors[5] = float[](
+//     1.0 / 16.0, 
+//     1.0 / 4.0, 
+//     3.0 / 8.0, 
+//     1.0 / 4.0, 
+//     1.0 / 16.0
+// );
+// const float waveletFactors[5] = float[](
+//     0.25,
+//     0.5,
+//     1.0,
+//     0.5,
+//     0.25
+// );
+
+// const float waveletFactors[3][3] = {
+// 	{ 1.0  , 0.5  , 0.25  },
+// 	{ 0.5  , 0.25 , 0.125 },
+//     { 0.125, 0.125, 0.125 }
+// };
+const float waveletFactors[3][3] = {
+	{ 3.0 / 8.0  , 1.0 / 4.0  , 1.0 / 16.0  },
+	{ 1.0 / 4.0  , 1.0 / 16.0  , 1.0 / 16.0 },
+    { 1.0 / 16.0, 1.0 / 16.0, 1.0 / 16.0 }
+};
 
 const float sigmaZ = 1.0;
 const float sigmaN = 128.0;
+const float sigmaL = 4.0;
+
+const int dminmax = 2;
+const int dminmaxVariance = 3;
+
+// See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
+vec3 calculateVariance(in vec2 texCoords) {
+    vec3 average = vec3(0.0);
+    float samples = 0.0;
+    // filter for average
+    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
+        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
+            samples += 1.0;
+            average += textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+        }
+    }
+    average /= samples;
+
+    // filter for sample variance
+    vec3 variance = vec3(0.0);
+    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
+        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
+            vec3 tmp = textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb - average;
+            variance += tmp * tmp;
+        }
+    }
+
+    return variance / (samples - 1.0);
+}
+
+float calculateLuminanceVariance(in vec2 texCoords) {
+    float average = 0.0;
+    float samples = 0.0;
+    // filter for average
+    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
+        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
+            samples += 1.0;
+            average += linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
+        }
+    }
+    average /= samples;
+
+    // filter for sample variance
+    float variance = 0.0;
+    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
+        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
+            float tmp = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb) - average;
+            variance += tmp * tmp;
+        }
+    }
+
+    return variance / (samples - 1.0);
+}
 
 float filterInput(
     in vec2 widthHeight,
     in vec2 texelWidthHeight,
     in vec3 centerNormal,
     in float centerDepth,
+    in float centerLum,
+    in float variance,
     in int dx, in int dy,
     in int count,
     in vec2 texCoords
 ) {
+    //if (dx == 0 && dy == 0) return 1.0;
+
     vec2 texelStep = vec2(float(dx), float(dy)) * texelWidthHeight;
+    vec2 pixelCoords = fsTexCoords * widthHeight;
 
-    float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy)).r;
-    vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy)).rg;
-    float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texelStep)) + PREVENT_DIV_BY_ZERO));
+    float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).r;
+    //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rg;
+    //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texelStep)) + 0.0001));
+    float wz = exp(-abs(centerDepth - currDepth));
 
-    vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy));
-    float wn = pow(max(0.0, dot(centerNormal, currNormal)), sigmaN);
+    vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier);
+    float wn = max(0.0, dot(centerNormal, currNormal));
 
-    int hqIndex = count % 5;
-    float hq = waveletFactors[hqIndex];
+    float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
+    float wl = 1.0;
+    if (dx != 0 || dy != 0) {
+        float lumDiff = abs(centerLum - currLum);
+        wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
+    }
 
-    return hq * wz * wn;
+    float hq = waveletFactors[abs(dx)][abs(dy)];
+
+    //return hq * wz * wn;// * wl;
+    return wn;// * wz * wl;
+    //return wn * wz;
+    //return wn * wz * wl;
 }
 
 void main() {
@@ -78,13 +168,17 @@ void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
     vec2 velocityVal = texture(velocity, fsTexCoords).xy;
     vec2 prevTexCoords = fsTexCoords - velocityVal;
+    //vec3 variance = calculateVariance(fsTexCoords);
+    float lumVariance = calculateLuminanceVariance(fsTexCoords);
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
-    // vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
-    // vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
-    // vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
-    // vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
+    float centerLum = linearColorToLuminance(centerIllum); 
+
+    vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
+    vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
+    vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
+    vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
     float centerDepth = texture(depth, fsTexCoords).r;
@@ -97,7 +191,6 @@ void main() {
 
     vec3 shadowFactor = vec3(0.0);
     float numShadowSamples = 0.0;
-    int dminmax = 2;
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
     for (int dx = -dminmax; dx <= dminmax; ++dx) {
@@ -106,19 +199,20 @@ void main() {
             //if (dx == 0 && dy == 0) continue;
             ++count;
             //++numShadowSamples;
-            float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerDepth, dx, dx, count, fsTexCoords);
+            float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
+            //filtered = filtered * filtered;
             numShadowSamples += filtered;
-            shadowFactor += filtered * textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgb;
+            shadowFactor += filtered * textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
         }
     }
-    shadowFactor /= numShadowSamples;
+    shadowFactor = shadowFactor / numShadowSamples;
 
     //vec3 minColor = tonemap(min(centerIllum, min(topIllum, min(botIllum, min(rightIllum, leftIllum)))));
     //vec3 maxColor = tonemap(max(centerIllum, max(topIllum, max(botIllum, max(rightIllum, leftIllum)))));
 
     //vec3 gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
     vec3 gi = centerIllum;
-    gi = gi * shadowFactor;
+    //gi = gi * shadowFactor;// * variance;
     //vec3 shadow = shadowFactor;
     //vec3 shadow = centerShadow;
     //gi = gi;
@@ -130,8 +224,8 @@ void main() {
     // for (int dx = -1; dx <= 1; ++dx) {
     //     for (int dy = -1; dy <= 1; ++dy) {
     //         ++numGiSamples;
-    //         //vec3 currAlbedo = textureOffset(albedo, fsTexCoords, ivec2(dx, dy)).rgb;
-    //         vec3 illum = textureOffset(indirectIllumination, fsTexCoords, ivec2(dx, dy)).rgb;
+    //         //vec3 currAlbedo = textureOffset(albedo, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+    //         vec3 illum = textureOffset(indirectIllumination, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
     //         // currAlbedo = vec3(
     //         //     max(currAlbedo.r, COMPONENT_WISE_MIN_VALUE), 
     //         //     max(currAlbedo.g, COMPONENT_WISE_MIN_VALUE), 
@@ -153,16 +247,23 @@ void main() {
     // prevGi = inverseTonemap(tmPrevGi);
 
     //vec3 illumAvg = centerIllum;
-    vec3 illumAvg = gi;
+    vec3 illumAvg = shadowFactor;
+    if (final) {
+        //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
+        //illumAvg = gi * shadowFactor;
+    }
     //vec3 illumAvg = shadowFactor;
+    //vec3 illumAvg = vec3(variance);
     // a is effectively how many frames we can accumulate. So for example 1 / 0.1 = 10,
     // 1 / 0.05 = 20, etc.
-    //vec3 illumAvg = mix(prevGi, gi, 0.1);
+    //vec3 illumAvg = mix(prevGi, gi, 0.05);
+    //vec3 illumAvg = mix(prevGi, shadowFactor, 0.05);
     //vec3 illumAvg = mix(prevGi, gi, 1.0 / 1000.0);
     //vec3 illumAvg = vec3(difference);
 
     combinedColor = screenColor + illumAvg;
     giColor = illumAvg;
+    shadowColor = shadowFactor;
 }
 
 // void main() {
@@ -185,12 +286,11 @@ void main() {
 
 //     vec3 shadowFactor = vec3(0.0);
 //     float numShadowSamples = 0.0;
-//     int dminmax = 2;
 //     for (int dx = -dminmax; dx <= dminmax; ++dx) {
 //         for (int dy = -dminmax; dy <= dminmax; ++dy) {
 //             //if (dx != 0 || dy != 0) continue;
 //             ++numShadowSamples;
-//             shadowFactor += textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgb;
+//             shadowFactor += textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
 //         }
 //     }
 //     shadowFactor /= numShadowSamples;
@@ -198,9 +298,9 @@ void main() {
 //     //vec3 minColor = tonemap(min(centerIllum, min(topIllum, min(botIllum, min(rightIllum, leftIllum)))));
 //     //vec3 maxColor = tonemap(max(centerIllum, max(topIllum, max(botIllum, max(rightIllum, leftIllum)))));
 
-//     vec3 gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
-//     //vec3 gi = centerIllum;
-//     gi = gi * shadowFactor;
+//     //vec3 gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
+//     vec3 gi = centerIllum;
+//     //gi = gi * shadowFactor;
 //     //vec3 shadow = shadowFactor;
 //     //vec3 shadow = centerShadow;
 //     //gi = gi;
@@ -212,8 +312,8 @@ void main() {
 //     // for (int dx = -1; dx <= 1; ++dx) {
 //     //     for (int dy = -1; dy <= 1; ++dy) {
 //     //         ++numGiSamples;
-//     //         //vec3 currAlbedo = textureOffset(albedo, fsTexCoords, ivec2(dx, dy)).rgb;
-//     //         vec3 illum = textureOffset(indirectIllumination, fsTexCoords, ivec2(dx, dy)).rgb;
+//     //         //vec3 currAlbedo = textureOffset(albedo, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+//     //         vec3 illum = textureOffset(indirectIllumination, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
 //     //         // currAlbedo = vec3(
 //     //         //     max(currAlbedo.r, COMPONENT_WISE_MIN_VALUE), 
 //     //         //     max(currAlbedo.g, COMPONENT_WISE_MIN_VALUE), 
@@ -235,16 +335,20 @@ void main() {
 //     // prevGi = inverseTonemap(tmPrevGi);
 
 //     //vec3 illumAvg = centerIllum;
-//     vec3 illumAvg = gi;
+//     vec3 illumAvg = shadowFactor;
+//     // if (final) {
+//     //     illumAvg = gi * shadowFactor;
+//     // }
 //     //vec3 illumAvg = shadowFactor;
 //     // a is effectively how many frames we can accumulate. So for example 1 / 0.1 = 10,
 //     // 1 / 0.05 = 20, etc.
-//     //vec3 illumAvg = mix(prevGi, gi, 0.1);
+//     //vec3 illumAvg = mix(prevGi, shadowFactor, 0.1);
 //     //vec3 illumAvg = mix(prevGi, gi, 1.0 / 1000.0);
 //     //vec3 illumAvg = vec3(difference);
 
 //     combinedColor = screenColor + illumAvg;
 //     giColor = illumAvg;
+//     shadowColor = shadowFactor;
 // }
 
 // void main() {
