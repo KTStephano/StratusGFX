@@ -1658,7 +1658,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     const int maxIterations = 5;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
-        const int multiplier = std::pow(2, bufferIndex) - 1;
+        const int multiplier = std::pow(2, bufferIndex);
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
         buffer->Bind();

@@ -134,6 +134,7 @@ float filterInput(
     in int count,
     in vec2 texCoords
 ) {
+    if (final) return 1.0;
     //if (dx == 0 && dy == 0) return 1.0;
 
     vec2 texelStep = vec2(float(dx), float(dy)) * texelWidthHeight;
@@ -159,7 +160,7 @@ float filterInput(
     float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return hq * wn * wz * wl;// * wz * wl;
+    return hq * wn * wz;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -171,7 +172,7 @@ void main() {
     vec2 velocityVal = texture(velocity, fsTexCoords).xy;
     vec2 prevTexCoords = fsTexCoords - velocityVal;
     //vec3 variance = calculateVariance(fsTexCoords);
-    float lumVariance = calculateLuminanceVariance(fsTexCoords);
+    float lumVariance = 1.0;//calculateLuminanceVariance(fsTexCoords);
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
@@ -253,9 +254,10 @@ void main() {
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
     if (final) {
+        shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, shadowFactor, 0.05);
-        //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
-        illumAvg = gi * shadowFactor;
+        illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
+        //illumAvg = gi * shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
