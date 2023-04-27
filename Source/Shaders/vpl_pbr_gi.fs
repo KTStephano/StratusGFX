@@ -13,7 +13,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec3 shadow;
 
-#define MAX_SAMPLES_PER_PIXEL 1
+#define MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 8
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -214,23 +214,23 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float shadowFactor = 0.0;
         if (distToCamera < 500) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-            // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
-            //     ++resamples;
-            //     --i;
-            // }
+            if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
+                ++resamples;
+                --i;
+            }
         }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
-        vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity);
-        colorNoShadow += tmpColor;
+        vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, vec3(1.0), normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity);
+        //colorNoShadow += tmpColor;
         vplColor = vplColor + (1.0 - shadowFactor) * tmpColor;
     }
 
     validSamples = max(validSamples, 1.0);
 
-    color = boundHDR(colorNoShadow / validSamples);
-    shadow = boundHDR(vplColor / (colorNoShadow + PREVENT_DIV_BY_ZERO));
+    color = baseColor;
+    shadow = boundHDR(vplColor / validSamples);
 }
 
 void main() {

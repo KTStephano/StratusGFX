@@ -209,13 +209,13 @@ void main() {
 
     //vec3 gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
     vec3 gi = centerIllum;
-    if (final) {
-        vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
-        vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
-        vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
-        vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
-        gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
-    }
+    // if (final) {
+    //     vec3 topIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0,  1)).rgb;
+    //     vec3 botIllum    = textureOffset(indirectIllumination, fsTexCoords, ivec2( 0, -1)).rgb;
+    //     vec3 rightIllum  = textureOffset(indirectIllumination, fsTexCoords, ivec2( 1,  0)).rgb;
+    //     vec3 leftIllum   = textureOffset(indirectIllumination, fsTexCoords, ivec2(-1,  0)).rgb;
+    //     gi = (centerIllum + topIllum + botIllum + rightIllum + leftIllum) / 5.0;
+    // }
     //gi = gi * shadowFactor;// * variance;
     //vec3 shadow = shadowFactor;
     //vec3 shadow = centerShadow;
@@ -250,11 +250,12 @@ void main() {
     // );
     // prevGi = inverseTonemap(tmPrevGi);
 
-    //vec3 illumAvg = centerIllum;
-    vec3 illumAvg = shadowFactor;
+    //vec3 illumAvg = gi * shadowFactor;
+    vec3 illumAvg = gi;
     if (final) {
         //illumAvg = mix(prevGi, shadowFactor, 0.05);
-        //illumAvg = gi * shadowFactor;
+        //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
+        illumAvg = gi * shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
