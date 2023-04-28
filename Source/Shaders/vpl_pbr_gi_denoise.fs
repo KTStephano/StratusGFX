@@ -75,48 +75,36 @@ const int dminmax = 2;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
-vec3 calculateVariance(in vec2 texCoords) {
-    vec3 average = vec3(0.0);
-    float samples = 0.0;
-    // filter for average
-    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
-        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
-            samples += 1.0;
-            average += textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
-        }
-    }
-    average /= samples;
-
-    // filter for sample variance
-    vec3 variance = vec3(0.0);
-    for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
-        for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
-            vec3 tmp = textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb - average;
-            variance += tmp * tmp;
-        }
-    }
-
-    return variance / (samples - 1.0);
-}
-
 float calculateLuminanceVariance(in vec2 texCoords) {
     float average = 0.0;
     float samples = 0.0;
+    float data[dminmaxVariance * dminmaxVariance + 1];
+    int dataIndex = 0;
     // filter for average
     for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
         for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
             samples += 1.0;
-            average += linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
+            ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * multiplier;
+
+            vec3 result = textureOffset(indirectShadows, texCoords, offset).rgb;
+            //result *= textureOffset(indirectIllumination, texCoords, offset).rgb;
+
+            data[dataIndex] = linearColorToLuminance(result);
+            average += data[dataIndex];
+
+            dataIndex += 1;
         }
     }
     average /= samples;
 
     // filter for sample variance
     float variance = 0.0;
+    dataIndex = 0;
     for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
         for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
-            float tmp = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb) - average;
+            float tmp = data[dataIndex] - average;
             variance += tmp * tmp;
+            dataIndex += 1;
         }
     }
 
@@ -134,8 +122,8 @@ float filterInput(
     in int count,
     in vec2 texCoords
 ) {
-    if (final) return 1.0;
-    //if (dx == 0 && dy == 0) return 1.0;
+    //if (final) return 1.0;
+    if (dx == 0 && dy == 0) return 1.0;
 
     vec2 texelStep = vec2(float(dx), float(dy)) * texelWidthHeight;
     vec2 pixelCoords = fsTexCoords * widthHeight;
@@ -150,17 +138,17 @@ float filterInput(
     float wn = max(0.0, dot(centerNormal, currNormal));
     wn = pow(wn, sigmaN);
 
-    float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
-    float wl = 1.0;
-    if (dx != 0 || dy != 0) {
-        float lumDiff = abs(centerLum - currLum);
-        wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
-    }
+    // float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
+    // float wl = 1.0;
+    // if (dx != 0 || dy != 0) {
+    //     float lumDiff = abs(centerLum - currLum);
+    //     wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
+    // }
 
     float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return hq * wn * wz;// * wz * wl;// * wz * wl;
+    return hq * wn * wz;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -254,9 +242,9 @@ void main() {
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
     if (final) {
-        shadowFactor = max(shadowFactor, 0.0025);
+        //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, shadowFactor, 0.05);
-        illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
+        illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
         //illumAvg = gi * shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;

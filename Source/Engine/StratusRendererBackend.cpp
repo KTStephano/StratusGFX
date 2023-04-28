@@ -1655,10 +1655,10 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
 
     size_t bufferIndex = 0;
-    const int maxIterations = 5;
+    const int maxIterations = 3;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
-        const int multiplier = std::pow(2, bufferIndex);
+        const int multiplier = std::pow(2, bufferIndex) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
         buffer->Bind();
