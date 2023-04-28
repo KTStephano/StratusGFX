@@ -145,7 +145,8 @@ struct Derived : public Base {
 static void TestPointerCast() {
     typedef stratus::ThreadSafePoolAllocator<Derived> Allocator;
 
-    auto base = Allocator::UniqueCast<Base>(Allocator::Allocate());
+    auto derived = Allocator::Allocate();
+    auto base = Allocator::UniqueCast<Base>(derived);
     Base * ptr = base.get();
     ptr->Print();
     

@@ -65,6 +65,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(OpenGLDebugCallback, nullptr);
 
+    if (GraphicsDriver::GetConfig().majorVersion != 4 || GraphicsDriver::GetConfig().minorVersion != 6) {
+        throw std::runtime_error("Unable to initialize renderer - driver does not support OpenGL 4.6");
+    }
+
     const std::filesystem::path shaderRoot("../Source/Shaders");
     const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
