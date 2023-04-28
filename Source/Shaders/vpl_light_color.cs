@@ -40,7 +40,7 @@ layout (std430, binding = 4) readonly buffer inputBlock3 {
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    float colorMultiplier = clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
+    float colorMultiplier = 500.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
 
     for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
         int index = i;

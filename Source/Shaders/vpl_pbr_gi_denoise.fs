@@ -6,6 +6,7 @@ STRATUS_GLSL_VERSION
 //      -> Q2RTX: https://developer.download.nvidia.com/video/gputechconf/gtc/2019/presentation/s91046-real-time-path-tracing-and-denoising-in-quake-2.pdf
 //      -> Q2RTX + Albedo Demodulation: https://cg.informatik.uni-freiburg.de/intern/seminar/raytracing%20-%20Keller%20-%20SIGGRAPH%202019%204%20Path%20Tracing.pdf
 //      -> Reconstruction Filters: https://cg.informatik.uni-freiburg.de/intern/seminar/raytracing%20-%20Keller%20-%20SIGGRAPH%202019%204%20Path%20Tracing.pdf
+//      -> SVGF Presentation: https://www.highperformancegraphics.org/wp-content/uploads/2017/Papers-Session1/HPG2017_SpatiotemporalVarianceGuidedFiltering.pdf
 
 #extension GL_ARB_bindless_texture : require
 
@@ -230,7 +231,6 @@ void main() {
     // }
     // gi /= numGiSamples;
 
-    vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
     // vec3 tmPrevGi = tonemap(prevGi);
     // tmPrevGi = vec3(
     //     clamp(tmPrevGi.r, minColor.r, maxColor.r),
@@ -242,7 +242,8 @@ void main() {
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
     if (final) {
-        //shadowFactor = max(shadowFactor, 0.0025);
+        vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
+        shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, shadowFactor, 0.05);
         illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
         //illumAvg = gi * shadowFactor;
