@@ -130,12 +130,13 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // shadowFactor /= float(maxShadowLights);
 
     const float seedZMultiplier = 10000.0;
-    const float seedZOffset = 1000.0;
-    float seedZ = float(frameCount % 20) * seedZMultiplier;
-    //seed = vec3(gl_FragCoord.xy, time);
+    const float seedZOffset = 10000.0;
+    //float seedZ = float(frameCount % 20) * seedZMultiplier;
+    float seedZ = time;
+    seed = vec3(gl_FragCoord.xy, time);
     //seed = vec3(gl_FragCoord.xy, time + float(frameCount));
     //seed = vec3(gl_FragCoord.xy, 0.0);
-    seed = vec3(gl_FragCoord.xy, seedZ);
+    //seed = vec3(gl_FragCoord.xy, seedZ);
     //seed = vec3(0.0, 0.0, time);
     //seed = vec3(0.0, gl_FragCoord.y, 0.0);
     //seed = vec3(distToCamera * 10.0, 0.0, time);
@@ -155,7 +156,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     for (int i = 0, resamples = 0, count = 0; i < MAX_SAMPLES_PER_PIXEL; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);
-        seed.z = seedZ + seedZOffset;
+        seed.z += seedZOffset;
         //seed.z += 1000.0;
         // float rand = haltonSequence[haltonIndex].base3;
         // if (useBase2) {

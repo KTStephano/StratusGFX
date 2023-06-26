@@ -170,6 +170,17 @@ void main() {
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
     float centerDepth = texture(depth, fsTexCoords).r;
 
+    vec3 prevCenterNormal = sampleNormal(prevNormal, prevTexCoords);
+    float prevCenterDepth = texture(depth, prevTexCoords).r;
+
+    float wn = max(0.0, dot(centerNormal, prevCenterNormal));
+    wn = pow(wn, sigmaN);
+
+    float wz = exp(-abs(centerDepth - prevCenterDepth));
+
+    float similarity = wn * wz;
+    if (similarity < 0.8) similarity = 0.0;
+
     // vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
     // vec3 topShadow    = textureOffset(indirectShadows, fsTexCoords, ivec2( 0,  1)).rgb;
     // vec3 botShadow    = textureOffset(indirectShadows, fsTexCoords, ivec2( 0, -1)).rgb;
@@ -243,10 +254,13 @@ void main() {
     vec3 illumAvg = gi;
     if (final) {
         vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
-        shadowFactor = max(shadowFactor, 0.0025);
-        //illumAvg = mix(prevGi, shadowFactor, 0.05);
-        illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
+        //shadowFactor = max(shadowFactor, 0.0025);
+        //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
+        //illumAvg = mix(prevGi, gi * shadowFactor, 0.01);
+        const float maxAccumulationFactor = 0.1;
+        illumAvg = mix(prevGi, gi * shadowFactor, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
         //illumAvg = gi * shadowFactor;
+        //illumAvg = vec3(similarity);
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
