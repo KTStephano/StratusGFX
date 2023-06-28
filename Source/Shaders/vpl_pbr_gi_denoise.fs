@@ -273,15 +273,15 @@ void main() {
         float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
         //float wz = abs(centerDepth = prevCenterDepth);
         //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
-        if (wz < 0.95) wz = 0.0;
+        //if (wz < 0.95) wz = 0.0;
 
         vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
         vec3 currGi = gi * shadowFactor;
 
-        float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - linearColorToLuminance(tonemap(currGi)));
-        float ozrt = 1.0;
-        wrt = exp(-1.0 * wrt / (ozrt * ozrt));
-        if (wrt < 0.25) wrt = 0.0;
+        float wrt = length(prevGi - currGi);
+        float ozrt = 2;
+        wrt = exp(-wrt / (ozrt * ozrt));
+        if (wrt < 0.97) wrt = 0.0;
 
         float similarity = wn * wz * 1;
         float accumMultiplier = 1.0;
@@ -291,7 +291,7 @@ void main() {
         }
         //similarity = 0.0;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 128.0);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 64.0);
 
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);

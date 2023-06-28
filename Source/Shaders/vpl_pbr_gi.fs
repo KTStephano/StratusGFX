@@ -163,8 +163,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? int(normalizedHistory * MAX_SAMPLES_PER_PIXEL) : 1;
     int sampleCount = int(normalizedHistory * MAX_SAMPLES_PER_PIXEL);
     sampleCount = max(sampleCount, 1);
-    //int sampleCount = history < 2.0 ? MAX_SAMPLES_PER_PIXEL : 8;
-    //sampleCount = 1;
+    //int sampleCount = history < 2.0 ? MAX_SAMPLES_PER_PIXEL : 1;
+    //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? MAX_SAMPLES_PER_PIXEL : 1;
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);

@@ -143,7 +143,7 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
 private:
-    std::vector<double> _rotationSpeeds = std::vector<double>{ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0 };
+    std::vector<double> _rotationSpeeds = std::vector<double>{ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0 };
     size_t _rotationIndex = 0;
     float _worldLightMoveDirection = 1.0; // -1.0 reverses it
     stratus::InfiniteLightPtr _worldLight;

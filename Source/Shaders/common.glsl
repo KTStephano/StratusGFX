@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 // See https://stackoverflow.com/questions/16069959/glsl-how-to-ensure-largest-possible-float-value-without-overflow
+#define HALF_FLOAT_MAX 65504.0
 #define FLOAT_MAX 3.402823466e+38
 #define FLOAT_MIN 1.175494351e-38
 #define DOUBLE_MAX 1.7976931348623158e+308
@@ -79,12 +80,12 @@ bool bitwiseAndBool(uint flag, uint mask) {
 
 // Prevents HDR color values from exceeding 16-bit color buffer range
 float boundHDR(float value) {
-    return min(value, 65504.0);
+    return min(value, HALF_FLOAT_MAX);
     //return value; // Engine is currently using 32-bit... disable for now
 }
 
 vec3 boundHDR(vec3 value) {
-    return min(value, 65504.0);
+    return min(value, HALF_FLOAT_MAX);
     //return value; // Engine is currently using 32-bit... disable for now
 }
 
@@ -98,11 +99,11 @@ float saturate(float value) {
 }
 
 vec3 clampMediumPrecision(vec3 value) {
-    return clamp(value, 0.0, 65504.0);
+    return clamp(value, 0.0, HALF_FLOAT_MAX);
 }
 
 float clampMediumPrecision(float value) {
-    return clamp(value, 0.0, 65504.0);
+    return clamp(value, 0.0, HALF_FLOAT_MAX);
 }
 
 vec2 computeTexelSize(sampler2D tex, int miplevel) {
