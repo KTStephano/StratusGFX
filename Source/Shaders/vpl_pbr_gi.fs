@@ -14,7 +14,7 @@ out vec3 color;
 out vec3 shadow;
 
 #define MAX_SAMPLES_PER_PIXEL 1
-#define MAX_RESAMPLES_PER_PIXEL 8
+#define MAX_RESAMPLES_PER_PIXEL 1
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -99,6 +99,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
     float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
+    roughness = max(0.5, roughness);
     float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
@@ -219,7 +220,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = 0.0;
-        if (distToCamera < 500) {
+        if (distToCamera < 700) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
             // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
             //     ++resamples;
