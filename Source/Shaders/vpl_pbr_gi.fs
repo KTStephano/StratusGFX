@@ -13,7 +13,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec3 shadow;
 
-#define MAX_SAMPLES_PER_PIXEL 8
+#define MAX_SAMPLES_PER_PIXEL 1
 #define MAX_RESAMPLES_PER_PIXEL 8
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25

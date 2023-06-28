@@ -126,14 +126,16 @@ float filterInput(
     //if (final) return 1.0;
     if (dx == 0 && dy == 0) return 1.0;
 
-    vec2 texelStep = vec2(float(dx), float(dy)) * texelWidthHeight;
-    vec2 pixelCoords = fsTexCoords * widthHeight;
+    vec2 texelStep = (vec2(float(dx), float(dy)) + vec2(float(dx), float(dy)) * float(multiplier)) * texelWidthHeight;
+    vec2 pixelCoords = texCoords * widthHeight;
     vec2 newTexCoords = texCoords + texelStep;
 
     float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).r;
     //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).xy;
-    //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texCoords - newTexCoords)) + 0.0001));
-    float wz = exp(-abs(centerDepth - currDepth));
+    vec2 currGradient = 1.0 - texture(structureBuffer, texCoords * widthHeight).xy;
+    //currGradient = vec2(0.05);
+    float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texCoords - newTexCoords)) + 0.0001));
+    //float wz = exp(-abs(centerDepth - currDepth));
 
     vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier);
     float wn = max(0.0, dot(centerNormal, currNormal));
@@ -149,7 +151,7 @@ float filterInput(
     float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return hq * wn * wz;// * wl;// * wz * wl;// * wz * wl;
+    return wn * wz;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -264,7 +266,7 @@ void main() {
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
         const float maxAccumulationFactor = 0.1;
         illumAvg = mix(prevGi, gi * shadowFactor, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
-        //illumAvg = gi * shadowFactor;
+        illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);
     }
     //vec3 illumAvg = shadowFactor;
