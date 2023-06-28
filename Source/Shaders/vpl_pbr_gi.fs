@@ -13,7 +13,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec3 shadow;
 
-#define MAX_SAMPLES_PER_PIXEL 1
+#define MAX_SAMPLES_PER_PIXEL 20
 #define MAX_RESAMPLES_PER_PIXEL 0
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -41,6 +41,9 @@ uniform int viewportHeight;
 
 // in/out frame texture
 uniform sampler2D screen;
+
+// Accumulated history depth
+uniform sampler2D historyDepth;
 
 // Screen tile information
 uniform int numTilesX;
@@ -107,6 +110,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
     vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
 
+    float history = textureLod(historyDepth, texCoords, 0).r;
+
     vec3 vplColor = vec3(0.0); //screenColor;
 
     //int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
@@ -154,7 +159,13 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int startIndex = int(random(seed) * haltonSize);
     //int startIndex = 0;
     //int baseHaltonIndex = int((float(gl_FragCoord.x) / float(haltonSize)) * float(haltonSize)) % haltonSize;
-    for (int i = 0, resamples = 0, count = 0; i < MAX_SAMPLES_PER_PIXEL; i += 1, count += 1) {
+    float normalizedHistory = 1.0 - history / float(MAX_SAMPLES_PER_PIXEL);
+    //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? int(normalizedHistory * MAX_SAMPLES_PER_PIXEL) : 1;
+    int sampleCount = int(normalizedHistory * MAX_SAMPLES_PER_PIXEL);
+    sampleCount = max(sampleCount, 1);
+    //int sampleCount = history < 2.0 ? MAX_SAMPLES_PER_PIXEL : 8;
+    //sampleCount = 1;
+    for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);
         seed.z += seedZOffset;

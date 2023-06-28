@@ -265,15 +265,25 @@ void main() {
 
     if (final) {
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-        wn = pow(wn, sigmaN);
+        wn = pow(wn, 64.0);
+        //if (wn < 0.95) wn = 0.0;
 
-        float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
-        //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
-        if (wz < 0.75) wz = 0.0;
-        //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
+        vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
+        float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
+        //float wz = abs(centerDepth = prevCenterDepth);
+        //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
+        if (wz < 0.95) wz = 0.0;
 
-        float similarity = wn * wz;
+        vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
+        vec3 currGi = gi * shadowFactor;
+
+        float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - linearColorToLuminance(tonemap(currGi)));
+        float ozrt = 1.0;
+        wrt = exp(-1.0 * wrt / (ozrt * ozrt));
+        if (wrt < 0.25) wrt = 0.0;
+
+        float similarity = wn * wz * 1;
         float accumMultiplier = 1.0;
         if (similarity < 0.95) {
             similarity = 0.0;
@@ -281,14 +291,14 @@ void main() {
         }
         //similarity = 0.0;
 
-        historyAccum = boundHDR(1.0 + historyAccum * accumMultiplier);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 128.0);
 
-        vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
         float maxAccumulationFactor = 1.0 / historyAccum;
-        illumAvg = mix(prevGi, gi * shadowFactor, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
+        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
         //illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);
     }

@@ -1629,6 +1629,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
     state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
     state_.vplGlobalIllumination->SetInt("frameCount", int(INSTANCE(Engine)->FrameCount()));
 
