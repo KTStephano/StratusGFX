@@ -501,7 +501,11 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedFbo1 = FrameBuffer({ texture, texture2, texture3 });
+    Texture texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedFbo1 = FrameBuffer({ texture, texture2, texture3, texture4 });
     if (!state_.vpls.vplGIDenoisedFbo1.Valid()) {
         isValid_ = false;
         return;
@@ -519,7 +523,11 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedFbo2 = FrameBuffer({ texture, texture2, texture3 });
+    texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedFbo2 = FrameBuffer({ texture, texture2, texture3, texture4 });
     if (!state_.vpls.vplGIDenoisedFbo2.Valid()) {
         isValid_ = false;
         return;
@@ -537,7 +545,11 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2, texture3 });
+    texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vpls.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2, texture3, texture4 });
     if (!state_.vpls.vplGIDenoisedPrevFrameFbo.Valid()) {
         isValid_ = false;
         return;
@@ -1652,6 +1664,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
+    state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
+    state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
 
     size_t bufferIndex = 0;

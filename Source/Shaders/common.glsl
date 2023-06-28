@@ -78,6 +78,11 @@ bool bitwiseAndBool(uint flag, uint mask) {
 }
 
 // Prevents HDR color values from exceeding 16-bit color buffer range
+float boundHDR(float value) {
+    return min(value, 65504.0);
+    //return value; // Engine is currently using 32-bit... disable for now
+}
+
 vec3 boundHDR(vec3 value) {
     return min(value, 65504.0);
     //return value; // Engine is currently using 32-bit... disable for now

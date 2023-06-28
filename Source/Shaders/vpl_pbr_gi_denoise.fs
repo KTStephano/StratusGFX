@@ -21,6 +21,7 @@ in vec2 fsTexCoords;
 out vec3 combinedColor;
 out vec3 giColor;
 out vec3 shadowColor;
+out float newHistoryDepth;
 
 // in/out frame texture
 uniform sampler2D screen;
@@ -36,6 +37,10 @@ uniform sampler2D prevDepth;
 uniform sampler2D indirectIllumination;
 uniform sampler2D indirectShadows;
 uniform sampler2D prevIndirectIllumination;
+
+uniform sampler2D originalNoisyIndirectIllumination;
+
+uniform sampler2D historyDepth;
 
 uniform int multiplier = 0;
 uniform int passNumber = 0;
@@ -72,7 +77,7 @@ const float waveletFactors[3][3] = {
 const float sigmaZ = 1.0;
 const float sigmaN = 128.0;
 const float sigmaL = 4.0;
-const float sigmaRT = 8.0;
+const float sigmaRT = 4.0;
 
 const int dminmax = 2;
 const int dminmaxVariance = 2;
@@ -256,6 +261,8 @@ void main() {
 
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
+    float historyAccum = texture(historyDepth, fsTexCoords).r;
+
     if (final) {
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
         wn = pow(wn, sigmaN);
@@ -267,14 +274,20 @@ void main() {
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
 
         float similarity = wn * wz;
-        if (similarity < 0.95) similarity = 0.0;
+        float accumMultiplier = 1.0;
+        if (similarity < 0.95) {
+            similarity = 0.0;
+            accumMultiplier = 0.0;
+        }
         //similarity = 0.0;
+
+        historyAccum = boundHDR(1.0 + historyAccum * accumMultiplier);
 
         vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
-        const float maxAccumulationFactor = 1.0 / 20.0;
+        float maxAccumulationFactor = 1.0 / historyAccum;
         illumAvg = mix(prevGi, gi * shadowFactor, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
         //illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);
@@ -291,6 +304,7 @@ void main() {
     combinedColor = screenColor + illumAvg;
     giColor = illumAvg;
     shadowColor = shadowFactor;
+    newHistoryDepth = historyAccum;
 }
 
 // void main() {
