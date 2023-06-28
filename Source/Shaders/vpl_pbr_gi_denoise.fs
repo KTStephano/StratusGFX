@@ -38,6 +38,7 @@ uniform sampler2D indirectShadows;
 uniform sampler2D prevIndirectIllumination;
 
 uniform int multiplier = 0;
+uniform int passNumber = 0;
 uniform bool final = false;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
@@ -71,6 +72,7 @@ const float waveletFactors[3][3] = {
 const float sigmaZ = 1.0;
 const float sigmaN = 128.0;
 const float sigmaL = 4.0;
+const float sigmaRT = 8.0;
 
 const int dminmax = 2;
 const int dminmaxVariance = 2;
@@ -116,6 +118,8 @@ float filterInput(
     in vec2 widthHeight,
     in vec2 texelWidthHeight,
     in vec3 centerNormal,
+    in vec3 centerIllum,
+    in vec3 currIllum,
     in float centerDepth,
     in float centerLum,
     in float variance,
@@ -135,7 +139,7 @@ float filterInput(
     vec2 currGradient = 1.0 - texture(structureBuffer, texCoords * widthHeight).xy;
     //currGradient = vec2(0.05);
     //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texCoords - newTexCoords)) + 0.0001));
-    float wz = exp(-abs(centerDepth - currDepth));
+    float wz = exp(-abs(centerDepth - currDepth)) / sigmaZ;
 
     vec3 currNormal = sampleNormalWithOffset(normal, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier);
     float wn = max(0.0, dot(centerNormal, currNormal));
@@ -148,10 +152,14 @@ float filterInput(
     //     wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
     // }
 
+    float wrt = length(centerIllum - currIllum);
+    float ozrt = pow(2.0, -passNumber) * sigmaRT;
+    wrt = exp(-wrt / (ozrt * ozrt));
+
     float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return wn * wz;// * wl;// * wz * wl;// * wz * wl;
+    return wn * wz * wrt;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -168,25 +176,13 @@ void main() {
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
     float centerLum = linearColorToLuminance(centerIllum); 
+    vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
     float centerDepth = texture(depth, fsTexCoords).r;
 
     vec3 prevCenterNormal = sampleNormal(prevNormal, prevTexCoords);
     float prevCenterDepth = texture(depth, prevTexCoords).r;
-
-    float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-    wn = pow(wn, sigmaN);
-
-    float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
-    //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
-    if (wz < 0.75) wz = 0.0;
-    //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
-    //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
-
-    float similarity = wn * wz;
-    if (similarity < 0.95) similarity = 0.0;
-    //similarity = 0.0;
 
     // vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
     // vec3 topShadow    = textureOffset(indirectShadows, fsTexCoords, ivec2( 0,  1)).rgb;
@@ -204,10 +200,11 @@ void main() {
             //if (dx == 0 && dy == 0) continue;
             ++count;
             //++numShadowSamples;
-            float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
+            vec3 currShadow = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+            float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
             //filtered = filtered * filtered;
             numShadowSamples += filtered;
-            shadowFactor += filtered * textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+            shadowFactor += filtered * currShadow;
         }
     }
     shadowFactor = shadowFactor / max(PREVENT_DIV_BY_ZERO, numShadowSamples);
@@ -260,13 +257,26 @@ void main() {
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
     if (final) {
+        float wn = max(0.0, dot(centerNormal, prevCenterNormal));
+        wn = pow(wn, sigmaN);
+
+        float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
+        //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
+        if (wz < 0.75) wz = 0.0;
+        //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
+        //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
+
+        float similarity = wn * wz;
+        if (similarity < 0.95) similarity = 0.0;
+        //similarity = 0.0;
+
         vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
         const float maxAccumulationFactor = 1.0 / 20.0;
         illumAvg = mix(prevGi, gi * shadowFactor, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
-        illumAvg = gi * shadowFactor;
+        //illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);
     }
     //vec3 illumAvg = shadowFactor;

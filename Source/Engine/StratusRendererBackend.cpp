@@ -1665,6 +1665,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", indirectIllum);
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
         state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
+        state_.vplGlobalIlluminationDenoising->SetInt("passNumber", int(bufferIndex));
         if (bufferIndex + 1 == maxIterations) {
             state_.vplGlobalIlluminationDenoising->SetBool("final", true);
         }
