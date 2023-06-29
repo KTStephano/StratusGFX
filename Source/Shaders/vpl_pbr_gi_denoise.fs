@@ -279,8 +279,16 @@ void main() {
         vec3 currGi = gi * shadowFactor;
         //float variance = calculateLuminanceVariance(fsTexCoords, 0);
 
-        for (int dx = 0; dx <= 1 && !complete; dx += 2) {
-            for (int dy = 0; dy <= 1 && !complete; dy += 2) {
+        // vec3 currColor1 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
+        // vec3 currColor2 = textureOffset(screen, fsTexCoords, ivec2( 0, -1)).rgb;
+        // vec3 currColor3 = textureOffset(screen, fsTexCoords, ivec2( 1,  0)).rgb;
+        // vec3 currColor4 = textureOffset(screen, fsTexCoords, ivec2(-1,  0)).rgb;
+
+        // vec3 minColor = tonemap(min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4)))));
+        // vec3 maxColor = tonemap(max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4)))));
+
+        for (int dx = -1; dx <= 1 && !complete; dx += 2) {
+            for (int dy = -1; dy <= 1 && !complete; dy += 2) {
                 ++totalSamples;
 
                 float prevCenterDepth = textureOffset(depth, prevTexCoords, ivec2(dx, dy)).r;
@@ -288,22 +296,23 @@ void main() {
                 vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(dx, dy)).rgb;
 
                 float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-                wn = pow(wn, 64.0);
+                wn = pow(wn, 2.0);
                 //if (wn < 0.95) wn = 0.0;
                 
                 //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
                 float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
                 //float wz = abs(centerDepth = prevCenterDepth);
                 //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
-                //if (wz < 0.95) wz = 0.0;
+                //if (wz < 0.96) wz = 0.0;
+                //wz = 0.0;
 
                 float wrt = length(prevGi - currGi);
-                float ozrt = 1.0;//4 * exp(-variance) + 0.0001;
+                float ozrt = 4.0;//4 * exp(-variance) + 0.0001;
                 //ozrt = 1.0 - variance + 0.0001;
                 wrt = exp(-wrt / ozrt);
                 //if (wrt < 0.97) wrt = 0.0;
 
-                float similarity = wn * 1 * 1;
+                float similarity = wn * wz * wrt;
                 
                 if (similarity > 0.95) {
                     ++similarSamples;
