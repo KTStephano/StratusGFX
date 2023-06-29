@@ -32,7 +32,7 @@
 
 // Matches the definitions in vpl_common.glsl
 #define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (1024)
+#define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
 #define MAX_VPLS_PER_TILE (12)
 
 #define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
