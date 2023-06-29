@@ -13,7 +13,8 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec3 shadow;
 
-#define MAX_SAMPLES_PER_PIXEL 20
+#define MAX_SAMPLES_PER_PIXEL 15
+#define HALF_MAX_SAMPLES_PER_PIXEL (MAX_SAMPLES_PER_PIXEL / 2)
 #define MAX_RESAMPLES_PER_PIXEL 0
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -159,12 +160,15 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int startIndex = int(random(seed) * haltonSize);
     //int startIndex = 0;
     //int baseHaltonIndex = int((float(gl_FragCoord.x) / float(haltonSize)) * float(haltonSize)) % haltonSize;
-    float normalizedHistory = 1.0 - history / float(MAX_SAMPLES_PER_PIXEL);
-    //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? int(normalizedHistory * MAX_SAMPLES_PER_PIXEL) : 1;
-    int sampleCount = int(normalizedHistory * MAX_SAMPLES_PER_PIXEL);
-    sampleCount = max(sampleCount, 1);
+    // float normalizedHistory = 1.0 - history / float(MAX_SAMPLES_PER_PIXEL);
+    // //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? int(normalizedHistory * MAX_SAMPLES_PER_PIXEL) : 1;
+    // int sampleCount = int(normalizedHistory * MAX_SAMPLES_PER_PIXEL);
+    // sampleCount = max(sampleCount, 1);
     //int sampleCount = history < 2.0 ? MAX_SAMPLES_PER_PIXEL : 1;
     //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? MAX_SAMPLES_PER_PIXEL : 1;
+    //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? MAX_SAMPLES_PER_PIXEL : HALF_MAX_SAMPLES_PER_PIXEL;
+    float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
+    int sampleCount = max(1, int(MAX_SAMPLES_PER_PIXEL * distRatioToCamera));
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
         //seed.z += 1000.0;
         float rand = random(seed);

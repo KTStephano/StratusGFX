@@ -63,16 +63,23 @@ uniform bool final = false;
 //     0.25
 // );
 
-const float waveletFactors[3][3] = {
-	{ 1.0  , 0.5  , 0.25  },
-	{ 0.5  , 0.25 , 0.125 },
-    { 0.125, 0.125, 0.125 }
-};
 // const float waveletFactors[3][3] = {
-// 	{ 3.0 / 8.0  , 1.0 / 4.0  , 1.0 / 16.0  },
-// 	{ 1.0 / 4.0  , 1.0 / 16.0  , 1.0 / 16.0 },
-//     { 1.0 / 16.0, 1.0 / 16.0, 1.0 / 16.0 }
+// 	{ 1.0  , 0.5  , 0.25  },
+// 	{ 0.5  , 0.25 , 0.125 },
+//     { 0.125, 0.125, 0.125 }
 // };
+const float waveletFactors[3][3] = {
+	{ 3.0 / 8.0  , 1.0 / 4.0  , 1.0 / 16.0  },
+	{ 1.0 / 4.0  , 1.0 / 16.0  , 1.0 / 16.0 },
+    { 1.0 / 16.0, 1.0 / 16.0, 1.0 / 16.0 }
+};
+
+const float waveletFactor = 0.5;
+const float waveletKernel[3][3] = {
+	{ 1.0, waveletFactor, waveletFactor * waveletFactor, },
+	{ waveletFactor, waveletFactor * waveletFactor, waveletFactor * waveletFactor },
+    {waveletFactor * waveletFactor, waveletFactor * waveletFactor * waveletFactor, waveletFactor * waveletFactor * waveletFactor * waveletFactor}
+};
 
 const float sigmaZ = 1.0;
 const float sigmaN = 128.0;
@@ -83,7 +90,7 @@ const int dminmax = 2;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
-float calculateLuminanceVariance(in vec2 texCoords) {
+float calculateLuminanceVariance(in vec2 texCoords, in int varMultiplier) {
     float average = 0.0;
     float samples = 0.0;
     float data[dminmaxVariance * dminmaxVariance + 1];
@@ -92,12 +99,13 @@ float calculateLuminanceVariance(in vec2 texCoords) {
     for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
         for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
             samples += 1.0;
-            ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * multiplier;
+            ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier;
 
             vec3 result = textureOffset(indirectShadows, texCoords, offset).rgb;
             //result *= textureOffset(indirectIllumination, texCoords, offset).rgb;
 
-            data[dataIndex] = linearColorToLuminance(result);
+            data[dataIndex] = linearColorToLuminance(tonemap(result));
+            //data[dataIndex] = length(result);
             average += data[dataIndex];
 
             dataIndex += 1;
@@ -150,21 +158,18 @@ float filterInput(
     float wn = max(0.0, dot(centerNormal, currNormal));
     wn = pow(wn, sigmaN);
 
-    // float currLum = linearColorToLuminance(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb);
-    // float wl = 1.0;
-    // if (dx != 0 || dy != 0) {
-    //     float lumDiff = abs(centerLum - currLum);
-    //     wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
-    // }
+    float currLum = linearColorToLuminance(tonemap(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb));
+    float lumDiff = abs(centerLum - currLum);
+    float wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
 
-    float wrt = length(centerIllum - currIllum);
-    float ozrt = pow(2.0, -passNumber) * sigmaRT;
-    wrt = exp(-wrt / (ozrt * ozrt));
+    // float wrt = length(centerIllum - currIllum);
+    // float ozrt = pow(2.0, -passNumber) * sigmaRT;
+    // wrt = exp(-wrt / (ozrt * ozrt));
 
-    float hq = waveletFactors[abs(dx)][abs(dy)];
+    float hq = waveletKernel[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return wn * wz * wrt;// * wl;// * wz * wl;// * wz * wl;
+    return wn * wz * wl;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
@@ -176,7 +181,7 @@ void main() {
     vec2 velocityVal = texture(velocity, fsTexCoords).xy;
     vec2 prevTexCoords = fsTexCoords - velocityVal;
     //vec3 variance = calculateVariance(fsTexCoords);
-    float lumVariance = 1.0;//calculateLuminanceVariance(fsTexCoords);
+    float lumVariance = calculateLuminanceVariance(fsTexCoords, multiplier);
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
@@ -187,7 +192,7 @@ void main() {
     float centerDepth = texture(depth, fsTexCoords).r;
 
     vec3 prevCenterNormal = sampleNormal(prevNormal, prevTexCoords);
-    float prevCenterDepth = texture(depth, prevTexCoords).r;
+    //float prevCenterDepth = texture(depth, prevTexCoords).r;
 
     // vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
     // vec3 topShadow    = textureOffset(indirectShadows, fsTexCoords, ivec2( 0,  1)).rgb;
@@ -264,34 +269,59 @@ void main() {
     float historyAccum = texture(historyDepth, fsTexCoords).r;
 
     if (final) {
-        float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-        wn = pow(wn, 64.0);
-        //if (wn < 0.95) wn = 0.0;
-
-        vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
-        //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
-        float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
-        //float wz = abs(centerDepth = prevCenterDepth);
-        //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
-        //if (wz < 0.95) wz = 0.0;
-
-        vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
-        vec3 currGi = gi * shadowFactor;
-
-        float wrt = length(prevGi - currGi);
-        float ozrt = 2;
-        wrt = exp(-wrt / (ozrt * ozrt));
-        if (wrt < 0.97) wrt = 0.0;
-
-        float similarity = wn * wz * 1;
         float accumMultiplier = 1.0;
-        if (similarity < 0.95) {
-            similarity = 0.0;
+        //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
+        bool complete = false;
+
+        float similarSamples = 0.0;
+        float totalSamples = 0.0;
+
+        vec3 currGi = gi * shadowFactor;
+        //float variance = calculateLuminanceVariance(fsTexCoords, 0);
+
+        for (int dx = 0; dx <= 1 && !complete; dx += 2) {
+            for (int dy = 0; dy <= 1 && !complete; dy += 2) {
+                ++totalSamples;
+
+                float prevCenterDepth = textureOffset(depth, prevTexCoords, ivec2(dx, dy)).r;
+                prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(dx, dy));
+                vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(dx, dy)).rgb;
+
+                float wn = max(0.0, dot(centerNormal, prevCenterNormal));
+                wn = pow(wn, 64.0);
+                //if (wn < 0.95) wn = 0.0;
+                
+                //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
+                float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
+                //float wz = abs(centerDepth = prevCenterDepth);
+                //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
+                //if (wz < 0.95) wz = 0.0;
+
+                float wrt = length(prevGi - currGi);
+                float ozrt = 1.0;//4 * exp(-variance) + 0.0001;
+                //ozrt = 1.0 - variance + 0.0001;
+                wrt = exp(-wrt / ozrt);
+                //if (wrt < 0.97) wrt = 0.0;
+
+                float similarity = wn * 1 * 1;
+                
+                if (similarity > 0.95) {
+                    ++similarSamples;
+                    similarity = 0.0;
+                    //accumMultiplier = 0.0;
+                    //complete = true;
+                }
+            }
+        }
+
+        float similarity = similarSamples / totalSamples;
+        if (similarity < 0.5) {
             accumMultiplier = 0.0;
         }
-        //similarity = 0.0;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 64.0);
+        vec3 prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
+
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 10.0);
 
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
@@ -301,6 +331,8 @@ void main() {
         //illumAvg = mix(prevGi, currGi, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
         //illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);
+        //illumAvg = vec3(similarity);
+        //illumAvg = vec3(variance);
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
