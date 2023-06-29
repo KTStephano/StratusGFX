@@ -12,13 +12,13 @@
 #endif
 
 // Synchronized with definitions in pbr.glsl
-#define MAX_TOTAL_SHADOW_ATLASES (5)
+#define MAX_TOTAL_SHADOW_ATLASES (10)
 #define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
 // Once a VPL is further than this distance away it is automatically culled
 #define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
-#define MAX_TOTAL_VPL_SHADOW_MAPS (1024)
+#define MAX_TOTAL_VPL_SHADOW_MAPS MAX_TOTAL_SHADOW_MAPS
 
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
