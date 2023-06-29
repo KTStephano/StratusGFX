@@ -155,10 +155,10 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
         }
 
         stratus::SystemStatus Update(const double deltaSeconds) override {
-            STRATUS_LOG << "Frame #" << Engine()->FrameCount() << std::endl;
+            STRATUS_LOG << "Frame #" << INSTANCE(Engine)->FrameCount() << std::endl;
 
 
-            if (Engine()->FrameCount() > (maxEntities + 1)) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
+            if (INSTANCE(Engine)->FrameCount() > (maxEntities + 1)) return stratus::SystemStatus::SYSTEM_SHUTDOWN;
 
             if (prev) {
                 if (!prev->IsInWorld()) {
@@ -168,7 +168,7 @@ TEST_CASE("Stratus Entity Test", "[stratus_entity_test]") {
                 prev.reset();
             }
 
-            if (Engine()->FrameCount() <= maxEntities) {
+            if (INSTANCE(Engine)->FrameCount() <= maxEntities) {
                 prev = stratus::Entity::Create();
                 if (prev->IsInWorld()) {
                     processRanIntoIssues = true;

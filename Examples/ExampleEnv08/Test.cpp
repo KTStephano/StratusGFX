@@ -22,12 +22,12 @@
 #include "WorldLightController.h"
 #include "FrameRateController.h"
 
-class Bathroom : public stratus::Application {
-public: 
-    virtual ~Bathroom() = default;
+class Test : public stratus::Application {
+public:
+    virtual ~Test() = default;
 
     const char * GetAppName() const override {
-        return "Bathroom";
+        return "Test";
     }
 
     void PrintNodeHierarchy(const stratus::EntityPtr& p, const std::string& name, const std::string& prefix) {
@@ -53,9 +53,9 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
-        const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
-        auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 10);
-        wc->SetRotation(stratus::Rotation(stratus::Degrees(21.0479f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        const glm::vec3 defaultSunColor = glm::vec3(1.0f);
+        auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 10);
+        //wc->SetRotation(stratus::Rotation(stratus::Degrees(123.991f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
 
@@ -63,30 +63,32 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(256);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);  
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
         //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bathroom/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
-            bathroom = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(bathroom);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/deccer/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) {  
+            Test = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(Test);
             //transform->SetLocalPosition(glm::vec3(0.0f));
-            transform->SetLocalScale(glm::vec3(10.0f));
-            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(70.0f), stratus::Degrees(0.0f)));
-            INSTANCE(EntityManager)->AddEntity(bathroom);
+            //transform->SetLocalScale(glm::vec3(5.0));
+            //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            INSTANCE(EntityManager)->AddEntity(Test);
         });
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
-        settings.SetSkyboxIntensity(0.0125f);
-        settings.SetMinRoughness(0.0f);
-        
+        settings.SetSkyboxIntensity(0.001f);
+        settings.SetEmissionStrength(5.0f);
+        settings.usePerceptualRoughness = false;
         INSTANCE(RendererFrontend)->SetSettings(settings);
+
+        // INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
+        // INSTANCE(RendererFrontend)->SetFogColor(glm::vec3(0.5, 0.5, 0.125));
 
         bool running = true;
 
@@ -127,24 +129,17 @@ public:
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f), 100.0f)
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(224.0f / 255.0f, 157.0f / 255.0f, 55.0f / 255.0f), 10.0f),
+                                    false
                                 );
                             }
                             break;
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f), 50.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_3: {
-                            if (released) {
                                 LightCreator::CreateStationaryLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(224.0f / 255.0f, 157.0f / 255.0f, 55.0f / 255.0f), 5.0f),
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0), 10.0f),
                                     false
                                 );
                             }
@@ -158,78 +153,99 @@ public:
             }
         }
 
-        if (bathroom != nullptr) {
-            bathroom = nullptr;
+        if (Test != nullptr) {
+            Test = nullptr;
             int spawned = 0;
 
-            for (int x = -14; x < 0; x += 3) {
-                for (int y = 3; y < 10; y += 3) {
-                    for (int z = -20; z < 10; z += 3) {
-                        ++spawned;
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 10.0f),
+            //for (int x = -16; x < 16; x += 5) {
+            //   for (int y = 1; y < 18; y += 5) {
+            //       for (int z = -15; z < 15; z += 5) {
+            //           ++spawned;
+            //           LightCreator::CreateVirtualPointLight(
+            //               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+            //               false
+            //           );
+            //       }
+            //   }
+            //}
+            const std::vector<float> ys = { -30.0f, 10.0f };
+            const float offset = 60.0f;
+            // for (float x = -5.0f; x < 50.0f; x += 1.0f) {
+            //     for (float y = -25.0f; y < 4.0f; y += 1.0f) {
+            //         //for (float z = -6.0f; z < 15.0f; z += 5.0f) {
+            //             ++spawned;
+            //             const glm::vec3 location(x, y, 25.0f);
+            //             LightCreator::CreateVirtualPointLight(
+            //                 LightParams(location, glm::vec3(1.0f), 50.0f),
+            //                 false
+            //             );
+            //         //}
+            //     }
+            // }
+
+            for (float y : ys) {
+               for (float x = -10.0f; x < 60.0f; x += offset) {
+                   for (float z = -60.0f; z < 60.0f; z += offset) {
+                        const glm::vec3 location(x, y, z);
+                        LightCreator::CreateStationaryLight(
+                            LightParams(location, glm::vec3(0.941176, 0.156863, 0.941176), 100, false),
                             false
                         );
-                    }
-                }
+
+                        LightCreator::CreateStationaryLight(
+                            LightParams(location, glm::vec3(0.380392, 0.180392, 0.219608), 100, false),
+                            false
+                        );
+
+                        LightCreator::CreateStationaryLight(
+                            LightParams(location, glm::vec3(0.0470588, 0.356863, 0.054902), 100, false),
+                            false
+                        );
+
+                        //   LightCreator::CreateStationaryLight(
+                        //       LightParams(location, glm::vec3(1.0), 100, false),
+                        //       false
+                        //   );
+                   }
+               } 
+            }
+
+            for (float y = -40.0f; y < 60.0f; y += offset) {
+               for (float z = -60.0f; z < 60.0f; z += offset) {
+                    const glm::vec3 location(-15.0f, y, z);
+                    LightCreator::CreateStationaryLight(
+                        LightParams(location, glm::vec3(0.941176, 0.156863, 0.941176), 100, false),
+                        false
+                    );
+
+                    LightCreator::CreateStationaryLight(
+                        LightParams(location, glm::vec3(0.380392, 0.180392, 0.219608), 100, false),
+                        false
+                    );
+
+                    LightCreator::CreateStationaryLight(
+                        LightParams(location, glm::vec3(0.0470588, 0.356863, 0.054902), 100, false),
+                        false
+                    );
+
+                      // LightCreator::CreateStationaryLight(
+                      //     LightParams(location, glm::vec3(1.0), 100, false),
+                      //     false
+                      // );
+               }
+            }
+
+            for (float y = -40.0f; y < 60.0f; y += 30.0f) {
+               for (float x = -60.0f; x < 60.0f; x += 30.0f) {
+                   const glm::vec3 location(x, y, 15.0f);
+                      LightCreator::CreateStationaryLight(
+                          LightParams(location, glm::vec3(1.0), 300, false),
+                          false
+                      );
+               }
             }
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-0.318954, 12.565, -6.88351), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
-
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
         }
 
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
@@ -261,7 +277,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr bathroom;
+    stratus::EntityPtr Test;
 };
 
-STRATUS_ENTRY_POINT(Bathroom)
+STRATUS_ENTRY_POINT(Test)

@@ -15,13 +15,13 @@ uniform float nearClipPlane;
 void main() {
 #ifdef RUN_CSM_ALPHA_TEST
 	Material material = materials[materialIndices[fsDrawID]];
-	vec4 baseColor = material.diffuseColor;
+	vec4 baseColor = FLOAT4_TO_VEC4(material.diffuseColor);
 
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         baseColor = texture(material.diffuseMap, fsTexCoords);
     }
 
-	runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
+	runAlphaTest(baseColor.a);
 
 	// Written automatically - if used here it may disable early Z test but need to verify this
 	//gl_FragDepth = gl_FragCoord.z;// + fsTanTheta;

@@ -45,6 +45,7 @@ namespace stratus {
         // If > 1, then backscattered light will be greater than forwardscattered light
         float scatterControl_ = 0.004f; // 0.004 is roughly a G of 0.7
         glm::vec3 atmosphereColor_ = glm::vec3(1.0f);
+        float depthBias_ = 0.0f;
 
     public:
         InfiniteLight(const bool enabled = true)
@@ -133,6 +134,14 @@ namespace stratus {
 
         const glm::vec3& GetAtmosphereColor() const {
             return atmosphereColor_;
+        }
+
+        float GetDepthBias() const {
+            return depthBias_;
+        }
+
+        void SetDepthBias(const float bias) {
+            depthBias_ = bias;
         }
 
         virtual InfiniteLightPtr Copy() const {

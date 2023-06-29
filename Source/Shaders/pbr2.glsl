@@ -3,6 +3,9 @@ STRATUS_GLSL_VERSION
 #include "pbr.glsl"
 #include "fog.glsl"
 
+uniform float minRoughness = 0.08;
+uniform bool usePerceptualRoughness = true;
+
 // All of the information was taken from these two sources:
 //      https://google.github.io/filament/Filament.html
 //      https://learnopengl.com/PBR/Theory
@@ -122,6 +125,13 @@ vec3 singleScatteringBRDF_Diffuse(
     return diffuseColor * Fd_Burley(NdotV, NdotL, LdotH, remappedRoughness);
 }
 
+float RemapRoughness(float roughness) {
+    if (usePerceptualRoughness) {
+        roughness = roughness * roughness;
+    }
+    return max(max(0.0, minRoughness), roughness);
+}
+
 // This uses single scattering which means it does not account for the fact that light may bounce around
 // several microfacets and then still escape. A downside is that this tends to exhibit energy loss as roughness
 // increases. This can be prevented by switching to a more accurace multi-scattering model (Filament paper explains
@@ -136,9 +146,10 @@ vec3 BRDF(
     float metallic) {
     
     // Remaps from perceptually linear roughness to roughness
-    float remappedRoughness = roughness * roughness;
+    float remappedRoughness = RemapRoughness(roughness);
 
     // Compute diffuse from base using metallic value
+    //vec3 diffuseColor = (1.0 - clamp(metallic, 0.0, 0.95)) * baseColor;
     vec3 diffuseColor = (1.0 - metallic) * baseColor;
 
     // Compute reflectance - for purely metallic materials this is used as the diffuse color
@@ -174,7 +185,7 @@ vec3 BRDF_DiffuseOnly(
     float metallic) {
     
     // Remaps from perceptually linear roughness to roughness
-    float remappedRoughness = roughness * roughness;
+    float remappedRoughness = RemapRoughness(roughness);
 
     // Compute diffuse from base using metallic value
     vec3 diffuseColor = (1.0 - metallic) * baseColor;
@@ -300,7 +311,7 @@ vec3 calculateVirtualPointLighting2(
 
     vec3 lightDir   = lightPos - fragPosition;
     float adjustedShadowFactor = 1.0 - shadowFactor;
-    adjustedShadowFactor = max(adjustedShadowFactor, 0.1);
+    //adjustedShadowFactor = max(adjustedShadowFactor, 1.0);
 
     //return calculateLighting_DiffuseOnly(lightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);
     return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0);

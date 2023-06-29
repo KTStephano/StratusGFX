@@ -28,6 +28,10 @@ layout (std430, binding = 0) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
+layout (std430, binding = 4) buffer inoutBlock2 {
+    VplData updatedLightData[];
+};
+
 layout (std430, binding = 1) buffer outputBlock1 {
     int numVisible;
 };
@@ -61,7 +65,7 @@ void main() {
                                 dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[2], vec4(lightPos, 1.0)));
         float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
-        if (shadowFactor < 0.5) {
+        if (shadowFactor < 1.0) {
             lightVisible[index] = true;
             // int next = atomicAdd(localNumVisible, 1);
             // vplVisibleIndex[next] = index;
@@ -73,8 +77,9 @@ void main() {
 
     if (gl_LocalInvocationIndex == 0) {
         int localNumVisible = 0;
-        for (int i = 0; i < totalNumLights; ++i) {
+        for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
             if (lightVisible[i]) {
+                updatedLightData[localNumVisible] = lightData[i];
                 vplVisibleIndex[localNumVisible] = i;
                 ++localNumVisible;
             }

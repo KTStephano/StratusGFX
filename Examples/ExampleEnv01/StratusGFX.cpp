@@ -52,47 +52,47 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         auto wc = new WorldLightController(warmMorningColor, warmMorningColor, 5);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(35.0f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
-        Input()->AddInputHandler(controller);
+        INSTANCE(InputManager)->AddInputHandler(controller);
 
-        //World()->SetAtmosphericShadowing(0.3f, 0.8f);
+        //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.3f, 0.8f);
 
         // For textures see https://3dtextures.me/
-        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_BaseColor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_basecolor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_basecolor.jpg", stratus::ColorSpace::SRGB));
-        textures.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_BaseColor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_basecolor.jpg", stratus::ColorSpace::SRGB));
+        textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_basecolor.jpg", stratus::ColorSpace::SRGB));
 
-        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::LINEAR));
 
-        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::LINEAR));
 
-        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::LINEAR));
 
-        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Substance_graph_AmbientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Bark_06_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
-        environmentMaps.push_back(Resources()->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_AmbientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
+        environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
 
         stratus::Async<stratus::Entity> e;
-        e = Resources()->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             outhouse = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
@@ -101,7 +101,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(outhouse);
         });
 
-        e = Resources()->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             clay = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
@@ -111,7 +111,7 @@ public:
             PrintNodeHierarchy(clay, "Clay", "");
         });
 
-        e = Resources()->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             stump = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
@@ -121,7 +121,7 @@ public:
             PrintNodeHierarchy(stump, "Stump", "");
         });
 
-        e = Resources()->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             hall = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
@@ -132,7 +132,7 @@ public:
             PrintNodeHierarchy(hall, "Hall", "");
         });
 
-        e = Resources()->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             ramparts = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
@@ -142,7 +142,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(ramparts);
         });
 
-        e = Resources()->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             rocks = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
@@ -153,7 +153,7 @@ public:
         });
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        e = Resources()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
@@ -164,9 +164,9 @@ public:
         });
 
         for (size_t texIndex = 0; texIndex < textures.size(); ++texIndex) {
-            auto cube = Resources()->CreateCube();
-            auto quad = Resources()->CreateQuad();
-            stratus::MaterialPtr mat = Materials()->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
+            auto cube = INSTANCE(ResourceManager)->CreateCube();
+            auto quad = INSTANCE(ResourceManager)->CreateQuad();
+            stratus::MaterialPtr mat = INSTANCE(MaterialManager)->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
             mat->SetDiffuseTexture(textures[texIndex]);
             mat->SetNormalMap(normalMaps[texIndex]);
             mat->SetDepthMap(depthMaps[texIndex]);
@@ -180,7 +180,7 @@ public:
             quadMeshes.push_back(quad);
         }
 
-        //quadMat.texture = Resources()->LoadTexture("../Resources/resources/textures/volcanic_rock_texture.png");
+        //quadMat.texture = INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/volcanic_rock_texture.png");
         srand(time(nullptr));
         for (int i = 0; i < 100; ++i) {
             size_t texIndex = rand() % textures.size();
@@ -193,7 +193,7 @@ public:
             INSTANCE(EntityManager)->AddEntity(mesh);
         }
         //std::vector<std::unique_ptr<Cube>> cubes;
-        // cubeMat.texture = Resources()->LoadTexture("../Resources/resources/textures/wood_texture.jpg");
+        // cubeMat.texture = INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/wood_texture.jpg");
         for (int i = 0; i < 5000; ++i) {
             size_t texIndex = rand() % textures.size();
             auto mesh = cubeMeshes[texIndex]->Copy();
@@ -228,17 +228,17 @@ public:
     // deltaSeconds = time since last frame
     virtual stratus::SystemStatus Update(const double deltaSeconds) override {
         const float maxAmbientIntensity = 0.03;
-        if (Engine()->FrameCount() % 100 == 0) {
+        if (INSTANCE(Engine)->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
-        auto worldLight = World()->GetWorldLight();
-        auto camera = World()->GetCamera();
+        auto worldLight = INSTANCE(RendererFrontend)->GetWorldLight();
+        auto camera = INSTANCE(RendererFrontend)->GetCamera();
 
         // Check for key/mouse events
-        auto events = Input()->GetInputEventsLastFrame();
+        auto events = INSTANCE(InputManager)->GetInputEventsLastFrame();
         for (auto e : events) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -255,7 +255,7 @@ public:
                             break;
                         case SDL_SCANCODE_R:
                             if (released) {
-                                World()->RecompileShaders();
+                                INSTANCE(RendererFrontend)->RecompileShaders();
                             }
                             break;
                         case SDL_SCANCODE_1: {
@@ -379,7 +379,7 @@ public:
         //worldLight.setRotation(glm::vec3(90.0f, 0.0f, 0.0f));
         //renderer->setWorldLight(worldLight);
 
-        World()->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        INSTANCE(RendererFrontend)->SetClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         //renderer->addDrawable(rocks);
 

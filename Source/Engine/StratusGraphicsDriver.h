@@ -25,6 +25,7 @@ namespace stratus {
         int32_t maxTextureImageUnits;
         int32_t maxTextureSize1D2D;
         int32_t maxTextureSize3D;
+        int32_t maxTextureSizeCubeMap;
         int32_t maxVertexAttribs;
         int32_t maxVertexUniformVectors;
         int32_t maxVertexUniformComponents;

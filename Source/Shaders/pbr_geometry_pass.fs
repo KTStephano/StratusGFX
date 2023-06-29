@@ -37,8 +37,8 @@ in vec4 fsPrevClipPos;
 // GBuffer outputs
 //layout (location = 0) out vec3 gPosition;
 layout (location = 0) out vec3 gNormal;
-layout (location = 1) out vec3 gAlbedo;
-layout (location = 2) out vec3 gBaseReflectivity;
+layout (location = 1) out vec4 gAlbedo;
+layout (location = 2) out vec4 gBaseReflectivity;
 layout (location = 3) out vec3 gRoughnessMetallicAmbient;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
@@ -77,17 +77,17 @@ void main() {
         // }
     }
 
-    vec4 baseColor = material.diffuseColor;
+    vec4 baseColor = FLOAT4_TO_VEC4(material.diffuseColor);
     vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
-    float roughness = material.metallicRoughness.y;
-    float ao = 1.0;
-    float metallic = material.metallicRoughness.x;
+    float roughness = material.metallicRoughness[1];
+    vec3 emissive = FLOAT3_TO_VEC3(material.emissiveColor);
+    float metallic = material.metallicRoughness[0];
 
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         baseColor = texture(material.diffuseMap, texCoords);
     }
 
-    runAlphaTest(baseColor.a, ALPHA_DEPTH_TEST);
+    runAlphaTest(baseColor.a);
 
     if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
         normal = texture(material.normalMap, texCoords).rgb;
@@ -119,17 +119,21 @@ void main() {
         }
     }
 
-    if (bitwiseAndBool(material.flags, GPU_AMBIENT_MAPPED)) {
-        ao = texture(material.ambientMap, texCoords).r;
+    if (bitwiseAndBool(material.flags, GPU_EMISSIVE_MAPPED)) {
+        emissive = texture(material.emissiveMap, texCoords).rgb;
     }
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
-    gAlbedo = baseColor.rgb;
-    gBaseReflectivity = material.baseReflectivity.xyz;
-    gRoughnessMetallicAmbient = vec3(roughness, metallic, ao);
+    gAlbedo = vec4(baseColor.rgb, emissive.r);
+    vec3 baseReflectivity = FLOAT3_TO_VEC3(material.baseReflectivity);
+    vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
+    baseReflectivity = mix(baseReflectivity, maxReflectivity, (1.0 - roughness) * 0.5);
+    gBaseReflectivity = vec4(mix(baseReflectivity, maxReflectivity, metallic), emissive.g);
+    //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
+    gRoughnessMetallicAmbient = vec3(roughness, metallic, emissive.b);
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);

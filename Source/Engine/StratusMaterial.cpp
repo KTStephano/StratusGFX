@@ -53,19 +53,24 @@ namespace stratus {
     }
 
     // Get and set material properties
-    const glm::vec4& Material::GetDiffuseColor() const {
+    glm::vec4 Material::GetDiffuseColor() const {
         auto sl = LockRead_();
         return diffuseColor_;
     }
 
-    const glm::vec3& Material::GetAmbientColor() const {
+    glm::vec3 Material::GetEmissiveColor() const {
         auto sl = LockRead_();
-        return ambientColor_;
+        return emissiveColor;
     }
 
-    const glm::vec3& Material::GetBaseReflectivity() const {
+    glm::vec3 Material::GetBaseReflectivity() const {
         auto sl = LockRead_();
         return baseReflectivity_;
+    }
+
+    glm::vec3 Material::GetMaxReflectivity() const {
+        auto sl = LockRead_();
+        return maxReflectivity_;
     }
 
     float Material::GetRoughness() const {
@@ -84,16 +89,22 @@ namespace stratus {
         diffuseColor_ = diffuse;
     }
 
-    void Material::SetAmbientColor(const glm::vec3& ambient) {
+    void Material::SetEmissiveColor(const glm::vec3& ambient) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientColor_ = ambient;
+        emissiveColor = ambient;
     }
 
     void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
         MarkChanged();
         auto ul = LockWrite_();
         baseReflectivity_ = reflectivity;
+    }
+
+    void Material::SetMaxReflectivity(const glm::vec3& reflectivity) {
+        MarkChanged();
+        auto ul = LockWrite_();
+        maxReflectivity_ = reflectivity;
     }
 
     void Material::SetRoughness(float roughness) {
@@ -114,9 +125,9 @@ namespace stratus {
         return diffuseTexture_;
     }
 
-    TextureHandle Material::GetAmbientTexture() const {
+    TextureHandle Material::GetEmissiveTexture() const {
         auto sl = LockRead_();
-        return ambientTexture_;
+        return emissiveTexture_;
     }
 
     TextureHandle Material::GetNormalMap() const {
@@ -153,7 +164,7 @@ namespace stratus {
     void Material::SetAmbientTexture(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientTexture_ = handle;
+        emissiveTexture_ = handle;
     }
 
     void Material::SetNormalMap(TextureHandle handle) {

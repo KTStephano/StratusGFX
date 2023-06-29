@@ -323,73 +323,20 @@ namespace stratus {
         viewportDirty_ = true;
     }
 
-    void RendererFrontend::SetVsyncEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        params_.vsyncEnabled = enabled;
-        frame_->vsyncEnabled = enabled;
-    }
-
     void RendererFrontend::SetClearColor(const glm::vec4& color) {
         auto ul = LockWrite_();
         frame_->clearColor = color;
     }
 
-    void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
-        auto ul = LockWrite_();
-        frame_->skybox = skybox;
-    }
-
-    void RendererFrontend::SetSkyboxColorMask(const glm::vec3& mask) {
-        auto ul = LockWrite_();
-        frame_->skyboxColorMask = mask;
-    }
-
-    void RendererFrontend::SetSkyboxIntensity(const float intensity) {
-        auto ul = LockWrite_();
-        frame_->skyboxIntensity = std::max(intensity, 0.0f);
-    }
-
-    void RendererFrontend::SetFogColor(const glm::vec3& color) {
-        auto ul = LockWrite_();
-        frame_->fogColor = color;
-    }
-
-    void RendererFrontend::SetFogDensity(const float density) {
-        auto ul = LockWrite_();
-        frame_->fogDensity = std::max(density, 0.0f);
-    }
-
-    void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        frame_->globalIlluminationEnabled = enabled;
-    }
-
-    bool RendererFrontend::GetGlobalIlluminationEnabled() const {
+    RendererSettings RendererFrontend::GetSettings() const {
         auto sl = LockRead_();
-        return frame_->globalIlluminationEnabled;
+        return frame_->settings;
     }
 
-    // These are the first 16 values of the Halton sequence. For more information see:
-    //     https://en.wikipedia.org/wiki/Halton_sequence
-    //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
-    static const std::vector<std::pair<float, float>> haltonSequence = {
-        { 1.0f / 2.0f,  1.0f / 3.0f},
-        { 1.0f / 4.0f,  2.0f / 3.0f},
-        { 3.0f / 4.0f,  1.0f / 9.0f},
-        { 1.0f / 8.0f,  4.0f / 9.0f},
-        { 5.0f / 8.0f,  7.0f / 9.0f},
-        { 3.0f / 8.0f,  2.0f / 9.0f},
-        { 7.0f / 8.0f,  5.0f / 9.0f},
-        { 1.0f / 16.0f,  8.0f / 9.0f},
-        { 9.0f / 16.0f,  1.0f / 27.0f},
-        { 5.0f / 16.0f, 10.0f / 27.0f},
-        {13.0f / 16.0f, 19.0f / 27.0f},
-        { 3.0f / 16.0f,  4.0f / 27.0f},
-        {11.0f / 16.0f, 13.0f / 27.0f},
-        { 7.0f / 16.0f, 22.0f / 27.0f},
-        {15.0f / 16.0f,  7.0f / 27.0f},
-        { 1.0f / 32.0f, 16.0f / 27.0f},
-    };
+    void RendererFrontend::SetSettings(const RendererSettings& settings) {
+        auto ul = LockWrite_();
+        frame_->settings = settings;
+    }
 
     static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
         glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
@@ -425,12 +372,13 @@ namespace stratus {
         frame_->projectionView = frame_->projection * frame_->view;
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
 
-        // Increment halton index
-        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % haltonSequence.size();
+        // Increment halton index - only use a max of the first 16 samples
+        const size_t maxIndex = std::min<size_t>(16, haltonSequence.size());
+        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % maxIndex;
 
         // Set up the jittered variant
         glm::vec2 jitter(0.0f);
-        if (frame_->taaEnabled) {
+        if (frame_->settings.taaEnabled) {
             jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
         }
         frame_->jitterProjectionView = frame_->projection;
@@ -925,7 +873,7 @@ namespace stratus {
         for (auto& entry : frame_->materialInfo.indices) {
             MaterialPtr material = entry.first;
             MAKE_NON_RESIDENT(material->GetDiffuseTexture())
-            MAKE_NON_RESIDENT(material->GetAmbientTexture())
+            MAKE_NON_RESIDENT(material->GetEmissiveTexture())
             MAKE_NON_RESIDENT(material->GetNormalMap())
             MAKE_NON_RESIDENT(material->GetDepthMap())
             MAKE_NON_RESIDENT(material->GetRoughnessMap())
@@ -941,13 +889,14 @@ namespace stratus {
     void RendererFrontend::CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
         gpuMaterial->flags = 0;
 
-        gpuMaterial->diffuseColor = material->GetDiffuseColor();
-        gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
-        gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
-        gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
+        SET_FLOAT4(gpuMaterial->diffuseColor, material->GetDiffuseColor());
+        SET_FLOAT3(gpuMaterial->emissiveColor, material->GetEmissiveColor());
+        SET_FLOAT3(gpuMaterial->baseReflectivity, material->GetBaseReflectivity());
+        SET_FLOAT3(gpuMaterial->maxReflectivity, material->GetMaxReflectivity());
+        SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
 
         auto diffuseHandle =   material->GetDiffuseTexture();
-        auto ambientHandle =   material->GetAmbientTexture();
+        auto ambientHandle =   material->GetEmissiveTexture();
         auto normalHandle =    material->GetNormalMap();
         auto depthHandle =     material->GetDepthMap();
         auto roughnessHandle = material->GetRoughnessMap();
@@ -980,8 +929,8 @@ namespace stratus {
         }
 
         if (ValidateTexture(ambient, ambientStatus)) {
-            gpuMaterial->ambientMap = ambient.GpuHandle();
-            gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
+            gpuMaterial->emissiveMap = ambient.GpuHandle();
+            gpuMaterial->flags |= GPU_EMISSIVE_MAPPED;
             Texture::MakeResident(ambient);
         }
         // If this is true then the texture is still loading so we need to check again later
@@ -1418,7 +1367,7 @@ namespace stratus {
                    mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                }
 
-               pipeline.SetUint("numDrawCalls", unsigned int(it->second->NumDrawCommands()));
+               pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));
                pipeline.SetMat4("view", view);
                //pipeline.setMat4("view", _frame->camera->getViewTransform());
                //pipeline.setMat4("projection", _frame->projection);

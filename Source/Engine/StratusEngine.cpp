@@ -201,6 +201,7 @@ namespace stratus {
 
     void Engine::InitWindow_() {
         EngineModuleInit::InitializeEngineModule(Window::Instance_(), new Window(1600, 900), true);
+        //EngineModuleInit::InitializeEngineModule(Window::Instance_(), new Window(1920, 1080), true);
     }
 
     void Engine::InitRenderer_() {

@@ -51,6 +51,7 @@ STRATUS_GLSL_VERSION
 #include "common.glsl"
 
 uniform vec3 infiniteLightDirection;
+uniform float infiniteLightDepthBias = 0.0;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
@@ -63,8 +64,19 @@ uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
+// Synchronized with definition found in StratusGpuCommon.h
+#define MAX_TOTAL_SHADOW_ATLASES (10)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
+
+// Synchronized with definition found in StratusGpuCommon.h
+struct AtlasEntry {
+    int index;
+    int layer;
+};
+
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
@@ -82,7 +94,7 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
     for (int x = 0; x < 2; ++x) {
         for (int y = 0; y < 2; ++y) {
             for (int z = 0; z < 2; ++z) {
-                float depth = textureLod(shadowMap, fragDir + vec3(offsets[x], offsets[y], offsets[z]), 0).r;
+                float depth = textureLod(shadowMaps, vec4(fragDir + vec3(offsets[x], offsets[y], offsets[z]), float(shadowIndex)), 0).r;
                 // It's very important to multiply by lightFarPlane. The recorded depth
                 // is on the range [0, 1] so we need to convert it back to what it was originally
                 // or else our depth comparison will fail.
@@ -98,7 +110,7 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
 }
 
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
@@ -107,7 +119,7 @@ float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, ve
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
     float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
     float shadow = 0.0;
-    float depth = textureLod(shadowMap, fragDir, 0).r;
+    float depth = textureLod(shadowMaps, vec4(fragDir, float(shadowIndex)), 0).r;
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.
@@ -146,7 +158,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     //float bias = 0.005 * tanTheta;
     //bias = -clamp(bias, 0.0, 0.01);
     //float bias = 2e-19;
-    float bias = 0.0;
+    float bias = infiniteLightDepthBias;
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];

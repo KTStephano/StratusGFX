@@ -46,6 +46,21 @@ void main() {
     vec3 minColor = tonemap(min(currentColor, min(currColor1, min(currColor2, min(currColor3, currColor4)))));
     vec3 maxColor = tonemap(max(currentColor, max(currColor1, max(currColor2, max(currColor3, currColor4)))));
 
+    // vec3 minColor = currentColor;
+    // vec3 maxColor = currentColor;
+    // for(int x = -1; x <= 1; ++x)
+    // {
+    //     for(int y = -1; y <= 1; ++y)
+    //     {
+    //         vec3 color = textureOffset(screen, fsTexCoords, ivec2(x, y)).rgb;
+    //         minColor = min(minColor, color);
+    //         maxColor = max(maxColor, color);
+    //     }
+    // }
+
+    // minColor = tonemap(minColor);
+    // maxColor = tonemap(maxColor);
+
     // float minLuminance = linearColorToLuminance(minColor);
     // float maxLuminance = linearColorToLuminance(maxColor);
 
@@ -82,6 +97,6 @@ void main() {
 
     //color = vec4(currentColor, 1.0);
     //color = vec4(averageCurrentColor, 1.0);
-    color = vec4(mix(currentColor, prevColor, 0.9), 1.0);
+    color = vec4(mix(currentColor, prevColor, 0.9), 0.0625);
     //color = vec4(mix(mix(currentColor, prevColor, 0.9), averageCurrentColor, velocityDisocclusion), 1.0);
 }
