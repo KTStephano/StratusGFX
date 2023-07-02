@@ -64,7 +64,7 @@ void main() {
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[2], vec4(lightPos, 1.0)));
-        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection);
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection, false);
         if (shadowFactor < 1.0) {
             lightVisible[index] = true;
             // int next = atomicAdd(localNumVisible, 1);

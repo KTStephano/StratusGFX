@@ -359,7 +359,7 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 20.0);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 30.0);
 
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
