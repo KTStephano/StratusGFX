@@ -25,8 +25,8 @@
 static void setupDayTime() {
     int spawned = 0;
     for (int x = -150; x < 200; x += 50) {
-        for (int y = 10; y < 100; y += 20) {
-            for (int z = -350; z < -50; z += 50) {
+        for (int y = 10; y < 150; y += 20) {
+            for (int z = -400; z < -50; z += 50) {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
                         LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
