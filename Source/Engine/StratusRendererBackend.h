@@ -94,6 +94,8 @@ namespace stratus {
         InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
         glm::vec3 worldLightDirectionCameraSpace;
+        float znear;
+        float zfar;
         bool regenerateFbo;    
     };
 

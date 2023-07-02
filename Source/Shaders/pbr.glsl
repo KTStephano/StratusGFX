@@ -50,6 +50,8 @@ STRATUS_GLSL_VERSION
 
 #include "common.glsl"
 
+uniform float infiniteLightZnear;
+uniform float infiniteLightZfar;
 uniform vec3 infiniteLightDirection;
 uniform float infiniteLightDepthBias = 0.0;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
@@ -158,7 +160,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     //float bias = 0.005 * tanTheta;
     //bias = -clamp(bias, 0.0, 0.01);
     //float bias = 2e-19;
-    float bias = infiniteLightDepthBias;
+    float bias = infiniteLightDepthBias / (infiniteLightZfar - infiniteLightZnear);
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];
@@ -204,7 +206,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);

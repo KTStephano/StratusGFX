@@ -587,6 +587,8 @@ namespace stratus {
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
+        frame_->csc.znear = znear;
+        frame_->csc.zfar = zfar;
 
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/

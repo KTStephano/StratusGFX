@@ -48,6 +48,18 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = 300; x < 555; x += 30) {
+        for (int y = 10; y < 50; y += 10) {
+            for (int z = 150; z < 400; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    false
+                );
+            }
+        }
+    }
+
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));
@@ -418,7 +430,7 @@ public:
         // Alpha testing doesn't work so well for this scene 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-1.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));

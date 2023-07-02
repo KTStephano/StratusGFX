@@ -13,7 +13,7 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec3 shadow;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 5
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 20
 #define MAX_RESAMPLES_PER_PIXEL 0
 
@@ -77,7 +77,7 @@ layout (std430, binding = 4) readonly buffer inputBlock5 {
 uniform int haltonSize;
 
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    if (length(screenColor) > 0.5) discard;
+    //if (length(screenColor) > 0.5) discard;
 
     // ivec2 numTiles = ivec2(numTilesX, numTilesY);
     // // For example: 16, 9
