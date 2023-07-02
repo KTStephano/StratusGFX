@@ -458,9 +458,8 @@ namespace stratus {
                 m->SetRoughness(roughness);
             }
 
-            if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &diffuse) == AI_SUCCESS) {
+            if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_DIFFUSE, &diffuse) == AI_SUCCESS) {
                 m->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
-                //STRATUS_LOG << "Diffuse: " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_EMISSIVE, &emissive) == AI_SUCCESS) {
                 m->SetEmissiveColor(glm::vec3(emissive.r, emissive.g, emissive.b));
@@ -583,7 +582,20 @@ namespace stratus {
 
                 //if (mesh->mNormals == nullptr || mesh->mTangents == nullptr || mesh->mBitangents == nullptr) continue;
                 if (mesh->mNormals == nullptr) continue;
+                // Attempt to find degenerate meshes
+                if (mesh->mNumFaces > 0) {
+                    uint32_t numIndices = 0;
+                    for(uint32_t i = 0; i < mesh->mNumFaces; i++) {
+                        aiFace face = mesh->mFaces[i];
+                        numIndices += face.mNumIndices;
+                    }
 
+                    if (numIndices % 3 != 0) continue;
+                }
+                else {
+                    if (mesh->mNumVertices % 3 != 0) continue;
+                }
+                
                 auto stratusMesh = Mesh::Create();
                 MaterialPtr m = rootMat->CreateSubMaterial();
                 rnode->meshes->meshes.push_back(stratusMesh);
@@ -612,7 +624,7 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4096);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 8192);
 
         unsigned int pflags = aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |

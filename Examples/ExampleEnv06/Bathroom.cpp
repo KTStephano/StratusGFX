@@ -167,7 +167,7 @@ public:
                     for (int z = -20; z < 10; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 10.0f),
+                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.01f),
                             false
                         );
                     }

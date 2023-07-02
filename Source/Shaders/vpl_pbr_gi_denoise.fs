@@ -366,6 +366,7 @@ void main() {
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.1);
         float maxAccumulationFactor = 1.0 / historyAccum;
         illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        //illumAvg = shadowFactor;
         //illumAvg = mix(prevGi, currGi, maxAccumulationFactor / max(maxAccumulationFactor, similarity));
         //illumAvg = gi * shadowFactor;
         //illumAvg = vec3(wz);

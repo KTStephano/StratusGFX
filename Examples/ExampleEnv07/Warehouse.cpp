@@ -164,7 +164,7 @@ public:
                     //for (int z = -245; z < 10; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), -245.0f), glm::vec3(1.0f), 100.0f),
+                            LightParams(glm::vec3(float(x), float(y), -245.0f), glm::vec3(1.0f), 1.0f),
                             false
                         );
                     //}
@@ -176,7 +176,7 @@ public:
                     for (int z = -200; z < -50; z += 20) {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), -30.0f, float(z)), glm::vec3(1.0f), 100.0f),
+                        LightParams(glm::vec3(float(x), -30.0f, float(z)), glm::vec3(1.0f), 1.0f),
                         false
                     );
                     }

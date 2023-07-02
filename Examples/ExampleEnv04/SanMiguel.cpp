@@ -159,7 +159,7 @@ public:
                     for (int z = -5; z < 70; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.25f),
                                 false
                             );
                     }
