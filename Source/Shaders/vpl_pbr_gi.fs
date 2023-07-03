@@ -14,8 +14,8 @@ out vec3 color;
 out vec3 shadow;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 20
-#define MAX_RESAMPLES_PER_PIXEL 0
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
+#define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -168,7 +168,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? MAX_SAMPLES_PER_PIXEL : 1;
     //int sampleCount = history < float(MAX_SAMPLES_PER_PIXEL) ? MAX_SAMPLES_PER_PIXEL : HALF_MAX_SAMPLES_PER_PIXEL;
     float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
-    int samplesMax = history < 5 ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : STANDARD_MAX_SAMPLES_PER_PIXEL;
+    int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : STANDARD_MAX_SAMPLES_PER_PIXEL;
     int sampleCount = max(1, int(samplesMax * distRatioToCamera));
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
         //seed.z += 1000.0;
