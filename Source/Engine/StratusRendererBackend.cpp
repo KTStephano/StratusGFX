@@ -1258,23 +1258,26 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
         return a.second < b.second;
     };
-    std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
-    std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+    //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
 
     // Remove lights exceeding the absolute maximum
     if (perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame) {
+        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
         perLightDistToViewer.resize(state_.maxTotalRegularLightsPerFrame);
     }
 
     // Remove shadow-casting lights that exceed our max count
     if (perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame) {
+        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
         perLightShadowCastingDistToViewer.resize(state_.maxShadowCastingLightsPerFrame);
     }
 
     // Remove vpls exceeding absolute maximum
     if (worldLightEnabled) {
-        std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
+        //std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
         if (perVPLDistToViewer.size() > MAX_TOTAL_VPLS_BEFORE_CULLING) {
+            std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
             perVPLDistToViewer.resize(MAX_TOTAL_VPLS_BEFORE_CULLING);
         }
 
@@ -1598,6 +1601,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     glDisable(GL_DEPTH_TEST);
     BindShader_(state_.vplGlobalIllumination.get());
     state_.vpls.vplGIFbo.Bind();
+    glViewport(0, 0, state_.vpls.vplGIFbo.GetColorAttachments()[0].Width(), state_.vpls.vplGIFbo.GetColorAttachments()[0].Height());
 
     // Set up infinite light color
     auto& cache = vplSmapCache_;
@@ -1655,6 +1659,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     Texture indirectShadows = state_.vpls.vplGIFbo.GetColorAttachments()[1];
 
     BindShader_(state_.vplGlobalIlluminationDenoising.get());
+    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
     state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
     state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
