@@ -228,6 +228,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
             continue;
         }
 
+        float distanceRatio = clamp(distance / lightRadius, 0.0, 1.0);
+
         vec3 lightColor = lightData[lightIndex].color.xyz;
         //float lightIntensity = length(lightColor);
 
@@ -238,6 +240,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float shadowFactor = 0.0;
         if (distToCamera < 700) {
             shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+            shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
             // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
             //     ++resamples;
             //     --i;
