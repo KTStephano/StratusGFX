@@ -155,13 +155,13 @@ public:
             sanMiguel = nullptr;
             int spawned = 0;
 
-            for (int x = 80; x < 240; x += 20) {
-                for (int y = 5; y < 120; y += 20) {
-                    for (int z = -5; z < 70; z += 20) {
+            for (int x = 40; x < 240; x += 10) {
+                for (int y = 5; y < 150; y += 20) {
+                    for (int z = -30; z < 120; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
                                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.25f),
-                                false
+                                true
                             );
                     }
                 }
