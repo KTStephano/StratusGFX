@@ -60,6 +60,30 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = 180; x < 310; x += 30) {
+        for (int y = 10; y < 160; y += 10) {
+            for (int z = 100; z < 265; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    false
+                );
+            }
+        }
+    }
+
+    for (int x = 240; x < 340; x += 30) {
+        for (int y = 10; y < 160; y += 10) {
+            for (int z = 130; z < 180; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    false
+                );
+            }
+        }
+    }
+
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));
