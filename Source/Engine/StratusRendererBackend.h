@@ -161,7 +161,7 @@ namespace stratus {
         }
 
     private:
-        std::deque<LightPtr> queue_;
+        std::list<LightPtr> queue_;
         std::unordered_set<LightPtr> existing_;
     };
 

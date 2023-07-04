@@ -1399,7 +1399,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     // Set up # visible atomic counter
     int numVisible = 0;
-    state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
+    //state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
     state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
