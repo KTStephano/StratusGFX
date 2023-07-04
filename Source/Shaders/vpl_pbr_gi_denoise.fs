@@ -7,6 +7,9 @@ STRATUS_GLSL_VERSION
 //      -> Q2RTX + Albedo Demodulation: https://cg.informatik.uni-freiburg.de/intern/seminar/raytracing%20-%20Keller%20-%20SIGGRAPH%202019%204%20Path%20Tracing.pdf
 //      -> Reconstruction Filters: https://cg.informatik.uni-freiburg.de/intern/seminar/raytracing%20-%20Keller%20-%20SIGGRAPH%202019%204%20Path%20Tracing.pdf
 //      -> SVGF Presentation: https://www.highperformancegraphics.org/wp-content/uploads/2017/Papers-Session1/HPG2017_SpatiotemporalVarianceGuidedFiltering.pdf
+//      -> ReSTIR: https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf
+//      -> ReSTIR Math Breakdown: https://agraphicsguynotes.com/posts/understanding_the_math_behind_restir_di/
+//      -> ReSTIR Theory Breakdown: https://agraphicsguynotes.com/posts/understanding_the_math_behind_restir_di/ 
 
 #extension GL_ARB_bindless_texture : require
 
@@ -45,6 +48,9 @@ uniform sampler2D historyDepth;
 uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
+uniform bool mergeReservoirs = false;
+uniform int numReservoirNeighbors = 5;
+uniform float time;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
 
@@ -79,7 +85,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 2;
+const int dminmax = 0;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
@@ -160,12 +166,57 @@ float filterInput(
     float ozrt = pow(2.0, -passNumber) * sigmaRT;
     wrt = exp(-wrt / (ozrt * ozrt));
 
-    float hq = waveletFactors[abs(dx)][abs(dy)];
+    //float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
     return wn * wz * wrt;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
+}
+
+vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
+    vec3 seed = vec3(gl_FragCoord.xy, time);
+    vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
+
+    const int neighborhood = 32; // 32x32
+    const int halfNeighborhood = neighborhood / 2;
+    const int maxTries = neighborhood;
+
+    float depthCutoff = 0.1 * centerDepth;
+
+    for (int count = 0, tries = 0; count < numReservoirNeighbors && tries < maxTries; ++tries) {
+        float randX = random(seed);
+        seed.z += 10000.0;
+
+        float randY = random(seed);
+        seed.z += 10000.0;
+
+        // Sample in a 32 x 32 neighborhood
+        int dx = int(neighborhood * randX) - halfNeighborhood;
+        int dy = int(neighborhood * randY) - halfNeighborhood;
+
+        vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx, dy));
+
+        // For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them
+        // If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle)
+        if (dot(centerNormal, currNormal) < 0.906) {
+            continue;
+        }
+
+        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx, dy)).r;
+        // If the difference between current and center depth exceeds 10% of center's value, reject
+        if (abs(currDepth - centerDepth) > depthCutoff) {
+            continue;
+        }
+
+        // Neighbor seems good - merge its reservoir into this center reservoir
+        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;
+        centerReservoir += currReservoir;
+
+        ++count;
+    }
+
+    return centerReservoir;
 }
 
 void main() {
@@ -194,7 +245,8 @@ void main() {
     // vec3 rightShadow  = textureOffset(indirectShadows, fsTexCoords, ivec2( 1,  0)).rgb;
     // vec3 leftShadow   = textureOffset(indirectShadows, fsTexCoords, ivec2(-1,  0)).rgb;
 
-    vec3 shadowFactor = vec3(0.0);
+    vec4 reservoirFiltered = vec4(0.0);
+    //vec3 shadowFactor = vec3(0.0);
     float numShadowSamples = 0.0;
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
@@ -204,14 +256,23 @@ void main() {
             //if (dx == 0 && dy == 0) continue;
             ++count;
             //++numShadowSamples;
-            vec3 currShadow = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb;
+            vec4 reservoir = vec4(0.0);
+            vec3 currShadow = vec3(0.0);
+
+            if (dx == 0 && dy == 0 && mergeReservoirs) {
+                reservoir = computeMergedReservoir(centerNormal, centerDepth);
+            }
+            else {
+                reservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgba;
+            }
+            currShadow = reservoir.rgb / reservoir.a;
             float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
             //filtered = filtered * filtered;
             numShadowSamples += filtered;
-            shadowFactor += filtered * currShadow;
+            reservoirFiltered += vec4(filtered * reservoir.rgb, reservoir.a);
         }
     }
-    shadowFactor = shadowFactor / max(PREVENT_DIV_BY_ZERO, numShadowSamples);
+    vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, numShadowSamples + reservoirFiltered.a);
 
     //vec3 minColor = tonemap(min(centerIllum, min(topIllum, min(botIllum, min(rightIllum, leftIllum)))));
     //vec3 maxColor = tonemap(max(centerIllum, max(topIllum, max(botIllum, max(rightIllum, leftIllum)))));
@@ -372,7 +433,7 @@ void main() {
         //illumAvg = vec3(wz);
         //illumAvg = vec3(similarity);
         //illumAvg = vec3(variance);
-        //illumAvg = shadowFactor;
+        illumAvg = shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
@@ -383,7 +444,7 @@ void main() {
     //vec3 illumAvg = mix(prevGi, gi, 1.0 / 1000.0);
     //vec3 illumAvg = vec3(difference);
 
-    combinedColor = screenColor + gi * illumAvg;
+    combinedColor = screenColor + illumAvg;
     giColor = illumAvg;
     shadowColor = shadowFactor;
     newHistoryDepth = historyAccum;

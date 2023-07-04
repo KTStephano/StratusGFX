@@ -11,7 +11,7 @@ in vec2 fsTexCoords;
 
 // Outputs
 out vec3 color;
-out vec3 shadow;
+out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
@@ -257,7 +257,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     validSamples = max(validSamples, 1.0);
 
     color = baseColor;
-    shadow = boundHDR(vplColor / (baseColor * validSamples));
+    //reservoir = vec4(boundHDR(vplColor / (baseColor * validSamples)), 1.0);
+    reservoir = vec4(boundHDR(vplColor / baseColor), validSamples);
 }
 
 void main() {

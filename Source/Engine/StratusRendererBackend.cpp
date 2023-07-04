@@ -480,8 +480,8 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    Texture texture2 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    Texture texture2 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    texture2.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     state_.vpls.vplGIFbo = FrameBuffer({texture, texture2});
@@ -1697,9 +1697,10 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
     state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
+    state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
 
     size_t bufferIndex = 0;
-    const int maxIterations = 3;
+    const int maxIterations = 1;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         const int multiplier = std::pow(2, bufferIndex) - 1;
@@ -1710,6 +1711,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
         state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
         state_.vplGlobalIlluminationDenoising->SetInt("passNumber", int(bufferIndex));
+        state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex == 0);
+
         if (bufferIndex + 1 == maxIterations) {
             state_.vplGlobalIlluminationDenoising->SetBool("final", true);
         }
