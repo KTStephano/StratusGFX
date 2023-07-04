@@ -308,7 +308,7 @@ namespace stratus {
             GpuBuffer vplData;
             GpuBuffer vplUpdatedData;
             GpuBuffer vplVisibleIndices;
-            GpuBuffer vplNumVisible;
+            //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;
             FrameBuffer vplGIDenoisedFbo1;

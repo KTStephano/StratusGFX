@@ -84,7 +84,7 @@ namespace stratus {
         virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index) const;
 
         // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
-        void * MapMemory(const Bitfield access = GPU_MAP_READ | GPU_MAP_WRITE) const;
+        void * MapMemory(const Bitfield access) const;
         void UnmapMemory() const;
         bool IsMemoryMapped() const;
 

@@ -28,7 +28,7 @@ layout (std430, binding = 0) buffer inoutBlock1 {
 };
 
 layout (std430, binding = 1) readonly buffer inputBlock1 {
-    int numVisible;
+    int numVisible[];
 };
 
 uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
@@ -42,7 +42,9 @@ void main() {
 
     float colorMultiplier = 40000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
 
-    for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
+    int visibleVpls = numVisible[0];
+
+    for (int i = int(gl_GlobalInvocationID.x); i < visibleVpls; i += stepSize) {
         int index = i;
         VplData data = lightData[index];
         AtlasEntry entry = diffuseIndices[index];

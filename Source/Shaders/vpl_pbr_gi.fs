@@ -61,7 +61,7 @@ layout (std430, binding = 0) readonly buffer inputBlock1 {
 };
 
 layout (std430, binding = 1) readonly buffer inputBlock2 {
-    int numVisible;
+    int numVisible[];
 };
 
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
@@ -121,7 +121,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     vec3 seed = vec3(0.0, 0.0, time);
-    int maxRandomIndex = numVisible - 1;
+    int maxRandomIndex = numVisible[0] - 1;
     // float shadowFactor = 0.0;
     // for (int baseLightIndex = 0; baseLightIndex < maxShadowLights; ++baseLightIndex) {
     //     //seed.z += 1000.0;

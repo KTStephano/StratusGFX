@@ -284,11 +284,12 @@ void RendererBackend::InitPointShadowMaps_() {
 
 void RendererBackend::InitializeVplData_() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING, 0);
+    // +1 since we store the total size of the visibility array at the first index
+    std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
     state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
-    state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
+    //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -1400,7 +1401,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     // Set up # visible atomic counter
     int numVisible = 0;
     //state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
-    state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    //state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
@@ -1468,13 +1469,20 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 void RendererBackend::PerformVirtualPointLightCullingStage2_(
     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
 
-    int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
-    state_.vpls.vplNumVisible.UnmapMemory();
+    // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
+    // state_.vpls.vplNumVisible.UnmapMemory();
 
     //if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
-    if (perVPLDistToViewer.size() == 0 || totalVisible == 0) return;
+    if (perVPLDistToViewer.size() == 0) return;
 
-    int* visibleVplIndices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
+    int* visibleVplIndices = (int*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
+    const int totalVisible = visibleVplIndices[0];
+    visibleVplIndices += 1;
+    
+    if (totalVisible == 0) {
+        state_.vpls.vplVisibleIndices.UnmapMemory();
+        return;
+    }
 
     // Pack data into system memory
     std::vector<GpuTextureHandle> diffuseHandles;
@@ -1508,7 +1516,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
         state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
     }
 
-    state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
@@ -1629,7 +1637,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);

@@ -32,9 +32,9 @@ layout (std430, binding = 4) buffer inoutBlock2 {
     VplData updatedLightData[];
 };
 
-layout (std430, binding = 1) buffer outputBlock1 {
-    int numVisible;
-};
+// layout (std430, binding = 1) buffer outputBlock1 {
+//     int numVisible;
+// };
 
 layout (std430, binding = 3) buffer outputBlock2 {
     int vplVisibleIndex[];
@@ -92,7 +92,8 @@ void main() {
                     break;
                 }
                 updatedLightData[localIndex] = lightData[index];
-                vplVisibleIndex[localIndex] = index;
+                // + 1 since we store the count in the first slot
+                vplVisibleIndex[localIndex + 1] = index;
             }
         }
     }
@@ -100,7 +101,8 @@ void main() {
     barrier();
 
     if (gl_LocalInvocationIndex == 0) {
-        numVisible = lightVisibleIndex;
+        //numVisible = lightVisibleIndex;
+        vplVisibleIndex[0] = lightVisibleIndex;
     }
 
     // if (gl_LocalInvocationIndex == 0) {
