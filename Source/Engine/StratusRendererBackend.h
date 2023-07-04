@@ -488,6 +488,12 @@ namespace stratus {
         // Contains some number of Halton sequence values
         GpuBuffer haltonSequence_;
 
+        // Used for point light sorting and culling
+        std::vector<std::pair<LightPtr, double>> perLightDistToViewer_; 
+        std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer_;
+        std::vector<std::pair<LightPtr, double>> perVPLDistToViewer_;
+        std::vector<int> visibleVplIndices_;
+
         /**
          * If the renderer was setup properly then this will be marked
          * true.

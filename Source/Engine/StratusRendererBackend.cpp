@@ -1231,6 +1231,11 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
     const bool worldLightEnabled = frame_->csc.worldLight->GetEnabled();
 
+    perLightDistToViewer.clear();
+    perLightShadowCastingDistToViewer.clear();
+    perVPLDistToViewer.clear();
+    visibleVplIndices.clear();
+
     perLightDistToViewer.reserve(state_.maxTotalRegularLightsPerFrame);
     perLightShadowCastingDistToViewer.reserve(state_.maxShadowCastingLightsPerFrame);
     if (worldLightEnabled) {
@@ -1725,11 +1730,11 @@ void RendererBackend::RenderScene() {
         RenderCSMDepth_();
     }
 
-    std::vector<std::pair<LightPtr, double>> perLightDistToViewer;
-    // This one is just for shadow-casting lights
-    std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer;
-    std::vector<std::pair<LightPtr, double>> perVPLDistToViewer;
-    std::vector<int> visibleVplIndices;
+    std::vector<std::pair<LightPtr, double>>& perLightDistToViewer = perLightDistToViewer_;
+    // // This one is just for shadow-casting lights
+    std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer = perLightShadowCastingDistToViewer_;
+    std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer = perVPLDistToViewer_;
+    std::vector<int>& visibleVplIndices = visibleVplIndices_;
 
     // Perform point light pass
     UpdatePointLights_(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer, visibleVplIndices);
