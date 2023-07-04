@@ -41,6 +41,7 @@ layout (std430, binding = 3) buffer outputBlock2 {
 };
 
 shared bool lightVisible[MAX_TOTAL_VPLS_BEFORE_CULLING];
+shared int lightVisibleIndex;
 // shared int localNumVisible;
 
 void main() {
@@ -53,13 +54,13 @@ void main() {
     // barrier();
 
     // Set all visible flags to false
-    for (int index = int(gl_GlobalInvocationID.x); index < totalNumLights; index += stepSize) {
+    for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         lightVisible[index] = false;
     }
 
     barrier();
 
-    for (int index = int(gl_GlobalInvocationID.x); index < totalNumLights; index += stepSize) {
+    for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         vec3 lightPos = lightData[index].position.xyz;
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[1], vec4(lightPos, 1.0)),
@@ -76,15 +77,42 @@ void main() {
     barrier();
 
     if (gl_LocalInvocationIndex == 0) {
-        int localNumVisible = 0;
-        for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
-            if (lightVisible[i]) {
-                updatedLightData[localNumVisible] = lightData[i];
-                vplVisibleIndex[localNumVisible] = i;
-                ++localNumVisible;
+        lightVisibleIndex = 0;
+    }
+
+    barrier();
+
+    const int maxHelperThreads = 8;
+    if (gl_LocalInvocationIndex < maxHelperThreads) {
+        for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += maxHelperThreads) {
+            if (lightVisible[index]) {
+                int localIndex = atomicAdd(lightVisibleIndex, 1);
+                if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
+                    atomicAdd(lightVisibleIndex, -1);
+                    break;
+                }
+                updatedLightData[localIndex] = lightData[index];
+                vplVisibleIndex[localIndex] = index;
             }
         }
-
-        numVisible = localNumVisible;
     }
+
+    barrier();
+
+    if (gl_LocalInvocationIndex == 0) {
+        numVisible = lightVisibleIndex;
+    }
+
+    // if (gl_LocalInvocationIndex == 0) {
+    //     int localNumVisible = 0;
+    //     for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
+    //         if (lightVisible[i]) {
+    //             updatedLightData[localNumVisible] = lightData[i];
+    //             vplVisibleIndex[localNumVisible] = i;
+    //             ++localNumVisible;
+    //         }
+    //     }
+
+    //     numVisible = localNumVisible;
+    // }
 }
