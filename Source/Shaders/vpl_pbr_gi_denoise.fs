@@ -23,7 +23,7 @@ in vec2 fsTexCoords;
 
 out vec3 combinedColor;
 out vec3 giColor;
-out vec3 shadowColor;
+out vec4 reservoirValue;
 out float newHistoryDepth;
 
 // in/out frame texture
@@ -85,7 +85,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 0;
+const int dminmax = 2;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
@@ -195,6 +195,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         int dx = int(neighborhood * randX) - halfNeighborhood;
         int dy = int(neighborhood * randY) - halfNeighborhood;
 
+        if (dx == 0 && dy == 0) {
+            continue;
+        }
+
         vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx, dy));
 
         // For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them
@@ -247,32 +251,34 @@ void main() {
 
     vec4 reservoirFiltered = vec4(0.0);
     //vec3 shadowFactor = vec3(0.0);
-    float numShadowSamples = 0.0;
+    //float numShadowSamples = 0.0;
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
-    for (int dx = -dminmax; dx <= dminmax; ++dx) {
-        for (int dy = -dminmax; dy <= dminmax; ++dy) {
-            //if (dx != 0 || dy != 0) continue;
-            //if (dx == 0 && dy == 0) continue;
-            ++count;
-            //++numShadowSamples;
-            vec4 reservoir = vec4(0.0);
-            vec3 currShadow = vec3(0.0);
+    if (mergeReservoirs) {
+        reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
+    }
+    else {
+        for (int dx = -dminmax; dx <= dminmax; ++dx) {
+            for (int dy = -dminmax; dy <= dminmax; ++dy) {
+                //if (dx != 0 || dy != 0) continue;
+                //if (dx == 0 && dy == 0) continue;
+                ++count;
+                //++numShadowSamples;
+                vec4 reservoir = vec4(0.0);
+                vec3 currShadow = vec3(0.0);
 
-            if (dx == 0 && dy == 0 && mergeReservoirs) {
-                reservoir = computeMergedReservoir(centerNormal, centerDepth);
-            }
-            else {
                 reservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgba;
+
+                currShadow = reservoir.rgb;
+                float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
+                //filtered = filtered * filtered;
+                //numShadowSamples += filtered;
+                reservoirFiltered += filtered * reservoir;
             }
-            currShadow = reservoir.rgb / reservoir.a;
-            float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
-            //filtered = filtered * filtered;
-            numShadowSamples += filtered;
-            reservoirFiltered += vec4(filtered * reservoir.rgb, reservoir.a);
         }
     }
-    vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, numShadowSamples + reservoirFiltered.a);
+    //vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, numShadowSamples + reservoirFiltered.a);
+    vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, reservoirFiltered.a);
 
     //vec3 minColor = tonemap(min(centerIllum, min(topIllum, min(botIllum, min(rightIllum, leftIllum)))));
     //vec3 maxColor = tonemap(max(centerIllum, max(topIllum, max(botIllum, max(rightIllum, leftIllum)))));
@@ -433,7 +439,7 @@ void main() {
         //illumAvg = vec3(wz);
         //illumAvg = vec3(similarity);
         //illumAvg = vec3(variance);
-        illumAvg = shadowFactor;
+        //illumAvg = shadowFactor;
     }
     //vec3 illumAvg = shadowFactor;
     //vec3 illumAvg = vec3(variance);
@@ -444,9 +450,9 @@ void main() {
     //vec3 illumAvg = mix(prevGi, gi, 1.0 / 1000.0);
     //vec3 illumAvg = vec3(difference);
 
-    combinedColor = screenColor + illumAvg;
+    combinedColor = screenColor + gi * illumAvg;
     giColor = illumAvg;
-    shadowColor = shadowFactor;
+    reservoirValue = vec4(shadowFactor, 1.0);
     newHistoryDepth = historyAccum;
 }
 
