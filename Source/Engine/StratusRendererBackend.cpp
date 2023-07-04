@@ -1703,14 +1703,17 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     const int maxIterations = 2;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
-        const int multiplier = std::pow(2, bufferIndex) - 1;
+        // The first iteration is used for reservoir merging so we don't
+        // start increasing the multiplier until after the 2nd pass
+        const int i = bufferIndex == 0 ? 0 : bufferIndex - 1;
+        const int multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
         buffer->Bind();
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", indirectIllum);
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
         state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
-        state_.vplGlobalIlluminationDenoising->SetInt("passNumber", int(bufferIndex));
+        state_.vplGlobalIlluminationDenoising->SetInt("passNumber", i);
         state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex == 0);
 
         if (bufferIndex + 1 == maxIterations) {

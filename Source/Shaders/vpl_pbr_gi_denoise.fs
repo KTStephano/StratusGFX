@@ -85,7 +85,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 2;
+const int dminmax = 3;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
