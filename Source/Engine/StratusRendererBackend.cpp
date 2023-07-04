@@ -2328,7 +2328,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
 
 GpuAtlasEntry RendererBackend::GetOrAllocateShadowMapForLight_(LightPtr light) {
     auto& cache = GetSmapCacheForLight_(light);
-    assert(cache.freeShadowMaps.size() > 0 || cache.lruLightCache.size() > 0);
+    assert(cache.freeShadowMaps.size() > 0 || cache.cachedLights.size() > 0);
 
     auto it = cache.lightsToShadowMap.find(light);
     // If not found, look for an existing shadow map
@@ -2341,10 +2341,11 @@ GpuAtlasEntry RendererBackend::GetOrAllocateShadowMapForLight_(LightPtr light) {
 
         if (smap.index == -1) {
             // Evict oldest since we could not find an available handle
-            LightPtr oldest = cache.lruLightCache.front();
-            //cache.lruLightCache.pop_front();
-            smap = cache.lightsToShadowMap.find(oldest)->second;
-            EvictLightFromShadowMapCache_(oldest);
+            smap = EvictOldestLightFromShadowMapCache_(cache);
+            // LightPtr oldest = cache.usedShadowMapCache.front();
+            // //cache.lruLightCache.pop_front();
+            // smap = cache.lightsToShadowMap.find(oldest)->second;
+            // EvictLightFromShadowMapCache_(oldest);
         }
 
         SetLightShadowMap3D_(light, smap);
@@ -2353,7 +2354,7 @@ GpuAtlasEntry RendererBackend::GetOrAllocateShadowMapForLight_(LightPtr light) {
     }
 
     // Update the LRU cache
-    AddLightToShadowMapCache_(light);
+    //AddLightToShadowMapCache_(light);
     return it->second;
 }
 
@@ -2362,14 +2363,27 @@ void RendererBackend::SetLightShadowMap3D_(LightPtr light, GpuAtlasEntry smap) {
     cache.lightsToShadowMap.insert(std::make_pair(light, smap));
 }
 
-void RendererBackend::EvictLightFromShadowMapCache_(LightPtr light) {
+GpuAtlasEntry RendererBackend::EvictLightFromShadowMapCache_(LightPtr light) {
     auto& cache = GetSmapCacheForLight_(light);
-    for (auto it = cache.lruLightCache.begin(); it != cache.lruLightCache.end(); ++it) {
+    for (auto it = cache.cachedLights.begin(); it != cache.cachedLights.end(); ++it) {
         if (*it == light) {
-            cache.lruLightCache.erase(it);
-            return;
+            cache.cachedLights.erase(it);
+            GpuAtlasEntry atlas = cache.lightsToShadowMap.find(light)->second;
+            cache.lightsToShadowMap.erase(light);
+            return atlas;
         }
     }
+}
+
+GpuAtlasEntry RendererBackend::EvictOldestLightFromShadowMapCache_(ShadowMapCache& cache) {
+    if (cache.cachedLights.size() == 0) {
+        throw std::runtime_error("Used shadow map cache is empty");
+    }
+    auto oldest = cache.cachedLights.front();
+    cache.cachedLights.pop_front();
+    GpuAtlasEntry atlas = cache.lightsToShadowMap.find(oldest)->second;
+    cache.lightsToShadowMap.erase(oldest);
+    return atlas;
 }
 
 bool RendererBackend::ShadowMapExistsForLight_(LightPtr light) {
@@ -2380,9 +2394,9 @@ bool RendererBackend::ShadowMapExistsForLight_(LightPtr light) {
 void RendererBackend::AddLightToShadowMapCache_(LightPtr light) {
     auto& cache = GetSmapCacheForLight_(light);
     // First remove the existing light entry if it's already there
-    EvictLightFromShadowMapCache_(light);
+    //EvictLightFromShadowMapCache_(light);
     // Push to back so that it is seen as most recently used
-    cache.lruLightCache.push_back(light);
+    cache.cachedLights.push_back(light);
 }
 
 void RendererBackend::RemoveLightFromShadowMapCache_(LightPtr light) {

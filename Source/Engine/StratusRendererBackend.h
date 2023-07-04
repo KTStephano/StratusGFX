@@ -455,7 +455,7 @@ namespace stratus {
             std::list<GpuAtlasEntry> freeShadowMaps;
 
             // Marks which lights are currently in the cache
-            std::list<LightPtr> lruLightCache;
+            std::list<LightPtr> cachedLights;
         };
 
         // Contains the cache for regular lights
@@ -596,7 +596,8 @@ namespace stratus {
         ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl);
         GpuAtlasEntry GetOrAllocateShadowMapForLight_(LightPtr);
         void SetLightShadowMap3D_(LightPtr, GpuAtlasEntry);
-        void EvictLightFromShadowMapCache_(LightPtr);
+        GpuAtlasEntry EvictLightFromShadowMapCache_(LightPtr);
+        GpuAtlasEntry EvictOldestLightFromShadowMapCache_(ShadowMapCache&);
         void AddLightToShadowMapCache_(LightPtr);
         void RemoveLightFromShadowMapCache_(LightPtr);
         bool ShadowMapExistsForLight_(LightPtr);
