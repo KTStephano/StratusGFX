@@ -587,7 +587,8 @@ namespace stratus {
                                 std::vector<std::pair<LightPtr, double>>&,
                                 std::vector<int>& visibleVplIndices);
         void PerformVirtualPointLightCullingStage1_(std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
+        //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
+        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&);
         void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&);
         void RenderCSMDepth_();
         void RenderQuad_();

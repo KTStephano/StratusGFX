@@ -1413,24 +1413,24 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->Unbind();
 
-    int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
-    state_.vpls.vplNumVisible.UnmapMemory();
+    // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
+    // state_.vpls.vplNumVisible.UnmapMemory();
 
-    if (totalVisible > 0) {
-        // These should still be sorted since the GPU compute shader doesn't reorder them
-        int* indices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
-        visibleVplIndices.resize(totalVisible);
+    // if (totalVisible > 0) {
+    //     // These should still be sorted since the GPU compute shader doesn't reorder them
+    //     int* indices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
+    //     visibleVplIndices.resize(totalVisible);
 
-        for (int i = 0; i < totalVisible; ++i) {
-            visibleVplIndices[i] = indices[i];
-        }
+    //     for (int i = 0; i < totalVisible; ++i) {
+    //         visibleVplIndices[i] = indices[i];
+    //     }
 
-        state_.vpls.vplVisibleIndices.UnmapMemory();
-    }
-    else {
-        perVPLDistToViewer.clear();
-        visibleVplIndices.clear();
-    }
+    //     state_.vpls.vplVisibleIndices.UnmapMemory();
+    // }
+    // else {
+    //     perVPLDistToViewer.clear();
+    //     visibleVplIndices.clear();
+    // }
 
     //STRATUS_LOG << totalVisible << std::endl;
 
@@ -1462,23 +1462,34 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     //}
 }
 
+// void RendererBackend::PerformVirtualPointLightCullingStage2_(
+//     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
+//     const std::vector<int>& visibleVplIndices) {
 void RendererBackend::PerformVirtualPointLightCullingStage2_(
-    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
-    const std::vector<int>& visibleVplIndices) {
+    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
 
-    if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
+    int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
+    state_.vpls.vplNumVisible.UnmapMemory();
+
+    //if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
+    if (perVPLDistToViewer.size() == 0 || totalVisible == 0) return;
+
+    int* visibleVplIndices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
 
     // Pack data into system memory
     std::vector<GpuTextureHandle> diffuseHandles;
-    diffuseHandles.reserve(visibleVplIndices.size());
+    diffuseHandles.reserve(totalVisible);
     std::vector<GpuAtlasEntry> shadowDiffuseIndices;
-    shadowDiffuseIndices.reserve(visibleVplIndices.size());
-    for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
+    shadowDiffuseIndices.reserve(totalVisible);
+    for (size_t i = 0; i < totalVisible; ++i) {
         const int index = visibleVplIndices[i];
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[index].first.get();
         auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].first);
         shadowDiffuseIndices.push_back(smap);
     }
+
+    state_.vpls.vplVisibleIndices.UnmapMemory();
+    visibleVplIndices = nullptr;
 
     // Move data to GPU memory
     state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
@@ -1793,7 +1804,7 @@ void RendererBackend::RenderScene() {
     // If world light is enabled perform VPL Global Illumination pass
     if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
-        PerformVirtualPointLightCullingStage2_(perVPLDistToViewer, visibleVplIndices);
+        PerformVirtualPointLightCullingStage2_(perVPLDistToViewer);
         ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer);
     }
 
