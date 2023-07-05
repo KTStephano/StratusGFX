@@ -49,7 +49,7 @@ uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
 uniform bool mergeReservoirs = false;
-uniform int numReservoirNeighbors = 5;
+uniform int numReservoirNeighbors = 10;
 uniform float time;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
@@ -85,7 +85,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 3;
+const int dminmax = 2;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
@@ -178,13 +178,13 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
     vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
 
-    const int neighborhood = 32; // 32x32
+    const int neighborhood = 30; // neighborhood X neighborhood in dimensions
     const int halfNeighborhood = neighborhood / 2;
-    const int maxTries = neighborhood;
+    //const int maxTries = neighborhood;
 
     float depthCutoff = 0.1 * centerDepth;
 
-    for (int count = 0, tries = 0; count < numReservoirNeighbors && tries < maxTries; ++tries) {
+    for (int count = 0; count < numReservoirNeighbors; ++count) {
         float randX = random(seed);
         seed.z += 10000.0;
 
@@ -217,7 +217,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;
         centerReservoir += currReservoir;
 
-        ++count;
+        //++count;
     }
 
     return centerReservoir;
