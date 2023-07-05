@@ -59,69 +59,50 @@ vec4 calculateStructureOutput(float z) {
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
-vec2 calculateDepthCoords(in Material material, vec2 texCoords, vec3 viewDir) {
+vec2 calculateDepthCoords(in Material material, in vec2 texCoords, in vec3 viewDir) {
     float height = texture(material.depthMap, texCoords).r;
     vec2 p = viewDir.xy * (height * 0.005);
     return texCoords - p;
 }
 
+vec3 calculateNormal(in Material material, in vec2 texCoords) {
+    vec3 normal = texture(material.normalMap, texCoords).rgb;
+    // Normals generally have values from [-1, 1], but inside
+    // an OpenGL texture they are transformed to [0, 1]. To convert
+    // them back, we multiply by 2 and subtract 1.
+    normal = normalize(normal * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
+    // fsTbnMatrix goes from tangent space (defined by coordinate system of normal map)
+    // to object space, and then model no translate moves to world space without translating
+    normal = normalize(fsModelNoTranslate * fsTbnMatrix * normal);
+    normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
+
+    return normal;
+}
+
 void main() {
-    vec3 viewDir = normalize(viewPosition - fsPosition);
-    vec2 texCoords = fsTexCoords;
     Material material = materials[materialIndices[fsDrawID]];
 
-    if (bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED)) {
-        texCoords = calculateDepthCoords(material, texCoords, viewDir);
-        // if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0) {
-        //     discard;
-        // }
-    }
+    vec3 viewDir = normalize(viewPosition - fsPosition);
 
-    vec4 baseColor = FLOAT4_TO_VEC4(material.diffuseColor);
-    vec3 normal = (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
-    float roughness = material.metallicRoughness[1];
-    vec3 emissive = FLOAT3_TO_VEC3(material.emissiveColor);
-    float metallic = material.metallicRoughness[0];
+    vec2 texCoords = bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
+    //vec2 texCoords = fsTexCoords;
 
-    if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
-        baseColor = texture(material.diffuseMap, texCoords);
-    }
-
+    vec4 baseColor = bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
     runAlphaTest(baseColor.a);
 
-    if (bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED)) {
-        normal = texture(material.normalMap, texCoords).rgb;
-        // Normals generally have values from [-1, 1], but inside
-        // an OpenGL texture they are transformed to [0, 1]. To convert
-        // them back, we multiply by 2 and subtract 1.
-        normal = normalize(normal * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-        // fsTbnMatrix goes from tangent space (defined by coordinate system of normal map)
-        // to object space, and then model no translate moves to world space without translating
-        normal = normalize(fsModelNoTranslate * fsTbnMatrix * normal);
-        normal = (normal + vec3(1.0)) * 0.5; // [-1, 1] -> [0, 1]
-    }
+    vec3 normal = bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    if (bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED)) {
-        // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
-        // See https://stackoverflow.com/questions/61140427/opengl-glsl-extract-metalroughness-map-to-metal-map-and-roughness-map
-        vec2 metallicRoughness = texture(material.metallicRoughnessMap, texCoords).bg;
-        //metallicRoughness *= vec2(metallic, roughness);
-        metallic = metallicRoughness.x; //clamp(metallicRoughness.r / 2.0, 0.0, 1.0);
-        roughness = metallicRoughness.y;
-    }
-    else {
-        if (bitwiseAndBool(material.flags, GPU_ROUGHNESS_MAPPED)) {
-            roughness = texture(material.roughnessMap, texCoords).r;
-        }
+    float roughness = bitwiseAndBool(material.flags, GPU_ROUGHNESS_MAPPED) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
+    float metallic = bitwiseAndBool(material.flags, GPU_METALLIC_MAPPED) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    // float roughness = material.metallicRoughness[1];
+    // float metallic = material.metallicRoughness[0];
+    // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
+    // See https://stackoverflow.com/questions/61140427/opengl-glsl-extract-metalroughness-map-to-metal-map-and-roughness-map
+    vec2 metallicRoughness = bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED) ? texture(material.metallicRoughnessMap, texCoords).bg : vec2(metallic, roughness);
+    metallic = metallicRoughness.x;
+    roughness = metallicRoughness.y;
 
-        if (bitwiseAndBool(material.flags, GPU_METALLIC_MAPPED)) {
-            metallic = texture(material.metallicMap, texCoords).r;
-        }
-    }
-
-    if (bitwiseAndBool(material.flags, GPU_EMISSIVE_MAPPED)) {
-        emissive = texture(material.emissiveMap, texCoords).rgb;
-    }
+    vec3 emissive = bitwiseAndBool(material.flags, GPU_EMISSIVE_MAPPED) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
@@ -139,10 +120,5 @@ void main() {
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
 
     // Small offset to help prevent z fighting in certain cases
-    if (baseColor.a < 1.0) {
-        gl_FragDepth = gl_FragCoord.z - ALPHA_DEPTH_OFFSET;
-    }
-    else {
-        gl_FragDepth = gl_FragCoord.z;
-    }
+    gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 }

@@ -15,7 +15,7 @@ out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
-#define MAX_RESAMPLES_PER_PIXEL ABSOLUTE_MAX_SAMPLES_PER_PIXEL
+#define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -212,20 +212,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         // If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.
         // See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane
         vec3 lightMinusFrag = lightPosition - fragPos;
-        float sideCheck = dot(normal, normalize(lightMinusFrag));
-        if (resamples < MAX_RESAMPLES_PER_PIXEL && sideCheck < 0.0) {
-            ++resamples;
-            --i;
-            continue;
-        }
-
         float lightRadius = lightData[lightIndex].radius;
         float distance = length(lightMinusFrag);
 
-        if (resamples < MAX_RESAMPLES_PER_PIXEL && distance > lightRadius) {
-            ++resamples;
-            --i;
-            continue;
+        if (resamples < MAX_RESAMPLES_PER_PIXEL) {
+            float sideCheck = dot(normal, normalize(lightMinusFrag));
+            if (sideCheck < 0.0 || distance > lightRadius) {
+                ++resamples;
+                --i;
+                continue;
+            }
         }
 
         float distanceRatio = clamp(distance / lightRadius, 0.0, 1.0);
@@ -237,15 +233,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
-        float shadowFactor = 0.0;
-        if (distToCamera < 700) {
-            shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-            shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
-            // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
-            //     ++resamples;
-            //     --i;
-            // }
-        }
+        float shadowFactor = distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal)) : 0.0;
+        shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
+        // if (distToCamera < 700) {
+        //     shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
+        //     shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
+        //     // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
+        //     //     ++resamples;
+        //     //     --i;
+        //     // }
+        // }
         // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
         //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
 
