@@ -81,28 +81,29 @@ vec3 calculateNormal(in Material material, in vec2 texCoords) {
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
+    uint flags = material.flags;
 
     vec3 viewDir = normalize(viewPosition - fsPosition);
 
-    vec2 texCoords = bitwiseAndBool(material.flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
+    vec2 texCoords = bitwiseAndBool(flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
     //vec2 texCoords = fsTexCoords;
 
-    vec4 baseColor = bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
+    vec4 baseColor = bitwiseAndBool(flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
     runAlphaTest(baseColor.a);
 
-    vec3 normal = bitwiseAndBool(material.flags, GPU_NORMAL_MAPPED) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
+    vec3 normal = bitwiseAndBool(flags, GPU_NORMAL_MAPPED) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    float roughness = bitwiseAndBool(material.flags, GPU_ROUGHNESS_MAPPED) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
-    float metallic = bitwiseAndBool(material.flags, GPU_METALLIC_MAPPED) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    float roughness = bitwiseAndBool(flags, GPU_ROUGHNESS_MAPPED) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
+    float metallic = bitwiseAndBool(flags, GPU_METALLIC_MAPPED) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
     // float roughness = material.metallicRoughness[1];
     // float metallic = material.metallicRoughness[0];
     // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
     // See https://stackoverflow.com/questions/61140427/opengl-glsl-extract-metalroughness-map-to-metal-map-and-roughness-map
-    vec2 metallicRoughness = bitwiseAndBool(material.flags, GPU_METALLIC_ROUGHNESS_MAPPED) ? texture(material.metallicRoughnessMap, texCoords).bg : vec2(metallic, roughness);
+    vec2 metallicRoughness = bitwiseAndBool(flags, GPU_METALLIC_ROUGHNESS_MAPPED) ? texture(material.metallicRoughnessMap, texCoords).bg : vec2(metallic, roughness);
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = bitwiseAndBool(material.flags, GPU_EMISSIVE_MAPPED) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bitwiseAndBool(flags, GPU_EMISSIVE_MAPPED) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
 
     // Coordinate space is set to world
     //gPosition = fsPosition;

@@ -424,7 +424,7 @@ namespace stratus {
 
         // 4 cascades total
         frame_->csc.cascades.resize(4);
-        frame_->csc.cascadeResolutionXY = 2048;
+        frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
 
         // Set materials per frame and initialize material buffer
