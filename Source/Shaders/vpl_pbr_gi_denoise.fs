@@ -148,7 +148,7 @@ float filterInput(
 
     float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).r;
     //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).xy;
-    vec2 currGradient = 1.0 - texture(structureBuffer, texCoords * widthHeight).xy;
+    //vec2 currGradient = 1.0 - texture(structureBuffer, texCoords * widthHeight).xy;
     //currGradient = vec2(0.05);
     //float wz = exp(-abs(centerDepth - currDepth) / (sigmaZ * abs(dot(currGradient, texCoords - newTexCoords)) + 0.0001));
     float wz = exp(-abs(centerDepth - currDepth)) / sigmaZ;
@@ -162,18 +162,18 @@ float filterInput(
     // float wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
 
     //float wrt = length(centerIllum - currIllum);
-    float wrt = abs(linearColorToLuminance(tonemap(centerIllum)) - linearColorToLuminance(tonemap(currIllum)));
-    float ozrt = pow(2.0, -passNumber) * sigmaRT;
-    wrt = exp(-wrt / (ozrt * ozrt));
+    // float wrt = abs(linearColorToLuminance(tonemap(centerIllum)) - linearColorToLuminance(tonemap(currIllum)));
+    // float ozrt = pow(2.0, -passNumber) * sigmaRT;
+    // wrt = exp(-wrt / (ozrt * ozrt));
 
     //float hq = waveletFactors[abs(dx)][abs(dy)];
 
     //return hq * wz * wn;// * wl;
-    return wn * wz * wrt;// * wl;// * wz * wl;// * wz * wl;
+    return wn * wz * 1;// * wl;// * wz * wl;// * wz * wl;
     //return wn * wz;
     //return wn * wz * wl;
 }
-
+    
 vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
     vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
@@ -184,38 +184,48 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
     float depthCutoff = 0.1 * centerDepth;
 
+#define ACCEPT_OR_REJECT_RESERVOIR(n, halfN, minmaxOffset)                                                  \
+        float randX = random(seed);                                                                         \
+        seed.z += 10000.0;                                                                                  \
+        float randY = random(seed);                                                                         \
+        seed.z += 10000.0;                                                                                  \
+        /* Sample within the neighborhood randomly */                                                       \
+        int dx = int(n * randX) - halfN;                                                                    \
+        int dy = int(n * randY) - halfN;                                                                    \
+        const int dxSign = dx < 0 ? -1 : 1;                                                                 \
+        const int dySign = dy < 0 ? -1 : 1;                                                                 \
+        dx += dxSign * minmaxOffset;                                                                        \
+        dy += dySign * minmaxOffset;                                                                        \
+        if (dx == 0 && dy == 0) {                                                                           \
+            continue;                                                                                       \
+        }                                                                                                   \
+        vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx, dy));                       \
+        /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */          \
+        /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */  \
+        if (dot(centerNormal, currNormal) < 0.906) {                                                        \
+            continue;                                                                                       \
+        }                                                                                                   \
+        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx, dy)).r;                               \
+        /* If the difference between current and center depth exceeds 10% of center's value, reject */      \
+        if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
+            continue;                                                                                       \
+        }                                                                                                   \
+        /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
+        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;               \
+        centerReservoir += currReservoir;                                                                   \
+
+    const int nearestNeighborMinMax = 5;
+    const int nearestNeighborhood = 2 * nearestNeighborMinMax + 1;
+    const int halfNearestNeighborhood = nearestNeighborhood / 2;
+    const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
+
+    for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
+        ACCEPT_OR_REJECT_RESERVOIR(nearestNeighborhood, halfNearestNeighborhood, 0)
+    }
+
     for (int count = 0; count < numReservoirNeighbors; ++count) {
-        float randX = random(seed);
-        seed.z += 10000.0;
 
-        float randY = random(seed);
-        seed.z += 10000.0;
-
-        // Sample in a 32 x 32 neighborhood
-        int dx = int(neighborhood * randX) - halfNeighborhood;
-        int dy = int(neighborhood * randY) - halfNeighborhood;
-
-        if (dx == 0 && dy == 0) {
-            continue;
-        }
-
-        vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx, dy));
-
-        // For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them
-        // If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle)
-        if (dot(centerNormal, currNormal) < 0.906) {
-            continue;
-        }
-
-        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx, dy)).r;
-        // If the difference between current and center depth exceeds 10% of center's value, reject
-        if (abs(currDepth - centerDepth) > depthCutoff) {
-            continue;
-        }
-
-        // Neighbor seems good - merge its reservoir into this center reservoir
-        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;
-        centerReservoir += currReservoir;
+        ACCEPT_OR_REJECT_RESERVOIR(neighborhood, halfNeighborhood, nearestNeighborMinMax)
 
         //++count;
     }
@@ -418,7 +428,7 @@ void main() {
 
         float similarity = wn * wz * 1;
         
-        if (similarity < 0.95) {
+        if (similarity < 0.80) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;
