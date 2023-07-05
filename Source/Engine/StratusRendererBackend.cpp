@@ -1700,7 +1700,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
 
     size_t bufferIndex = 0;
-    const int maxIterations = 3;
+    const int maxIterations = 2;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration is used for reservoir merging so we don't
