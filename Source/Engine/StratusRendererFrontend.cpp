@@ -1312,41 +1312,41 @@ namespace stratus {
         //     array.clear();
         // }
 
-        if (frame_->csc.worldLight->GetEnabled()) {
-            for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
-                inDrawCommands.clear();
-                const size_t lod = frame_->instancedDynamicPbrMeshes.size() - 1;// * 2 + 1;
-                if (i < 2) {
-                    inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
-                        &frame_->visibleInstancedDynamicPbrMeshes,
-                        &frame_->visibleInstancedStaticPbrMeshes
-                    };
-                }
-                else {
-                    inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
-                        &frame_->instancedDynamicPbrMeshes[lod],
-                        &frame_->instancedStaticPbrMeshes[lod]
-                    };      
-                }
+        // if (frame_->csc.worldLight->GetEnabled()) {
+        //     for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+        //         inDrawCommands.clear();
+        //         const size_t lod = frame_->instancedDynamicPbrMeshes.size() - 1;// * 2 + 1;
+        //         if (i < 2) {
+        //             inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+        //                 &frame_->visibleInstancedDynamicPbrMeshes,
+        //                 &frame_->visibleInstancedStaticPbrMeshes
+        //             };
+        //         }
+        //         else {
+        //             inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+        //                 &frame_->instancedDynamicPbrMeshes[lod],
+        //                 &frame_->instancedStaticPbrMeshes[lod]
+        //             };      
+        //         }
 
-                outDrawCommands.clear();
-                outDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
-                    &frame_->csc.cascades[i].visibleDynamicPbrMeshes,
-                    &frame_->csc.cascades[i].visibleStaticPbrMeshes
-                };
+        //         outDrawCommands.clear();
+        //         outDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+        //             &frame_->csc.cascades[i].visibleDynamicPbrMeshes,
+        //             &frame_->csc.cascades[i].visibleStaticPbrMeshes
+        //         };
 
-                UpdateVisibility_(
-                    *viscull_.get(), 
-                    frame_->csc.cascades[i].projectionViewRender, 
-                    glm::mat4(1.0f), // projectionViewRender already has the view matrix incorporated
-                    inDrawCommands,
-                    outDrawCommands, 
-                    {},
-                    {},
-                    false
-                );
-            }
-        }
+        //         UpdateVisibility_(
+        //             *viscull_.get(), 
+        //             frame_->csc.cascades[i].projectionViewRender, 
+        //             glm::mat4(1.0f), // projectionViewRender already has the view matrix incorporated
+        //             inDrawCommands,
+        //             outDrawCommands, 
+        //             {},
+        //             {},
+        //             false
+        //         );
+        //     }
+        // }
     }
 
     void RendererFrontend::UpdateVisibility_(
