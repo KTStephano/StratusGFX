@@ -984,9 +984,18 @@ void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling,
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
+void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const bool reverseCullFace) {
     for (auto& entry : map) {
-        RenderImmediate_(entry.first, entry.second);
+        auto cull = entry.first;
+        if (reverseCullFace) {
+            if (cull == RenderFaceCulling::CULLING_CCW) {
+                cull = RenderFaceCulling::CULLING_CW;
+            }
+            else if (cull == RenderFaceCulling::CULLING_CW) {
+                cull = RenderFaceCulling::CULLING_CCW;
+            }
+        }
+        RenderImmediate_(cull, entry.second);
     }
 }
 
@@ -1073,17 +1082,19 @@ void RendererBackend::RenderCSMDepth_() {
         //_state.csmDepth->setInt("face", face);
 
         // Render everything
+        // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
+        // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
         // const size_t lod = cascade * 2 + 1;
         const size_t lod = frame_->instancedDynamicPbrMeshes.size() - 1;
         if (cascade < 2) {
-            RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes);
-            RenderImmediate_(frame_->selectedLodsStaticPbrMeshes);
+            RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes, true);
+            RenderImmediate_(frame_->selectedLodsStaticPbrMeshes, true);
         }
         else {
-            RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
-            RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
+            RenderImmediate_(frame_->instancedStaticPbrMeshes[lod], true);
+            RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod], true);
         }
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
@@ -1356,7 +1367,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
             if (point->IsVirtualLight()) {
                 // Use lowest LOD
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1]);
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1], false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1376,8 +1387,8 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                 }
             }
             else {
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[0]);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0]);
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[0], false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0], false);
             }
             UnbindShader_();
         }

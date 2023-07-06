@@ -583,7 +583,7 @@ namespace stratus {
         void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
         void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const bool reverseCullFace);
         void UpdatePointLights_(std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&,
