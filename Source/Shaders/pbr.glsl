@@ -161,7 +161,6 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     //bias = -clamp(bias, 0.0, 0.01);
     //float bias = 2e-19;
     float bias = infiniteLightDepthBias / (infiniteLightZfar - infiniteLightZnear);
-    //bias = infiniteLightDirection.z * bias;
     if (!useDepthBias) {
         bias = 0.0;
     }

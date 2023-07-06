@@ -1185,12 +1185,16 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const glm::vec4 shadowSpaceCameraPos = frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
     const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
 
+    const auto timePoint = std::chrono::high_resolution_clock::now();
+    const float milliseconds = float(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
+
     BindShader_(state_.atmospheric.get());
     state_.atmosphericFbo.Bind();
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
+    state_.atmospheric->SetFloat("time", milliseconds);
     
     // Set up cascade data
     for (int i = 0; i < 4; ++i) {

@@ -59,7 +59,7 @@ public:
 
         // Alpha testing doesn't work so well for this scene
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-5.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -160,7 +160,7 @@ public:
                     for (int z = -30; z < 120; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.30f),
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.35f),
                                 false
                             );
                     }
