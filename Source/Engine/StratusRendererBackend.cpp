@@ -1075,15 +1075,18 @@ void RendererBackend::RenderCSMDepth_() {
         // Render everything
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
-        const size_t lod = cascade * 2 + 1;
-        if (cascade < 2) {
-            RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes);
-            RenderImmediate_(frame_->selectedLodsStaticPbrMeshes);
-        }
-        else {
-            RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
-            RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
-        }
+        // const size_t lod = cascade * 2 + 1;
+        // if (cascade < 2) {
+        //     RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes);
+        //     RenderImmediate_(frame_->selectedLodsStaticPbrMeshes);
+        // }
+        // else {
+        //     RenderImmediate_(frame_->instancedStaticPbrMeshes[lod]);
+        //     RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod]);
+        // }
+
+        RenderImmediate_(csm.visibleDynamicPbrMeshes);
+        RenderImmediate_(csm.visibleStaticPbrMeshes);
 
         UnbindShader_();
     }

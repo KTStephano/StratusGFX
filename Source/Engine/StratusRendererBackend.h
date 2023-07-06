@@ -81,6 +81,8 @@ namespace stratus {
         glm::vec4 cascadePlane;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleDynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleStaticPbrMeshes;
         float cascadeRadius;
         float cascadeBegins;
         float cascadeEnds;

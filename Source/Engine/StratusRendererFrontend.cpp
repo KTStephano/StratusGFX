@@ -458,6 +458,11 @@ namespace stratus {
             frame_->selectedLodsFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
             frame_->selectedLodsDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
             frame_->selectedLodsStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+
+            for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+                frame_->csc.cascades[i].visibleDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+                frame_->csc.cascades[i].visibleStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
+            }
         }
 
         for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
@@ -1074,6 +1079,7 @@ namespace stratus {
         return commands;
     }
 
+    // TODO: This desperately needs to be refactored and made more efficient
     void RendererFrontend::UpdateDrawCommands_() {
         if (!drawCommandsDirty_) return;
         drawCommandsDirty_ = false;
@@ -1171,6 +1177,17 @@ namespace stratus {
             GENERATE_COMMANDS(staticPbrEntities_, frame_->instancedStaticPbrMeshes[i], i, true, drawCommandsDirty_)
         }
 
+        // Update all cascade commands
+        for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+            for (auto& entry : frame_->visibleInstancedDynamicPbrMeshes) {
+                auto cull = entry.first;
+                auto dynamicCopy = entry.second->Copy();
+                auto staticCopy = frame_->visibleInstancedStaticPbrMeshes.find(cull)->second->Copy();
+                frame_->csc.cascades[i].visibleDynamicPbrMeshes[cull] = dynamicCopy;
+                frame_->csc.cascades[i].visibleStaticPbrMeshes[cull] = staticCopy;
+             }
+        }
+
     #undef GENERATE_COMMANDS
     }
 
@@ -1252,7 +1269,13 @@ namespace stratus {
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::UpdateVisibility_() {
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> inDrawCommands{
+            &frame_->instancedFlatMeshes[0],
+            &frame_->instancedDynamicPbrMeshes[0],
+            &frame_->instancedStaticPbrMeshes[0]
+        };
+
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> outDrawCommands{
             &frame_->visibleInstancedFlatMeshes,
             &frame_->visibleInstancedDynamicPbrMeshes,
             &frame_->visibleInstancedStaticPbrMeshes
@@ -1274,32 +1297,67 @@ namespace stratus {
             drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);
         }
         
-        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, selectedLodDrawCommands, drawCommandsPerLod);
+        UpdateVisibility_(
+            *viscullLodSelect_.get(), 
+            frame_->projection, 
+            frame_->camera->GetViewTransform(), 
+            inDrawCommands, 
+            outDrawCommands, 
+            selectedLodDrawCommands, 
+            drawCommandsPerLod,
+            true
+        );
 
         // for (auto& array : drawCommandsPerLod) {
         //     array.clear();
         // }
 
-        // if (_frame->csc.worldLight->getEnabled()) {
-        //     for (size_t i = 0; i < _frame->csc.cascades.size(); ++i) {
-        //         drawCommands = {
-        //             &_frame->instancedFlatMeshes[i * 2],
-        //             &_frame->instancedDynamicPbrMeshes[i * 2],
-        //             &_frame->instancedStaticPbrMeshes[i * 2]
-        //         };
+        if (frame_->csc.worldLight->GetEnabled()) {
+            for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+                inDrawCommands.clear();
+                const size_t lod = frame_->instancedDynamicPbrMeshes.size() - 1;// * 2 + 1;
+                if (i < 2) {
+                    inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+                        &frame_->visibleInstancedDynamicPbrMeshes,
+                        &frame_->visibleInstancedStaticPbrMeshes
+                    };
+                }
+                else {
+                    inDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+                        &frame_->instancedDynamicPbrMeshes[lod],
+                        &frame_->instancedStaticPbrMeshes[lod]
+                    };      
+                }
 
-        //         _UpdateVisibility(*_viscull.get(), _frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands, drawCommandsPerLod);
-        //     }
-        // }
+                outDrawCommands.clear();
+                outDrawCommands = std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>{
+                    &frame_->csc.cascades[i].visibleDynamicPbrMeshes,
+                    &frame_->csc.cascades[i].visibleStaticPbrMeshes
+                };
+
+                UpdateVisibility_(
+                    *viscull_.get(), 
+                    frame_->csc.cascades[i].projectionViewRender, 
+                    glm::mat4(1.0f), // projectionViewRender already has the view matrix incorporated
+                    inDrawCommands,
+                    outDrawCommands, 
+                    {},
+                    {},
+                    false
+                );
+            }
+        }
     }
 
     void RendererFrontend::UpdateVisibility_(
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
-        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& inDrawCommands,
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& outDrawCommands,
         const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
-        const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod) {
+        const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod,
+        const bool selectLods) {
 
         static const std::vector<RenderFaceCulling> culling{
             RenderFaceCulling::CULLING_CCW,
@@ -1350,23 +1408,30 @@ namespace stratus {
 
         pipeline.SetVec3("viewPosition", frame_->camera->GetPosition());
         
-        for (size_t i = 0; i < drawCommands.size(); ++i) {
-           auto& map = drawCommands[i];
-           auto& lods = selectedLods[i];
-           auto& mapPerLod = drawCommandsPerLod[i];
+        for (size_t i = 0; i < inDrawCommands.size(); ++i) {
+           auto& inMap = inDrawCommands[i];
+           auto& outMap = outDrawCommands[i];
+           
            for (const auto& cull : culling) {
-               auto it = map->find(cull);
+               auto it = inMap->find(cull);
                if (it->second->NumDrawCommands() == 0) continue;
 
-               auto lodIt = lods->find(cull);
+               auto outIt = outMap->find(cull);
 
                it->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-               lodIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
+               outIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
                it->second->BindModelTransformBuffer(2);
                it->second->BindAabbBuffer(3);
 
-               for (size_t k = 0; k < mapPerLod.size(); ++k) {
-                   mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
+               if (selectLods) {
+                    auto& lods = selectedLods[i];
+                    auto& mapPerLod = drawCommandsPerLod[i];
+                    auto lodIt = lods->find(cull);
+
+                    lodIt->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
+                    for (size_t k = 0; k < mapPerLod.size(); ++k) {
+                        mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
+                    }
                }
 
                pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));

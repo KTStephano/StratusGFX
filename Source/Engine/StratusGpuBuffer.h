@@ -250,6 +250,8 @@ namespace stratus {
 
         const GpuBuffer& GetIndirectDrawCommandsBuffer() const;
 
+        GpuCommandBufferPtr Copy() const;
+
     private:
         void VerifyArraySizes_() const;
     };

@@ -709,4 +709,16 @@ namespace stratus {
     const GpuBuffer& GpuCommandBuffer::GetIndirectDrawCommandsBuffer() const {
         return indirectDrawCommands_;
     }
+
+    GpuCommandBufferPtr GpuCommandBuffer::Copy() const {
+        GpuCommandBufferPtr copy = GpuCommandBufferPtr(new GpuCommandBuffer());
+        copy->materialIndices = materialIndices;
+        copy->prevFrameModelTransforms = prevFrameModelTransforms;
+        copy->modelTransforms = modelTransforms;
+        copy->indirectDrawCommands = indirectDrawCommands;
+        copy->aabbs = aabbs;
+
+        copy->UploadDataToGpu();
+        return copy;
+    }
 }

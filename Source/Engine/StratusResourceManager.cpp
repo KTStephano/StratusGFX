@@ -624,7 +624,7 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 8192);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4096);
 
         unsigned int pflags = aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |

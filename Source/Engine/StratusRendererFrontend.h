@@ -84,9 +84,11 @@ namespace stratus {
         void UpdateVisibility_(
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
-            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
+            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& inDrawCommands,
+            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& outDrawCommands,
             const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
-            const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
+            const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod,
+            const bool selectLods
             );
         void UpdatePrevFrameModelTransforms_();
 

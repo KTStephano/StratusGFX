@@ -7,6 +7,8 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 #include "common.glsl"
 #include "aabb.glsl"
 
+uniform vec4 frustumPlanes[6];
+
 layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
 };
@@ -15,8 +17,12 @@ layout (std430, binding = 3) readonly buffer inputBlock4 {
     AABB aabbs[];
 };
 
-layout (std430, binding = 1) buffer outputBlock1 {
-    DrawElementsIndirectCommand drawCalls[];
+layout (std430, binding = 1) readonly buffer inputBlock1 {
+    DrawElementsIndirectCommand inDrawCalls[];
+};
+
+layout (std430, binding = 14) buffer outputBlock1 {
+    DrawElementsIndirectCommand outDrawCalls[];
 };
 
 layout (std430, binding = 13) buffer outputBlock2 {
@@ -75,7 +81,7 @@ void main() {
         float dist = distanceFromPointToAABB(aabb, viewPosition);
         //center = center - viewPosition; //(view * vec4(center, 1.0)).xyz;
         //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
-        DrawElementsIndirectCommand draw = drawCalls[i];
+        DrawElementsIndirectCommand draw = inDrawCalls[i];
 
     #ifdef SELECT_LOD
         DrawElementsIndirectCommand lod;
@@ -111,14 +117,14 @@ void main() {
         lod = draw;
     #endif
 
-        if (!isAabbVisible(aabb)) {
+        if (!isAabbVisible(frustumPlanes, aabb)) {
             draw.instanceCount = 0;
         }
         else {
             draw.instanceCount = 1;
         }
 
-        drawCalls[i] = draw;
+        outDrawCalls[i] = draw;
 
     #ifdef SELECT_LOD
         selectedLods[i] = lod;

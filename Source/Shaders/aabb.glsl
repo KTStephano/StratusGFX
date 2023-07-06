@@ -10,8 +10,6 @@ struct AABB {
     //vec4 size;
 };
 
-uniform vec4 frustumPlanes[6];
-
 vec4[24] convertCornersToLineVertices(in vec4 corners[8]) {
     vec4 vertices[24] = vec4[](
         corners[0], corners[1],
@@ -85,7 +83,7 @@ AABB transformAabb(in AABB aabb, in mat4 transform) {
 //    return true;
 //}
 
-bool isAabbVisible(in AABB aabb) {
+bool isAabbVisible(in vec4 frustumPlanes[6], in AABB aabb) {
     vec4 vmin = aabb.vmin;
     vec4 vmax = aabb.vmax;
 
