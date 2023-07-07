@@ -2422,6 +2422,8 @@ GpuAtlasEntry RendererBackend::EvictLightFromShadowMapCache_(LightPtr light) {
             return atlas;
         }
     }
+
+    return GpuAtlasEntry();
 }
 
 GpuAtlasEntry RendererBackend::EvictOldestLightFromShadowMapCache_(ShadowMapCache& cache) {

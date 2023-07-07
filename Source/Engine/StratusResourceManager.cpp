@@ -630,6 +630,9 @@ namespace stratus {
             aiProcess_JoinIdenticalVertices |
             aiProcess_SortByPType |
             aiProcess_GenNormals |
+            aiProcess_ValidateDataStructure |
+            aiProcess_RemoveRedundantMaterials |
+            aiProcess_SortByPType |
             //aiProcess_GenSmoothNormals | 
             aiProcess_FlipUVs |
             aiProcess_GenUVCoords |
