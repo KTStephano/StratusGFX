@@ -1407,6 +1407,7 @@ namespace stratus {
         }
 
         pipeline.SetVec3("viewPosition", frame_->camera->GetPosition());
+        pipeline.SetFloat("zfar", frame_->csc.zfar);
         
         for (size_t i = 0; i < inDrawCommands.size(); ++i) {
            auto& inMap = inDrawCommands[i];

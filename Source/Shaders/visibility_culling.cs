@@ -8,6 +8,7 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 #include "aabb.glsl"
 
 uniform vec4 frustumPlanes[6];
+uniform float zfar;
 
 layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
@@ -85,36 +86,39 @@ void main() {
 
     #ifdef SELECT_LOD
         DrawElementsIndirectCommand lod;
-        float initialDist = 125.0;
-        if (dist < initialDist) {
+        const float firstLodDist = 300.0;
+        const float maxDist = max(zfar, 1000.0) - firstLodDist;
+        const float restLodDist = maxDist / 7;
+
+        if (dist < firstLodDist) {
             draw = drawCallsLod0[i];
         }
         // else {
         //     draw = drawCallsLod7[i];
         // }
-        else if (dist < initialDist * 2.0) {
+        else if (dist < (firstLodDist + restLodDist * 1.0)) {
             draw = drawCallsLod1[i];
         }
-        else if (dist < initialDist * 3.0) {
+        else if (dist < (firstLodDist + restLodDist * 2.0))  {
             draw = drawCallsLod2[i];
         }
-        else if (dist < initialDist * 4.0) {
+        else if (dist < (firstLodDist + restLodDist * 3.0))  {
             draw = drawCallsLod3[i];
         }
-        else if (dist < initialDist * 5.0) {
+        else if (dist < (firstLodDist + restLodDist * 4.0))  {
             draw = drawCallsLod4[i];
         }
-        else if (dist < initialDist * 6.0) {
+        else if (dist < (firstLodDist + restLodDist * 5.0))  {
             draw = drawCallsLod5[i];
         }
-        else if (dist < initialDist * 7.0) {
+        else if (dist < (firstLodDist + restLodDist * 6.0))  {
             draw = drawCallsLod6[i];
         }
         else {
             draw = drawCallsLod7[i];
         }
 
-        //draw = drawCallsLod1[i];
+        //draw = drawCallsLod7[i];
         lod = draw;
     #endif
 
