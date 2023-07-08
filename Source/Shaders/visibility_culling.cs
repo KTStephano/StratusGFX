@@ -118,7 +118,7 @@ void main() {
             draw = drawCallsLod7[i];
         }
 
-        //draw = drawCallsLod7[i];
+        //draw = drawCallsLod4[i];
         lod = draw;
     #endif
 

@@ -278,7 +278,7 @@ namespace stratus {
         };
         
         const std::vector<float> targetPercentages = {
-            0.05f, 0.05f, 0.05f, 0.05f, 0.2f, 0.2f, 0.2f
+            0.05f, 0.05f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f
         };
 
         for (int i = 0; i < errors.size(); ++i) {

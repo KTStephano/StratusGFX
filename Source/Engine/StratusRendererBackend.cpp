@@ -1370,8 +1370,8 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
             shader->SetFloat("farPlane", point->GetFarPlane());
 
             if (point->IsVirtualLight()) {
-                // Use lowest LOD
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1], false);
+                // Use lower LOD
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() / 2], false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
