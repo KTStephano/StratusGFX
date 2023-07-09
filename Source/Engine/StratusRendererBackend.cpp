@@ -1050,7 +1050,8 @@ void RendererBackend::RenderCSMDepth_() {
     glEnable(GL_DEPTH_CLAMP);
     // First value is conditional on slope
     // Second value is a constant unconditional offset
-    glPolygonOffset(3.0f, 0.0f);
+    //glPolygonOffset(3.0f, 0.0f);
+    glPolygonOffset(2.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
@@ -1719,7 +1720,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
 
     size_t bufferIndex = 0;
-    const int maxIterations = 2;
+    const int maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration is used for reservoir merging so we don't

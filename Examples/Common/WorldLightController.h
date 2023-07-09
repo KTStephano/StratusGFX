@@ -137,6 +137,8 @@ struct WorldLightController : public stratus::InputHandler {
 
         if (!_worldLightPaused) {
             _worldLight->OffsetRotation(glm::vec3(_worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
+            //_worldLight->OffsetRotation(glm::vec3(0.0f, _worldLightMoveDirection * lightRotationSpeed * deltaSeconds, 0.0f));
+            //STRATUS_LOG << _worldLight->GetRotation() << std::endl;
         }
 
         _worldLight->SetPosition(INSTANCE(RendererFrontend)->GetCamera()->GetPosition());

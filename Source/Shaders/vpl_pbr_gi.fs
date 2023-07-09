@@ -77,7 +77,7 @@ layout (std430, binding = 4) readonly buffer inputBlock5 {
 uniform int haltonSize;
 
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    //if (length(screenColor) > 0.5) discard;
+    //if (length(screenColor) > 0.0) return screenColor;
 
     // ivec2 numTiles = ivec2(numTilesX, numTilesY);
     // // For example: 16, 9
@@ -253,7 +253,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     validSamples = max(validSamples, 1.0);
 
-    color = baseColor;
+    color = baseColor;//baseColor;
     //reservoir = vec4(boundHDR(vplColor / (baseColor * validSamples)), 1.0);
     reservoir = vec4(boundHDR(vplColor / baseColor), validSamples);
 }

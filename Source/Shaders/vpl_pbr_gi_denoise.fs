@@ -214,7 +214,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;               \
         centerReservoir += currReservoir;                                                                   \
 
-    const int nearestNeighborMinMax = 5;
+    const int nearestNeighborMinMax = numReservoirNeighbors / 2;
     const int nearestNeighborhood = 2 * nearestNeighborMinMax + 1;
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
@@ -436,7 +436,7 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 40.0);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 30.0);
 
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);
