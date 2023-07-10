@@ -1051,7 +1051,8 @@ void RendererBackend::RenderCSMDepth_() {
     // First value is conditional on slope
     // Second value is a constant unconditional offset
     //glPolygonOffset(3.0f, 0.0f);
-    glPolygonOffset(2.0f, 0.0f);
+    glPolygonOffset(2.0f, 0.5f);
+    //glPolygonOffset(5.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
