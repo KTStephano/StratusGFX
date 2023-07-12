@@ -87,6 +87,7 @@ namespace stratus {
 
             auto ul = LockWrite_();
             for (int i = 0; i < handles.size(); ++i) {
+                texturesStillLoading_.erase(handles[i]);
                 loadedTextures_.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
             }
         });
@@ -267,8 +268,8 @@ namespace stratus {
         // We have to use the main thread since Texture calls glGenTextures :(
         Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
             auto result = LoadTexture_(files, handle, cspace, type, wrap, min, mag);
-            auto ul = this->LockWrite_();
-            this->texturesStillLoading_.erase(handle);
+            //auto ul = this->LockWrite_();
+            //this->texturesStillLoading_.erase(handle);
             return result;
         });
 

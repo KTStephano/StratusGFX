@@ -180,10 +180,21 @@ namespace stratus {
 
     struct TextureMemResidencyGuard {
         TextureMemResidencyGuard(const Texture&);
+
+        TextureMemResidencyGuard(TextureMemResidencyGuard&&);
+        TextureMemResidencyGuard(const TextureMemResidencyGuard&);
+
+        TextureMemResidencyGuard& operator=(TextureMemResidencyGuard&&);
+        TextureMemResidencyGuard& operator=(const TextureMemResidencyGuard&);
+
         ~TextureMemResidencyGuard();
 
     private:
-        Texture texture_;
+        void Copy_(const TextureMemResidencyGuard&);
+        void DecrementRefcount_();
+
+    private:
+        Texture texture_ = nullptr;
     };
 }
 

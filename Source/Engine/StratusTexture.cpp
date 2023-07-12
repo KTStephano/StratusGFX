@@ -20,7 +20,7 @@ namespace stratus {
         TextureConfig config_;
         mutable int activeTexture_ = -1;
         TextureHandle handle_;
-        unsigned int memRefcount_ = 0;
+        int memRefcount_ = 0;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -574,15 +574,43 @@ namespace stratus {
         : texture_(texture) {
 
         texture_.impl_->memRefcount_ += 1;
+        Texture::MakeResident_(texture_);
         if (texture_.impl_->memRefcount_ == 1) {
             Texture::MakeResident_(texture_);
         }
     }
 
+    TextureMemResidencyGuard::TextureMemResidencyGuard(TextureMemResidencyGuard&& other) {
+        this->operator=(other);
+    }
+
+    TextureMemResidencyGuard::TextureMemResidencyGuard(const TextureMemResidencyGuard& other) {
+        this->operator=(other);
+    }
+        
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(TextureMemResidencyGuard&& other) {
+        Copy_(other);
+        return *this;
+    }
+
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(const TextureMemResidencyGuard& other) {
+        Copy_(other);
+        return *this;
+    }
+
+    void TextureMemResidencyGuard::Copy_(const TextureMemResidencyGuard& other) {
+        if (this->texture_ == other.texture_) return;
+        this->texture_ = other.texture_;
+    }
+
+    void TextureMemResidencyGuard::DecrementRefcount_() {
+
+    }
+
     TextureMemResidencyGuard::~TextureMemResidencyGuard() {
         texture_.impl_->memRefcount_ -= 1;
         if (texture_.impl_->memRefcount_ == 0) {
-            Texture::MakeNonResident_(texture_);
+            //Texture::MakeNonResident_(texture_);
         }
     }
 }
