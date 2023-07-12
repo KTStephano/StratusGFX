@@ -107,6 +107,7 @@ namespace stratus {
         std::unordered_set<MaterialPtr> availableMaterials;
         // Indices can change completely if new materials are added
         std::unordered_map<MaterialPtr, uint32_t> indices;
+        std::unordered_map<MaterialPtr, std::vector<TextureMemResidencyGuard>> residentTextures;
         // List of CPU-side materials for easy copy to GPU
         std::vector<GpuMaterial> materials;
         GpuBuffer materialsBuffer;

@@ -867,30 +867,7 @@ namespace stratus {
             frame_->materialInfo.indices.erase(m);
         }
 
-    #define MAKE_NON_RESIDENT(handle)                                        \
-        {                                                                    \
-        TextureLoadingStatus status;                                         \
-        auto tex = INSTANCE(ResourceManager)->LookupTexture(handle, status); \
-        if (ValidateTexture(tex, status)) {                                  \
-            Texture::MakeNonResident(tex);                                   \
-        }                                                                    \
-        }
-
-        // Erase what is no longer referenced
-        for (auto& entry : frame_->materialInfo.indices) {
-            MaterialPtr material = entry.first;
-            MAKE_NON_RESIDENT(material->GetDiffuseTexture())
-            MAKE_NON_RESIDENT(material->GetEmissiveTexture())
-            MAKE_NON_RESIDENT(material->GetNormalMap())
-            MAKE_NON_RESIDENT(material->GetDepthMap())
-            MAKE_NON_RESIDENT(material->GetRoughnessMap())
-            MAKE_NON_RESIDENT(material->GetMetallicMap())
-            MAKE_NON_RESIDENT(material->GetMetallicRoughnessMap())
-        }
-
         frame_->materialInfo.indices.clear();
-    
-    #undef MAKE_NON_RESIDENT
     }
 
     void RendererFrontend::CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
@@ -924,11 +901,14 @@ namespace stratus {
         auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle, metallicStatus);
         TextureLoadingStatus metallicRoughnessStatus;
         auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle, metallicRoughnessStatus);
+        
+        frame_->materialInfo.residentTextures.insert(std::make_pair(material, std::vector<TextureMemResidencyGuard>()));
+        auto& resident = frame_->materialInfo.residentTextures.find(material)->second;
 
         if (ValidateTexture(diffuse, diffuseStatus)) {
             gpuMaterial->diffuseMap = diffuse.GpuHandle();
             gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
-            Texture::MakeResident(diffuse);
+            resident.push_back(TextureMemResidencyGuard(diffuse));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (diffuseHandle != TextureHandle::Null() && diffuseStatus != TextureLoadingStatus::FAILED) {
@@ -938,7 +918,7 @@ namespace stratus {
         if (ValidateTexture(ambient, ambientStatus)) {
             gpuMaterial->emissiveMap = ambient.GpuHandle();
             gpuMaterial->flags |= GPU_EMISSIVE_MAPPED;
-            Texture::MakeResident(ambient);
+            resident.push_back(TextureMemResidencyGuard(ambient));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (ambientHandle != TextureHandle::Null() && ambientStatus != TextureLoadingStatus::FAILED) {
@@ -948,7 +928,7 @@ namespace stratus {
         if (ValidateTexture(normal, normalStatus)) {
             gpuMaterial->normalMap = normal.GpuHandle();
             gpuMaterial->flags |= GPU_NORMAL_MAPPED;
-            Texture::MakeResident(normal);
+            resident.push_back(TextureMemResidencyGuard(normal));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (normalHandle != TextureHandle::Null() && normalStatus != TextureLoadingStatus::FAILED) {
@@ -958,7 +938,7 @@ namespace stratus {
         if (ValidateTexture(depth, depthStatus)) {
             gpuMaterial->depthMap = depth.GpuHandle();
             gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
-            Texture::MakeResident(depth);
+            resident.push_back(TextureMemResidencyGuard(depth));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (depthHandle != TextureHandle::Null() && depthStatus != TextureLoadingStatus::FAILED) {
@@ -968,7 +948,7 @@ namespace stratus {
         if (ValidateTexture(roughness, roughnessStatus)) {
             gpuMaterial->roughnessMap = roughness.GpuHandle();
             gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
-            Texture::MakeResident(roughness);
+            resident.push_back(TextureMemResidencyGuard(roughness));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (roughnessHandle != TextureHandle::Null() && roughnessStatus != TextureLoadingStatus::FAILED) {
@@ -978,7 +958,7 @@ namespace stratus {
         if (ValidateTexture(metallic, metallicStatus)) {
             gpuMaterial->metallicMap = metallic.GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_MAPPED;
-            Texture::MakeResident(metallic);
+            resident.push_back(TextureMemResidencyGuard(metallic));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (metallicHandle != TextureHandle::Null() && metallicStatus != TextureLoadingStatus::FAILED) {
@@ -988,7 +968,7 @@ namespace stratus {
         if (ValidateTexture(metallicRoughness, metallicRoughnessStatus)) {
             gpuMaterial->metallicRoughnessMap = metallicRoughness.GpuHandle();
             gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
-            Texture::MakeResident(metallicRoughness);
+            resident.push_back(TextureMemResidencyGuard(metallicRoughness));
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (metallicRoughnessHandle != TextureHandle::Null() && metallicRoughnessStatus != TextureLoadingStatus::FAILED) {
