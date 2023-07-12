@@ -131,7 +131,7 @@ namespace stratus {
         }
     }
 
-    void GpuMaterialBuffer::MarkMaterialUsed(const MeshPtr mesh, const MaterialPtr material)
+    void GpuMaterialBuffer::MarkMaterialUsed(MeshPtr mesh, const MaterialPtr material)
     {
         auto it = usedIndices_.find(material);
         uint32_t index;
@@ -144,7 +144,7 @@ namespace stratus {
             freeIndices_.pop_front();
 
             usedIndices_.insert(std::make_pair(material, index));
-            availableMaterials_.insert(std::make_pair(material, std::unordered_set<const MeshPtr>()));
+            availableMaterials_.insert(std::make_pair(material, std::unordered_set<MeshPtr>()));
             residentTexturesPerMaterial_.insert(std::make_pair(material, std::vector<TextureMemResidencyGuard>()));
 
             CopyMaterialToGpuStaging_(material, static_cast<int>(index));
@@ -157,7 +157,7 @@ namespace stratus {
         meshToMaterial_.insert(std::make_pair(mesh, material));
     }
 
-    void GpuMaterialBuffer::MarkMaterialUnused(const MeshPtr mesh)
+    void GpuMaterialBuffer::MarkMaterialUnused(MeshPtr mesh)
     {
         auto it = meshToMaterial_.find(mesh);
         if (it == meshToMaterial_.end()) return;
@@ -180,7 +180,7 @@ namespace stratus {
         meshToMaterial_.erase(mesh);
     }
 
-    uint32_t GpuMaterialBuffer::GetMaterialIndex(const MeshPtr mesh) const
+    uint32_t GpuMaterialBuffer::GetMaterialIndex(MeshPtr mesh) const
     {
         auto it = meshToMaterial_.find(mesh);
         if (it == meshToMaterial_.end()) {

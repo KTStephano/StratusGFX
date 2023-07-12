@@ -64,12 +64,12 @@ namespace stratus {
         std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
         std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
         void AddAllMaterialsForEntity_(const EntityPtr&);
+        void RemoveAllMaterialsForEntity_(const EntityPtr&);
         bool AddEntity_(const EntityPtr& p);
         static bool EntityChanged_(const EntityPtr&);
         bool RemoveEntity_(const EntityPtr&);
         void CheckEntitySetForChanges_(std::unordered_set<EntityPtr>&);
         void CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial);
-        void RecalculateMaterialSet_();
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> GenerateDrawCommands_(RenderComponent *, const size_t, bool&) const;
 
     private:
@@ -115,7 +115,6 @@ namespace stratus {
         EntityMeshData dynamicPbrEntities_;
         EntityMeshData staticPbrEntities_;
         uint64_t lastFrameMaterialIndicesRecomputed_ = 0;
-        bool materialsDirty_ = false;
         bool drawCommandsDirty_ = false;
         CameraPtr camera_;
         glm::mat4 projection_ = glm::mat4(1.0f);

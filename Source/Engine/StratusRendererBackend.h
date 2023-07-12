@@ -24,6 +24,7 @@
 #include "StratusEntity.h"
 #include "StratusTransformComponent.h"
 #include "StratusRenderComponents.h"
+#include "StratusGpuMaterialBuffer.h"
 
 namespace stratus {
     class Pipeline;
@@ -99,18 +100,6 @@ namespace stratus {
         float znear;
         float zfar;
         bool regenerateFbo;    
-    };
-
-    struct RendererMaterialInformation {
-        size_t maxMaterials = 65536;
-        // These are the materials we draw from to calculate the material-indices map
-        std::unordered_set<MaterialPtr> availableMaterials;
-        // Indices can change completely if new materials are added
-        std::unordered_map<MaterialPtr, uint32_t> indices;
-        std::unordered_map<MaterialPtr, std::vector<TextureMemResidencyGuard>> residentTextures;
-        // List of CPU-side materials for easy copy to GPU
-        std::vector<GpuMaterial> materials;
-        GpuBuffer materialsBuffer;
     };
 
     struct LightUpdateQueue {
@@ -251,7 +240,7 @@ namespace stratus {
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
-        RendererMaterialInformation materialInfo;
+        GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;

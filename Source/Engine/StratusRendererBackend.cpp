@@ -913,7 +913,7 @@ void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling,
 void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer) {
     if (buffer->NumDrawCommands() == 0) return;
 
-    frame_->materialInfo.materialsBuffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
+    frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
     buffer->BindMaterialIndicesBuffer(31);
     buffer->BindModelTransformBuffer(13);
     buffer->BindPrevFrameModelTransformBuffer(14);

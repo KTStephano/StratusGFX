@@ -27,9 +27,9 @@ namespace stratus {
 
         ~GpuMaterialBuffer();
 
-        void MarkMaterialUsed(const MeshPtr, const MaterialPtr);
-        void MarkMaterialUnused(const MeshPtr);
-        uint32_t GetMaterialIndex(const MeshPtr) const;
+        void MarkMaterialUsed(MeshPtr, const MaterialPtr);
+        void MarkMaterialUnused(MeshPtr);
+        uint32_t GetMaterialIndex(MeshPtr) const;
         uint32_t GetMaterialIndex(const MaterialPtr) const;
 
         void UploadDataToGpu();
@@ -48,8 +48,8 @@ namespace stratus {
         GpuBuffer gpuMaterials_;
         std::vector<GpuMaterial> materials_;
         // These are the materials we draw from to calculate the material-indices map
-        std::unordered_map<MaterialPtr, std::unordered_set<const MeshPtr>> availableMaterials_;
-        std::unordered_map<const MeshPtr, MaterialPtr> meshToMaterial_;
+        std::unordered_map<MaterialPtr, std::unordered_set<MeshPtr>> availableMaterials_;
+        std::unordered_map<MeshPtr, MaterialPtr> meshToMaterial_;
         std::unordered_map<MaterialPtr, std::vector<TextureMemResidencyGuard>> residentTexturesPerMaterial_;
         // Indices can change completely if new materials are added
         std::unordered_map<MaterialPtr, uint32_t> usedIndices_;
