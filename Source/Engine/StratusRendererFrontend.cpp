@@ -111,19 +111,12 @@ namespace stratus {
 
     void RendererFrontend::AddAllMaterialsForEntity_(const EntityPtr& p) {
         RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
-        for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-            auto mesh = c->GetMesh(i);
-            auto material = c->GetMaterialAt(i);
-            frame_->materialInfo->MarkMaterialUsed(mesh, material);
-        }
+        frame_->materialInfo->MarkMaterialsUsed(c);
     }
 
     void RendererFrontend::RemoveAllMaterialsForEntity_(const EntityPtr& p) {
         RenderComponent* c = p->Components().GetComponent<RenderComponent>().component;
-        for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-            auto mesh = c->GetMesh(i);
-            frame_->materialInfo->MarkMaterialUnused(mesh);
-        }
+        frame_->materialInfo->MarkMaterialsUnused(c);
     }
 
     void RendererFrontend::EntitiesAdded_(const std::unordered_set<stratus::EntityPtr>& e) {

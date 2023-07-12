@@ -132,63 +132,56 @@ namespace stratus {
         }
     }
 
-    void GpuMaterialBuffer::MarkMaterialUsed(MeshPtr mesh, const MaterialPtr material)
+    void GpuMaterialBuffer::MarkMaterialsUsed(RenderComponent * component)
     {
-        auto it = usedIndices_.find(material);
-        uint32_t index;
-        if (it == usedIndices_.end()) {
-            if (freeIndices_.size() == 0) {
-                throw std::runtime_error("Ran out of open material slots");
+        for (size_t i = 0; i < component->GetMaterialCount(); ++i) {
+            auto material = component->GetMaterialAt(i);
+
+            auto it = usedIndices_.find(material);
+            uint32_t index;
+            // No materials currently reference this material so add a new entry
+            if (it == usedIndices_.end()) {
+                if (freeIndices_.size() == 0) {
+                    throw std::runtime_error("Ran out of open material slots");
+                }
+
+                index = freeIndices_.front();
+                freeIndices_.pop_front();
+
+                usedIndices_.insert(std::make_pair(material, index));
+                availableMaterials_.insert(std::make_pair(material, std::unordered_set<RenderComponent *>()));
+                residentTexturesPerMaterial_.insert(std::make_pair(material, std::vector<TextureMemResidencyGuard>()));
+
+                CopyMaterialToGpuStaging_(material, static_cast<int>(index));
+            }
+            else {
+                index = it->second;
             }
 
-            index = freeIndices_.front();
-            freeIndices_.pop_front();
-
-            usedIndices_.insert(std::make_pair(material, index));
-            availableMaterials_.insert(std::make_pair(material, std::unordered_set<MeshPtr>()));
-            residentTexturesPerMaterial_.insert(std::make_pair(material, std::vector<TextureMemResidencyGuard>()));
-
-            CopyMaterialToGpuStaging_(material, static_cast<int>(index));
+            availableMaterials_.find(material)->second.insert(component);
         }
-        else {
-            index = it->second;
-        }
-
-        availableMaterials_.find(material)->second.insert(mesh);
-        meshToMaterial_.insert(std::make_pair(mesh, material));
     }
 
-    void GpuMaterialBuffer::MarkMaterialUnused(MeshPtr mesh)
+    void GpuMaterialBuffer::MarkMaterialsUnused(RenderComponent * component)
     {
-        auto it = meshToMaterial_.find(mesh);
-        if (it == meshToMaterial_.end()) return;
+        for (size_t i = 0; i < component->GetMaterialCount(); ++i) {
+            auto material = component->GetMaterialAt(i);
+            auto mcit = availableMaterials_.find(material);
+            if (mcit == availableMaterials_.end()) continue;
 
-        auto material = it->second;
-        auto& referenced = availableMaterials_.find(material)->second;
-        
-        referenced.erase(mesh);
-        if (referenced.size() == 0) {
-            const auto index = usedIndices_.find(material)->second;
+            mcit->second.erase(component);
+            // No components reference this material anymore so remove it
+            if (mcit->second.size() == 0) {
+                const auto index = usedIndices_.find(material)->second;
 
-            freeIndices_.push_back(index);
-            usedIndices_.erase(material);
+                freeIndices_.push_back(index);
+                usedIndices_.erase(material);
 
-            availableMaterials_.erase(material);
-            residentTexturesPerMaterial_.erase(material);
-            pendingMaterials_.erase(material);
+                availableMaterials_.erase(material);
+                residentTexturesPerMaterial_.erase(material);
+                pendingMaterials_.erase(material);
+            }
         }
-
-        meshToMaterial_.erase(mesh);
-    }
-
-    uint32_t GpuMaterialBuffer::GetMaterialIndex(MeshPtr mesh) const
-    {
-        auto it = meshToMaterial_.find(mesh);
-        if (it == meshToMaterial_.end()) {
-            throw std::runtime_error("Mesh not found");
-        }
-
-        return GetMaterialIndex(it->second);
     }
 
     uint32_t GpuMaterialBuffer::GetMaterialIndex(const MaterialPtr material) const

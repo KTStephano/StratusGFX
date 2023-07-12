@@ -16,6 +16,7 @@ namespace stratus {
     struct GpuMaterialBuffer;
     typedef std::shared_ptr<GpuMaterialBuffer> GpuMaterialBufferPtr;
 
+    // This class manages the current active materials in GPU memory
     struct GpuMaterialBuffer {
         GpuMaterialBuffer(size_t maxMaterials);
         
@@ -27,14 +28,13 @@ namespace stratus {
 
         ~GpuMaterialBuffer();
 
-        void MarkMaterialUsed(MeshPtr, const MaterialPtr);
-        void MarkMaterialUnused(MeshPtr);
-        uint32_t GetMaterialIndex(MeshPtr) const;
+        void MarkMaterialsUsed(RenderComponent *);
+        void MarkMaterialsUnused(RenderComponent *);
+
         uint32_t GetMaterialIndex(const MaterialPtr) const;
+        GpuBuffer GetMaterialBuffer() const;
 
         void UploadDataToGpu();
-
-        GpuBuffer GetMaterialBuffer() const;
 
         static GpuMaterialBufferPtr Create(const size_t maxMaterials) {
             return GpuMaterialBufferPtr(new GpuMaterialBuffer(maxMaterials));
@@ -48,8 +48,7 @@ namespace stratus {
         GpuBuffer gpuMaterials_;
         std::vector<GpuMaterial> materials_;
         // These are the materials we draw from to calculate the material-indices map
-        std::unordered_map<MaterialPtr, std::unordered_set<MeshPtr>> availableMaterials_;
-        std::unordered_map<MeshPtr, MaterialPtr> meshToMaterial_;
+        std::unordered_map<MaterialPtr, std::unordered_set<RenderComponent *>> availableMaterials_;
         std::unordered_map<MaterialPtr, std::vector<TextureMemResidencyGuard>> residentTexturesPerMaterial_;
         // Indices can change completely if new materials are added
         std::unordered_map<MaterialPtr, uint32_t> usedIndices_;

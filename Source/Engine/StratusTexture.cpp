@@ -573,7 +573,7 @@ namespace stratus {
     TextureMemResidencyGuard::TextureMemResidencyGuard(const Texture& texture)
         : texture_(texture) {
 
-        IncrementRefcount_();
+        IncrementRefcount_(); 
     }
 
     TextureMemResidencyGuard::TextureMemResidencyGuard(TextureMemResidencyGuard&& other) noexcept {
