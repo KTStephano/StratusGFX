@@ -204,14 +204,14 @@ namespace stratus {
     void GpuMaterialBuffer::UploadDataToGpu()
     {
         if (firstModifiedMaterialIndex_ != lastModifiedMaterialIndex_) {
-            // const intptr_t offsetBytes = firstModifiedMaterialIndex_ * sizeof(GpuMaterial);
-            // const uintptr_t sizeBytes = (lastModifiedMaterialIndex_ - firstModifiedMaterialIndex_) * sizeof(GpuMaterial);
-            // const void * data = (const void *)(materials_.data() + 0);
-            // gpuMaterials_.CopyDataToBuffer(offsetBytes, sizeBytes, data);
+            const intptr_t offsetBytes = intptr_t(firstModifiedMaterialIndex_) * sizeof(GpuMaterial);
+            const uintptr_t sizeBytes = uintptr_t(lastModifiedMaterialIndex_ - firstModifiedMaterialIndex_) * sizeof(GpuMaterial);
+            const void * data = (const void *)(materials_.data() + firstModifiedMaterialIndex_);
+            gpuMaterials_.CopyDataToBuffer(offsetBytes, sizeBytes, data);
 
             //const uintptr_t sizeBytes = (uintptr_t)(lastModifiedMaterialIndex_) * sizeof(GpuMaterial);
-            const uintptr_t sizeBytes = materials_.size() * sizeof(GpuMaterial);
-            gpuMaterials_.CopyDataToBuffer(0, sizeBytes, (const void *)materials_.data());
+            //const uintptr_t sizeBytes = materials_.size() * sizeof(GpuMaterial);
+            //gpuMaterials_.CopyDataToBuffer(0, sizeBytes, (const void *)materials_.data());
 
             firstModifiedMaterialIndex_ = -1;
             lastModifiedMaterialIndex_ = -1;
