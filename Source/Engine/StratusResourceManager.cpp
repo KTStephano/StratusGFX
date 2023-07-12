@@ -537,7 +537,7 @@ namespace stratus {
         const aiScene * scene, 
         EntityPtr entity, 
         const aiMatrix4x4& parentTransform, 
-        MaterialPtr rootMat, 
+        const std::string& name,
         const std::string& directory, 
         const std::string& extension, 
         RenderFaceCulling defaultCullMode, 
@@ -597,7 +597,8 @@ namespace stratus {
                 }
                 
                 auto stratusMesh = Mesh::Create();
-                MaterialPtr m = rootMat->CreateSubMaterial();
+                const std::string materialName = name + "#" + std::to_string(mesh->mMaterialIndex);
+                MaterialPtr m = INSTANCE(MaterialManager)->GetMaterial(materialName);
                 rnode->meshes->meshes.push_back(stratusMesh);
                 rnode->meshes->transforms.push_back(gt);
                 rnode->AddMaterial(m);
@@ -615,7 +616,7 @@ namespace stratus {
             // Create a new container Entity
             EntityPtr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
-            ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode, cspace, meshes);
+            ProcessNode(node->mChildren[i], scene, centity, transform, name, directory, extension, defaultCullMode, cspace, meshes);
         }
     }
 
@@ -654,7 +655,11 @@ namespace stratus {
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, pflags);
 
-        auto material = MaterialManager::Instance()->CreateMaterial(name);
+        // Create all scene materials
+        for (uint32_t i = 0; i < scene->mNumMaterials; ++i) {
+            const std::string materialName = name + "#" + std::to_string(i);
+            auto material = INSTANCE(MaterialManager)->CreateMaterial(materialName);
+        }
 
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
@@ -665,7 +670,7 @@ namespace stratus {
         std::vector<__MeshToProcess> meshes;
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode, cspace, meshes);
+        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), name, directory, extension, defaultCullMode, cspace, meshes);
 
         //for (auto& mesh : meshes) {
         //    ProcessMesh(mesh, scene, directory, extension, defaultCullMode, cspace);
