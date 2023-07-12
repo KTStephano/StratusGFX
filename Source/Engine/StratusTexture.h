@@ -181,16 +181,17 @@ namespace stratus {
     struct TextureMemResidencyGuard {
         TextureMemResidencyGuard(const Texture&);
 
-        TextureMemResidencyGuard(TextureMemResidencyGuard&&);
-        TextureMemResidencyGuard(const TextureMemResidencyGuard&);
+        TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard(const TextureMemResidencyGuard&) noexcept;
 
-        TextureMemResidencyGuard& operator=(TextureMemResidencyGuard&&);
-        TextureMemResidencyGuard& operator=(const TextureMemResidencyGuard&);
+        TextureMemResidencyGuard& operator=(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard& operator=(const TextureMemResidencyGuard&) noexcept;
 
         ~TextureMemResidencyGuard();
 
     private:
         void Copy_(const TextureMemResidencyGuard&);
+        void IncrementRefcount_();
         void DecrementRefcount_();
 
     private:

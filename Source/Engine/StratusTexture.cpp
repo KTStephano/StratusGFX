@@ -573,44 +573,54 @@ namespace stratus {
     TextureMemResidencyGuard::TextureMemResidencyGuard(const Texture& texture)
         : texture_(texture) {
 
-        texture_.impl_->memRefcount_ += 1;
-        Texture::MakeResident_(texture_);
-        if (texture_.impl_->memRefcount_ == 1) {
-            Texture::MakeResident_(texture_);
-        }
+        IncrementRefcount_();
     }
 
-    TextureMemResidencyGuard::TextureMemResidencyGuard(TextureMemResidencyGuard&& other) {
+    TextureMemResidencyGuard::TextureMemResidencyGuard(TextureMemResidencyGuard&& other) noexcept {
         this->operator=(other);
     }
 
-    TextureMemResidencyGuard::TextureMemResidencyGuard(const TextureMemResidencyGuard& other) {
+    TextureMemResidencyGuard::TextureMemResidencyGuard(const TextureMemResidencyGuard& other) noexcept {
         this->operator=(other);
     }
         
-    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(TextureMemResidencyGuard&& other) {
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(TextureMemResidencyGuard&& other) noexcept {
         Copy_(other);
         return *this;
     }
 
-    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(const TextureMemResidencyGuard& other) {
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(const TextureMemResidencyGuard& other) noexcept {
         Copy_(other);
         return *this;
     }
 
     void TextureMemResidencyGuard::Copy_(const TextureMemResidencyGuard& other) {
         if (this->texture_ == other.texture_) return;
+
+        DecrementRefcount_();
         this->texture_ = other.texture_;
+        IncrementRefcount_();
+    }
+
+    void TextureMemResidencyGuard::IncrementRefcount_() {
+        if (texture_ == Texture()) return;
+
+        texture_.impl_->memRefcount_ += 1;
+        if (texture_.impl_->memRefcount_ == 1) {
+            Texture::MakeResident_(texture_);
+        }
     }
 
     void TextureMemResidencyGuard::DecrementRefcount_() {
+        if (texture_ == Texture()) return;
 
+        texture_.impl_->memRefcount_ -= 1;
+        if (texture_.impl_->memRefcount_ == 0) {
+            Texture::MakeNonResident_(texture_);
+        }
     }
 
     TextureMemResidencyGuard::~TextureMemResidencyGuard() {
-        texture_.impl_->memRefcount_ -= 1;
-        if (texture_.impl_->memRefcount_ == 0) {
-            //Texture::MakeNonResident_(texture_);
-        }
+        DecrementRefcount_();
     }
 }
