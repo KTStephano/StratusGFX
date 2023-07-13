@@ -90,6 +90,7 @@ static void setupDayTime() {
     settings.SetSkyboxIntensity(3.0f);
     settings.SetEmissionStrength(0.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
+    INSTANCE(RendererFrontend)->GetWorldLight()->SetAtmosphericLightingConstants(0.0045f, 0.0065f);
     
     STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
 }
@@ -440,6 +441,8 @@ public:
 
         stratus::InputHandlerPtr controller(new CameraController());
         INSTANCE(InputManager)->AddInputHandler(controller);
+        INSTANCE(RendererFrontend)->GetCamera()->SetPosition(glm::vec3(-117.849f, 17.9663f, -0.672086f));
+        INSTANCE(RendererFrontend)->GetCamera()->SetAngle(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(-93.0f), stratus::Degrees(0.0f)));
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);

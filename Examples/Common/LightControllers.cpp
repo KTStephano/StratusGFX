@@ -106,7 +106,7 @@ void LightCreator::CreateVirtualPointLight(const LightParams& p, const bool spaw
         cube->Components().DisableComponent<stratus::StaticObjectComponent>();
     }
 
-    STRATUS_LOG << "VPL Radius: " << light->GetRadius() << std::endl;
+    //STRATUS_LOG << "VPL Radius: " << light->GetRadius() << std::endl;
 
     ptr->Components().AttachComponent<LightComponent>(light);
     if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);

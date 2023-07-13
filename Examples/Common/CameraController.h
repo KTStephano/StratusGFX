@@ -119,6 +119,7 @@ struct CameraController : public stratus::InputHandler {
                         case SDL_SCANCODE_V:
                             if (released) {
                                 STRATUS_LOG << "Camera Position: " << INSTANCE(RendererFrontend)->GetCamera()->GetPosition() << std::endl;
+                                STRATUS_LOG << "Camera Rotation: " << INSTANCE(RendererFrontend)->GetCamera()->GetRotation() << std::endl;
                             }
                             break;
                     }
@@ -149,8 +150,8 @@ private:
     stratus::CameraPtr _camera;
     stratus::LightPtr _cameraLight;
     bool _cameraLightEnabled = false;
-    bool _cameraMoveEnabled = true;
-    bool _cameraRotateEnabled = true;
+    bool _cameraMoveEnabled = false;
+    bool _cameraRotateEnabled = false;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
     float _camSpeedDivide = 0.25f; // For slowing camera down
 };
