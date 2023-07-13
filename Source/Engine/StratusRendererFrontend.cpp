@@ -847,10 +847,12 @@ namespace stratus {
 
     std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::GenerateDrawCommands_(RenderComponent * c, const size_t lod, bool& quitEarly) const {
         std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
+        quitEarly = false;
         for (size_t i = 0; i < c->GetMeshCount(); ++i) {
             if (!c->GetMesh(i)->IsFinalized()) {
                 quitEarly = true;
-                return {};
+                //return {};
+                continue;
             }
             auto cull = c->GetMesh(i)->GetFaceCulling();
             if (commands.find(cull) == commands.end()) {
@@ -867,7 +869,7 @@ namespace stratus {
             command.vertexCount = c->GetMesh(i)->GetNumIndices(lod);
             commandList.push_back(command);
         }
-        quitEarly = false;
+        //quitEarly = false;
         return commands;
     }
 
@@ -920,11 +922,12 @@ namespace stratus {
             auto commands = GenerateDrawCommands_(c, lod, quitEarly);                                                  \
             if (quitEarly) {                                                                                           \
                 stillDirty = true;                                                                                     \
-                continue;                                                                                              \
+                /* continue; */                                                                                              \
             };                                                                                                         \
             bool shouldQuitEarly = false;                                                                              \
             for (size_t i_ = 0; i_ < c->GetMeshCount(); ++i_) {                                                        \
                 auto cull = c->GetMesh(i_)->GetFaceCulling();                                                          \
+                if (!c->GetMesh(i_)->IsFinalized()) continue;   \
                 auto& buffer = drawCommands.find(cull)->second;                                                        \
                 buffer->materialIndices.push_back(frame_->materialInfo->GetMaterialIndex(c->GetMaterialAt(i_)));       \
                 buffer->prevFrameModelTransforms.push_back(mt->transforms[i_]);                                        \
