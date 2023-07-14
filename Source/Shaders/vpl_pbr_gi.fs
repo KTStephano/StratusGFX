@@ -14,7 +14,7 @@ out vec3 color;
 out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 15
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
 #define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -235,6 +235,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
         float shadowFactor = distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal)) : 0.0;
         shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
+        // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
+        //     ++resamples;
+        //     --i;
+        // }
         // if (distToCamera < 700) {
         //     shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
         //     shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));

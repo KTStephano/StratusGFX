@@ -230,12 +230,12 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 2;
-    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
-        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
-            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
-        }
-    }
+    int minmaxNearest = 0;
+    // for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+    //     for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+    //         ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+    //     }
+    // }
 
     // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
     //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
@@ -269,6 +269,8 @@ void main() {
     float centerDepth = texture(depth, fsTexCoords).r;
 
     vec3 prevCenterNormal = sampleNormal(prevNormal, prevTexCoords);
+    
+    float historyAccum = texture(historyDepth, fsTexCoords).r;
     //float prevCenterDepth = texture(depth, prevTexCoords).r;
 
     // vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
@@ -286,8 +288,9 @@ void main() {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
-        for (int dx = -dminmax; dx <= dminmax; ++dx) {
-            for (int dy = -dminmax; dy <= dminmax; ++dy) {
+        int minmaxNearest = dminmax;
+        for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+            for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
                 //if (dx != 0 || dy != 0) continue;
                 //if (dx == 0 && dy == 0) continue;
                 ++count;
@@ -355,7 +358,6 @@ void main() {
 
     //vec3 illumAvg = gi * shadowFactor;
     vec3 illumAvg = gi;
-    float historyAccum = texture(historyDepth, fsTexCoords).r;
 
     if (final) {
         float accumMultiplier = 1.0;
@@ -430,7 +432,7 @@ void main() {
         float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-        wn = pow(wn, 8.0);
+        //wn = pow(wn, 8.0);
         //float similarity = 1.0;
         // float wn = 1.0;
         // /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */ 

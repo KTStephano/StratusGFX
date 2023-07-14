@@ -84,6 +84,16 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = -270; x < -160; x += 30) {
+        for (int y = 10; y < 160; y += 10) {
+            ++spawned;
+            LightCreator::CreateVirtualPointLight(
+                LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
+                false
+            );
+        }
+    }
+
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));

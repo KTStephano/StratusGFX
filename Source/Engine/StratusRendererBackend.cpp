@@ -1738,7 +1738,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
         // The first iteration is used for reservoir merging so we don't
         // start increasing the multiplier until after the 2nd pass
-        const int i = bufferIndex; //bufferIndex == 0 ? 0 : bufferIndex - 1;
+        const int i = bufferIndex == 0 ? 0 : bufferIndex - 1;
         const int multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 

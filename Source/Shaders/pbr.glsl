@@ -254,7 +254,7 @@ float quadraticAttenuation(vec3 lightDir) {
 }
 
 float vplAttenuation(vec3 lightDir, float lightRadius) {
-    float minDist = 1.0 * lightRadius;
+    float minDist = 10.0 * lightRadius;
     float maxDist = 0.75 * lightRadius;
     //float lightDist = max(length(lightDir), minDist);
     float lightDist = length(lightDir);
