@@ -164,7 +164,7 @@ namespace stratus {
         GpuTypedBuffer(size_t blockSize, const bool allowResizing) 
             : allowResizing_(allowResizing) {
             blockSize_ = std::max<size_t>(MINIMUM_GPU_BLOCK_SIZE, blockSize);
-            Resize_(blockSize_);
+            //Resize_(blockSize_);
         }
 
         GpuTypedBuffer(GpuTypedBuffer&&) = default;
@@ -190,10 +190,6 @@ namespace stratus {
         // or to a new slot after resizing the buffer
         uint32_t Add(const E& elem) {
             if (NumFreeIndices() == 0) {
-                if (!allowResizing_) {
-                    throw std::runtime_error("Ran out of free GPU memory (resizing was disabled)");
-                }
-
                 Resize_(Capacity() + BlockSize());
             }
 
@@ -286,9 +282,16 @@ namespace stratus {
     private:
         void Resize_(const size_t newSize) {
             if (newSize < capacity_) return;
+
             if (newSize > MAX_GPU_BLOCK_SIZE) {
                 throw std::runtime_error("Max GPU block size exceeded");
             }
+
+            if (capacity_ != 0 && !allowResizing_) {
+                throw std::runtime_error("Ran out of free GPU memory (resizing was disabled)");
+            }
+
+            STRATUS_LOG << "RESIZING TO: " << newSize << std::endl;
 
             const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
             cpuMemory_.resize(newSize, E());

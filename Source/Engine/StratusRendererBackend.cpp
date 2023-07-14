@@ -1295,18 +1295,24 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
         return a.second < b.second;
     };
-    //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
-    //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+
+    const bool regularLightsMaxExceeded = perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame;
+    const bool regularShadowLightsMaxExceeded = perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame;
+    
+    if (regularLightsMaxExceeded || regularShadowLightsMaxExceeded) {
+        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    }
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame) {
-        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+    if (regularLightsMaxExceeded) {
+        //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
         perLightDistToViewer.resize(state_.maxTotalRegularLightsPerFrame);
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame) {
-        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    if (regularShadowLightsMaxExceeded) {
+        //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
         perLightShadowCastingDistToViewer.resize(state_.maxShadowCastingLightsPerFrame);
     }
 
