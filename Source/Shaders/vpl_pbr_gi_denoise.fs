@@ -51,7 +51,7 @@ uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
 uniform bool mergeReservoirs = false;
-uniform int numReservoirNeighbors = 20;
+uniform int numReservoirNeighbors = 10;
 uniform float time;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
@@ -430,7 +430,7 @@ void main() {
         float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-        //wn = pow(wn, 2.0);
+        wn = pow(wn, 8.0);
         //float similarity = 1.0;
         // float wn = 1.0;
         // /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */ 
@@ -446,7 +446,7 @@ void main() {
         //     //continue;    
         //     wz = 0.0;                                                                                   
         // }     
-        float wz = exp(-50 * abs(centerDepth - prevCenterDepth));
+        float wz = exp(-10.0 * abs(centerDepth - prevCenterDepth));
         
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
         // float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
@@ -468,7 +468,7 @@ void main() {
 
         float wid = currId != prevId ? 0.0 : 1.0;
 
-        float similarity = 1 * wz * wid;
+        float similarity = wn * wz * wid;
         
         if (similarity < 0.95) {
             similarity = 0.0;
