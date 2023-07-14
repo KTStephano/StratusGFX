@@ -31,10 +31,12 @@ uniform sampler2D screen;
 uniform sampler2D albedo;
 uniform sampler2D velocity;
 uniform sampler2D normal;
+uniform sampler2D ids;
 uniform sampler2D depth;
 uniform sampler2DRect structureBuffer;
 
 uniform sampler2D prevNormal;
+uniform sampler2D prevIds;
 uniform sampler2D prevDepth;
 
 uniform sampler2D indirectIllumination;
@@ -49,7 +51,7 @@ uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
 uniform bool mergeReservoirs = false;
-uniform int numReservoirNeighbors = 10;
+uniform int numReservoirNeighbors = 20;
 uniform float time;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
@@ -161,7 +163,7 @@ float filterInput(
     // float lumDiff = abs(centerLum - currLum);
     // float wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
 
-    //float wrt = length(centerIllum - currIllum);
+    // float wrt = length(centerIllum - currIllum);
     // float wrt = abs(linearColorToLuminance(tonemap(centerIllum)) - linearColorToLuminance(tonemap(currIllum)));
     // float ozrt = pow(2.0, -passNumber) * sigmaRT;
     // wrt = exp(-wrt / (ozrt * ozrt));
@@ -178,54 +180,70 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
     vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
 
-    const int neighborhood = 30; // neighborhood X neighborhood in dimensions
-    const int halfNeighborhood = neighborhood / 2;
+    int neighborhood = 10; // neighborhood X neighborhood in dimensions
+    int halfNeighborhood = neighborhood / 2;
     //const int maxTries = neighborhood;
 
     float depthCutoff = 0.1 * centerDepth;
 
-#define ACCEPT_OR_REJECT_RESERVOIR(n, halfN, minmaxOffset)                                                  \
-        float randX = random(seed);                                                                         \
-        seed.z += 10000.0;                                                                                  \
-        float randY = random(seed);                                                                         \
-        seed.z += 10000.0;                                                                                  \
-        /* Sample within the neighborhood randomly */                                                       \
-        int dx = int(n * randX) - halfN;                                                                    \
-        int dy = int(n * randY) - halfN;                                                                    \
-        const int dxSign = dx < 0 ? -1 : 1;                                                                 \
-        const int dySign = dy < 0 ? -1 : 1;                                                                 \
-        dx += dxSign * minmaxOffset;                                                                        \
-        dy += dySign * minmaxOffset;                                                                        \
-        if (dx == 0 && dy == 0) {                                                                           \
+#define ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)                                                            \
+        const int dxSign = dx_ < 0 ? -1 : 1;                                                                \
+        const int dySign = dy_ < 0 ? -1 : 1;                                                                \
+        dx_ += dxSign * minmaxOffset;                                                                       \
+        dy_ += dySign * minmaxOffset;                                                                       \
+        if (dx_ == 0 && dy_ == 0) {                                                                         \
             continue;                                                                                       \
         }                                                                                                   \
-        vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx, dy));                       \
+        vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx_, dy_));                     \
         /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */          \
         /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */  \
         if (dot(centerNormal, currNormal) < 0.906) {                                                        \
             continue;                                                                                       \
         }                                                                                                   \
-        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx, dy)).r;                               \
+        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx_, dy_)).r;                             \
         /* If the difference between current and center depth exceeds 10% of center's value, reject */      \
         if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
             continue;                                                                                       \
         }                                                                                                   \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
-        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy)).rgba;               \
+        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
         centerReservoir += currReservoir;                                                                   \
+
+#define ACCEPT_OR_REJECT_RESERVOIR_RANDOM(n, halfN, minmaxOffset)                                           \
+        float randX = random(seed);                                                                         \
+        seed.z += 10000.0;                                                                                  \
+        float randY = random(seed);                                                                         \
+        seed.z += 10000.0;                                                                                  \
+        /* Sample within the neighborhood randomly */                                                       \
+        int dx_ = int(n * randX) - halfN;                                                                   \
+        int dy_ = int(n * randY) - halfN;                                                                   \
+        ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)
+
+#define ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(minmaxOffset)                                              \
+        /* Sample within the neighborhood randomly */                                                       \
+        int dx_ = dx;                                                                                       \
+        int dy_ = dy;                                                                                       \
+        ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)
 
     const int nearestNeighborMinMax = numReservoirNeighbors / 2;
     const int nearestNeighborhood = 2 * nearestNeighborMinMax + 1;
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
-        ACCEPT_OR_REJECT_RESERVOIR(nearestNeighborhood, halfNearestNeighborhood, 0)
+    int minmaxNearest = 2;
+    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+        }
     }
+
+    // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
+    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
+    // }
 
     for (int count = 0; count < numReservoirNeighbors; ++count) {
 
-        ACCEPT_OR_REJECT_RESERVOIR(neighborhood, halfNeighborhood, nearestNeighborMinMax)
+        ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
 
         //++count;
     }
@@ -349,7 +367,7 @@ void main() {
 
         //vec3 currGi = gi * shadowFactor;
         vec3 currGi = shadowFactor;
-        float currLum = linearColorToLuminance(tonemap(currGi));
+        //float currLum = linearColorToLuminance(tonemap(currGi));
         //float variance = calculateLuminanceVariance(fsTexCoords, 0);
 
         // vec3 currColor1 = textureOffset(screen, fsTexCoords, ivec2( 0,  1)).rgb;
@@ -408,27 +426,51 @@ void main() {
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
 
+        float currId = texture(ids, fsTexCoords).r;
+        float prevId = texture(prevIds, prevTexCoords).r;
+
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
-        wn = pow(wn, 64.0);
+        //wn = pow(wn, 2.0);
+        //float similarity = 1.0;
+        // float wn = 1.0;
+        // /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */ 
+        // /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
+        // if (dot(centerNormal, prevCenterNormal) < 0.97) {                                                        
+        //     wn = 0.0;                                                                                       
+        // }                                                                                                   
         //if (wn < 0.95) wn = 0.0;
+
+        // float depthCutoff = 0.01 * centerDepth;
+        // float wz = 1.0;   
+        // if (abs(centerDepth - prevCenterDepth) > depthCutoff) {                                                   
+        //     //continue;    
+        //     wz = 0.0;                                                                                   
+        // }     
+        float wz = exp(-50 * abs(centerDepth - prevCenterDepth));
         
-        //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));
-        float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
+        //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
+        // float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
         //float wz = abs(centerDepth = prevCenterDepth);
         //float wz = 1.0 - abs(centerDepth - prevCenterDepth);
         //if (wz < 0.96) wz = 0.0;
         //wz = 0.0;
 
         //float wrt = length(prevGi - currGi);
-        float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - currLum);
-        float ozrt = 5.0;//4 * exp(-variance) + 0.0001;
-        //ozrt = 1.0 - variance + 0.0001;
-        wrt = exp(-wrt / ozrt);
-        //if (wrt < 0.97) wrt = 0.0;
+        //float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - currLum);
+        // float ozrt = 5.0;//4 * exp(-variance) + 0.0001;
+        // //ozrt = 1.0 - variance + 0.0001;
+        // wrt = exp(-wrt / ozrt);
+        // if (wrt < 0.97) wrt = 0.0;
+        // float wrt = 1.0;
+        // if (abs(linearColorToLuminance(tonemap(prevGi)) - currLum) > 0.1) {
+        //     wrt = 0.0;
+        // }
 
-        float similarity = wn * wz * 1;
+        float wid = currId != prevId ? 0.0 : 1.0;
+
+        float similarity = 1 * wz * wid;
         
-        if (similarity < 0.85) {
+        if (similarity < 0.95) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;

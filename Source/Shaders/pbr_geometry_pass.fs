@@ -44,6 +44,7 @@ layout (location = 3) out vec3 gRoughnessMetallicAmbient;
 // and atmospheric shadowing.
 layout (location = 4) out vec4 gStructureBuffer;
 layout (location = 5) out vec2 gVelocityBuffer;
+layout (location = 6) out float gId;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -79,22 +80,26 @@ vec3 calculateNormal(in Material material, in vec2 texCoords) {
     return normal;
 }
 
+const vec3 maxReflectivity = vec3(0.8);
+
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
     uint flags = material.flags;
 
     vec3 viewDir = normalize(viewPosition - fsPosition);
 
-    vec2 texCoords = bitwiseAndBool(flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
-    //vec2 texCoords = fsTexCoords;
+    //vec2 texCoords = bitwiseAndBool(flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
+    vec2 texCoords = fsTexCoords;
 
     vec4 baseColor = bitwiseAndBool(flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
     runAlphaTest(baseColor.a);
 
     vec3 normal = bitwiseAndBool(flags, GPU_NORMAL_MAPPED) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    float roughness = bitwiseAndBool(flags, GPU_ROUGHNESS_MAPPED) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
-    float metallic = bitwiseAndBool(flags, GPU_METALLIC_MAPPED) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    //float roughness = bitwiseAndBool(flags, GPU_ROUGHNESS_MAPPED) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
+    //float metallic = bitwiseAndBool(flags, GPU_METALLIC_MAPPED) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    float roughness = material.metallicRoughness[1];
+    float metallic = material.metallicRoughness[0];
     // float roughness = material.metallicRoughness[1];
     // float metallic = material.metallicRoughness[0];
     // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
@@ -111,7 +116,7 @@ void main() {
     gNormal = normal;
     gAlbedo = vec4(baseColor.rgb, emissive.r);
     vec3 baseReflectivity = FLOAT3_TO_VEC3(material.baseReflectivity);
-    vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
+    //vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
     baseReflectivity = mix(baseReflectivity, maxReflectivity, (1.0 - roughness) * 0.5);
     gBaseReflectivity = vec4(mix(baseReflectivity, maxReflectivity, metallic), emissive.g);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
@@ -119,6 +124,7 @@ void main() {
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
+    gId = float(fsDrawID);
 
     // Small offset to help prevent z fighting in certain cases
     gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;

@@ -279,6 +279,7 @@ namespace stratus {
             Texture roughnessMetallicAmbient; // RGB8F
             Texture structure;                // RGBA16F
             Texture velocity;
+            Texture id;
             Texture depth;                    // Default bit depth
         };
 
@@ -367,6 +368,8 @@ namespace stratus {
             // Used for a call to glBlendFunc
             GLenum blendSFactor = GL_ONE;
             GLenum blendDFactor = GL_ZERO;
+            // Depth prepass
+            std::unique_ptr<Pipeline> depthPrepass;
             // Skybox
             std::unique_ptr<Pipeline> skybox;
             std::unique_ptr<Pipeline> skyboxLayered;

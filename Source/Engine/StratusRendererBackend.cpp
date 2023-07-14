@@ -75,6 +75,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
     // Initialize the pipelines
+    state_.depthPrepass = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"depth.vs", ShaderType::VERTEX}, 
+        Shader{"depth.fs", ShaderType::FRAGMENT}}));
+    state_.shaders.push_back(state_.depthPrepass.get());
+
     state_.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr_geometry_pass.vs", ShaderType::VERTEX}, 
         Shader{"pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
@@ -394,6 +399,11 @@ void RendererBackend::InitGBuffer_() {
         buffer.velocity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
+        // Holds mesh ids
+        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
@@ -401,7 +411,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the frame buffer with all its texture attachments
         //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
-        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.depth });
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
         if (!buffer.fbo.Valid()) {
             isValid_ = false;
             return;
@@ -1373,7 +1383,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
             if (point->IsVirtualLight()) {
                 // Use lower LOD
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() / 2], false);
+                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() - 1], false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1710,9 +1720,11 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
     state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
+    state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
+    state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
     state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
@@ -1721,7 +1733,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
 
     size_t bufferIndex = 0;
-    const int maxIterations = 4;
+    const int maxIterations = 3;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration is used for reservoir merging so we don't
@@ -1881,12 +1893,18 @@ void RendererBackend::RenderForwardPassPbr_() {
     // Make sure to bind our own frame buffer for rendering
     state_.currentFrame.fbo.Bind();
 
+    // Perform depth prepass
+    BindShader_(state_.depthPrepass.get());
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
+    // Begin geometry pass
     BindShader_(state_.geometry.get());
 
     state_.geometry->SetMat4("jitterProjectionView", frame_->jitterProjectionView);
 
-    // Begin geometry pass
-    glEnable(GL_DEPTH_TEST);
+    //glDepthFunc(GL_LEQUAL);
 
     Render_(*state_.geometry.get(), frame_->visibleInstancedDynamicPbrMeshes, true);
     Render_(*state_.geometry.get(), frame_->visibleInstancedStaticPbrMeshes, true);
@@ -1894,6 +1912,8 @@ void RendererBackend::RenderForwardPassPbr_() {
     state_.currentFrame.fbo.Unbind();
 
     UnbindShader_();
+
+    //glDepthMask(GL_TRUE);
 }
 
 void RendererBackend::RenderForwardPassFlat_() {
