@@ -41,21 +41,15 @@ namespace stratus {
         }
 
     private:
-        void UpdateModifiedIndices_(const int index);
         void CopyMaterialToGpuStaging_(const MaterialPtr& material, const int index);
 
     private:
-        GpuBuffer gpuMaterials_;
-        std::vector<GpuMaterial> materials_;
+        GpuTypedBufferPtr<GpuMaterial> materials_;
         // These are the materials we draw from to calculate the material-indices map
         std::unordered_map<MaterialPtr, std::unordered_set<RenderComponent *>> availableMaterials_;
         std::unordered_map<MaterialPtr, std::vector<TextureMemResidencyGuard>> residentTexturesPerMaterial_;
         // Indices can change completely if new materials are added
         std::unordered_map<MaterialPtr, uint32_t> usedIndices_;
         std::unordered_set<MaterialPtr> pendingMaterials_;
-        std::list<uint32_t> freeIndices_;
-
-        int firstModifiedMaterialIndex_ = -1;
-        int lastModifiedMaterialIndex_ = -1;
     };
 }

@@ -6,13 +6,7 @@ namespace stratus {
     GpuMaterialBuffer::GpuMaterialBuffer(size_t maxMaterials)
     {
         maxMaterials = std::max<size_t>(1, maxMaterials);
-        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-        materials_ = std::vector<GpuMaterial>(maxMaterials, GpuMaterial());
-        gpuMaterials_ = GpuBuffer((const void *)materials_.data(), sizeof(GpuMaterial) * maxMaterials, flags);
-
-        for (uint32_t i = 0; i < uint32_t(maxMaterials); ++i) {
-            freeIndices_.push_back(i);
-        }
+        materials_ = GpuTypedBuffer<GpuMaterial>::Create(maxMaterials, false);
     }
 
     GpuMaterialBuffer::~GpuMaterialBuffer()
@@ -25,8 +19,8 @@ namespace stratus {
 
     void GpuMaterialBuffer::CopyMaterialToGpuStaging_(const MaterialPtr& material, const int index) {
 
-        UpdateModifiedIndices_(index);
-        GpuMaterial * gpuMaterial = &materials_[index];
+        auto mat = materials_->GetRead(index);
+        GpuMaterial* gpuMaterial = &mat;
 
         gpuMaterial->flags = 0;
 
@@ -130,6 +124,8 @@ namespace stratus {
         else if (metallicRoughnessHandle != TextureHandle::Null() && metallicRoughnessStatus != TextureLoadingStatus::FAILED) {
             pendingMaterials_.insert(material);
         }
+
+        materials_->Set(*gpuMaterial, index);
     }
 
     void GpuMaterialBuffer::MarkMaterialsUsed(RenderComponent * component)
@@ -141,12 +137,7 @@ namespace stratus {
             uint32_t index;
             // No materials currently reference this material so add a new entry
             if (it == usedIndices_.end()) {
-                if (freeIndices_.size() == 0) {
-                    throw std::runtime_error("Ran out of open material slots");
-                }
-
-                index = freeIndices_.front();
-                freeIndices_.pop_front();
+                index = materials_->Add(GpuMaterial());
 
                 usedIndices_.insert(std::make_pair(material, index));
                 availableMaterials_.insert(std::make_pair(material, std::unordered_set<RenderComponent *>()));
@@ -174,7 +165,7 @@ namespace stratus {
             if (mcit->second.size() == 0) {
                 const auto index = usedIndices_.find(material)->second;
 
-                freeIndices_.push_back(index);
+                materials_->Remove(index);
                 usedIndices_.erase(material);
 
                 availableMaterials_.erase(material);
@@ -196,40 +187,17 @@ namespace stratus {
 
     void GpuMaterialBuffer::UploadDataToGpu()
     {
-        if (firstModifiedMaterialIndex_ != lastModifiedMaterialIndex_) {
-            const intptr_t offsetBytes = intptr_t(firstModifiedMaterialIndex_) * sizeof(GpuMaterial);
-            const uintptr_t sizeBytes = uintptr_t(lastModifiedMaterialIndex_ - firstModifiedMaterialIndex_) * sizeof(GpuMaterial);
-            const void * data = (const void *)(materials_.data() + firstModifiedMaterialIndex_);
-            gpuMaterials_.CopyDataToBuffer(offsetBytes, sizeBytes, data);
-
-            //const uintptr_t sizeBytes = (uintptr_t)(lastModifiedMaterialIndex_) * sizeof(GpuMaterial);
-            //const uintptr_t sizeBytes = materials_.size() * sizeof(GpuMaterial);
-            //gpuMaterials_.CopyDataToBuffer(0, sizeBytes, (const void *)materials_.data());
-
-            firstModifiedMaterialIndex_ = -1;
-            lastModifiedMaterialIndex_ = -1;
-        }
-
         auto pending = std::move(pendingMaterials_);
         for (auto& p : pending) {
             const int index = static_cast<int>(usedIndices_.find(p)->second);
             CopyMaterialToGpuStaging_(p, index);
         }
+
+        materials_->UploadChangesToGpu();
     }
 
     GpuBuffer GpuMaterialBuffer::GetMaterialBuffer() const
     {
-        return gpuMaterials_;
-    }
-
-    void GpuMaterialBuffer::UpdateModifiedIndices_(const int index)
-    {
-        if (index <= firstModifiedMaterialIndex_ || firstModifiedMaterialIndex_ == -1) {
-            firstModifiedMaterialIndex_ = index;
-        }
-
-        if (lastModifiedMaterialIndex_ <= index) {
-            lastModifiedMaterialIndex_ = index + 1;
-        }
+        return materials_->GetBuffer();
     }
 }

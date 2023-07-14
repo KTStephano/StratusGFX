@@ -201,6 +201,8 @@ namespace stratus {
             freeIndices_.pop_front();
 
             Set(elem, next);
+
+            return next;
         }
 
         // Removes element at index (sets it to be equal to default E())
@@ -240,19 +242,19 @@ namespace stratus {
                 return;
             }
 
-            usedIndices_[next] = true;
-            cpuMemory_[next] = elem;
+            usedIndices_[index] = true;
+            cpuMemory_[index] = elem;
 
-            UpdateModifiedIndices_(static_cast<int>(next));
+            UpdateModifiedIndices_(static_cast<int>(index));
 
-            if (next >= maxIndex_) {
-                maxIndex_ = next + 1;
+            if (index >= maxIndex_) {
+                maxIndex_ = index + 1;
             }
         }
 
         // Gets the underlying GpuBuffer for the entire memory region
         GpuBuffer GetBuffer() const {
-            return gpuBuffer_;
+            return gpuMemory_;
         }
 
         // Memory is allocated in fixed size blocks
@@ -277,7 +279,7 @@ namespace stratus {
             return freeIndices_.size();
         }
 
-        GpuTypedBufferPtr<E> Create(const size_t blockSize, const bool allowResizing) {
+        static inline GpuTypedBufferPtr<E> Create(const size_t blockSize, const bool allowResizing) {
             return GpuTypedBufferPtr<E>(new GpuTypedBuffer<E>(blockSize, allowResizing));
         }
 
@@ -290,8 +292,8 @@ namespace stratus {
 
             const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
             cpuMemory_.resize(newSize, E());
-            usedIndices_.resize(newSize, E());
-            gpuMaterials_ = GpuBuffer((const void*)cpuMemory_.data(), sizeof(E) * newSize, flags);
+            usedIndices_.resize(newSize, false);
+            gpuMemory_ = GpuBuffer((const void*)cpuMemory_.data(), sizeof(E) * newSize, flags);
 
             for (size_t i = capacity_; i < newSize; ++i) {
                 freeIndices_.push_back(i);
