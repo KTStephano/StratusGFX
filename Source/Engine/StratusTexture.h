@@ -195,8 +195,8 @@ namespace stratus {
         void DecrementRefcount_();
 
     private:
-        Texture texture_ = nullptr;
-    };
+        Texture texture_ = Texture();
+    }; 
 }
 
 namespace std {
