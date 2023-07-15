@@ -173,12 +173,12 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuDrawElementsIndirectCommand {
-        uint32_t vertexCount;
-        uint32_t instanceCount;
+        uint32_t vertexCount = 0;
+        uint32_t instanceCount = 0;
         // Measured in units of indices instead of the normal bytes
-        uint32_t firstIndex;
-        int32_t baseVertex;
-        uint32_t baseInstance;
+        uint32_t firstIndex = 0;
+        int32_t baseVertex = 0;
+        uint32_t baseInstance = 0;
     };
 #ifndef __GNUC__
     #pragma pack(pop)

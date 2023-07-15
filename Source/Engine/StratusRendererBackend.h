@@ -37,13 +37,6 @@ namespace stratus {
     extern bool IsLightInteracting(const EntityPtr&);
     extern size_t GetMeshCount(const EntityPtr&);
 
-    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
-        MeshWorldTransforms() = default;
-        MeshWorldTransforms(const MeshWorldTransforms&) = default;
-
-        std::vector<glm::mat4> transforms;
-    };
-
     struct RenderMeshContainer {
         RenderComponent * render = nullptr;
         MeshWorldTransforms * transform = nullptr;

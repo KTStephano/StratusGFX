@@ -54,7 +54,7 @@ namespace stratus {
 
         void RecompileShaders();
 
-    private:
+    private: 
         // SystemModule inteface
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
