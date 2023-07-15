@@ -230,7 +230,7 @@ namespace stratus {
         struct Deleter {
             std::shared_ptr<Allocator> allocator;
 
-            Deleter(std::shared_ptr<Allocator> allocator)
+            Deleter(const std::shared_ptr<Allocator>& allocator)
                 : allocator(allocator) {}
 
             Deleter(Deleter&& other)
