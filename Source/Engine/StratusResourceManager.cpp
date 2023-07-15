@@ -18,7 +18,6 @@ namespace stratus {
     ResourceManager::ResourceManager() {}
 
     ResourceManager::~ResourceManager() {
-
     }
 
     SystemStatus ResourceManager::Update(const double deltaSeconds) {
@@ -39,7 +38,6 @@ namespace stratus {
     }
 
     void ResourceManager::Shutdown() {
-        auto ul = LockWrite_();
         loadedModels_.clear();
         pendingFinalize_.clear();
         meshFinalizeQueue_.clear();

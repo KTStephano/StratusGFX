@@ -53,6 +53,25 @@ namespace stratus {
     }
 
     void TaskSystem::Shutdown() {
+        bool allIdle = false;
+        
+        while (!allIdle) {
+            allIdle = true;
+
+            for (auto& thread : taskThreads_) {
+                if (!thread->Idle()) {
+                    allIdle = false;
+                    break;
+                }
+            }
+
+            if (!allIdle) {
+                for (auto& thread : taskThreads_) {
+                    thread->Dispatch();
+                }
+            }
+        }
+
         taskThreads_.clear();
     }
 }
