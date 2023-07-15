@@ -26,6 +26,7 @@
 #include "StratusRenderComponents.h"
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
+#include <functional>
 
 namespace stratus {
     class Pipeline;
@@ -33,6 +34,8 @@ namespace stratus {
     class InfiniteLight;
     class Quad;
     struct PostProcessFX;
+
+    typedef std::function<GpuBuffer(GpuCommandBuffer2Ptr&)> CommandBufferSelectionFunction;
 
     extern bool IsRenderable(const EntityPtr&);
     extern bool IsLightInteracting(const EntityPtr&);
@@ -76,8 +79,6 @@ namespace stratus {
         glm::vec4 cascadePlane;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleStaticPbrMeshes;
         float cascadeRadius;
         float cascadeBegins;
         float cascadeEnds;
@@ -236,15 +237,7 @@ namespace stratus {
         CameraPtr camera;
         GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedFlatMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedStaticPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleInstancedFlatMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsStaticPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> selectedLodsFlatMeshes;
+        GpuCommandManagerPtr drawCommands;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpate; // shadow map data is invalid
@@ -564,13 +557,13 @@ namespace stratus {
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
-        void RenderBoundingBoxes_(GpuCommandBufferPtr&);
-        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&);
-        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void RenderBoundingBoxes_(GpuCommandBuffer2Ptr&);
+        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const bool reverseCullFace);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
         void UpdatePointLights_(std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&,

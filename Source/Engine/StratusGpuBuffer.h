@@ -9,6 +9,7 @@
 #include "StratusCommon.h"
 #include "StratusGpuCommon.h"
 #include <unordered_set>
+#include "StratusLog.h"
 
 #define MINIMUM_GPU_BLOCK_SIZE 64
 // 2^30

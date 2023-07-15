@@ -7,8 +7,8 @@ namespace stratus {
         numLods = std::max<size_t>(1, numLods);
 
         drawCommands_.resize(numLods);
-        for (size_t i = 0; numLods; ++i) {
-            drawCommands_[i] = GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true);
+        for (size_t i = 0; i < numLods; ++i) {
+            drawCommands_[i] = (GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true));
         }
 
         visibleCommands_ = GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true);
@@ -60,7 +60,8 @@ namespace stratus {
         // Record the metadata 
         auto index = prevFrameModelTransforms_->Add(transforms->transforms[meshIndex]);
         modelTransforms_->Add(transforms->transforms[meshIndex]);
-        aabbs_->Add(mesh->GetAABB());
+        auto aabb = mesh->IsFinalized() ? mesh->GetAABB() : GpuAABB();
+        aabbs_->Add(aabb);
         materialIndices_->Add(materialIndex);
 
         // Record the lod commands
@@ -167,6 +168,8 @@ namespace stratus {
                 }
 
                 const auto index = indices.find(mesh)->second;
+                aabbs_->Set(mesh->GetAABB(), index);
+
                 for (size_t lod = 0; lod < NumLods(); ++lod) {
                     GpuDrawElementsIndirectCommand command;
                     command.baseInstance = 0;
@@ -230,7 +233,7 @@ namespace stratus {
 
     void GpuCommandBuffer2::BindIndirectDrawCommands(const size_t lod)
     {
-        if (lod < NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
+        if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
         }
         drawCommands_[lod]->GetBuffer().Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
@@ -238,7 +241,7 @@ namespace stratus {
 
     void GpuCommandBuffer2::UnbindIndirectDrawCommands(const size_t lod)
     {
-        if (lod < NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
+        if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
         }
         drawCommands_[lod]->GetBuffer().Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
@@ -246,7 +249,7 @@ namespace stratus {
 
     GpuBuffer GpuCommandBuffer2::GetIndirectDrawCommandsBuffer(const size_t lod) const
     {
-        if (lod < NumLods()) {
+        if (lod >= NumLods()) {
             throw std::runtime_error("LOD requested exceeds max available LOD");
         }
         return drawCommands_[lod]->GetBuffer();
@@ -347,7 +350,7 @@ namespace stratus {
         
         std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffer;
 
-        if (IsLightInteracting_(e)) {
+        if (!IsLightInteracting_(e)) {
             buffer = &flatMeshes;
         }
         else {

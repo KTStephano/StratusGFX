@@ -17,6 +17,8 @@
 #include "StratusRenderComponents.h"
 #include "StratusGpuCommon.h"
 #include "StratusPipeline.h"
+#include "StratusGpuMaterialBuffer.h"
+#include "StratusGpuCommandBuffer.h"
 
 namespace stratus {
     struct RendererParams {
@@ -70,7 +72,6 @@ namespace stratus {
         bool RemoveEntity_(const EntityPtr&);
         void CheckEntitySetForChanges_(std::unordered_set<EntityPtr>&);
         void CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial);
-        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> GenerateDrawCommands_(RenderComponent *, const size_t, bool&) const;
 
     private:
         void UpdateViewport_();
@@ -84,10 +85,7 @@ namespace stratus {
         void UpdateVisibility_(
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
-            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& inDrawCommands,
-            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& outDrawCommands,
-            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& selectedLods,
-            const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod,
+            std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&,
             const bool selectLods
             );
         void UpdatePrevFrameModelTransforms_();
@@ -115,7 +113,6 @@ namespace stratus {
         EntityMeshData dynamicPbrEntities_;
         EntityMeshData staticPbrEntities_;
         uint64_t lastFrameMaterialIndicesRecomputed_ = 0;
-        bool drawCommandsDirty_ = false;
         CameraPtr camera_;
         glm::mat4 projection_ = glm::mat4(1.0f);
         bool viewportDirty_ = true;
