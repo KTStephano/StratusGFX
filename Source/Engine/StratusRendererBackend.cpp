@@ -1662,7 +1662,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer, const double deltaSeconds) {
     if (perVPLDistToViewer.size() == 0) return;
 
     // auto space = LogSpace<float>(1, 512, 30);
@@ -1750,6 +1750,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
+    state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
 
     size_t bufferIndex = 0;
     const int maxIterations = 3;
@@ -1757,7 +1758,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
 
         // The first iteration is used for reservoir merging so we don't
         // start increasing the multiplier until after the 2nd pass
-        const int i = bufferIndex == 0 ? 0 : bufferIndex - 1;
+        const int i = bufferIndex; //bufferIndex == 0 ? 0 : bufferIndex - 1;
         const int multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
@@ -1792,7 +1793,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
 }
 
-void RendererBackend::RenderScene() {
+void RendererBackend::RenderScene(const double deltaSeconds) {
     CHECK_IS_APPLICATION_THREAD();
 
     const Camera& c = *frame_->camera;
@@ -1871,7 +1872,7 @@ void RendererBackend::RenderScene() {
     if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
         PerformVirtualPointLightCullingStage2_(perVPLDistToViewer);
-        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer);
+        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer, deltaSeconds);
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)

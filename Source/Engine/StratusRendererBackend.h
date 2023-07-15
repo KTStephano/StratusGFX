@@ -519,7 +519,7 @@ namespace stratus {
         void Begin(const std::shared_ptr<RendererFrame>&, bool clearScreen);
 
         // Takes all state set during Begin and uses it to render the scene
-        void RenderScene();
+        void RenderScene(const double);
 
         /**
          * Finalizes the current scene and displays it.
@@ -571,7 +571,7 @@ namespace stratus {
         void PerformVirtualPointLightCullingStage1_(std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
         //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
         void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&);
-        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&);
+        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&, const double);
         void RenderCSMDepth_();
         void RenderQuad_();
         void RenderSkybox_(Pipeline *, const glm::mat4&);

@@ -26,6 +26,10 @@ out vec3 giColor;
 out vec4 reservoirValue;
 out float newHistoryDepth;
 
+layout (std430, binding = 1) readonly buffer inputBuffer1 {
+    int numVisible[];
+};
+
 // in/out frame texture
 uniform sampler2D screen;
 uniform sampler2D albedo;
@@ -53,6 +57,7 @@ uniform bool final = false;
 uniform bool mergeReservoirs = false;
 uniform int numReservoirNeighbors = 10;
 uniform float time;
+uniform float framesPerSecond;
 
 #define COMPONENT_WISE_MIN_VALUE 0.001
 
@@ -178,22 +183,25 @@ float filterInput(
     
 vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
-    vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
+    //vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
+    vec4 centerReservoir = vec4(0.0);
 
-    int neighborhood = 10; // neighborhood X neighborhood in dimensions
+    int neighborhood = 20; // neighborhood X neighborhood in dimensions
     int halfNeighborhood = neighborhood / 2;
     //const int maxTries = neighborhood;
 
     float depthCutoff = 0.1 * centerDepth;
+    float runningSum = 0.0;
+    float probabilisticWeight = 1.0 / float(numVisible[0]);
 
 #define ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)                                                            \
         const int dxSign = dx_ < 0 ? -1 : 1;                                                                \
         const int dySign = dy_ < 0 ? -1 : 1;                                                                \
         dx_ += dxSign * minmaxOffset;                                                                       \
         dy_ += dySign * minmaxOffset;                                                                       \
-        if (dx_ == 0 && dy_ == 0) {                                                                         \
-            continue;                                                                                       \
-        }                                                                                                   \
+        /* if (dx_ == 0 && dy_ == 0) {          */                                                               \
+        /*    continue; */                                                                                       \
+        /* } */                                                                                                  \
         vec3 currNormal = sampleNormalWithOffset(normal, fsTexCoords, ivec2(dx_, dy_));                     \
         /* For normalized vectors, dot(A, B) = cos(theta) where theta is the angle between them */          \
         /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */  \
@@ -207,7 +215,14 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         }                                                                                                   \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
-        centerReservoir += currReservoir;                                                                   \
+        float randUpdate = random(seed);                                                                    \
+        seed.z += 10000.0;                                                                                  \
+        float probability_ = currReservoir.a * probabilisticWeight;                                         \
+        centerReservoir.a += probability_;                                                                  \
+        if (randUpdate < (probability_ / centerReservoir.a)) {                                              \
+            centerReservoir.rgb += currReservoir.rgb;                                                       \
+            runningSum += currReservoir.a;                                                                  \
+        }
 
 #define ACCEPT_OR_REJECT_RESERVOIR_RANDOM(n, halfN, minmaxOffset)                                           \
         float randX = random(seed);                                                                         \
@@ -230,12 +245,12 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 0;
-    // for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
-    //     for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
-    //         ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
-    //     }
-    // }
+    int minmaxNearest = 1;
+    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+        }
+    }
 
     // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
     //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
@@ -248,6 +263,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         //++count;
     }
 
+    centerReservoir.a = runningSum;
     return centerReservoir;
 }
 
@@ -480,7 +496,7 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 30.0);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         //shadowFactor = max(shadowFactor, 0.0025);
         //illumAvg = mix(prevGi, gi * shadowFactor, 0.05);

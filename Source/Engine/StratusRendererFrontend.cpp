@@ -399,7 +399,7 @@ namespace stratus {
         renderer_->Begin(frame_, true);
 
         // Complete the frame
-        renderer_->RenderScene();
+        renderer_->RenderScene(deltaSeconds);
         renderer_->End();
 
         // This needs to be unset
