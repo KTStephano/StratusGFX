@@ -54,8 +54,17 @@ namespace stratus {
 
     void TaskSystem::Shutdown() {
         bool allIdle = false;
+        size_t updateCount = 0;
+        size_t messageCount = 1;
         
         while (!allIdle) {
+            if (updateCount % 1000 == 0) {
+                STRATUS_LOG << "[" << messageCount << "] Waiting on task threads to shutdown ..." << std::endl;
+                ++messageCount;
+            }
+
+            ++updateCount;
+
             allIdle = true;
 
             for (auto& thread : taskThreads_) {
@@ -69,6 +78,8 @@ namespace stratus {
                 for (auto& thread : taskThreads_) {
                     thread->Dispatch();
                 }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
 
