@@ -35,8 +35,8 @@ namespace stratus {
     }
 
     void GpuCommandBuffer2::RecordCommand(
-        const RenderComponent* component, 
-        const MeshWorldTransforms* transforms,
+        RenderComponent* component, 
+        MeshWorldTransforms* transforms,
         const size_t meshIndex,
         const size_t materialIndex)
     {
@@ -49,7 +49,7 @@ namespace stratus {
         if (it == drawCommandIndices_.end()) {
             it = drawCommandIndices_.insert(std::make_pair(
                 component,
-                std::unordered_map<const MeshPtr, uint32_t>()
+                std::unordered_map<MeshPtr, uint32_t>()
             )).first;
         }
         // Command already exists for render component/mesh pair
@@ -86,7 +86,7 @@ namespace stratus {
         InsertMeshPending_(component, mesh);
     }
 
-    void GpuCommandBuffer2::RemoveAllCommands(const RenderComponent* component)
+    void GpuCommandBuffer2::RemoveAllCommands(RenderComponent* component)
     {
         auto it = drawCommandIndices_.find(component);
         if (it == drawCommandIndices_.end()) {
@@ -115,7 +115,7 @@ namespace stratus {
         drawCommandIndices_.erase(component);
     }
 
-    void GpuCommandBuffer2::UpdateTransforms(const RenderComponent* component, const MeshWorldTransforms* transforms)
+    void GpuCommandBuffer2::UpdateTransforms(RenderComponent* component, MeshWorldTransforms* transforms)
     {
         auto it = drawCommandIndices_.find(component);
         if (it == drawCommandIndices_.end()) {
@@ -134,7 +134,7 @@ namespace stratus {
         }
     }
 
-    void GpuCommandBuffer2::UpdateMaterials(const RenderComponent* component, const GpuMaterialBufferPtr& materials)
+    void GpuCommandBuffer2::UpdateMaterials(RenderComponent* component, const GpuMaterialBufferPtr& materials)
     {
         auto it = drawCommandIndices_.find(component);
         if (it == drawCommandIndices_.end()) {
@@ -244,7 +244,7 @@ namespace stratus {
         drawCommands_[lod]->GetBuffer().Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
-    const GpuBuffer& GpuCommandBuffer2::GetIndirectDrawCommandsBuffer(const size_t lod) const
+    GpuBuffer GpuCommandBuffer2::GetIndirectDrawCommandsBuffer(const size_t lod) const
     {
         if (lod < NumLods()) {
             throw std::runtime_error("LOD requested exceeds max available LOD");
@@ -252,24 +252,24 @@ namespace stratus {
         return drawCommands_[lod]->GetBuffer();
     }
 
-    const GpuBuffer& GpuCommandBuffer2::GetVisibleDrawCommandsBuffer() const
+    GpuBuffer GpuCommandBuffer2::GetVisibleDrawCommandsBuffer() const
     {
         return visibleCommands_->GetBuffer();
     }
 
-    const GpuBuffer& GpuCommandBuffer2::GetSelectedLodDrawCommandsBuffer() const
+    GpuBuffer GpuCommandBuffer2::GetSelectedLodDrawCommandsBuffer() const
     {
         return selectedLodCommands_->GetBuffer();
     }
 
-    bool GpuCommandBuffer2::InsertMeshPending_(const RenderComponent* component, const MeshPtr mesh)
+    bool GpuCommandBuffer2::InsertMeshPending_(RenderComponent* component, MeshPtr mesh)
     {
         if (!mesh->IsFinalized()) {
             auto pending = pendingMeshUpdates_.find(component);
             if (pending == pendingMeshUpdates_.end()) {
                 pending = pendingMeshUpdates_.insert(std::make_pair(
                     component,
-                    std::unordered_set<const MeshPtr>()
+                    std::unordered_set<MeshPtr>()
                 )).first;
             }
 

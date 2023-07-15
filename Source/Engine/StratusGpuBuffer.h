@@ -291,8 +291,6 @@ namespace stratus {
                 throw std::runtime_error("Ran out of free GPU memory (resizing was disabled)");
             }
 
-            STRATUS_LOG << "RESIZING TO: " << newSize << std::endl;
-
             const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
             cpuMemory_.resize(newSize, E());
             usedIndices_.resize(newSize, false);

@@ -25,6 +25,7 @@
 #include "StratusTransformComponent.h"
 #include "StratusRenderComponents.h"
 #include "StratusGpuMaterialBuffer.h"
+#include "StratusGpuCommandBuffer.h"
 
 namespace stratus {
     class Pipeline;

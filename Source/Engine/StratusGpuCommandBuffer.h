@@ -31,11 +31,11 @@ namespace stratus {
         size_t NumLods() const;
         const RenderFaceCulling& GetFaceCulling() const;
 
-        void RecordCommand(const RenderComponent*, const MeshWorldTransforms*, const size_t, const size_t);
-        void RemoveAllCommands(const RenderComponent*);
+        void RecordCommand(RenderComponent*, MeshWorldTransforms*, const size_t, const size_t);
+        void RemoveAllCommands(RenderComponent*);
 
-        void UpdateTransforms(const RenderComponent*, const MeshWorldTransforms*);
-        void UpdateMaterials(const RenderComponent*, const GpuMaterialBufferPtr&);
+        void UpdateTransforms(RenderComponent*, MeshWorldTransforms*);
+        void UpdateMaterials(RenderComponent*, const GpuMaterialBufferPtr&);
 
         void UploadDataToGpu();
 
@@ -47,16 +47,16 @@ namespace stratus {
         void BindIndirectDrawCommands(const size_t lod);
         void UnbindIndirectDrawCommands(const size_t lod);
 
-        const GpuBuffer& GetIndirectDrawCommandsBuffer(const size_t lod) const;
-        const GpuBuffer& GetVisibleDrawCommandsBuffer() const;
-        const GpuBuffer& GetSelectedLodDrawCommandsBuffer() const;
+        GpuBuffer GetIndirectDrawCommandsBuffer(const size_t lod) const;
+        GpuBuffer GetVisibleDrawCommandsBuffer() const;
+        GpuBuffer GetSelectedLodDrawCommandsBuffer() const;
 
         static inline GpuCommandBuffer2Ptr Create(const RenderFaceCulling& cull, const size_t numLods, const size_t commandBlockSize) {
             return GpuCommandBuffer2Ptr(new GpuCommandBuffer2(cull, numLods, commandBlockSize));
         }
 
     private:
-        bool InsertMeshPending_(const RenderComponent*, const MeshPtr);
+        bool InsertMeshPending_(RenderComponent*, MeshPtr);
 
     private:
         std::vector<GpuTypedBufferPtr<GpuDrawElementsIndirectCommand>> drawCommands_;
@@ -66,8 +66,8 @@ namespace stratus {
         GpuTypedBufferPtr<glm::mat4> modelTransforms_;
         GpuTypedBufferPtr<GpuAABB> aabbs_;
         GpuTypedBufferPtr<uint32_t> materialIndices_;
-        std::unordered_map<const RenderComponent *, std::unordered_map<const MeshPtr, uint32_t>> drawCommandIndices_;
-        std::unordered_map<const RenderComponent *, std::unordered_set<const MeshPtr>> pendingMeshUpdates_;
+        std::unordered_map<RenderComponent *, std::unordered_map<MeshPtr, uint32_t>> drawCommandIndices_;
+        std::unordered_map<RenderComponent *, std::unordered_set<MeshPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
     };
