@@ -674,15 +674,15 @@ namespace stratus {
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, pflags);
 
+        if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+            STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
+            return nullptr;
+        }
+
         // Create all scene materials
         for (uint32_t i = 0; i < scene->mNumMaterials; ++i) {
             const std::string materialName = name + "#" + std::to_string(i);
             auto material = INSTANCE(MaterialManager)->CreateMaterial(materialName);
-        }
-
-        if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
-            return nullptr;
         }
 
         EntityPtr e = CreateTransformEntity();

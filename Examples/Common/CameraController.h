@@ -150,8 +150,8 @@ private:
     stratus::CameraPtr _camera;
     stratus::LightPtr _cameraLight;
     bool _cameraLightEnabled = false;
-    bool _cameraMoveEnabled = false;
-    bool _cameraRotateEnabled = false;
+    bool _cameraMoveEnabled = true;
+    bool _cameraRotateEnabled = true;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
     float _camSpeedDivide = 0.25f; // For slowing camera down
 };
