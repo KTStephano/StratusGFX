@@ -85,6 +85,8 @@ namespace stratus {
         it->second.insert(std::make_pair(mesh, index));
 
         InsertMeshPending_(component, mesh);
+
+        performedUpdate_ = true;
     }
 
     void GpuCommandBuffer2::RemoveAllCommands(RenderComponent* component)
@@ -111,6 +113,8 @@ namespace stratus {
             for (size_t i = 0; i < NumLods(); ++i) {
                 drawCommands_[i]->Remove(index);
             }
+
+            performedUpdate_ = true;
         }
 
         drawCommandIndices_.erase(component);
@@ -132,6 +136,7 @@ namespace stratus {
             }
 
             modelTransforms_->Set(transforms->transforms[i], index->second);
+            performedUpdate_ = true;
         }
     }
 
@@ -152,10 +157,11 @@ namespace stratus {
 
             auto material = component->GetMaterialAt(i);
             materialIndices_->Set(materials->GetMaterialIndex(material), index->second);
+            performedUpdate_ = true;
         }
     }
 
-    void GpuCommandBuffer2::UploadDataToGpu()
+    bool GpuCommandBuffer2::UploadDataToGpu()
     {
         // Process pending meshes
         auto pending = std::move(pendingMeshUpdates_);
@@ -168,6 +174,7 @@ namespace stratus {
                 }
 
                 const auto index = indices.find(mesh)->second;
+                performedUpdate_ = true;
                 aabbs_->Set(mesh->GetAABB(), index);
 
                 for (size_t lod = 0; lod < NumLods(); ++lod) {
@@ -193,6 +200,10 @@ namespace stratus {
         modelTransforms_->UploadChangesToGpu();
         aabbs_->UploadChangesToGpu();
         materialIndices_->UploadChangesToGpu();
+
+        auto updated = performedUpdate_;
+        performedUpdate_ = false;
+        return updated;
     }
 
     void GpuCommandBuffer2::BindMaterialIndicesBuffer(uint32_t index)
@@ -471,7 +482,7 @@ namespace stratus {
         }
     }
 
-    void GpuCommandManager::UploadDataToGpu()
+    bool GpuCommandManager::UploadFlatDataToGpu()
     {
         static constexpr RenderFaceCulling cullingValues[] = {
             RenderFaceCulling::CULLING_CCW,
@@ -479,19 +490,54 @@ namespace stratus {
             RenderFaceCulling::CULLING_NONE
         };
 
-        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffers[] = {
-            &flatMeshes,
-            &dynamicPbrMeshes,
-            &staticPbrMeshes
-        };
+        bool changed = false;
 
         for (size_t i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
-            for (size_t k = 0; k < 3; ++k) {
-                auto buffer = buffers[k];
-
-                buffer->find(cull)->second->UploadDataToGpu();
-            }
+            changed = changed || flatMeshes.find(cull)->second->UploadDataToGpu();
         }
+
+        return changed;
+    }
+
+    bool GpuCommandManager::UploadDynamicDataToGpu()
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        bool changed = false;
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            changed = changed || dynamicPbrMeshes.find(cull)->second->UploadDataToGpu();
+        }
+
+        return changed;
+    }
+
+    bool GpuCommandManager::UploadStaticDataToGpu()
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        bool changed = false;
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            changed = changed || staticPbrMeshes.find(cull)->second->UploadDataToGpu();
+        }
+
+        return changed;
+    }
+
+    bool GpuCommandManager::UploadDataToGpu()
+    {
+        return UploadFlatDataToGpu() || UploadDynamicDataToGpu() || UploadStaticDataToGpu();
     }
 }

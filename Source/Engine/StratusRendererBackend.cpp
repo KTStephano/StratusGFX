@@ -1337,7 +1337,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     // Check if any need to have a new shadow map pulled from the cache
     for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
         if (!ShadowMapExistsForLight_(light)) {
-            frame_->lightsToUpate.PushBack(light);
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -1345,7 +1345,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         const int index = visibleVplIndices[i];
         auto light = perVPLDistToViewer[index].first;
         if (!ShadowMapExistsForLight_(light)) {
-            frame_->lightsToUpate.PushBack(light);
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -1353,8 +1353,8 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
-    for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpate.Size() > 0; ++shadowUpdates) {
-        auto light = frame_->lightsToUpate.PopFront();
+    for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpdate.Size() > 0; ++shadowUpdates) {
+        auto light = frame_->lightsToUpdate.PopFront();
         // Ideally this won't be needed but just in case
         if ( !light->CastsShadows() ) continue;
         //const double distance = perLightShadowCastingDistToViewer.find(light)->second;

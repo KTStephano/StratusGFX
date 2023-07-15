@@ -102,7 +102,8 @@ namespace stratus {
             mesh->FinalizeData();
             totalBytes += mesh->GetGpuSizeBytes();
             removeFromGpuDataQueue.push_back(mesh);
-            if (totalBytes >= maxModelBytesPerFrame) break;
+            if (removeFromGpuDataQueue.size() > 5 || totalBytes >= maxModelBytesPerFrame) break;
+            //if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
         for (auto mesh : removeFromGpuDataQueue) generateMeshGpuDataQueue_.erase(mesh);

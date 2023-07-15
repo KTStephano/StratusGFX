@@ -79,7 +79,9 @@ namespace stratus {
         void CheckForEntityChanges_();
         void UpdateLights_();
         void UpdateMaterialSet_();
+        void MarkDynamicLightsDirty_();
         void MarkStaticLightsDirty_();
+        void MarkAllLightsDirty_();
         void UpdateDrawCommands_();
         void UpdateVisibility_();
         void UpdateVisibility_(
@@ -106,6 +108,7 @@ namespace stratus {
         //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_set<LightPtr> lights_;
         std::unordered_set<LightPtr> dynamicLights_;
+        std::unordered_set<LightPtr> staticLights_;
         std::unordered_set<LightPtr> virtualPointLights_;
         InfiniteLightPtr worldLight_;
         std::unordered_set<LightPtr> lightsToRemove_;

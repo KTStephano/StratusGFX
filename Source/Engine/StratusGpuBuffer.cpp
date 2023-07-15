@@ -372,8 +372,8 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeVertices_;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeIndices_;
     bool GpuMeshAllocator::initialized_ = false;
-    static constexpr size_t minVerticesPerAlloc = 1024 * 1024;
     static constexpr size_t startVertices = 1024 * 1024 * 10;
+    static constexpr size_t minVerticesPerAlloc = startVertices; //1024 * 1024;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
     //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
@@ -555,6 +555,7 @@ namespace stratus {
     }
 
     void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
+        STRATUS_LOG << "Resizing: " << newSizeBytes << std::endl;
         GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         // Null check
         if (buffer != GpuBuffer()) {

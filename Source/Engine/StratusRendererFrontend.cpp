@@ -187,7 +187,7 @@ namespace stratus {
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
                             if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
-                                frame_->lightsToUpate.PushBack(entry);
+                                frame_->lightsToUpdate.PushBack(entry);
                             }
                         }
                     }
@@ -224,11 +224,11 @@ namespace stratus {
             //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
                     if (IsStaticEntity(p)) {
-                        frame_->lightsToUpate.PushBack(entry);
+                        frame_->lightsToUpdate.PushBack(entry);
                     }
                 }
                 else {
-                    frame_->lightsToUpate.PushBack(entry);
+                    frame_->lightsToUpdate.PushBack(entry);
                 }
             //}
         }
@@ -245,11 +245,16 @@ namespace stratus {
 
         if ( light->IsVirtualLight() ) virtualPointLights_.insert(light);
 
-        if ( !light->IsStaticLight() ) dynamicLights_.insert(light);
+        if ( light->IsVirtualLight() || light->IsStaticLight() ) {
+            staticLights_.insert(light);
+        }
+        else {
+            dynamicLights_.insert(light);
+        }
 
         if ( !light->CastsShadows() ) return;
 
-        frame_->lightsToUpate.PushBack(light);
+        frame_->lightsToUpdate.PushBack(light);
 
         //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
@@ -259,9 +264,10 @@ namespace stratus {
         if (lights_.find(light) == lights_.end()) return;
         lights_.erase(light);
         dynamicLights_.erase(light);
+        staticLights_.erase(light);
         virtualPointLights_.erase(light);
         lightsToRemove_.insert(light);
-        frame_->lightsToUpate.Erase(light);
+        frame_->lightsToUpdate.Erase(light);
     }
 
     void RendererFrontend::ClearLights() {
@@ -271,8 +277,9 @@ namespace stratus {
         }
         lights_.clear();
         dynamicLights_.clear();
+        staticLights_.clear();
         virtualPointLights_.clear();
-        frame_->lightsToUpate.Clear();
+        frame_->lightsToUpdate.Clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
@@ -755,11 +762,11 @@ namespace stratus {
                         //If the EntityView is in the light's visible set, its shadows are now out of date
                         for (size_t i = 0; i < GetMeshCount(entity); ++i) {
                             if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
-                                frame_->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpdate.PushBack(light);
                             }
                             // If the EntityView has moved inside the light's radius, add it
                             else if (glm::distance(GetWorldTransform(entity, i), lightPos) < lightRadius) {
-                                frame_->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpdate.PushBack(light);
                             }
                         }
                     }
@@ -773,11 +780,21 @@ namespace stratus {
         CheckEntitySetForChanges_(dynamicEntities_);
     }
 
-    void RendererFrontend::MarkStaticLightsDirty_() {
-        for (auto& light : lights_) {
-            if (!light->IsStaticLight()) continue;
+    void RendererFrontend::MarkDynamicLightsDirty_() {
+        for (auto& light : dynamicLights_) {
+            frame_->lightsToUpdate.PushBack(light);
+        }
+    }
 
-            frame_->lightsToUpate.PushBack(light);
+    void RendererFrontend::MarkStaticLightsDirty_() {
+        for (auto& light : staticLights_) {
+            frame_->lightsToUpdate.PushBack(light);
+        }
+    }
+
+    void RendererFrontend::MarkAllLightsDirty_() {
+        for (auto& light : lights_) {
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -800,7 +817,7 @@ namespace stratus {
 
             // See if the light moved or its radius changed
             if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
-                frame_->lightsToUpate.PushBack(light);
+                frame_->lightsToUpdate.PushBack(light);
             }
         }
     }
@@ -811,7 +828,13 @@ namespace stratus {
 
     // TODO: This desperately needs to be refactored and made more efficient
     void RendererFrontend::UpdateDrawCommands_() {
-        frame_->drawCommands->UploadDataToGpu();
+        const bool staticLightsDirty = frame_->drawCommands->UploadStaticDataToGpu();
+        const bool dynamicLightsDirty = staticLightsDirty || frame_->drawCommands->UploadDynamicDataToGpu();
+        frame_->drawCommands->UploadFlatDataToGpu();
+
+        if (staticLightsDirty) MarkStaticLightsDirty_();
+
+        if (dynamicLightsDirty) MarkDynamicLightsDirty_();
     }
 
     std::vector<glm::vec4> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform) {

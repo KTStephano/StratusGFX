@@ -37,7 +37,7 @@ namespace stratus {
         void UpdateTransforms(RenderComponent*, MeshWorldTransforms*);
         void UpdateMaterials(RenderComponent*, const GpuMaterialBufferPtr&);
 
-        void UploadDataToGpu();
+        bool UploadDataToGpu();
 
         void BindMaterialIndicesBuffer(uint32_t index);
         void BindPrevFrameModelTransformBuffer(uint32_t index);
@@ -70,6 +70,7 @@ namespace stratus {
         std::unordered_map<RenderComponent *, std::unordered_set<MeshPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
+        bool performedUpdate_ = false;
     };
 
     // Manages a set of command buffers
@@ -89,7 +90,10 @@ namespace stratus {
         void UpdateTransforms(const EntityPtr&);
         void UpdateMaterials(const EntityPtr&, const GpuMaterialBufferPtr&);
 
-        void UploadDataToGpu();
+        bool UploadFlatDataToGpu();
+        bool UploadDynamicDataToGpu();
+        bool UploadStaticDataToGpu();
+        bool UploadDataToGpu();
 
         static inline GpuCommandManagerPtr Create(const size_t numLods) {
             return GpuCommandManagerPtr(new GpuCommandManager(numLods));

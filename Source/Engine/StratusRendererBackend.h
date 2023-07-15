@@ -240,7 +240,7 @@ namespace stratus {
         GpuCommandManagerPtr drawCommands;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
-        LightUpdateQueue lightsToUpate; // shadow map data is invalid
+        LightUpdateQueue lightsToUpdate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
