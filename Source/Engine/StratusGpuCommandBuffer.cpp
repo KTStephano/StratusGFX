@@ -193,33 +193,72 @@ namespace stratus {
 
     void GpuCommandBuffer2::BindMaterialIndicesBuffer(uint32_t index)
     {
+        auto buffer = materialIndices_->GetBuffer();
+        if (buffer == GpuBuffer()) {
+            throw std::runtime_error("Null material indices GpuBuffer");
+        }
+        buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
+
     void GpuCommandBuffer2::BindPrevFrameModelTransformBuffer(uint32_t index)
     {
+        auto buffer = prevFrameModelTransforms_->GetBuffer();
+        if (buffer == GpuBuffer()) {
+            throw std::runtime_error("Null previous frame model transform GpuBuffer");
+        }
+        buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
+
     void GpuCommandBuffer2::BindModelTransformBuffer(uint32_t index)
     {
+        auto buffer = modelTransforms_->GetBuffer();
+        if (buffer == GpuBuffer()) {
+            throw std::runtime_error("Null model transform GpuBuffer");
+        }
+        buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
+
     void GpuCommandBuffer2::BindAabbBuffer(uint32_t index)
     {
+        auto buffer = aabbs_->GetBuffer();
+        if (buffer == GpuBuffer()) {
+            throw std::runtime_error("Null aabb GpuBuffer");
+        }
+        buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
+
     void GpuCommandBuffer2::BindIndirectDrawCommands(const size_t lod)
     {
+        if (lod < NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
+            throw std::runtime_error("Null indirect draw command buffer");
+        }
+        drawCommands_[lod]->GetBuffer().Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
+
     void GpuCommandBuffer2::UnbindIndirectDrawCommands(const size_t lod)
     {
+        if (lod < NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
+            throw std::runtime_error("Null indirect draw command buffer");
+        }
+        drawCommands_[lod]->GetBuffer().Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
+
     const GpuBuffer& GpuCommandBuffer2::GetIndirectDrawCommandsBuffer(const size_t lod) const
     {
-        // TODO: insert return statement here
+        if (lod < NumLods()) {
+            throw std::runtime_error("LOD requested exceeds max available LOD");
+        }
+        return drawCommands_[lod]->GetBuffer();
     }
+
     const GpuBuffer& GpuCommandBuffer2::GetVisibleDrawCommandsBuffer() const
     {
-        // TODO: insert return statement here
+        return visibleCommands_->GetBuffer();
     }
+
     const GpuBuffer& GpuCommandBuffer2::GetSelectedLodDrawCommandsBuffer() const
     {
-        // TODO: insert return statement here
+        return selectedLodCommands_->GetBuffer();
     }
 
     bool GpuCommandBuffer2::InsertMeshPending_(const RenderComponent* component, const MeshPtr mesh)
