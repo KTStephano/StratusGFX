@@ -12,13 +12,10 @@
 
 namespace stratus {
     struct GpuCommandBuffer2;
-    typedef std::shared_ptr<GpuCommandBuffer2> GpuCommandBuffer2Ptr;
+    struct GpuCommandManager;
 
-    struct GpuCommandMetadata {
-        glm::mat4 transform;
-        uint32_t materialIndex;
-        GpuAABB aabb;
-    };
+    typedef std::shared_ptr<GpuCommandBuffer2> GpuCommandBuffer2Ptr;
+    typedef std::shared_ptr<GpuCommandManager> GpuCommandManagerPtr;
 
     // Stores material indices, model transforms and indirect draw commands
     struct GpuCommandBuffer2 final {
@@ -73,5 +70,33 @@ namespace stratus {
         std::unordered_map<const RenderComponent *, std::unordered_set<const MeshPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
+    };
+
+    // Manages a set of command buffers
+    struct GpuCommandManager {
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr> flatMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr> dynamicPbrMeshes;
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr> staticPbrMeshes;
+
+        GpuCommandManager(size_t numLods);
+
+        size_t NumLods() const;
+
+        void RecordCommands(const EntityPtr&, const GpuMaterialBufferPtr&);
+        void RemoveAllCommands(const EntityPtr&);
+        void ClearCommands();
+
+        void UpdateTransforms(const EntityPtr&);
+        void UpdateMaterials(const EntityPtr&, const GpuMaterialBufferPtr&);
+
+        void UploadDataToGpu();
+
+        static inline GpuCommandManagerPtr Create(const size_t numLods) {
+            return GpuCommandManagerPtr(new GpuCommandManager(numLods));
+        }
+
+    private:
+        std::unordered_set<EntityPtr> entities_;
+        size_t numLods_;
     };
 }

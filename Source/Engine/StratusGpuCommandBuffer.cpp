@@ -42,6 +42,7 @@ namespace stratus {
     {
         const MeshPtr mesh = component->GetMesh(meshIndex);
 
+        // Face culling does not match this command buffer so can't record
         if (mesh->GetFaceCulling() != GetFaceCulling()) return;
 
         auto it = drawCommandIndices_.find(component);
@@ -278,5 +279,216 @@ namespace stratus {
         }
 
         return false;
+    }
+
+    GpuCommandManager::GpuCommandManager(size_t numLods)
+    {
+        numLods = std::max<size_t>(1, numLods);
+        numLods_ = numLods;
+
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        for (size_t i = 0; i < 3; ++i) {
+            auto fm = GpuCommandBuffer2::Create(cullingValues[i], numLods, 10000);
+            auto dm = GpuCommandBuffer2::Create(cullingValues[i], numLods, 10000);
+            auto sm = GpuCommandBuffer2::Create(cullingValues[i], numLods, 10000);
+
+            flatMeshes.insert(std::make_pair(cullingValues[i], fm));
+            dynamicPbrMeshes.insert(std::make_pair(cullingValues[i], dm));
+            staticPbrMeshes.insert(std::make_pair(cullingValues[i], sm));
+        }
+    }
+
+    size_t GpuCommandManager::NumLods() const
+    {
+        return numLods_;
+    }
+
+    static inline bool IsRenderable_(const EntityPtr& e) {
+        return e->Components().ContainsComponent<RenderComponent>();
+    }
+
+    static inline bool IsLightInteracting_(const EntityPtr& e) {
+        auto component = e->Components().GetComponent<LightInteractionComponent>();
+        return component.status == EntityComponentStatus::COMPONENT_ENABLED;
+    }
+
+    static inline bool IsStaticEntity_(const EntityPtr& e) {
+        auto sc = e->Components().GetComponent<StaticObjectComponent>();
+        return sc.component != nullptr && sc.status == EntityComponentStatus::COMPONENT_ENABLED;
+    }
+
+    void GpuCommandManager::RecordCommands(const EntityPtr& e, const GpuMaterialBufferPtr& materials)
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        // Cannot be displayed
+        if (!IsRenderable_(e)) {
+            return;
+        }
+
+        // Already recorded
+        if (entities_.find(e) != entities_.end()) {
+            return;
+        }
+
+        entities_.insert(e);
+
+        auto c = GetComponent<RenderComponent>(e);
+        auto mt = GetComponent<MeshWorldTransforms>(e);
+        
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffer;
+
+        if (IsLightInteracting_(e)) {
+            buffer = &flatMeshes;
+        }
+        else {
+            if (IsStaticEntity_(e)) {
+                buffer = &staticPbrMeshes;
+            }
+            else {
+                buffer = &dynamicPbrMeshes;
+            }
+        }
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            for (size_t meshIndex = 0; meshIndex < c->GetMeshCount(); ++meshIndex) {
+                auto materialIndex = materials->GetMaterialIndex(c->GetMaterialAt(meshIndex));
+                buffer->find(cull)->second->RecordCommand(c, mt, meshIndex, materialIndex);
+            }
+        }
+    }
+
+    void GpuCommandManager::RemoveAllCommands(const EntityPtr& e)
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr> * buffers[] = {
+            &flatMeshes,
+            &dynamicPbrMeshes,
+            &staticPbrMeshes
+        };
+
+        if (entities_.find(e) == entities_.end()) {
+            return;
+        }
+
+        entities_.erase(e);
+
+        auto c = GetComponent<RenderComponent>(e);
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            for (size_t k = 0; k < 3; ++k) {
+                auto buffer = buffers[k];
+
+                buffer->find(cull)->second->RemoveAllCommands(c);
+            }
+        }
+    }
+
+    void GpuCommandManager::ClearCommands()
+    {
+        for (auto& e : entities_) {
+            RemoveAllCommands(e);
+        }
+    }
+
+    void GpuCommandManager::UpdateTransforms(const EntityPtr& e)
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffers[] = {
+            &flatMeshes,
+            &dynamicPbrMeshes,
+            &staticPbrMeshes
+        };
+
+        if (entities_.find(e) == entities_.end()) {
+            return;
+        }
+
+        auto c = GetComponent<RenderComponent>(e);
+        auto mt = GetComponent<MeshWorldTransforms>(e);
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            for (size_t k = 0; k < 3; ++k) {
+                auto buffer = buffers[k];
+
+                buffer->find(cull)->second->UpdateTransforms(c, mt);
+            }
+        }
+    }
+
+    void GpuCommandManager::UpdateMaterials(const EntityPtr& e, const GpuMaterialBufferPtr& materials)
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffers[] = {
+            &flatMeshes,
+            &dynamicPbrMeshes,
+            &staticPbrMeshes
+        };
+
+        if (entities_.find(e) == entities_.end()) {
+            return;
+        }
+
+        auto c = GetComponent<RenderComponent>(e);
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            for (size_t k = 0; k < 3; ++k) {
+                auto buffer = buffers[k];
+
+                buffer->find(cull)->second->UpdateMaterials(c, materials);
+            }
+        }
+    }
+
+    void GpuCommandManager::UploadDataToGpu()
+    {
+        static constexpr RenderFaceCulling cullingValues[] = {
+            RenderFaceCulling::CULLING_CCW,
+            RenderFaceCulling::CULLING_CW,
+            RenderFaceCulling::CULLING_NONE
+        };
+
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>* buffers[] = {
+            &flatMeshes,
+            &dynamicPbrMeshes,
+            &staticPbrMeshes
+        };
+
+        for (size_t i = 0; i < 3; ++i) {
+            const auto cull = cullingValues[i];
+            for (size_t k = 0; k < 3; ++k) {
+                auto buffer = buffers[k];
+
+                buffer->find(cull)->second->UploadDataToGpu();
+            }
+        }
     }
 }
