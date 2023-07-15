@@ -270,22 +270,26 @@ namespace stratus {
 
         template<typename ... Types>
         static UniquePtr Allocate(const Types&... args) {
-            return UniquePtr(GetAllocator_()->Allocate(args...), Deleter(GetAllocator_()));
+            auto alloc = GetAllocator_();
+            return UniquePtr(alloc->Allocate(args...), Deleter(alloc));
         }
 
         template<typename ... Types>
         static SharedPtr AllocateShared(const Types&... args) {
-            return SharedPtr(GetAllocator_()->Allocate(args...), Deleter(GetAllocator_()));
+            auto alloc = GetAllocator_();
+            return SharedPtr(alloc->Allocate(args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
         static UniquePtr AllocateCustomConstruct(Construct c, const Types&... args) {
-            return UniquePtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(GetAllocator_()));
+            auto alloc = GetAllocator_();
+            return UniquePtr(alloc->AllocateCustomConstruct(c, args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
         static SharedPtr AllocateSharedCustomConstruct(Construct c, const Types&... args) {
-            return SharedPtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(GetAllocator_()));
+            auto alloc = GetAllocator_();
+            return SharedPtr(alloc->AllocateCustomConstruct(c, args...), Deleter(alloc));
         }
 
         static size_t NumChunks() {
