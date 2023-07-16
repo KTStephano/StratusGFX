@@ -573,14 +573,24 @@ namespace stratus {
             const float p = (i + 1) / float(numCascades);
             const float log = znear * std::pow(ratio, p);
             const float uniform = znear + clipRange * p;
-            const float d = floorf(lambda * (log - uniform) + uniform);
+            //const float d = floorf(lambda * (log - uniform) + uniform);
+            const float d = floorf(lambda * log + (1.0f - lambda) * uniform);
             cascadeEnds[i] = d;
+            //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
         }
+
+        // std::vector<float> cascadeEnds = {
+        //     5.0f,
+        //     20.0f,
+        //     100.0f,
+        //     200.0f
+        // };
 
         // see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // see https://ogldev.org/www/tutorial49/tutorial49.html
         // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
-        const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+        //const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+        const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 4.0f,  cascadeEnds[1] - 4.0f, cascadeEnds[2] - 4.0f }; // 4 cascades max
         //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
         std::vector<float> aks;
         std::vector<float> bks;
@@ -702,10 +712,10 @@ namespace stratus {
             //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // // // Gives us x, y values between [0, 1]
-            //const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+            // const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
             //                                            glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
             //                                            glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-            //                                            glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+            //                                            glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView

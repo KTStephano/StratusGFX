@@ -61,8 +61,9 @@ public:
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
-
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
+        
+        // Alpha testing doesn't work so well for this scene
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-2.0f);
 
