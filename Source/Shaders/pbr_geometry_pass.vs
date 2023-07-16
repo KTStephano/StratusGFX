@@ -38,9 +38,26 @@ out mat3 fsModelNoTranslate;
 out vec4 fsCurrentClipPos;
 out vec4 fsPrevClipPos;
 
+flat out int fsDiffuseMapped;
+flat out int fsNormalMapped;
+flat out int fsMetallicMapped;
+flat out int fsRoughnessMapped;
+flat out int fsMetallicRoughnessMapped;
+flat out int fsEmissiveMapped;
+
 flat out int fsDrawID;
 
 void main() {
+    Material material = materials[materialIndices[gl_DrawID]];
+    uint flags = material.flags;
+
+    fsDiffuseMapped = int(bitwiseAndBool(flags, GPU_DIFFUSE_MAPPED));
+    fsNormalMapped = int(bitwiseAndBool(flags, GPU_NORMAL_MAPPED));
+    fsMetallicMapped = int(bitwiseAndBool(flags, GPU_METALLIC_MAPPED));
+    fsRoughnessMapped = int(bitwiseAndBool(flags, GPU_ROUGHNESS_MAPPED));
+    fsMetallicRoughnessMapped = int(bitwiseAndBool(flags, GPU_METALLIC_ROUGHNESS_MAPPED));
+    fsEmissiveMapped = int(bitwiseAndBool(flags, GPU_EMISSIVE_MAPPED));
+
     //mat4 model = modelMats[gl_InstanceID];
     vec4 pos = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     //vec4 pos = vec4(getPosition(gl_VertexID), 1.0);

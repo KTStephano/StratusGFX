@@ -32,7 +32,7 @@ struct Material {
     sampler2D emissiveMap;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D normalMap;
-    sampler2D depthMap;
+    //sampler2D depthMap;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D roughnessMap;
     sampler2D metallicMap;
@@ -43,11 +43,13 @@ struct Material {
     // Base and max are interpolated between based on metallic
     // metallic of 0 = base reflectivity
     // metallic of 1 = max reflectivity
-    float baseReflectivity[3];
-    float maxReflectivity[3];
+    float reflectance;
+    //float baseReflectivity[3];
+    //float maxReflectivity[3];
     // First two values = metallic, roughness
     float metallicRoughness[2];
     uint flags;
+    uint placeholder1_;
 };
 
 struct DrawElementsIndirectCommand {

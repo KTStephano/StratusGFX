@@ -26,14 +26,12 @@ namespace stratus {
 
         SET_FLOAT4(gpuMaterial->diffuseColor, material->GetDiffuseColor());
         SET_FLOAT3(gpuMaterial->emissiveColor, material->GetEmissiveColor());
-        SET_FLOAT3(gpuMaterial->baseReflectivity, material->GetBaseReflectivity());
-        SET_FLOAT3(gpuMaterial->maxReflectivity, material->GetMaxReflectivity());
+        gpuMaterial->reflectance = material->GetReflectance();
         SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
 
         auto diffuseHandle = material->GetDiffuseTexture();
         auto ambientHandle = material->GetEmissiveTexture();
         auto normalHandle = material->GetNormalMap();
-        auto depthHandle = material->GetDepthMap();
         auto roughnessHandle = material->GetRoughnessMap();
         auto metallicHandle = material->GetMetallicMap();
         auto metallicRoughnessHandle = material->GetMetallicRoughnessMap();
@@ -44,8 +42,6 @@ namespace stratus {
         auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle, ambientStatus);
         TextureLoadingStatus normalStatus;
         auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle, normalStatus);
-        TextureLoadingStatus depthStatus;
-        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle, depthStatus);
         TextureLoadingStatus roughnessStatus;
         auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle, roughnessStatus);
         TextureLoadingStatus metallicStatus;
@@ -82,16 +78,6 @@ namespace stratus {
         }
         // If this is true then the texture is still loading so we need to check again later
         else if (normalHandle != TextureHandle::Null() && normalStatus != TextureLoadingStatus::FAILED) {
-            pendingMaterials_.insert(material);
-        }
-
-        if (ValidateTexture(depth, depthStatus)) {
-            gpuMaterial->depthMap = depth.GpuHandle();
-            gpuMaterial->flags |= GPU_DEPTH_MAPPED;
-            resident.push_back(TextureMemResidencyGuard(depth));
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (depthHandle != TextureHandle::Null() && depthStatus != TextureLoadingStatus::FAILED) {
             pendingMaterials_.insert(material);
         }
 

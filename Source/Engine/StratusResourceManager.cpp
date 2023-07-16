@@ -487,8 +487,9 @@ namespace stratus {
                 material->SetEmissiveColor(glm::vec3(0.0f));
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
-                material->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
-                material->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                material->SetReflectance(std::max<float>(reflective.r, std::max<float>(reflective.g, reflective.b)));
+                //material->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                //material->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
                 //STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
             }
             //else if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &reflective) == AI_SUCCESS) {
@@ -499,8 +500,9 @@ namespace stratus {
                 //STRATUS_LOG << "SP: " << specularFactor << " " << max << std::endl;
                 float reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
                 reflectance = reflectance * reflectance;
-                material->SetBaseReflectivity(glm::vec3(reflectance));
-                material->SetMaxReflectivity(glm::vec3(reflectance));
+                material->SetReflectance(reflectance);
+                //material->SetBaseReflectivity(glm::vec3(reflectance));
+                //material->SetMaxReflectivity(glm::vec3(reflectance));
                 //STRATUS_LOG << "Reflectance: " << reflectance << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_GLOSSINESS_FACTOR, &specularFactor) == AI_SUCCESS) {

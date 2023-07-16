@@ -166,7 +166,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     }
 
     vec4 position = fragPos;
-    position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 0.9;
+    position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];

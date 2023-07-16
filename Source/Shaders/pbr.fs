@@ -94,13 +94,14 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
-    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
+    vec3 roughnessMetallicEmissive = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rgb;
+    float roughness = roughnessMetallicEmissive.r;
+    float metallic = roughnessMetallicEmissive.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambient = texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r; //textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
-    vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
-    vec3 emissive = vec3(albedo.a, textureLod(gBaseReflectivity, texCoords, 0).a, textureLod(gRoughnessMetallicAmbient, texCoords, 0).b);
+    vec2 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rg;
+    vec3 emissive = vec3(albedo.a, baseReflectivity.g, roughnessMetallicEmissive.b);
 
     vec3 color = vec3(0.0);
     for (int i = 0; i < numLights; ++i) {
@@ -108,7 +109,7 @@ void main() {
         // calculate distance between light source and current fragment
         float distance = length(light.position.xyz - fragPos);
         if(distance < light.radius) {
-            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, 0, baseReflectivity);
+            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, 0, vec3(baseReflectivity.r));
         }
     }
 
@@ -125,7 +126,7 @@ void main() {
             else if (viewDist < 650.0) {
                 shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
-            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, shadowFactor, baseReflectivity);
+            color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, shadowFactor, vec3(baseReflectivity.r));
         }
     }
 
@@ -139,7 +140,7 @@ void main() {
     float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal, true);
     //vec3 lightDir = infiniteLightDirection;
     //color = color + calculateLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ambient, shadowFactor, baseReflectivity, 1.0, 0.003);
-    color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, baseReflectivity, 0.0);
+    color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif
 
     fsColor = boundHDR(color + emissive * emissionStrength);
