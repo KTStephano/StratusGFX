@@ -68,7 +68,7 @@ void main() {
     //vec3 b = normalize(cross(n, t));
     vec3 b = getBitangent(gl_VertexID);
     b = normalize(b - dot(b, n) * n - dot(b, t) * t);
-    fsTbnMatrix = mat3(t, b, n);
+    fsTbnMatrix = fsModelNoTranslate * mat3(t, b, n);
 
     fsModel = modelMatrices[gl_DrawID];
 
