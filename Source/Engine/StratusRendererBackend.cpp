@@ -1891,9 +1891,9 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     RenderForwardPassFlat_();
 
     // Render bounding boxes
-    //RenderBoundingBoxes_(frame_->visibleInstancedFlatMeshes);
-    //RenderBoundingBoxes_(frame_->visibleInstancedDynamicPbrMeshes);
-    //RenderBoundingBoxes_(frame_->visibleInstancedStaticPbrMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->flatMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->dynamicPbrMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->staticPbrMeshes);
 
     state_.lightingFbo.Unbind();
     state_.finalScreenBuffer = state_.lightingFbo;// state_.lightingColorBuffer;
