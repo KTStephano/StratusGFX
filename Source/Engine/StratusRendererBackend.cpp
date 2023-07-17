@@ -75,6 +75,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
     // Initialize the pipelines
+    state_.depthPrepass = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"depth.vs", ShaderType::VERTEX}, 
+        Shader{"depth.fs", ShaderType::FRAGMENT}}));
+    state_.shaders.push_back(state_.depthPrepass.get());
+
     state_.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr_geometry_pass.vs", ShaderType::VERTEX}, 
         Shader{"pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
@@ -362,7 +367,7 @@ void RendererBackend::InitGBuffer_() {
         //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
         // Normal buffer
-        buffer.normals = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.normals = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.normals.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.normals.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -374,7 +379,7 @@ void RendererBackend::InitGBuffer_() {
         buffer.albedo.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Base reflectivity buffer
-        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -394,6 +399,11 @@ void RendererBackend::InitGBuffer_() {
         buffer.velocity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
+        // Holds mesh ids
+        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
@@ -401,7 +411,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the frame buffer with all its texture attachments
         //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
-        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.depth });
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
         if (!buffer.fbo.Valid()) {
             isValid_ = false;
             return;
@@ -882,8 +892,8 @@ static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& stat
     return status == TextureLoadingStatus::LOADING_DONE;
 }
 
-void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
-    if (buffer->NumDrawCommands() == 0 || buffer->aabbs.size() == 0) return;
+void RendererBackend::RenderBoundingBoxes_(GpuCommandBuffer2Ptr& buffer) {
+    if (buffer->NumDrawCommands() == 0) return;
 
     SetCullState(RenderFaceCulling::CULLING_NONE);
 
@@ -904,29 +914,29 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
     UnbindShader_();
 }
 
-void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
+void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map) {
     for (auto& entry : map) {
         RenderBoundingBoxes_(entry.second);
     }
 }
 
-void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer) {
+void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select) {
     if (buffer->NumDrawCommands() == 0) return;
 
-    frame_->materialInfo.materialsBuffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
+    frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
     buffer->BindMaterialIndicesBuffer(31);
     buffer->BindModelTransformBuffer(13);
     buffer->BindPrevFrameModelTransformBuffer(14);
-    buffer->BindIndirectDrawCommands();
+    select(buffer).Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 
     SetCullState(cull);
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)0, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
 
-    buffer->UnbindIndirectDrawCommands();
+    select(buffer).Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 }
 
-void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
@@ -972,19 +982,19 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
-    RenderImmediate_(cull, buffer);
+    RenderImmediate_(cull, buffer, select);
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     for (auto& entry : map) {
-        Render_(s, entry.first, entry.second, isLightInteracting, removeViewTranslation);
+        Render_(s, entry.first, entry.second, select, isLightInteracting, removeViewTranslation);
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
     for (auto& entry : map) {
         auto cull = entry.first;
         if (reverseCullFace) {
@@ -995,7 +1005,7 @@ void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, Gpu
                 cull = RenderFaceCulling::CULLING_CCW;
             }
         }
-        RenderImmediate_(cull, entry.second);
+        RenderImmediate_(cull, entry.second, select);
     }
 }
 
@@ -1051,7 +1061,7 @@ void RendererBackend::RenderCSMDepth_() {
     // First value is conditional on slope
     // Second value is a constant unconditional offset
     //glPolygonOffset(3.0f, 0.0f);
-    glPolygonOffset(2.0f, 0.5f);
+    glPolygonOffset(2.0f, 0.0f);
     //glPolygonOffset(5.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
@@ -1089,14 +1099,20 @@ void RendererBackend::RenderCSMDepth_() {
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
         // const size_t lod = cascade * 2 + 1;
-        const size_t lod = frame_->instancedDynamicPbrMeshes.size() - 1;
+        const size_t lod = frame_->drawCommands->NumLods() - 1;
         if (cascade < 2) {
-            RenderImmediate_(frame_->selectedLodsDynamicPbrMeshes, true);
-            RenderImmediate_(frame_->selectedLodsStaticPbrMeshes, true);
+            const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+                return b->GetSelectedLodDrawCommandsBuffer();
+            };
+            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
+            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
         }
         else {
-            RenderImmediate_(frame_->instancedStaticPbrMeshes[lod], true);
-            RenderImmediate_(frame_->instancedDynamicPbrMeshes[lod], true);
+            const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+                return b->GetIndirectDrawCommandsBuffer(lod);
+            };
+            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
+            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
         }
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
@@ -1285,18 +1301,24 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
         return a.second < b.second;
     };
-    //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
-    //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+
+    const bool regularLightsMaxExceeded = perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame;
+    const bool regularShadowLightsMaxExceeded = perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame;
+    
+    if (regularLightsMaxExceeded || regularShadowLightsMaxExceeded) {
+        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    }
 
     // Remove lights exceeding the absolute maximum
-    if (perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame) {
-        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
+    if (regularLightsMaxExceeded) {
+        //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
         perLightDistToViewer.resize(state_.maxTotalRegularLightsPerFrame);
     }
 
     // Remove shadow-casting lights that exceed our max count
-    if (perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame) {
-        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    if (regularShadowLightsMaxExceeded) {
+        //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
         perLightShadowCastingDistToViewer.resize(state_.maxShadowCastingLightsPerFrame);
     }
 
@@ -1315,7 +1337,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     // Check if any need to have a new shadow map pulled from the cache
     for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
         if (!ShadowMapExistsForLight_(light)) {
-            frame_->lightsToUpate.PushBack(light);
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -1323,7 +1345,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         const int index = visibleVplIndices[i];
         auto light = perVPLDistToViewer[index].first;
         if (!ShadowMapExistsForLight_(light)) {
-            frame_->lightsToUpate.PushBack(light);
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -1331,8 +1353,8 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
-    for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpate.Size() > 0; ++shadowUpdates) {
-        auto light = frame_->lightsToUpate.PopFront();
+    for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpdate.Size() > 0; ++shadowUpdates) {
+        auto light = frame_->lightsToUpdate.PopFront();
         // Ideally this won't be needed but just in case
         if ( !light->CastsShadows() ) continue;
         //const double distance = perLightShadowCastingDistToViewer.find(light)->second;
@@ -1373,7 +1395,11 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
             if (point->IsVirtualLight()) {
                 // Use lower LOD
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[frame_->instancedStaticPbrMeshes.size() / 2], false);
+                const size_t lod = frame_->drawCommands->NumLods() - 1;
+                const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+                    return b->GetIndirectDrawCommandsBuffer(lod);
+                };
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1393,8 +1419,11 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                 }
             }
             else {
-                RenderImmediate_(frame_->instancedStaticPbrMeshes[0], false);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->instancedDynamicPbrMeshes[0], false);
+                const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+                    return b->GetIndirectDrawCommandsBuffer(0);
+                };
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, false);
             }
             UnbindShader_();
         }
@@ -1633,7 +1662,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer, const double deltaSeconds) {
     if (perVPLDistToViewer.size() == 0) return;
 
     // auto space = LogSpace<float>(1, 512, 30);
@@ -1710,18 +1739,21 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
     state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
+    state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
+    state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
     state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
     state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
+    state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
 
     size_t bufferIndex = 0;
-    const int maxIterations = 4;
+    const int maxIterations = 3;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration is used for reservoir merging so we don't
@@ -1761,7 +1793,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
 }
 
-void RendererBackend::RenderScene() {
+void RendererBackend::RenderScene(const double deltaSeconds) {
     CHECK_IS_APPLICATION_THREAD();
 
     const Camera& c = *frame_->camera;
@@ -1840,7 +1872,7 @@ void RendererBackend::RenderScene() {
     if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
         PerformVirtualPointLightCullingStage2_(perVPLDistToViewer);
-        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer);
+        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer, deltaSeconds);
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
@@ -1859,9 +1891,9 @@ void RendererBackend::RenderScene() {
     RenderForwardPassFlat_();
 
     // Render bounding boxes
-    //RenderBoundingBoxes_(frame_->visibleInstancedFlatMeshes);
-    //RenderBoundingBoxes_(frame_->visibleInstancedDynamicPbrMeshes);
-    //RenderBoundingBoxes_(frame_->visibleInstancedStaticPbrMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->flatMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->dynamicPbrMeshes);
+    //RenderBoundingBoxes_(frame_->drawCommands->staticPbrMeshes);
 
     state_.lightingFbo.Unbind();
     state_.finalScreenBuffer = state_.lightingFbo;// state_.lightingColorBuffer;
@@ -1881,19 +1913,31 @@ void RendererBackend::RenderForwardPassPbr_() {
     // Make sure to bind our own frame buffer for rendering
     state_.currentFrame.fbo.Bind();
 
+    // Perform depth prepass
+    BindShader_(state_.depthPrepass.get());
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
+    // Begin geometry pass
     BindShader_(state_.geometry.get());
 
     state_.geometry->SetMat4("jitterProjectionView", frame_->jitterProjectionView);
 
-    // Begin geometry pass
-    glEnable(GL_DEPTH_TEST);
+    //glDepthFunc(GL_LEQUAL);
 
-    Render_(*state_.geometry.get(), frame_->visibleInstancedDynamicPbrMeshes, true);
-    Render_(*state_.geometry.get(), frame_->visibleInstancedStaticPbrMeshes, true);
+    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+        return b->GetVisibleDrawCommandsBuffer();
+    };
+
+    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
+    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, true);
 
     state_.currentFrame.fbo.Unbind();
 
     UnbindShader_();
+
+    //glDepthMask(GL_TRUE);
 }
 
 void RendererBackend::RenderForwardPassFlat_() {
@@ -1903,7 +1947,12 @@ void RendererBackend::RenderForwardPassFlat_() {
     state_.forward->SetMat4("jitterProjectionView", frame_->projectionView);
 
     glEnable(GL_DEPTH_TEST);
-    Render_(*state_.forward.get(), frame_->visibleInstancedFlatMeshes, false);
+
+    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+        return b->GetVisibleDrawCommandsBuffer();
+    };
+
+    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, false);
 
     UnbindShader_();
 }

@@ -169,7 +169,7 @@ public:
             stratus::MaterialPtr mat = INSTANCE(MaterialManager)->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
             mat->SetDiffuseTexture(textures[texIndex]);
             mat->SetNormalMap(normalMaps[texIndex]);
-            mat->SetDepthMap(depthMaps[texIndex]);
+            //mat->SetDepthMap(depthMaps[texIndex]);
             mat->SetRoughnessMap(roughnessMaps[texIndex]);
             mat->SetAmbientTexture(environmentMaps[texIndex]);
             stratus::RenderComponent * rc = stratus::GetComponent<stratus::RenderComponent>(cube);

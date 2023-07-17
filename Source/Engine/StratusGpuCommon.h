@@ -123,7 +123,7 @@ namespace stratus {
         GpuTextureHandle emissiveMap;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle normalMap;
-        GpuTextureHandle depthMap;
+        //GpuTextureHandle depthMap;
         // total bytes next 2 entries = GpuVec
         // TODO: Remove these and always favor metallicRoughnessMap
         GpuTextureHandle roughnessMap;
@@ -135,12 +135,14 @@ namespace stratus {
         // Base and max are interpolated between based on metallic
         // metallic of 0 = base reflectivity
         // metallic of 1 = max reflectivity
-        float baseReflectivity[3];
-        float maxReflectivity[3];
+        float reflectance;
+        //float baseReflectivity[3];
+        //float maxReflectivity[3];
         // First two values = metallic, roughness
         // last two values = padding
         float metallicRoughness[2];
         unsigned int flags = 0;
+        unsigned int placeholder1_ = 0;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -173,12 +175,12 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuDrawElementsIndirectCommand {
-        uint32_t vertexCount;
-        uint32_t instanceCount;
+        uint32_t vertexCount = 0;
+        uint32_t instanceCount = 0;
         // Measured in units of indices instead of the normal bytes
-        uint32_t firstIndex;
-        int32_t baseVertex;
-        uint32_t baseInstance;
+        uint32_t firstIndex = 0;
+        int32_t baseVertex = 0;
+        uint32_t baseInstance = 0;
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -293,7 +295,7 @@ namespace stratus {
 
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
-    static_assert(sizeof(GpuMaterial) == 120);
+    static_assert(sizeof(GpuMaterial) == 96);
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);

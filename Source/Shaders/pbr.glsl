@@ -165,17 +165,19 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
         bias = 0.0;
     }
 
+    vec4 position = fragPos;
+    position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
+
     vec4 p1, p2;
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
-        // cascadeProjViews[i] * fragPos puts the coordinates into clip space which are on the range of [-1, 1].
+        // cascadeProjViews[i] * position puts the coordinates into clip space which are on the range of [-1, 1].
         // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
         // and then perform * 0.5 + vec3(0.5).
-        vec4 coords = cascadeProjViews[i] * fragPos;
+        vec4 coords = cascadeProjViews[i] * position;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
         cascadeCoords[i].xyz = cascadeCoords[i].xyz * 0.5 + vec3(0.5);
-        // cascadeCoords[i].z = cascadeCoords[i].z * 0.5 + 0.5;
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
@@ -254,7 +256,7 @@ float quadraticAttenuation(vec3 lightDir) {
 }
 
 float vplAttenuation(vec3 lightDir, float lightRadius) {
-    float minDist = 1.0 * lightRadius;
+    float minDist = 10.0 * lightRadius;
     float maxDist = 0.75 * lightRadius;
     //float lightDist = max(length(lightDir), minDist);
     float lightDist = length(lightDir);

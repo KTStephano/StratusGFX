@@ -63,14 +63,9 @@ namespace stratus {
         return emissiveColor;
     }
 
-    glm::vec3 Material::GetBaseReflectivity() const {
+    float Material::GetReflectance() const {
         auto sl = LockRead_();
-        return baseReflectivity_;
-    }
-
-    glm::vec3 Material::GetMaxReflectivity() const {
-        auto sl = LockRead_();
-        return maxReflectivity_;
+        return reflectance_;
     }
 
     float Material::GetRoughness() const {
@@ -95,16 +90,10 @@ namespace stratus {
         emissiveColor = ambient;
     }
 
-    void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
+    void Material::SetReflectance(float reflectance) {
         MarkChanged();
         auto ul = LockWrite_();
-        baseReflectivity_ = reflectivity;
-    }
-
-    void Material::SetMaxReflectivity(const glm::vec3& reflectivity) {
-        MarkChanged();
-        auto ul = LockWrite_();
-        maxReflectivity_ = reflectivity;
+        reflectance_ = reflectance;
     }
 
     void Material::SetRoughness(float roughness) {
@@ -133,11 +122,6 @@ namespace stratus {
     TextureHandle Material::GetNormalMap() const {
         auto sl = LockRead_();
         return normalMap_;
-    }
-
-    TextureHandle Material::GetDepthMap() const {
-        auto sl = LockRead_();
-        return depthMap_;
     }
 
     TextureHandle Material::GetRoughnessMap() const {
@@ -171,12 +155,6 @@ namespace stratus {
         MarkChanged();
         auto ul = LockWrite_();
         normalMap_ = handle;
-    }
-
-    void Material::SetDepthMap(TextureHandle handle) {
-        MarkChanged();
-        auto ul = LockWrite_();
-        depthMap_ = handle;
     }
 
     void Material::SetRoughnessMap(TextureHandle handle) {

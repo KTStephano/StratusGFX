@@ -274,7 +274,7 @@ namespace stratus {
         //     0.002f, 0.0025f, 0.003f, 0.0035f, 0.004f, 0.0045f, 0.005f
         // };
         const std::vector<float> errors = {
-            0.0005f, 0.0005f, 0.001f, 0.001f, 0.005f, 0.005f, 0.005f
+            0.0005f, 0.0005f, 0.001f, 0.001f, 0.005f, 0.01f, 0.01f
         };
         
         const std::vector<float> targetPercentages = {
@@ -283,9 +283,10 @@ namespace stratus {
 
         for (int i = 0; i < errors.size(); ++i) {
             auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
-            const size_t targetIndices = size_t(prevIndices.size() * targetPercentages[i]);
+            const size_t targetIndices = size_t(prevIndices.size() * 0.5);
             std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, errors[i]);
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, 0.005f);
+            //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, errors[i]);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
             //if ((prevIndices.size() * 0.9) < double(size)) {
             //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);

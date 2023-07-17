@@ -47,14 +47,13 @@ namespace stratus {
         // Get and set material properties
         glm::vec4 GetDiffuseColor() const;
         glm::vec3 GetEmissiveColor() const;
-        glm::vec3 GetBaseReflectivity() const;
-        glm::vec3 GetMaxReflectivity() const;
+        float GetReflectance() const;
         float GetRoughness() const;
         float GetMetallic() const;
 
         void SetDiffuseColor(const glm::vec4&);
         void SetEmissiveColor(const glm::vec3&);
-        void SetBaseReflectivity(const glm::vec3&);
+        void SetReflectance(float);
         void SetMaxReflectivity(const glm::vec3&);
         void SetRoughness(float);
         void SetMetallic(float);
@@ -63,7 +62,7 @@ namespace stratus {
         TextureHandle GetDiffuseTexture() const;
         TextureHandle GetEmissiveTexture() const;
         TextureHandle GetNormalMap() const;
-        TextureHandle GetDepthMap() const;
+        //TextureHandle GetDepthMap() const;
         TextureHandle GetRoughnessMap() const;
         TextureHandle GetMetallicMap() const;
         TextureHandle GetMetallicRoughnessMap() const;
@@ -71,7 +70,7 @@ namespace stratus {
         void SetDiffuseTexture(TextureHandle);
         void SetAmbientTexture(TextureHandle);
         void SetNormalMap(TextureHandle);
-        void SetDepthMap(TextureHandle);
+        //void SetDepthMap(TextureHandle);
         void SetRoughnessMap(TextureHandle);
         void SetMetallicMap(TextureHandle);
         // Things like GLTF 2.0 permit a combined metallic-roughness map
@@ -99,8 +98,7 @@ namespace stratus {
         uint64_t lastFrameChanged_ = 0;
         glm::vec4 diffuseColor_ = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
         glm::vec3 emissiveColor = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 baseReflectivity_ = glm::vec3(0.05f);
-        glm::vec3 maxReflectivity_ = glm::vec3(0.8f);
+        float reflectance_ = 0.05f;
         float roughness_ = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
         float metallic_ = 0.04f; // 0.04 is good for many non-metallic surfaces
         // Not required to have a texture
@@ -110,7 +108,7 @@ namespace stratus {
         // Not required to have a normal map
         TextureHandle normalMap_ = TextureHandle::Null();
         // Not required to have a depth map
-        TextureHandle depthMap_ = TextureHandle::Null();
+        //TextureHandle depthMap_ = TextureHandle::Null();
         // Not required to have a roughness map
         TextureHandle roughnessMap_ = TextureHandle::Null();
         // Not required to have a metallic map

@@ -84,12 +84,23 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = -270; x < -160; x += 30) {
+        for (int y = 10; y < 160; y += 10) {
+            ++spawned;
+            LightCreator::CreateVirtualPointLight(
+                LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
+                false
+            );
+        }
+    }
+
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));
     settings.SetSkyboxIntensity(3.0f);
     settings.SetEmissionStrength(0.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
+    INSTANCE(RendererFrontend)->GetWorldLight()->SetAtmosphericLightingConstants(0.0045f, 0.0065f);
     
     STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
 }
@@ -440,6 +451,8 @@ public:
 
         stratus::InputHandlerPtr controller(new CameraController());
         INSTANCE(InputManager)->AddInputHandler(controller);
+        INSTANCE(RendererFrontend)->GetCamera()->SetPosition(glm::vec3(-117.849f, 17.9663f, -0.672086f));
+        INSTANCE(RendererFrontend)->GetCamera()->SetAngle(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(-93.0f), stratus::Degrees(0.0f)));
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);

@@ -18,7 +18,6 @@ namespace stratus {
     ResourceManager::ResourceManager() {}
 
     ResourceManager::~ResourceManager() {
-
     }
 
     SystemStatus ResourceManager::Update(const double deltaSeconds) {
@@ -39,7 +38,6 @@ namespace stratus {
     }
 
     void ResourceManager::Shutdown() {
-        auto ul = LockWrite_();
         loadedModels_.clear();
         pendingFinalize_.clear();
         meshFinalizeQueue_.clear();
@@ -87,6 +85,7 @@ namespace stratus {
 
             auto ul = LockWrite_();
             for (int i = 0; i < handles.size(); ++i) {
+                texturesStillLoading_.erase(handles[i]);
                 loadedTextures_.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
             }
         });
@@ -101,7 +100,8 @@ namespace stratus {
             mesh->FinalizeData();
             totalBytes += mesh->GetGpuSizeBytes();
             removeFromGpuDataQueue.push_back(mesh);
-            if (totalBytes >= maxModelBytesPerFrame) break;
+            if (removeFromGpuDataQueue.size() > 5 || totalBytes >= maxModelBytesPerFrame) break;
+            //if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
         for (auto mesh : removeFromGpuDataQueue) generateMeshGpuDataQueue_.erase(mesh);
@@ -267,8 +267,8 @@ namespace stratus {
         // We have to use the main thread since Texture calls glGenTextures :(
         Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
             auto result = LoadTexture_(files, handle, cspace, type, wrap, min, mag);
-            auto ul = this->LockWrite_();
-            this->texturesStillLoading_.erase(handle);
+            //auto ul = this->LockWrite_();
+            //this->texturesStillLoading_.erase(handle);
             return result;
         });
 
@@ -417,10 +417,29 @@ namespace stratus {
                     cull = RenderFaceCulling::CULLING_NONE;
                 }
             }
+        }
+
+        // const glm::mat4 gt = ToMat4(transform);
+        // renderNode->meshes->meshes.push_back(rmesh);
+        // renderNode->meshes->transforms.push_back(gt);
+        // renderNode->AddMaterial(m);
+        rmesh->SetFaceCulling(cull);
+    }
+
+    static void ProcessMaterial(
+        const aiScene* scene,
+        const aiMesh* mesh,
+        MaterialPtr material,
+        const std::string& directory,
+        const std::string& extension,
+        const ColorSpace& cspace) {
+
+        if (mesh->mMaterialIndex >= 0) {
+            aiMaterial* aimat = scene->mMaterials[mesh->mMaterialIndex];
 
             aiString matName;
             aimat->Get<aiString>(AI_MATKEY_NAME, matName);
-            STRATUS_LOG << "Loading Mesh Material [" << matName.C_Str() << "]" << std::endl;
+            STRATUS_LOG << "Loading Mesh Material [" << material->GetName() << "]" << std::endl;
             // PrintMatType(aimat, aiTextureType_DIFFUSE);
             // PrintMatType(aimat, aiTextureType_SPECULAR);
             // PrintMatType(aimat, aiTextureType_AMBIENT);
@@ -451,25 +470,26 @@ namespace stratus {
             aiColor4D transparency;
 
             if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
-                m->SetMetallic(metallic);
+                material->SetMetallic(metallic);
                 //STRATUS_LOG << "M: " << metallic << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_ROUGHNESS_FACTOR, &roughness) == AI_SUCCESS) {
-                m->SetRoughness(roughness);
+                material->SetRoughness(roughness);
             }
 
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_DIFFUSE, &diffuse) == AI_SUCCESS) {
-                m->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
+                material->SetDiffuseColor(glm::vec4(diffuse.r, diffuse.g, diffuse.b, std::clamp(diffuse.a, 0.0f, 1.0f)));
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_EMISSIVE, &emissive) == AI_SUCCESS) {
-                m->SetEmissiveColor(glm::vec3(emissive.r, emissive.g, emissive.b));
+                material->SetEmissiveColor(glm::vec3(emissive.r, emissive.g, emissive.b));
             }
             else {
-                m->SetEmissiveColor(glm::vec3(0.0f));
+                material->SetEmissiveColor(glm::vec3(0.0f));
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
-                m->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
-                m->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                material->SetReflectance(std::max<float>(reflective.r, std::max<float>(reflective.g, reflective.b)));
+                //material->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
+                //material->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
                 //STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
             }
             //else if (aiGetMaterialColor(aimat, AI_MATKEY_BASE_COLOR, &reflective) == AI_SUCCESS) {
@@ -480,8 +500,9 @@ namespace stratus {
                 //STRATUS_LOG << "SP: " << specularFactor << " " << max << std::endl;
                 float reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
                 reflectance = reflectance * reflectance;
-                m->SetBaseReflectivity(glm::vec3(reflectance));
-                m->SetMaxReflectivity(glm::vec3(reflectance));
+                material->SetReflectance(reflectance);
+                //material->SetBaseReflectivity(glm::vec3(reflectance));
+                //material->SetMaxReflectivity(glm::vec3(reflectance));
                 //STRATUS_LOG << "Reflectance: " << reflectance << std::endl;
             }
             if (aiGetMaterialFloat(aimat, AI_MATKEY_GLOSSINESS_FACTOR, &specularFactor) == AI_SUCCESS) {
@@ -489,30 +510,30 @@ namespace stratus {
             }
 
             // STRATUS_LOG << "RMS: " << roughness << " " << metallic << " " << specularFactor << " " << diffuse.r << " " << diffuse.g << " " << diffuse.b << std::endl;
- 
+
             //     STRATUS_LOG << "Opacity Value: " << opacity << std::endl;
             // }
             // if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_TRANSPARENT, &transparency) == AI_SUCCESS) {
             //     STRATUS_LOG << "Transparency: " << transparency.r << ", " << transparency.g << ", " << transparency.b << ", " << transparency.a << std::endl;
             // }
 
-            m->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
+            material->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
             auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR);
             if (normalMap != TextureHandle::Null()) {
-                m->SetNormalMap(normalMap);
+                material->SetNormalMap(normalMap);
             }
             //else {
                 //m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
-            m->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
+            material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
             //m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
-            m->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
+            material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
             if (extension == "gltf" || extension == "GLTF") {
-                m->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::LINEAR));
+                material->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::LINEAR));
             }
 
             // STRATUS_LOG << "m " 
@@ -525,19 +546,15 @@ namespace stratus {
             //     << m->GetMetallicRoughnessMap() << std::endl;
         }
 
-        // const glm::mat4 gt = ToMat4(transform);
-        // renderNode->meshes->meshes.push_back(rmesh);
-        // renderNode->meshes->transforms.push_back(gt);
-        // renderNode->AddMaterial(m);
-        rmesh->SetFaceCulling(cull);
     }
+
 
     static void ProcessNode(
         aiNode * node, 
         const aiScene * scene, 
         EntityPtr entity, 
         const aiMatrix4x4& parentTransform, 
-        MaterialPtr rootMat, 
+        const std::string& name,
         const std::string& directory, 
         const std::string& extension, 
         RenderFaceCulling defaultCullMode, 
@@ -597,7 +614,11 @@ namespace stratus {
                 }
                 
                 auto stratusMesh = Mesh::Create();
-                MaterialPtr m = rootMat->CreateSubMaterial();
+                
+                const std::string materialName = name + "#" + std::to_string(mesh->mMaterialIndex);
+                MaterialPtr m = INSTANCE(MaterialManager)->GetMaterial(materialName);
+                ProcessMaterial(scene, mesh, m, directory, extension, cspace);
+
                 rnode->meshes->meshes.push_back(stratusMesh);
                 rnode->meshes->transforms.push_back(gt);
                 rnode->AddMaterial(m);
@@ -615,7 +636,7 @@ namespace stratus {
             // Create a new container Entity
             EntityPtr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
-            ProcessNode(node->mChildren[i], scene, centity, transform, rootMat, directory, extension, defaultCullMode, cspace, meshes);
+            ProcessNode(node->mChildren[i], scene, centity, transform, name, directory, extension, defaultCullMode, cspace, meshes);
         }
     }
 
@@ -654,18 +675,22 @@ namespace stratus {
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes);
         const aiScene *scene = importer.ReadFile(name, pflags);
 
-        auto material = MaterialManager::Instance()->CreateMaterial(name);
-
         if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
             return nullptr;
+        }
+
+        // Create all scene materials
+        for (uint32_t i = 0; i < scene->mNumMaterials; ++i) {
+            const std::string materialName = name + "#" + std::to_string(i);
+            auto material = INSTANCE(MaterialManager)->CreateMaterial(materialName);
         }
 
         EntityPtr e = CreateTransformEntity();
         std::vector<__MeshToProcess> meshes;
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
-        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), material, directory, extension, defaultCullMode, cspace, meshes);
+        ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), name, directory, extension, defaultCullMode, cspace, meshes);
 
         //for (auto& mesh : meshes) {
         //    ProcessMesh(mesh, scene, directory, extension, defaultCullMode, cspace);

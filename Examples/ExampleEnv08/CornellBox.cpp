@@ -67,7 +67,7 @@ public:
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);  
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.5f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));

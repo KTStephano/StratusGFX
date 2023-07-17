@@ -229,13 +229,14 @@ namespace stratus {
 
         // Application should shut down first
         ShutdownResourceAndDelete_(Application::Instance_());
+        ShutdownResourceAndDelete_(TaskSystem::Instance_());
         ShutdownResourceAndDelete_(InputManager::Instance_());
         ShutdownResourceAndDelete_(ResourceManager::Instance_());
         ShutdownResourceAndDelete_(MaterialManager::Instance_());
         ShutdownResourceAndDelete_(RendererFrontend::Instance_());
         ShutdownResourceAndDelete_(Window::Instance_());
         ShutdownResourceAndDelete_(EntityManager::Instance_());
-        ShutdownResourceAndDelete_(TaskSystem::Instance_());
+        //ShutdownResourceAndDelete_(TaskSystem::Instance_());
         // This one does not have a specialized instance
         GraphicsDriver::Shutdown();
         // This one does not have a shutdown routine

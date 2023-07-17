@@ -116,6 +116,7 @@ namespace stratus {
     class Texture {
         friend class ResourceManager;
         friend class TextureImpl;
+        friend struct TextureMemResidencyGuard;
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> impl_;
 
@@ -141,10 +142,6 @@ namespace stratus {
         
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
-        // Makes the texture resident in GPU memory for bindless use
-        static void MakeResident(const Texture&);
-        // Removes residency
-        static void MakeNonResident(const Texture&);
 
         uint32_t Width() const;
         uint32_t Height() const;
@@ -172,8 +169,34 @@ namespace stratus {
         const TextureConfig & GetConfig() const;
 
     private:
+        // Makes the texture resident in GPU memory for bindless use
+        static void MakeResident_(const Texture&);
+        // Removes residency
+        static void MakeNonResident_(const Texture&);
+
+    private:
         void SetHandle_(const TextureHandle);
     };
+
+    struct TextureMemResidencyGuard {
+        TextureMemResidencyGuard(const Texture&);
+
+        TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard(const TextureMemResidencyGuard&) noexcept;
+
+        TextureMemResidencyGuard& operator=(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard& operator=(const TextureMemResidencyGuard&) noexcept;
+
+        ~TextureMemResidencyGuard();
+
+    private:
+        void Copy_(const TextureMemResidencyGuard&);
+        void IncrementRefcount_();
+        void DecrementRefcount_();
+
+    private:
+        Texture texture_ = Texture();
+    }; 
 }
 
 namespace std {

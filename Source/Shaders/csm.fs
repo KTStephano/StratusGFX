@@ -6,7 +6,7 @@ STRATUS_GLSL_VERSION
 #include "alpha_test.glsl"
 
 // Cascaded Shadow Maps
-in float fsTanTheta;
+//in float fsTanTheta;
 flat in int fsDrawID;
 smooth in vec2 fsTexCoords;
 

@@ -62,6 +62,14 @@ namespace stratus {
         glm::mat4 transform_ = glm::mat4(1.0f);
     };
 
+    // Used by the renderer to represent final transforms
+    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
+        MeshWorldTransforms() = default;
+        MeshWorldTransforms(const MeshWorldTransforms&) = default;
+
+        std::vector<glm::mat4> transforms;
+    };
+
     class TransformProcess : public EntityProcess {
         virtual ~TransformProcess();
 

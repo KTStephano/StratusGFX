@@ -14,10 +14,13 @@ namespace stratus {
     }
 
     class TextureImpl {
-        GLuint _texture;
-        TextureConfig _config;
-        mutable int _activeTexture = -1;
+        friend struct TextureMemResidencyGuard;
+
+        GLuint texture_;
+        TextureConfig config_;
+        mutable int activeTexture_ = -1;
         TextureHandle handle_;
+        int memRefcount_ = 0;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -25,9 +28,9 @@ namespace stratus {
                 handle_ = TextureHandle::NextHandle();
             }
 
-            glGenTextures(1, &_texture);
+            glGenTextures(1, &texture_);
 
-            _config = config;
+            config_ = config;
 
             bind();
             // Use tightly packed data
@@ -108,15 +111,15 @@ namespace stratus {
             unbind();
 
             // Mipmaps aren't generated for rectangle textures
-            if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(_texture);
+            if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(texture_);
         }
 
         ~TextureImpl() {
             if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
-                glDeleteTextures(1, &_texture);
+                glDeleteTextures(1, &texture_);
             }
             else {
-                auto texture = _texture;
+                auto texture = texture_;
                 ApplicationThread::Instance()->Queue([texture]() { GLuint tex = texture; glDeleteTextures(1, &tex); });
             }
         }
@@ -128,30 +131,30 @@ namespace stratus {
         TextureImpl & operator=(TextureImpl &&) = delete;
 
         void setCoordinateWrapping(TextureCoordinateWrapping wrap) {
-            if (_config.type == TextureType::TEXTURE_RECTANGLE && (wrap != TextureCoordinateWrapping::CLAMP_TO_BORDER && wrap != TextureCoordinateWrapping::CLAMP_TO_EDGE)) {
+            if (config_.type == TextureType::TEXTURE_RECTANGLE && (wrap != TextureCoordinateWrapping::CLAMP_TO_BORDER && wrap != TextureCoordinateWrapping::CLAMP_TO_EDGE)) {
                 STRATUS_ERROR << "Texture_Rectangle ONLY supports clamp to edge and clamp to border" << std::endl;
                 throw std::runtime_error("Invalid Texture_Rectangle coordinate wrapping");
             }
 
             bind();
-            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
-            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
+            glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
+            glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (_config.type == TextureType::TEXTURE_CUBE_MAP || _config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            if (config_.type == TextureType::TEXTURE_CUBE_MAP || config_.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
             unbind();
         }
 
         void setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) {
             bind();
-            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
-            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
+            glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
+            glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
             unbind();
         }
 
         void setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) {
             bind();
-            glTexParameteri(_convertTexture(_config.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
-            glTexParameterf(_convertTexture(_config.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
+            glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
+            glTexParameterf(_convertTexture(config_.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
             unbind();
         }
 
@@ -161,10 +164,10 @@ namespace stratus {
 
         void Clear(const int mipLevel, const void * clearValue) const {
             glClearTexImage(
-                _texture, 
+                texture_, 
                 mipLevel,
-                _convertFormat(_config.format), // format (e.g. RGBA)
-                _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
+                _convertFormat(config_.format), // format (e.g. RGBA)
+                _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                 clearValue
             ); 
         }
@@ -184,7 +187,7 @@ namespace stratus {
                 const int zoffset = layer * multiplier;
                 const int depth = multiplier; // number of layers to clear which for a cubemap is 6
                 glClearTexSubImage(
-                    _texture, 
+                    texture_, 
                     mipLevel, 
                     xoffset, 
                     yoffset, 
@@ -192,20 +195,20 @@ namespace stratus {
                     width(), 
                     height(), 
                     depth,
-                    _convertFormat(_config.format), // format (e.g. RGBA)
-                    _convertType(_config.dataType, _config.storage), // type (e.g. FLOAT))
+                    _convertFormat(config_.format), // format (e.g. RGBA)
+                    _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                     clearValue
                 );
             }
         }
 
-        TextureType type() const               { return _config.type; }
-        TextureComponentFormat format() const  { return _config.format; }
+        TextureType type() const               { return config_.type; }
+        TextureComponentFormat format() const  { return config_.format; }
         TextureHandle handle() const           { return handle_; }
 
         // These cause RenderDoc to disable frame capture... super unfortunate
         GpuTextureHandle GpuHandle() const {
-            auto gpuHandle = glGetTextureHandleARB(_texture);
+            auto gpuHandle = glGetTextureHandleARB(texture_);
             if (gpuHandle == 0) {
                 throw std::runtime_error("GPU texture handle is null");
             }
@@ -223,35 +226,35 @@ namespace stratus {
             glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle());
         }
 
-        uint32_t width() const                 { return _config.width; }
-        uint32_t height() const                { return _config.height; }
-        uint32_t depth() const                 { return _config.depth; }
-        void * Underlying() const              { return (void *)&_texture; }
+        uint32_t width() const                 { return config_.width; }
+        uint32_t height() const                { return config_.height; }
+        uint32_t depth() const                 { return config_.depth; }
+        void * Underlying() const              { return (void *)&texture_; }
 
     public:
         void bind(int activeTexture = 0) const {
             unbind();
             glActiveTexture(GL_TEXTURE0 + activeTexture);
-            glBindTexture(_convertTexture(_config.type), _texture);
-            _activeTexture = activeTexture;
+            glBindTexture(_convertTexture(config_.type), texture_);
+            activeTexture_ = activeTexture;
         }
 
         void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
             GLenum accessMode = _convertImageAccessMode(access);
             glBindImageTexture(unit, 
-                               _texture, 
+                               texture_, 
                                0, 
                                layered ? GL_TRUE : GL_FALSE,
                                layer,
                                accessMode,
-                               _convertInternalFormat(_config.format, _config.storage, _config.dataType));
+                               _convertInternalFormat(config_.format, config_.storage, config_.dataType));
         }
 
         void unbind() const {
-            if (_activeTexture == -1) return;
-            glActiveTexture(GL_TEXTURE0 + _activeTexture);
-            glBindTexture(_convertTexture(_config.type), 0);
-            _activeTexture = -1;
+            if (activeTexture_ == -1) return;
+            glActiveTexture(GL_TEXTURE0 + activeTexture_);
+            glBindTexture(_convertTexture(config_.type), 0);
+            activeTexture_ = -1;
         }
 
         std::shared_ptr<TextureImpl> copy(const TextureImpl & other) {
@@ -259,7 +262,7 @@ namespace stratus {
         }
 
         const TextureConfig & getConfig() const {
-            return _config;
+            return config_;
         }
 
     private:
@@ -527,8 +530,8 @@ namespace stratus {
 
     GpuTextureHandle Texture::GpuHandle() const { return impl_->GpuHandle(); }
 
-    void Texture::MakeResident(const Texture& texture) { TextureImpl::MakeResident(texture); }
-    void Texture::MakeNonResident(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
+    void Texture::MakeResident_(const Texture& texture) { TextureImpl::MakeResident(texture); }
+    void Texture::MakeNonResident_(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
     uint32_t Texture::Width() const { return impl_->width(); }
     uint32_t Texture::Height() const { return impl_->height(); }
@@ -565,5 +568,59 @@ namespace stratus {
 
     void Texture::SetHandle_(const TextureHandle handle) {
         impl_->setHandle(handle);
+    }
+
+    TextureMemResidencyGuard::TextureMemResidencyGuard(const Texture& texture)
+        : texture_(texture) {
+
+        IncrementRefcount_(); 
+    }
+
+    TextureMemResidencyGuard::TextureMemResidencyGuard(TextureMemResidencyGuard&& other) noexcept {
+        this->operator=(other);
+    }
+
+    TextureMemResidencyGuard::TextureMemResidencyGuard(const TextureMemResidencyGuard& other) noexcept {
+        this->operator=(other);
+    }
+        
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(TextureMemResidencyGuard&& other) noexcept {
+        Copy_(other);
+        return *this;
+    }
+
+    TextureMemResidencyGuard& TextureMemResidencyGuard::operator=(const TextureMemResidencyGuard& other) noexcept {
+        Copy_(other);
+        return *this;
+    }
+
+    void TextureMemResidencyGuard::Copy_(const TextureMemResidencyGuard& other) {
+        if (this->texture_ == other.texture_) return;
+
+        DecrementRefcount_();
+        this->texture_ = other.texture_;
+        IncrementRefcount_();
+    }
+
+    void TextureMemResidencyGuard::IncrementRefcount_() {
+        if (texture_ == Texture()) return;
+
+        texture_.impl_->memRefcount_ += 1;
+        if (texture_.impl_->memRefcount_ == 1) {
+            Texture::MakeResident_(texture_);
+        }
+    }
+
+    void TextureMemResidencyGuard::DecrementRefcount_() {
+        if (texture_ == Texture()) return;
+
+        texture_.impl_->memRefcount_ -= 1;
+        if (texture_.impl_->memRefcount_ == 0) {
+            Texture::MakeNonResident_(texture_);
+        }
+    }
+
+    TextureMemResidencyGuard::~TextureMemResidencyGuard() {
+        DecrementRefcount_();
     }
 }
