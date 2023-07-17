@@ -66,7 +66,7 @@ public:
         //INSTANCE(InputManager)->AddInputHandler(controller);
          
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sanMiguel = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sanMiguel);
@@ -160,7 +160,7 @@ public:
                     for (int z = -30; z < 120; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.5f),
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
                                 false
                             );
                     }
