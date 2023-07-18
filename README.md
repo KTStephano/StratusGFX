@@ -1,4 +1,4 @@
-# ![logo](https://user-images.githubusercontent.com/8399235/254135243-f0a084ec-9552-4732-90a9-febd4b6569a2.jpg)
+# ![logo](https://user-images.githubusercontent.com/8399235/254135954-84b9cb9a-b01e-43e0-8a3c-16217af4432e.jpg)
 
 Release State: **Pre-Release/Beta**
 
