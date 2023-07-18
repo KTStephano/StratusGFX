@@ -360,7 +360,7 @@ namespace stratus {
         frame_->view = camera_->GetViewTransform();
 
         UpdateViewport_();
-        UpdateCascadeTransforms_();
+        UpdateCascadeData_();
         CheckForEntityChanges_();
         UpdateLights_();
         UpdateMaterialSet_();
@@ -505,7 +505,13 @@ namespace stratus {
         frame_->fovy           = Radians(params_.fovy);
     }
 
-    void RendererFrontend::UpdateCascadeTransforms_() {
+    void RendererFrontend::UpdateCascadeData_() {
+        auto requestedCascadeResolutionXY = static_cast<uint32_t>(frame_->settings.cascadeResolution);
+
+        frame_->csc.regenerateFbo = frame_->csc.cascadeResolutionXY != requestedCascadeResolutionXY;
+
+        frame_->csc.cascadeResolutionXY = requestedCascadeResolutionXY;
+
         const float cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
         const float cascadeDelta = cascadeResReciprocal;
         const size_t numCascades = frame_->csc.cascades.size();

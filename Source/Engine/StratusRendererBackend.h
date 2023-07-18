@@ -41,6 +41,13 @@ namespace stratus {
     extern bool IsLightInteracting(const EntityPtr&);
     extern size_t GetMeshCount(const EntityPtr&);
 
+    enum class RendererCascadeResolution : int {
+        CASCADE_RESOLUTION_1024 = 1024,
+        CASCADE_RESOLUTION_2048 = 2048,
+        CASCADE_RESOLUTION_4096 = 4096,
+        CASCADE_RESOLUTION_8192 = 8192
+    };
+
     struct RenderMeshContainer {
         RenderComponent * render = nullptr;
         MeshWorldTransforms * transform = nullptr;
@@ -162,6 +169,7 @@ namespace stratus {
         bool taaEnabled = true;
         bool bloomEnabled = true;
         bool usePerceptualRoughness = true;
+        RendererCascadeResolution cascadeResolution = RendererCascadeResolution::CASCADE_RESOLUTION_1024;
 
         float GetEmissionStrength() const {
             return emissionStrength_;

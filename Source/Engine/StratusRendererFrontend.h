@@ -75,7 +75,7 @@ namespace stratus {
 
     private:
         void UpdateViewport_();
-        void UpdateCascadeTransforms_();
+        void UpdateCascadeData_();
         void CheckForEntityChanges_();
         void UpdateLights_();
         void UpdateMaterialSet_();
