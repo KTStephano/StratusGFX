@@ -1,4 +1,4 @@
-# StratusGFX / Stratus Engine
+# ![logo](https://user-images.githubusercontent.com/8399235/254134808-86724ef5-73ed-4a1f-999d-babb74f7942a.jpg)
 
 Release State: **Pre-Release/Beta**
 
