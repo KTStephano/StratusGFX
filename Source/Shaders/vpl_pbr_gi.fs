@@ -109,7 +109,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
     float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
-    vec3 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rgb;
+    vec3 baseReflectivity = vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
 
     float history = textureLod(historyDepth, texCoords, 0).r;
 
