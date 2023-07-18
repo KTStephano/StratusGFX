@@ -22,6 +22,7 @@
 #include "StratusGpuCommon.h"
 #include "WorldLightController.h"
 #include "FrameRateController.h"
+#include "StratusWindow.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -34,6 +35,8 @@ public:
     // Perform first-time initialization - true if success, false otherwise
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
+
+        //INSTANCE(Window)->SetWindowDims(1920, 1080);
 
         LightCreator::Initialize();
 

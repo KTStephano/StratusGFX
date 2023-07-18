@@ -97,6 +97,7 @@ namespace stratus {
         resized_ = false;
         if (width_ != prevWidth_ || height_ != prevHeight_) {
             resized_ = true;
+            SDL_SetWindowSize(window_, width_, height_);
         }
         prevWidth_ = width_;
         prevHeight_ = height_;

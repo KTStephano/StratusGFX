@@ -342,6 +342,8 @@ void RendererBackend::RecalculateCascadeData_() {
         // Create the frame buffer
         frame_->csc.fbo = FrameBuffer({ tex });
     }
+
+    frame_->csc.regenerateFbo = false;
 }
 
 void RendererBackend::ClearGBuffer_() {
