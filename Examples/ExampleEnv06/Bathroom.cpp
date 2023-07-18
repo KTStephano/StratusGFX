@@ -62,7 +62,7 @@ public:
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(256);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
