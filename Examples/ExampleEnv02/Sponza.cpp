@@ -149,32 +149,9 @@ public:
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 100.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_3: {
-                            if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 50.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_4: {
-                            if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 15.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_5: {
-                            if (released) {
-                                LightCreator::CreateRandomLightMover(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 800.0f),
+                                    false
                                 );
                             }
                             break;

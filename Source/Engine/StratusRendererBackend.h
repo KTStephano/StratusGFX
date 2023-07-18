@@ -304,9 +304,9 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numRegularShadowMaps = 80;
+            int numRegularShadowMaps = 200;
             int shadowCubeMapX = 256, shadowCubeMapY = 256;
-            int maxShadowCastingLightsPerFrame = 20; // per frame
+            int maxShadowCastingLightsPerFrame = 200; // per frame
             int maxTotalRegularLightsPerFrame = 200; // per frame
             GpuBuffer nonShadowCastingPointLights;
             //GpuBuffer shadowCubeMaps;
@@ -590,7 +590,7 @@ namespace stratus {
         void RenderSsaoBlur_();
         glm::vec3 CalculateAtmosphericLightPosition_() const;
         void RenderAtmosphericShadowing_();
-        ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl);
+        ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl, const TextureComponentSize&);
         GpuAtlasEntry GetOrAllocateShadowMapForLight_(LightPtr);
         void SetLightShadowMap3D_(LightPtr, GpuAtlasEntry);
         GpuAtlasEntry EvictLightFromShadowMapCache_(LightPtr);

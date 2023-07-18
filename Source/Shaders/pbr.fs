@@ -123,7 +123,7 @@ void main() {
             if (viewDist < 100.0) {
                 shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[entry.index], entry.layer, light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
-            else if (viewDist < 650.0) {
+            else if (viewDist < 500.0) {
                 shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
             color = color + calculatePointLighting2(fragPos, baseColor, normal, viewDir, light.position.xyz, light.color.xyz, viewDist, roughness, metallic, ambient, shadowFactor, vec3(baseReflectivity.r));

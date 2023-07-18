@@ -270,7 +270,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
 
 void RendererBackend::InitPointShadowMaps_() {
     // Create the normal point shadow map cache
-    smapCache_ = CreateShadowMap3DCache_(state_.shadowCubeMapX, state_.shadowCubeMapY, state_.numRegularShadowMaps, false);
+    smapCache_ = CreateShadowMap3DCache_(state_.shadowCubeMapX, state_.shadowCubeMapY, state_.numRegularShadowMaps, false, TextureComponentSize::BITS_16);
 
     // Initialize the point light buffers including shadow map texture buffer
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
@@ -281,7 +281,7 @@ void RendererBackend::InitPointShadowMaps_() {
     STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
 
     // Create the virtual point light shadow map cache
-    vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true);
+    vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
     state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
     STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
@@ -1303,7 +1303,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
     };
 
     const bool regularLightsMaxExceeded = perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame;
-    const bool regularShadowLightsMaxExceeded = perLightShadowCastingDistToViewer.size() > state_.maxShadowCastingLightsPerFrame;
+    const bool regularShadowLightsMaxExceeded = perLightShadowCastingDistToViewer.size() > state_.numRegularShadowMaps;
     
     if (regularLightsMaxExceeded || regularShadowLightsMaxExceeded) {
         std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
@@ -2218,7 +2218,7 @@ void RendererBackend::RenderQuad_() {
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
-RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl) {
+RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl, const TextureComponentSize& bits) {
     ShadowMapCache cache;
     
     int remaining = int(count);
@@ -2234,7 +2234,7 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_
         const uint32_t numLayers = entries;
 
         std::vector<Texture> attachments;
-        Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+        Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, bits, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
         texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
