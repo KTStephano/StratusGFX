@@ -10,7 +10,7 @@
 
 struct CameraController : public stratus::InputHandler {
     CameraController() {
-        _camera = stratus::CameraPtr(new stratus::Camera());
+        _camera = stratus::CameraPtr(new stratus::Camera(true, true));
         stratus::RendererFrontend::Instance()->SetCamera(_camera);
 
         _cameraLight = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
@@ -39,12 +39,13 @@ struct CameraController : public stratus::InputHandler {
         // Handle WASD movement
         for (auto e : input) {
             switch (e.type) {
-                case SDL_MOUSEMOTION:
-                    if (_cameraRotateEnabled) {
-                        _camera->ModifyAngle(stratus::Degrees(0.0f), stratus::Degrees(-e.motion.xrel), stratus::Degrees(0.0f));
-                    }
+                case SDL_MOUSEMOTION: {
+                    const float pitch = _cameraLookUpDownEnabled ? e.motion.yrel : 0.0f;
+                    const float yaw = _cameraRotateEnabled ? -e.motion.xrel : 0.0f;
+                    _camera->ModifyAngle(stratus::Degrees(pitch), stratus::Degrees(yaw), stratus::Degrees(0.0f));
                     //STRATUS_LOG << camera.getRotation() << std::endl;
                     break;
+                }
                 case SDL_KEYDOWN:
                 case SDL_KEYUP: {
                     bool released = e.type == SDL_KEYUP;
@@ -102,6 +103,12 @@ struct CameraController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case (SDL_SCANCODE_U): {
+                            if (released) {
+                                _cameraLookUpDownEnabled = !_cameraLookUpDownEnabled;
+                            }
+                            break;
+                        }
                         // Adds or removes the light following the camera
                         case SDL_SCANCODE_F:
                             if (released) {
@@ -152,6 +159,7 @@ private:
     bool _cameraLightEnabled = false;
     bool _cameraMoveEnabled = true;
     bool _cameraRotateEnabled = true;
+    bool _cameraLookUpDownEnabled = false;
     glm::vec3 _cameraSpeed = glm::vec3(0.0f);
     float _camSpeedDivide = 0.25f; // For slowing camera down
 };

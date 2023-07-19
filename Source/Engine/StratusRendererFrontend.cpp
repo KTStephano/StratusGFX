@@ -516,7 +516,7 @@ namespace stratus {
         const float cascadeDelta = cascadeResReciprocal;
         const size_t numCascades = frame_->csc.cascades.size();
 
-        frame_->csc.worldLightCamera = CameraPtr(new Camera(false));
+        frame_->csc.worldLightCamera = CameraPtr(new Camera(false, false));
         auto worldLightCamera = frame_->csc.worldLightCamera;
         worldLightCamera->SetAngle(worldLight_->GetRotation());
 

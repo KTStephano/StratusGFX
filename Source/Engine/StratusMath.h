@@ -10,7 +10,7 @@
 #include "glm/glm.hpp"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
-#include <glm/gtc/quaternion.hpp> 
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
 #define STRATUS_PI 3.14159265358979323846
@@ -284,6 +284,19 @@ namespace stratus {
         matScale(id, scale);
         matTranslate(id, translation);
         return id;
+    }
+
+    // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
+    static glm::mat4 RotationAboutAxis(const glm::vec3& axis, const Radians& angle) {
+        const float halfAngle = angle.value() / 2.0f;
+        const float x = axis.x * glm::sin(halfAngle);
+        const float y = axis.y * glm::sin(halfAngle);
+        const float z = axis.z * glm::sin(halfAngle);
+        const float w = glm::cos(halfAngle);
+
+        const auto rotation = glm::quat(w, x, y, z);
+
+        return glm::toMat4(rotation);
     }
 
     // @See https://www.3dgep.com/understanding-the-view-matrix/

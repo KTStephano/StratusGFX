@@ -6,17 +6,26 @@
 #include "StratusUtils.h"
 
 namespace stratus {
-    Camera::Camera(bool rangeCheckAngles) : rangeCheckAngles_(rangeCheckAngles) {}
+    static inline const glm::vec3& GetWorldUp() {
+        static const glm::vec3 worldUp(0.0f, -1.0f, 0.0f);
+        return worldUp;
+    }
 
-    void Camera::ModifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll) {
-        SetAngle(Rotation(rotation_.x + deltaYaw, rotation_.y + deltaPitch, rotation_.z + deltaRoll));
+    // With reOrthonormalizeBasisVectors set to true, it will attempt to stabilize the
+    // direction and side vectors each frame so that the camera behaves in an FPS-like way
+    Camera::Camera(bool reOrthonormalizeBasisVectors, bool rangeCheckAngles) 
+        : reOrthonormalizeBasisVectors_(reOrthonormalizeBasisVectors), rangeCheckAngles_(rangeCheckAngles) {}
+
+    void Camera::ModifyAngle(Degrees deltaPitch, Degrees deltaYaw, Degrees deltaRoll) {
+        SetAngle(Rotation(rotation_.x + deltaPitch, rotation_.y + deltaYaw, rotation_.z + deltaRoll));
     }
 
     void Camera::SetAngle(const Rotation & rotation) {
         rotation_ = rotation;
         if (rangeCheckAngles_) {
-            if (rotation_.x.value() > 89) rotation_.x = Degrees(89.0f);
-            else if (rotation_.x.value() < -89.0f) rotation_.x = Degrees(-89.0f);
+            const float minMax = 75.0f;
+            if (rotation_.x.value() > minMax) rotation_.x = Degrees(minMax);
+            else if (rotation_.x.value() < -minMax) rotation_.x = Degrees(-minMax);
         }
         InvalidateView_();
     }
@@ -62,10 +71,29 @@ namespace stratus {
         return speed_;
     }
 
+    //void Camera::Update(double deltaSeconds) {
+    //    glm::vec3 dir = GetDirection();
+    //    glm::vec3 up = GetUp();
+    //    glm::vec3 side = GetSide();
+
+    //    // Update the position
+    //    position_ += dir * speed_.z * (float)deltaSeconds;
+    //    position_ += up * speed_.y * (float)deltaSeconds;
+    //    position_ += side * speed_.x * (float)deltaSeconds;
+
+    //    InvalidateView_();
+    //}
+
     void Camera::Update(double deltaSeconds) {
-        const glm::vec3 dir = GetDirection();
-        const glm::vec3 up = GetUp();
-        const glm::vec3 side = GetSide();
+        glm::vec3 dir = GetDirection();
+        glm::vec3 up = GetUp();
+        glm::vec3 side = GetSide();
+
+        if (reOrthonormalizeBasisVectors_) {
+            up = GetWorldUp();
+            dir = glm::normalize(glm::cross(-up, side));
+            side = -glm::normalize(glm::cross(-up, dir));
+        }
 
         // Update the position
         position_ += dir  * speed_.z * (float)deltaSeconds;
@@ -89,11 +117,39 @@ namespace stratus {
         viewTransformValid_ = false;
     }
 
+    //void Camera::UpdateViewTransform_() const {
+    //    if (viewTransformValid_) return;
+    //    worldTransform_ = constructTransformMat(rotation_, position_, glm::vec3(1.0f));
+    //    viewTransform_ = glm::inverse(worldTransform_);
+    //    viewTransformValid_ = true;
+    //}
+
     void Camera::UpdateViewTransform_() const {
         if (viewTransformValid_) return;
-        worldTransform_ = constructTransformMat(rotation_, position_, glm::vec3(1.0f));
-        viewTransform_ = glm::inverse(worldTransform_);
         viewTransformValid_ = true;
+
+        // Store new transform in a temporary variable so we can use the previous frame's data for
+        // side and direction
+        auto tmp = glm::mat4(1.0f);
+
+        if (reOrthonormalizeBasisVectors_) {
+            glm::vec3 dir = GetDirection();
+            glm::vec3 up = GetWorldUp();
+            glm::vec3 side = GetSide();
+
+            dir = glm::normalize(glm::cross(-up, side));
+            side = glm::normalize(glm::cross(-up, dir));
+
+            tmp = RotationAboutAxis(side, rotation_.x) * RotationAboutAxis(-GetWorldUp(), rotation_.y);
+            matTranslate(tmp, position_);
+        }
+        else {
+            tmp = constructTransformMat(rotation_, position_, glm::vec3(1.0f));
+        }
+        
+        // Now update
+        worldTransform_ = tmp;
+        viewTransform_ = glm::inverse(worldTransform_);
     }
 
     CameraPtr Camera::Copy() const {

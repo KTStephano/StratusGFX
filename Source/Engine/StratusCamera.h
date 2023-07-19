@@ -14,16 +14,17 @@ namespace stratus {
  * from a certain perspective.
  */
 class Camera {
-    mutable glm::mat4 viewTransform_;
-    mutable glm::mat4 worldTransform_;
+    mutable glm::mat4 viewTransform_ = glm::mat4(1.0f);
+    mutable glm::mat4 worldTransform_ = glm::mat4(1.0f);
     glm::vec3 position_ = glm::vec3(0.0f);
     glm::vec3 speed_ = glm::vec3(0.0f);
     Rotation rotation_;
+    bool reOrthonormalizeBasisVectors_;
     bool rangeCheckAngles_;
     mutable bool viewTransformValid_ = false;
 
 public:
-    Camera(bool rangeCheckAngles = true);
+    Camera(bool reOrthonormalizeBasisVectors, bool rangeCheckAngles);
     Camera(const Camera&) = default;
     Camera(Camera&&) = default;
     ~Camera() = default;
@@ -35,7 +36,7 @@ public:
      * @param deltaPitch change in angle pitch
      * @param deltaRoll change angle in roll
      */
-    void ModifyAngle(Degrees deltaYaw, Degrees deltaPitch, Degrees deltaRoll);
+    void ModifyAngle(Degrees deltaPitch, Degrees deltaYaw, Degrees deltaRoll);
 
     // Sets the x, y and z angles in degrees
     void SetAngle(const Rotation & rotation);
