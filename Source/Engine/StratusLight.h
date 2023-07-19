@@ -83,9 +83,9 @@ namespace stratus {
 
         float GetIntensity() const { 
             // Reduce light intensity as sun goes down
-            if (rotSine_.value() < 0.0f) {
-                return std::max(minLightColor, intensity_ * (1.0f + rotSine_.value()));
-            }
+            // if (rotSine_.value() < 0.0f) {
+            //     return std::max(minLightColor, intensity_ * (1.0f + rotSine_.value()));
+            // }
             return intensity_; 
         }
 
