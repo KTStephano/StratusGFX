@@ -12,8 +12,8 @@ struct FrameRateController : public stratus::InputHandler {
     FrameRateController() {
         //INSTANCE(RendererFrontend)->SetVsyncEnabled(true);
         // 1000 fps is just to get the engine out of the way so SDL can control it with vsync
-        _frameRates = {1000, 60, 55, 50, 45, 40, 35, 30};
-        INSTANCE(Engine)->SetMaxFrameRate(_frameRates[0]);
+        frameRates_ = {1000, 60, 55, 50, 45, 40, 35, 30};
+        INSTANCE(Engine)->SetMaxFrameRate(frameRates_[0]);
     }
 
     // This class is deleted when the Window is deleted so the Renderer has likely already
@@ -35,9 +35,9 @@ struct FrameRateController : public stratus::InputHandler {
                         // Why M? Because F is used for flash light and R is recompile :(
                         case SDL_SCANCODE_M:
                             if (released) {
-                                _frameRateIndex = (_frameRateIndex + 1) % _frameRates.size();
-                                INSTANCE(Engine)->SetMaxFrameRate(_frameRates[_frameRateIndex]);
-                                STRATUS_LOG << "Max Frame Rate Toggled: " << _frameRates[_frameRateIndex] << std::endl;
+                                frameRateIndex_ = (frameRateIndex_ + 1) % frameRates_.size();
+                                INSTANCE(Engine)->SetMaxFrameRate(frameRates_[frameRateIndex_]);
+                                STRATUS_LOG << "Max Frame Rate Toggled: " << frameRates_[frameRateIndex_] << std::endl;
                                 break;
                             }
                     }
@@ -47,6 +47,6 @@ struct FrameRateController : public stratus::InputHandler {
     }
 
 private:
-    size_t _frameRateIndex = 0;
-    std::vector<uint32_t> _frameRates;
+    size_t frameRateIndex_ = 0;
+    std::vector<uint32_t> frameRates_;
 };

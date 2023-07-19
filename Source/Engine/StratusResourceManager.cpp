@@ -345,7 +345,7 @@ namespace stratus {
         STRATUS_LOG << out.str();
     }
 
-    struct __MeshToProcess {
+    struct MeshToProcess_ {
         aiMesh * aim;
         MeshPtr mesh;
         MaterialPtr material;
@@ -362,7 +362,7 @@ namespace stratus {
     //    RenderFaceCulling defaultCullMode, 
     //    const ColorSpace& cspace) {
     static void ProcessMesh(
-        __MeshToProcess& processMesh,
+        MeshToProcess_& processMesh,
         const aiScene * scene, 
         const std::string& directory, 
         const std::string& extension, 
@@ -559,7 +559,7 @@ namespace stratus {
         const std::string& extension, 
         RenderFaceCulling defaultCullMode, 
         const ColorSpace& cspace,
-        std::vector<__MeshToProcess>& meshes) {
+        std::vector<MeshToProcess_>& meshes) {
 
         // set the transformation info
         aiMatrix4x4 aiMatTransform = node->mTransformation;
@@ -622,7 +622,7 @@ namespace stratus {
                 rnode->meshes->meshes.push_back(stratusMesh);
                 rnode->meshes->transforms.push_back(gt);
                 rnode->AddMaterial(m);
-                __MeshToProcess meshToProcess;
+                MeshToProcess_ meshToProcess;
                 meshToProcess.aim = mesh;
                 meshToProcess.mesh = stratusMesh;
                 meshToProcess.material = m;
@@ -687,7 +687,7 @@ namespace stratus {
         }
 
         EntityPtr e = CreateTransformEntity();
-        std::vector<__MeshToProcess> meshes;
+        std::vector<MeshToProcess_> meshes;
         const std::string extension = name.substr(name.find_last_of('.') + 1, name.size());
         const std::string directory = name.substr(0, name.find_last_of('/'));
         ProcessNode(scene->mRootNode, scene, e, aiMatrix4x4(), name, directory, extension, defaultCullMode, cspace, meshes);

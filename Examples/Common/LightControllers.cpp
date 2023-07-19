@@ -261,16 +261,16 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         c->elapsedSeconds += deltaSeconds;
         if (c->elapsedSeconds > 5.0) {
             c->elapsedSeconds = 0.0;
-            _ChangeDirection(c);
+            ChangeDirection_(c);
         }
     }
 }
 
 void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
-        if (_IsEntityRelevant(ptr)) {
+        if (IsEntityRelevant_(ptr)) {
             entities_.insert(ptr);
-            _ChangeDirection(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
+            ChangeDirection_(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
         }
     }
 }
@@ -289,13 +289,13 @@ void RandomLightMoverProcess::EntityComponentsEnabledDisabled(const std::unorder
 
 }
 
-bool RandomLightMoverProcess::_IsEntityRelevant(const stratus::EntityPtr& e) {
+bool RandomLightMoverProcess::IsEntityRelevant_(const stratus::EntityPtr& e) {
     return e->Components().ContainsComponent<RandomLightMoverComponent>() &&
         e->Components().ContainsComponent<LightComponent>() &&
         e->Components().ContainsComponent<LightCubeComponent>();
 }
 
-void RandomLightMoverProcess::_ChangeDirection(RandomLightMoverComponent * c) {
+void RandomLightMoverProcess::ChangeDirection_(RandomLightMoverComponent * c) {
         float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
         float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
         float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;

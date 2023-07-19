@@ -10,15 +10,15 @@
 
 struct CameraController : public stratus::InputHandler {
     CameraController() {
-        _camera = stratus::CameraPtr(new stratus::Camera(true, true));
-        stratus::RendererFrontend::Instance()->SetCamera(_camera);
+        camera_ = stratus::CameraPtr(new stratus::Camera(true, true));
+        stratus::RendererFrontend::Instance()->SetCamera(camera_);
 
-        _cameraLight = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
-        _cameraLight->SetCastsShadows(false);
-        _cameraLight->SetIntensity(600.0f);
+        cameraLight_ = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
+        cameraLight_->SetCastsShadows(false);
+        cameraLight_->SetIntensity(600.0f);
 
-        if (_cameraLightEnabled) {
-            stratus::RendererFrontend::Instance()->AddLight(_cameraLight);
+        if (cameraLightEnabled_) {
+            stratus::RendererFrontend::Instance()->AddLight(cameraLight_);
         }
     }
 
@@ -28,8 +28,8 @@ struct CameraController : public stratus::InputHandler {
     virtual ~CameraController() {
         INSTANCE(RendererFrontend)->SetCamera(nullptr);
 
-        if (_cameraLightEnabled) {
-            INSTANCE(RendererFrontend)->RemoveLight(_cameraLight);
+        if (cameraLightEnabled_) {
+            INSTANCE(RendererFrontend)->RemoveLight(cameraLight_);
         }
     }
 
@@ -40,9 +40,9 @@ struct CameraController : public stratus::InputHandler {
         for (auto e : input) {
             switch (e.type) {
                 case SDL_MOUSEMOTION: {
-                    const float pitch = _cameraLookUpDownEnabled ? e.motion.yrel : 0.0f;
-                    const float yaw = _cameraRotateEnabled ? -e.motion.xrel : 0.0f;
-                    _camera->ModifyAngle(stratus::Degrees(pitch), stratus::Degrees(yaw), stratus::Degrees(0.0f));
+                    const float pitch = cameraLookUpDownEnabled_ ? e.motion.yrel : 0.0f;
+                    const float yaw = cameraRotateEnabled_ ? -e.motion.xrel : 0.0f;
+                    camera_->ModifyAngle(stratus::Degrees(pitch), stratus::Degrees(yaw), stratus::Degrees(0.0f));
                     //STRATUS_LOG << camera.getRotation() << std::endl;
                     break;
                 }
@@ -52,73 +52,73 @@ struct CameraController : public stratus::InputHandler {
                     SDL_Scancode key = e.key.keysym.scancode;
                     switch (key) {
                         case SDL_SCANCODE_SPACE:
-                            if (!released && _cameraMoveEnabled) {
-                                _camSpeedDivide = 1.0f;
+                            if (!released && cameraMoveEnabled_) {
+                                camSpeedDivide_ = 1.0f;
                             }
                             else {
-                                _camSpeedDivide = 0.25f;
+                                camSpeedDivide_ = 0.25f;
                             }
                             break;
                         case SDL_SCANCODE_LSHIFT:
-                            if (!released && _cameraMoveEnabled) {
-                                _camSpeedDivide = 0.125f;
+                            if (!released && cameraMoveEnabled_) {
+                                camSpeedDivide_ = 0.125f;
                             }
                             else {
-                                _camSpeedDivide = 0.25f;
+                                camSpeedDivide_ = 0.25f;
                             }
                             break;
                         case SDL_SCANCODE_LCTRL:
-                            if (!released && _cameraMoveEnabled) {
-                                _camSpeedDivide = 0.025f;
+                            if (!released && cameraMoveEnabled_) {
+                                camSpeedDivide_ = 0.025f;
                             }
                             else {
-                                _camSpeedDivide = 0.25f;
+                                camSpeedDivide_ = 0.25f;
                             }
                             break;
                         case SDL_SCANCODE_W:
                         case SDL_SCANCODE_S:
-                            if (!released && _cameraMoveEnabled) {
-                                _cameraSpeed.x = key == SDL_SCANCODE_W ? camSpeed : -camSpeed;
+                            if (!released && cameraMoveEnabled_) {
+                                cameraSpeed_.x = key == SDL_SCANCODE_W ? camSpeed : -camSpeed;
                             } else {
-                                _cameraSpeed.x = 0.0f;
+                                cameraSpeed_.x = 0.0f;
                             }
                             break;
                         case SDL_SCANCODE_A:
                         case SDL_SCANCODE_D:
-                            if (!released && _cameraMoveEnabled) {
-                                _cameraSpeed.y = key == SDL_SCANCODE_D ? camSpeed : -camSpeed;
+                            if (!released && cameraMoveEnabled_) {
+                                cameraSpeed_.y = key == SDL_SCANCODE_D ? camSpeed : -camSpeed;
                             } else {
-                                _cameraSpeed.y = 0.0f;
+                                cameraSpeed_.y = 0.0f;
                             }
                             break;
                         case (SDL_SCANCODE_T): {
                             if (released) {
-                                _cameraMoveEnabled = !_cameraMoveEnabled;
+                                cameraMoveEnabled_ = !cameraMoveEnabled_;
                             }
                             break;
                         }
                         case (SDL_SCANCODE_Y): {
                             if (released) {
-                                _cameraRotateEnabled = !_cameraRotateEnabled;
+                                cameraRotateEnabled_ = !cameraRotateEnabled_;
                             }
                             break;
                         }
                         case (SDL_SCANCODE_U): {
                             if (released) {
-                                _cameraLookUpDownEnabled = !_cameraLookUpDownEnabled;
+                                cameraLookUpDownEnabled_ = !cameraLookUpDownEnabled_;
                             }
                             break;
                         }
                         // Adds or removes the light following the camera
                         case SDL_SCANCODE_F:
                             if (released) {
-                                _cameraLightEnabled = !_cameraLightEnabled;
+                                cameraLightEnabled_ = !cameraLightEnabled_;
                                 
-                                if (_cameraLightEnabled) {
-                                    stratus::RendererFrontend::Instance()->AddLight(_cameraLight);
+                                if (cameraLightEnabled_) {
+                                    stratus::RendererFrontend::Instance()->AddLight(cameraLight_);
                                 }
                                 else {
-                                    stratus::RendererFrontend::Instance()->RemoveLight(_cameraLight);
+                                    stratus::RendererFrontend::Instance()->RemoveLight(cameraLight_);
                                 }
                             }
 
@@ -136,30 +136,30 @@ struct CameraController : public stratus::InputHandler {
 
         // Check mouse state for move up/down
         uint32_t buttonState = mouse.mask;
-        _cameraSpeed.z = 0.0f;
-        if (_cameraMoveEnabled) {
+        cameraSpeed_.z = 0.0f;
+        if (cameraMoveEnabled_) {
             if ((buttonState & SDL_BUTTON_LMASK) != 0) { // left mouse button
-                _cameraSpeed.z = -camSpeed;
+                cameraSpeed_.z = -camSpeed;
             }
             else if ((buttonState & SDL_BUTTON_RMASK) != 0) { // right mouse button
-                _cameraSpeed.z = camSpeed;
+                cameraSpeed_.z = camSpeed;
             }
         }
 
         // Final camera speed update
-        glm::vec3 tmpCamSpeed = _cameraSpeed * _camSpeedDivide;
-        _camera->SetSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
+        glm::vec3 tmpCamSpeed = cameraSpeed_ * camSpeedDivide_;
+        camera_->SetSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
 
-        _cameraLight->SetPosition(_camera->GetPosition());
+        cameraLight_->SetPosition(camera_->GetPosition());
     }
 
 private:
-    stratus::CameraPtr _camera;
-    stratus::LightPtr _cameraLight;
-    bool _cameraLightEnabled = false;
-    bool _cameraMoveEnabled = true;
-    bool _cameraRotateEnabled = true;
-    bool _cameraLookUpDownEnabled = false;
-    glm::vec3 _cameraSpeed = glm::vec3(0.0f);
-    float _camSpeedDivide = 0.25f; // For slowing camera down
+    stratus::CameraPtr camera_;
+    stratus::LightPtr cameraLight_;
+    bool cameraLightEnabled_ = false;
+    bool cameraMoveEnabled_ = true;
+    bool cameraRotateEnabled_ = true;
+    bool cameraLookUpDownEnabled_ = false;
+    glm::vec3 cameraSpeed_ = glm::vec3(0.0f);
+    float camSpeedDivide_ = 0.25f; // For slowing camera down
 };
