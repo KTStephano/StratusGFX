@@ -84,6 +84,13 @@ struct WorldLightController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_K: {
+                            if (released) {
+                                rotationIndex_ = rotationIndex_ == 0 ? rotationSpeeds_.size() - 1 : rotationIndex_ - 1;
+                                STRATUS_LOG << "Rotation Speed: " << rotationSpeeds_[rotationIndex_] << std::endl;
+                            }
+                            break;
+                        }
                         case SDL_SCANCODE_MINUS:
                             if (released) {
                                 lightIntensity = lightIntensity - lightIncreaseSpeed * deltaSeconds;
@@ -145,7 +152,7 @@ struct WorldLightController : public stratus::InputHandler {
     }
 
 private:
-    std::vector<double> rotationSpeeds_ = std::vector<double>{ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0 };
+    std::vector<double> rotationSpeeds_ = std::vector<double>{ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 20.0 };
     size_t rotationIndex_ = 0;
     float worldLightMoveDirection_ = 1.0; // -1.0 reverses it
     stratus::InfiniteLightPtr worldLight_;
