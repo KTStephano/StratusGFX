@@ -19,6 +19,7 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "FrameRateController.h"
 
 class SanMiguel : public stratus::Application {
 public:
@@ -48,6 +49,9 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
+        INSTANCE(InputManager)->AddInputHandler(controller);
+
+        controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
