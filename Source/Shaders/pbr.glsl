@@ -85,7 +85,7 @@ float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex,
 
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
-    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.01));// - texture(shadowCubeMap, fragDir).r;
     // Now we use a sampling-based method to look around the current pixel
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
@@ -119,7 +119,7 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
 
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
-    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.01));// - texture(shadowCubeMap, fragDir).r;
     float shadow = 0.0;
     float depth = textureLod(shadowMaps, vec4(fragDir, float(shadowIndex)), 0).r;
     // It's very important to multiply by lightFarPlane. The recorded depth

@@ -120,7 +120,7 @@ void main() {
         if(distance < light.radius) {
             float shadowFactor = 0.0;
             AtlasEntry entry = shadowIndices[i];
-            if (viewDist < 100.0) {
+            if (viewDist < 150.0) {
                 shadowFactor = calculateShadowValue8Samples(shadowCubeMaps[entry.index], entry.layer, light.farPlane, fragPos, light.position.xyz, dot(light.position.xyz - fragPos, normal));
             }
             else if (viewDist < 500.0) {
