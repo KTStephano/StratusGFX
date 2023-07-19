@@ -271,7 +271,7 @@ vec3 calculateDirectionalLighting(
     vec3 baseReflectance, 
     float ambientIntensity) {
 
-    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 1.0, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, 1.0, ambientIntensity);
+    return calculateLighting2(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, 1.0, ambientIntensity);
 }
 
 vec3 calculatePointLighting2(
