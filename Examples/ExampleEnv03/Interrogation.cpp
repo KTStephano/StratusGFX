@@ -74,7 +74,8 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
-        settings.SetFogDensity(0.00125);
+        //settings.SetFogDensity(0.00125);
+        //settings.SetEmissionStrength(5.0f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
@@ -251,16 +252,16 @@ public:
             requested.clear();
 
             LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-11.2298, 15.3294, 23.1447), glm::vec3(1, 1, 1), 1200, true),
-                false
+               LightParams(glm::vec3(-11.2298, 15.3294, 23.1447), glm::vec3(1, 1, 1), 1200, true),
+               false
             );
             LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-17.5113, 15.3294, 19.8197), glm::vec3(1, 1, 1), 1200, true),
-                false
+               LightParams(glm::vec3(-17.5113, 15.3294, 19.8197), glm::vec3(1, 1, 1), 1200, true),
+               false
             );
             LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-1.03776, 34.1635, -18.8183), glm::vec3(1, 1, 0.5), 1200, true),
-                false
+               LightParams(glm::vec3(0.615786, 33.3336, -18.3116), glm::vec3(1, 1, 0.5), 300, true),
+               false
             );
         }
 
