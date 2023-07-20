@@ -29,8 +29,8 @@ namespace stratus {
         gpuMaterial->reflectance = material->GetReflectance();
         SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
 
-        auto diffuseHandle = material->GetDiffuseTexture();
-        auto ambientHandle = material->GetEmissiveTexture();
+        auto diffuseHandle = material->GetDiffuseMap();
+        auto emissiveHandle = material->GetEmissiveMap();
         auto normalHandle = material->GetNormalMap();
         auto roughnessHandle = material->GetRoughnessMap();
         auto metallicHandle = material->GetMetallicMap();
@@ -38,8 +38,8 @@ namespace stratus {
 
         TextureLoadingStatus diffuseStatus;
         auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle, diffuseStatus);
-        TextureLoadingStatus ambientStatus;
-        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle, ambientStatus);
+        TextureLoadingStatus emissiveStatus;
+        auto emissive = INSTANCE(ResourceManager)->LookupTexture(emissiveHandle, emissiveStatus);
         TextureLoadingStatus normalStatus;
         auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle, normalStatus);
         TextureLoadingStatus roughnessStatus;
@@ -61,13 +61,13 @@ namespace stratus {
             pendingMaterials_.insert(material);
         }
 
-        if (ValidateTexture(ambient, ambientStatus)) {
-            gpuMaterial->emissiveMap = ambient.GpuHandle();
+        if (ValidateTexture(emissive, emissiveStatus)) {
+            gpuMaterial->emissiveMap = emissive.GpuHandle();
             gpuMaterial->flags |= GPU_EMISSIVE_MAPPED;
-            resident.push_back(TextureMemResidencyGuard(ambient));
+            resident.push_back(TextureMemResidencyGuard(emissive));
         }
         // If this is true then the texture is still loading so we need to check again later
-        else if (ambientHandle != TextureHandle::Null() && ambientStatus != TextureLoadingStatus::FAILED) {
+        else if (emissiveHandle != TextureHandle::Null() && emissiveStatus != TextureLoadingStatus::FAILED) {
             pendingMaterials_.insert(material);
         }
 

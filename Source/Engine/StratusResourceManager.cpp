@@ -517,7 +517,7 @@ namespace stratus {
             //     STRATUS_LOG << "Transparency: " << transparency.r << ", " << transparency.g << ", " << transparency.b << ", " << transparency.a << std::endl;
             // }
 
-            material->SetDiffuseTexture(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
+            material->SetDiffuseMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
             auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR);
             if (normalMap != TextureHandle::Null()) {
@@ -528,7 +528,7 @@ namespace stratus {
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
-            //m->SetAmbientTexture(LoadMaterialTexture(aimat, aiTextureType_AMBIENT_OCCLUSION, directory, ColorSpace::LINEAR));
+            material->SetEmissiveMap(LoadMaterialTexture(aimat, aiTextureType_EMISSIVE, directory, ColorSpace::LINEAR));
             material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
@@ -537,7 +537,7 @@ namespace stratus {
             }
 
             // STRATUS_LOG << "m " 
-            //     << m->GetDiffuseTexture() << " "
+            //     << m->GetDiffuseMap() << " "
             //     << m->GetNormalMap() << " "
             //     << m->GetDepthMap() << " "
             //     << m->GetRoughnessMap() << " "

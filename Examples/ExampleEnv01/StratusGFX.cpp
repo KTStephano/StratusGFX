@@ -167,11 +167,11 @@ public:
             auto cube = INSTANCE(ResourceManager)->CreateCube();
             auto quad = INSTANCE(ResourceManager)->CreateQuad();
             stratus::MaterialPtr mat = INSTANCE(MaterialManager)->CreateMaterial("PrimitiveMat" + std::to_string(texIndex));
-            mat->SetDiffuseTexture(textures[texIndex]);
+            mat->SetDiffuseMap(textures[texIndex]);
             mat->SetNormalMap(normalMaps[texIndex]);
             //mat->SetDepthMap(depthMaps[texIndex]);
             mat->SetRoughnessMap(roughnessMaps[texIndex]);
-            mat->SetAmbientTexture(environmentMaps[texIndex]);
+            mat->SetEmissiveMap(environmentMaps[texIndex]);
             stratus::RenderComponent * rc = stratus::GetComponent<stratus::RenderComponent>(cube);
             rc->SetMaterialAt(mat, 0);
             rc = stratus::GetComponent<stratus::RenderComponent>(quad);

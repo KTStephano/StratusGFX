@@ -59,16 +59,16 @@ namespace stratus {
         void SetMetallic(float);
 
         // Get and set material properties as textures
-        TextureHandle GetDiffuseTexture() const;
-        TextureHandle GetEmissiveTexture() const;
+        TextureHandle GetDiffuseMap() const;
+        TextureHandle GetEmissiveMap() const;
         TextureHandle GetNormalMap() const;
         //TextureHandle GetDepthMap() const;
         TextureHandle GetRoughnessMap() const;
         TextureHandle GetMetallicMap() const;
         TextureHandle GetMetallicRoughnessMap() const;
 
-        void SetDiffuseTexture(TextureHandle);
-        void SetAmbientTexture(TextureHandle);
+        void SetDiffuseMap(TextureHandle);
+        void SetEmissiveMap(TextureHandle);
         void SetNormalMap(TextureHandle);
         //void SetDepthMap(TextureHandle);
         void SetRoughnessMap(TextureHandle);

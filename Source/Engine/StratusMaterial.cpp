@@ -109,12 +109,12 @@ namespace stratus {
     }
 
     // Get and set material properties as textures
-    TextureHandle Material::GetDiffuseTexture() const {
+    TextureHandle Material::GetDiffuseMap() const {
         auto sl = LockRead_();
         return diffuseTexture_;
     }
 
-    TextureHandle Material::GetEmissiveTexture() const {
+    TextureHandle Material::GetEmissiveMap() const {
         auto sl = LockRead_();
         return emissiveTexture_;
     }
@@ -139,13 +139,13 @@ namespace stratus {
         return metallicRoughnessMap_;
     }
 
-    void Material::SetDiffuseTexture(TextureHandle handle) {
+    void Material::SetDiffuseMap(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
         diffuseTexture_ = handle;
     }
 
-    void Material::SetAmbientTexture(TextureHandle handle) {
+    void Material::SetEmissiveMap(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
         emissiveTexture_ = handle;
