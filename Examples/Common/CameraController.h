@@ -129,6 +129,30 @@ struct CameraController : public stratus::InputHandler {
                                 STRATUS_LOG << "Camera Rotation: " << INSTANCE(RendererFrontend)->GetCamera()->GetRotation() << std::endl;
                             }
                             break;
+                        case SDL_SCANCODE_HOME:
+                            pitchYawSpeed_.x = -5.0;
+                            if (released) {
+                                pitchYawSpeed_.x = 0.0f;
+                            }
+                            break;
+                        case SDL_SCANCODE_END:
+                            pitchYawSpeed_.x = 5.0;
+                            if (released) {
+                                pitchYawSpeed_.x = 0.0f;
+                            }
+                            break;
+                        case SDL_SCANCODE_DELETE:
+                            pitchYawSpeed_.y = 5.0;
+                            if (released) {
+                                pitchYawSpeed_.y = 0.0f;
+                            }
+                            break;
+                        case SDL_SCANCODE_PAGEDOWN:
+                            pitchYawSpeed_.y = -5.0;
+                            if (released) {
+                                pitchYawSpeed_.y = 0.0f;
+                            }
+                            break;
                     }
                 }
             }
@@ -149,6 +173,7 @@ struct CameraController : public stratus::InputHandler {
         // Final camera speed update
         glm::vec3 tmpCamSpeed = cameraSpeed_ * camSpeedDivide_;
         camera_->SetSpeed(tmpCamSpeed.y, tmpCamSpeed.z, tmpCamSpeed.x);
+        camera_->ModifyAngle(stratus::Degrees(pitchYawSpeed_.x * deltaSeconds), stratus::Degrees(pitchYawSpeed_.y * deltaSeconds), stratus::Degrees(0.0f));
 
         cameraLight_->SetPosition(camera_->GetPosition());
     }
@@ -161,5 +186,6 @@ private:
     bool cameraRotateEnabled_ = true;
     bool cameraLookUpDownEnabled_ = false;
     glm::vec3 cameraSpeed_ = glm::vec3(0.0f);
+    glm::vec2 pitchYawSpeed_ = glm::vec2(0.0f);
     float camSpeedDivide_ = 0.25f; // For slowing camera down
 };
