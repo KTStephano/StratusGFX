@@ -1,5 +1,6 @@
 #include "LightControllers.h"
 #include "StratusRenderComponents.h"
+#include <sstream>
 
 std::vector<stratus::EntityProcessHandle> LightCreator::handles;
 
@@ -190,13 +191,28 @@ void LightProcess::Process(const double deltaSeconds) {
         const auto& lights = ConvertHandlerToLightDelete(input)->entities;
         for (const auto& light : lights) {
             auto ptr = stratus::GetComponent<LightComponent>(light)->light;
+            if (ptr->IsVirtualLight()) continue;
             const bool containsCube = stratus::ContainsComponent<LightCubeComponent>(light);
-            STRATUS_LOG << "LightCreator::CreateStationaryLight(\n"
-                        << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
-                        << "glm::vec3" << ptr->GetBaseColor() << ", "
-                        << ptr->GetIntensity() << ", "
-                        << (ptr->CastsShadows() ? "true" : "false") << "), \n"
-                        << "    " << (containsCube ? "true" : "false") << "\n);";
+            const bool containsMover = stratus::ContainsComponent<RandomLightMoverComponent>(light);
+            std::stringstream params;
+            params << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
+                << "glm::vec3" << ptr->GetBaseColor() << ", "
+                << ptr->GetIntensity() << ", "
+                << (ptr->CastsShadows() ? "true" : "false") << ")";
+
+            if (containsMover) {
+                STRATUS_LOG 
+                    << "LightCreator::CreateRandomLightMover(\n"
+                    << params.str() << "\n);" 
+                    << std::endl;
+            }
+            else {
+                STRATUS_LOG
+                    << "LightCreator::CreateStationaryLight(\n"
+                    << params.str() << ", \n"
+                    << "    " << (containsCube ? "true" : "false") << "\n);" 
+                    << std::endl;
+            }
         }
     }
 
