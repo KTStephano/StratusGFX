@@ -247,6 +247,21 @@ namespace stratus {
     // Processes the next full system frame, including rendering. Returns false only
     // if the main engine loop should stop.
     SystemStatus Engine::Frame() {
+        // Calculate new frame time
+        const auto end = std::chrono::high_resolution_clock::now();
+        //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
+        const auto elapsed = end - stats_.prevFrameStart;
+        const double durationMsec = std::chrono::duration<double, std::micro>(elapsed).count();
+        const auto requestedFrameTimingMsec = 1000000.0 / double(_params.maxFrameRate);
+        // Make sure we haven't exceeded the max frame rate
+        //if (frameRate > _params.maxFrameRate) {
+        if (durationMsec < requestedFrameTimingMsec) {
+            //std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            return SystemStatus::SYSTEM_CONTINUE;
+        }
+
+        //STRATUS_LOG << durationMsec << " " << requestedFrameTimingMsec << std::endl;
+
         // Validate
         CHECK_IS_APPLICATION_THREAD();
 
@@ -255,19 +270,7 @@ namespace stratus {
 
         //std::shared_lock<std::shared_mutex> sl(_mainLoop);
 
-        // Calculate new frame time
-        const auto end = std::chrono::system_clock::now();
-        //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
-        const double duration = std::chrono::duration<double, std::milli>(end - stats_.prevFrameStart).count();
-        const auto requestedFrameTimingMsec = 1000.0 / double(_params.maxFrameRate);
-        // Make sure we haven't exceeded the max frame rate
-        //if (frameRate > _params.maxFrameRate) {
-        if (duration < requestedFrameTimingMsec) {
-            //std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            return SystemStatus::SYSTEM_CONTINUE;
-        }
-
-
+        const double duration = std::chrono::duration<double, std::milli>(elapsed).count();
         const double deltaSeconds = duration / 1000.0;
         //const double frameRate = 1.0 / deltaSeconds;
 
