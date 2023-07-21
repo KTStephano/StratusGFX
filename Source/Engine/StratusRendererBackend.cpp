@@ -1940,7 +1940,8 @@ void RendererBackend::RenderForwardPassPbr_() {
     // Begin geometry pass
     BindShader_(state_.geometry.get());
 
-    state_.geometry->SetMat4("jitterProjectionView", frame_->jitterProjectionView);
+    auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+    state_.geometry->SetMat4("jitterProjectionView", jitter);
 
     //glDepthFunc(GL_LEQUAL);
 
@@ -1961,8 +1962,8 @@ void RendererBackend::RenderForwardPassPbr_() {
 void RendererBackend::RenderForwardPassFlat_() {
     BindShader_(state_.forward.get());
 
-    // TODO: Enable TAA for flat forward geometry
-    state_.forward->SetMat4("jitterProjectionView", frame_->projectionView);
+    auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+    state_.forward->SetMat4("jitterProjectionView", jitter);
 
     glEnable(GL_DEPTH_TEST);
 
