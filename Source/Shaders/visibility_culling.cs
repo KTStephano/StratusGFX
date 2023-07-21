@@ -86,7 +86,7 @@ void main() {
 
     #ifdef SELECT_LOD
         DrawElementsIndirectCommand lod;
-        const float firstLodDist = 300.0;
+        const float firstLodDist = max(zfar, 1000.0) * 0.3;
         const float maxDist = max(zfar, 1000.0) - firstLodDist;
         const float restLodDist = maxDist / 7;
 

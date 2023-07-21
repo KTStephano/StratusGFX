@@ -88,7 +88,6 @@ void main() {
             if (lightVisible[index]) {
                 int localIndex = atomicAdd(lightVisibleIndex, 1);
                 if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
-                    atomicAdd(lightVisibleIndex, -1);
                     break;
                 }
                 updatedLightData[localIndex] = lightData[index];
@@ -102,6 +101,7 @@ void main() {
 
     if (gl_LocalInvocationIndex == 0) {
         //numVisible = lightVisibleIndex;
+        lightVisibleIndex = lightVisibleIndex > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : lightVisibleIndex;
         vplVisibleIndex[0] = lightVisibleIndex;
     }
 
