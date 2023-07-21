@@ -13,7 +13,7 @@ struct FrameRateController : public stratus::InputHandler {
         //INSTANCE(RendererFrontend)->SetVsyncEnabled(true);
         // 1000 fps is just to get the engine out of the way so SDL can control it with vsync
         frameRates_ = {1000, 60, 55, 50, 45, 40, 35, 30};
-        INSTANCE(Engine)->SetMaxFrameRate(frameRates_.size() - 1]);
+        INSTANCE(Engine)->SetMaxFrameRate(frameRates_[frameRates_.size() - 1]);
     }
 
     // This class is deleted when the Window is deleted so the Renderer has likely already
