@@ -12,6 +12,10 @@
 #include <assimp/scene.h>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <fstream>
+#include <string>
+#include <limits>
+#include <random>
 
 #define STRATUS_PI 3.14159265358979323846
 
@@ -874,6 +878,39 @@ namespace stratus {
         {511.0f / 512.0f, 461.0f / 729.0f},
         {1.0f / 1024.0f, 704.0f / 729.0f}
     };
+
+    // Interval is [0, 1)
+    inline float RandomFloat() {
+        static std::random_device device;
+        static std::mt19937 generator(device());
+        static std::uniform_real_distribution<> distribution(0.0, 1.0);
+        return static_cast<float>(distribution(generator));
+    }
+
+    inline float RandomFloat(const float fmin, const float fmax) {
+        return fmin + (fmax - fmin) * RandomFloat();
+    }
+
+    inline glm::vec3 RandomVector(const float fmin, const float fmax) {
+        return glm::vec3(RandomFloat(fmin, fmax), RandomFloat(fmin, fmax), RandomFloat(fmin, fmax));
+    }
+
+    // Uses a simple guess and reject method. Generates a random point, checks to see
+    // if the point exceeds the radius of 1, and if so rejects. Otherwise return result.
+    //
+    // Keep in mind the unit sphere in this function is centered at the origin, so z coordinate is always 0.
+    //
+    // Also keep in mind this function generates points within the sphere. It's not trying to generate surface points.
+    // Source is here: https://github.com/RayTracing/raytracing.github.io/blob/master/src/common/vec3.h
+    inline glm::vec3 RandomPointInUnitSphere() {
+        static constexpr float radius = 1.0f;
+        while (true) {
+            const glm::vec3 position = RandomVector(-1.0f, 1.0f);
+            const float lengthSquared = glm::dot(position, position);
+            if (lengthSquared >= radius) continue;
+            return position;
+        }
+    }
 }
 
 // Printing helper functions --> Putting here due to bug in Windows compiler

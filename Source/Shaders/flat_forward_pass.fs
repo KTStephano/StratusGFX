@@ -13,7 +13,7 @@ flat in int fsDrawID;
 
 //uniform float gamma = 2.2;
 
-out vec3 color;
+layout (location = 0) out vec3 color;
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
