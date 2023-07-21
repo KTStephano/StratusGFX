@@ -398,7 +398,7 @@ void RendererBackend::InitGBuffer_() {
         // Create velocity buffer
         // TODO: Determine best bit depth - apparently we tend to need higher precision since these values can be consistently super small
         buffer.velocity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.velocity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        buffer.velocity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Holds mesh ids
@@ -408,7 +408,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.depth.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the frame buffer with all its texture attachments
@@ -458,7 +458,7 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Create the depth buffer
     state_.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Attach the textures to the FBO
     //state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});
@@ -648,7 +648,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
     // Create the atmospheric post fx buffer
     Texture atmosphericTexture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    atmosphericTexture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    atmosphericTexture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     atmosphericTexture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.atmosphericPostFxBuffer.fbo = FrameBuffer({atmosphericTexture});
     if (!state_.atmosphericPostFxBuffer.fbo.Valid()) {
@@ -660,7 +660,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
     // Create the Gamma-Tonemap buffer
     Texture gammaTonemap = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    gammaTonemap.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    gammaTonemap.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     gammaTonemap.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.gammaTonemapFbo.fbo = FrameBuffer({ gammaTonemap });
     if (!state_.gammaTonemapFbo.fbo.Valid()) {
@@ -671,7 +671,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
     // Create the FXAA buffers
     Texture fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    fxaa.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo1.fbo = FrameBuffer({fxaa});
     if (!state_.fxaaFbo1.fbo.Valid()) {
@@ -682,7 +682,7 @@ void RendererBackend::InitializePostFxBuffers_() {
     state_.postFxBuffers.push_back(state_.fxaaFbo1);
 
     fxaa = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    fxaa.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    fxaa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     fxaa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.fxaaFbo2.fbo = FrameBuffer({fxaa});
     if (!state_.fxaaFbo2.fbo.Valid()) {
@@ -694,7 +694,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
     // Initialize TAA buffer
     Texture taa = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    taa.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    taa.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     taa.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     state_.taaFbo.fbo = FrameBuffer({ taa });
     if (!state_.taaFbo.fbo.Valid()) {
