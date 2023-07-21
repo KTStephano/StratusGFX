@@ -452,17 +452,25 @@ void RendererBackend::UpdateWindowDimensions_() {
     state_.lightingColorBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the buffer we will use to add bloom as a post-processing effect
-    state_.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    state_.lightingHighBrightnessBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    state_.lightingHighBrightnessBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    // state_.lightingHighBrightnessBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    // state_.lightingHighBrightnessBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    // state_.lightingHighBrightnessBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
     state_.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
     state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Attach the textures to the FBO
-    state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});
+    //state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});
+    state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingDepthBuffer});
     if (!state_.lightingFbo.Valid()) {
+        isValid_ = false;
+        return;
+    }
+
+    state_.flatPassFboCurrentFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
+    state_.flatPassFboPreviousFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
+        if (!state_.flatPassFboCurrentFrame.Valid() || !state_.flatPassFboPreviousFrame.Valid()) {
         isValid_ = false;
         return;
     }
@@ -798,6 +806,10 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     auto tmp = state_.currentFrame;
     state_.currentFrame = state_.previousFrame;
     state_.previousFrame = tmp;
+
+    auto tmpFbo = state_.flatPassFboCurrentFrame;
+    state_.flatPassFboCurrentFrame = state_.flatPassFboPreviousFrame;
+    state_.flatPassFboPreviousFrame = tmpFbo;
 
     // Clear out instanced data from previous frame
     //_ClearInstancedData();
@@ -1881,11 +1893,12 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
-    state_.lightingFbo.CopyFrom(state_.currentFrame.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
+    // flatPassFbo is a framebuffer view of lightingFbo and Gbuffer.velocity
+    state_.flatPassFboCurrentFrame.CopyFrom(state_.currentFrame.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
-    state_.lightingFbo.Bind();
+    state_.flatPassFboCurrentFrame.Bind();
     
     // Skybox is one that does not interact with light at all
     RenderSkybox_();
@@ -1900,7 +1913,7 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     //RenderBoundingBoxes_(frame_->drawCommands->dynamicPbrMeshes);
     //RenderBoundingBoxes_(frame_->drawCommands->staticPbrMeshes);
 
-    state_.lightingFbo.Unbind();
+    state_.flatPassFboCurrentFrame.Unbind();
     state_.finalScreenBuffer = state_.lightingFbo;// state_.lightingColorBuffer;
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

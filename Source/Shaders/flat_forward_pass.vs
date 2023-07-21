@@ -24,11 +24,21 @@ uniform int viewHeight;
 smooth out vec2 fsTexCoords;
 flat out int fsDrawID;
 
+// Unjittered
+out vec4 fsCurrentClipPos;
+out vec4 fsPrevClipPos;
+
 void main() {
-    vec4 clip = projectionView * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    vec4 pos = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    vec4 clip = projectionView * pos;
     //clip.xy += jitter * clip.w;
-    gl_Position = clip;
     
     fsTexCoords = getTexCoord(gl_VertexID);
     fsDrawID = gl_DrawID;
+
+    fsPrevClipPos = prevProjectionView * prevModelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
+    fsCurrentClipPos = clip;
+
+    clip = jitterProjectionView * pos;
+    gl_Position = clip;
 }
