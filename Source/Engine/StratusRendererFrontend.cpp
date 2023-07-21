@@ -219,11 +219,13 @@ namespace stratus {
 
         frame_->drawCommands->RemoveAllCommands(p);
 
+        const auto entityIsStatic = IsStaticEntity(p);
+
         for (auto& entry : lights_) {
             if (!entry->CastsShadows()) continue;
             //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
-                    if (IsStaticEntity(p)) {
+                    if (entityIsStatic) {
                         frame_->lightsToUpdate.PushBack(entry);
                     }
                 }
