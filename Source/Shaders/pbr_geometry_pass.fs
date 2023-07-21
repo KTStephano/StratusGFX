@@ -103,10 +103,10 @@ void main() {
 
     vec3 normal = bool(fsNormalMapped) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
-    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
-    //float roughness = material.metallicRoughness[1];
-    //float metallic = material.metallicRoughness[0];
+    //float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
+    //float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    float roughness = material.metallicRoughness[1];
+    float metallic = material.metallicRoughness[0];
     // float roughness = material.metallicRoughness[1];
     // float metallic = material.metallicRoughness[0];
     // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl

@@ -151,7 +151,7 @@ struct CameraController : public stratus::InputHandler {
                             pitchYawSpeed_.y = -5.0;
                             if (released) {
                                 pitchYawSpeed_.y = 0.0f;
-                            }
+                            } 
                             break;
                     }
                 }

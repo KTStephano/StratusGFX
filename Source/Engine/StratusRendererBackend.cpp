@@ -981,6 +981,7 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
 
     s.SetInt("viewWidth", frame_->viewportWidth);
     s.SetInt("viewHeight", frame_->viewportHeight);
+    s.SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
@@ -1082,6 +1083,7 @@ void RendererBackend::RenderCSMDepth_() {
 
         shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->GetDirection()[0]);
         shader->SetFloat("nearClipPlane", frame_->znear);
+        shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
 
         // Set up each individual view-projection matrix
         // for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
@@ -1383,15 +1385,17 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
         Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
         auto transforms = GenerateLightViewTransforms(point->GetPosition());
+
         for (size_t i = 0; i < transforms.size(); ++i) {
             const glm::mat4 projectionView = lightPerspective * transforms[i];
 
-            BindShader_(shader);
             // * 6 since each cube map is accessed by a layer-face which is divisible by 6
+            BindShader_(shader);
             shader->SetInt("layer", int(smap.layer * 6 + i));
             shader->SetMat4("shadowMatrix", projectionView);
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
+            shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
 
             if (point->IsVirtualLight()) {
                 // Use lower LOD
@@ -1425,6 +1429,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, false);
             }
+
             UnbindShader_();
         }
 

@@ -36,7 +36,6 @@ static void InitCube(const LightParams& p,
     // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
     auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
     auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
-    rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
     local->SetLocalScale(glm::vec3(0.25f));
     local->SetLocalPosition(p.position);
@@ -50,6 +49,8 @@ static void InitCube(const LightParams& p,
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
     color = (color / stratus::maxLightColor) * 100.0f;
+    const std::string name = "LightCube_" + std::to_string(color.r) + "_" + std::to_string(color.g) + "_" + std::to_string(color.b);
+    rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial(name), 0);
     rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
 }
 

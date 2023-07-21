@@ -157,7 +157,7 @@ vec3 worldPositionFromDepth(in vec2 uv, in float depth, in mat4 invProjectionVie
 // See https://sugulee.wordpress.com/2021/06/21/temporal-anti-aliasingtaa-tutorial/
 vec2 calculateVelocity(in vec4 currentClipPos, in vec4 prevClipPos) {
     // Perform perspective divide
-    vec2 current = currentClipPos.xy / currentClipPos.w;
+    vec2 current = currentClipPos.xy / currentClipPos.w; 
     vec2 prev = prevClipPos.xy / prevClipPos.w;
 
     // Move from clip space [-1, 1] to uv space [0, 1]

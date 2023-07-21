@@ -227,6 +227,14 @@ namespace stratus {
             minRoughness_ = std::max<float>(roughness, 0.0f);
         }
 
+        void SetAlphaDepthTestThreshold(const float threshold) {
+            alphaDepthTestThreshold_ = std::clamp<float>(threshold, 0.0f, 1.0f);
+        }
+
+        float GetAlphaDepthTestThreshold() const {
+            return alphaDepthTestThreshold_;
+        }
+
     private:
         // These are all values we need to range check when they are set
         glm::vec3 fogColor_ = glm::vec3(0.5f);
@@ -235,6 +243,7 @@ namespace stratus {
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
         float skyboxIntensity_ = 3.0f;
         float minRoughness_ = 0.08f;
+        float alphaDepthTestThreshold_ = 0.05f;
     };
 
     // Represents data for current active frame
