@@ -377,22 +377,22 @@ void RendererBackend::InitGBuffer_() {
         // than normal precision. This allows us to write color values
         // greater than 1.0 to support things like HDR.
         buffer.albedo = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.albedo.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.albedo.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.albedo.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Base reflectivity buffer
         buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Roughness-Metallic-Ambient buffer
         buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.roughnessMetallicAmbient.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
         buffer.structure = Texture(TextureConfig{ TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.structure.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.structure.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.structure.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create velocity buffer
@@ -839,7 +839,7 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     glEnable(GL_POLYGON_SMOOTH);
 
     // This is important! It prevents z-fighting if you do multiple passes.
-    glDepthFunc(GL_LEQUAL);
+    //glDepthFunc(GL_LEQUAL);
     glDepthRangef(0.0f, 1.0f);
 }
 
@@ -1053,6 +1053,8 @@ void RendererBackend::RenderSkybox_() {
     const glm::mat4& projection = frame_->projection;
     const glm::mat4 view = glm::mat4(glm::mat3(frame_->camera->GetViewTransform()));
     const glm::mat4 projectionView = projection * view;
+
+    glDepthFunc(GL_LEQUAL);
 
     BindShader_(state_.skybox.get());
     RenderSkybox_(state_.skybox.get(), projectionView);
@@ -1899,7 +1901,7 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
     state_.flatPassFboCurrentFrame.Bind();
-    
+
     // Skybox is one that does not interact with light at all
     RenderSkybox_();
 
@@ -1935,6 +1937,7 @@ void RendererBackend::RenderForwardPassPbr_() {
     BindShader_(state_.depthPrepass.get());
 
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
     glDepthMask(GL_TRUE);
 
     // Begin geometry pass
@@ -1965,6 +1968,7 @@ void RendererBackend::RenderForwardPassFlat_() {
     auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
     state_.forward->SetMat4("jitterProjectionView", jitter);
 
+    glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
 
     const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
