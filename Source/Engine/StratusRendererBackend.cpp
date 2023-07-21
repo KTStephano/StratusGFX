@@ -398,7 +398,7 @@ void RendererBackend::InitGBuffer_() {
         // Create velocity buffer
         // TODO: Determine best bit depth - apparently we tend to need higher precision since these values can be consistently super small
         buffer.velocity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.velocity.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.velocity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Holds mesh ids
@@ -408,7 +408,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.depth.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the frame buffer with all its texture attachments
@@ -458,7 +458,7 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Create the depth buffer
     state_.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
     // Attach the textures to the FBO
     //state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});

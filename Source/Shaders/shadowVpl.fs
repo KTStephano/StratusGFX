@@ -18,7 +18,7 @@ void main() {
     Material material = materials[materialIndices[fsDrawID]];
     vec4 baseColor = bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, fsTexCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
 
-    // runAlphaTest(baseColor.a, 0.25);
+    runAlphaTest(baseColor.a);
 
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
