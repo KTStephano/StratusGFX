@@ -243,7 +243,7 @@ namespace stratus {
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
         float skyboxIntensity_ = 3.0f;
         float minRoughness_ = 0.08f;
-        float alphaDepthTestThreshold_ = 0.05f;
+        float alphaDepthTestThreshold_ = 0.5f;
     };
 
     // Represents data for current active frame

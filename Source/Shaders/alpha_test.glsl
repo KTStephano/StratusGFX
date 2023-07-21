@@ -1,6 +1,6 @@
 STRATUS_GLSL_VERSION
 
-uniform float alphaDepthTestThreshold = 0.05;
+uniform float alphaDepthTestThreshold = 0.5;
 #define ALPHA_DEPTH_OFFSET 0.000001
 
 // See "Implementing a material system" in 3D Graphics Rendering Cookbook
