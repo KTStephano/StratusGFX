@@ -215,6 +215,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float lightRadius = lightData[lightIndex].radius;
         float distance = length(lightMinusFrag);
 
+        validSamples += 1.0;
+
         if (resamples < MAX_RESAMPLES_PER_PIXEL) {
             float sideCheck = dot(normal, normalize(lightMinusFrag));
             if (sideCheck < 0.0 || distance > lightRadius) {
@@ -229,7 +231,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightColor = lightData[lightIndex].color.xyz;
         //float lightIntensity = length(lightColor);
 
-        validSamples += 1.0;
+        //validSamples += 1.0;
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
@@ -257,9 +259,9 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     validSamples = max(validSamples, 1.0);
 
-    color = baseColor;//baseColor;
+    color = baseColor + PREVENT_DIV_BY_ZERO;//baseColor;
     //reservoir = vec4(boundHDR(vplColor / (baseColor * validSamples)), 1.0);
-    reservoir = vec4(boundHDR(vplColor / baseColor), validSamples);
+    reservoir = vec4(boundHDR(vplColor), validSamples);
 }
 
 void main() {
