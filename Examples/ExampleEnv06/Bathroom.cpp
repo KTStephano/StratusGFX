@@ -85,7 +85,7 @@ public:
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
         settings.SetSkyboxIntensity(0.0125f);
         settings.SetMinRoughness(0.0f);
-        
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_2048;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
