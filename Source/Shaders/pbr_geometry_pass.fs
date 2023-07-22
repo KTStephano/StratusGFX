@@ -134,5 +134,5 @@ void main() {
     gId = float(fsDrawID);
 
     // Small offset to help prevent z fighting in certain cases
-    gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
+    //gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 }

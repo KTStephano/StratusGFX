@@ -14,7 +14,7 @@ out vec3 color;
 out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 5
 #define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -215,7 +215,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float lightRadius = lightData[lightIndex].radius;
         float distance = length(lightMinusFrag);
 
-        validSamples += 1.0;
+        //validSamples += 1.0;
 
         if (resamples < MAX_RESAMPLES_PER_PIXEL) {
             float sideCheck = dot(normal, normalize(lightMinusFrag));
@@ -231,7 +231,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightColor = lightData[lightIndex].color.xyz;
         //float lightIntensity = length(lightColor);
 
-        //validSamples += 1.0;
+        validSamples += 1.0;
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 

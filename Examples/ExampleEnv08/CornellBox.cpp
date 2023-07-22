@@ -90,7 +90,7 @@ public:
         settings.SetSkyboxColorMask(sunsetColor);
         settings.SetEmissionStrength(5.0f);
         settings.usePerceptualRoughness = false;
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         // INSTANCE(RendererFrontend)->SetFogDensity(0.00075);

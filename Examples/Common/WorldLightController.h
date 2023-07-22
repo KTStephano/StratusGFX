@@ -36,8 +36,8 @@ struct WorldLightController : public stratus::InputHandler {
         const double lightIncreaseSpeed = 5.0;
         const double minLightBrightness = 0.25;
         const double maxLightBrightness = 30.0;
-        const double atmosphericIncreaseSpeed = 0.15;
-        const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 60.0);
+        const double atmosphericIncreaseSpeed = 0.01;
+        const double maxAtomsphericIncreasePerFrame = atmosphericIncreaseSpeed * (1.0 / 30.0);
         double particleDensity = worldLight_->GetAtmosphericParticleDensity();
         double scatterControl = worldLight_->GetAtmosphericScatterControl();
         double lightIntensity = worldLight_->GetIntensity();
