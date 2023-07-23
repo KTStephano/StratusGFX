@@ -117,7 +117,9 @@ You can check [High Level Architecture Overview](https://ktstephano.github.io/re
 
 None of the test scenes are bundled with this source so the rest of the environments will be completely blank when running.
 
-# Running Example Environments 2-6
+# Running Example Environments 2-7
+
+When starting the examples will take a bit to load/process. You can see the status in the console. After starting you may experience some temporary frame drops but this will stabilize quickly.
 
 -> More in depth explanation here: [Examples](https://github.com/KTStephano/StratusGFX/wiki/Examples)
 
@@ -129,20 +131,21 @@ None of the test scenes are bundled with this source so the rest of the environm
 
 Example environment 01 will still be a forest of red cubes since its textures and models aren't part of the bundle.
 
-Example environment 07 Warehouse is unavailable since I need to redownload and repackage it due to some data corruption with my copy.
+Credits for the 3D assets used in the examples/demos are as follows:
 
-Credits for the 3D assets are as follows:
+[Intel Sponza](https://www.intel.com/content/www/us/en/developer/topic-technology/graphics-research/samples.html)
 
-Sponza: https://www.intel.com/content/www/us/en/developer/topic-technology/graphics-research/samples.html
+[San Miguel](https://casual-effects.com/data/)
 
-Bistro: https://developer.nvidia.com/orca/amazon-lumberyard-bistro
+[Bistro](https://developer.nvidia.com/orca/amazon-lumberyard-bistro)
 
-San Miguel: https://casual-effects.com/data/
+[Junk Shop](https://cloud.blender.org/p/gallery/5dd6d7044441651fa3decb56)
 
-Bathroom: https://sketchfab.com/3d-models/the-bathroom-free-d5e5035dda434b8d9beaa7271f1c85fc
-(for the version in this bundle I made a few changes to the model that were not present in the original)
+[The Bathroom](https://sketchfab.com/3d-models/the-bathroom-free-d5e5035dda434b8d9beaa7271f1c85fc)
 
-Interrogation Room: https://sketchfab.com/3d-models/interogation-room-6e9151ec29494469a74081ddc054d569
+[Interrogation Room](https://sketchfab.com/3d-models/interogation-room-6e9151ec29494469a74081ddc054d569)
+
+[Abandoned Warehouse](https://sketchfab.com/3d-models/abandoned-warehouse-1e40d433ed6f48fb880a0d2172aff7ca)
 
 # Controls For Example Environments
 
