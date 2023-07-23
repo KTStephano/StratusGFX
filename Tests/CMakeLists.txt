@@ -10,14 +10,14 @@ if (WIN32)
 endif ()
 
 if (NOT WIN32)
-    file(GLOB LINUX_LIBS1 ${ROOT_DIRECTORY}/ThirdParty/lib/*Catch2*)
+    file(GLOB LINUX_LIBS1 ${ROOT_DIRECTORY}ThirdParty/lib/*Catch2*)
 
     list(APPEND LIBRARIES ${LINUX_LIBS1})
 endif ()
 
 message(${LIBRARIES})
 
-include(${ROOT_DIRECTORY}/ThirdParty/lib/cmake/Catch2/Catch.cmake)
+include(${ROOT_DIRECTORY}ThirdParty/lib/cmake/Catch2/Catch.cmake)
 
 add_subdirectory(UnitTests)
 add_subdirectory(IntegrationTests)
