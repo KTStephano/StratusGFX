@@ -179,6 +179,14 @@ namespace stratus {
             emissionStrength_ = std::max<float>(strength, 0.0f);
         }
 
+        float GetEmissiveTextureMultiplier() const {
+            return emissiveTextureMultiplier_;
+        }
+
+        void SetEmissiveTextureMultiplier(const float multiplier) {
+            emissiveTextureMultiplier_ = std::max<float>(multiplier, 0.0f);
+        }
+
         glm::vec3 GetFogColor() const {
             return fogColor_;
         }
@@ -244,6 +252,8 @@ namespace stratus {
         float skyboxIntensity_ = 3.0f;
         float minRoughness_ = 0.08f;
         float alphaDepthTestThreshold_ = 0.5f;
+        // This works as a multiplicative effect on top of emission strength
+        float emissiveTextureMultiplier_ = 1.0f;
     };
 
     // Represents data for current active frame

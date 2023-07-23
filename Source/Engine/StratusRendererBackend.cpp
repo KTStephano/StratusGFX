@@ -986,6 +986,8 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
         s.SetVec3("viewPosition", &camera.GetPosition()[0]);
     }
 
+    s.SetFloat("emissiveTextureMultiplier", frame_->settings.GetEmissiveTextureMultiplier());
+
     s.SetMat4("projection", projection);
     s.SetMat4("view", view);
     s.SetMat4("projectionView", projectionView);

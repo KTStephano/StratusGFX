@@ -2,6 +2,8 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
+//layout (early_fragment_tests) in;
+
 smooth in vec2 fsTexCoords;
 
 #include "common.glsl"
@@ -35,10 +37,10 @@ void main() {
     velocity = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
 
     // Small offset to help prevent z fighting in certain cases
-    if (diffuse.a < 1.0) {
-        gl_FragDepth = gl_FragCoord.z - ALPHA_DEPTH_OFFSET;
-    }
-    else {
-        gl_FragDepth = gl_FragCoord.z;
-    }
+    // if (diffuse.a < 1.0) {
+    //     gl_FragDepth = gl_FragCoord.z - ALPHA_DEPTH_OFFSET;
+    // }
+    // else {
+    //     gl_FragDepth = gl_FragCoord.z;
+    // }
 }

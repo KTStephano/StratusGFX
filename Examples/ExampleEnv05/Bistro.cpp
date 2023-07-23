@@ -107,10 +107,12 @@ static void setupDayTime() {
 
 static void setupNightTime() {
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
+    INSTANCE(RendererFrontend)->GetWorldLight()->SetEnabled(false);
     settings.SetFogDensity(0.00075);
     settings.SetFogColor(glm::vec3(0.5, 0.5, 0.125));
     settings.SetSkyboxIntensity(0.025);
     settings.SetEmissionStrength(5.0f);
+    settings.SetEmissiveTextureMultiplier(5.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
 
     LightCreator::CreateStationaryLight(

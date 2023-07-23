@@ -2,6 +2,8 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
+//layout (early_fragment_tests) in;
+
 #include "common.glsl"
 #include "alpha_test.glsl"
 
@@ -13,6 +15,8 @@ uniform float heightScale = 0.1;
  * Information about the camera
  */
 uniform vec3 viewPosition;
+
+uniform float emissiveTextureMultiplier = 1.0;
 
 /**
  * Fragment information. All values should be
@@ -115,7 +119,7 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = bool(fsEmissiveMapped) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
