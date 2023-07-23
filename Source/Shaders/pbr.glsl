@@ -97,7 +97,7 @@ float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex,
     for (int x = 0; x < 2; ++x) {
         for (int y = 0; y < 2; ++y) {
             for (int z = 0; z < 2; ++z) {
-                float depth = textureLod(shadowMaps, vec4(fragDir + vec3(offsets[x], offsets[y], offsets[z]), float(shadowIndex)), 0).r;
+                float depth = texture(shadowMaps, vec4(fragDir + vec3(offsets[x], offsets[y], offsets[z]), float(shadowIndex))).r;
                 // It's very important to multiply by lightFarPlane. The recorded depth
                 // is on the range [0, 1] so we need to convert it back to what it was originally
                 // or else our depth comparison will fail.
@@ -123,7 +123,7 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
     //float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), minBias));
     float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.03);
     float shadow = 0.0;
-    float depth = textureLod(shadowMaps, vec4(fragDir, float(shadowIndex)), 0).r;
+    float depth = texture(shadowMaps, vec4(fragDir, float(shadowIndex))).r;
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.
@@ -139,7 +139,7 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
 float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
     coords.w = depth - bias;
     coords.xy += offset;
-    return textureLod(shadow, coords, 0);
+    return texture(shadow, coords);
     // float closestDepth = texture(shadow, coords).r;
     // // 0.0 means not in shadow, 1.0 means fully in shadow
     // return depth > closestDepth ? 1.0 : 0.0;
