@@ -2,6 +2,7 @@
 
 #include "GL/gl3w.h"
 #include "glm/glm.hpp"
+#include <list>
 #include <memory>
 #include <vector>
 #include <forward_list>
