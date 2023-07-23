@@ -133,6 +133,8 @@ Example environment 01 will still be a forest of red cubes since its textures an
 
 Credits for the 3D assets used in the examples/demos are as follows:
 
+[Crytek Sponza](https://sketchfab.com/3d-models/abandoned-warehouse-1e40d433ed6f48fb880a0d2172aff7ca)
+
 [Intel Sponza](https://www.intel.com/content/www/us/en/developer/topic-technology/graphics-research/samples.html)
 
 [San Miguel](https://casual-effects.com/data/)
