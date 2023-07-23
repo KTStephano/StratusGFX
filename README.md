@@ -27,14 +27,9 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 
 -> [How A Frame Is Rendered](https://ktstephano.github.io/rendering/stratusgfx/frame_analysis_v0_10)
 
-(The video feature reel will be redone with latest features including better image smoothing in hopefully the next release)
-
-![Sponza](https://user-images.githubusercontent.com/8399235/229018578-a9ae9609-5378-43de-a909-2ca2661ca2f5.png)
-(Intel Sponza rendered with StratusGFX)
-
 # Purpose
 
-This project was created as a hobby research project for learning low level engine development and trying to emulate modern graphics techniques.
+This project was created as a hobby research project for learning low level engine development and implementing modern graphics techniques.
 
 # Use Cases
 
