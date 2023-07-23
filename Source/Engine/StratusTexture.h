@@ -13,7 +13,8 @@ namespace stratus {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
         // Corresponds to GL_TEXTURE_CUBE_MAP
-        TEXTURE_3D,
+        TEXTURE_CUBE_MAP,
+        TEXTURE_CUBE_MAP_ARRAY,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
     };
@@ -21,6 +22,7 @@ namespace stratus {
     enum class TextureComponentFormat : int {
         RED,
         RGB,
+        RG,
         SRGB,
         RGBA,
         SRGB_ALPHA,
@@ -114,6 +116,7 @@ namespace stratus {
     class Texture {
         friend class ResourceManager;
         friend class TextureImpl;
+        friend struct TextureMemResidencyGuard;
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> impl_;
 
@@ -139,10 +142,6 @@ namespace stratus {
         
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
-        // Makes the texture resident in GPU memory for bindless use
-        static void MakeResident(const Texture&);
-        // Removes residency
-        static void MakeNonResident(const Texture&);
 
         uint32_t Width() const;
         uint32_t Height() const;
@@ -155,8 +154,9 @@ namespace stratus {
 
         bool Valid() const;
 
-        void Clear(const int mipLevel, const void * clearValue);
-        void ClearLayer(const int mipLevel, const int layer, const void * clearValue);
+        // clearValue is between one and four components worth of data (or nullptr - in which case the texture is filled with 0s)
+        void Clear(const int mipLevel, const void * clearValue) const;
+        void ClearLayer(const int mipLevel, const int layer, const void * clearValue) const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * Underlying() const;
@@ -165,12 +165,38 @@ namespace stratus {
         bool operator==(const Texture & other) const;
 
         // Creates a new texture and copies this texture into it
-        Texture Copy(uint32_t newWidth, uint32_t newHeight);
+        Texture Copy(uint32_t newWidth, uint32_t newHeight) const;
         const TextureConfig & GetConfig() const;
+
+    private:
+        // Makes the texture resident in GPU memory for bindless use
+        static void MakeResident_(const Texture&);
+        // Removes residency
+        static void MakeNonResident_(const Texture&);
 
     private:
         void SetHandle_(const TextureHandle);
     };
+
+    struct TextureMemResidencyGuard {
+        TextureMemResidencyGuard(const Texture&);
+
+        TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard(const TextureMemResidencyGuard&) noexcept;
+
+        TextureMemResidencyGuard& operator=(TextureMemResidencyGuard&&) noexcept;
+        TextureMemResidencyGuard& operator=(const TextureMemResidencyGuard&) noexcept;
+
+        ~TextureMemResidencyGuard();
+
+    private:
+        void Copy_(const TextureMemResidencyGuard&);
+        void IncrementRefcount_();
+        void DecrementRefcount_();
+
+    private:
+        Texture texture_ = Texture();
+    }; 
 }
 
 namespace std {

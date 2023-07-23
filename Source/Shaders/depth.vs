@@ -4,8 +4,12 @@ STRATUS_GLSL_VERSION
 
 #include "mesh_data.glsl"
 
+layout (std430, binding = 13) readonly buffer SSBO3 {
+    mat4 modelMatrices[];
+};
+
 uniform mat4 projectionView;
 
 void main() {
-    gl_Position = projectionView * model * vec4(getPosition(gl_VertexID), 1.0);
+    gl_Position = projectionView * modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
 }

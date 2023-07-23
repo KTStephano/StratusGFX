@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 // See https://stackoverflow.com/questions/16069959/glsl-how-to-ensure-largest-possible-float-value-without-overflow
+#define HALF_FLOAT_MAX 65504.0
 #define FLOAT_MAX 3.402823466e+38
 #define FLOAT_MIN 1.175494351e-38
 #define DOUBLE_MAX 1.7976931348623158e+308
@@ -11,7 +12,7 @@ STRATUS_GLSL_VERSION
 
 // Matches the definitions in StratusGpuCommon.h
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))
+#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
 #define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
 #define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
 #define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
@@ -19,30 +20,36 @@ STRATUS_GLSL_VERSION
 // It's possible to have metallic + roughness combined into a single map
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
-#define ALPHA_DEPTH_TEST 0.25
-#define ALPHA_DEPTH_OFFSET 0.000001
+#define FLOAT2_TO_VEC2(f2) vec2(f2[0], f2[1])
+#define FLOAT3_TO_VEC3(f3) vec3(f3[0], f3[1], f3[2])
+#define FLOAT3_TO_VEC4(f3) vec4(FLOAT3_TO_VEC3(f3), 1.0)
+#define FLOAT4_TO_VEC4(f4) vec4(f4[0], f4[1], f4[2], f4[3])
 
 // Matches the definition in StratusGpuCommon.h
 struct Material {
-    vec4 diffuseColor;
-    vec4 ambientColor;
-    vec4 baseReflectivity;
-    // First two values = metallic, roughness
-    // last two values = padding
-    vec4 metallicRoughness;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D diffuseMap;
-    sampler2D ambientMap;
+    sampler2D emissiveMap;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D normalMap;
-    sampler2D depthMap;
+    //sampler2D depthMap;
     // total bytes next 2 entries = vec4 (for std430)
     sampler2D roughnessMap;
     sampler2D metallicMap;
     // total bytes next 3 entries = vec4 (for std430)
     sampler2D metallicRoughnessMap;
+    float diffuseColor[4];
+    float emissiveColor[3];
+    // Base and max are interpolated between based on metallic
+    // metallic of 0 = base reflectivity
+    // metallic of 1 = max reflectivity
+    float reflectance;
+    //float baseReflectivity[3];
+    //float maxReflectivity[3];
+    // First two values = metallic, roughness
+    float metallicRoughness[2];
     uint flags;
-    uint _1;
+    uint placeholder1_;
 };
 
 struct DrawElementsIndirectCommand {
@@ -52,6 +59,11 @@ struct DrawElementsIndirectCommand {
     uint firstIndex;
     int baseVertex;
     uint baseInstance;
+};
+
+struct HaltonEntry {
+    float base2;
+    float base3;
 };
 
 layout (std430, binding = 30) readonly buffer SSBO_Global1 {
@@ -69,8 +81,13 @@ bool bitwiseAndBool(uint flag, uint mask) {
 }
 
 // Prevents HDR color values from exceeding 16-bit color buffer range
+float boundHDR(float value) {
+    return min(value, HALF_FLOAT_MAX);
+    //return value; // Engine is currently using 32-bit... disable for now
+}
+
 vec3 boundHDR(vec3 value) {
-    return min(value, 65504.0);
+    return min(value, HALF_FLOAT_MAX);
     //return value; // Engine is currently using 32-bit... disable for now
 }
 
@@ -84,11 +101,11 @@ float saturate(float value) {
 }
 
 vec3 clampMediumPrecision(vec3 value) {
-    return clamp(value, 0.0, 65504.0);
+    return clamp(value, 0.0, HALF_FLOAT_MAX);
 }
 
 float clampMediumPrecision(float value) {
-    return clamp(value, 0.0, 65504.0);
+    return clamp(value, 0.0, HALF_FLOAT_MAX);
 }
 
 vec2 computeTexelSize(sampler2D tex, int miplevel) {
@@ -135,4 +152,72 @@ vec3 worldPositionFromDepth(in vec2 uv, in float depth, in mat4 invProjectionVie
 
     // Perform perspective divide to complete the transform
     return worldPosition.xyz / worldPosition.w;
+}
+
+vec2 calculateVelocity(in vec4 currentClipPos, in vec4 prevClipPos) {
+    // Perform perspective divide
+    vec2 current = currentClipPos.xy / currentClipPos.w; 
+    vec2 prev = prevClipPos.xy / prevClipPos.w;
+
+    // Move from clip space [-1, 1] to uv space [0, 1]
+    current = current * 0.5 + 0.5;
+    prev = prev * 0.5 + 0.5;
+
+    return current - prev;
+}
+
+// See https://sugulee.wordpress.com/2021/06/21/temporal-anti-aliasingtaa-tutorial/
+//vec2 calculateVelocity(in vec4 currentClipPos, in vec4 prevClipPos) {
+//    // Perform perspective divide
+//    vec2 current = currentClipPos.xy / currentClipPos.w; 
+//    vec2 prev = prevClipPos.xy / prevClipPos.w;
+//
+//    // Move from clip space [-1, 1] to uv space [0, 1]
+//    //current = current * 0.5 + 0.5;
+//    //prev = prev * 0.5 + 0.5;
+//
+//    return (current - prev).xy * 0.5;
+//}
+
+// See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+uint hash( uint x ) {
+    x += ( x << 10u );
+    x ^= ( x >>  6u );
+    x += ( x <<  3u );
+    x ^= ( x >> 11u );
+    x += ( x << 15u );
+    return x;
+}
+
+uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)                         ); }
+uint hash( uvec3 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z)             ); }
+uint hash( uvec4 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z) ^ hash(v.w) ); }
+
+// See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+// Construct a float with half-open range [0:1] using low 23 bits.
+// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
+float floatConstruct( uint m ) {
+    const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
+    const uint ieeeOne      = 0x3F800000u; // 1.0 in IEEE binary32
+
+    m &= ieeeMantissa;                     // Keep only mantissa bits (fractional part)
+    m |= ieeeOne;                          // Add fractional part to 1.0
+
+    float  f = uintBitsToFloat( m );       // Range [1:2]
+    return f - 1.0;                        // Range [0:1]
+}
+
+// Pseudo-random value in half-open range [0:1].
+float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
+float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+
+vec3 sampleNormalWithOffset(in sampler2D normals, in vec2 texCoords, in ivec2 offset) {
+    // Samples normal and maps from [0, 1] to [-1, 1]
+    return normalize(textureLodOffset(normals, texCoords, 0.0, offset).rgb * 2.0 - vec3(1.0));
+}
+
+vec3 sampleNormal(in sampler2D normals, in vec2 texCoords) {
+    return sampleNormalWithOffset(normals, texCoords, ivec2(0, 0));
 }

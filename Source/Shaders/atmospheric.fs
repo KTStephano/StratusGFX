@@ -24,6 +24,7 @@ uniform vec2 noiseShift;                     // Should be randomized each frame 
 uniform float numSamples = 64.0;             // Number of samples to take along each ray we cast
 uniform float windowWidth;
 uniform float windowHeight;
+uniform float time;
 
 smooth in vec2 fsTexCoords;
 // fsCamSpaceRay is always used as vec3(fsCamSpaceRay.xy, minAtmosphereDepth)

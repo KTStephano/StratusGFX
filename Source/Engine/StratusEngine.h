@@ -41,7 +41,7 @@ namespace stratus {
         uint64_t currentFrame = 0;
         // Records the time the last frame took to complete - 16.0/1000.0 = 60 fps for example
         double lastFrameTimeSeconds = 0.0;
-        std::chrono::system_clock::time_point prevFrameStart = std::chrono::system_clock::now();
+        std::chrono::high_resolution_clock::time_point prevFrameStart = std::chrono::high_resolution_clock::now();
     };
 
     // Engine class which handles initializing all core engine subsystems and helps 

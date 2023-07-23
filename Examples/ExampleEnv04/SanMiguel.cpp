@@ -19,6 +19,7 @@
 #include "LightControllers.h"
 #include "StratusTransformComponent.h"
 #include "StratusGpuCommon.h"
+#include "FrameRateController.h"
 
 class SanMiguel : public stratus::Application {
 public:
@@ -50,6 +51,9 @@ public:
         stratus::InputHandlerPtr controller(new CameraController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
+        controller = stratus::InputHandlerPtr(new FrameRateController());
+        INSTANCE(InputManager)->AddInputHandler(controller);
+
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 5);
@@ -59,13 +63,14 @@ public:
 
         // Alpha testing doesn't work so well for this scene
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
         //INSTANCE(InputManager)->AddInputHandler(controller);
-
+         
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             sanMiguel = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sanMiguel);
@@ -75,7 +80,9 @@ public:
             INSTANCE(EntityManager)->AddEntity(sanMiguel);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 
@@ -152,12 +159,12 @@ public:
             sanMiguel = nullptr;
             int spawned = 0;
 
-            for (int x = 80; x < 240; x += 20) {
-                for (int y = 5; y < 120; y += 20) {
-                    for (int z = -5; z < 70; z += 20) {
+            for (int x = 40; x < 240; x += 10) {
+                for (int y = 5; y < 150; y += 20) {
+                    for (int z = -30; z < 120; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 50.0f),
+                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
                                 false
                             );
                     }

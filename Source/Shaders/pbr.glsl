@@ -50,7 +50,10 @@ STRATUS_GLSL_VERSION
 
 #include "common.glsl"
 
+uniform float infiniteLightZnear;
+uniform float infiniteLightZfar;
 uniform vec3 infiniteLightDirection;
+uniform float infiniteLightDepthBias = 0.0;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
@@ -63,15 +66,27 @@ uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;
 uniform float ambientIntensity = 0.00025;
 
+// Synchronized with definition found in StratusGpuCommon.h
+#define MAX_TOTAL_SHADOW_ATLASES (14)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
+
+// Synchronized with definition found in StratusGpuCommon.h
+struct AtlasEntry {
+    int index;
+    int layer;
+};
+
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, float minBias) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
 
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
-    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    //float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), minBias));
+    float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.03);
     // Now we use a sampling-based method to look around the current pixel
     // and blend the values for softer shadows (introduces some blur). This falls
     // under the category of Percentage-Closer Filtering (PCF) algorithms.
@@ -82,7 +97,7 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
     for (int x = 0; x < 2; ++x) {
         for (int y = 0; y < 2; ++y) {
             for (int z = 0; z < 2; ++z) {
-                float depth = texture(shadowMap, fragDir + vec3(offsets[x], offsets[y], offsets[z])).r;
+                float depth = texture(shadowMaps, vec4(fragDir + vec3(offsets[x], offsets[y], offsets[z]), float(shadowIndex))).r;
                 // It's very important to multiply by lightFarPlane. The recorded depth
                 // is on the range [0, 1] so we need to convert it back to what it was originally
                 // or else our depth comparison will fail.
@@ -98,16 +113,17 @@ float calculateShadowValue8Samples(samplerCube shadowMap, float lightFarPlane, v
 }
 
 // Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue1Sample(samplerCube shadowMap, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct) {
+float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, float minBias) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
 
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
-    float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), 0.05));// - texture(shadowCubeMap, fragDir).r;
+    //float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), minBias));
+    float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.03);
     float shadow = 0.0;
-    float depth = texture(shadowMap, fragDir).r;
+    float depth = texture(shadowMaps, vec4(fragDir, float(shadowIndex))).r;
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.
@@ -139,25 +155,31 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 //      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
 //      https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
 //      http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal) {
+float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-	// float tanTheta = 3.0 * tan(acos(dot(normalize(infiniteLightDirection), normal)));
-    // float bias = 0.005 * tanTheta;
-    // bias = clamp(bias, 0.0, 0.001);
-    float bias = 2e-19;
+	//float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
+    //float bias = 0.005 * tanTheta;
+    //bias = -clamp(bias, 0.0, 0.01);
+    //float bias = 2e-19;
+    float bias = infiniteLightDepthBias / (infiniteLightZfar - infiniteLightZnear);
+    if (!useDepthBias) {
+        bias = 0.0;
+    }
+
+    vec4 position = fragPos;
+    position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
 
     vec4 p1, p2;
     vec3 cascadeCoords[4];
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     for (int i = 0; i < 4; ++i) {
-        // cascadeProjViews[i] * fragPos puts the coordinates into clip space which are on the range of [-1, 1].
+        // cascadeProjViews[i] * position puts the coordinates into clip space which are on the range of [-1, 1].
         // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
         // and then perform * 0.5 + vec3(0.5).
-        vec4 coords = cascadeProjViews[i] * fragPos;
+        vec4 coords = cascadeProjViews[i] * position;
         cascadeCoords[i] = coords.xyz / coords.w; // Perspective divide
         cascadeCoords[i].xyz = cascadeCoords[i].xyz * 0.5 + vec3(0.5);
-        // cascadeCoords[i].z = cascadeCoords[i].z * 0.5 + 0.5;
     }
 
     bool beyondCascade2 = cascadeBlends.y >= 0.0;
@@ -191,7 +213,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    float bound = 1.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
@@ -236,11 +258,12 @@ float quadraticAttenuation(vec3 lightDir) {
 }
 
 float vplAttenuation(vec3 lightDir, float lightRadius) {
-    float minDist = 0.15 * lightRadius;
+    float minDist = 10.0 * lightRadius;
     float maxDist = 0.75 * lightRadius;
-    float lightDist = max(length(lightDir), minDist);
+    //float lightDist = max(length(lightDir), minDist);
+    float lightDist = length(lightDir);
     //float lightDist = clamp(length(lightDir), minDist, maxDist);
-    return 1.0 / (1.0 + lightDist * lightDist);
+    return 1.0 / (minDist + 1.0 * lightDist * lightDist);
 }
 
 vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 

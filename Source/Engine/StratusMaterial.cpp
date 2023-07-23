@@ -53,19 +53,19 @@ namespace stratus {
     }
 
     // Get and set material properties
-    const glm::vec4& Material::GetDiffuseColor() const {
+    glm::vec4 Material::GetDiffuseColor() const {
         auto sl = LockRead_();
         return diffuseColor_;
     }
 
-    const glm::vec3& Material::GetAmbientColor() const {
+    glm::vec3 Material::GetEmissiveColor() const {
         auto sl = LockRead_();
-        return ambientColor_;
+        return emissiveColor;
     }
 
-    const glm::vec3& Material::GetBaseReflectivity() const {
+    float Material::GetReflectance() const {
         auto sl = LockRead_();
-        return baseReflectivity_;
+        return reflectance_;
     }
 
     float Material::GetRoughness() const {
@@ -84,16 +84,16 @@ namespace stratus {
         diffuseColor_ = diffuse;
     }
 
-    void Material::SetAmbientColor(const glm::vec3& ambient) {
+    void Material::SetEmissiveColor(const glm::vec3& ambient) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientColor_ = ambient;
+        emissiveColor = ambient;
     }
 
-    void Material::SetBaseReflectivity(const glm::vec3& reflectivity) {
+    void Material::SetReflectance(float reflectance) {
         MarkChanged();
         auto ul = LockWrite_();
-        baseReflectivity_ = reflectivity;
+        reflectance_ = reflectance;
     }
 
     void Material::SetRoughness(float roughness) {
@@ -109,24 +109,19 @@ namespace stratus {
     }
 
     // Get and set material properties as textures
-    TextureHandle Material::GetDiffuseTexture() const {
+    TextureHandle Material::GetDiffuseMap() const {
         auto sl = LockRead_();
         return diffuseTexture_;
     }
 
-    TextureHandle Material::GetAmbientTexture() const {
+    TextureHandle Material::GetEmissiveMap() const {
         auto sl = LockRead_();
-        return ambientTexture_;
+        return emissiveTexture_;
     }
 
     TextureHandle Material::GetNormalMap() const {
         auto sl = LockRead_();
         return normalMap_;
-    }
-
-    TextureHandle Material::GetDepthMap() const {
-        auto sl = LockRead_();
-        return depthMap_;
     }
 
     TextureHandle Material::GetRoughnessMap() const {
@@ -144,28 +139,22 @@ namespace stratus {
         return metallicRoughnessMap_;
     }
 
-    void Material::SetDiffuseTexture(TextureHandle handle) {
+    void Material::SetDiffuseMap(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
         diffuseTexture_ = handle;
     }
 
-    void Material::SetAmbientTexture(TextureHandle handle) {
+    void Material::SetEmissiveMap(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
-        ambientTexture_ = handle;
+        emissiveTexture_ = handle;
     }
 
     void Material::SetNormalMap(TextureHandle handle) {
         MarkChanged();
         auto ul = LockWrite_();
         normalMap_ = handle;
-    }
-
-    void Material::SetDepthMap(TextureHandle handle) {
-        MarkChanged();
-        auto ul = LockWrite_();
-        depthMap_ = handle;
     }
 
     void Material::SetRoughnessMap(TextureHandle handle) {

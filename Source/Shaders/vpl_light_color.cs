@@ -27,37 +27,43 @@ layout (std430, binding = 0) buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 1) readonly buffer outputBlock1 {
-    int numVisible;
+layout (std430, binding = 1) readonly buffer inputBlock1 {
+    int numVisible[];
 };
 
-layout (std430, binding = 3) readonly buffer outputBlock2 {
-    int vplVisibleIndex[];
-};
+uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
-layout (std430, binding = 5) readonly buffer vplDiffuse {
-    samplerCube diffuseCubeMaps[];
+layout (std430, binding = 4) readonly buffer inputBlock3 {
+    AtlasEntry diffuseIndices[];
 };
 
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    for (int i = int(gl_GlobalInvocationID.x); i < numVisible; i += stepSize) {
-        int index = vplVisibleIndex[i];
+    float colorMultiplier = 50000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
+
+    int visibleVpls = numVisible[0];
+
+    for (int i = int(gl_GlobalInvocationID.x); i < visibleVpls; i += stepSize) {
+        int index = i;
+        VplData data = lightData[index];
+        AtlasEntry entry = diffuseIndices[index];
         // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = 2.0 * textureLod(diffuseCubeMaps[index], -infiniteLightDirection, 0).rgb * infiniteLightColor;
+        vec3 color = textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
         float offset = 0.5;
         float offsets[2] = float[](-offset, offset);
+        float totalColors = 1.0;
         // This should result in 2*2*2 = 8 samples, + 2 from above = 10
-        for (int x = 0; x < 2; ++x) {
-            for (int y = 0; y < 2; ++y) {
-                for (int z = 0; z < 2; ++z) {
-                    vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
-                    color += textureLod(diffuseCubeMaps[index], -infiniteLightDirection + dirOffset, 0).rgb * infiniteLightColor;
-                }
-            }
-        }
+        // for (int x = 0; x < 2; ++x) {
+        //     for (int y = 0; y < 2; ++y) {
+        //         for (int z = 0; z < 2; ++z) {
+        //             vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
+        //             color += textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection + dirOffset, float(entry.layer)), 0).rgb * infiniteLightColor;
+        //             totalColors += 1.0;
+        //         }
+        //     }
+        // }
 
-        lightData[index].color = vec4(color * lightData[index].intensity, 1.0);
+        lightData[index].color = vec4(color / totalColors * data.intensity * colorMultiplier, 1.0);
     }
 }

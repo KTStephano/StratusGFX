@@ -8,18 +8,13 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "common.glsl"
+#include "aa_common.glsl"
 
 in vec2 fsTexCoords;
 
 uniform sampler2D screen;
 
 out vec4 color;
-
-// Notice how the green component is favored most heavily since perceptually
-// it tends to contribute most to the luminance of a color
-float linearColorToLuminance(vec3 linearColor) {
-    return 0.2126 * linearColor.r + 0.7152 * linearColor.g + 0.0722 * linearColor.b;
-}
 
 void main() {
     vec3 screenColor = texture(screen, fsTexCoords).rgb;

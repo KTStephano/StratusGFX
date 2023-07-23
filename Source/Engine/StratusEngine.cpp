@@ -201,6 +201,7 @@ namespace stratus {
 
     void Engine::InitWindow_() {
         EngineModuleInit::InitializeEngineModule(Window::Instance_(), new Window(1600, 900), true);
+        //EngineModuleInit::InitializeEngineModule(Window::Instance_(), new Window(1920, 1080), true);
     }
 
     void Engine::InitRenderer_() {
@@ -228,13 +229,14 @@ namespace stratus {
 
         // Application should shut down first
         ShutdownResourceAndDelete_(Application::Instance_());
+        ShutdownResourceAndDelete_(TaskSystem::Instance_());
         ShutdownResourceAndDelete_(InputManager::Instance_());
         ShutdownResourceAndDelete_(ResourceManager::Instance_());
         ShutdownResourceAndDelete_(MaterialManager::Instance_());
         ShutdownResourceAndDelete_(RendererFrontend::Instance_());
         ShutdownResourceAndDelete_(Window::Instance_());
         ShutdownResourceAndDelete_(EntityManager::Instance_());
-        ShutdownResourceAndDelete_(TaskSystem::Instance_());
+        //ShutdownResourceAndDelete_(TaskSystem::Instance_());
         // This one does not have a specialized instance
         GraphicsDriver::Shutdown();
         // This one does not have a shutdown routine
@@ -245,6 +247,21 @@ namespace stratus {
     // Processes the next full system frame, including rendering. Returns false only
     // if the main engine loop should stop.
     SystemStatus Engine::Frame() {
+        // Calculate new frame time
+        const auto end = std::chrono::high_resolution_clock::now();
+        //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
+        const auto elapsed = end - stats_.prevFrameStart;
+        const double durationMsec = std::chrono::duration<double, std::micro>(elapsed).count();
+        const auto requestedFrameTimingMsec = 1000000.0 / double(_params.maxFrameRate);
+        // Make sure we haven't exceeded the max frame rate
+        //if (frameRate > _params.maxFrameRate) {
+        if (durationMsec < requestedFrameTimingMsec) {
+            //std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            return SystemStatus::SYSTEM_CONTINUE;
+        }
+
+        //STRATUS_LOG << durationMsec << " " << requestedFrameTimingMsec << std::endl;
+
         // Validate
         CHECK_IS_APPLICATION_THREAD();
 
@@ -253,19 +270,7 @@ namespace stratus {
 
         //std::shared_lock<std::shared_mutex> sl(_mainLoop);
 
-        // Calculate new frame time
-        const auto end = std::chrono::system_clock::now();
-        //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
-        const double duration = std::chrono::duration<double, std::milli>(end - stats_.prevFrameStart).count();
-        const auto requestedFrameTimingMsec = 1000.0 / double(_params.maxFrameRate);
-        // Make sure we haven't exceeded the max frame rate
-        //if (frameRate > _params.maxFrameRate) {
-        if (duration < requestedFrameTimingMsec) {
-            //std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            return SystemStatus::SYSTEM_CONTINUE;
-        }
-
-
+        const double duration = std::chrono::duration<double, std::milli>(elapsed).count();
         const double deltaSeconds = duration / 1000.0;
         //const double frameRate = 1.0 / deltaSeconds;
 

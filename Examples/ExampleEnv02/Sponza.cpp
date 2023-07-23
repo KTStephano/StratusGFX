@@ -22,6 +22,7 @@
 #include "StratusGpuCommon.h"
 #include "WorldLightController.h"
 #include "FrameRateController.h"
+#include "StratusWindow.h"
 
 class Sponza : public stratus::Application {
 public:
@@ -35,6 +36,8 @@ public:
     virtual bool Initialize() override {
         STRATUS_LOG << "Initializing " << GetAppName() << std::endl;
 
+        //INSTANCE(Window)->SetWindowDims(1920, 1080);
+
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
@@ -42,7 +45,9 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
+        const glm::vec3 moonlightColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
         auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 5);
+        //auto wc = new WorldLightController(moonlightColor, moonlightColor, 0.5f);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
@@ -78,7 +83,12 @@ public:
         e.AddCallback(callback);
         e2.AddCallback(callback);
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        //settings.SetSkyboxIntensity(0.05f);
+        //settings.SetSkyboxColorMask(moonlightColor);
+        settings.SetAlphaDepthTestThreshold(0.75f);
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
 
@@ -144,32 +154,9 @@ public:
                         }
                         case SDL_SCANCODE_2: {
                             if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 100.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_3: {
-                            if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 50.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_4: {
-                            if (released) {
-                                LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 15.0f)
-                                );
-                            }
-                            break;
-                        }
-                        case SDL_SCANCODE_5: {
-                            if (released) {
-                                LightCreator::CreateRandomLightMover(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                LightCreator::CreateStationaryLight(
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 800.0f),
+                                    false
                                 );
                             }
                             break;
@@ -185,17 +172,29 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 60; x > 0; x -= 20) {
-               for (int y = 15; y < 240; y += 40) {
-                   for (int z = -140; z < 180; z += 20) {
-                           ++spawned;
-                           LightCreator::CreateVirtualPointLight(
-                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-                               false
-                           );
-                   }
-               }
+           for (int x = 60; x > -30; x -= 10) {
+              for (int y = 15; y < 240; y += 20) {
+                  for (int z = -140; z < 180; z += 20) {
+                          ++spawned;
+                          LightCreator::CreateVirtualPointLight(
+                              LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                              false
+                          );
+                  }
+              }
            }
+
+        //    for (int x = -160; x < 150; x += 20) {
+        //        for (int y = 15; y < 150; y += 20) {
+        //            for (int z = -60; z < 60; z += 10) {
+        //                    ++spawned;
+        //                    LightCreator::CreateVirtualPointLight(
+        //                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
+        //                        true
+        //                    );
+        //            }
+        //        }
+        //    }
 
            STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
         }

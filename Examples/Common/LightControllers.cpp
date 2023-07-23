@@ -1,5 +1,6 @@
 #include "LightControllers.h"
 #include "StratusRenderComponents.h"
+#include <sstream>
 
 std::vector<stratus::EntityProcessHandle> LightCreator::handles;
 
@@ -35,14 +36,21 @@ static void InitCube(const LightParams& p,
     // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
     auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
     auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
-    rc->SetMaterialAt(INSTANCE(MaterialManager)->CreateDefault(), 0);
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
     local->SetLocalScale(glm::vec3(0.25f));
     local->SetLocalPosition(p.position);
+    float multiplier = 1.0f;
     auto color = light->GetColor();
+    if (light->IsVirtualLight()) {
+        multiplier = 100.0f;
+        color = light->GetBaseColor();
+    }
+    color = color * multiplier;
     // This prevents the cube from being so bright that the bloom post fx causes it to glow
     // to an extreme amount
     color = (color / stratus::maxLightColor) * 100.0f;
+    const std::string name = "LightCube_" + std::to_string(color.r) + "_" + std::to_string(color.g) + "_" + std::to_string(color.b);
+    rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial(name), 0);
     rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
 }
 
@@ -100,7 +108,7 @@ void LightCreator::CreateVirtualPointLight(const LightParams& p, const bool spaw
         cube->Components().DisableComponent<stratus::StaticObjectComponent>();
     }
 
-    STRATUS_LOG << "VPL Radius: " << light->GetRadius() << std::endl;
+    //STRATUS_LOG << "VPL Radius: " << light->GetRadius() << std::endl;
 
     ptr->Components().AttachComponent<LightComponent>(light);
     if (spawnCube) ptr->Components().AttachComponent<LightCubeComponent>(cube);
@@ -184,13 +192,28 @@ void LightProcess::Process(const double deltaSeconds) {
         const auto& lights = ConvertHandlerToLightDelete(input)->entities;
         for (const auto& light : lights) {
             auto ptr = stratus::GetComponent<LightComponent>(light)->light;
+            if (ptr->IsVirtualLight()) continue;
             const bool containsCube = stratus::ContainsComponent<LightCubeComponent>(light);
-            STRATUS_LOG << "LightCreator::CreateStationaryLight(\n"
-                        << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
-                        << "glm::vec3" << ptr->GetBaseColor() << ", "
-                        << ptr->GetIntensity() << ", "
-                        << (ptr->CastsShadows() ? "true" : "false") << "), \n"
-                        << "    " << (containsCube ? "true" : "false") << "\n);";
+            const bool containsMover = stratus::ContainsComponent<RandomLightMoverComponent>(light);
+            std::stringstream params;
+            params << "    LightParams(glm::vec3" << ptr->GetPosition() << ", "
+                << "glm::vec3" << ptr->GetBaseColor() << ", "
+                << ptr->GetIntensity() << ", "
+                << (ptr->CastsShadows() ? "true" : "false") << ")";
+
+            if (containsMover) {
+                STRATUS_LOG 
+                    << "LightCreator::CreateRandomLightMover(\n"
+                    << params.str() << "\n);" 
+                    << std::endl;
+            }
+            else {
+                STRATUS_LOG
+                    << "LightCreator::CreateStationaryLight(\n"
+                    << params.str() << ", \n"
+                    << "    " << (containsCube ? "true" : "false") << "\n);" 
+                    << std::endl;
+            }
         }
     }
 
@@ -255,16 +278,16 @@ void RandomLightMoverProcess::Process(const double deltaSeconds) {
         c->elapsedSeconds += deltaSeconds;
         if (c->elapsedSeconds > 5.0) {
             c->elapsedSeconds = 0.0;
-            _ChangeDirection(c);
+            ChangeDirection_(c);
         }
     }
 }
 
 void RandomLightMoverProcess::EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) {
     for (auto ptr : e) {
-        if (_IsEntityRelevant(ptr)) {
+        if (IsEntityRelevant_(ptr)) {
             entities_.insert(ptr);
-            _ChangeDirection(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
+            ChangeDirection_(ptr->Components().GetComponent<RandomLightMoverComponent>().component);
         }
     }
 }
@@ -283,13 +306,13 @@ void RandomLightMoverProcess::EntityComponentsEnabledDisabled(const std::unorder
 
 }
 
-bool RandomLightMoverProcess::_IsEntityRelevant(const stratus::EntityPtr& e) {
+bool RandomLightMoverProcess::IsEntityRelevant_(const stratus::EntityPtr& e) {
     return e->Components().ContainsComponent<RandomLightMoverComponent>() &&
         e->Components().ContainsComponent<LightComponent>() &&
         e->Components().ContainsComponent<LightCubeComponent>();
 }
 
-void RandomLightMoverProcess::_ChangeDirection(RandomLightMoverComponent * c) {
+void RandomLightMoverProcess::ChangeDirection_(RandomLightMoverComponent * c) {
         float xModifier = rand() % 100 > 50 ? -1.0f : 1.0f;
         float yModifier = 0.0; // rand() % 100 > 50 ? -1.0f : 1.0f;
         float zModifier = rand() % 100 > 50 ? -1.0f : 1.0f;

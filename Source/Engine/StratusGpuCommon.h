@@ -11,13 +11,18 @@
 #define GPU_ALIGNAS(x) alignas(x)
 #endif
 
+// Synchronized with definitions in pbr.glsl
+#define MAX_TOTAL_SHADOW_ATLASES (14)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
+
 // Once a VPL is further than this distance away it is automatically culled
 #define MAX_VPL_DISTANCE_TO_VIEWER (500.0f)
-#define MAX_TOTAL_VPL_SHADOW_MAPS (512)
+#define MAX_TOTAL_VPL_SHADOW_MAPS MAX_TOTAL_SHADOW_MAPS
 
 // Matches the definitions in common.glsl
 #define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_AMBIENT_MAPPED            (BITMASK_POW2(2))
+#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
 #define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
 #define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
 #define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
@@ -26,9 +31,17 @@
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
 // Matches the definitions in vpl_common.glsl
-#define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (160)
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (8192)
+#define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
 #define MAX_VPLS_PER_TILE (12)
+
+#define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
+#define FLOAT3_TO_VEC3(f3) glm::vec3(f3[0], f3[1], f3[2])
+#define FLOAT4_TO_VEC4(f4) glm::vec4(f4[0], f4[1], f4[2], f4[3])
+
+#define SET_FLOAT2(f2, v2) f2[0] = v2[0]; f2[1] = v2[1];
+#define SET_FLOAT3(f3, v3) f3[0] = v3[0]; f3[1] = v3[1]; f3[2] = v3[2];
+#define SET_FLOAT4(f4, v4) f4[0] = v4[0]; f4[1] = v4[1]; f4[2] = v4[2]; f4[3] = v4[3];
 
 namespace stratus {
     // Used with bindless textures
@@ -105,26 +118,31 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuMaterial {
-        GpuVec diffuseColor;
-        GpuVec ambientColor;
-        GpuVec baseReflectivity;
-        // First two values = metallic, roughness
-        // last two values = padding
-        GpuVec metallicRoughness;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle diffuseMap;
-        GpuTextureHandle ambientMap;
+        GpuTextureHandle emissiveMap;
         // total bytes next 2 entries = GpuVec
         GpuTextureHandle normalMap;
-        GpuTextureHandle depthMap;
+        //GpuTextureHandle depthMap;
         // total bytes next 2 entries = GpuVec
         // TODO: Remove these and always favor metallicRoughnessMap
         GpuTextureHandle roughnessMap;
         GpuTextureHandle metallicMap;
         // total bytes next 3 entries = GpuVec
         GpuTextureHandle metallicRoughnessMap;
+        float diffuseColor[4];
+        float emissiveColor[3];
+        // Base and max are interpolated between based on metallic
+        // metallic of 0 = base reflectivity
+        // metallic of 1 = max reflectivity
+        float reflectance;
+        //float baseReflectivity[3];
+        //float maxReflectivity[3];
+        // First two values = metallic, roughness
+        // last two values = padding
+        float metallicRoughness[2];
         unsigned int flags = 0;
-        unsigned int placeholder1_;
+        unsigned int placeholder1_ = 0;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -157,12 +175,12 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuDrawElementsIndirectCommand {
-        uint32_t vertexCount;
-        uint32_t instanceCount;
+        uint32_t vertexCount = 0;
+        uint32_t instanceCount = 0;
         // Measured in units of indices instead of the normal bytes
-        uint32_t firstIndex;
-        int32_t baseVertex;
-        uint32_t baseInstance;
+        uint32_t firstIndex = 0;
+        int32_t baseVertex = 0;
+        uint32_t baseInstance = 0;
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -245,7 +263,31 @@ namespace stratus {
         GpuVec color;
         float radius;
         float farPlane;
-        float placeholder1_[2];
+        float placeholder_[2];
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
+    // This is synchronized with the version inside of pbr.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuAtlasEntry {
+        int index = -1;
+        int layer = -1;
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
+    // This is synchronized with the version inside of common.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuHaltonEntry {
+        float base2;
+        float base3;
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -253,12 +295,14 @@ namespace stratus {
 
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
-    static_assert(sizeof(GpuMaterial) == 128);
+    static_assert(sizeof(GpuMaterial) == 96);
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
     static_assert(sizeof(GpuVplData) == 64);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
+    static_assert(sizeof(GpuAtlasEntry) == 8);
+    static_assert(sizeof(GpuHaltonEntry) == 8);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

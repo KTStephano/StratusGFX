@@ -17,6 +17,8 @@
 #include "StratusRenderComponents.h"
 #include "StratusGpuCommon.h"
 #include "StratusPipeline.h"
+#include "StratusGpuMaterialBuffer.h"
+#include "StratusGpuCommandBuffer.h"
 
 namespace stratus {
     struct RendererParams {
@@ -37,7 +39,7 @@ namespace stratus {
         void AddLight(const LightPtr&);
         void RemoveLight(const LightPtr&);
         void ClearLights();
-        void SetWorldLight(const InfiniteLightPtr&);
+        void SetWorldLight(const InfiniteLightPtr&); 
         InfiniteLightPtr GetWorldLight();
         void ClearWorldLight();
 
@@ -45,23 +47,16 @@ namespace stratus {
         CameraPtr GetCamera() const;
         void SetFovY(const Degrees&);
         void SetNearFar(const float znear, const float zfar);
-        void SetVsyncEnabled(const bool);
         void SetClearColor(const glm::vec4&);
-        void SetSkybox(const TextureHandle&);
-        void SetSkyboxColorMask(const glm::vec3&);
-        void SetSkyboxIntensity(const float);
-        void SetFogColor(const glm::vec3&);
-        void SetFogDensity(const float);
-
-        void SetGlobalIlluminationEnabled(const bool);
-        bool GetGlobalIlluminationEnabled() const;
+        RendererSettings GetSettings() const;
+        void SetSettings(const RendererSettings&);
 
         // std::vector<SDL_Event> PollInputEvents();
         // RendererMouseState GetMouseState() const;
 
         void RecompileShaders();
 
-    private:
+    private: 
         // SystemModule inteface
         virtual bool Initialize();
         virtual SystemStatus Update(const double);
@@ -71,29 +66,31 @@ namespace stratus {
         std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
         std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
         void AddAllMaterialsForEntity_(const EntityPtr&);
+        void RemoveAllMaterialsForEntity_(const EntityPtr&);
         bool AddEntity_(const EntityPtr& p);
         static bool EntityChanged_(const EntityPtr&);
         bool RemoveEntity_(const EntityPtr&);
         void CheckEntitySetForChanges_(std::unordered_set<EntityPtr>&);
         void CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial);
-        void RecalculateMaterialSet_();
-        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> GenerateDrawCommands_(RenderComponent *, const size_t, bool&) const;
 
     private:
         void UpdateViewport_();
-        void UpdateCascadeTransforms_();
+        void UpdateCascadeData_();
         void CheckForEntityChanges_();
         void UpdateLights_();
         void UpdateMaterialSet_();
+        void MarkDynamicLightsDirty_();
         void MarkStaticLightsDirty_();
+        void MarkAllLightsDirty_();
         void UpdateDrawCommands_();
         void UpdateVisibility_();
         void UpdateVisibility_(
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
-            const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
-            const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod
+            std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&,
+            const bool selectLods
             );
+        void UpdatePrevFrameModelTransforms_();
 
     private:
         // These are called by the private entity handler
@@ -111,6 +108,7 @@ namespace stratus {
         //std::vector<GpuMaterial> _gpuMaterials;
         std::unordered_set<LightPtr> lights_;
         std::unordered_set<LightPtr> dynamicLights_;
+        std::unordered_set<LightPtr> staticLights_;
         std::unordered_set<LightPtr> virtualPointLights_;
         InfiniteLightPtr worldLight_;
         std::unordered_set<LightPtr> lightsToRemove_;
@@ -118,8 +116,6 @@ namespace stratus {
         EntityMeshData dynamicPbrEntities_;
         EntityMeshData staticPbrEntities_;
         uint64_t lastFrameMaterialIndicesRecomputed_ = 0;
-        bool materialsDirty_ = false;
-        bool drawCommandsDirty_ = false;
         CameraPtr camera_;
         glm::mat4 projection_ = glm::mat4(1.0f);
         bool viewportDirty_ = true;
@@ -131,6 +127,9 @@ namespace stratus {
         // Compute pipeline which performs AABB checks against view frustum
         std::unique_ptr<Pipeline> viscullLodSelect_;
         std::unique_ptr<Pipeline> viscull_;
+        std::unique_ptr<Pipeline> updateTransforms_;
+        // Used for temporal anti-aliasing
+        size_t currentHaltonIndex_ = 0;
         mutable std::shared_mutex mutex_;
     };
 }

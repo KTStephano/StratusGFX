@@ -56,8 +56,8 @@ struct RandomLightMoverProcess : public stratus::EntityProcess {
     void EntityComponentsEnabledDisabled(const std::unordered_set<stratus::EntityPtr>& changed) override;
 
 private:
-    static bool _IsEntityRelevant(const stratus::EntityPtr&);
-    static void _ChangeDirection(RandomLightMoverComponent *);
+    static bool IsEntityRelevant_(const stratus::EntityPtr&);
+    static void ChangeDirection_(RandomLightMoverComponent *);
 
 private:
     std::unordered_set<stratus::EntityPtr> entities_;

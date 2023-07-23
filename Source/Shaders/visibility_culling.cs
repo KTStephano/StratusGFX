@@ -7,40 +7,68 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 #include "common.glsl"
 #include "aabb.glsl"
 
+uniform vec4 frustumPlanes[6];
+uniform float zfar;
+
 layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
-};
-
-layout (std430, binding = 4) readonly buffer inputBlock3 {
-    mat4 globalTransforms[];
 };
 
 layout (std430, binding = 3) readonly buffer inputBlock4 {
     AABB aabbs[];
 };
 
-layout (std430, binding = 1) buffer outputBlock1 {
-    DrawElementsIndirectCommand drawCalls[];
+layout (std430, binding = 1) readonly buffer inputBlock1 {
+    DrawElementsIndirectCommand inDrawCalls[];
+};
+
+layout (std430, binding = 14) buffer outputBlock1 {
+    DrawElementsIndirectCommand outDrawCalls[];
+};
+
+layout (std430, binding = 13) buffer outputBlock2 {
+    DrawElementsIndirectCommand selectedLods[];
 };
 
 #ifdef SELECT_LOD
-layout (std430, binding = 5) readonly buffer lod0 {
-    DrawElementsIndirectCommand drawCallsLod0[];
-};
-layout (std430, binding = 6) readonly buffer lod1 {
-    DrawElementsIndirectCommand drawCallsLod1[];
-};
-layout (std430, binding = 7) readonly buffer lod2 {
-    DrawElementsIndirectCommand drawCallsLod2[];
-};
-layout (std430, binding = 8) readonly buffer lod3 {
-    DrawElementsIndirectCommand drawCallsLod3[];
-};
+    layout (std430, binding = 5) readonly buffer lod0 {
+        DrawElementsIndirectCommand drawCallsLod0[];
+    };
+    layout (std430, binding = 6) readonly buffer lod1 {
+        DrawElementsIndirectCommand drawCallsLod1[];
+    };
+    layout (std430, binding = 7) readonly buffer lod2 {
+        DrawElementsIndirectCommand drawCallsLod2[];
+    };
+    layout (std430, binding = 8) readonly buffer lod3 {
+        DrawElementsIndirectCommand drawCallsLod3[];
+    };
+    layout (std430, binding = 9) readonly buffer lod4 {
+        DrawElementsIndirectCommand drawCallsLod4[];
+    };
+    layout (std430, binding = 10) readonly buffer lod5 {
+        DrawElementsIndirectCommand drawCallsLod5[];
+    };
+    layout (std430, binding = 11) readonly buffer lod6 {
+        DrawElementsIndirectCommand drawCallsLod6[];
+    };
+    layout (std430, binding = 12) readonly buffer lod7 {
+        DrawElementsIndirectCommand drawCallsLod7[];
+    };
 #endif
 
 uniform uint numDrawCalls;
 uniform vec3 viewPosition;
 uniform mat4 view;
+
+// See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
+float distanceFromPointToAABB(in AABB aabb, vec3 point) {
+    float dx = max(aabb.vmin.x - point.x, max(0.0, point.x - aabb.vmax.x));
+    float dy = max(aabb.vmin.y - point.y, max(0.0, point.y - aabb.vmax.y));
+    float dz = max(aabb.vmin.z - point.z, max(0.0, point.z - aabb.vmax.z));
+
+    return sqrt(dx * dx + dy * dy + dz + dz);
+}
 
 void main() {
     // Defines local work group from layout local size tag above
@@ -48,31 +76,63 @@ void main() {
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
-        vec3 center = (aabb.vmin.xyz + aabb.vmax.xyz) * 0.5;
-        center = (view * vec4(center, 1.0)).xyz;
-        float dist = length(center);
-        DrawElementsIndirectCommand draw = drawCalls[i];
-        if (!isAabbVisible(aabb)) {
+        // World space center
+        //vec3 center = (aabb.vmin.xyz + aabb.vmax.xyz) * 0.5;
+        // Defines a ray originating from the camera moving towards the center of the AABB
+        float dist = distanceFromPointToAABB(aabb, viewPosition);
+        //center = center - viewPosition; //(view * vec4(center, 1.0)).xyz;
+        //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
+        DrawElementsIndirectCommand draw = inDrawCalls[i];
+
+    #ifdef SELECT_LOD
+        DrawElementsIndirectCommand lod;
+        const float firstLodDist = max(zfar, 1000.0) * 0.3;
+        const float maxDist = max(zfar, 1000.0) - firstLodDist;
+        const float restLodDist = maxDist / 7;
+
+        if (dist < firstLodDist) {
+            draw = drawCallsLod0[i];
+        }
+        // else {
+        //     draw = drawCallsLod7[i];
+        // }
+        else if (dist < (firstLodDist + restLodDist * 1.0)) {
+            draw = drawCallsLod1[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 2.0))  {
+            draw = drawCallsLod2[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 3.0))  {
+            draw = drawCallsLod3[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 4.0))  {
+            draw = drawCallsLod4[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 5.0))  {
+            draw = drawCallsLod5[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 6.0))  {
+            draw = drawCallsLod6[i];
+        }
+        else {
+            draw = drawCallsLod7[i];
+        }
+
+        //draw = drawCallsLod7[i];
+        lod = draw;
+    #endif
+
+        if (!isAabbVisible(frustumPlanes, aabb)) {
             draw.instanceCount = 0;
         }
         else {
-            #ifdef SELECT_LOD
-            if (dist < 400) {
-                draw = drawCallsLod0[i];
-            }
-            else if (dist < 700) {
-                draw = drawCallsLod1[i];
-            }
-            else if (dist < 900) {
-                draw = drawCallsLod2[i];
-            }
-            else {
-                draw = drawCallsLod3[i];
-            }
-            #endif
             draw.instanceCount = 1;
         }
 
-        drawCalls[i] = draw;
+        outDrawCalls[i] = draw;
+
+    #ifdef SELECT_LOD
+        selectedLods[i] = lod;
+    #endif
     }
 }

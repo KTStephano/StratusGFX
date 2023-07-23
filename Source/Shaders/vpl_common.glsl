@@ -1,9 +1,11 @@
 STRATUS_GLSL_VERSION
 
+#include "pbr.glsl"
+
 // These needs to match what is in the renderer backend!
 // TODO: Find a better way to sync these values with renderer
-#define MAX_TOTAL_VPLS_BEFORE_CULLING (4096)
-#define MAX_TOTAL_VPLS_PER_FRAME (160)
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (8192)
+#define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
 #define MAX_VPLS_PER_TILE (12)
 
 // Needs to use uint for its memory backing since GLSL atomics only work on int and uint
@@ -50,5 +52,5 @@ struct VplData {
     float radius;
     float farPlane;
     float intensity;
-    float _2;
+    float _1;
 };

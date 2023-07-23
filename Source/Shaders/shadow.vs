@@ -9,6 +9,8 @@ STRATUS_GLSL_VERSION
 
 uniform mat4 shadowMatrix;
 
+uniform int layer;
+
 layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
@@ -20,7 +22,8 @@ flat out int fsDrawID;
 void main() {
     // Select which layer of the depth texture we will write to
 	// (DEPTH_LAYER is defined in C++ code)
-	gl_Layer = DEPTH_LAYER;
+	//gl_Layer = DEPTH_LAYER;
+    gl_Layer = layer;
 
     fsDrawID = gl_DrawID;
     fsTexCoords = getTexCoord(gl_VertexID);

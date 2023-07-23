@@ -61,9 +61,11 @@ public:
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
-
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
+        
+        // Alpha testing doesn't work so well for this scene
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.25f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -80,8 +82,11 @@ public:
             INSTANCE(EntityManager)->AddEntity(warehouse);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
-        INSTANCE(RendererFrontend)->SetSkyboxIntensity(3.0f);
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        settings.SetSkyboxIntensity(3.0f);
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 
@@ -162,7 +167,7 @@ public:
                     //for (int z = -245; z < 10; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), -245.0f), glm::vec3(1.0f), 100.0f),
+                            LightParams(glm::vec3(float(x), float(y), -245.0f), glm::vec3(1.0f), 1.0f),
                             false
                         );
                     //}
@@ -174,7 +179,7 @@ public:
                     for (int z = -200; z < -50; z += 20) {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), -30.0f, float(z)), glm::vec3(1.0f), 100.0f),
+                        LightParams(glm::vec3(float(x), -30.0f, float(z)), glm::vec3(1.0f), 1.0f),
                         false
                     );
                     }

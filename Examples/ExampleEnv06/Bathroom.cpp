@@ -23,7 +23,7 @@
 #include "FrameRateController.h"
 
 class Bathroom : public stratus::Application {
-public:
+public: 
     virtual ~Bathroom() = default;
 
     const char * GetAppName() const override {
@@ -62,7 +62,7 @@ public:
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(256);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
@@ -80,8 +80,13 @@ public:
             INSTANCE(EntityManager)->AddEntity(bathroom);
         });
 
-        INSTANCE(RendererFrontend)->SetSkybox(stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg"));
-        INSTANCE(RendererFrontend)->SetSkyboxIntensity(0.0125f);
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        settings.SetSkyboxIntensity(0.0125f);
+        settings.SetMinRoughness(0.0f);
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_2048;
+        INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
 
@@ -162,7 +167,7 @@ public:
                     for (int z = -20; z < 10; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
-                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 10.0f),
+                            LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.01f),
                             false
                         );
                     }

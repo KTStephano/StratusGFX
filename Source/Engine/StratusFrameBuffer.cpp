@@ -177,7 +177,7 @@ namespace stratus {
 
             // Validity check
             if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-                std::cerr << "[error] Generating frame buffer with attachments failed" << std::endl;
+                STRATUS_ERROR << "Generating frame buffer with attachments failed" << std::endl;
                 valid_ = false;
             }
 

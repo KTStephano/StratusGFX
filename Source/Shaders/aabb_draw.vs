@@ -5,10 +5,6 @@ STRATUS_GLSL_VERSION
 #include "aabb.glsl"
 #include "mesh_data.glsl"
 
-layout (std430, binding = 15) readonly buffer SSBO2 {
-    mat4 globalMatrices[];
-};
-
 layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };

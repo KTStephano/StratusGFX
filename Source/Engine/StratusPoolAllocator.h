@@ -97,6 +97,7 @@ namespace stratus {
         }
 
         void Deallocate(E * ptr) {
+            if (ptr == nullptr) return;
             ptr->~E();
             auto wlb = backBufferLock_.LockWrite();
             uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
@@ -225,53 +226,27 @@ namespace stratus {
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
-    private:
-        // This is a control structure which allows us to keep track of which
-        // thread pool allocators are still in use and which need to be deleted
-        // (lightweight ref counted pointer)
-        struct AllocatorData_ {
-            std::atomic<size_t> counter;
-            Allocator * allocator;
-
-            AllocatorData_() {
-                counter.store(0);
-                allocator = new Allocator();
-            }
-
-            ~AllocatorData_() {
-                delete allocator;
-                allocator = nullptr;
-            }
-        };
-
     public:
         struct Deleter {
-            AllocatorData_ ** allocator;
+            std::shared_ptr<Allocator> allocator;
 
-            Deleter(AllocatorData_ ** allocator)
-                : allocator(allocator) { (*allocator)->counter.fetch_add(1); }
+            Deleter(const std::shared_ptr<Allocator>& allocator)
+                : allocator(allocator) {}
 
             Deleter(Deleter&& other)
-                : allocator(other.allocator) { other.allocator = nullptr; }
+                : allocator(other.allocator) {}
 
             Deleter(const Deleter& other)
-                : allocator(other.allocator) { (*allocator)->counter.fetch_add(1); }
+                : allocator(other.allocator) {}
 
             Deleter& operator=(Deleter&&) = delete;
             Deleter& operator=(const Deleter&) = delete;
 
-            ~Deleter() {
-                if (allocator) {
-                    auto prev = (*allocator)->counter.fetch_sub(1);
-                    if (prev <= 1) {
-                        delete (*allocator);
-                        *allocator = nullptr;
-                    }
-                }
-            }
+            ~Deleter() {}
 
             void operator()(E * ptr) {
-                (*allocator)->allocator->Deallocate(ptr);
+                //if (*allocator == nullptr) return;
+                allocator->Deallocate(ptr);
             }
         };
 
@@ -295,36 +270,38 @@ namespace stratus {
 
         template<typename ... Types>
         static UniquePtr Allocate(const Types&... args) {
-            EnsureValid_();
-            return UniquePtr(GetAllocator_()->Allocate(args...), Deleter(&_alloc));
+            auto alloc = GetAllocator_();
+            return UniquePtr(alloc->Allocate(args...), Deleter(alloc));
         }
 
         template<typename ... Types>
         static SharedPtr AllocateShared(const Types&... args) {
-            EnsureValid_();
-            return SharedPtr(GetAllocator_()->Allocate(args...), Deleter(&_alloc));
+            auto alloc = GetAllocator_();
+            return SharedPtr(alloc->Allocate(args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
         static UniquePtr AllocateCustomConstruct(Construct c, const Types&... args) {
-            EnsureValid_();
-            return UniquePtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
+            auto alloc = GetAllocator_();
+            return UniquePtr(alloc->AllocateCustomConstruct(c, args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
         static SharedPtr AllocateSharedCustomConstruct(Construct c, const Types&... args) {
-            EnsureValid_();
-            return SharedPtr(GetAllocator_()->AllocateCustomConstruct(c, args...), Deleter(&_alloc));
+            auto alloc = GetAllocator_();
+            return SharedPtr(alloc->AllocateCustomConstruct(c, args...), Deleter(alloc));
         }
 
         static size_t NumChunks() {
-            if (!_alloc) return 0;
-            return GetAllocator_()->NumChunks();
+            auto alloc = WeakGetAllocator_();
+            if (!alloc) return 0;
+            return alloc->NumChunks();
         }
 
         static size_t NumElems() {
-            if (!_alloc) return 0;
-            return GetAllocator_()->NumElems();
+            auto alloc = WeakGetAllocator_();
+            if (!alloc) return 0;
+            return alloc->NumElems();
         }
 
         template<typename Base>
@@ -336,16 +313,21 @@ namespace stratus {
         }
 
     private:
-        static void EnsureValid_() {
-            if (!_alloc) _alloc = new AllocatorData_();
+        static std::shared_ptr<Allocator> GetAllocator_() {
+            auto alloc = alloc_.lock();
+            if (!alloc) {
+                alloc = std::make_shared<Allocator>();
+                alloc_ = alloc;
+            }
+            return alloc;
         }
 
-        static Allocator * GetAllocator_() {
-            return _alloc->allocator;
+        static std::shared_ptr<Allocator> WeakGetAllocator_() {
+            return alloc_.lock();
         }
 
     private:
-        inline thread_local static AllocatorData_ * _alloc = nullptr;
+        inline thread_local static std::weak_ptr<Allocator> alloc_;
     };
 
     /* This implementation works but may be slightly less cache efficient due to

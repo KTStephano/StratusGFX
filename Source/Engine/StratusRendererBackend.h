@@ -24,6 +24,9 @@
 #include "StratusEntity.h"
 #include "StratusTransformComponent.h"
 #include "StratusRenderComponents.h"
+#include "StratusGpuMaterialBuffer.h"
+#include "StratusGpuCommandBuffer.h"
+#include <functional>
 
 namespace stratus {
     class Pipeline;
@@ -32,15 +35,17 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
+    typedef std::function<GpuBuffer(GpuCommandBuffer2Ptr&)> CommandBufferSelectionFunction;
+
     extern bool IsRenderable(const EntityPtr&);
     extern bool IsLightInteracting(const EntityPtr&);
     extern size_t GetMeshCount(const EntityPtr&);
 
-    ENTITY_COMPONENT_STRUCT(MeshWorldTransforms)
-        MeshWorldTransforms() = default;
-        MeshWorldTransforms(const MeshWorldTransforms&) = default;
-
-        std::vector<glm::mat4> transforms;
+    enum class RendererCascadeResolution : int {
+        CASCADE_RESOLUTION_1024 = 1024,
+        CASCADE_RESOLUTION_2048 = 2048,
+        CASCADE_RESOLUTION_4096 = 4096,
+        CASCADE_RESOLUTION_8192 = 8192
     };
 
     struct RenderMeshContainer {
@@ -94,18 +99,9 @@ namespace stratus {
         InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
         glm::vec3 worldLightDirectionCameraSpace;
+        float znear;
+        float zfar;
         bool regenerateFbo;    
-    };
-
-    struct RendererMaterialInformation {
-        size_t maxMaterials = 2048;
-        // These are the materials we draw from to calculate the material-indices map
-        std::unordered_set<MaterialPtr> availableMaterials;
-        // Indices can change completely if new materials are added
-        std::unordered_map<MaterialPtr, uint32_t> indices;
-        // List of CPU-side materials for easy copy to GPU
-        std::vector<GpuMaterial> materials;
-        GpuBuffer materialsBuffer;
     };
 
     struct LightUpdateQueue {
@@ -159,8 +155,105 @@ namespace stratus {
         }
 
     private:
-        std::deque<LightPtr> queue_;
+        std::list<LightPtr> queue_;
         std::unordered_set<LightPtr> existing_;
+    };
+
+    // Settings which can be changed at runtime by the application
+    struct RendererSettings {
+        // These are values we don't need to range check
+        TextureHandle skybox = TextureHandle::Null();
+        bool vsyncEnabled = false;
+        bool globalIlluminationEnabled = true;
+        bool fxaaEnabled = true;
+        bool taaEnabled = true;
+        bool bloomEnabled = true;
+        bool usePerceptualRoughness = true;
+        RendererCascadeResolution cascadeResolution = RendererCascadeResolution::CASCADE_RESOLUTION_1024;
+
+        float GetEmissionStrength() const {
+            return emissionStrength_;
+        }
+
+        void SetEmissionStrength(const float strength) {
+            emissionStrength_ = std::max<float>(strength, 0.0f);
+        }
+
+        float GetEmissiveTextureMultiplier() const {
+            return emissiveTextureMultiplier_;
+        }
+
+        void SetEmissiveTextureMultiplier(const float multiplier) {
+            emissiveTextureMultiplier_ = std::max<float>(multiplier, 0.0f);
+        }
+
+        glm::vec3 GetFogColor() const {
+            return fogColor_;
+        }
+
+        float GetFogDensity() const {
+            return fogDensity_;
+        }
+
+        void SetFogColor(const glm::vec3& color) {
+            fogColor_ = glm::vec3(
+                std::max<float>(color[0], 0.0f),
+                std::max<float>(color[1], 0.0f),
+                std::max<float>(color[2], 0.0f)
+            );
+        }
+
+        void SetFogDensity(const float density) {
+            fogDensity_ = std::max<float>(density, 0.0f);
+        }
+
+        glm::vec3 GetSkyboxColorMask() const {
+            return skyboxColorMask_;
+        }
+
+        float GetSkyboxIntensity() const {
+            return skyboxIntensity_;
+        }
+
+        void SetSkyboxColorMask(const glm::vec3& mask) {
+            skyboxColorMask_ = glm::vec3(
+                std::max<float>(mask[0], 0.0f),
+                std::max<float>(mask[1], 0.0f),
+                std::max<float>(mask[2], 0.0f)
+            );
+        }
+
+        void SetSkyboxIntensity(const float intensity) {
+            skyboxIntensity_ = std::max<float>(intensity, 0.0f);
+        }
+
+        float GetMinRoughness() const {
+            return minRoughness_;
+        }
+
+        void SetMinRoughness(const float roughness) {
+            minRoughness_ = std::max<float>(roughness, 0.0f);
+        }
+
+        void SetAlphaDepthTestThreshold(const float threshold) {
+            alphaDepthTestThreshold_ = std::clamp<float>(threshold, 0.0f, 1.0f);
+        }
+
+        float GetAlphaDepthTestThreshold() const {
+            return alphaDepthTestThreshold_;
+        }
+
+    private:
+        // These are all values we need to range check when they are set
+        glm::vec3 fogColor_ = glm::vec3(0.5f);
+        float fogDensity_ = 0.0f;
+        float emissionStrength_ = 0.0f;
+        glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
+        float skyboxIntensity_ = 3.0f;
+        float minRoughness_ = 0.08f;
+        float alphaDepthTestThreshold_ = 0.5f;
+        // This works as a multiplicative effect on top of emission strength
+        float emissiveTextureMultiplier_ = 1.0f;
     };
 
     // Represents data for current active frame
@@ -169,33 +262,24 @@ namespace stratus {
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
-        RendererMaterialInformation materialInfo;
+        GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedDynamicPbrMeshes;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedStaticPbrMeshes;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> instancedFlatMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedDynamicPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedStaticPbrMeshes;
-        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> visibleFirstLodInstancedFlatMeshes;
+        GpuCommandManagerPtr drawCommands;
         std::unordered_set<LightPtr> lights;
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
-        LightUpdateQueue lightsToUpate; // shadow map data is invalid
+        LightUpdateQueue lightsToUpdate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
         float znear;
         float zfar;
         glm::mat4 projection;
         glm::mat4 view;
         glm::mat4 projectionView;
+        glm::mat4 jitterProjectionView;
         glm::mat4 invProjectionView;
+        glm::mat4 prevProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
-        TextureHandle skybox = TextureHandle::Null();
-        glm::vec3 skyboxColorMask = glm::vec3(1.0f);
-        float skyboxIntensity = 3.0f;
-        glm::vec3 fogColor = glm::vec3(0.5f);
-        float fogDensity = 0.0f;
+        RendererSettings settings;
         bool viewportDirty;
-        bool vsyncEnabled;
-        bool globalIlluminationEnabled = true;
     };
 
     class RendererBackend {
@@ -204,10 +288,12 @@ namespace stratus {
             FrameBuffer fbo;
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB16F
-            Texture albedo;                   // RGB16F
-            Texture baseReflectivity;         // RGB16F
-            Texture roughnessMetallicAmbient; // RGB16F
+            Texture albedo;                   // RGB8F
+            Texture baseReflectivity;         // RGB8F
+            Texture roughnessMetallicAmbient; // RGB8F
             Texture structure;                // RGBA16F
+            Texture velocity;
+            Texture id;
             Texture depth;                    // Default bit depth
         };
 
@@ -220,27 +306,30 @@ namespace stratus {
             const int tileXDivisor = 5;
             const int tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int vplShadowCubeMapX = 64, vplShadowCubeMapY = 64;
-            GpuBuffer vplDiffuseMaps;
-            GpuBuffer vplShadowMaps;
+            int vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
+            //GpuBuffer vplDiffuseMaps;
+            //GpuBuffer vplShadowMaps;
+            GpuBuffer shadowDiffuseIndices;
             GpuBuffer vplStage1Results;
             GpuBuffer vplVisiblePerTile;
             GpuBuffer vplData;
+            GpuBuffer vplUpdatedData;
             GpuBuffer vplVisibleIndices;
-            GpuBuffer vplNumVisible;
+            //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
-            Texture vplGIColorBuffer;
-            FrameBuffer vplGIBlurredFbo;
-            Texture vplGIBlurredBuffer;
+            FrameBuffer vplGIDenoisedPrevFrameFbo;
+            FrameBuffer vplGIDenoisedFbo1;
+            FrameBuffer vplGIDenoisedFbo2;
         };
 
         struct RenderState {
-            int numRegularShadowMaps = 80;
+            int numRegularShadowMaps = 200;
             int shadowCubeMapX = 256, shadowCubeMapY = 256;
-            int maxShadowCastingLightsPerFrame = 20; // per frame
+            int maxShadowCastingLightsPerFrame = 200; // per frame
             int maxTotalRegularLightsPerFrame = 200; // per frame
             GpuBuffer nonShadowCastingPointLights;
-            GpuBuffer shadowCubeMaps;
+            //GpuBuffer shadowCubeMaps;
+            GpuBuffer shadowIndices;
             GpuBuffer shadowCastingPointLights;
             VirtualPointLightData vpls;
             // How many shadow maps can be rebuilt each frame
@@ -250,13 +339,16 @@ namespace stratus {
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
-            GBuffer buffer;
+            GBuffer currentFrame;
+            GBuffer previousFrame;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
             Texture lightingColorBuffer;
             // Used for effects like bloom
-            Texture lightingHighBrightnessBuffer;
+            //Texture lightingHighBrightnessBuffer;
             Texture lightingDepthBuffer;
+            FrameBuffer flatPassFboCurrentFrame;
+            FrameBuffer flatPassFboPreviousFrame;
             // Used for Screen Space Ambient Occlusion (SSAO)
             Texture ssaoOffsetLookup;               // 4x4 table where each pixel is (16-bit, 16-bit)
             Texture ssaoOcclusionTexture;
@@ -267,9 +359,13 @@ namespace stratus {
             FrameBuffer atmosphericFbo;
             Texture atmosphericTexture;
             Texture atmosphericNoiseTexture;
+            // Used for gamma-tonemapping
+            PostFXBuffer gammaTonemapFbo;
             // Used for fast approximate anti-aliasing (FXAA)
             PostFXBuffer fxaaFbo1;
             PostFXBuffer fxaaFbo2;
+            // Used for temporal anti-aliasing (TAA)
+            PostFXBuffer taaFbo;
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
@@ -282,18 +378,23 @@ namespace stratus {
             // Handles atmospheric post processing
             PostFXBuffer atmosphericPostFxBuffer;
             // End of the pipeline should write to this
-            Texture finalScreenTexture;
+            FrameBuffer finalScreenBuffer;
+            // Used for TAA
+            FrameBuffer previousFrameBuffer;
             // Used for a call to glBlendFunc
             GLenum blendSFactor = GL_ONE;
             GLenum blendDFactor = GL_ZERO;
+            // Depth prepass
+            std::unique_ptr<Pipeline> depthPrepass;
             // Skybox
             std::unique_ptr<Pipeline> skybox;
+            std::unique_ptr<Pipeline> skyboxLayered;
             // Postprocessing shader which allows for application
             // of hdr and gamma correction
-            std::unique_ptr<Pipeline> hdrGamma;
+            std::unique_ptr<Pipeline> gammaTonemap;
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
-            std::vector<std::unique_ptr<Pipeline>> shadows;
-            std::vector<std::unique_ptr<Pipeline>> vplShadows;
+            std::unique_ptr<Pipeline> shadows;
+            std::unique_ptr<Pipeline> vplShadows;
             // Geometry pass - handles all combinations of material properties
             std::unique_ptr<Pipeline> geometry;
             // Forward rendering pass
@@ -311,7 +412,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> lightingWithInfiniteLight;
             // Handles global illuminatino stage
             std::unique_ptr<Pipeline> vplGlobalIllumination;
-            std::unique_ptr<Pipeline> vplGlobalIlluminationBlurring;
+            std::unique_ptr<Pipeline> vplGlobalIlluminationDenoising;
             // Bloom stage
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
@@ -328,6 +429,10 @@ namespace stratus {
             // Handles fxaa luminance followed by fxaa smoothing
             std::unique_ptr<Pipeline> fxaaLuminance;
             std::unique_ptr<Pipeline> fxaaSmoothing;
+            // Handles temporal anti-aliasing
+            std::unique_ptr<Pipeline> taa;
+            // Performs full screen pass through
+            std::unique_ptr<Pipeline> fullscreen;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;
@@ -350,29 +455,18 @@ namespace stratus {
             bool loaded = true;
         };
 
-        struct ShadowMap3D {
-            // Each shadow map is rendered to a frame buffer backed by a 3D texture
-            FrameBuffer frameBuffer;
-            Texture shadowCubeMap;
-            // This is only set for VPLs so they can sample color values in the direction
-            // of the world light
-            Texture diffuseCubeMap;
-        };
-
         struct ShadowMapCache {
-            /**
-             * Maps all shadow maps to a handle.
-             */
-            std::unordered_map<TextureHandle, ShadowMap3D> shadowMap3DHandles;
+            // Framebuffer which wraps around all available cube maps
+            std::vector<FrameBuffer> buffers;
 
             // Lights -> Handles map
-            std::unordered_map<LightPtr, TextureHandle> lightsToShadowMap;
+            std::unordered_map<LightPtr, GpuAtlasEntry> lightsToShadowMap;
 
-            // Marks which maps are in use by an active light
-            std::unordered_set<TextureHandle> usedShadowMaps;
+            // Lists all shadow maps which are currently available
+            std::list<GpuAtlasEntry> freeShadowMaps;
 
             // Marks which lights are currently in the cache
-            std::list<LightPtr> lruLightCache;
+            std::list<LightPtr> cachedLights;
         };
 
         // Contains the cache for regular lights
@@ -401,6 +495,15 @@ namespace stratus {
 
         // Current frame data used for drawing
         std::shared_ptr<RendererFrame> frame_;
+
+        // Contains some number of Halton sequence values
+        GpuBuffer haltonSequence_;
+
+        // Used for point light sorting and culling
+        std::vector<std::pair<LightPtr, double>> perLightDistToViewer_; 
+        std::vector<std::pair<LightPtr, double>> perLightShadowCastingDistToViewer_;
+        std::vector<std::pair<LightPtr, double>> perVPLDistToViewer_;
+        std::vector<int> visibleVplIndices_;
 
         /**
          * If the renderer was setup properly then this will be marked
@@ -445,7 +548,7 @@ namespace stratus {
         void Begin(const std::shared_ptr<RendererFrame>&, bool clearScreen);
 
         // Takes all state set during Begin and uses it to render the scene
-        void RenderScene();
+        void RenderScene(const double);
 
         /**
          * Finalizes the current scene and displays it.
@@ -461,6 +564,7 @@ namespace stratus {
     private:
         void InitializeVplData_();
         void ClearGBuffer_();
+        void InitGBuffer_();
         void UpdateWindowDimensions_();
         void ClearFramebufferData_(const bool);
         void InitPointShadowMaps_();
@@ -478,39 +582,44 @@ namespace stratus {
         void PerformBloomPostFx_();
         void PerformAtmosphericPostFx_();
         void PerformFxaaPostFx_();
+        void PerformTaaPostFx_();
+        void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
-        void RenderBoundingBoxes_(GpuCommandBufferPtr&);
-        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&);
-        void Render_(const RenderFaceCulling, GpuCommandBufferPtr&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, bool isLightInteracting, bool removeViewTranslation = false);
+        void RenderBoundingBoxes_(GpuCommandBuffer2Ptr&);
+        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
         void UpdatePointLights_(std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&, 
                                 std::vector<std::pair<LightPtr, double>>&,
                                 std::vector<int>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage1_(const std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
-        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&);
+        void PerformVirtualPointLightCullingStage1_(std::vector<std::pair<LightPtr, double>>&, std::vector<int>& visibleVplIndices);
+        //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
+        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&);
+        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>&, const double);
         void RenderCSMDepth_();
         void RenderQuad_();
+        void RenderSkybox_(Pipeline *, const glm::mat4&);
         void RenderSkybox_();
+        void RenderForwardPassPbr_();
+        void RenderForwardPassFlat_();
         void RenderSsaoOcclude_();
         void RenderSsaoBlur_();
         glm::vec3 CalculateAtmosphericLightPosition_() const;
         void RenderAtmosphericShadowing_();
-        TextureHandle CreateShadowMap3D_(uint32_t resolutionX, uint32_t resolutionY, bool vpl);
-        TextureHandle GetOrAllocateShadowMapHandleForLight_(LightPtr);
-        ShadowMap3D GetOrAllocateShadowMapForLight_(LightPtr);
-        void SetLightShadowMapHandle_(LightPtr, TextureHandle);
-        void EvictLightFromShadowMapCache_(LightPtr);
+        ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl, const TextureComponentSize&);
+        GpuAtlasEntry GetOrAllocateShadowMapForLight_(LightPtr);
+        void SetLightShadowMap3D_(LightPtr, GpuAtlasEntry);
+        GpuAtlasEntry EvictLightFromShadowMapCache_(LightPtr);
+        GpuAtlasEntry EvictOldestLightFromShadowMapCache_(ShadowMapCache&);
         void AddLightToShadowMapCache_(LightPtr);
         void RemoveLightFromShadowMapCache_(LightPtr);
         bool ShadowMapExistsForLight_(LightPtr);
         ShadowMapCache& GetSmapCacheForLight_(LightPtr);
-        Texture LookupShadowmapTexture_(TextureHandle handle) const;
         void RecalculateCascadeData_();
         void ValidateAllShaders_();
     };

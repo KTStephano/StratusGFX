@@ -28,6 +28,10 @@ vec3 applyReinhard(vec3 color) {
     return color / (color + vec3(1.0));
 }
 
+vec3 inverseReinhard(vec3 color) {
+    return -color / (color - vec3(1.0)); 
+}
+
 // The following were taken from https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/tonemapping.glsl
 // sRGB => XYZ => D65_2_D60 => AP1 => RRT_SAT
 const mat3 ACESInputMat = mat3

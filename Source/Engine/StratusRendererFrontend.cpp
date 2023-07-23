@@ -10,6 +10,7 @@
 #include "StratusEntityProcess.h"
 #include "StratusEntityManager.h"
 #include "StratusGraphicsDriver.h"
+#include "StratusGpuMaterialBuffer.h"
 
 #include <algorithm>
 
@@ -109,11 +110,13 @@ namespace stratus {
     }
 
     void RendererFrontend::AddAllMaterialsForEntity_(const EntityPtr& p) {
-        materialsDirty_ = true;
         RenderComponent * c = p->Components().GetComponent<RenderComponent>().component;
-        for (size_t i = 0; i < c->GetMaterialCount(); ++i) {
-            frame_->materialInfo.availableMaterials.insert(c->GetMaterialAt(i));
-        }
+        frame_->materialInfo->MarkMaterialsUsed(c);
+    }
+
+    void RendererFrontend::RemoveAllMaterialsForEntity_(const EntityPtr& p) {
+        RenderComponent* c = p->Components().GetComponent<RenderComponent>().component;
+        frame_->materialInfo->MarkMaterialsUnused(c);
     }
 
     void RendererFrontend::EntitiesAdded_(const std::unordered_set<stratus::EntityPtr>& e) {
@@ -122,8 +125,6 @@ namespace stratus {
         for (auto ptr : e) {
             added |= AddEntity_(ptr);
         }
-
-        drawCommandsDirty_ = drawCommandsDirty_ || added;
     }
 
     void RendererFrontend::EntitiesRemoved_(const std::unordered_set<stratus::EntityPtr>& e) {
@@ -131,11 +132,6 @@ namespace stratus {
         bool removed = false;
         for (auto& ptr : e) {
             removed = removed || RemoveEntity_(ptr);
-        }
-
-        drawCommandsDirty_ = drawCommandsDirty_ || removed;
-        if (removed) {
-            RecalculateMaterialSet_();
         }
     }
 
@@ -149,11 +145,6 @@ namespace stratus {
                 AddEntity_(ptr);
             }
         }
-
-        drawCommandsDirty_ = drawCommandsDirty_ || changed;
-        if (changed) {
-            RecalculateMaterialSet_();
-        }
     }
 
     void RendererFrontend::EntityComponentsEnabledDisabled_(const std::unordered_set<stratus::EntityPtr>& e) {
@@ -164,11 +155,6 @@ namespace stratus {
                 changed = true;
                 AddEntity_(ptr);
             }
-        }
-
-        drawCommandsDirty_ = drawCommandsDirty_ || changed;
-        if (changed) {
-            RecalculateMaterialSet_();
         }
     }
 
@@ -187,6 +173,8 @@ namespace stratus {
             }
 
             AddAllMaterialsForEntity_(p);
+            
+            frame_->drawCommands->RecordCommands(p, frame_->materialInfo);
             //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
@@ -199,7 +187,7 @@ namespace stratus {
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
                             if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
-                                frame_->lightsToUpate.PushBack(entry);
+                                frame_->lightsToUpdate.PushBack(entry);
                             }
                         }
                     }
@@ -219,7 +207,7 @@ namespace stratus {
     }
 
     bool RendererFrontend::RemoveEntity_(const EntityPtr& p) {
-        if (p == nullptr || entities_.find(p) == entities_.end()) return false;
+        if (p == nullptr || entities_.find(p) == entities_.end() || !IsRenderable(p)) return false;
 
         entities_.erase(p);
         dynamicEntities_.erase(p);
@@ -227,16 +215,22 @@ namespace stratus {
         staticPbrEntities_.erase(p);
         flatEntities_.erase(p);
 
+        RemoveAllMaterialsForEntity_(p);
+
+        frame_->drawCommands->RemoveAllCommands(p);
+
+        const auto entityIsStatic = IsStaticEntity(p);
+
         for (auto& entry : lights_) {
             if (!entry->CastsShadows()) continue;
             //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
-                    if (IsStaticEntity(p)) {
-                        frame_->lightsToUpate.PushBack(entry);
+                    if (entityIsStatic) {
+                        frame_->lightsToUpdate.PushBack(entry);
                     }
                 }
                 else {
-                    frame_->lightsToUpate.PushBack(entry);
+                    frame_->lightsToUpdate.PushBack(entry);
                 }
             //}
         }
@@ -253,11 +247,16 @@ namespace stratus {
 
         if ( light->IsVirtualLight() ) virtualPointLights_.insert(light);
 
-        if ( !light->IsStaticLight() ) dynamicLights_.insert(light);
+        if ( light->IsVirtualLight() || light->IsStaticLight() ) {
+            staticLights_.insert(light);
+        }
+        else {
+            dynamicLights_.insert(light);
+        }
 
         if ( !light->CastsShadows() ) return;
 
-        frame_->lightsToUpate.PushBack(light);
+        frame_->lightsToUpdate.PushBack(light);
 
         //_AttemptAddEntitiesForLight(light, data, _frame->instancedPbrMeshes);
     }
@@ -267,9 +266,10 @@ namespace stratus {
         if (lights_.find(light) == lights_.end()) return;
         lights_.erase(light);
         dynamicLights_.erase(light);
+        staticLights_.erase(light);
         virtualPointLights_.erase(light);
         lightsToRemove_.insert(light);
-        frame_->lightsToUpate.Erase(light);
+        frame_->lightsToUpdate.Erase(light);
     }
 
     void RendererFrontend::ClearLights() {
@@ -279,8 +279,9 @@ namespace stratus {
         }
         lights_.clear();
         dynamicLights_.clear();
+        staticLights_.clear();
         virtualPointLights_.clear();
-        frame_->lightsToUpate.Clear();
+        frame_->lightsToUpdate.Clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
@@ -323,50 +324,31 @@ namespace stratus {
         viewportDirty_ = true;
     }
 
-    void RendererFrontend::SetVsyncEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        params_.vsyncEnabled = enabled;
-        frame_->vsyncEnabled = enabled;
-    }
-
     void RendererFrontend::SetClearColor(const glm::vec4& color) {
         auto ul = LockWrite_();
         frame_->clearColor = color;
     }
 
-    void RendererFrontend::SetSkybox(const TextureHandle& skybox) {
-        auto ul = LockWrite_();
-        frame_->skybox = skybox;
-    }
-
-    void RendererFrontend::SetSkyboxColorMask(const glm::vec3& mask) {
-        auto ul = LockWrite_();
-        frame_->skyboxColorMask = mask;
-    }
-
-    void RendererFrontend::SetSkyboxIntensity(const float intensity) {
-        auto ul = LockWrite_();
-        frame_->skyboxIntensity = std::max(intensity, 0.0f);
-    }
-
-    void RendererFrontend::SetFogColor(const glm::vec3& color) {
-        auto ul = LockWrite_();
-        frame_->fogColor = color;
-    }
-
-    void RendererFrontend::SetFogDensity(const float density) {
-        auto ul = LockWrite_();
-        frame_->fogDensity = std::max(density, 0.0f);
-    }
-
-    void RendererFrontend::SetGlobalIlluminationEnabled(const bool enabled) {
-        auto ul = LockWrite_();
-        frame_->globalIlluminationEnabled = enabled;
-    }
-
-    bool RendererFrontend::GetGlobalIlluminationEnabled() const {
+    RendererSettings RendererFrontend::GetSettings() const {
         auto sl = LockRead_();
-        return frame_->globalIlluminationEnabled;
+        return frame_->settings;
+    }
+
+    void RendererFrontend::SetSettings(const RendererSettings& settings) {
+        auto ul = LockWrite_();
+        frame_->settings = settings;
+    }
+
+    static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
+        glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
+        // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
+        //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
+        // Convert from [0, 1] to [-0.5, 0.5]
+        jitter = jitter - 0.5f;
+        // Scale to appropriate subpixel size by using viewport width/height
+        jitter = jitter / glm::vec2(width, height);
+
+        return jitter;
     }
 
     SystemStatus RendererFrontend::Update(const double deltaSeconds) {
@@ -380,7 +362,7 @@ namespace stratus {
         frame_->view = camera_->GetViewTransform();
 
         UpdateViewport_();
-        UpdateCascadeTransforms_();
+        UpdateCascadeData_();
         CheckForEntityChanges_();
         UpdateLights_();
         UpdateMaterialSet_();
@@ -390,6 +372,20 @@ namespace stratus {
         // Update view projection and its inverse
         frame_->projectionView = frame_->projection * frame_->view;
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
+
+        // Increment halton index - only use a max of the first 16 samples
+        const size_t maxIndex = std::min<size_t>(16, haltonSequence.size());
+        currentHaltonIndex_ = (currentHaltonIndex_ + 1) % maxIndex;
+
+        // Set up the jittered variant
+        glm::vec2 jitter(0.0f);
+        if (frame_->settings.taaEnabled) {
+            jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+        }
+        frame_->jitterProjectionView = frame_->projection;
+        frame_->jitterProjectionView[3][0] += jitter.x;
+        frame_->jitterProjectionView[3][1] += jitter.y;
+        frame_->jitterProjectionView = frame_->jitterProjectionView * frame_->view;
 
         //_SwapFrames();
 
@@ -405,11 +401,17 @@ namespace stratus {
         renderer_->Begin(frame_, true);
 
         // Complete the frame
-        renderer_->RenderScene();
+        renderer_->RenderScene(deltaSeconds);
         renderer_->End();
 
         // This needs to be unset
         frame_->csc.regenerateFbo = false;
+
+        // Move current transforms -> previous transforms
+        UpdatePrevFrameModelTransforms_();
+
+        // Set previous projection view
+        frame_->prevProjectionView = frame_->projectionView;
 
         return SystemStatus::SYSTEM_CONTINUE;
     }
@@ -423,45 +425,18 @@ namespace stratus {
 
         // 4 cascades total
         frame_->csc.cascades.resize(4);
-        frame_->csc.cascadeResolutionXY = 2048;
+        frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
 
         // Set materials per frame and initialize material buffer
-        frame_->materialInfo.maxMaterials = 4096;
-        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-        frame_->materialInfo.materialsBuffer = GpuBuffer(nullptr, sizeof(GpuMaterial) * frame_->materialInfo.maxMaterials, flags);
+        frame_->materialInfo = GpuMaterialBuffer::Create(8192);
 
         //_frame->instancedFlatMeshes.resize(1);
         //_frame->instancedDynamicPbrMeshes.resize(1);
         //_frame->instancedStaticPbrMeshes.resize(1);
 
         // Set up draw command buffers
-        std::vector<RenderFaceCulling> culling{
-            RenderFaceCulling::CULLING_CCW,
-            RenderFaceCulling::CULLING_CW,
-            RenderFaceCulling::CULLING_NONE  
-        };
-
-        // Initialize the LODs
-        for (size_t i = 0; i < 8; ++i) {
-            frame_->instancedFlatMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
-            frame_->instancedDynamicPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
-            frame_->instancedStaticPbrMeshes.push_back(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>());
-        }
-
-        for (auto cull : culling) {
-            frame_->visibleFirstLodInstancedFlatMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            frame_->visibleFirstLodInstancedDynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            frame_->visibleFirstLodInstancedStaticPbrMeshes.insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-        }
-
-        for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
-            for (auto cull : culling) {
-                frame_->instancedFlatMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-                frame_->instancedDynamicPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-                frame_->instancedStaticPbrMeshes[i].insert(std::make_pair(cull, GpuCommandBufferPtr(new GpuCommandBuffer())));
-            }
-        }
+        frame_->drawCommands = GpuCommandManager::Create(8);
 
         // Initialize entity processing
         entityHandler_ = INSTANCE(EntityManager)->RegisterEntityProcess<RenderEntityProcess>();
@@ -482,10 +457,14 @@ namespace stratus {
             Shader{"visibility_culling.cs", ShaderType::COMPUTE} }
         ));
 
+        updateTransforms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"update_model_transforms.cs", ShaderType::COMPUTE} }
+        ));
+
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid();
+        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid() && updateTransforms_->IsValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -528,12 +507,18 @@ namespace stratus {
         frame_->fovy           = Radians(params_.fovy);
     }
 
-    void RendererFrontend::UpdateCascadeTransforms_() {
+    void RendererFrontend::UpdateCascadeData_() {
+        auto requestedCascadeResolutionXY = static_cast<uint32_t>(frame_->settings.cascadeResolution);
+
+        frame_->csc.regenerateFbo = frame_->csc.cascadeResolutionXY != requestedCascadeResolutionXY;
+
+        frame_->csc.cascadeResolutionXY = requestedCascadeResolutionXY;
+
         const float cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
         const float cascadeDelta = cascadeResReciprocal;
         const size_t numCascades = frame_->csc.cascades.size();
 
-        frame_->csc.worldLightCamera = CameraPtr(new Camera(false));
+        frame_->csc.worldLightCamera = CameraPtr(new Camera(false, false));
         auto worldLightCamera = frame_->csc.worldLightCamera;
         worldLightCamera->SetAngle(worldLight_->GetRotation());
 
@@ -574,10 +559,12 @@ namespace stratus {
         //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
         const float projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
-        const float znear = params_.znear; //0.001f; //_params.znear;
+        const float znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
         const float zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
+        frame_->csc.znear = znear;
+        frame_->csc.zfar = zfar;
 
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
@@ -594,14 +581,24 @@ namespace stratus {
             const float p = (i + 1) / float(numCascades);
             const float log = znear * std::pow(ratio, p);
             const float uniform = znear + clipRange * p;
-            const float d = floorf(lambda * (log - uniform) + uniform);
+            //const float d = floorf(lambda * (log - uniform) + uniform);
+            const float d = floorf(lambda * log + (1.0f - lambda) * uniform);
             cascadeEnds[i] = d;
+            //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
         }
+
+        // std::vector<float> cascadeEnds = {
+        //     5.0f,
+        //     20.0f,
+        //     100.0f,
+        //     200.0f
+        // };
 
         // see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // see https://ogldev.org/www/tutorial49/tutorial49.html
         // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
-        const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+        //const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+        const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 4.0f,  cascadeEnds[1] - 4.0f, cascadeEnds[2] - 4.0f }; // 4 cascades max
         //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
         std::vector<float> aks;
         std::vector<float> bks;
@@ -723,10 +720,10 @@ namespace stratus {
             //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // // // Gives us x, y values between [0, 1]
-            //const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
+            // const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(1.0f / dk, 0.0f, 0.0f, 0.0f), 
             //                                            glm::vec4(0.0f, 1.0f / dk, 0.0f, 0.0f),
             //                                            glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), 0.0f),
-            //                                            glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+            //                                            glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
@@ -771,7 +768,7 @@ namespace stratus {
 
                 InitializeMeshTransformComponent(entity);
 
-                drawCommandsDirty_ = true;
+                frame_->drawCommands->UpdateTransforms(entity);
 
                 if (IsLightInteracting(entity)) {
                     for (const auto& light : lights_) {
@@ -783,11 +780,11 @@ namespace stratus {
                         //If the EntityView is in the light's visible set, its shadows are now out of date
                         for (size_t i = 0; i < GetMeshCount(entity); ++i) {
                             if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
-                                frame_->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpdate.PushBack(light);
                             }
                             // If the EntityView has moved inside the light's radius, add it
                             else if (glm::distance(GetWorldTransform(entity, i), lightPos) < lightRadius) {
-                                frame_->lightsToUpate.PushBack(light);
+                                frame_->lightsToUpdate.PushBack(light);
                             }
                         }
                     }
@@ -801,11 +798,21 @@ namespace stratus {
         CheckEntitySetForChanges_(dynamicEntities_);
     }
 
-    void RendererFrontend::MarkStaticLightsDirty_() {
-        for (auto& light : lights_) {
-            if (!light->IsStaticLight()) continue;
+    void RendererFrontend::MarkDynamicLightsDirty_() {
+        for (auto& light : dynamicLights_) {
+            frame_->lightsToUpdate.PushBack(light);
+        }
+    }
 
-            frame_->lightsToUpate.PushBack(light);
+    void RendererFrontend::MarkStaticLightsDirty_() {
+        for (auto& light : staticLights_) {
+            frame_->lightsToUpdate.PushBack(light);
+        }
+    }
+
+    void RendererFrontend::MarkAllLightsDirty_() {
+        for (auto& light : lights_) {
+            frame_->lightsToUpdate.PushBack(light);
         }
     }
 
@@ -828,326 +835,24 @@ namespace stratus {
 
             // See if the light moved or its radius changed
             if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
-                frame_->lightsToUpate.PushBack(light);
+                frame_->lightsToUpdate.PushBack(light);
             }
-        }
-    }
-
-    static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& status) {
-        return status == TextureLoadingStatus::LOADING_DONE;
-    }
-
-    void RendererFrontend::RecalculateMaterialSet_() {
-        frame_->materialInfo.availableMaterials.clear();
-        materialsDirty_ = true;
-
-        for (const EntityPtr& p : entities_) {
-            AddAllMaterialsForEntity_(p);
-        }
-
-        // After this loop anything left in indices is no longer referenced
-        // by an entity
-        for (const MaterialPtr& m : frame_->materialInfo.availableMaterials) {
-            frame_->materialInfo.indices.erase(m);
-        }
-
-    #define MAKE_NON_RESIDENT(handle)                                        \
-        {                                                                    \
-        TextureLoadingStatus status;                                         \
-        auto tex = INSTANCE(ResourceManager)->LookupTexture(handle, status); \
-        if (ValidateTexture(tex, status)) {                                  \
-            Texture::MakeNonResident(tex);                                   \
-        }                                                                    \
-        }
-
-        // Erase what is no longer referenced
-        for (auto& entry : frame_->materialInfo.indices) {
-            MaterialPtr material = entry.first;
-            MAKE_NON_RESIDENT(material->GetDiffuseTexture())
-            MAKE_NON_RESIDENT(material->GetAmbientTexture())
-            MAKE_NON_RESIDENT(material->GetNormalMap())
-            MAKE_NON_RESIDENT(material->GetDepthMap())
-            MAKE_NON_RESIDENT(material->GetRoughnessMap())
-            MAKE_NON_RESIDENT(material->GetMetallicMap())
-            MAKE_NON_RESIDENT(material->GetMetallicRoughnessMap())
-        }
-
-        frame_->materialInfo.indices.clear();
-    
-    #undef MAKE_NON_RESIDENT
-    }
-
-    void RendererFrontend::CopyMaterialToGpuAndMarkForUse_(const MaterialPtr& material, GpuMaterial* gpuMaterial) {
-        gpuMaterial->flags = 0;
-
-        gpuMaterial->diffuseColor = material->GetDiffuseColor();
-        gpuMaterial->ambientColor = glm::vec4(material->GetAmbientColor(), 1.0f);
-        gpuMaterial->baseReflectivity = glm::vec4(material->GetBaseReflectivity(), 1.0f);
-        gpuMaterial->metallicRoughness = glm::vec4(material->GetMetallic(), material->GetRoughness(), 0.0f, 0.0f);
-
-        auto diffuseHandle =   material->GetDiffuseTexture();
-        auto ambientHandle =   material->GetAmbientTexture();
-        auto normalHandle =    material->GetNormalMap();
-        auto depthHandle =     material->GetDepthMap();
-        auto roughnessHandle = material->GetRoughnessMap();
-        auto metallicHandle =  material->GetMetallicMap();
-        auto metallicRoughnessHandle = material->GetMetallicRoughnessMap();
-        
-        TextureLoadingStatus diffuseStatus;
-        auto diffuse = INSTANCE(ResourceManager)->LookupTexture(diffuseHandle, diffuseStatus);
-        TextureLoadingStatus ambientStatus;
-        auto ambient = INSTANCE(ResourceManager)->LookupTexture(ambientHandle, ambientStatus);
-        TextureLoadingStatus normalStatus;
-        auto normal = INSTANCE(ResourceManager)->LookupTexture(normalHandle, normalStatus);
-        TextureLoadingStatus depthStatus;
-        auto depth = INSTANCE(ResourceManager)->LookupTexture(depthHandle, depthStatus);
-        TextureLoadingStatus roughnessStatus;
-        auto roughness = INSTANCE(ResourceManager)->LookupTexture(roughnessHandle, roughnessStatus);
-        TextureLoadingStatus metallicStatus;
-        auto metallic = INSTANCE(ResourceManager)->LookupTexture(metallicHandle, metallicStatus);
-        TextureLoadingStatus metallicRoughnessStatus;
-        auto metallicRoughness = INSTANCE(ResourceManager)->LookupTexture(metallicRoughnessHandle, metallicRoughnessStatus);
-
-        if (ValidateTexture(diffuse, diffuseStatus)) {
-            gpuMaterial->diffuseMap = diffuse.GpuHandle();
-            gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
-            Texture::MakeResident(diffuse);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (diffuseHandle != TextureHandle::Null() && diffuseStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(ambient, ambientStatus)) {
-            gpuMaterial->ambientMap = ambient.GpuHandle();
-            gpuMaterial->flags |= GPU_AMBIENT_MAPPED;
-            Texture::MakeResident(ambient);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (ambientHandle != TextureHandle::Null() && ambientStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(normal, normalStatus)) {
-            gpuMaterial->normalMap = normal.GpuHandle();
-            gpuMaterial->flags |= GPU_NORMAL_MAPPED;
-            Texture::MakeResident(normal);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (normalHandle != TextureHandle::Null() && normalStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(depth, depthStatus)) {
-            gpuMaterial->depthMap = depth.GpuHandle();
-            gpuMaterial->flags |= GPU_DEPTH_MAPPED;       
-            Texture::MakeResident(depth);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (depthHandle != TextureHandle::Null() && depthStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(roughness, roughnessStatus)) {
-            gpuMaterial->roughnessMap = roughness.GpuHandle();
-            gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
-            Texture::MakeResident(roughness);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (roughnessHandle != TextureHandle::Null() && roughnessStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(metallic, metallicStatus)) {
-            gpuMaterial->metallicMap = metallic.GpuHandle();
-            gpuMaterial->flags |= GPU_METALLIC_MAPPED;
-            Texture::MakeResident(metallic);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (metallicHandle != TextureHandle::Null() && metallicStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
-        }
-
-        if (ValidateTexture(metallicRoughness, metallicRoughnessStatus)) {
-            gpuMaterial->metallicRoughnessMap = metallicRoughness.GpuHandle();
-            gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
-            Texture::MakeResident(metallicRoughness);
-        }
-        // If this is true then the texture is still loading so we need to check again later
-        else if (metallicRoughnessHandle != TextureHandle::Null() && metallicRoughnessStatus != TextureLoadingStatus::FAILED) {
-            materialsDirty_ = true;
         }
     }
 
     void RendererFrontend::UpdateMaterialSet_() {
-        // static int frame = 0;
-        // ++frame;
-        // if (frame % 10 == 0) _materialsDirty = true;
-
-        // See if any materials were changed within the last frame
-        if ( !materialsDirty_ ) {
-            for (auto& entry : frame_->materialInfo.indices) {
-                if (entry.first->ChangedWithinLastFrame()) {
-                    materialsDirty_ = true;
-                    break;
-                }
-            }
-        }
-
-        // Update for the next 3 frames after the frame indices were recalculated (solved a strange performance issue possible related to shaders
-        // accessing invalid data)
-        const uint64_t frameCount = INSTANCE(Engine)->FrameCount();
-        const bool updateMaterialResidency = materialsDirty_ || ((frameCount - lastFrameMaterialIndicesRecomputed_) < 3);
-
-        // If no materials to update then no need to recompute the index set
-        if (materialsDirty_) {
-            drawCommandsDirty_ = true;
-            materialsDirty_ = false;
-            lastFrameMaterialIndicesRecomputed_ = frameCount;
-
-            if (frame_->materialInfo.availableMaterials.size() >= frame_->materialInfo.maxMaterials) {
-                throw std::runtime_error("Maximum number of materials exceeded");
-            }
-
-            std::unordered_map<MaterialPtr, uint32_t>& indices = frame_->materialInfo.indices;
-            indices.clear();
-
-            for (auto material : frame_->materialInfo.availableMaterials) {
-                int nextIndex = int(indices.size());
-                indices.insert(std::make_pair(material, nextIndex));
-            }
-        }
-
-        // If we don't update these either every frame or every few frames, performance degrades. I do not yet know 
-        // why this happens.
-        if (updateMaterialResidency) {
-            if (frame_->materialInfo.materials.size() < frame_->materialInfo.availableMaterials.size()) {
-                frame_->materialInfo.materials.resize(frame_->materialInfo.availableMaterials.size());
-            }
-
-            for (const auto& entry : frame_->materialInfo.indices) {
-                GpuMaterial * material = &frame_->materialInfo.materials[entry.second];
-                CopyMaterialToGpuAndMarkForUse_(entry.first, material);
-            }
-
-            frame_->materialInfo.materialsBuffer.CopyDataToBuffer(0, 
-                                                                sizeof(GpuMaterial) * frame_->materialInfo.materials.size(),
-                                                                (const void *)frame_->materialInfo.materials.data());
-        }
+        frame_->materialInfo->UploadDataToGpu();
     }
 
-    std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> RendererFrontend::GenerateDrawCommands_(RenderComponent * c, const size_t lod, bool& quitEarly) const {
-        std::unordered_map<RenderFaceCulling, std::vector<GpuDrawElementsIndirectCommand>> commands;
-        for (size_t i = 0; i < c->GetMeshCount(); ++i) {
-            if (!c->GetMesh(i)->IsFinalized()) {
-                quitEarly = true;
-                return {};
-            }
-            auto cull = c->GetMesh(i)->GetFaceCulling();
-            if (commands.find(cull) == commands.end()) {
-                auto vec = std::vector<GpuDrawElementsIndirectCommand>();
-                vec.reserve(c->GetMeshCount());
-                commands.insert(std::make_pair(cull, std::move(vec)));
-            }
-            GpuDrawElementsIndirectCommand command;
-            auto& commandList = commands.find(cull)->second;
-            command.baseInstance = 0;
-            command.baseVertex = 0;
-            command.firstIndex = c->GetMesh(i)->GetIndexOffset(lod);
-            command.instanceCount = 1;
-            command.vertexCount = c->GetMesh(i)->GetNumIndices(lod);
-            commandList.push_back(command);
-        }
-        quitEarly = false;
-        return commands;
-    }
-
+    // TODO: This desperately needs to be refactored and made more efficient
     void RendererFrontend::UpdateDrawCommands_() {
-        if (!drawCommandsDirty_) return;
-        drawCommandsDirty_ = false;
+        const bool staticLightsDirty = frame_->drawCommands->UploadStaticDataToGpu();
+        const bool dynamicLightsDirty = staticLightsDirty || frame_->drawCommands->UploadDynamicDataToGpu();
+        frame_->drawCommands->UploadFlatDataToGpu();
 
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vfm { frame_->visibleFirstLodInstancedFlatMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vdpm{ frame_->visibleFirstLodInstancedDynamicPbrMeshes };
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> vspm{ frame_->visibleFirstLodInstancedStaticPbrMeshes };
+        if (staticLightsDirty) MarkStaticLightsDirty_();
 
-        // Clear old commands
-        std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>> *> oldCommands{
-            &frame_->instancedFlatMeshes,
-            &frame_->instancedDynamicPbrMeshes,
-            &frame_->instancedStaticPbrMeshes,
-            &vfm,
-            &vdpm,
-            &vspm
-        };
-
-        for (auto * cmdList : oldCommands) {
-            for (size_t i = 0; i < cmdList->size(); ++i) {
-                for (auto& entry : (*cmdList)[i]) {
-                    entry.second->materialIndices.clear();
-                    entry.second->globalTransforms.clear();
-                    entry.second->modelTransforms.clear();
-                    entry.second->indirectDrawCommands.clear();
-                    entry.second->aabbs.clear();
-                }
-            }
-        }
-
-    #define GENERATE_COMMANDS(entityMap, drawCommands, lod, uploadAABB, stillDirty)                                    \
-        for (const auto& entry : entityMap) {                                                                          \
-            GlobalTransformComponent * gt = GetComponent<GlobalTransformComponent>(entry.first);                       \
-            RenderComponent * c = GetComponent<RenderComponent>(entry.first);                                          \
-            MeshWorldTransforms * mt = GetComponent<MeshWorldTransforms>(entry.first);                                 \
-            bool quitEarly;                                                                                            \
-            auto commands = GenerateDrawCommands_(c, lod, quitEarly);                                                  \
-            if (quitEarly) {                                                                                           \
-                stillDirty = true;                                                                                     \
-                continue;                                                                                              \
-            };                                                                                                         \
-            bool shouldQuitEarly = false;                                                                              \
-            for (size_t i_ = 0; i_ < c->GetMeshCount(); ++i_) {                                                        \
-                auto cull = c->GetMesh(i_)->GetFaceCulling();                                                          \
-                auto& buffer = drawCommands.find(cull)->second;                                                        \
-                buffer->materialIndices.push_back(frame_->materialInfo.indices.find(c->GetMaterialAt(i_))->second);    \
-                buffer->globalTransforms.push_back(gt->GetGlobalTransform());                                          \
-                buffer->modelTransforms.push_back(mt->transforms[i_]);                                                 \
-                if (uploadAABB) {                                                                                      \
-                    buffer->aabbs.push_back(c->GetMesh(i_)->GetAABB());                                                \
-                }                                                                                                      \
-            }                                                                                                          \
-            for (auto& entry : commands) {                                                                             \
-                auto& buffer = drawCommands.find(entry.first)->second;                                                 \
-                buffer->indirectDrawCommands.insert(buffer->indirectDrawCommands.end(),                                \
-                                                    entry.second.begin(), entry.second.end());                         \
-            }                                                                                                          \
-        }                                                                                                              \
-        for (auto& entry : drawCommands) {                                                                             \
-            entry.second->UploadDataToGpu();                                                                           \
-        }
-
-        // Generate flat commands
-        GENERATE_COMMANDS(flatEntities_, frame_->visibleFirstLodInstancedFlatMeshes, 0, true, drawCommandsDirty_)
-
-        for (size_t i = 0; i < frame_->instancedFlatMeshes.size(); ++i) {
-            GENERATE_COMMANDS(flatEntities_, frame_->instancedFlatMeshes[i], i, true, drawCommandsDirty_)
-        }
-
-        // Generate pbr commands
-        GENERATE_COMMANDS(dynamicPbrEntities_, frame_->visibleFirstLodInstancedDynamicPbrMeshes, 0, true, drawCommandsDirty_)
-        bool staticCommandsDirty = false;
-        GENERATE_COMMANDS(staticPbrEntities_, frame_->visibleFirstLodInstancedStaticPbrMeshes, 0, true, staticCommandsDirty)
-        drawCommandsDirty_ = drawCommandsDirty_ || staticCommandsDirty;
-        
-        // If static commands are dirty then all static lights (including vpls) need to be re-generated
-        if (staticCommandsDirty) {
-            MarkStaticLightsDirty_();
-        }
-
-        for (size_t i = 0; i < frame_->instancedDynamicPbrMeshes.size(); ++i) {
-            GENERATE_COMMANDS(dynamicPbrEntities_, frame_->instancedDynamicPbrMeshes[i], i, true, drawCommandsDirty_)
-            GENERATE_COMMANDS(staticPbrEntities_, frame_->instancedStaticPbrMeshes[i], i, true, drawCommandsDirty_)
-        }
-
-    #undef GENERATE_COMMANDS
+        if (dynamicLightsDirty) MarkDynamicLightsDirty_();
     }
 
     std::vector<glm::vec4> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform) {
@@ -1227,48 +932,30 @@ namespace stratus {
     // }
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
-    void RendererFrontend::UpdateVisibility_() {
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*> drawCommands{
-            &frame_->visibleFirstLodInstancedFlatMeshes,
-            &frame_->visibleFirstLodInstancedDynamicPbrMeshes,
-            &frame_->visibleFirstLodInstancedStaticPbrMeshes
+    void RendererFrontend::UpdateVisibility_() {        
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*> commands = {
+            &frame_->drawCommands->flatMeshes,
+            &frame_->drawCommands->dynamicPbrMeshes,
+            &frame_->drawCommands->staticPbrMeshes
         };
 
-        std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>> drawCommandsPerLod = {
-            {}, {}, {}
-        };
-
-        for (size_t i = 0; i < 4; ++i) {
-            drawCommandsPerLod[0].push_back(&frame_->instancedFlatMeshes[i]);
-            drawCommandsPerLod[1].push_back(&frame_->instancedDynamicPbrMeshes[i]);
-            drawCommandsPerLod[2].push_back(&frame_->instancedStaticPbrMeshes[i]);
+        for (auto& buffer : commands) {
+            UpdateVisibility_(
+                *viscullLodSelect_.get(),
+                frame_->projection,
+                frame_->camera->GetViewTransform(),
+                *buffer,
+                true
+            );
         }
-        
-        UpdateVisibility_(*viscullLodSelect_.get(), frame_->projection, frame_->camera->GetViewTransform(), drawCommands, drawCommandsPerLod);
-
-        // for (auto& array : drawCommandsPerLod) {
-        //     array.clear();
-        // }
-
-        // if (_frame->csc.worldLight->getEnabled()) {
-        //     for (size_t i = 0; i < _frame->csc.cascades.size(); ++i) {
-        //         drawCommands = {
-        //             &_frame->instancedFlatMeshes[i * 2],
-        //             &_frame->instancedDynamicPbrMeshes[i * 2],
-        //             &_frame->instancedStaticPbrMeshes[i * 2]
-        //         };
-
-        //         _UpdateVisibility(*_viscull.get(), _frame->csc.cascades[i].projectionViewRender, _frame->csc.worldLightCamera->getViewTransform(), drawCommands, drawCommandsPerLod);
-        //     }
-        // }
     }
 
     void RendererFrontend::UpdateVisibility_(
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
-        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>& drawCommands,
-        const std::vector<std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>>& drawCommandsPerLod) {
+        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& inOutDrawCommands,
+        const bool selectLods) {
 
         static const std::vector<RenderFaceCulling> culling{
             RenderFaceCulling::CULLING_CCW,
@@ -1318,30 +1005,30 @@ namespace stratus {
         }
 
         pipeline.SetVec3("viewPosition", frame_->camera->GetPosition());
+        pipeline.SetFloat("zfar", frame_->csc.zfar);
         
-        for (size_t i = 0; i < drawCommands.size(); ++i) {
-           auto& map = drawCommands[i];
-           auto& mapPerLod = drawCommandsPerLod[i];
-           for (const auto& cull : culling) {
-               auto it = map->find(cull);
-               if (it->second->NumDrawCommands() == 0) continue;
+        for (const auto& cull : culling) {
+            auto it = inOutDrawCommands.find(cull);
+            if (it->second->NumDrawCommands() == 0) continue;
 
-               it->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-               it->second->BindModelTransformBuffer(2);
-               it->second->BindAabbBuffer(3);
-               it->second->BindGlobalTransformBuffer(4);
+            it->second->GetIndirectDrawCommandsBuffer(0).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            it->second->GetVisibleDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
+            it->second->BindModelTransformBuffer(2);
+            it->second->BindAabbBuffer(3);
 
-               for (size_t k = 0; k < mapPerLod.size(); ++k) {
-                   mapPerLod[k]->find(cull)->second->GetIndirectDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
-               }
+            if (selectLods) {
+                it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
+                for (size_t k = 0; k < it->second->NumLods(); ++k) {
+                    it->second->GetIndirectDrawCommandsBuffer(k).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
+                }
+            }
 
-               pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));
-               pipeline.SetMat4("view", view);
-               //pipeline.setMat4("view", _frame->camera->getViewTransform());
-               //pipeline.setMat4("projection", _frame->projection);
-               pipeline.DispatchCompute(1, 1, 1);
-               pipeline.SynchronizeCompute();
-           }
+            pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));
+            pipeline.SetMat4("view", view);
+            //pipeline.setMat4("view", _frame->camera->getViewTransform());
+            //pipeline.setMat4("projection", _frame->projection);
+            pipeline.DispatchCompute(1, 1, 1);
+            pipeline.SynchronizeCompute();
         }
 
         pipeline.Unbind();
@@ -1370,5 +1057,44 @@ namespace stratus {
         //       //STRATUS_LOG << "Before/After: " << buffer->NumDrawCommands() << "/" << numCommands << std::endl;
         //   }
         //}
+    }
+
+    void RendererFrontend::UpdatePrevFrameModelTransforms_() {
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*> drawCommands{
+            &frame_->drawCommands->flatMeshes,
+            &frame_->drawCommands->dynamicPbrMeshes,
+            &frame_->drawCommands->staticPbrMeshes
+        };
+
+        updateTransforms_->Bind();
+
+        for (const auto& entry : drawCommands) {
+            auto ccw = entry->find(RenderFaceCulling::CULLING_CCW);
+            auto cw = entry->find(RenderFaceCulling::CULLING_CW);
+            auto cnone = entry->find(RenderFaceCulling::CULLING_NONE);
+
+            if (ccw->second->NumDrawCommands() > 0) {
+                ccw->second->BindPrevFrameModelTransformBuffer(0);
+                ccw->second->BindModelTransformBuffer(1);
+            }
+            updateTransforms_->SetInt("cull0NumMatrices", ccw->second->NumDrawCommands());
+
+            if (cw->second->NumDrawCommands() > 0) {
+                cw->second->BindPrevFrameModelTransformBuffer(2);
+                cw->second->BindModelTransformBuffer(3);
+            }
+            updateTransforms_->SetInt("cull1NumMatrices", cw->second->NumDrawCommands());
+
+            if (cnone->second->NumDrawCommands() > 0) {
+                cnone->second->BindPrevFrameModelTransformBuffer(4);
+                cnone->second->BindModelTransformBuffer(5);
+            }
+            updateTransforms_->SetInt("cull2NumMatrices", cnone->second->NumDrawCommands());
+
+            updateTransforms_->DispatchCompute(100, 1, 1);
+            updateTransforms_->SynchronizeCompute();
+        }
+
+        updateTransforms_->Unbind();
     }
 }

@@ -372,8 +372,8 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeVertices_;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeIndices_;
     bool GpuMeshAllocator::initialized_ = false;
-    static constexpr size_t minVerticesPerAlloc = 1024 * 1024;
     static constexpr size_t startVertices = 1024 * 1024 * 10;
+    static constexpr size_t minVerticesPerAlloc = startVertices; //1024 * 1024;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
     //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
@@ -555,6 +555,7 @@ namespace stratus {
     }
 
     void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
+        STRATUS_LOG << "Resizing: " << newSizeBytes << std::endl;
         GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         // Null check
         if (buffer != GpuBuffer()) {
@@ -594,6 +595,7 @@ namespace stratus {
 
         // std::vector<uint64_t> newHandles;
         std::vector<uint32_t> newMaterialIndices;
+        std::vector<glm::mat4> newPrevFrameModelTransforms;
         std::vector<glm::mat4> newModelTransforms;
         std::vector<GpuDrawElementsIndirectCommand> newIndirectDrawCommands;
         for (size_t i = 0; i < NumDrawCommands(); ++i) {
@@ -601,6 +603,7 @@ namespace stratus {
                 // handlesToIndicesMap.insert(std::make_pair(handles[i], newHandles.size()));
                 // newHandles.push_back(handles[i]);
                 newMaterialIndices.push_back(materialIndices[i]);
+                newPrevFrameModelTransforms.push_back(prevFrameModelTransforms[i]);
                 newModelTransforms.push_back(modelTransforms[i]);
                 newIndirectDrawCommands.push_back(indirectDrawCommands[i]);
             }
@@ -611,6 +614,7 @@ namespace stratus {
 
         // handles = std::move(newHandles);
         materialIndices = std::move(newMaterialIndices);
+        prevFrameModelTransforms = std::move(newPrevFrameModelTransforms);
         modelTransforms = std::move(newModelTransforms);
         indirectDrawCommands = std::move(newIndirectDrawCommands);
     }
@@ -629,7 +633,7 @@ namespace stratus {
             const Bitfield flags = GPU_DYNAMIC_DATA;
 
             materialIndices_ = GpuBuffer((const void *)materialIndices.data(), numElems * sizeof(uint32_t), flags);
-            globalTransforms_ = GpuBuffer((const void *)globalTransforms.data(), numElems * sizeof(glm::mat4), flags);
+            prevFrameModelTransforms_ = GpuBuffer((const void*)prevFrameModelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             modelTransforms_ = GpuBuffer((const void *)modelTransforms.data(), numElems * sizeof(glm::mat4), flags);
             indirectDrawCommands_ = GpuBuffer((const void *)indirectDrawCommands.data(), numElems * sizeof(GpuDrawElementsIndirectCommand), flags);
             if (aabbs.size() > 0) {
@@ -638,7 +642,7 @@ namespace stratus {
         }
         else {
             materialIndices_.CopyDataToBuffer(0, numElems * sizeof(uint32_t), (const void *)materialIndices.data());
-            globalTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)globalTransforms.data());
+            prevFrameModelTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void*)prevFrameModelTransforms.data());
             modelTransforms_.CopyDataToBuffer(0, numElems * sizeof(glm::mat4), (const void *)modelTransforms.data());
             indirectDrawCommands_.CopyDataToBuffer(0, numElems * sizeof(GpuDrawElementsIndirectCommand), (const void *)indirectDrawCommands.data());
             if (aabbs.size() > 0) {
@@ -654,11 +658,11 @@ namespace stratus {
         materialIndices_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindGlobalTransformBuffer(uint32_t index) {
-        if (globalTransforms_ == GpuBuffer()) {
-            throw std::runtime_error("Null global transform GpuBuffer");
+    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(uint32_t index) {
+        if (prevFrameModelTransforms_ == GpuBuffer()) {
+            throw std::runtime_error("Null previous frame model transform GpuBuffer");
         }
-        globalTransforms_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
+        prevFrameModelTransforms_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
     void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) {
@@ -690,11 +694,13 @@ namespace stratus {
     }
 
     void GpuCommandBuffer::VerifyArraySizes_() const {
-        assert(//materialIndices.size() == handlesToIndicesMap.size() &&
-               //materialIndices.size() == handles.size() &&
-               materialIndices.size() == globalTransforms.size() &&
-               materialIndices.size() == modelTransforms.size() &&
-               materialIndices.size() == indirectDrawCommands.size());
+        if (//materialIndices.size() == handlesToIndicesMap.size() &&
+            //materialIndices.size() == handles.size() &&
+            materialIndices.size() != prevFrameModelTransforms.size() ||
+            materialIndices.size() != modelTransforms.size() ||
+            materialIndices.size() != indirectDrawCommands.size()) {
+            throw std::runtime_error("Sizes do not match up in GpuBuffer");
+        }
 
         if (aabbs.size() > 0) {
             assert(aabbs.size() == indirectDrawCommands.size());
@@ -703,5 +709,17 @@ namespace stratus {
 
     const GpuBuffer& GpuCommandBuffer::GetIndirectDrawCommandsBuffer() const {
         return indirectDrawCommands_;
+    }
+
+    GpuCommandBufferPtr GpuCommandBuffer::Copy() const {
+        GpuCommandBufferPtr copy = GpuCommandBufferPtr(new GpuCommandBuffer());
+        copy->materialIndices = materialIndices;
+        copy->prevFrameModelTransforms = prevFrameModelTransforms;
+        copy->modelTransforms = modelTransforms;
+        copy->indirectDrawCommands = indirectDrawCommands;
+        copy->aabbs = aabbs;
+
+        copy->UploadDataToGpu();
+        return copy;
     }
 }
