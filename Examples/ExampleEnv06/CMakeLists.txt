@@ -1,7 +1,7 @@
 find_package(OpenGL REQUIRED)
 
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
-set(OUTPUT_NAME Ex07_Warehouse)
+set(OUTPUT_NAME Ex06_Bathroom)
 
 include_directories(${ROOT_DIRECTORY}gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}Source/Engine/ ${CMAKE_CURRENT_LIST_DIR} ${OPENGL_INCLUDE_DIRS})
 link_directories(${ROOT_DIRECTORY}Bin)
