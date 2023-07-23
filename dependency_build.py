@@ -4,6 +4,8 @@ import os
 import threading
 from distutils.dir_util import copy_tree
 
+os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(os.cpu_count())
+
 configure_build_install = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF && cmake --build build/ --config Release && cmake --install build/ --prefix ../ThirdParty --config Release"
 
 # Catch2
