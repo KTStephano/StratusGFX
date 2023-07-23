@@ -20,8 +20,6 @@ if (NOT WIN32)
     list(APPEND LIBRARIES assimp)
 endif()
 
-link_libraries(${LIBRARIES})
-
 add_subdirectory(ExampleEnv00)
 add_subdirectory(ExampleEnv01)
 add_subdirectory(ExampleEnv02)
