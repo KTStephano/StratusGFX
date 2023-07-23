@@ -75,6 +75,14 @@ struct CameraController : public stratus::InputHandler {
                                 camSpeedDivide_ = 0.25f;
                             }
                             break;
+                        case SDL_SCANCODE_TAB:
+                            if (!released && cameraMoveEnabled_) {
+                                camSpeedDivide_ = 0.025f / 2.0f;
+                            }
+                            else {
+                                camSpeedDivide_ = 0.25f;
+                            }
+                            break;
                         case SDL_SCANCODE_W:
                         case SDL_SCANCODE_S:
                             if (!released && cameraMoveEnabled_) {
@@ -131,6 +139,12 @@ struct CameraController : public stratus::InputHandler {
                             break;
                         case SDL_SCANCODE_HOME:
                             pitchYawSpeed_.x = -5.0;
+                            if (released) {
+                                pitchYawSpeed_.x = 0.0f;
+                            }
+                            break;
+                        case SDL_SCANCODE_PAGEUP:
+                            pitchYawSpeed_.x = -2.5;
                             if (released) {
                                 pitchYawSpeed_.x = 0.0f;
                             }
