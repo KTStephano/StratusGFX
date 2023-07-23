@@ -3,7 +3,7 @@
 Release State: **Pre-Release/Beta**
 Engine Version: 0.10
 
-Realtime 3D rendering engine. Expect bugs and instability as it is still under development. Licensed under MPL-2.0. Please feel free to contact me about any questions or issues you have!
+Realtime 3D rendering engine. Expect bugs and instability as it is still under development. The engine is free and open source (licensed under MPL-2.0). Please feel free to contact me about any questions or issues you have!
 
 ![sponza](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
 
