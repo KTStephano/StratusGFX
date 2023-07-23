@@ -11,8 +11,9 @@ endif ()
 
 if (NOT WIN32)
     file(GLOB LINUX_LIBS1 ${ROOT_DIRECTORY}ThirdParty/lib/*.a*)
+    file(GLOB LINUX_LIBS2 ${ROOT_DIRECTORY}ThirdParty/lib64/*.a*)
 
-    list(APPEND LIBRARIES ${LINUX_LIBS1})
+    list(APPEND LIBRARIES ${LINUX_LIBS1} ${LINUX_LIBS2})
 endif ()
 
 message(${LIBRARIES})
