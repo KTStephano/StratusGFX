@@ -1,16 +1,31 @@
 # ![logo](https://user-images.githubusercontent.com/8399235/254135954-84b9cb9a-b01e-43e0-8a3c-16217af4432e.jpg)
 
 Release State: **Pre-Release/Beta**
+Engine Version: 0.10
 
-Hobby research rendering engine which was open sourced once its core features were in a presentable state. Expect bugs and instability as it is still under development. Licensed under MPL-2.0.
+Realtime 3D rendering engine. Expect bugs and instability as it is still under development. Licensed under MPL-2.0. Please feel free to contact me about any questions or issues you have!
 
--> [Graphics Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
+![sponza](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
+
+(3D Model: Intel Sponza)
+
+![sanmiguel](https://ktstephano.github.io/assets/v0.10/FinalAfterPostProcessing.png)
+
+(3D Model: San Miguel)
+
+![cornell_front](https://ktstephano.github.io/assets/v0.10/Cornell_Front.png)
+
+![cornell_back](https://ktstephano.github.io/assets/v0.10/Cornell_Back.png)
+
+(3D Model: Cornell Box)
+
+-> [Video Feature Reel](https://www.youtube.com/watch?v=s5aIsgzwNPE)
+
+-> [Graphics Image Feature Reel](https://ktstephano.github.io/rendering/stratusgfx/feature_reel)
 
 -> [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture)
 
--> [How A Frame Is Rendered](https://ktstephano.github.io/rendering/stratusgfx/frame_analysis)
-
--> [Video Feature Reel](https://www.youtube.com/watch?v=s5aIsgzwNPE)
+-> [How A Frame Is Rendered](https://ktstephano.github.io/rendering/stratusgfx/frame_analysis_v0_10)
 
 (The video feature reel will be redone with latest features including better image smoothing in hopefully the next release)
 
@@ -36,21 +51,24 @@ Because of the MPL license, any community changes made to the rendering code wil
 ### Graphics
 
 * Physically based metallic-roughness pipeline
-* Realtime global illumination and indirect shadowing
-* Raymarched volumetric lighting
+* Realtime global illumination
+* Spatiotemporal image denoising
+* Raymarched volumetric lighting and shadowing
 * Cascaded shadow mapping
-* Deferred lighting and soft shadowing
+* Deferred lighting
 * Mesh LOD generation and selection
-* GPU frustum culling
+* GPU Frustum Culling
 * Screen Space Ambient Occlusion (SSAO)
-* Filmic tonemapping
+* Reinhard or ACES Tonemapping
 * Fog
 * Bloom
 * Fast Approximate Anti-Aliasing (FXAA)
+* Temporal Anti-Aliasing (TAA)
 
 ### Engine
 
 * Pool allocators
+* GPU memory allocators/managers
 * Multi threaded utilities
 * Concurrent hash map
 * Entity-Component System (ECS)
@@ -62,7 +80,7 @@ Because of the MPL license, any community changes made to the rendering code wil
 * Direct state access
 * Programmable vertex pulling
 * Multi draw elements indirect
-* Shader storage buffers
+* Shader storage buffer
 
 # Minimum Hardware Requirements
 
@@ -71,11 +89,6 @@ Because of the MPL license, any community changes made to the rendering code wil
 | CPU | Ryzen 3 1200 (quad core) |
 | RAM | 8 GB |
 | GPU | Nvidia GTX 1050 Ti |
-| *Storage (Deploy Binaries) | 700 MB |
-| *Storage (Binaries + Source + Dependencies) | 7 GB |
-| *Storage (Binaries + Source + Demo Data + Dependencies) | 16 GB |
-
-\* Uncompressed
 
 # Building For Windows & Linux
 
@@ -104,8 +117,6 @@ All executables will be put into StratusGFX/Bin. Make sure you run them while in
     StratusEngineIntegrationTests.exe
 
 # First Places to Look
-
--> [Documentation](https://github.com/KTStephano/StratusGFX/wiki)
 
 You can check [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture), or you can start by looking through the code under Examples/ExampleEnv00 and Examples/ExampleEnv01. They both depend on code that is inside of Examples/Common which is another good place to look around.
 
@@ -144,6 +155,8 @@ WASD to move
 
 Left mouse to fly up, right mouse to fly down
 
+U unlocks look up/look down for camera
+
 F toggles camera light
 
 E toggles directional light
@@ -151,31 +164,3 @@ E toggles directional light
 G toggles global illumination
 
 R recompiles all shaders
-
-# Future of StratusGFX
-
-### Short Term
-
--> Improving build system to make it easier for people to get up and running with the code
-
--> Addition of either TAA or TSSAA to help with image stability while in motion
-
--> Animation
-
--> Performance improvements
-
-### Medium Term
-
--> Order independent transparency
-
--> Better handling of LOD generation and transition
-
--> Screen Space Reflections (SSR)
-
-### Long Term
-
--> Switch backend to Vulkan which will enable the engine to run on MacOS and not just Windows/Linux
-
--> Addition of baked lighting features so that weaker hardware has a fallback option
-
--> Addition of other modern global illumination techniques to either replace or complement what is already there
