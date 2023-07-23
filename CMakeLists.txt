@@ -24,6 +24,7 @@ list(APPEND CMAKE_PREFIX_PATH
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/meshoptimizer)
 
 option(DEPENDENCY_BUILD "Third party dependencies only" OFF)
+option(BUILD_TESTS "Build engine integration and unit tests" ON)
 
 file(GLOB BIN_DLLS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/bin/*)
     
@@ -53,4 +54,6 @@ add_subdirectory(Examples/)
 #include(CTest)
 #enable_testing()
 
-add_subdirectory(Tests)
+if (BUILD_TESTS)
+    add_subdirectory(Tests)
+endif()
