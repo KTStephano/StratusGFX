@@ -1,15 +1,10 @@
 find_package(OpenGL REQUIRED)
 
-set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 set(OUTPUT_NAME Ex01_StratusGFX)
 
-include_directories(${ROOT_DIRECTORY}gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}Source/Engine/ ${CMAKE_CURRENT_LIST_DIR} ${OPENGL_INCLUDE_DIRS})
-link_directories(${ROOT_DIRECTORY}Bin)
 file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 
 add_executable(${OUTPUT_NAME} ${COMMON_SOURCES} ${SOURCES})
-target_link_libraries(${OUTPUT_NAME}
-    StratusEngine assimp)
 
 # set(OUTPUT_DIRECTORY ${ROOT_DIRECTORY}Bin/)
 # set_target_properties(${OUTPUT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})

@@ -10,7 +10,7 @@ if (WIN32)
 endif ()
 
 if (NOT WIN32)
-    file(GLOB LINUX_LIBS1 ${ROOT_DIRECTORY}ThirdParty/lib/*Catch2*)
+    file(GLOB LINUX_LIBS1 ${ROOT_DIRECTORY}ThirdParty/lib/*.a*)
 
     list(APPEND LIBRARIES ${LINUX_LIBS1})
 endif ()
