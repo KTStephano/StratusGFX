@@ -16,9 +16,9 @@ link_directories(${ROOT_DIRECTORY}Bin)
 
 set(LIBRARIES StratusEngine)
 
-if (NOT WIN32)
-    list(APPEND LIBRARIES assimp)
-endif()
+#if (NOT WIN32)
+#    list(APPEND LIBRARIES assimp)
+#endif()
 
 add_subdirectory(ExampleEnv00)
 add_subdirectory(ExampleEnv01)
