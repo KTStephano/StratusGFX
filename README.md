@@ -102,7 +102,7 @@ Build 3rd party dependencies -> should only need to do this once per clone
 Now build the StratusGFX source
 
     mkdir build; cd build
-    cmake cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
+    cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 
 All executables will be put into StratusGFX/Bin. Make sure you run them while inside Bin/. Good ones to run to see if it worked are 
