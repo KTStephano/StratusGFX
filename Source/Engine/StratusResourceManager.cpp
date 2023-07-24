@@ -312,7 +312,7 @@ namespace stratus {
     }
 
     static void PrintMatType(const aiMaterial * aimat, const aiTextureType type) {
-        static const std::unordered_map<int, std::string> conversion{
+        static const std::unordered_map<int, std::string> conversion = {
             {aiTextureType_DIFFUSE, "Diffuse"},
             {aiTextureType_SPECULAR, "Specular"},
             {aiTextureType_AMBIENT, "Ambient"},
