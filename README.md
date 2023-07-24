@@ -108,7 +108,8 @@ Now build the StratusGFX source
 
 ### Debian Linux
 
-    sudo apt install assimp
+    sudo apt install libassimp5
+    sudo apt install libassimp-dev
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 
