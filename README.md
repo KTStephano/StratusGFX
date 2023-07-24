@@ -94,7 +94,6 @@ First set up the repo
 
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
-    git submodule update --remote --merge
 
 Build 3rd party dependencies -> should only need to do this once per clone
 
