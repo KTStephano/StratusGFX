@@ -8,7 +8,7 @@ os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(os.cpu_count())
 
 #configure_build_install = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF && cmake --build build/ --config Release && cmake --install build/ --prefix ../ThirdParty --config Release"
 configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release"
-build = "cmake --build build/"
+build = "cmake --build build/ -j 8"
 install = "cmake --install build/ --prefix ../ThirdParty"
 configure_build_install = configure + " && " + build + " && " + install
 
