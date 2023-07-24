@@ -12,7 +12,7 @@ install = "cmake --install build/ --prefix ../ThirdParty"
 configure_build_install = configure + " && " + build + " && " + install
 
 # Update submodules to latest commit
-os.system('git submodule update --remote --merge')
+#os.system('git submodule update --remote --merge')
 
 # Catch2
 cmd = "cd Catch2 && " + configure_build_install
