@@ -103,7 +103,7 @@ Now build the StratusGFX source
 
     mkdir build; cd build
     cmake cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
-    cmake --build . -j 8
+    cmake --build build/ -j 8
 
 All executables will be put into StratusGFX/Bin. Make sure you run them while inside Bin/. Good ones to run to see if it worked are 
 
