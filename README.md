@@ -94,7 +94,6 @@ First set up the repo
 
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
-    git submodule update
 
 Build 3rd party dependencies -> should only need to do this once per clone
 
@@ -107,8 +106,15 @@ Now build the StratusGFX source
     cmake -Bbuild -S. -DBUILD_TESTS=OFF
     cmake --build build/ -j 8 --config RelWithDebInfo
 
-### Linux
+### Debian Linux
 
+    sudo apt install assimp
+    cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
+    cmake --build build/ -j 8
+
+### Arch Linux
+
+    sudo pacman -S assimp
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 

@@ -7,12 +7,13 @@ from distutils.dir_util import copy_tree
 os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(os.cpu_count())
 
 windows = ""
-linux = ""
+linux = False
 if os.name == "nt":
     print("Windows")
     windows = "--config Release"
 else:
     print("Linux")
+    linux = True
     #linux = "--compile-no-warning-as-error"
 
 configure = "cmake {} -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release".format(linux)
@@ -34,9 +35,10 @@ t = threading.Thread(target=lambda: os.system(cmd), args=())
 t.start()
 
 # Assimp
-cmd = "cd assimp && " + configure_build_install
-t = threading.Thread(target=lambda: os.system(cmd), args=())
-t.start()
+if not linux:
+    cmd = "cd assimp && " + configure_build_install
+    t = threading.Thread(target=lambda: os.system(cmd), args=())
+    t.start()
 
 copy_tree("./assimp/contrib", "./ThirdParty/contrib")
 
