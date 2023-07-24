@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.20)
 #set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_LIST_DIR})
 project(StratusGFX)
 
