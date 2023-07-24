@@ -3,20 +3,27 @@
 import os
 import threading
 from distutils.dir_util import copy_tree
+import argparse
+
+parser = argparse.ArgumentParser(prog='Stratus Engine Dependency Build')
+parser.add_argument('-a', '--assimp',
+                    action='store_true', 
+                    default=False)
+args = parser.parse_args()
 
 os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(os.cpu_count())
 
 windows = ""
-linux = False
+build_assimp = args.assimp
 if os.name == "nt":
     print("Windows")
     windows = "--config Release"
 else:
     print("Linux")
-    linux = True
-    #linux = "--compile-no-warning-as-error"
 
-configure = "cmake {} -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release".format(linux)
+print("Building assimp:", build_assimp)
+
+configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF"
 build = "cmake --build build/ -j 8 {}".format(windows)
 install = "cmake --install build/ --prefix ../ThirdParty {}".format(windows)
 configure_build_install = configure + " && " + build + " && " + install
@@ -35,7 +42,7 @@ t = threading.Thread(target=lambda: os.system(cmd), args=())
 t.start()
 
 # Assimp
-if not linux:
+if build_assimp:
     cmd = "cd assimp && " + configure_build_install
     t = threading.Thread(target=lambda: os.system(cmd), args=())
     t.start()

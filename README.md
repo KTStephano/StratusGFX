@@ -97,6 +97,10 @@ First set up the repo
 
 Build 3rd party dependencies -> should only need to do this once per clone
 
+    python3 ./dependency_build.py --assimp
+
+-> LINUX NOTE: If you get an error while building assimp, use your local package manager to install assimp instead. Then re-run the above step as:
+
     python3 ./dependency_build.py
 
 Now build the StratusGFX source
@@ -108,14 +112,11 @@ Now build the StratusGFX source
 
 ### Debian Linux
 
-    sudo apt install libassimp5
-    sudo apt install libassimp-dev
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 
 ### Arch Linux
 
-    sudo pacman -S assimp
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 
