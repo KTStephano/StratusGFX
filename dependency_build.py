@@ -15,8 +15,8 @@ else:
     print("Linux")
     linux = "--compile-no-warning-as-error"
 
-configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release"
-build = "cmake {} --build build/ -j 8 {}".format(linux, windows)
+configure = "cmake {} -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release".format(linux)
+build = "cmake --build build/ -j 8 {}".format(windows)
 install = "cmake --install build/ --prefix ../ThirdParty {}".format(windows)
 configure_build_install = configure + " && " + build + " && " + install
 
