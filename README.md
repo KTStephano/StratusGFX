@@ -102,6 +102,13 @@ Build 3rd party dependencies -> should only need to do this once per clone
 
 Now build the StratusGFX source
 
+### Windows
+
+    cmake -Bbuild -S. -DBUILD_TESTS=OFF
+    cmake --build build/ -j 8 --config RelWithDebInfo
+
+### Linux
+
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
 
