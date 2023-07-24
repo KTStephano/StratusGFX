@@ -4,6 +4,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/pbrmaterial.h>
+#include <assimp/material.h>
+#include <assimp/GltfMaterial.h>
 #include "StratusRendererFrontend.h"
 #include "StratusApplicationThread.h"
 #include "StratusTaskSystem.h"
