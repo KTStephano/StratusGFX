@@ -21,7 +21,12 @@ list(APPEND CMAKE_PREFIX_PATH
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/Catch2
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/assimp
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/assimp-5.2
-    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/meshoptimizer)
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib/cmake/meshoptimizer
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/Catch2
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/assimp
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/assimp-5.2
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/meshoptimizer)
 
 option(DEPENDENCY_BUILD "Third party dependencies only" OFF)
 option(BUILD_TESTS "Build engine integration and unit tests" ON)
