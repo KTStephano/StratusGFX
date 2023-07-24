@@ -110,12 +110,7 @@ Now build the StratusGFX source
     cmake -Bbuild -S. -DBUILD_TESTS=OFF
     cmake --build build/ -j 8 --config RelWithDebInfo
 
-### Debian Linux
-
-    cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
-    cmake --build build/ -j 8
-
-### Arch Linux
+### Linux
 
     cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
     cmake --build build/ -j 8
