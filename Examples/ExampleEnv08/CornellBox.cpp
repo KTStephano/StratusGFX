@@ -22,9 +22,9 @@
 #include "WorldLightController.h"
 #include "FrameRateController.h"
 
-class JunkShop : public stratus::Application {
+class CornellBox : public stratus::Application {
 public:
-    virtual ~JunkShop() = default;
+    virtual ~CornellBox() = default;
 
     const char * GetAppName() const override {
         return "CornellBox";
@@ -76,12 +76,13 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/CornellBox/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) {  
-            JunkShop = e.GetPtr(); 
-            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(JunkShop);
+            if (e.Failed()) return;
+            CornellBox = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(CornellBox);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(15.0f));
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(-180.0f), stratus::Degrees(0.0f)));
-            INSTANCE(EntityManager)->AddEntity(JunkShop);
+            INSTANCE(EntityManager)->AddEntity(CornellBox);
         });
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
@@ -159,8 +160,8 @@ public:
             }
         }
 
-        if (JunkShop != nullptr) {
-            JunkShop = nullptr;
+        if (CornellBox != nullptr) {
+            CornellBox = nullptr;
             int spawned = 0;
 
             //for (int x = -16; x < 16; x += 5) {
@@ -384,7 +385,7 @@ public:
     }
 
 private:
-    stratus::EntityPtr JunkShop;
+    stratus::EntityPtr CornellBox;
 };
 
-STRATUS_ENTRY_POINT(JunkShop)
+STRATUS_ENTRY_POINT(CornellBox)

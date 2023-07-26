@@ -479,6 +479,7 @@ public:
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/Bistro.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             bistro = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(bistro);
             //transform->SetLocalPosition(glm::vec3(0.0f));

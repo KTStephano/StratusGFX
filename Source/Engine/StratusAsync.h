@@ -44,6 +44,9 @@ namespace stratus {
                     this->complete_ = true;
                     this->failed_ = this->result_ == nullptr;
                     failed = this->failed_;
+                    if (failed) {
+                        this->exceptionMessage_ = "Async function returned nullptr";
+                    }
                 }
                 catch (const std::exception& e) {
                     auto ul = this->LockWrite_();
@@ -54,7 +57,7 @@ namespace stratus {
                 }
 
                 // End early to prevent waiting callbacks from receiving null pointers
-                if (failed) return;
+                //if (failed) return;
 
                 // Notify everyone that we're done
                 this->ProcessCallbacks_();
@@ -191,7 +194,7 @@ namespace stratus {
                 }
 
                 // End early to prevent waiting callbacks from receiving null pointers
-                if (failed) return;
+                //if (failed) return;
 
                 // Notify everyone that we're done
                 this->ProcessCallbacks_();
