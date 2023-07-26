@@ -94,6 +94,7 @@ public:
         stratus::Async<stratus::Entity> e;
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             outhouse = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(outhouse);
             transform->SetLocalScale(glm::vec3(15.0f));
@@ -103,6 +104,7 @@ public:
 
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/hromada_hlina_01_30k_f.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             clay = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(clay);
             transform->SetLocalPosition(glm::vec3(100.0f, 0.0f, -50.0f));
@@ -113,6 +115,7 @@ public:
 
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/boubin_stump.FBX", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             stump = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(stump);
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-180.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -123,6 +126,7 @@ public:
 
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/hintze-hall-1m.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             hall = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(hall);
             transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(-90.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
@@ -134,6 +138,7 @@ public:
 
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/model.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             ramparts = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(ramparts);
             transform->SetLocalPosition(glm::vec3(300.0f, 0.0f, -100.0f));
@@ -144,6 +149,7 @@ public:
 
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/local/Rock_Terrain_SF.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             rocks = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(rocks);
             transform->SetLocalPosition(glm::vec3(700.0f, -75.0f, -100.0f));
@@ -155,6 +161,7 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         e = INSTANCE(ResourceManager)->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             sponza = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
             transform->SetLocalPosition(glm::vec3(0.0f, -300.0f, -500.0f));

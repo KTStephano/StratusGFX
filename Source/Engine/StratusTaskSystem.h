@@ -8,6 +8,7 @@
 #include <vector>
 #include <cmath>
 #include <unordered_map>
+#include <algorithm>
 
 namespace stratus { 
     // Allows groups of async processes to be waited on in an async manner
@@ -60,6 +61,37 @@ namespace stratus {
 
     private:
         template<typename E, typename T>
+        Async<E> CreateAsyncTask_(const T& process, const size_t index) {
+            // Increment the working #
+            threadsWorking_[index]->fetch_add(1);
+
+            const auto processWithHook = [this, index, process]() {
+                auto result = process();
+                // Decrement working counter
+                threadsWorking_[index]->fetch_sub(1);
+                return result;
+            };
+
+            auto as = Async<E>(*taskThreads_[index].get(), processWithHook);
+            return as;
+        }
+
+        template<>
+        Async<void> CreateAsyncTask_<void, std::function<void (void)>>(const std::function<void (void)>& process, const size_t index) {
+            // Increment the working #
+            threadsWorking_[index]->fetch_add(1);
+
+            const auto processWithHook = [this, index, process]() {
+                process();
+                // Decrement working counter
+                threadsWorking_[index]->fetch_sub(1);
+            };
+
+            auto as = Async<void>(*taskThreads_[index].get(), processWithHook);
+            return as;
+        }
+
+        template<typename E, typename T>
         Async<E> ScheduleTask_(const T& process) {
             auto ul = std::unique_lock<std::mutex>(m_);
             if (taskThreads_.size() == 0) throw std::runtime_error("Task threads size equal to 0");
@@ -68,6 +100,7 @@ namespace stratus {
             bool found = false;
             const auto currentId = Thread::Current().Id();
             std::vector<std::pair<ThreadHandle, size_t>> currentWorkLoads;
+            currentWorkLoads.reserve(threadToIndexMap_.size());
             for (const auto& entry : threadToIndexMap_) {
                 if (entry.first == currentId) continue;
                 currentWorkLoads.push_back(std::make_pair(entry.first, threadsWorking_[entry.second]->load()));
@@ -83,18 +116,7 @@ namespace stratus {
             // Choose the first which should have the least work items
             const size_t index = threadToIndexMap_.find(currentWorkLoads[0].first)->second;
 
-            // Increment the working #
-            threadsWorking_[index]->fetch_add(1);
-
-            const auto processWithHook = [this, index, process]() {
-                auto result = process();
-                // Decrement working counter
-                threadsWorking_[index]->fetch_sub(1);
-                return result;
-            };
-
-            auto as = Async<E>(*taskThreads_[index].get(), processWithHook);
-            return as;
+            return CreateAsyncTask_<E, T>(process, index);
         }
 
     public:
@@ -108,8 +130,12 @@ namespace stratus {
             return ScheduleTask_<E>(process);
         }
 
+        Async<void> ScheduleTask(const std::function<void (void)>& process) {
+            return ScheduleTask_<void, std::function<void (void)>>(process);
+        }
+
         template<typename E>
-        void WaitOnTaskGroup(const std::function<void (const std::vector<Async<E>>&)>& callback, const std::vector<Async<E>>& group) {
+        void AddTaskGroupCallback(const std::function<void (const std::vector<Async<E>>&)>& callback, const std::vector<Async<E>>& group) {
             auto ul = std::unique_lock<std::mutex>(m_);
             waiting_.push_back(new TaskWaitImpl_<E>(callback, group));
         }

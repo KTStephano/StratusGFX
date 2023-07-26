@@ -44,6 +44,9 @@ namespace stratus {
                     this->complete_ = true;
                     this->failed_ = this->result_ == nullptr;
                     failed = this->failed_;
+                    if (failed) {
+                        this->exceptionMessage_ = "Async function returned nullptr";
+                    }
                 }
                 catch (const std::exception& e) {
                     auto ul = this->LockWrite_();
@@ -54,7 +57,7 @@ namespace stratus {
                 }
 
                 // End early to prevent waiting callbacks from receiving null pointers
-                if (failed) return;
+                //if (failed) return;
 
                 // Notify everyone that we're done
                 this->ProcessCallbacks_();
@@ -146,6 +149,105 @@ namespace stratus {
         std::unordered_map<Thread *, std::vector<Thread::ThreadFunction>> callbacks_;
     };
 
+    // Explicit specialization for void
+    template<>
+    class AsyncImpl_<void> : public std::enable_shared_from_this<AsyncImpl_<void>> {
+    public:
+        AsyncImpl_() {
+            complete_ = true;
+            failed_ = false;
+        }
+
+        AsyncImpl_(Thread& context, const std::function<void(void)>& compute) {
+            compute_ = compute;
+            complete_ = false;
+            failed_ = false;
+            context_ = &context;
+        }
+
+        AsyncImpl_(const AsyncImpl_&) = delete;
+        AsyncImpl_(AsyncImpl_&&) = delete;
+        AsyncImpl_& operator=(const AsyncImpl_&) = delete;
+        AsyncImpl_& operator=(AsyncImpl_&&) = delete;
+        ~AsyncImpl_() = default;
+
+        // Should only be called by the wrapper class Async
+        void Start() {
+            if (Completed()) return;
+
+            std::shared_ptr<AsyncImpl_> shared = this->shared_from_this();
+            context_->Queue([this, shared]() {
+                bool failed = false;
+                try {
+                    this->compute_();
+                    auto ul = this->LockWrite_();
+                    this->complete_ = true;
+                    this->failed_ = false;
+                    failed = this->failed_;
+                }
+                catch (const std::exception& e) {
+                    auto ul = this->LockWrite_();
+                    this->complete_ = true;
+                    this->failed_ = true;
+                    this->exceptionMessage_ = e.what();
+                    failed = true;
+                }
+
+                // End early to prevent waiting callbacks from receiving null pointers
+                //if (failed) return;
+
+                // Notify everyone that we're done
+                this->ProcessCallbacks_();
+                });
+        }
+
+        // Getters for checking internal state
+        bool Failed()                  const { auto sl = LockRead_(); return failed_; }
+        bool Completed()               const { auto sl = LockRead_(); return complete_; }
+        bool CompleteAndValid()        const { auto sl = LockRead_(); return complete_ && !failed_; }
+        bool CompleteAndInvalid()      const { auto sl = LockRead_(); return complete_ && failed_; }
+        std::string ExceptionMessage() const { auto sl = LockRead_(); return exceptionMessage_; }
+
+        void AddCallback(const Thread::ThreadFunction& callback) {
+            Thread* thread = &Thread::Current();
+            // If completed then schedule it immediately
+            if (Completed() && !Failed()) {
+                thread->Queue(callback);
+            }
+            else {
+                auto ul = LockWrite_();
+                if (callbacks_.find(thread) == callbacks_.end()) {
+                    callbacks_.insert(std::make_pair(thread, std::vector<Thread::ThreadFunction>()));
+                }
+                callbacks_.find(thread)->second.push_back(callback);
+            }
+        }
+
+    private:
+        std::unique_lock<std::shared_mutex> LockWrite_() const { return std::unique_lock<std::shared_mutex>(mutex_); }
+        std::shared_lock<std::shared_mutex> LockRead_()  const { return std::shared_lock<std::shared_mutex>(mutex_); }
+
+        void ProcessCallbacks_() {
+            std::unordered_map<Thread*, std::vector<Thread::ThreadFunction>> callbacks;
+            {
+                auto ul = LockWrite_();
+                callbacks = std::move(callbacks_);
+            }
+            for (auto entry : callbacks) {
+                entry.first->QueueMany(entry.second);
+            }
+        }
+
+    private:
+        Thread* context_ = nullptr;
+        std::function<void (void)> compute_;
+        mutable std::shared_mutex mutex_;
+        std::string exceptionMessage_;
+        bool failed_ = false;
+        bool complete_ = false;
+        std::unordered_map<Thread*, std::vector<Thread::ThreadFunction>> callbacks_;
+    };
+
     // To use this class, do something like the following:
     // Async<int> compute(thread, [](){ return new int(12); });
     // thread.Dispatch();
@@ -197,5 +299,41 @@ namespace stratus {
 
     private:
         std::shared_ptr<AsyncImpl_<E>> impl_;
+    };
+
+    // Explicit specialization for void
+    template<>
+    class Async<void> {
+    public:
+        typedef std::function<void(Async<void>)> AsyncCallback;
+
+        Async() {}
+
+        Async(Thread& context, std::function<void (void)> function)
+            : impl_(std::make_shared<AsyncImpl_<void>>(context, function)) {
+            impl_->Start();
+        }
+
+        Async(const Async&) = default;
+        Async(Async&&) = default;
+        Async& operator=(const Async&) = default;
+        Async& operator=(Async&&) = default;
+        ~Async() = default;
+
+        // Getters for checking internal state
+        bool Failed()                  const { return impl_ == nullptr || impl_->Failed(); }
+        bool Completed()               const { return impl_ == nullptr || impl_->Completed(); }
+        bool CompleteAndValid()        const { return impl_ != nullptr && impl_->CompleteAndValid(); }
+        bool CompleteAndInvalid()      const { return impl_ == nullptr || impl_->CompleteAndInvalid(); }
+        std::string ExceptionMessage() const { return impl_ == nullptr ? "" : impl_->ExceptionMessage(); }
+
+        // Callback support
+        void AddCallback(const AsyncCallback& callback) {
+            Async<void> copy = *this;
+            impl_->AddCallback([copy, callback]() { callback(copy); });
+        }
+
+    private:
+        std::shared_ptr<AsyncImpl_<void>> impl_;
     };
 }

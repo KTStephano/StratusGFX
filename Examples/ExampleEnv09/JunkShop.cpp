@@ -67,6 +67,7 @@ public:
         requested.push_back(e);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
             //STRATUS_LOG << "Adding\n";
             received.push_back(e.GetPtr());
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
