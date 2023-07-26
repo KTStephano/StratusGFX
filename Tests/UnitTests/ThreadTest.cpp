@@ -137,4 +137,17 @@ TEST_CASE( "Stratus Async Test", "[stratus_async_test]" ) {
     intcallback = stratus::Async<int>(nullptr);
     REQUIRE(intcallback.Completed() == true);
     REQUIRE(intcallback.Failed() == true);
+
+    // Test void callback
+    called.store(false);
+    stratus::Async<void> computeVoid(callbackThread, [&called]() { called.store(true); });
+
+    // Should not have started yet
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    REQUIRE(called.load() == false);
+
+    callbackThread.DispatchAndSynchronize();
+
+    REQUIRE(called.load() == true);
+
 }
