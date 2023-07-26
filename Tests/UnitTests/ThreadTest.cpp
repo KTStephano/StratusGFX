@@ -145,9 +145,12 @@ TEST_CASE( "Stratus Async Test", "[stratus_async_test]" ) {
     // Should not have started yet
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     REQUIRE(called.load() == false);
+    REQUIRE(computeVoid.Completed() == false);
+    REQUIRE(computeVoid.Failed() == false);
 
     callbackThread.DispatchAndSynchronize();
 
     REQUIRE(called.load() == true);
-
+    REQUIRE(computeVoid.Completed() == true);
+    REQUIRE(computeVoid.Failed() == false);
 }

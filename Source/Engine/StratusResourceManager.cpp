@@ -173,7 +173,7 @@ namespace stratus {
             }
         };
 
-        INSTANCE(TaskSystem)->WaitOnTaskGroup<bool>(callback, waiting);
+        INSTANCE(TaskSystem)->AddTaskGroupCallback<bool>(callback, waiting);
 
         // for (auto& wait : waiting) {
         //    while (!wait.Completed())
@@ -698,7 +698,7 @@ namespace stratus {
         //    ProcessMesh(mesh, scene, directory, extension, defaultCullMode, cspace);
         //}
 
-        std::vector<Async<bool>> waiting;
+        std::vector<Async<void>> waiting;
         // There are cases where the number of meshes to process is less than the total available threads,
         // so in that case just use meshes.size() as the upper limit
         const size_t numThreads = std::min(INSTANCE(TaskSystem)->Size(), meshes.size());
@@ -713,11 +713,9 @@ namespace stratus {
                 }
 
                 counter += processed;
-
-                return new bool(true);
             };
 
-            waiting.push_back(INSTANCE(TaskSystem)->ScheduleTask<bool>(process));
+            waiting.push_back(INSTANCE(TaskSystem)->ScheduleTask(process));
         }
 
         // Now process our portion
