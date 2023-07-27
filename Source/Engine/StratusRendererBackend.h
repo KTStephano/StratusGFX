@@ -27,6 +27,7 @@
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
 #include <functional>
+#include "StratusStackAllocator.h"
 
 namespace stratus {
     class Pipeline;
@@ -170,6 +171,9 @@ namespace stratus {
         bool bloomEnabled = true;
         bool usePerceptualRoughness = true;
         RendererCascadeResolution cascadeResolution = RendererCascadeResolution::CASCADE_RESOLUTION_1024;
+        // Records how much temporary memory the renderer is allowed to use
+        // per frame
+        size_t perFrameMaxScratchMemoryBytes = 134217728; // 128 mb
 
         float GetEmissionStrength() const {
             return emissionStrength_;
@@ -279,6 +283,7 @@ namespace stratus {
         glm::mat4 prevProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
         RendererSettings settings;
+        UnsafePtr<StackAllocator> perFrameScratchMemory;
         bool viewportDirty;
     };
 

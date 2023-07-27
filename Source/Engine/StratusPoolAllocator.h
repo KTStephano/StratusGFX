@@ -6,6 +6,7 @@
 #include <shared_mutex>
 #include <functional>
 #include <atomic>
+#include "StratusPointer.h"
 
 // See https://www.qt.io/blog/a-fast-and-thread-safe-pool-allocator-for-qt-part-1
 // for some more information
@@ -93,12 +94,8 @@ namespace stratus {
             return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
         }
 
+        // For now count is ignored - only allocates 1
         E * Allocate(const size_t count) {
-
-        }
-
-        template<typename Construct, typename ... Types>
-        E * AllocateCustomConstruct(Construct c, const Types&... args) {
             uint8_t * bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
@@ -117,8 +114,15 @@ namespace stratus {
 
                 MemBlock_* next = frontBuffer_;
                 frontBuffer_ = frontBuffer_->next;
-                bytes = reinterpret_cast<uint8_t *>(next);
+                bytes = reinterpret_cast<uint8_t*>(next);
             }
+            return reinterpret_cast<E *>(bytes);
+        }
+
+        template<typename Construct, typename ... Types>
+        E * AllocateCustomConstruct(Construct c, const Types&... args) {
+            E * mem = Allocate(1);
+            uint8_t * bytes = reinterpret_cast<uint8_t*>(mem);
             return c(bytes, args...);
         }
 
@@ -190,6 +194,14 @@ namespace stratus {
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
     struct PoolAllocator : public PoolAllocatorImpl_<E, NoOpLock_, ElemsPerChunk, Chunks, ChunkAllocator> {
         virtual ~PoolAllocator() = default;
+    };
+
+    // This is meant to be used with C++ standard containers
+    template<typename T>
+    struct ContainerPoolAllocator {
+        typedef PoolAllocator<T> Allocator;
+
+
     };
 
     struct Lock_ {
