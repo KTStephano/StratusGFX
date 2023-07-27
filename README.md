@@ -81,6 +81,7 @@ Because of the MPL license, any community changes made to the rendering code wil
 # Software/Driver Requirements
 
 | Type | Requirement |
+| --- | --- |
 | OS | Windows 10/11 or Linux |
 | Compiler | Support for C++17 |
 | Graphics | Support for OpenGL 4.6 |
