@@ -84,6 +84,10 @@ namespace stratus {
 		StackBasedPoolAllocator(const UnsafePtr<StackAllocator>& allocator)
 			: allocator_(allocator) {}
 
+		template<typename U>
+		StackBasedPoolAllocator(const StackBasedPoolAllocator<U>& other)
+			: allocator_(other.Allocator()) {}
+
 		// Capacity in terms of # objects
 		size_t Capacity() const noexcept {
 			return allocator_->Capacity() / sizeof(value_type);

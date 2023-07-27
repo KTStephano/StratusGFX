@@ -512,7 +512,7 @@ public:
 
         // Check for key/mouse events
         auto events = INSTANCE(InputManager)->GetInputEventsLastFrame();
-        for (auto e : events) {
+        for (auto& e : events) {
             switch (e.type) {
                 case SDL_QUIT:
                     return stratus::SystemStatus::SYSTEM_SHUTDOWN;
