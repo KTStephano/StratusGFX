@@ -94,6 +94,14 @@ Because of the MPL license, any community changes made to the rendering code wil
 | RAM | 8 GB |
 | GPU | Nvidia GTX 1050 Ti |
 
+# Downloading Sample 3D Model Data
+
+1) A zip file containing Sponza, Interrogation Room, San Miguel, Bistro, Bathroom, etc. can be found here: [https://drive.google.com/file/d/1m56T8cWMwAOHTAIbxAn-891trehgJpzH/view?usp=drive_link](https://drive.google.com/file/d/1m56T8cWMwAOHTAIbxAn-891trehgJpzH/view?usp=drive_link)
+
+2) Extract the Resources.zip folder into the root of StratusGFX. It will then be at the same level as Bin/, Examples/, Source/, Tests/. Make sure that the folder structure looks like StratusGFX/Resources/* where * will be folders such as Sponza, Bistro, etc.
+
+(see further down this README for a full list of credits for where the sample 3D model data came from)
+
 # Building For Windows & Linux
 
 This code base will currently not work on MacOS. Linux and Windows should both be fine so long as the graphics driver supports OpenGL 4.6 and the compiler supports C++17.
@@ -102,6 +110,22 @@ First set up the repo
 
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
+
+## Option 1: Standard Build
+
+This is the preferred build if all you want to do is build the examples and run them.
+
+    python3 ./build_examples.py --assimp
+
+-> LINUX NOTE: If you get an error during the assimp build of the above step, use your local package manager to install assimp instead. Then re-run the above step as:
+
+    python3 ./build_examples.py
+
+Now you should be able to go into the StratusGFX/Bin/ folder and run the examples!
+
+## Option 2: Development Build
+
+Use this if you plan to make source code changes to anything in Examples/ Source/ or Tests/. You will only need to build the dependencies once and then after that you can just re-run the cmake build step any time you make changes.
 
 Build 3rd party dependencies -> should only need to do this once per clone
 
@@ -115,40 +139,30 @@ Now build the StratusGFX source
 
 ### Windows
 
-    cmake -Bbuild -S. -DBUILD_TESTS=OFF
+    cmake -Bbuild -S. -DBUILD_TESTS=ON
     cmake --build build/ -j 8 --config RelWithDebInfo
 
 ### Linux
 
-    cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=OFF
+    cmake -Bbuild -S. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=ON
     cmake --build build/ -j 8
 
-All executables will be put into StratusGFX/Bin. Make sure you run them while inside Bin/. Good ones to run to see if it worked are 
+All executables will be put into StratusGFX/Bin folder. Make sure you run them while inside StratusGFX/Bin/. Good ones to run to see if it worked are 
 
     Ex00_StartupShutdown.exe (runs through initialize, run one frame, shutdown sequence)
     Ex01_StratusGFX.exe (you should see a forest of red cubes since textures aren't bundled with source)
     StratusEngineUnitTests.exe
     StratusEngineIntegrationTests.exe
 
-# First Places to Look
+# Running The Examples
 
-You can check [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture), or you can start by looking through the code under Examples/ExampleEnv00 and Examples/ExampleEnv01. They both depend on code that is inside of Examples/Common which is another good place to look around.
+If you are having trouble with the downloading of the 3D assets or running the examples, a good place to check is here:
 
-None of the test scenes are bundled with this source so the rest of the environments will be completely blank when running.
+[https://github.com/KTStephano/StratusGFX/wiki/Examples](https://github.com/KTStephano/StratusGFX/wiki/Examples)
 
-# Running Example Environments 2-7
+If this does not help then feel free to send me an email (jtstephano@gmail.com) or open an issue.
 
-When starting the examples will take a bit to load/process. You can see the status in the console. After starting you may experience some temporary frame drops but this will stabilize quickly.
-
--> More in depth explanation here: [Examples](https://github.com/KTStephano/StratusGFX/wiki/Examples)
-
-1) A zip file containing Sponza, Interrogation Room, San Miguel, Bistro and Bathroom can be found here: [https://drive.google.com/file/d/1m56T8cWMwAOHTAIbxAn-891trehgJpzH/view?usp=drive_link](https://drive.google.com/file/d/1m56T8cWMwAOHTAIbxAn-891trehgJpzH/view?usp=drive_link)
-
-2) Extract the Resources.zip folder into the root of StratusGFX. It will then be at the same level as Bin/, Examples/, Source/, Tests/. Make sure that the folder structure looks like StratusGFX/Resources/* where * will be folders such as Sponza, Bistro, etc.
-
-3) Change directory into Bin/ and run the example environments.
-
-Example environment 01 will still be a forest of red cubes since its textures and models aren't part of the bundle.
+# Credits For 3D Assets Used In Examples
 
 Credits for the 3D assets used in the examples/demos are as follows:
 
@@ -167,6 +181,12 @@ Credits for the 3D assets used in the examples/demos are as follows:
 [Interrogation Room](https://sketchfab.com/3d-models/interogation-room-6e9151ec29494469a74081ddc054d569)
 
 [Abandoned Warehouse](https://sketchfab.com/3d-models/abandoned-warehouse-1e40d433ed6f48fb880a0d2172aff7ca)
+
+# First Places to Look
+
+You can check [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture), or you can start by looking through the code under Examples/ExampleEnv00 and Examples/ExampleEnv01. They both depend on code that is inside of Examples/Common which is another good place to look around.
+
+None of the test scenes are bundled with this source so the rest of the environments will be completely blank when running.
 
 # Controls For Example Environments
 
