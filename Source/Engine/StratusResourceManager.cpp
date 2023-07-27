@@ -521,7 +521,7 @@ namespace stratus {
 
             material->SetDiffuseMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
-            auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::LINEAR);
+            auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::NONE);
             if (normalMap != TextureHandle::Null()) {
                 material->SetNormalMap(normalMap);
             }
@@ -529,13 +529,13 @@ namespace stratus {
                 //m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
-            material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::LINEAR));
-            material->SetEmissiveMap(LoadMaterialTexture(aimat, aiTextureType_EMISSIVE, directory, ColorSpace::LINEAR));
-            material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::LINEAR));
+            material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::NONE));
+            material->SetEmissiveMap(LoadMaterialTexture(aimat, aiTextureType_EMISSIVE, directory, ColorSpace::NONE));
+            material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::NONE));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
             if (extension == "gltf" || extension == "GLTF") {
-                material->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::LINEAR));
+                material->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::NONE));
             }
 
             // STRATUS_LOG << "m " 
