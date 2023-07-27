@@ -94,9 +94,9 @@ namespace stratus {
             return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
         }
 
-        // For now count is ignored - only allocates 1
-        E * Allocate(const size_t count) {
-            uint8_t * bytes = nullptr;
+        template<typename Construct, typename ... Types>
+        E * AllocateCustomConstruct(Construct c, const Types&... args) {
+            uint8_t* bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
                 if (!frontBuffer_) {
@@ -116,17 +116,10 @@ namespace stratus {
                 frontBuffer_ = frontBuffer_->next;
                 bytes = reinterpret_cast<uint8_t*>(next);
             }
-            return reinterpret_cast<E *>(bytes);
-        }
-
-        template<typename Construct, typename ... Types>
-        E * AllocateCustomConstruct(Construct c, const Types&... args) {
-            E * mem = Allocate(1);
-            uint8_t * bytes = reinterpret_cast<uint8_t*>(mem);
             return c(bytes, args...);
         }
 
-        void Deallocate(E * ptr) {
+        void DestroyDeallocate(E * ptr) {
             if (ptr == nullptr) return;
             ptr->~E();
             auto wlb = backBufferLock_.LockWrite();
@@ -286,7 +279,7 @@ namespace stratus {
 
             void operator()(E * ptr) {
                 //if (*allocator == nullptr) return;
-                allocator->Deallocate(ptr);
+                allocator->DestroyDeallocate(ptr);
             }
         };
 

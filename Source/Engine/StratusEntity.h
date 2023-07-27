@@ -59,7 +59,7 @@ ComponentAllocator_<Component>& GetComponentAllocator_() {
             if (ptr == nullptr) return;                                                     \
             auto& allocator = GetComponentAllocator_<name>();                               \
             auto ul = std::unique_lock(allocator.m);                                        \
-            allocator.allocator.Deallocate(ptr);                                            \
+            allocator.allocator.DestroyDeallocate(ptr);                                            \
         }
 
 namespace stratus {
