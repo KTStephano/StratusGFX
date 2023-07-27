@@ -11,9 +11,9 @@ namespace stratus {
 
     EntityPtr Entity::Create(EntityComponentSet * ptr) {
         if (ptr != nullptr) {
-           return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<EntityComponentSet *>, ptr);
+           return ThreadSafeSmartPoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<EntityComponentSet *>, ptr);
         }
-        return ThreadSafePoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<>);
+        return ThreadSafeSmartPoolAllocator<Entity>::AllocateSharedCustomConstruct(PlacementNew_<>);
     }
 
     void EntityComponent::MarkChanged() {

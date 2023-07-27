@@ -11,6 +11,27 @@
 // for some more information
 
 namespace stratus {
+    template<typename C>
+    struct DefaultChunkAllocator_ final {
+        static C * AllocateConstruct(const size_t count) {
+            return (C *)std::malloc(sizeof(C) * count);
+        }
+
+        template<typename ... Args>
+        static void Construct(C * at, Args&&... args) {
+            uint8_t * memory = reinterpret_cast<uint8_t *>(at);
+            ::new (memory) C(std::forward<Args>(args)...);
+        }
+
+        static void Deallocate(C * ptr, const size_t count) {
+            std::free(reinterpret_cast<void *>(ptr));
+        }
+
+        static void Destroy(C * ptr) {
+            ptr->~C();
+        }
+    };
+
     struct NoOpLock_ {
         struct NoOpLockHeld{};
         typedef NoOpLockHeld value_type;
@@ -26,7 +47,7 @@ namespace stratus {
 
     // Allocates memory of a pre-defined size provide optimal data locality
     // with zero fragmentation
-    template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks>
+    template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks, template<typename C> typename ChunkAllocator>
     struct PoolAllocatorImpl_ {
         static_assert(ElemsPerChunk > 0);
         static_assert(Chunks > 0);
@@ -52,7 +73,8 @@ namespace stratus {
             while (c != nullptr) {
                 Chunk_* tmp = c;
                 c = c->next;
-                delete tmp;
+                chunkAllocator_.Destroy(tmp);
+                chunkAllocator_.Deallocate(tmp, 1);
             }
 
             frontBuffer_ = nullptr;
@@ -67,8 +89,12 @@ namespace stratus {
 
     public:
         template<typename ... Types>
-        E * Allocate(const Types&... args) {
+        E * AllocateConstruct(const Types&... args) {
             return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
+        }
+
+        E * Allocate(const size_t count) {
+
         }
 
         template<typename Construct, typename ... Types>
@@ -139,10 +165,12 @@ namespace stratus {
         Chunk_* chunks_ = nullptr;
         size_t numChunks_ = 0;
         size_t numElems_ = 0;
+        ChunkAllocator<Chunk_> chunkAllocator_;
 
     private:
         void InitChunk_() {
-            Chunk_* c = new Chunk_();
+            Chunk_* c = chunkAllocator_.AllocateConstruct(1);
+            chunkAllocator_.Construct(c);
             ++numChunks_;
             numElems_ += ElemsPerChunk;
 
@@ -159,8 +187,8 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
-    struct PoolAllocator : public PoolAllocatorImpl_<E, NoOpLock_, ElemsPerChunk, Chunks> {
+    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
+    struct PoolAllocator : public PoolAllocatorImpl_<E, NoOpLock_, ElemsPerChunk, Chunks, ChunkAllocator> {
         virtual ~PoolAllocator() = default;
     };
 
@@ -220,9 +248,9 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
-    struct ThreadSafePoolAllocator {
-        typedef PoolAllocatorImpl_<E, Lock_, ElemsPerChunk, Chunks> Allocator;
+    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
+    struct ThreadSafeSmartPoolAllocator {
+        typedef PoolAllocatorImpl_<E, Lock_, ElemsPerChunk, Chunks, ChunkAllocator> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
 
@@ -266,18 +294,18 @@ namespace stratus {
         typedef std::unique_ptr<E, Deleter> UniquePtr;
         typedef std::shared_ptr<E> SharedPtr;
 
-        ThreadSafePoolAllocator() {}
+        ThreadSafeSmartPoolAllocator() {}
 
         template<typename ... Types>
-        static UniquePtr Allocate(const Types&... args) {
+        static UniquePtr AllocateConstruct(const Types&... args) {
             auto alloc = GetAllocator_();
-            return UniquePtr(alloc->Allocate(args...), Deleter(alloc));
+            return UniquePtr(alloc->AllocateConstruct(args...), Deleter(alloc));
         }
 
         template<typename ... Types>
         static SharedPtr AllocateShared(const Types&... args) {
             auto alloc = GetAllocator_();
-            return SharedPtr(alloc->Allocate(args...), Deleter(alloc));
+            return SharedPtr(alloc->AllocateConstruct(args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
@@ -329,134 +357,4 @@ namespace stratus {
     private:
         inline thread_local static std::weak_ptr<Allocator> alloc_;
     };
-
-    /* This implementation works but may be slightly less cache efficient due to
-       embedding the control structure with the data itself.
-    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1>
-    struct ThreadSafePoolAllocator {
-        // This is a control structure which allows us to keep track of which
-        // thread pool allocators are still in use and which need to be deleted
-        // (lightweight ref counted pointer)
-        struct AllocatorData {
-            std::atomic<size_t> counter = 0;
-            void * allocator = nullptr;
-        };
-
-        // This stores the allocator data control structure alongside the element data
-        // for a minimum of 16 bytes per object. 
-        // Exact size per object is sizeof(void *) + min(8, sizeof(E)).
-        struct ElementData {
-            AllocatorData * allocator;
-            E element;
-
-            template<typename ... Types>
-            ElementData(const Types&... args)
-                : element(args...) {}
-
-            ~ElementData() {
-                element.~E();
-            }
-        };
-
-        typedef __PoolAllocator<ElementData, Lock, ElemsPerChunk, Chunks> Allocator;
-        static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
-        static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
-
-        struct Deleter {
-            void operator()(E * ptr) {
-                uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
-                // Back up to the start of ElementData so we can access the allocator data control structure
-                ElementData * data = reinterpret_cast<ElementData *>(bytes - sizeof(AllocatorData *));
-                AllocatorData * allocData = data->allocator;
-                Allocator * allocator = _GetAllocator(allocData);
-                allocator->Deallocate(data);
-                // This will free the allocator if ref count has reached 0
-                _DecrPoolRefCount(allocData);
-            }
-        };
-
-        typedef std::unique_ptr<E, Deleter> UniquePtr;
-        typedef std::shared_ptr<E> SharedPtr;
-
-        ThreadSafePoolAllocator() {}
-
-        template<typename ... Types>
-        UniquePtr Allocate(const Types&... args) {
-            ElementData * data = _Allocate(args...);
-            return UniquePtr(&data->element);
-        }
-
-        template<typename ... Types>
-        SharedPtr AllocateShared(const Types&... args) {
-            ElementData * data = _Allocate(args...);
-            return SharedPtr(&data->element, Deleter());
-        }
-
-        size_t NumChunks() {
-            return _GetAllocator(_manager.allocator)->NumChunks();
-        }
-
-        size_t NumElems() {
-            return _GetAllocator(_manager.allocator)->NumElems();
-        }
-
-    private:
-        template<typename ... Types>
-        ElementData * _Allocate(const Types&... args) {
-            ElementData * data = _GetAllocator(_manager.allocator)->Allocate(args...);
-            data->allocator = _manager.allocator;
-            _IncrPoolRefCount(_manager.allocator);
-            return data;
-        }
-
-        static void _IncrPoolRefCount(AllocatorData * a) {
-            a->counter.fetch_add(1);
-        }
-
-        static void _IncrPoolRefCount(void * a) {
-            _IncrPoolRefCount(reinterpret_cast<AllocatorData *>(a));
-        }
-
-        static void _DecrPoolRefCount(AllocatorData * a) {
-            if (a == nullptr) return;
-            auto prev = a->counter.fetch_sub(1);
-            if (prev <= 1) {
-                Allocator * ptr = _GetAllocator(a);
-                delete ptr;
-                delete a;
-            }
-        }
-
-        static Allocator * _GetAllocator(AllocatorData * a) {
-            return reinterpret_cast<Allocator *>(a->allocator);
-        }
-
-        struct _PoolManager {
-            AllocatorData * allocator;
-
-            _PoolManager(AllocatorData * allocator)
-                : allocator(allocator) { 
-                allocator->allocator = reinterpret_cast<void *>(new Allocator());
-                _IncrPoolRefCount(allocator); 
-            }
-
-            _PoolManager(_PoolManager&& other)
-                : allocator(other.allocator) { other.allocator = nullptr; }
-
-            _PoolManager(const _PoolManager& other)
-                : allocator(other.allocator) { _IncrPoolRefCount(allocator); }
-
-            _PoolManager& operator=(_PoolManager&&) = delete;
-            _PoolManager& operator=(const _PoolManager&) = delete;
-
-            ~_PoolManager() {
-                _DecrPoolRefCount(allocator);
-            }
-        };
-
-        // This is the only root reference to the allocator which lives as long as the thread lives.
-        // More references to the allocator are created with each allocation.
-        inline thread_local static _PoolManager _manager = _PoolManager(new AllocatorData());
-    };
-    */
 }

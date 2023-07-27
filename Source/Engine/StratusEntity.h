@@ -53,7 +53,7 @@ ComponentAllocator_<Component>& GetComponentAllocator_() {
         static name * Create(const Types& ... args) {                                       \
             auto& allocator = GetComponentAllocator_<name>();                               \
             auto ul = std::unique_lock(allocator.m);                                        \
-            return allocator.allocator.Allocate(args...);                                   \
+            return allocator.allocator.AllocateConstruct(args...);                                   \
         }                                                                                   \
         static void Destroy(name * ptr) {                                                   \
             if (ptr == nullptr) return;                                                     \

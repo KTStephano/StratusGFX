@@ -13,7 +13,7 @@ static void PoolAllocatorTest() {
     auto start = std::chrono::high_resolution_clock::now();
     auto pool = stratus::PoolAllocator<int64_t>();
 
-    int64_t * ptr = pool.Allocate(25);
+    int64_t * ptr = pool.AllocateConstruct(25);
     REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
     pool.Deallocate(ptr);
@@ -21,7 +21,7 @@ static void PoolAllocatorTest() {
     constexpr int count = 8000000;
     std::vector<int64_t *> ptrs(count);
     for (int i = 0; i < count; ++i) {
-        ptr = pool.Allocate(i);
+        ptr = pool.AllocateConstruct(i);
         ptrs[i] = ptr;
     }
 
@@ -38,12 +38,12 @@ static void PoolAllocatorTest() {
 
 static void ManyProducers() {
     std::cout << "ThreadSafePoolAllocatorTest::ManyProducers" << std::endl;
-    typedef stratus::ThreadSafePoolAllocator<int64_t> Allocator;
+    typedef stratus::ThreadSafeSmartPoolAllocator<int64_t> Allocator;
     std::cout << Allocator::BytesPerElem << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    Allocator::UniquePtr ptr = Allocator::Allocate(int64_t(25));
+    Allocator::UniquePtr ptr = Allocator::AllocateConstruct(int64_t(25));
     REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
 
@@ -56,7 +56,7 @@ static void ManyProducers() {
             std::vector<Allocator::UniquePtr> ptrs;
             ptrs.reserve(count);
             for (int64_t i = 0; i < count; ++i) {
-                ptrs.push_back(Allocator::Allocate(i));
+                ptrs.push_back(Allocator::AllocateConstruct(i));
             }
 
             for (int i = 0; i < count; ++i) {
@@ -82,7 +82,7 @@ static void OneProducerManyConsumers() {
     called.store(0);
 
     struct S { ~S() { called += 1; }};
-    typedef stratus::ThreadSafePoolAllocator<S> Allocator;
+    typedef stratus::ThreadSafeSmartPoolAllocator<S> Allocator;
 
     std::cout << Allocator::BytesPerElem << std::endl;
 
@@ -94,7 +94,7 @@ static void OneProducerManyConsumers() {
     ptrs.reserve(count);
 
     for (int64_t i = 0; i < count; ++i) {
-        ptrs.push_back(Allocator::Allocate());
+        ptrs.push_back(Allocator::AllocateConstruct());
     }
 
     std::vector<std::thread> threads;
@@ -143,9 +143,9 @@ struct Derived : public Base {
 };
 
 static void TestPointerCast() {
-    typedef stratus::ThreadSafePoolAllocator<Derived> Allocator;
+    typedef stratus::ThreadSafeSmartPoolAllocator<Derived> Allocator;
 
-    auto derived = Allocator::Allocate();
+    auto derived = Allocator::AllocateConstruct();
     auto base = Allocator::UniqueCast<Base>(derived);
     Base * ptr = base.get();
     ptr->Print();
@@ -167,7 +167,7 @@ static void TestPointerCast() {
 
 //     static void * operator new(size_t) {
 //         std::cout << "Called new\n";
-//         return (void *)Allocator().Allocate();
+//         return (void *)Allocator().AllocateConstruct();
 //     }
 
 //     static void operator delete(void * ptr, size_t) {

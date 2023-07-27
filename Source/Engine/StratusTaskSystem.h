@@ -76,8 +76,7 @@ namespace stratus {
             return as;
         }
 
-        template<>
-        Async<void> CreateAsyncTask_<void, std::function<void (void)>>(const std::function<void (void)>& process, const size_t index) {
+        Async<void> CreateAsyncVoidTask_(const std::function<void (void)>& process, const size_t index) {
             // Increment the working #
             threadsWorking_[index]->fetch_add(1);
 
@@ -91,9 +90,7 @@ namespace stratus {
             return as;
         }
 
-        template<typename E, typename T>
-        Async<E> ScheduleTask_(const T& process) {
-            auto ul = std::unique_lock<std::mutex>(m_);
+        size_t GetNextThreadIndexForTask_() {
             if (taskThreads_.size() == 0) throw std::runtime_error("Task threads size equal to 0");
 
             // Enter the threads with their current number of work items in a list
@@ -114,9 +111,24 @@ namespace stratus {
             std::sort(currentWorkLoads.begin(), currentWorkLoads.end(), comparison);
             
             // Choose the first which should have the least work items
-            const size_t index = threadToIndexMap_.find(currentWorkLoads[0].first)->second;
+            return threadToIndexMap_.find(currentWorkLoads[0].first)->second;
+        }
+
+        template<typename E, typename T>
+        Async<E> ScheduleTask_(const T& process) {
+            auto ul = std::unique_lock<std::mutex>(m_);
+
+            const auto index = GetNextThreadIndexForTask_();
 
             return CreateAsyncTask_<E, T>(process, index);
+        }
+
+        Async<void> ScheduleVoidTask_(const std::function<void (void)>& process) {
+            auto ul = std::unique_lock<std::mutex>(m_);
+
+            const auto index = GetNextThreadIndexForTask_();
+
+            return CreateAsyncVoidTask_(process, index);
         }
 
     public:
@@ -126,12 +138,12 @@ namespace stratus {
         }
 
         template<typename E>
-        Async<E> ScheduleTask(const std::function<E* (void)>& process) {
+        Async<E> ScheduleTask(const std::function<E * (void)>& process) {
             return ScheduleTask_<E>(process);
         }
 
         Async<void> ScheduleTask(const std::function<void (void)>& process) {
-            return ScheduleTask_<void, std::function<void (void)>>(process);
+            return ScheduleVoidTask_(process);
         }
 
         template<typename E>
