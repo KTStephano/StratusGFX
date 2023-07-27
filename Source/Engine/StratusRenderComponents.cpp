@@ -32,7 +32,7 @@ namespace stratus {
     void Mesh::Destroy(MeshPtr ptr) {
         auto& allocator = GetAllocator();
         auto ul = std::unique_lock<std::mutex>(allocator.m);
-        allocator.allocator.Deallocate(ptr);
+        allocator.allocator.DestroyDeallocate(ptr);
     }
 
     EntityPtr CreateRenderEntity() {

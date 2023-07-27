@@ -16,7 +16,7 @@ static void PoolAllocatorTest() {
     int64_t * ptr = pool.AllocateConstruct(25);
     REQUIRE(*ptr == 25);
     std::cout << *ptr << std::endl;
-    pool.Deallocate(ptr);
+    pool.DestroyDeallocate(ptr);
 
     constexpr int count = 8000000;
     std::vector<int64_t *> ptrs(count);
@@ -27,7 +27,7 @@ static void PoolAllocatorTest() {
 
     for (int i = 0; i < count; ++i) {
         REQUIRE(*ptrs[i] == i);
-        pool.Deallocate(ptrs[i]);
+        pool.DestroyDeallocate(ptrs[i]);
     }
 
     auto end = std::chrono::high_resolution_clock::now();

@@ -15,6 +15,11 @@
 #include <algorithm>
 
 namespace stratus {
+    using Vec3Allocator = StackBasedPoolAllocator<glm::vec3>;
+    using Vec4Allocator = StackBasedPoolAllocator<glm::vec4>;
+    using Mat3Allocator = StackBasedPoolAllocator<glm::mat3>;
+    using Mat4Allocator = StackBasedPoolAllocator<glm::mat4>;
+
     struct RenderEntityProcess : public EntityProcess {
         virtual ~RenderEntityProcess() = default;
 
@@ -357,6 +362,13 @@ namespace stratus {
         auto ul = LockWrite_();
         if (camera_ == nullptr) return SystemStatus::SYSTEM_CONTINUE;
 
+        // Update per frame scratch memory if application requested a different size
+        if (frame_->settings.perFrameMaxScratchMemoryBytes > 0 &&
+            frame_->perFrameScratchMemory->Capacity() < frame_->settings.perFrameMaxScratchMemoryBytes) {
+            STRATUS_LOG << "Resizing per frame scratch memory for renderer to " << frame_->settings.perFrameMaxScratchMemoryBytes;
+            frame_->perFrameScratchMemory = MakeUnsafe<StackAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
+        }
+
         camera_->Update(deltaSeconds);
         frame_->camera = camera_->Copy();
         frame_->view = camera_->GetViewTransform();
@@ -413,6 +425,9 @@ namespace stratus {
         // Set previous projection view
         frame_->prevProjectionView = frame_->projectionView;
 
+        // Reset the per frame scratch memory
+        frame_->perFrameScratchMemory->Deallocate();
+
         return SystemStatus::SYSTEM_CONTINUE;
     }
 
@@ -430,6 +445,9 @@ namespace stratus {
 
         // Set materials per frame and initialize material buffer
         frame_->materialInfo = GpuMaterialBuffer::Create(8192);
+
+        // Initialize per frame scratch memory
+        frame_->perFrameScratchMemory = MakeUnsafe<StackAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
 
         //_frame->instancedFlatMeshes.resize(1);
         //_frame->instancedDynamicPbrMeshes.resize(1);
@@ -621,7 +639,7 @@ namespace stratus {
             const float yn = ak * projPlaneDist;
             const float yf = bk * projPlaneDist;
             // Keep all of these in camera space for now
-            std::vector<glm::vec4> frustumCorners = {
+            std::vector<glm::vec4, Vec4Allocator> frustumCorners({
                 // Near corners
                 glm::vec4(xn, yn, -ak, 1.0f),
                 glm::vec4(-xn, yn, -ak, 1.0f),
@@ -633,7 +651,10 @@ namespace stratus {
                 glm::vec4(-xf, yf, -bk, 1.0f),
                 glm::vec4(xf, -yf, -bk, 1.0f),
                 glm::vec4(-xf, -yf, -bk, 1.0f),
-            };
+                },
+
+                Vec4Allocator(frame_->perFrameScratchMemory)
+            );
 
             // Calculate frustum center
             // @see https://ahbejarano.gitbook.io/lwjglgamedev/chapter26
@@ -855,11 +876,11 @@ namespace stratus {
         if (dynamicLightsDirty) MarkDynamicLightsDirty_();
     }
 
-    std::vector<glm::vec4> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform) {
+    std::vector<glm::vec4, Vec4Allocator> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<StackAllocator>& perFrameAllocator) {
         glm::vec4 vmin = aabb.vmin.ToVec4();
         glm::vec4 vmax = aabb.vmax.ToVec4();
 
-        std::vector<glm::vec4> corners = {
+        std::vector<glm::vec4, Vec4Allocator> corners({
             transform * glm::vec4(vmin.x, vmin.y, vmin.z, 1.0),
             transform * glm::vec4(vmin.x, vmax.y, vmin.z, 1.0),
             transform * glm::vec4(vmin.x, vmin.y, vmax.z, 1.0),
@@ -868,14 +889,17 @@ namespace stratus {
             transform * glm::vec4(vmax.x, vmax.y, vmin.z, 1.0),
             transform * glm::vec4(vmax.x, vmin.y, vmax.z, 1.0),
             transform * glm::vec4(vmax.x, vmax.y, vmax.z, 1.0)
-        };
+            },
+
+            Vec4Allocator(perFrameAllocator)
+        );
 
         return corners;
     }
 
     // This code was taken from "3D Graphics Rendering Cookbook" source code, shared/UtilsMath.h
-    GpuAABB TransformAabb(const GpuAABB& aabb, const glm::mat4& transform) {
-        std::vector<glm::vec4> corners = ComputeCornersWithTransform(aabb, transform);
+    GpuAABB TransformAabb(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<StackAllocator>& perFrameAllocator) {
+        std::vector<glm::vec4, Vec4Allocator> corners = ComputeCornersWithTransform(aabb, transform, perFrameAllocator);
 
         glm::vec3 vmin3 = corners[0];
         glm::vec3 vmax3 = corners[0];
@@ -932,12 +956,16 @@ namespace stratus {
     // }
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
-    void RendererFrontend::UpdateVisibility_() {        
-        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*> commands = {
+    void RendererFrontend::UpdateVisibility_() {   
+        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> commands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
-        };
+            },
+
+            CommandBufferAllocator(frame_->perFrameScratchMemory)
+        );
 
         for (auto& buffer : commands) {
             UpdateVisibility_(
@@ -987,7 +1015,7 @@ namespace stratus {
         //     corners[i] = q / q.w;
         // }
 
-        std::vector<glm::vec4> frustumPlanes = {
+        std::vector<glm::vec4, Vec4Allocator> frustumPlanes({
             // left, right, bottom, top
             (vpt[3] + vpt[0]),
             (vpt[3] - vpt[0]),
@@ -996,7 +1024,10 @@ namespace stratus {
             // near, far
             (vpt[3] + vpt[2]),
             (vpt[3] - vpt[2]),
-        };
+            },
+
+            Vec4Allocator(frame_->perFrameScratchMemory)
+        );
 
         pipeline.Bind();
 
@@ -1060,11 +1091,15 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdatePrevFrameModelTransforms_() {
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*> drawCommands{
+        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> drawCommands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
-        };
+            },
+
+            CommandBufferAllocator(frame_->perFrameScratchMemory)
+        );
 
         updateTransforms_->Bind();
 
