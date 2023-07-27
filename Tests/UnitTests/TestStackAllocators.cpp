@@ -85,6 +85,7 @@ TEST_CASE( "Stratus Stack Allocators Test", "[stratus_stack_allocators_test]" ) 
 
 		poolAllocator = stratus::StackBasedPoolAllocator<int>(allocator);
 		auto vec = std::vector<int, stratus::StackBasedPoolAllocator<int>>(poolAllocator);
+		vec.reserve(32);
 
 		auto vec2 = std::vector<LargeUnevenStruct, stratus::StackBasedPoolAllocator<LargeUnevenStruct>>(
 			stratus::StackBasedPoolAllocator<LargeUnevenStruct>(allocator)

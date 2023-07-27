@@ -858,16 +858,19 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 //        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 //    };
 //}
-static std::vector<glm::mat4> GenerateLightViewTransforms(const glm::vec3 & lightPos) {
-    return std::vector<glm::mat4>{
+static std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>> GenerateLightViewTransforms(const glm::vec3 & lightPos, const UnsafePtr<StackAllocator>& allocator) {
+    return std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>>({
         //          pos       pos + dir                                  up
-        glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
         glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-        glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
+        glm::lookAt(lightPos, lightPos + glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(lightPos, lightPos + glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+        },
+
+        StackBasedPoolAllocator<glm::mat4>(allocator)
+    );
 }
 
 void RendererBackend::BindShader_(Pipeline * s) {
@@ -1266,7 +1269,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     glEnable(GL_DEPTH_TEST);
 }
 
-void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer) {
     std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
@@ -1279,10 +1282,10 @@ void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, do
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
 
-void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>>& perLightDistToViewer, 
-                                         std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer,
-                                         std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
-                                         std::vector<int>& visibleVplIndices) {
+void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perLightDistToViewer,
+                                         std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perLightShadowCastingDistToViewer,
+                                         std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer,
+                                         std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
     const Camera& c = *frame_->camera;
 
     const bool worldLightEnabled = frame_->csc.worldLight->GetEnabled();
@@ -1400,7 +1403,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         // glClear(GL_DEPTH_BUFFER_BIT);
 
         Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
-        auto transforms = GenerateLightViewTransforms(point->GetPosition());
+        auto transforms = GenerateLightViewTransforms(point->GetPosition(), frame_->perFrameScratchMemory);
 
         for (size_t i = 0; i < transforms.size(); ++i) {
             const glm::mat4 projectionView = lightPerspective * transforms[i];
@@ -1455,8 +1458,8 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 }
 
 void RendererBackend::PerformVirtualPointLightCullingStage1_(
-    std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
-    std::vector<int>& visibleVplIndices) {
+    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer,
+    std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
 
     if (perVPLDistToViewer.size() == 0) return;
 
@@ -1538,7 +1541,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 //     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
 //     const std::vector<int>& visibleVplIndices) {
 void RendererBackend::PerformVirtualPointLightCullingStage2_(
-    const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer) {
+    const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer) {
 
     // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
@@ -1556,9 +1559,9 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     }
 
     // Pack data into system memory
-    std::vector<GpuTextureHandle> diffuseHandles;
+    std::vector<GpuTextureHandle, StackBasedPoolAllocator<GpuTextureHandle>> diffuseHandles(StackBasedPoolAllocator<GpuTextureHandle>(frame_->perFrameScratchMemory));
     diffuseHandles.reserve(totalVisible);
-    std::vector<GpuAtlasEntry> shadowDiffuseIndices;
+    std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
     for (size_t i = 0; i < totalVisible; ++i) {
         const int index = visibleVplIndices[i];
@@ -1683,7 +1686,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer, const double deltaSeconds) {
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer, const double deltaSeconds) {
     if (perVPLDistToViewer.size() == 0) return;
 
     // auto space = LogSpace<float>(1, 512, 30);
@@ -1745,10 +1748,13 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     UnbindShader_();
     state_.vpls.vplGIFbo.Unbind();
 
-    std::vector<FrameBuffer *> buffers = {
+    std::vector<FrameBuffer*, StackBasedPoolAllocator<FrameBuffer*>> buffers({
         &state_.vpls.vplGIDenoisedFbo1,
         &state_.vpls.vplGIDenoisedFbo2
-    };
+        },
+
+        StackBasedPoolAllocator<FrameBuffer*>(frame_->perFrameScratchMemory)
+    );
 
     Texture indirectIllum = state_.vpls.vplGIFbo.GetColorAttachments()[0];
     Texture indirectShadows = state_.vpls.vplGIFbo.GetColorAttachments()[1];
@@ -1829,11 +1835,11 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
         RenderCSMDepth_();
     }
 
-    std::vector<std::pair<LightPtr, double>>& perLightDistToViewer = perLightDistToViewer_;
+    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perLightDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
     // // This one is just for shadow-casting lights
-    std::vector<std::pair<LightPtr, double>>& perLightShadowCastingDistToViewer = perLightShadowCastingDistToViewer_;
-    std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer = perVPLDistToViewer_;
-    std::vector<int>& visibleVplIndices = visibleVplIndices_;
+    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perLightShadowCastingDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
+    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perVPLDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
+    std::vector<int, StackBasedPoolAllocator<int>> visibleVplIndices(StackBasedPoolAllocator<int>(frame_->perFrameScratchMemory));
 
     // Perform point light pass
     UpdatePointLights_(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer, visibleVplIndices);
@@ -2008,7 +2014,10 @@ void RendererBackend::PerformBloomPostFx_() {
     if (!frame_->settings.bloomEnabled) return;
 
     // We use this so that we can avoid a final copy between the downsample and blurring stages
-    std::vector<PostFXBuffer> finalizedPostFxFrames(state_.numDownsampleIterations + state_.numUpsampleIterations);
+    std::vector<PostFXBuffer, StackBasedPoolAllocator<PostFXBuffer>> finalizedPostFxFrames(
+        state_.numDownsampleIterations + state_.numUpsampleIterations,
+        StackBasedPoolAllocator<PostFXBuffer>(frame_->perFrameScratchMemory)
+    );
    
     Pipeline* bloom = state_.bloom.get();
     BindShader_(bloom);
@@ -2322,7 +2331,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     }
 }
 
-void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<LightPtr, double>> & lights, const size_t maxShadowLights) {
+void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> & lights, const size_t maxShadowLights) {
     // Set up point lights
 
     // Make sure everything is set to some sort of default to prevent shader crashes or huge performance drops
@@ -2368,9 +2377,10 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     //    ++lightIndex;
     //}
 
-    std::vector<GpuPointLight> gpuLights;
-    std::vector<GpuAtlasEntry> gpuShadowCubeMaps;
-    std::vector<GpuPointLight> gpuShadowLights;
+    auto allocator = frame_->perFrameScratchMemory;
+    auto gpuLights = std::vector<GpuPointLight, StackBasedPoolAllocator<GpuPointLight>>(StackBasedPoolAllocator<GpuPointLight>(allocator));
+    auto gpuShadowCubeMaps = std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>>(StackBasedPoolAllocator<GpuAtlasEntry>(allocator));
+    auto gpuShadowLights = std::vector<GpuPointLight, StackBasedPoolAllocator<GpuPointLight>>(StackBasedPoolAllocator<GpuPointLight>(allocator));
     gpuLights.reserve(lights.size());
     gpuShadowCubeMaps.reserve(maxShadowLights);
     gpuShadowLights.reserve(maxShadowLights);
