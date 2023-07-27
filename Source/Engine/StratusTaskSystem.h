@@ -90,7 +90,7 @@ namespace stratus {
             return as;
         }
 
-        size_t ScheduleTaskInit_() {
+        size_t GetNextThreadIndexForTask_() {
             if (taskThreads_.size() == 0) throw std::runtime_error("Task threads size equal to 0");
 
             // Enter the threads with their current number of work items in a list
@@ -118,7 +118,7 @@ namespace stratus {
         Async<E> ScheduleTask_(const T& process) {
             auto ul = std::unique_lock<std::mutex>(m_);
 
-            const auto index = ScheduleTaskInit_();
+            const auto index = GetNextThreadIndexForTask_();
 
             return CreateAsyncTask_<E, T>(process, index);
         }
@@ -126,7 +126,7 @@ namespace stratus {
         Async<void> ScheduleVoidTask_(const std::function<void (void)>& process) {
             auto ul = std::unique_lock<std::mutex>(m_);
 
-            const auto index = ScheduleTaskInit_();
+            const auto index = GetNextThreadIndexForTask_();
 
             return CreateAsyncVoidTask_(process, index);
         }
