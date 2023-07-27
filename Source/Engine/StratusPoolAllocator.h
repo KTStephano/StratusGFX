@@ -13,7 +13,7 @@
 namespace stratus {
     template<typename C>
     struct DefaultChunkAllocator_ final {
-        static C * Allocate(const size_t count) {
+        static C * AllocateConstruct(const size_t count) {
             return (C *)std::malloc(sizeof(C) * count);
         }
 
@@ -89,8 +89,12 @@ namespace stratus {
 
     public:
         template<typename ... Types>
-        E * Allocate(const Types&... args) {
+        E * AllocateConstruct(const Types&... args) {
             return AllocateCustomConstruct(PlacementNew_<Types...>, args...);
+        }
+
+        E * Allocate(const size_t count) {
+
         }
 
         template<typename Construct, typename ... Types>
@@ -165,7 +169,7 @@ namespace stratus {
 
     private:
         void InitChunk_() {
-            Chunk_* c = chunkAllocator_.Allocate(1);
+            Chunk_* c = chunkAllocator_.AllocateConstruct(1);
             chunkAllocator_.Construct(c);
             ++numChunks_;
             numElems_ += ElemsPerChunk;
@@ -245,7 +249,7 @@ namespace stratus {
     };
 
     template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
-    struct ThreadSafePoolAllocator {
+    struct ThreadSafeSmartPoolAllocator {
         typedef PoolAllocatorImpl_<E, Lock_, ElemsPerChunk, Chunks, ChunkAllocator> Allocator;
         static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
         static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
@@ -290,18 +294,18 @@ namespace stratus {
         typedef std::unique_ptr<E, Deleter> UniquePtr;
         typedef std::shared_ptr<E> SharedPtr;
 
-        ThreadSafePoolAllocator() {}
+        ThreadSafeSmartPoolAllocator() {}
 
         template<typename ... Types>
-        static UniquePtr Allocate(const Types&... args) {
+        static UniquePtr AllocateConstruct(const Types&... args) {
             auto alloc = GetAllocator_();
-            return UniquePtr(alloc->Allocate(args...), Deleter(alloc));
+            return UniquePtr(alloc->AllocateConstruct(args...), Deleter(alloc));
         }
 
         template<typename ... Types>
         static SharedPtr AllocateShared(const Types&... args) {
             auto alloc = GetAllocator_();
-            return SharedPtr(alloc->Allocate(args...), Deleter(alloc));
+            return SharedPtr(alloc->AllocateConstruct(args...), Deleter(alloc));
         }
 
         template<typename Construct, typename ... Types>
