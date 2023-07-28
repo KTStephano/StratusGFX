@@ -78,6 +78,9 @@ namespace stratus {
         ApplicationThread::Instance()->Queue(shutdown);
         ApplicationThread::Instance()->Dispatch_();
 
+        // Delete application thread
+        DeleteResource_(ApplicationThread::Instance_());
+
         // If this is true the boot function will call EngineMain again
         return shouldRestart;
     }
@@ -240,7 +243,7 @@ namespace stratus {
         // This one does not have a specialized instance
         GraphicsDriver::Shutdown();
         // This one does not have a shutdown routine
-        DeleteResource_(ApplicationThread::Instance_());
+        //DeleteResource_(ApplicationThread::Instance_());
         ShutdownResourceAndDelete_(Log::Instance_());
     }
 

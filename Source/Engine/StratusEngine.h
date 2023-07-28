@@ -101,13 +101,13 @@ namespace stratus {
         void InitRenderer_();
 
         template<typename E>
-        void DeleteResource_(E *& ptr) {
+        static void DeleteResource_(E *& ptr) {
             delete ptr;
             ptr = nullptr;
         }
 
         template<typename E>
-        void ShutdownResourceAndDelete_(E *& ptr) {
+        static void ShutdownResourceAndDelete_(E *& ptr) {
             ptr->Shutdown();
             DeleteResource_(ptr);
         }
