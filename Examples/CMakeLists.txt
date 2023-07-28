@@ -1,5 +1,8 @@
 include_directories(${CMAKE_CURRENT_LIST_DIR}/Common)
-file(GLOB COMMON_SOURCES ${CMAKE_CURRENT_LIST_DIR}/Common/*.cpp)
+
+set(COMMON_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/Common/LightControllers.cpp
+)
 
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../)
 
@@ -15,10 +18,6 @@ include_directories(
 link_directories(${ROOT_DIRECTORY}Bin)
 
 set(LIBRARIES StratusEngine)
-
-#if (NOT WIN32)
-#    list(APPEND LIBRARIES assimp)
-#endif()
 
 add_subdirectory(ExampleEnv00)
 add_subdirectory(ExampleEnv01)

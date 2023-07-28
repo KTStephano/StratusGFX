@@ -1,5 +1,13 @@
 set(TEST_EXE StratusEngineIntegrationTests)
-file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+set(TEST_SOURCES 
+    ${CMAKE_CURRENT_LIST_DIR}/StartupShutdown.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TransformTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EntityTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/IntegrationMain.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/GpuMeshAllocatorTest.cpp
+)
+
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 
 link_directories(${ROOT_DIRECTORY}/Bin)

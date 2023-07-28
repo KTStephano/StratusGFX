@@ -2,7 +2,7 @@ find_package(OpenGL REQUIRED)
 
 set(OUTPUT_NAME Ex00_StartupShutdown)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
+set(SOURCES ${CMAKE_CURRENT_LIST_DIR}/ExampleApp.cpp)
 
 add_executable(${OUTPUT_NAME} ${SOURCES})
 

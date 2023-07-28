@@ -1,5 +1,16 @@
 set(TEST_EXE StratusEngineUnitTests)
-file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+set(TEST_SOURCES 
+    ${CMAKE_CURRENT_LIST_DIR}/ThreadTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestPoolAllocators.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestUtils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/HandleTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestUnsafePtr.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestStackAllocators.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestConcurrentHashMap.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestsMain.cpp
+)
+
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 
 link_directories(${ROOT_DIRECTORY}/Bin)
