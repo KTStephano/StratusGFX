@@ -82,7 +82,7 @@ public:
         });
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::LINEAR, "jpg");
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

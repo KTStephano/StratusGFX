@@ -2,7 +2,7 @@ find_package(OpenGL REQUIRED)
 
 set(OUTPUT_NAME Ex04_SanMiguel)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
+set(SOURCES ${CMAKE_CURRENT_LIST_DIR}/SanMiguel.cpp)
 
 add_executable(${OUTPUT_NAME} ${COMMON_SOURCES} ${SOURCES})
 

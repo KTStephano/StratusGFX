@@ -71,20 +71,20 @@ public:
         textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_basecolor.jpg", stratus::ColorSpace::SRGB));
         textures.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_basecolor.jpg", stratus::ColorSpace::SRGB));
 
-        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::LINEAR));
-        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::LINEAR));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Normal.jpg", stratus::ColorSpace::NONE));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_normal.jpg", stratus::ColorSpace::NONE));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_normal.jpg", stratus::ColorSpace::NONE));
+        normalMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_normal.jpg", stratus::ColorSpace::NONE));
 
-        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::LINEAR));
-        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::LINEAR));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Height.png", stratus::ColorSpace::NONE));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_height.png", stratus::ColorSpace::NONE));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_height.png", stratus::ColorSpace::NONE));
+        depthMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_height.png", stratus::ColorSpace::NONE));
 
-        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::LINEAR));
-        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::LINEAR));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_Roughness.jpg", stratus::ColorSpace::NONE));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_roughness.jpg", stratus::ColorSpace::NONE));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Wood_Wall_003_roughness.jpg", stratus::ColorSpace::NONE));
+        roughnessMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_roughness.jpg", stratus::ColorSpace::NONE));
 
         environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Substance_graph_AmbientOcclusion.jpg", stratus::ColorSpace::SRGB));
         environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Bark_06_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
@@ -92,7 +92,7 @@ public:
         environmentMaps.push_back(INSTANCE(ResourceManager)->LoadTexture("../Resources/resources/textures/Rock_Moss_001_ambientOcclusion.jpg", stratus::ColorSpace::SRGB));
 
         stratus::Async<stratus::Entity> e;
-        e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::LINEAR, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e = INSTANCE(ResourceManager)->LoadModel("../Resources/resources/models/Latrine.fbx", stratus::ColorSpace::NONE, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             outhouse = e.GetPtr(); 

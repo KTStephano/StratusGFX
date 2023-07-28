@@ -5,7 +5,37 @@ set(THIRD_PARTY_ROOT_DIRECTORY ${ROOT_DIRECTORY}/ThirdParty/)
 set(OUTPUT_NAME StratusEngine)
 
 include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/Engine/ . ${OPENGL_INCLUDE_DIRS})
-file(GLOB SOURCES ${ROOT_DIRECTORY}/Source/Engine/*.cpp ${ROOT_DIRECTORY}/gl3w/src/gl3w.c)
+
+set(SOURCES
+    ${ROOT_DIRECTORY}/gl3w/src/gl3w.c
+    ${CMAKE_CURRENT_LIST_DIR}/StratusCamera.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusFilesystem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusWindow.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusEngine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusResourceManager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusEntity.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusEntityManager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusGpuMaterialBuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusMath.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusLog.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusGpuCommandBuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusTaskSystem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusRenderComponents.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusApplicationThread.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusRendererFrontend.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusApplication.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusThread.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusTransformComponent.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusRendererBackend.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusFrameBuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusGpuBuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusTexture.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusGraphicsDriver.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusMaterial.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusUtils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/StratusPipeline.cpp
+)
+
 add_library(${OUTPUT_NAME} STATIC ${SOURCES})
 
 # set(OUTPUT_DIRECTORY ${ROOT_DIRECTORY}/Bin)

@@ -111,6 +111,17 @@ First set up the repo
     git clone --recursive https://github.com/KTStephano/StratusGFX.git
     cd StratusGFX
 
+## Prerequisites
+
+Make sure your graphics drivers are up-to-date.
+
+On Linux you will likely need to install the following packages:
+
+    libgl1-mesa-dev
+    libxext-dev
+
+(or the equivalent for your distro)
+
 ## Option 1: Standard Build
 
 This is the preferred build if all you want to do is build the examples and run them.

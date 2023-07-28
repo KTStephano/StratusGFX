@@ -15,7 +15,7 @@
 
 namespace stratus {
     enum class ColorSpace : int {
-        LINEAR,
+        NONE,
         SRGB
     };
 
