@@ -92,6 +92,8 @@ public:
         settings.SetEmissionStrength(5.0f);
         settings.usePerceptualRoughness = false;
         settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;
+        // Brighten the GI in the scene
+        settings.SetMinGiOcclusionFactor(0.5f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         // INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
