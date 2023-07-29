@@ -56,7 +56,7 @@ public:
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         const glm::vec3 sunsetColor = glm::vec3(251.0f / 255.0f, 144.0f / 255.0f, 98.0f / 255.0f);
         //const glm::vec3 sunsetColor = warmMorningColor;
-        auto wc = new WorldLightController(sunsetColor, sunsetColor, 10);
+        auto wc = new WorldLightController(sunsetColor, sunsetColor, 9.5f);
         //wc->SetRotation(stratus::Rotation(stratus::Degrees(123.991f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         //wc->SetRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(29.6286f), stratus::Degrees(0.0f)));
         controller = stratus::InputHandlerPtr(wc);
