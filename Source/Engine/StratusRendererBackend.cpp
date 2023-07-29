@@ -1734,6 +1734,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vec
     state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
     state_.vplGlobalIllumination->SetInt("frameCount", int(INSTANCE(Engine)->FrameCount()));
+    state_.vplGlobalIllumination->SetFloat("minGiOcclusionFactor", frame_->settings.GetMinGiOcclusionFactor());
 
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->settings.GetFogColor());
     state_.vplGlobalIllumination->SetFloat("fogDensity", frame_->settings.GetFogDensity());

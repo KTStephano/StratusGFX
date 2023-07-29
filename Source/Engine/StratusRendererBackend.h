@@ -247,6 +247,16 @@ namespace stratus {
             return alphaDepthTestThreshold_;
         }
 
+        // Values of 1.0 mean that GI occlusion will result in harsh shadow cutoffs
+        // Values < 1.0 effectively brighten the scene
+        void SetMinGiOcclusionFactor(const float value) {
+            minGiOcclusionFactor_ = std::clamp<float>(value, 0.0f, 1.0f);
+        }
+
+        float GetMinGiOcclusionFactor() const {
+            return minGiOcclusionFactor_;
+        }
+
     private:
         // These are all values we need to range check when they are set
         glm::vec3 fogColor_ = glm::vec3(0.5f);
@@ -258,6 +268,7 @@ namespace stratus {
         float alphaDepthTestThreshold_ = 0.5f;
         // This works as a multiplicative effect on top of emission strength
         float emissiveTextureMultiplier_ = 1.0f;
+        float minGiOcclusionFactor_ = 0.95f;
     };
 
     // Represents data for current active frame

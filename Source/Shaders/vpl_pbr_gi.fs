@@ -56,6 +56,8 @@ uniform mat4 invProjectionView;
 uniform float time;
 uniform int frameCount;
 
+uniform float minGiOcclusionFactor = 0.95;
+
 layout (std430, binding = 0) readonly buffer inputBlock1 {
     VplData lightData[];
 };
@@ -227,30 +229,26 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         }
 
         float distanceRatio = clamp(distance / lightRadius, 0.0, 1.0);
+        //float distanceSquaredRatio = clamp((distance * distance) / lightRadius, 0.0, 1.0);
+        float distAttenuation = distanceRatio;
 
         vec3 lightColor = lightData[lightIndex].color.xyz;
         //float lightIntensity = length(lightColor);
 
-        validSamples += 1.0;
+        //validSamples += 1.0;
         //float ratio = distance / lightRadius;
         //if (distance > lightRadii[lightIndex]) continue;
 
         float shadowFactor = distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal), 0.05) : 0.0;
-        shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
-        // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
-        //     ++resamples;
-        //     --i;
-        // }
-        // if (distToCamera < 700) {
-        //     shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index], entry.layer, lightData[lightIndex].farPlane, fragPos, lightPosition, dot(lightPosition - fragPos, normal));
-        //     shadowFactor = min(shadowFactor, mix(0.95, 1.0, distanceRatio));
-        //     // if (shadowFactor > 0.0 && resamples < MAX_RESAMPLES_PER_PIXEL) {
-        //     //     ++resamples;
-        //     //     --i;
-        //     // }
-        // }
-        // Depending on how visible this VPL is to the infinite light, we want to constrain how bright it's allowed to be
-        //shadowFactor = lerp(shadowFactor, 0.0, vpl.shadowFactor);
+        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));
+
+        float reweightingFactor = 1.0;
+
+        if (shadowFactor > 0.0) {
+            reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;
+        }
+
+        validSamples += reweightingFactor;
 
         vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity);
         //colorNoShadow += tmpColor;
