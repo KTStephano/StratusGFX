@@ -1029,6 +1029,8 @@ namespace stratus {
             Vec4Allocator(frame_->perFrameScratchMemory)
         );
 
+        frame_->viewFrustumPlanes = frustumPlanes;
+
         pipeline.Bind();
 
         for (size_t i = 0; i < 6; ++i) {
@@ -1046,10 +1048,13 @@ namespace stratus {
             it->second->GetVisibleDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
             it->second->BindModelTransformBuffer(2);
             it->second->BindAabbBuffer(3);
+            it->second->GetVisibleLowestLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 15);
 
             if (selectLods) {
                 it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
-                for (size_t k = 0; k < it->second->NumLods(); ++k) {
+                // The render component has code to deal with indexing past the last lod (returns the highest lod it has)
+                const size_t numLods = 8;
+                for (size_t k = 0; k < numLods; ++k) {
                     it->second->GetIndirectDrawCommandsBuffer(k).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                 }
             }

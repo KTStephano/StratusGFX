@@ -277,6 +277,7 @@ namespace stratus {
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
+        std::vector<glm::vec4, StackBasedPoolAllocator<glm::vec4>> viewFrustumPlanes;
         GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
         GpuCommandManagerPtr drawCommands;

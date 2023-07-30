@@ -13,6 +13,7 @@ namespace stratus {
 
         visibleCommands_ = GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true);
         selectedLodCommands_ = GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true);
+        visibleLowestLodCommands_ = GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true);
         prevFrameModelTransforms_ = GpuTypedBuffer<glm::mat4>::Create(commandBlockSize, true);
         modelTransforms_ = GpuTypedBuffer<glm::mat4>::Create(commandBlockSize, true);
         aabbs_ = GpuTypedBuffer<GpuAABB>::Create(commandBlockSize, true);
@@ -67,6 +68,7 @@ namespace stratus {
         // Record the lod commands
         visibleCommands_->Add(GpuDrawElementsIndirectCommand());
         selectedLodCommands_->Add(GpuDrawElementsIndirectCommand());
+        visibleLowestLodCommands_->Add(GpuDrawElementsIndirectCommand());
 
         for (size_t lod = 0; lod < NumLods(); ++lod) {
             GpuDrawElementsIndirectCommand command;
@@ -104,6 +106,7 @@ namespace stratus {
             // Remove top level data
             visibleCommands_->Remove(index);
             selectedLodCommands_->Remove(index);
+            visibleLowestLodCommands_->Remove(index);
             prevFrameModelTransforms_->Remove(index);
             modelTransforms_->Remove(index);
             aabbs_->Remove(index);
@@ -274,6 +277,10 @@ namespace stratus {
     GpuBuffer GpuCommandBuffer2::GetSelectedLodDrawCommandsBuffer() const
     {
         return selectedLodCommands_->GetBuffer();
+    }
+
+    GpuBuffer GpuCommandBuffer2::GetVisibleLowestLodDrawCommandsBuffer() const {
+        return visibleLowestLodCommands_->GetBuffer();
     }
 
     bool GpuCommandBuffer2::InsertMeshPending_(RenderComponent* component, MeshPtr mesh)

@@ -300,6 +300,17 @@ namespace stratus {
             if (size < 1024) break;
         }
 
+        // One last lod computed more aggressively than the previous ones
+        auto& prevIndices = cpuData_->indicesPerLod[0];
+        std::vector<uint32_t> simplified(prevIndices.size());
+        const size_t targetIndices = std::min<size_t>(prevIndices.size(), 1024);
+        auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, 0.8f);
+        simplified.resize(size);
+        meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
+        cpuData_->indicesPerLod.push_back(std::move(simplified));
+        numIndicesPerLod_.push_back(size);
+        STRATUS_LOG << "Size Before: " << prevIndices.size() << " Size After: " << size << std::endl;
+
         meshopt_optimizeVertexCache(cpuData_->indices.data(), cpuData_->indices.data(), cpuData_->indices.size(), cpuData_->vertices.size());
         cpuData_->indicesPerLod[0] = cpuData_->indices;
     }

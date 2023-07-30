@@ -1120,7 +1120,7 @@ void RendererBackend::RenderCSMDepth_() {
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
         // const size_t lod = cascade * 2 + 1;
-        const size_t lod = frame_->drawCommands->NumLods() - 1;
+        const size_t lod = frame_->drawCommands->NumLods() - 2;
         if (cascade < 2) {
             const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
                 return b->GetSelectedLodDrawCommandsBuffer();
@@ -1383,6 +1383,16 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
         PointLight * point = (PointLight *)light.get();
+
+        // if (point->IsVirtualLight() && !IsPointInFrustum(point->GetPosition(), frame_->viewFrustumPlanes)) {
+        //     frame_->lightsToUpdate.PushBack(light);
+        //     continue;
+        // }
+        if (point->IsVirtualLight() && !IsSphereInFrustum(point->GetPosition(), point->GetRadius(), frame_->viewFrustumPlanes)) {
+            frame_->lightsToUpdate.PushBack(light);
+            continue;
+        }
+
         auto& cache = GetSmapCacheForLight_(light);
         GpuAtlasEntry smap = GetOrAllocateShadowMapForLight_(light);
 
@@ -1420,6 +1430,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
                 // Use lower LOD
                 const size_t lod = frame_->drawCommands->NumLods() - 1;
                 const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+                    //return b->GetVisibleLowestLodDrawCommandsBuffer();
                     return b->GetIndirectDrawCommandsBuffer(lod);
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
