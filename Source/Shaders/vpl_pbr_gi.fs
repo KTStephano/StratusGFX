@@ -105,7 +105,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
     float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
-    roughness = max(0.5, roughness);
+    //roughness = max(0.5, roughness);
     float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
