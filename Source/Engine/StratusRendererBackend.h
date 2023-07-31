@@ -114,10 +114,29 @@ namespace stratus {
             }
         }
 
+        void PushFront(const LightPtr& ptr) {
+            auto existing = existing_.find(ptr);
+            // Allow lights further in the queue to be bumped higher up
+            // with this function
+            if (existing != existing_.end()) {
+                queue_.erase(existing->second);
+                existing_.erase(ptr);
+            }
+
+            queue_.push_front(ptr);
+            auto it = queue_.begin();
+            existing_.insert(std::make_pair(ptr, it));
+        }
+
         void PushBack(const LightPtr& ptr) {
+            // If a light is already in the queue, don't reorder since it would
+            // result in the light losing its better place in line
             if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
+
             queue_.push_back(ptr);
-            existing_.insert(ptr);
+            auto it = queue_.end();
+            --it;
+            existing_.insert(std::make_pair(ptr, it));
         }
 
         LightPtr PopFront() {
@@ -158,7 +177,7 @@ namespace stratus {
 
     private:
         std::list<LightPtr> queue_;
-        std::unordered_set<LightPtr> existing_;
+        std::unordered_map<LightPtr, std::list<LightPtr>::iterator> existing_;
     };
 
     // Settings which can be changed at runtime by the application

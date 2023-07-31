@@ -228,7 +228,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
             }
         }
 
-        float distanceRatio = clamp(distance / lightRadius, 0.0, 1.0);
+        float distanceRatio = clamp((2.0 * distance) / lightRadius, 0.0, 1.0);
         //float distanceSquaredRatio = clamp((distance * distance) / lightRadius, 0.0, 1.0);
         float distAttenuation = distanceRatio;
 

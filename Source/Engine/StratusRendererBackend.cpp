@@ -1317,9 +1317,9 @@ void RendererBackend::UpdatePointLights_(
     for (auto& light : frame_->lights) {
         const double distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
-            //if (worldLightEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
-            //if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
-            if (giEnabled) {
+            //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
+            if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            //if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
         }
@@ -1360,11 +1360,14 @@ void RendererBackend::UpdatePointLights_(
         }
     }
 
-    for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
+    for (size_t i = 0, updates = 0; i < visibleVplIndices.size() && updates < state_.maxShadowUpdatesPerFrame; ++i) {
         const int index = visibleVplIndices[i];
         auto light = perVPLDistToViewerVec[index].key;
         if (!ShadowMapExistsForLight_(light)) {
-            frame_->lightsToUpdate.PushBack(light);
+            // Pushing to front will cause the light update queue to be reordered biased towards VPLs
+            // close to the camera
+            frame_->lightsToUpdate.PushFront(light);
+            ++updates;
         }
     }
 
