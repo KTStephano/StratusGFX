@@ -10,7 +10,9 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 
 (3D Model: Intel Sponza)
 
-![sanmiguel](https://ktstephano.github.io/assets/v0.10/FinalAfterPostProcessing.png)
+![sanmiguel1](https://ktstephano.github.io/assets/v0.10/FinalAfterPostProcessing.png)
+
+![sanmiguel2](https://ktstephano.github.io/assets/v0.10/SanMiguel_Balcony2.png)
 
 (3D Model: San Miguel)
 
