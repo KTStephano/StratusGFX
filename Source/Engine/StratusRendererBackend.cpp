@@ -1269,10 +1269,10 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     glEnable(GL_DEPTH_TEST);
 }
 
-void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer) {
+void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer) {
     std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
-        VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[i].first.get();
+        const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
         data.farPlane = point->GetFarPlane();
@@ -1282,81 +1282,79 @@ void RendererBackend::InitVplFrameData_(const std::vector<std::pair<LightPtr, do
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
 
-void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perLightDistToViewer,
-                                         std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perLightShadowCastingDistToViewer,
-                                         std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer,
-                                         std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
+void RendererBackend::UpdatePointLights_(
+    VplDistMultiSet_& perLightDistToViewerSet,
+    VplDistVector_& perLightDistToViewerVec,
+    VplDistMultiSet_& perLightShadowCastingDistToViewerSet,
+    VplDistVector_& perLightShadowCastingDistToViewerVec,
+    VplDistMultiSet_& perVPLDistToViewerSet,
+    VplDistVector_& perVPLDistToViewerVec,
+    std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
+
     const Camera& c = *frame_->camera;
 
     const bool worldLightEnabled = frame_->csc.worldLight->GetEnabled();
+    const bool giEnabled = worldLightEnabled && frame_->settings.globalIlluminationEnabled;
 
-    perLightDistToViewer.clear();
-    perLightShadowCastingDistToViewer.clear();
-    perVPLDistToViewer.clear();
+    perLightDistToViewerSet.clear();
+    perLightDistToViewerVec.clear();
+
+    perLightShadowCastingDistToViewerSet.clear();
+    perLightShadowCastingDistToViewerVec.clear();
+
+    perVPLDistToViewerSet.clear();
+    perVPLDistToViewerVec.clear();
+
     visibleVplIndices.clear();
 
-    perLightDistToViewer.reserve(state_.maxTotalRegularLightsPerFrame);
-    perLightShadowCastingDistToViewer.reserve(state_.maxShadowCastingLightsPerFrame);
+    perLightDistToViewerVec.reserve(state_.maxTotalRegularLightsPerFrame);
+    perLightShadowCastingDistToViewerVec.reserve(state_.maxShadowCastingLightsPerFrame);
     if (worldLightEnabled) {
-        perVPLDistToViewer.reserve(MAX_TOTAL_VPLS_BEFORE_CULLING);
+        perVPLDistToViewerVec.reserve(MAX_TOTAL_VPLS_BEFORE_CULLING);
     }
 
     // Init per light instance data
     for (auto& light : frame_->lights) {
         const double distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
-            if (worldLightEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
-                perVPLDistToViewer.push_back(std::make_pair(light, distance));
+            //if (worldLightEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
+            //if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            if (giEnabled) {
+                perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
         }
         else {
-            perLightDistToViewer.push_back(std::make_pair(light, distance));
+            perLightDistToViewerSet.insert(VplDistKey_(light, distance));
         }
 
         if ( !light->IsVirtualLight() && light->CastsShadows() ) {
-            perLightShadowCastingDistToViewer.push_back(std::make_pair(light, distance));
+            perLightShadowCastingDistToViewerSet.insert(VplDistKey_(light, distance));
         }
     }
 
-    // Sort lights based on distance to viewer
-    const auto comparison = [](const std::pair<LightPtr, double> & a, const std::pair<LightPtr, double> & b) {
-        return a.second < b.second;
-    };
-
-    const bool regularLightsMaxExceeded = perLightDistToViewer.size() > state_.maxTotalRegularLightsPerFrame;
-    const bool regularShadowLightsMaxExceeded = perLightShadowCastingDistToViewer.size() > state_.numRegularShadowMaps;
-    
-    if (regularLightsMaxExceeded || regularShadowLightsMaxExceeded) {
-        std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
-        std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
+    for (auto& entry : perLightDistToViewerSet) {
+        perLightDistToViewerVec.push_back(entry);
+        if (perLightDistToViewerVec.size() >= perLightDistToViewerVec.capacity()) break;
     }
 
-    // Remove lights exceeding the absolute maximum
-    if (regularLightsMaxExceeded) {
-        //std::sort(perLightDistToViewer.begin(), perLightDistToViewer.end(), comparison);
-        perLightDistToViewer.resize(state_.maxTotalRegularLightsPerFrame);
-    }
-
-    // Remove shadow-casting lights that exceed our max count
-    if (regularShadowLightsMaxExceeded) {
-        //std::sort(perLightShadowCastingDistToViewer.begin(), perLightShadowCastingDistToViewer.end(), comparison);
-        perLightShadowCastingDistToViewer.resize(state_.maxShadowCastingLightsPerFrame);
+    for (auto& entry : perLightShadowCastingDistToViewerSet) {
+        perLightShadowCastingDistToViewerVec.push_back(entry);
+        if (perLightShadowCastingDistToViewerVec.size() >= perLightShadowCastingDistToViewerVec.capacity()) break;
     }
 
     // Remove vpls exceeding absolute maximum
-    if (worldLightEnabled) {
-        //std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
-        if (perVPLDistToViewer.size() > MAX_TOTAL_VPLS_BEFORE_CULLING) {
-            std::sort(perVPLDistToViewer.begin(), perVPLDistToViewer.end(), comparison);
-            perVPLDistToViewer.resize(MAX_TOTAL_VPLS_BEFORE_CULLING);
+    if (giEnabled) {
+        for (auto& entry : perVPLDistToViewerSet) {
+            perVPLDistToViewerVec.push_back(entry);
+            if (perVPLDistToViewerVec.size() >= perVPLDistToViewerVec.capacity()) break;
         }
 
-        InitVplFrameData_(perVPLDistToViewer);
-        PerformVirtualPointLightCullingStage1_(perVPLDistToViewer, visibleVplIndices);
+        InitVplFrameData_(perVPLDistToViewerVec);
+        PerformVirtualPointLightCullingStage1_(perVPLDistToViewerVec, visibleVplIndices);
     }
 
     // Check if any need to have a new shadow map pulled from the cache
-    for (const auto&[light, _] : perLightShadowCastingDistToViewer) {
+    for (const auto&[light, _] : perLightShadowCastingDistToViewerVec) {
         if (!ShadowMapExistsForLight_(light)) {
             frame_->lightsToUpdate.PushBack(light);
         }
@@ -1364,7 +1362,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 
     for (size_t i = 0; i < visibleVplIndices.size(); ++i) {
         const int index = visibleVplIndices[i];
-        auto light = perVPLDistToViewer[index].first;
+        auto light = perVPLDistToViewerVec[index].key;
         if (!ShadowMapExistsForLight_(light)) {
             frame_->lightsToUpdate.PushBack(light);
         }
@@ -1469,7 +1467,7 @@ void RendererBackend::UpdatePointLights_(std::vector<std::pair<LightPtr, double>
 }
 
 void RendererBackend::PerformVirtualPointLightCullingStage1_(
-    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer,
+    VplDistVector_& perVPLDistToViewer,
     std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
 
     if (perVPLDistToViewer.size() == 0) return;
@@ -1552,7 +1550,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 //     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
 //     const std::vector<int>& visibleVplIndices) {
 void RendererBackend::PerformVirtualPointLightCullingStage2_(
-    const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer) {
+    const VplDistVector_& perVPLDistToViewer) {
 
     // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
@@ -1576,8 +1574,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     shadowDiffuseIndices.reserve(totalVisible);
     for (size_t i = 0; i < totalVisible; ++i) {
         const int index = visibleVplIndices[i];
-        VirtualPointLight * point = (VirtualPointLight *)perVPLDistToViewer[index].first.get();
-        auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].first);
+        const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
+        auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].key);
         shadowDiffuseIndices.push_back(smap);
     }
 
@@ -1697,7 +1695,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer, const double deltaSeconds) {
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const double deltaSeconds) {
     if (perVPLDistToViewer.size() == 0) return;
 
     // auto space = LogSpace<float>(1, 512, 30);
@@ -1847,14 +1845,25 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
         RenderCSMDepth_();
     }
 
-    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perLightDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
+    VplDistMultiSet_ perLightDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perLightDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+
     // // This one is just for shadow-casting lights
-    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perLightShadowCastingDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
-    std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> perVPLDistToViewer(LightDistancePairAllocator(frame_->perFrameScratchMemory));
+    VplDistMultiSet_ perLightShadowCastingDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perLightShadowCastingDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+
+    VplDistMultiSet_ perVPLDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perVPLDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+
     std::vector<int, StackBasedPoolAllocator<int>> visibleVplIndices(StackBasedPoolAllocator<int>(frame_->perFrameScratchMemory));
 
     // Perform point light pass
-    UpdatePointLights_(perLightDistToViewer, perLightShadowCastingDistToViewer, perVPLDistToViewer, visibleVplIndices);
+    UpdatePointLights_(
+        perLightDistToViewerSet, perLightDistToViewerVec,
+        perLightShadowCastingDistToViewerSet, perLightShadowCastingDistToViewerVec,
+        perVPLDistToViewerSet, perVPLDistToViewerVec, 
+        visibleVplIndices
+    );
 
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
@@ -1889,7 +1898,7 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     }
 
     BindShader_(lighting);
-    InitLights_(lighting, perLightDistToViewer, state_.maxShadowCastingLightsPerFrame);
+    InitLights_(lighting, perLightDistToViewerVec, state_.maxShadowCastingLightsPerFrame);
     lighting->BindTexture("atmosphereBuffer", state_.atmosphericTexture);
     lighting->SetMat4("invProjectionView", frame_->invProjectionView);
     lighting->BindTexture("gDepth", state_.currentFrame.depth);
@@ -1910,8 +1919,8 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     // If world light is enabled perform VPL Global Illumination pass
     if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
-        PerformVirtualPointLightCullingStage2_(perVPLDistToViewer);
-        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewer, deltaSeconds);
+        PerformVirtualPointLightCullingStage2_(perVPLDistToViewerVec);
+        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewerVec, deltaSeconds);
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
@@ -2343,7 +2352,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     }
 }
 
-void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> & lights, const size_t maxShadowLights) {
+void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, const size_t maxShadowLights) {
     // Set up point lights
 
     // Make sure everything is set to some sort of default to prevent shader crashes or huge performance drops
@@ -2397,7 +2406,7 @@ void RendererBackend::InitLights_(Pipeline * s, const std::vector<std::pair<Ligh
     gpuShadowCubeMaps.reserve(maxShadowLights);
     gpuShadowLights.reserve(maxShadowLights);
     for (int i = 0; i < lights.size(); ++i) {
-        LightPtr light = lights[i].first;
+        LightPtr light = lights[i].key;
         PointLight* point = (PointLight*)light.get();
 
         if (point->IsVirtualLight()) {

@@ -68,7 +68,7 @@ uniform float ambientIntensity = 0.00025;
 
 // Synchronized with definition found in StratusGpuCommon.h
 #define MAX_TOTAL_SHADOW_ATLASES (14)
-#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (320)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
 // Synchronized with definition found in StratusGpuCommon.h

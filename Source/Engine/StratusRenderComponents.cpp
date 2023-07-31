@@ -309,7 +309,6 @@ namespace stratus {
         meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
         cpuData_->indicesPerLod.push_back(std::move(simplified));
         numIndicesPerLod_.push_back(size);
-        STRATUS_LOG << "Size Before: " << prevIndices.size() << " Size After: " << size << std::endl;
 
         meshopt_optimizeVertexCache(cpuData_->indices.data(), cpuData_->indices.data(), cpuData_->indices.size(), cpuData_->vertices.size());
         cpuData_->indicesPerLod[0] = cpuData_->indices;
