@@ -55,7 +55,7 @@ uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
 uniform bool mergeReservoirs = false;
-uniform int numReservoirNeighbors = 10;
+uniform int numReservoirNeighbors = 15;
 uniform float time;
 uniform float framesPerSecond;
 
@@ -245,12 +245,12 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 1;
-    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
-        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
-            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
-        }
-    }
+    int minmaxNearest = 0;
+    // for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+    //     for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+    //         ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+    //     }
+    // }
 
     // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
     //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
@@ -402,7 +402,7 @@ void main() {
 
         float maxAccumulationFactor = 1.0 / historyAccum;
         illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        //illumAvg = shadowFactor;
+        //illumAvg = currGi;
     }
 
     combinedColor = screenColor + gi * illumAvg;

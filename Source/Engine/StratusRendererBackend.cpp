@@ -1793,12 +1793,13 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
 
     size_t bufferIndex = 0;
+    const int maxReservoirMergingPasses = 1;
     const int maxIterations = 3;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
-        // The first iteration is used for reservoir merging so we don't
-        // start increasing the multiplier until after the 2nd pass
-        const int i = bufferIndex; //bufferIndex == 0 ? 0 : bufferIndex - 1;
+        // The first iteration(s) is used for reservoir merging so we don't
+        // start increasing the multiplier until after the reservoir merging passes
+        const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses;
         const int multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
@@ -1807,7 +1808,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
         state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
         state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
         state_.vplGlobalIlluminationDenoising->SetInt("passNumber", i);
-        state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex == 0);
+        state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex < maxReservoirMergingPasses);
 
         if (bufferIndex + 1 == maxIterations) {
             state_.vplGlobalIlluminationDenoising->SetBool("final", true);
