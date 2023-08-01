@@ -59,6 +59,9 @@ uniform int numReservoirNeighbors = 15;
 uniform float time;
 uniform float framesPerSecond;
 
+uniform mat4 invProjectionView;
+uniform mat4 prevInvProjectionView;
+
 #define COMPONENT_WISE_MIN_VALUE 0.001
 
 // const float waveletFactors[5] = float[](
@@ -328,7 +331,7 @@ void main() {
 
     if (final) {
         float accumMultiplier = 1.0;
-        //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
+        vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
         bool complete = false;
 
         float similarSamples = 0.0;
@@ -342,7 +345,10 @@ void main() {
         //     accumMultiplier = 0.0;
         // }
 
-        float prevCenterDepth = texture(depth, prevTexCoords).r;
+        float prevCenterDepth = texture(prevDepth, prevTexCoords).r;
+        vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
+        vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
+
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
 
@@ -366,7 +372,13 @@ void main() {
         //     //continue;    
         //     wz = 0.0;                                                                                   
         // }     
-        float wz = exp(-10.0 * abs(centerDepth - prevCenterDepth));
+
+        float wz1 = exp(-2 * abs(centerDepth - prevCenterDepth));
+        float wz2 = 1.0;
+        if (length(currWorldPos - prevWorldPos) > 0.01) {
+            wz2 = 0.0;
+        }
+        float wz = wz1 * wz2;
         
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
         // float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
@@ -403,6 +415,8 @@ void main() {
         float maxAccumulationFactor = 1.0 / historyAccum;
         illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
         //illumAvg = currGi;
+        //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
+        //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }
 
     combinedColor = screenColor + gi * illumAvg;

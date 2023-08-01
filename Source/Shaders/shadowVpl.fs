@@ -20,6 +20,8 @@ void main() {
 
     runAlphaTest(baseColor.a);
 
+    //vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
     

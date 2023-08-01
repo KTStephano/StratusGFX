@@ -313,6 +313,7 @@ namespace stratus {
         glm::mat4 jitterProjectionView;
         glm::mat4 invProjectionView;
         glm::mat4 prevProjectionView = glm::mat4(1.0f);
+        glm::mat4 prevInvProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
         RendererSettings settings;
         UnsafePtr<StackAllocator> perFrameScratchMemory;

@@ -424,6 +424,7 @@ namespace stratus {
 
         // Set previous projection view
         frame_->prevProjectionView = frame_->projectionView;
+        frame_->prevInvProjectionView = frame_->invProjectionView;
 
         // Reset the per frame scratch memory
         frame_->perFrameScratchMemory->Deallocate();
