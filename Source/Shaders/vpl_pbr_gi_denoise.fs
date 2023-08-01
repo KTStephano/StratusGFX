@@ -356,6 +356,11 @@ void main() {
         float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
+        /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
+        if (wn < 0.98) {
+            wn = 0.0;
+        }
+
         //wn = pow(wn, 8.0);
         //float similarity = 1.0;
         // float wn = 1.0;
