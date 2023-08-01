@@ -125,7 +125,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     vec3 seed = vec3(0.0, 0.0, time);
-    int maxRandomIndex = min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
+    int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
 
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
@@ -141,71 +141,60 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int maxSamplesPerPixel = int(mix(ABSOLUTE_MAX_SAMPLES_PER_PIXEL, STANDARD_MAX_SAMPLES_PER_PIXEL, metallicRoughnessWeight));
     int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
-    int sampleCount = max(1, int(samplesMax * 0.5));
-
-#define PERFORM_SAMPLING()                                                                                                                  \
-        float rand = random(seed);                                                                                                          \
-        seed.z += seedZOffset;                                                                                                              \
-        int lightIndex = int(maxRandomIndex * rand);                                                                                        \
-        AtlasEntry entry = shadowIndices[lightIndex];                                                                                       \
-                                                                                                                                            \
-        vec3 lightPosition = lightData[lightIndex].position.xyz;                                                                            \
-                                                                                                                                            \
-        /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     \
-        /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     \
-        /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     \
-        vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      \
-        float lightRadius = lightData[lightIndex].radius;                                                                                   \
-        float distance = length(lightMinusFrag);                                                                                            \
-                                                                                                                                            \
-        if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          \
-            float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       \
-            if (sideCheck < 0.0 || distance > lightRadius) {                                                                                \
-                ++resamples;                                                                                                                \
-                --i;                                                                                                                        \
-                continue;                                                                                                                   \
-            }                                                                                                                               \
-        }                                                                                                                                   \
-                                                                                                                                            \
-        float distanceRatio = clamp((2.0 * distance) / lightRadius, 0.0, 1.0);                                                              \
-        float distAttenuation = distanceRatio;                                                                                              \
-                                                                                                                                            \
-        vec3 lightColor = lightData[lightIndex].color.xyz;                                                                                  \
-                                                                                                                                            \
-        float shadowFactor =                                                                                                                \
-        distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       \
-                                                         entry.layer,                                                                       \
-                                                         lightData[lightIndex].farPlane,                                                    \
-                                                         fragPos,                                                                           \
-                                                         lightPosition,                                                                     \
-                                                         dot(lightPosition - fragPos, normal), 0.05)                                        \
-                           : 0.0;                                                                                                           \
-        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                    \
-                                                                                                                                            \
-        float reweightingFactor = 1.0;                                                                                                      \
-                                                                                                                                            \
-        if (shadowFactor > 0.0) {                                                                                                           \
-            reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           \
-        }                                                                                                                                   \
-                                                                                                                                            \
-        validSamples += reweightingFactor;                                                                                                  \
-                                                                                                                                            \
-        vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, lightPosition, lightColor,   \
-            distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity                                                  \
-        );                                                                                                                                  \
-        vplColor = vplColor + (1.0 - shadowFactor) * tmpColor;
-
-    // Sample near the camera
+    int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
     
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
-        PERFORM_SAMPLING();
-    }
-
-    // Sample further from the camera
-    sampleCount = samplesMax - sampleCount;
-    maxRandomIndex = numVisible[0] - 1 - maxRandomIndex;
-    for (int i = 0, resamples = 0, count = 0; maxRandomIndex > 0 && i < sampleCount; i += 1, count += 1) {
-        PERFORM_SAMPLING();
+        float rand = random(seed);                                                                                                          
+        seed.z += seedZOffset;                                                                                                              
+        int lightIndex = int(maxRandomIndex * rand);                                                                                        
+        AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
+                                                                                                                                                                                                                                                                                \
+        vec3 lightPosition = lightData[lightIndex].position.xyz;                                                                            
+        vec3 specularLightPosition = lightData[lightIndex].specularPosition.xyz;                                                            
+                                                                                                                                            
+        /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
+        /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
+        /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
+        vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
+        float lightRadius = lightData[lightIndex].radius;                                                                                   
+        float distance = length(lightMinusFrag);                                                                                            
+                                                                                                                                            
+        if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
+            float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
+            if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
+                ++resamples;                                                                                                                
+                --i;                                                                                                                        
+                continue;                                                                                                                   
+            }                                                                                                                               
+        }                                                                                                                                   
+                                                                                                                                            
+        float distanceRatio = clamp((2.0 * distance) / lightRadius, 0.0, 1.0);                                                              
+        float distAttenuation = distanceRatio;                                                                                              
+                                                                                                                                            
+        vec3 lightColor = lightData[lightIndex].color.xyz;                                                                                  
+                                                                                                                                            
+        float shadowFactor =                                                                                                                
+        distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+                                                         entry.layer,                                                                       
+                                                         lightData[lightIndex].farPlane,                                                    
+                                                         fragPos,                                                                           
+                                                         lightPosition,                                                                     
+                                                         dot(lightPosition - fragPos, normal), 0.05)                                        
+                           : 0.0;                                                                                                           
+        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                    
+                                                                                                                                            
+        float reweightingFactor = 1.0;                                                                                                      
+                                                                                                                                            
+        if (shadowFactor > 0.0) {                                                                                                           
+            reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
+        }                                                                                                                                   
+                                                                                                                                            
+        validSamples += reweightingFactor;                                                                                                  
+                                                                                                                                            
+        vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, specularLightPosition,       
+            lightPosition, lightColor, distToCamera, lightRadius, roughness, metallic, ambient, 0.0, baseReflectivity                       
+        );                                                                                                                                  
+        vplColor = vplColor + (1.0 - shadowFactor) * tmpColor;
     }
 
     validSamples = max(validSamples, 1.0);

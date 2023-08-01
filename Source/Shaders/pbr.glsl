@@ -61,7 +61,6 @@ uniform vec4 shadowOffset[2];
 // Represents a plane which transitions from 0 to 1 as soon as two cascades overlap
 uniform vec4 cascadePlanes[3];
 uniform mat4 cascadeProjViews[4];
-uniform mat4 invCascadeProjViews[4];
 
 uniform float worldLightAmbientIntensity = 0.003;
 uniform float pointLightAmbientIntensity = 0.003;

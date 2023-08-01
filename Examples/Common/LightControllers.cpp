@@ -37,6 +37,7 @@ static void InitCube(const LightParams& p,
     auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
     auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
     cube->Components().DisableComponent<stratus::LightInteractionComponent>();
+    //cube->Components().DisableComponent<stratus::StaticObjectComponent>();
     local->SetLocalScale(glm::vec3(0.25f));
     local->SetLocalPosition(p.position);
     float multiplier = 1.0f;
@@ -187,6 +188,16 @@ static bool EntityIsRelevant(const stratus::EntityPtr& entity) {
 }
 
 void LightProcess::Process(const double deltaSeconds) {
+    // const auto& lights = ConvertHandlerToLightDelete(input)->entities;
+    // for (const auto& light : lights) {
+    //     auto ptr = stratus::GetComponent<LightComponent>(light)->light;
+    //     if (!ptr->IsVirtualLight()) continue;
+    //     auto cube = stratus::GetComponent<LightCubeComponent>(light);
+    //     if (cube) {
+    //         stratus::GetComponent<stratus::LocalTransformComponent>(cube->cube)->SetLocalPosition(ptr->GetPosition());
+    //     }
+    // }
+
     if (ConvertHandlerToLightDelete(input)->printLights) {
         ConvertHandlerToLightDelete(input)->printLights = false;
         const auto& lights = ConvertHandlerToLightDelete(input)->entities;

@@ -217,7 +217,7 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         GpuVec color;
-        GpuVec placeholder1_;
+        GpuVec specularPosition;
         float radius;
         float farPlane;
         float intensity;

@@ -298,6 +298,7 @@ void main() {
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
     if (mergeReservoirs) {
+    //if (true) {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
@@ -346,8 +347,8 @@ void main() {
         // }
 
         float prevCenterDepth = texture(prevDepth, prevTexCoords).r;
-        vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
-        vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
+        //vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
+        //vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
 
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
@@ -357,9 +358,9 @@ void main() {
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
         /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
-        if (wn < 0.98) {
-            wn = 0.0;
-        }
+        // if (wn < 0.95) {
+        //     wn = 0.0;
+        // }
 
         //wn = pow(wn, 8.0);
         //float similarity = 1.0;
@@ -378,11 +379,11 @@ void main() {
         //     wz = 0.0;                                                                                   
         // }     
 
-        float wz1 = exp(-2 * abs(centerDepth - prevCenterDepth));
+        float wz1 = exp(-abs(centerDepth - prevCenterDepth));
         float wz2 = 1.0;
-        if (length(currWorldPos - prevWorldPos) > 0.01) {
-            wz2 = 0.0;
-        }
+        //if (length(currWorldPos - prevWorldPos) > 0.01) {
+            //wz2 = 0.0;
+        //}
         float wz = wz1 * wz2;
         
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
@@ -407,7 +408,7 @@ void main() {
 
         float similarity = wn * wz * wid;
         
-        if (similarity < 0.95) {
+        if (similarity < 0.99) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;

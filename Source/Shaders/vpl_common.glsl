@@ -48,7 +48,7 @@ struct VplStage2PerTileOutputs {
 struct VplData {
     vec4 position;
     vec4 color;
-    vec4  _3;
+    vec4 specularPosition;
     float radius;
     float farPlane;
     float intensity;

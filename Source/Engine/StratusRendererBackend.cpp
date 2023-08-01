@@ -408,7 +408,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.depth.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the frame buffer with all its texture attachments
@@ -1562,6 +1562,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     if (perVPLDistToViewer.size() == 0) return;
 
     int* visibleVplIndices = (int*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
+    // First index is reserved for the size of the array
     const int totalVisible = visibleVplIndices[0];
     visibleVplIndices += 1;
     
@@ -1600,11 +1601,19 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
     for (size_t i = 0; i < cache.buffers.size(); ++i) {
         state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
+        state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
 
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+
+    InitCoreCSMData_(state_.vplColoring.get());
+    state_.vplColoring->BindTexture("infiniteLightDepthMap", *frame_->csc.fbo.GetDepthStencilAttachment());
+    for (int i = 0; i < frame_->csc.cascades.size(); ++i) {
+        const glm::mat4 inv = glm::inverse(frame_->csc.cascades[i].projectionViewSample);
+        state_.vplColoring->SetMat4("invCascadeProjViews[" + std::to_string(i) + "]", inv);
+    }
 
     // Bind outputs
     state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
@@ -1796,12 +1805,12 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     size_t bufferIndex = 0;
     const int maxReservoirMergingPasses = 1;
-    const int maxIterations = 3;
+    const int maxIterations = 5;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
         // start increasing the multiplier until after the reservoir merging passes
-        const int i = bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
+        const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
         const int multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
