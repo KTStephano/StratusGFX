@@ -187,11 +187,13 @@ namespace stratus {
                     if (isStatic) InsertMesh(staticPbrEntities_, p, i);
                     else InsertMesh(dynamicPbrEntities_, p, i);
 
+                    auto mesh = GetMesh(p, i);
                     for (auto& entry : lights_) {
                         if (!entry->CastsShadows()) continue;
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
                             if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
+                            //if (DistanceFromPointToAABB(pos, mesh->GetAABB()) < entry->GetRadius()) {
                                 frame_->lightsToUpdate.PushBack(entry);
                             }
                         }
@@ -227,16 +229,29 @@ namespace stratus {
         const auto entityIsStatic = IsStaticEntity(p);
 
         for (auto& entry : lights_) {
-            if (!entry->CastsShadows()) continue;
-            //if (entry.second.visible.erase(p)) {
+            if (!entry->CastsShadows()) {
+                continue;
+            }
+
+            for (size_t i = 0; i < GetMeshCount(p); ++i) {
+                auto pos = entry->GetPosition();
+                if (glm::distance(GetWorldTransform(p, i), pos) > entry->GetRadius()) {
+                //if (DistanceFromPointToAABB(pos, mesh->GetAABB()) > entry->GetRadius()) {
+                    continue;
+                }
+
+                //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {
                     if (entityIsStatic) {
                         frame_->lightsToUpdate.PushBack(entry);
+                        break;
                     }
                 }
                 else {
                     frame_->lightsToUpdate.PushBack(entry);
+                    break;
                 }
+            }
             //}
         }
 
