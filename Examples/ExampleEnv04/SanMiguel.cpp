@@ -161,7 +161,7 @@ public:
             int spawned = 0;
 
             for (int x = 40; x < 240; x += 10) {
-                for (int y = 5; y < 150; y += 20) {
+                for (int y = 0; y < 150; y += 20) {
                     for (int z = -30; z < 120; z += 20) {
                             ++spawned;
                             LightCreator::CreateVirtualPointLight(

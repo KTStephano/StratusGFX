@@ -60,6 +60,11 @@ namespace stratus {
 		uint8_t * current_ = nullptr;
 	};
 
+	inline static UnsafePtr<StackAllocator> GetDefaultStackAllocator_() {
+		thread_local static UnsafePtr<StackAllocator> allocator = MakeUnsafe<StackAllocator>(1024);
+		return allocator;
+	}
+
 	// This is designed to work with C++ standard library containers so
 	// it follows Allocator requirements
 	//
@@ -77,6 +82,9 @@ namespace stratus {
 		typedef const T&       const_reference;
 		typedef std::size_t    size_type;
 		typedef std::ptrdiff_t difference_type;
+
+		StackBasedPoolAllocator()
+			: StackBasedPoolAllocator(GetDefaultStackAllocator_()) {}
 
 		StackBasedPoolAllocator(const size_t maxObjects)
 			: StackBasedPoolAllocator(MakeUnsafe<StackAllocator>(sizeof(value_type) * maxObjects)) {}
@@ -132,6 +140,14 @@ namespace stratus {
 		template<typename U>
 		void destroy(U * p) {
 			p->~U();
+		}
+
+		bool operator==(const StackBasedPoolAllocator<T>& other) const noexcept {
+			return allocator_ == other.allocator_;
+		}
+
+		bool operator!=(const StackBasedPoolAllocator<T>& other) const noexcept {
+			return !(operator==(other));
 		}
 
 	private:

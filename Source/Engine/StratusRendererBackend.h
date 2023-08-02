@@ -28,6 +28,7 @@
 #include "StratusGpuCommandBuffer.h"
 #include <functional>
 #include "StratusStackAllocator.h"
+#include <set>
 
 namespace stratus {
     class Pipeline;
@@ -113,10 +114,29 @@ namespace stratus {
             }
         }
 
+        void PushFront(const LightPtr& ptr) {
+            auto existing = existing_.find(ptr);
+            // Allow lights further in the queue to be bumped higher up
+            // with this function
+            if (existing != existing_.end()) {
+                queue_.erase(existing->second);
+                existing_.erase(ptr);
+            }
+
+            queue_.push_front(ptr);
+            auto it = queue_.begin();
+            existing_.insert(std::make_pair(ptr, it));
+        }
+
         void PushBack(const LightPtr& ptr) {
+            // If a light is already in the queue, don't reorder since it would
+            // result in the light losing its better place in line
             if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
+
             queue_.push_back(ptr);
-            existing_.insert(ptr);
+            auto it = queue_.end();
+            --it;
+            existing_.insert(std::make_pair(ptr, it));
         }
 
         LightPtr PopFront() {
@@ -157,7 +177,7 @@ namespace stratus {
 
     private:
         std::list<LightPtr> queue_;
-        std::unordered_set<LightPtr> existing_;
+        std::unordered_map<LightPtr, std::list<LightPtr>::iterator> existing_;
     };
 
     // Settings which can be changed at runtime by the application
@@ -277,6 +297,7 @@ namespace stratus {
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
+        std::vector<glm::vec4, StackBasedPoolAllocator<glm::vec4>> viewFrustumPlanes;
         GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
         GpuCommandManagerPtr drawCommands;
@@ -292,6 +313,7 @@ namespace stratus {
         glm::mat4 jitterProjectionView;
         glm::mat4 invProjectionView;
         glm::mat4 prevProjectionView = glm::mat4(1.0f);
+        glm::mat4 prevInvProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
         RendererSettings settings;
         UnsafePtr<StackAllocator> perFrameScratchMemory;
@@ -515,9 +537,6 @@ namespace stratus {
         // Contains some number of Halton sequence values
         GpuBuffer haltonSequence_;
 
-        // Used for point light sorting and culling
-        using LightDistancePairAllocator = StackBasedPoolAllocator<std::pair<LightPtr, double>>;
-
         /**
          * If the renderer was setup properly then this will be marked
          * true.
@@ -575,6 +594,30 @@ namespace stratus {
         // RendererMouseState GetMouseState() const;
 
     private:
+        struct VplDistKey_ {
+            LightPtr key;
+            double distance = 0.0;
+
+            VplDistKey_(const LightPtr& key = nullptr, const double distance = 0.0)
+                : key(key), distance(distance) {}
+
+            bool operator<(const VplDistKey_& other) const {
+                return distance < other.distance;
+            }
+        };
+
+        struct VplDistKeyLess_ {
+            bool operator()(const VplDistKey_& left, const VplDistKey_& right) const {
+                return left < right;
+            }
+        };
+
+        // Used for point light sorting and culling
+        using VplDistKeyAllocator_ = StackBasedPoolAllocator<VplDistKey_>;
+        typedef std::multiset<VplDistKey_, VplDistKeyLess_, VplDistKeyAllocator_> VplDistMultiSet_;
+        typedef std::vector<VplDistKey_, VplDistKeyAllocator_> VplDistVector_;
+
+    private:
         void InitializeVplData_();
         void ClearGBuffer_();
         void InitGBuffer_();
@@ -583,7 +626,7 @@ namespace stratus {
         void InitPointShadowMaps_();
         // void _InitAllEntityMeshData();
         void InitCoreCSMData_(Pipeline *);
-        void InitLights_(Pipeline * s, const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator> & lights, const size_t maxShadowLights);
+        void InitLights_(Pipeline * s, const VplDistVector_& lights, const size_t maxShadowLights);
         void InitSSAO_();
         void InitAtmosphericShadowing_();
         // void _InitEntityMeshData(RendererEntityData &);
@@ -604,16 +647,21 @@ namespace stratus {
         void RenderImmediate_(const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&);
         void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
-        void InitVplFrameData_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>& perVPLDistToViewer);
+        void InitVplFrameData_(const VplDistVector_& perVPLDistToViewer);
         void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
-        void UpdatePointLights_(std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&, 
-                                std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&,
-                                std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&,
-                                std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage1_(std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&, std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices);
+        void UpdatePointLights_(
+            VplDistMultiSet_&, 
+            VplDistVector_&,
+            VplDistMultiSet_&,
+            VplDistVector_&,
+            VplDistMultiSet_&,
+            VplDistVector_&,
+            std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices
+        );
+        void PerformVirtualPointLightCullingStage1_(VplDistVector_&, std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices);
         //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&);
-        void ComputeVirtualPointLightGlobalIllumination_(const std::vector<std::pair<LightPtr, double>, LightDistancePairAllocator>&, const double);
+        void PerformVirtualPointLightCullingStage2_(const VplDistVector_&);
+        void ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_&, const double);
         void RenderCSMDepth_();
         void RenderQuad_();
         void RenderSkybox_(Pipeline *, const glm::mat4&);

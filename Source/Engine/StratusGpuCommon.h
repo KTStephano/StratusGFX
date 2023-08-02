@@ -13,7 +13,7 @@
 
 // Synchronized with definitions in pbr.glsl
 #define MAX_TOTAL_SHADOW_ATLASES (14)
-#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (320)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
 // Once a VPL is further than this distance away it is automatically culled
@@ -31,7 +31,7 @@
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
 // Matches the definitions in vpl_common.glsl
-#define MAX_TOTAL_VPLS_BEFORE_CULLING (8192)
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (10000)
 #define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
 #define MAX_VPLS_PER_TILE (12)
 
@@ -217,7 +217,7 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         GpuVec color;
-        GpuVec placeholder1_;
+        GpuVec specularPosition;
         float radius;
         float farPlane;
         float intensity;

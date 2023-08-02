@@ -50,6 +50,7 @@ namespace stratus {
         GpuBuffer GetIndirectDrawCommandsBuffer(const size_t lod) const;
         GpuBuffer GetVisibleDrawCommandsBuffer() const;
         GpuBuffer GetSelectedLodDrawCommandsBuffer() const;
+        GpuBuffer GetVisibleLowestLodDrawCommandsBuffer() const;
 
         static inline GpuCommandBuffer2Ptr Create(const RenderFaceCulling& cull, const size_t numLods, const size_t commandBlockSize) {
             return GpuCommandBuffer2Ptr(new GpuCommandBuffer2(cull, numLods, commandBlockSize));
@@ -62,6 +63,7 @@ namespace stratus {
         std::vector<GpuTypedBufferPtr<GpuDrawElementsIndirectCommand>> drawCommands_;
         GpuTypedBufferPtr<GpuDrawElementsIndirectCommand> visibleCommands_;
         GpuTypedBufferPtr<GpuDrawElementsIndirectCommand> selectedLodCommands_;
+        GpuTypedBufferPtr<GpuDrawElementsIndirectCommand> visibleLowestLodCommands_;
         GpuTypedBufferPtr<glm::mat4> prevFrameModelTransforms_;
         GpuTypedBufferPtr<glm::mat4> modelTransforms_;
         GpuTypedBufferPtr<GpuAABB> aabbs_;

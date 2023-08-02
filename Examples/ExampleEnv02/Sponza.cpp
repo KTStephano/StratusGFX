@@ -174,7 +174,7 @@ public:
            received.clear();
            int spawned = 0;
            for (int x = 60; x > -30; x -= 10) {
-              for (int y = 15; y < 240; y += 20) {
+              for (int y = 0; y < 240; y += 20) {
                   for (int z = -140; z < 180; z += 20) {
                           ++spawned;
                           LightCreator::CreateVirtualPointLight(

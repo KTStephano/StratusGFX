@@ -59,6 +59,9 @@ uniform int numReservoirNeighbors = 10;
 uniform float time;
 uniform float framesPerSecond;
 
+uniform mat4 invProjectionView;
+uniform mat4 prevInvProjectionView;
+
 #define COMPONENT_WISE_MIN_VALUE 0.001
 
 // const float waveletFactors[5] = float[](
@@ -245,23 +248,17 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 1;
+    int minmaxNearest = 0;
     for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
         for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
             ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
         }
     }
 
-    // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
-    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
+    // int minmaxNearest = 0;
+    // for (int count = 0; count < numReservoirNeighbors; ++count) {
+    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
     // }
-
-    for (int count = 0; count < numReservoirNeighbors; ++count) {
-
-        ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
-
-        //++count;
-    }
 
     centerReservoir.a = runningSum;
     return centerReservoir;
@@ -278,7 +275,7 @@ void main() {
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
-    float centerLum = linearColorToLuminance(centerIllum); 
+    float centerLum = 1.0;//linearColorToLuminance(centerIllum); 
     vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
@@ -295,6 +292,7 @@ void main() {
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
     if (mergeReservoirs) {
+    //if (true) {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
@@ -342,7 +340,10 @@ void main() {
         //     accumMultiplier = 0.0;
         // }
 
-        float prevCenterDepth = texture(depth, prevTexCoords).r;
+        float prevCenterDepth = texture(prevDepth, prevTexCoords).r;
+        //vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
+        //vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
+
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
 
@@ -350,6 +351,11 @@ void main() {
         float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
+        /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
+        // if (wn < 0.95) {
+        //     wn = 0.0;
+        // }
+
         //wn = pow(wn, 8.0);
         //float similarity = 1.0;
         // float wn = 1.0;
@@ -366,7 +372,13 @@ void main() {
         //     //continue;    
         //     wz = 0.0;                                                                                   
         // }     
-        float wz = exp(-10.0 * abs(centerDepth - prevCenterDepth));
+
+        float wz1 = exp(-abs(centerDepth - prevCenterDepth));
+        //float wz2 = 1.0;
+        //if (length(currWorldPos - prevWorldPos) > 0.01) {
+            //wz2 = 0.0;
+        //}
+        float wz = wz1; //wz1 * wz2;
         
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
         // float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));
@@ -390,7 +402,7 @@ void main() {
 
         float similarity = wn * wz * wid;
         
-        if (similarity < 0.95) {
+        if (similarity < 0.99) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;
@@ -402,7 +414,9 @@ void main() {
 
         float maxAccumulationFactor = 1.0 / historyAccum;
         illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        //illumAvg = shadowFactor;
+        //illumAvg = currGi;
+        //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
+        //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }
 
     combinedColor = screenColor + gi * illumAvg;

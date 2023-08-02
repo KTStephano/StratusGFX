@@ -16,6 +16,7 @@
 #include <string>
 #include <limits>
 #include <random>
+#include "StratusGpuCommon.h"
 
 #define STRATUS_PI 3.14159265358979323846
 
@@ -359,6 +360,55 @@ namespace stratus {
         }
 
         return result;
+    }
+
+    template<typename Array>
+    bool IsAabbInFrustum(const GpuAABB& aabb, const Array& frustumPlanes) {
+        const glm::vec4& vmin = aabb.vmin;
+        const glm::vec4& vmax = aabb.vmax;
+
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec4& g = frustumPlanes[i];
+            if ((glm::dot(g, glm::vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) &&
+                (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<typename Array>
+    bool IsPointInFrustum(const glm::vec3& point, const Array& frustumPlanes) {
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec4& g = frustumPlanes[i];
+            if (glm::dot(g, glm::vec4(point, 1.0f)) < 0.0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<typename Array>
+    bool IsSphereInFrustum(const glm::vec3& center, const float radius, const Array& frustumPlanes) {
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec4& g = frustumPlanes[i];
+            const float distance = glm::dot(g, glm::vec4(center, 1.0f));
+
+            if (distance < -radius) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:

@@ -68,7 +68,7 @@ uniform float ambientIntensity = 0.00025;
 
 // Synchronized with definition found in StratusGpuCommon.h
 #define MAX_TOTAL_SHADOW_ATLASES (14)
-#define MAX_TOTAL_SHADOWS_PER_ATLAS (300)
+#define MAX_TOTAL_SHADOWS_PER_ATLAS (320)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
 // Synchronized with definition found in StratusGpuCommon.h
@@ -257,13 +257,17 @@ float quadraticAttenuation(vec3 lightDir) {
     return 1.0 / (1.0 + lightDist * lightDist);
 }
 
-float vplAttenuation(vec3 lightDir, float lightRadius) {
+float vplDiffuseAttenuation(vec3 lightDir, float lightRadius) {
     float lightDist = length(lightDir);
     float ratio = min(lightDist / lightRadius, 1.0);
     float minDist = mix(10, 1, exp(-3.0 * ratio)) * lightRadius;
     //float minDist = 10 * lightRadius;
     float maxDist = 0.75 * lightRadius;
     return 1.0 / (minDist + 1.0 * lightDist * lightDist);
+}
+
+float vplSpecularAttenuation(vec3 lightDir, float lightRadius) {
+    return vplDiffuseAttenuation(lightDir, lightRadius);
 }
 
 vec3 calculateLighting(vec3 lightColor, vec3 lightDir, vec3 viewDir, vec3 normal, vec3 baseColor, 
@@ -328,13 +332,4 @@ vec3 calculatePointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3
     vec3 lightDir   = lightPos - fragPosition;
 
     return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, quadraticAttenuation(lightDir), pointLightAmbientIntensity);
-}
-
-vec3 calculateVirtualPointLighting(vec3 fragPosition, vec3 baseColor, vec3 normal, vec3 viewDir, vec3 lightPos, vec3 lightColor,
-    float lightRadius, float roughness, float metallic, float ao, float shadowFactor, vec3 baseReflectivity) {
-
-    vec3 lightDir   = lightPos - fragPosition;
-
-    //return calculateLighting(lightColor, lightDir, viewDir, normal, baseColor, roughness, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.0);
-    return calculateDiffuseOnlyLighting(lightColor, lightDir, viewDir, normal, baseColor, metallic, ao, 1.0 - shadowFactor, baseReflectivity, vplAttenuation(lightDir, lightRadius), 0.003);
 }

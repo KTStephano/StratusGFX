@@ -104,6 +104,8 @@ namespace stratus {
         uint32_t vertexOffset_; // Into global GpuBuffer
         std::vector<uint32_t> numIndicesPerLod_;
         std::vector<uint32_t> indexOffsetPerLod_; // Into global GpuBuffer
+        uint32_t numIndicesApproximateLod_;
+
         RenderFaceCulling cullMode_ = RenderFaceCulling::CULLING_CCW;
     };
 

@@ -13,6 +13,7 @@
 #include "StratusRenderComponents.h"
 #include "StratusTransformComponent.h"
 #include <sstream>
+#include <algorithm>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -653,7 +654,7 @@ namespace stratus {
             aiProcess_JoinIdenticalVertices |
             aiProcess_SortByPType |
             aiProcess_GenNormals |
-            aiProcess_ValidateDataStructure |
+            //aiProcess_ValidateDataStructure |
             aiProcess_RemoveRedundantMaterials |
             aiProcess_SortByPType |
             //aiProcess_GenSmoothNormals | 
@@ -752,7 +753,9 @@ namespace stratus {
 
         #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
-        for (const std::string& file : files) {
+        for (const std::string& fileOrig : files) {
+            std::string file = fileOrig;
+            std::replace(file.begin(), file.end(), '\\', '/');
             STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
 
             int width, height, numChannels;
