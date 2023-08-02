@@ -14,7 +14,7 @@ out vec3 color;
 out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 15
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
 #define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -113,7 +113,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
     vec3 baseReflectivity = vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
 
-    float metallicRoughnessWeight = 1.0 - max(1.0 - roughness, metallic);
+    float roughnessWeight = 1.0 - roughness;
 
     float history = textureLod(historyDepth, texCoords, 0).r;
 
@@ -124,24 +124,24 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
-    vec3 seed = vec3(0.0, 0.0, time);
-    int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
-
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
     float seedZ = time;
-    seed = vec3(gl_FragCoord.xy, time);
+    vec3 seed = vec3(gl_FragCoord.xy, time);
     float validSamples = 0.0;
-    bool useBase2 = false;
 
     vec3 colorNoShadow = vec3(0.0);
 
     float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
-    int maxSamplesPerPixel = int(mix(ABSOLUTE_MAX_SAMPLES_PER_PIXEL, STANDARD_MAX_SAMPLES_PER_PIXEL, metallicRoughnessWeight));
+    int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
+    //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
     int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
+
+    int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
+    //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
     
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
         float rand = random(seed);                                                                                                          

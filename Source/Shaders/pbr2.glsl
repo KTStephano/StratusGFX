@@ -646,8 +646,8 @@ vec3 calculateVirtualPointLighting2(
         ambientOcclusion, 
         adjustedShadowFactor, 
         baseReflectance, 
-        vplAttenuation(specularLightDir, lightRadius), 
-        vplAttenuation(diffuseLightDir, lightRadius), 
+        vplSpecularAttenuation(specularLightDir, lightRadius), 
+        vplDiffuseAttenuation(diffuseLightDir, lightRadius), 
         0.0, 
         baseColor, 
         1.0 / (baseColor + PREVENT_DIV_BY_ZERO)

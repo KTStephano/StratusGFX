@@ -55,7 +55,7 @@ uniform int multiplier = 0;
 uniform int passNumber = 0;
 uniform bool final = false;
 uniform bool mergeReservoirs = false;
-uniform int numReservoirNeighbors = 15;
+uniform int numReservoirNeighbors = 10;
 uniform float time;
 uniform float framesPerSecond;
 
@@ -249,22 +249,16 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
     int minmaxNearest = 0;
-    // for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
-    //     for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
-    //         ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
-    //     }
-    // }
-
-    // for (int count = 0; count < halfNumReservoirNeighbors; ++count) {
-    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(nearestNeighborhood, halfNearestNeighborhood, 0)
-    // }
-
-    for (int count = 0; count < numReservoirNeighbors; ++count) {
-
-        ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
-
-        //++count;
+    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+        }
     }
+
+    // int minmaxNearest = 0;
+    // for (int count = 0; count < numReservoirNeighbors; ++count) {
+    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
+    // }
 
     centerReservoir.a = runningSum;
     return centerReservoir;
@@ -281,7 +275,7 @@ void main() {
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
     vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
-    float centerLum = linearColorToLuminance(centerIllum); 
+    float centerLum = 1.0;//linearColorToLuminance(centerIllum); 
     vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
@@ -332,7 +326,7 @@ void main() {
 
     if (final) {
         float accumMultiplier = 1.0;
-        vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
+        //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
         bool complete = false;
 
         float similarSamples = 0.0;
@@ -380,11 +374,11 @@ void main() {
         // }     
 
         float wz1 = exp(-abs(centerDepth - prevCenterDepth));
-        float wz2 = 1.0;
+        //float wz2 = 1.0;
         //if (length(currWorldPos - prevWorldPos) > 0.01) {
             //wz2 = 0.0;
         //}
-        float wz = wz1 * wz2;
+        float wz = wz1; //wz1 * wz2;
         
         //float wz = exp(-abs(centerDepth - prevCenterDepth) / (sigmaZ * abs(dot(currGradient, fsTexCoords - prevTexCoords)) + 0.0001));                                                                                              
         // float wz = exp(-50.0 * abs(centerDepth - prevCenterDepth));

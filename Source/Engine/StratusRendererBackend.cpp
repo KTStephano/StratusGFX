@@ -1439,6 +1439,8 @@ void RendererBackend::UpdatePointLights_(
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
 
+                glDepthFunc(GL_LEQUAL);
+
                 BindShader_(state_.skyboxLayered.get());
                 state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
 
@@ -1452,6 +1454,8 @@ void RendererBackend::UpdatePointLights_(
                 if (tmp > 1.0f) {
                     frame_->settings.SetSkyboxIntensity(tmp);
                 }
+
+                glDepthFunc(GL_LESS);
             }
             else {
                 const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
@@ -1609,11 +1613,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
     InitCoreCSMData_(state_.vplColoring.get());
-    state_.vplColoring->BindTexture("infiniteLightDepthMap", *frame_->csc.fbo.GetDepthStencilAttachment());
-    for (int i = 0; i < frame_->csc.cascades.size(); ++i) {
-        const glm::mat4 inv = glm::inverse(frame_->csc.cascades[i].projectionViewSample);
-        state_.vplColoring->SetMat4("invCascadeProjViews[" + std::to_string(i) + "]", inv);
-    }
 
     // Bind outputs
     state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
@@ -1805,7 +1804,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     size_t bufferIndex = 0;
     const int maxReservoirMergingPasses = 1;
-    const int maxIterations = 5;
+    const int maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
