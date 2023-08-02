@@ -411,6 +411,15 @@ namespace stratus {
         return true;
     }
 
+    // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
+    inline float DistanceFromPointToAABB(const glm::vec3& point, const GpuAABB& aabb) {
+        float dx = std::max<float>(aabb.vmin.v[0] - point.x, std::max<float>(0.0f, point.x - aabb.vmax.v[0]));
+        float dy = std::max<float>(aabb.vmin.v[1] - point.y, std::max<float>(0.0f, point.y - aabb.vmax.v[1]));
+        float dz = std::max<float>(aabb.vmin.v[2] - point.z, std::max<float>(0.0f, point.z - aabb.vmax.v[2]));
+
+        return std::sqrtf(dx * dx + dy * dy + dz + dz);
+    }
+
     // These are the first 512 values of the Halton sequence. For more information see:
     //     https://en.wikipedia.org/wiki/Halton_sequence
     //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
