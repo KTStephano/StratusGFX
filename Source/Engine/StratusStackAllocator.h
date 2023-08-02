@@ -142,6 +142,14 @@ namespace stratus {
 			p->~U();
 		}
 
+		bool operator==(const StackBasedPoolAllocator<T>& other) const noexcept {
+			return allocator_ == other.allocator_;
+		}
+
+		bool operator!=(const StackBasedPoolAllocator<T>& other) const noexcept {
+			return !(operator==(other));
+		}
+
 	private:
 		UnsafePtr<StackAllocator> allocator_;
 	};
