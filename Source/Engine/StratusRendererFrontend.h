@@ -90,6 +90,11 @@ namespace stratus {
             std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&,
             const bool selectLods
             );
+        void UpdateCascadeVisibility_(
+            Pipeline& pipeline,
+            const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+            std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+        );
         void UpdatePrevFrameModelTransforms_();
 
     private:

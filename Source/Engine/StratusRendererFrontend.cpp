@@ -983,35 +983,56 @@ namespace stratus {
         }
 
         // Dynamic pbr
-        for (auto& [cull, buffer] : frame_->drawCommands->staticPbrMeshes) {
+        UpdateCascadeVisibility_(
+            *viscullCsms_.get(),
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommands->dynamicPbrMeshes.find(cull)->second;
+            },
+            frame_->drawCommands->dynamicPbrMeshes
+        );
+
+        UpdateCascadeVisibility_(
+            *viscullCsms_.get(),
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommands->staticPbrMeshes.find(cull)->second;
+            },
+            frame_->drawCommands->staticPbrMeshes
+        );
+
+        viscullCsms_->Unbind();
+    }
+
+    void RendererFrontend::UpdateCascadeVisibility_(
+        Pipeline& pipeline,
+        const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+    ) {
+        for (auto& [cull, buffer] : commands) {
             if (buffer->NumDrawCommands() == 0) continue;
 
-            viscullCsms_->SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
+            pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
 
-            const size_t minLod = 0;
             const size_t maxLod = buffer->NumLods() - 2;
 
             buffer->BindModelTransformBuffer(2);
             buffer->BindAabbBuffer(3);
 
-            buffer->GetIndirectDrawCommandsBuffer(minLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
-            auto out0 = frame_->csc.cascades[0].drawCommands->staticPbrMeshes.find(cull)->second;
-            auto out1 = frame_->csc.cascades[1].drawCommands->staticPbrMeshes.find(cull)->second;
-            auto out2 = frame_->csc.cascades[2].drawCommands->staticPbrMeshes.find(cull)->second;
-            auto out3 = frame_->csc.cascades[3].drawCommands->staticPbrMeshes.find(cull)->second;
+            auto out0 = select(frame_->csc.cascades[0], cull);
+            auto out1 = select(frame_->csc.cascades[1], cull);
+            auto out2 = select(frame_->csc.cascades[2], cull);
+            auto out3 = select(frame_->csc.cascades[3], cull);
         
             out0->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
             out1->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
             out2->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
             out3->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
 
-            viscullCsms_->DispatchCompute(1, 1, 1);
-            viscullCsms_->SynchronizeCompute();
+            pipeline.DispatchCompute(1, 1, 1);
+            pipeline.SynchronizeCompute();
         }
-
-        viscullCsms_->Unbind();
     }
 
     void RendererFrontend::UpdateVisibility_(
