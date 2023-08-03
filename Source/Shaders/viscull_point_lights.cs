@@ -61,7 +61,7 @@ void main() {
     uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 
     // Extract world-space frustum planes
-#define INITIALIZE_CASCADE_PLANES(index, planes)            \
+#define INITIALIZE_FRUSTUM_PLANES(index, planes)            \
     if (gl_LocalInvocationIndex == index) {                 \
         mat4 vpt = transpose(viewProj[index]);              \
         planes[0] = vpt[3] + vpt[0];                        \
@@ -72,12 +72,12 @@ void main() {
         planes[5] = vpt[3] - vpt[2];                        \
     }
 
-    INITIALIZE_CASCADE_PLANES(0, frustumPlanes0);
-    INITIALIZE_CASCADE_PLANES(1, frustumPlanes1);
-    INITIALIZE_CASCADE_PLANES(2, frustumPlanes2);
-    INITIALIZE_CASCADE_PLANES(3, frustumPlanes3);
-    INITIALIZE_CASCADE_PLANES(4, frustumPlanes4);
-    INITIALIZE_CASCADE_PLANES(5, frustumPlanes5);
+    INITIALIZE_FRUSTUM_PLANES(0, frustumPlanes0);
+    INITIALIZE_FRUSTUM_PLANES(1, frustumPlanes1);
+    INITIALIZE_FRUSTUM_PLANES(2, frustumPlanes2);
+    INITIALIZE_FRUSTUM_PLANES(3, frustumPlanes3);
+    INITIALIZE_FRUSTUM_PLANES(4, frustumPlanes4);
+    INITIALIZE_FRUSTUM_PLANES(5, frustumPlanes5);
 
     barrier();
 

@@ -272,9 +272,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     haltonSequence_ = GpuBuffer((const void *)haltonSequence.data(), sizeof(GpuHaltonEntry) * haltonSequence.size(), GPU_DYNAMIC_DATA);
 
     // Initialize per light draw calls
-    state_.perPointLightDrawCalls.resize(6);
-    for (size_t i = 0; i < state_.perPointLightDrawCalls.size(); ++i) {
-        state_.perPointLightDrawCalls[i] = GpuCommandReceiveManager::Create();
+    state_.dynamicPerPointLightDrawCalls.resize(6);
+    state_.staticPerPointLightDrawCalls.resize(6);
+    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+        state_.dynamicPerPointLightDrawCalls[i] = GpuCommandReceiveManager::Create();
+        state_.staticPerPointLightDrawCalls[i]  = GpuCommandReceiveManager::Create();
     }
 }
 
@@ -1291,6 +1293,7 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
 
 static inline void PerformPointLightGeometryCulling(
     Pipeline& pipeline,
+    const size_t lod,
     const std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands,
     const std::vector<GpuCommandReceiveManagerPtr>& receivers,
     const std::function<GpuBuffer (const GpuCommandReceiveManagerPtr&, const RenderFaceCulling& cull)>& select,
@@ -1305,7 +1308,7 @@ static inline void PerformPointLightGeometryCulling(
 
         pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
         
-        buffer->GetIndirectDrawCommandsBuffer(0).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
         buffer->BindModelTransformBuffer(2);
         buffer->BindAabbBuffer(3);
 
@@ -1411,8 +1414,9 @@ void RendererBackend::UpdatePointLights_(
     }
 
     // Make sure we have enough space to generate the point light draw calls
-    for (size_t i = 0; i < state_.perPointLightDrawCalls.size(); ++i) {
-        state_.perPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
+    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+        state_.dynamicPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
+        state_.staticPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
     }
 
     // Set blend func just for shadow pass
@@ -1479,8 +1483,9 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
+            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
-            state_.perPointLightDrawCalls,
+            state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
                 return manager->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
             },
@@ -1490,8 +1495,9 @@ void RendererBackend::UpdatePointLights_(
         if (!light->IsStaticLight() && !light->IsVirtualLight()) {
             PerformPointLightGeometryCulling(
                 *state_.viscullPointLights.get(),
+                0, // lod
                 frame_->drawCommands->dynamicPbrMeshes,
-                state_.perPointLightDrawCalls,
+                state_.dynamicPerPointLightDrawCalls,
                 [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
                     return manager->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
                 },
@@ -1519,7 +1525,7 @@ void RendererBackend::UpdatePointLights_(
                     //return b->GetVisibleLowestLodDrawCommandsBuffer();
                     //return b->GetIndirectDrawCommandsBuffer(lod);
                     const auto cull = b->GetFaceCulling();
-                    return state_.perPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+                    return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
@@ -1547,13 +1553,13 @@ void RendererBackend::UpdatePointLights_(
             else {
                 const CommandBufferSelectionFunction selectDynamic = [this, i](GpuCommandBufferPtr& b) {
                     const auto cull = b->GetFaceCulling();
-                    return state_.perPointLightDrawCalls[i]->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+                    return state_.dynamicPerPointLightDrawCalls[i]->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
                     //return b->GetIndirectDrawCommandsBuffer(0);
                 };
 
                 const CommandBufferSelectionFunction selectStatic = [this, i](GpuCommandBufferPtr& b) {
                     const auto cull = b->GetFaceCulling();
-                    return state_.perPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+                    return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                     //return b->GetIndirectDrawCommandsBuffer(0);
                 };
 

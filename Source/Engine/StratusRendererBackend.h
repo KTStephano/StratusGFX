@@ -481,7 +481,8 @@ namespace stratus {
             EntityPtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
-            std::vector<GpuCommandReceiveManagerPtr> perPointLightDrawCalls;
+            std::vector<GpuCommandReceiveManagerPtr> dynamicPerPointLightDrawCalls;
+            std::vector<GpuCommandReceiveManagerPtr> staticPerPointLightDrawCalls;
             std::unique_ptr<Pipeline> viscullPointLights;
         };
 
