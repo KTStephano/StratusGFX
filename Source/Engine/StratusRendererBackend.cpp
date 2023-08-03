@@ -1119,22 +1119,19 @@ void RendererBackend::RenderCSMDepth_() {
         // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
-        // const size_t lod = cascade * 2 + 1;
-        const size_t lod = frame_->drawCommands->NumLods() - 2;
-        if (cascade < 2) {
-            const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
-                return b->GetSelectedLodDrawCommandsBuffer();
-            };
-            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
-            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
-        }
-        else {
-            const CommandBufferSelectionFunction select = [lod](GpuCommandBufferPtr& b) {
-                return b->GetIndirectDrawCommandsBuffer(lod);
-            };
-            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
-            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
-        }
+
+        CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
+            const auto cull = b->GetFaceCulling();
+            return frame_->csc.cascades[cascade].drawCommands->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+        };
+
+        CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
+            const auto cull = b->GetFaceCulling();
+            return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+        };
+
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
         // RenderImmediate_(csm.visibleStaticPbrMeshes);

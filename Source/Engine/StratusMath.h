@@ -364,8 +364,8 @@ namespace stratus {
 
     template<typename Array>
     bool IsAabbInFrustum(const GpuAABB& aabb, const Array& frustumPlanes) {
-        const glm::vec4& vmin = aabb.vmin;
-        const glm::vec4& vmax = aabb.vmax;
+        const glm::vec4 vmin = aabb.vmin.ToVec4();
+        const glm::vec4 vmax = aabb.vmax.ToVec4();
 
         for (int i = 0; i < 6; ++i) {
             const glm::vec4& g = frustumPlanes[i];

@@ -79,6 +79,7 @@ namespace stratus {
     typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererCascadeData {
+        GpuCommandReceiveManagerPtr drawCommands;
         // Use during shadow map rendering
         glm::mat4 projectionViewRender;
         // Use during shadow map sampling

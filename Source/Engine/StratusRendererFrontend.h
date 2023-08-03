@@ -127,6 +127,7 @@ namespace stratus {
         // Compute pipeline which performs AABB checks against view frustum
         std::unique_ptr<Pipeline> viscullLodSelect_;
         std::unique_ptr<Pipeline> viscull_;
+        std::unique_ptr<Pipeline> viscullCsms_;
         std::unique_ptr<Pipeline> updateTransforms_;
         // Used for temporal anti-aliasing
         size_t currentHaltonIndex_ = 0;
