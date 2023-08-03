@@ -30,10 +30,6 @@ layout (std430, binding = 13) buffer outputBlock2 {
     DrawElementsIndirectCommand selectedLods[];
 };
 
-layout (std430, binding = 15) buffer outputBlock3 {
-    DrawElementsIndirectCommand lowestLodOutDrawCalls[];
-};
-
 #ifdef SELECT_LOD
     layout (std430, binding = 5) readonly buffer lod0 {
         DrawElementsIndirectCommand drawCallsLod0[];
@@ -87,15 +83,12 @@ void main() {
         //center = center - viewPosition; //(view * vec4(center, 1.0)).xyz;
         //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
         DrawElementsIndirectCommand draw = inDrawCalls[i];
-        DrawElementsIndirectCommand lowestLodDraw = draw;
 
     #ifdef SELECT_LOD
         DrawElementsIndirectCommand lod;
         const float firstLodDist = max(zfar, 1000.0) * 0.3;
         const float maxDist = max(zfar, 1000.0) - firstLodDist;
         const float restLodDist = maxDist / 7;
-
-        lowestLodDraw = drawCallsLod7[i];
 
         if (dist < firstLodDist) {
             draw = drawCallsLod0[i];
@@ -131,15 +124,12 @@ void main() {
 
         if (!isAabbVisible(frustumPlanes, aabb)) {
             draw.instanceCount = 0;
-            lowestLodDraw.instanceCount = 0;
         }
         else {
             draw.instanceCount = 1;
-            lowestLodDraw.instanceCount = 1;
         }
 
         outDrawCalls[i] = draw;
-        lowestLodOutDrawCalls[i] = lowestLodDraw;
 
     #ifdef SELECT_LOD
         selectedLods[i] = lod;

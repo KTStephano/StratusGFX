@@ -909,7 +909,7 @@ static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& stat
     return status == TextureLoadingStatus::LOADING_DONE;
 }
 
-void RendererBackend::RenderBoundingBoxes_(GpuCommandBuffer2Ptr& buffer) {
+void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
     if (buffer->NumDrawCommands() == 0) return;
 
     SetCullState(RenderFaceCulling::CULLING_NONE);
@@ -931,13 +931,13 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBuffer2Ptr& buffer) {
     UnbindShader_();
 }
 
-void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map) {
+void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
     for (auto& entry : map) {
         RenderBoundingBoxes_(entry.second);
     }
 }
 
-void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select) {
+void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select) {
     if (buffer->NumDrawCommands() == 0) return;
 
     frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
@@ -953,7 +953,7 @@ void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandB
     select(buffer).Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 }
 
-void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
@@ -1008,13 +1008,13 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     for (auto& entry : map) {
         Render_(s, entry.first, entry.second, select, isLightInteracting, removeViewTranslation);
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
     for (auto& entry : map) {
         auto cull = entry.first;
         if (reverseCullFace) {
@@ -1122,14 +1122,14 @@ void RendererBackend::RenderCSMDepth_() {
         // const size_t lod = cascade * 2 + 1;
         const size_t lod = frame_->drawCommands->NumLods() - 2;
         if (cascade < 2) {
-            const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+            const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
                 return b->GetSelectedLodDrawCommandsBuffer();
             };
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
             RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
         }
         else {
-            const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+            const CommandBufferSelectionFunction select = [lod](GpuCommandBufferPtr& b) {
                 return b->GetIndirectDrawCommandsBuffer(lod);
             };
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
@@ -1430,7 +1430,7 @@ void RendererBackend::UpdatePointLights_(
             if (point->IsVirtualLight()) {
                 // Use lower LOD
                 const size_t lod = frame_->drawCommands->NumLods() - 1;
-                const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+                const CommandBufferSelectionFunction select = [lod](GpuCommandBufferPtr& b) {
                     //return b->GetVisibleLowestLodDrawCommandsBuffer();
                     return b->GetIndirectDrawCommandsBuffer(lod);
                 };
@@ -1458,7 +1458,7 @@ void RendererBackend::UpdatePointLights_(
                 glDepthFunc(GL_LESS);
             }
             else {
-                const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+                const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
                     return b->GetIndirectDrawCommandsBuffer(0);
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
@@ -1991,7 +1991,7 @@ void RendererBackend::RenderForwardPassPbr_() {
 
     //glDepthFunc(GL_LEQUAL);
 
-    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
@@ -2014,7 +2014,7 @@ void RendererBackend::RenderForwardPassFlat_() {
     glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
 
-    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
         return b->GetVisibleDrawCommandsBuffer();
     };
 

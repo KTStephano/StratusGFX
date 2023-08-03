@@ -37,7 +37,7 @@ namespace stratus {
     class Quad;
     struct PostProcessFX;
 
-    typedef std::function<GpuBuffer(GpuCommandBuffer2Ptr&)> CommandBufferSelectionFunction;
+    typedef std::function<GpuBuffer(GpuCommandBufferPtr&)> CommandBufferSelectionFunction;
 
     extern bool IsRenderable(const EntityPtr&);
     extern bool IsLightInteracting(const EntityPtr&);
@@ -642,13 +642,13 @@ namespace stratus {
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
-        void RenderBoundingBoxes_(GpuCommandBuffer2Ptr&);
-        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&);
-        void RenderImmediate_(const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&);
-        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBuffer2Ptr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void RenderBoundingBoxes_(GpuCommandBufferPtr&);
+        void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const VplDistVector_& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
         void UpdatePointLights_(
             VplDistMultiSet_&, 
             VplDistVector_&,

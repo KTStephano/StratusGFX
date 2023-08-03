@@ -73,9 +73,6 @@ namespace stratus {
 
     struct GpuBufferImpl;
     struct GpuArrayBufferImpl;
-    struct GpuCommandBuffer;
-
-    typedef std::shared_ptr<GpuCommandBuffer> GpuCommandBufferPtr;
 
     // A gpu buffer holds primitive data usually in the form of floats, ints and shorts
     // TODO: Look into use cases for things other than STATIC_DRAW
@@ -421,54 +418,5 @@ namespace stratus {
         static std::vector<_MeshData> freeVertices_;
         static std::vector<_MeshData> freeIndices_;
         static bool initialized_;
-    };
-
-    // Stores material indices, model transforms and indirect draw commands
-    class GpuCommandBuffer final {
-        GpuBuffer materialIndices_;
-        GpuBuffer prevFrameModelTransforms_;
-        GpuBuffer modelTransforms_;
-        GpuBuffer indirectDrawCommands_;
-        GpuBuffer aabbs_;
-
-    public:
-        GpuCommandBuffer();
-
-        // This is to allow for 64-bit handles to be used to identify an object
-        // with its location in the array
-        // std::unordered_map<uint64_t, size_t> handlesToIndicesMap;
-        // std::vector<uint64_t> handles;
-        // CPU side of the data
-        std::vector<uint32_t> materialIndices;
-        // Model transform is defined as global transform * mesh transform
-        std::vector<glm::mat4> prevFrameModelTransforms;
-        std::vector<glm::mat4> modelTransforms;
-        std::vector<GpuDrawElementsIndirectCommand> indirectDrawCommands;
-        std::vector<GpuAABB> aabbs;
-
-        GpuCommandBuffer(GpuCommandBuffer&&) = default;
-        GpuCommandBuffer(const GpuCommandBuffer&) = delete;
-
-        GpuCommandBuffer& operator=(GpuCommandBuffer&&) = delete;
-        GpuCommandBuffer& operator=(const GpuCommandBuffer&) = delete;
-
-        void RemoveCommandsAt(const std::unordered_set<size_t>& indices);
-        size_t NumDrawCommands() const;
-        void UploadDataToGpu();
-
-        void BindMaterialIndicesBuffer(uint32_t index);
-        void BindPrevFrameModelTransformBuffer(uint32_t index);
-        void BindModelTransformBuffer(uint32_t index);
-        void BindAabbBuffer(uint32_t index);
-
-        void BindIndirectDrawCommands();
-        void UnbindIndirectDrawCommands();
-
-        const GpuBuffer& GetIndirectDrawCommandsBuffer() const;
-
-        GpuCommandBufferPtr Copy() const;
-
-    private:
-        void VerifyArraySizes_() const;
     };
 }

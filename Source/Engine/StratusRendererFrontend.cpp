@@ -973,8 +973,8 @@ namespace stratus {
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::UpdateVisibility_() {   
-        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
-        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> commands({
+        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> commands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
@@ -998,7 +998,7 @@ namespace stratus {
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
-        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& inOutDrawCommands,
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& inOutDrawCommands,
         const bool selectLods) {
 
         static const std::vector<RenderFaceCulling> culling{
@@ -1064,7 +1064,6 @@ namespace stratus {
             it->second->GetVisibleDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
             it->second->BindModelTransformBuffer(2);
             it->second->BindAabbBuffer(3);
-            it->second->GetVisibleLowestLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 15);
 
             if (selectLods) {
                 it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
@@ -1112,8 +1111,8 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdatePrevFrameModelTransforms_() {
-        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> drawCommands({
+        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> drawCommands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
