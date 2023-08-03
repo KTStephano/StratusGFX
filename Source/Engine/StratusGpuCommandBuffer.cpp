@@ -210,7 +210,7 @@ namespace stratus {
         return updated;
     }
 
-    void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index)
+    void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index) const
     {
         auto buffer = materialIndices_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -219,7 +219,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(uint32_t index)
+    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(uint32_t index) const
     {
         auto buffer = prevFrameModelTransforms_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -228,7 +228,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index)
+    void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) const
     {
         auto buffer = modelTransforms_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -237,7 +237,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindAabbBuffer(uint32_t index)
+    void GpuCommandBuffer::BindAabbBuffer(uint32_t index) const
     {
         auto buffer = aabbs_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -246,7 +246,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindIndirectDrawCommands(const size_t lod)
+    void GpuCommandBuffer::BindIndirectDrawCommands(const size_t lod) const
     {
         if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
@@ -254,7 +254,7 @@ namespace stratus {
         drawCommands_[lod]->GetBuffer().Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
-    void GpuCommandBuffer::UnbindIndirectDrawCommands(const size_t lod)
+    void GpuCommandBuffer::UnbindIndirectDrawCommands(const size_t lod) const
     {
         if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");

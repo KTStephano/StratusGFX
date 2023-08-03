@@ -47,13 +47,13 @@ namespace stratus {
 
         bool UploadDataToGpu();
 
-        void BindMaterialIndicesBuffer(uint32_t index);
-        void BindPrevFrameModelTransformBuffer(uint32_t index);
-        void BindModelTransformBuffer(uint32_t index);
-        void BindAabbBuffer(uint32_t index);
+        void BindMaterialIndicesBuffer(uint32_t index) const;
+        void BindPrevFrameModelTransformBuffer(uint32_t index) const;
+        void BindModelTransformBuffer(uint32_t index) const;
+        void BindAabbBuffer(uint32_t index) const;
 
-        void BindIndirectDrawCommands(const size_t lod);
-        void UnbindIndirectDrawCommands(const size_t lod);
+        void BindIndirectDrawCommands(const size_t lod) const;
+        void UnbindIndirectDrawCommands(const size_t lod) const;
 
         GpuBuffer GetIndirectDrawCommandsBuffer(const size_t lod) const;
         GpuBuffer GetVisibleDrawCommandsBuffer() const;

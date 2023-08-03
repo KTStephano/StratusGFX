@@ -29,6 +29,7 @@
 #include <functional>
 #include "StratusStackAllocator.h"
 #include <set>
+#include "StratusGpuCommandBuffer.h"
 
 namespace stratus {
     class Pipeline;
@@ -480,6 +481,8 @@ namespace stratus {
             EntityPtr screenQuad;
             // Gets around what might be a driver bug...
             TextureHandle dummyCubeMap;
+            std::vector<GpuCommandReceiveManagerPtr> perPointLightDrawCalls;
+            std::unique_ptr<Pipeline> viscullPointLights;
         };
 
         struct TextureCache {
