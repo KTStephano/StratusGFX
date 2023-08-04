@@ -54,3 +54,14 @@ struct VplData {
     float intensity;
     float _1;
 };
+
+struct ProbeTextureData {
+    samplerCubeArray occlusion;
+    samplerCubeArray diffuse;
+    samplerCubeArray normals;
+    samplerCubeArray properties;
+};
+
+layout (std430, binding = 64) readonly buffer probeDataInputBlock {
+    ProbeTextureData probeTextures[];
+};

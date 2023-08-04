@@ -238,6 +238,19 @@ namespace stratus {
 #ifndef __GNUC__
     #pragma pack(push, 1)
 #endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuProbeTextureData {
+        GpuTextureHandle occlusion;
+        GpuTextureHandle diffuse;
+        GpuTextureHandle normals;
+        GpuTextureHandle properties;
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
     // Axis-Aligned Bounding Box from aabb.glsl
     struct PACKED_STRUCT_ATTRIBUTE GpuAABB {
         GpuVec vmin;
@@ -301,6 +314,7 @@ namespace stratus {
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
     static_assert(sizeof(GpuVplData) == 64);
+    static_assert(sizeof(GpuProbeTextureData) == 32);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);

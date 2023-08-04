@@ -31,9 +31,6 @@ layout (std430, binding = 1) readonly buffer inputBlock1 {
     int numVisible[];
 };
 
-uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
-uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
-
 layout (std430, binding = 4) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
@@ -51,8 +48,8 @@ void main() {
         AtlasEntry entry = diffuseIndices[index];
 
         // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
-        float magnitude = data.radius * textureLod(shadowCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).r;
+        vec3 color = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
+        float magnitude = data.radius * textureLod(probeTextures[entry.index].occlusion, vec4(-infiniteLightDirection, float(entry.layer)), 0).r;
         float offset = 0.5;
         float offsets[2] = float[](-offset, offset);
         float totalColors = 1.0;

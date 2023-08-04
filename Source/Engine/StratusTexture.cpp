@@ -570,6 +570,9 @@ namespace stratus {
         impl_->setHandle(handle);
     }
 
+    TextureMemResidencyGuard::TextureMemResidencyGuard()
+        : TextureMemResidencyGuard(Texture()) {}
+
     TextureMemResidencyGuard::TextureMemResidencyGuard(const Texture& texture)
         : texture_(texture) {
 

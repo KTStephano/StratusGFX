@@ -66,8 +66,6 @@ layout (std430, binding = 1) readonly buffer inputBlock2 {
     int numVisible[];
 };
 
-uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
-
 layout (std430, binding = 3) readonly buffer inputBlock4 {
     AtlasEntry shadowIndices[];
 };
@@ -174,7 +172,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightColor = lightData[lightIndex].color.xyz;                                                                                  
                                                                                                                                             
         float shadowFactor =                                                                                                                
-        distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+        distToCamera < 700 ? calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                          entry.layer,                                                                       
                                                          lightData[lightIndex].farPlane,                                                    
                                                          fragPos,                                                                           

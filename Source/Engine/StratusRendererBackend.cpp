@@ -297,6 +297,23 @@ void RendererBackend::InitPointShadowMaps_() {
     state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
     STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
+
+    // Make the vpl cache resident
+    std::vector<GpuProbeTextureData> probeData(vplSmapCache_.buffers.size());
+    for (usize i = 0; i < vplSmapCache_.buffers.size(); ++i) {
+        auto color = vplSmapCache_.buffers[i].GetColorAttachments()[0];
+        auto depth = *vplSmapCache_.buffers[i].GetDepthStencilAttachment();
+        state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(color));
+        state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(depth));
+
+        GpuProbeTextureData data;
+        data.occlusion = depth.GpuHandle();
+        data.diffuse = color.GpuHandle();
+
+        probeData[i] = data;
+    }
+    state_.vpls.probeTextureData = GpuBuffer((const void *)probeData.data(), sizeof(GpuProbeTextureData) * probeData.size(), flags);
+    state_.vpls.probeTextureData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 64);
 }
 
 void RendererBackend::InitializeVplData_() {
@@ -1705,10 +1722,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
     state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
-    for (usize i = 0; i < cache.buffers.size(); ++i) {
-        state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
-        state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
-    }
 
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
@@ -1840,9 +1853,6 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
-    for (usize i = 0; i < cache.buffers.size(); ++i) {
-        state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
-    }
 
     state_.vplGlobalIllumination->SetFloat("minRoughness", frame_->settings.GetMinRoughness());
     state_.vplGlobalIllumination->SetBool("usePerceptualRoughness", frame_->settings.usePerceptualRoughness);

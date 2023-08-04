@@ -180,6 +180,7 @@ namespace stratus {
     };
 
     struct TextureMemResidencyGuard {
+        TextureMemResidencyGuard();
         TextureMemResidencyGuard(const Texture&);
 
         TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;
