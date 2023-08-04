@@ -96,16 +96,16 @@ namespace stratus {
         return isShuttingDown_.load();
     }
 
-    void Engine::SetMaxFrameRate(const uint32_t rate) {
+    void Engine::SetMaxFrameRate(const u32 rate) {
         std::unique_lock<std::shared_mutex> ul(mainLoop_);
-        _params.maxFrameRate = std::max<uint32_t>(rate, 30);
+        _params.maxFrameRate = std::max<u32>(rate, 30);
     }
 
-    uint64_t Engine::FrameCount() const {
+    u64 Engine::FrameCount() const {
         return stats_.currentFrame;
     }
 
-    double Engine::LastFrameTimeSeconds() const {
+    f64 Engine::LastFrameTimeSeconds() const {
         return stats_.lastFrameTimeSeconds;
     }
 
@@ -254,8 +254,8 @@ namespace stratus {
         const auto end = std::chrono::high_resolution_clock::now();
         //const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - _stats.prevFrameStart).count();
         const auto elapsed = end - stats_.prevFrameStart;
-        const double durationMsec = std::chrono::duration<double, std::micro>(elapsed).count();
-        const auto requestedFrameTimingMsec = 1000000.0 / double(_params.maxFrameRate);
+        const f64 durationMsec = std::chrono::duration<f64, std::micro>(elapsed).count();
+        const auto requestedFrameTimingMsec = 1000000.0 / f64(_params.maxFrameRate);
         // Make sure we haven't exceeded the max frame rate
         //if (frameRate > _params.maxFrameRate) {
         if (durationMsec < requestedFrameTimingMsec) {
@@ -273,9 +273,9 @@ namespace stratus {
 
         //std::shared_lock<std::shared_mutex> sl(_mainLoop);
 
-        const double duration = std::chrono::duration<double, std::milli>(elapsed).count();
-        const double deltaSeconds = duration / 1000.0;
-        //const double frameRate = 1.0 / deltaSeconds;
+        const f64 duration = std::chrono::duration<f64, std::milli>(elapsed).count();
+        const f64 deltaSeconds = duration / 1000.0;
+        //const f64 frameRate = 1.0 / deltaSeconds;
 
         //sl.unlock();
 

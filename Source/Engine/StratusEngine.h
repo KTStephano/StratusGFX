@@ -13,6 +13,7 @@
 #include <memory>
 #include <atomic>
 #include <chrono>
+#include "StratusTypes.h"
 //#include "Renderer.h"
 
 // Useful within an existing main function
@@ -31,16 +32,16 @@ namespace stratus {
 
     // Contains everything the engine needs to perform first-time init
     struct EngineInitParams {
-        uint32_t           numCmdArgs;
+        u32           numCmdArgs;
         const char **      cmdArgs;
-        uint32_t           maxFrameRate = 1000;
+        u32           maxFrameRate = 1000;
     };
 
     struct EngineStatistics {
         // Each frame update increments this by 1
-        uint64_t currentFrame = 0;
+        u64 currentFrame = 0;
         // Records the time the last frame took to complete - 16.0/1000.0 = 60 fps for example
-        double lastFrameTimeSeconds = 0.0;
+        f64 lastFrameTimeSeconds = 0.0;
         std::chrono::high_resolution_clock::time_point prevFrameStart = std::chrono::high_resolution_clock::now();
     };
 
@@ -63,15 +64,15 @@ namespace stratus {
         static Engine * Instance() { return instance_; }
 
         // Sets max frame rate
-        void SetMaxFrameRate(const uint32_t);
+        void SetMaxFrameRate(const u32);
         // Checks if the engine has completed its init phase
         bool IsInitializing() const;
         // True if the engine is performing final shutdown sequence
         bool IsShuttingDown() const;
         // Returns how many frames the engine has processed since first start
-        uint64_t FrameCount() const;
+        u64 FrameCount() const;
         // Useful functions for checking current and average frame delta seconds
-        double LastFrameTimeSeconds() const;
+        f64 LastFrameTimeSeconds() const;
 
         // Pre-initialization for things like CommandLine, Log, Filesystem
         void PreInitialize();

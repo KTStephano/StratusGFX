@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StratusThread.h"
+#include "StratusTypes.h"
 
 namespace stratus { 
     // Thread for managing Async operations (Note: only safe to use within the context of a valid stratus::Thread,

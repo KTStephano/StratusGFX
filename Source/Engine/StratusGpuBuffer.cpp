@@ -28,7 +28,7 @@ namespace stratus {
         return usage;
     }
 
-    static GLenum _ConvertBufferType(int type) {
+    static GLenum _ConvertBufferType(i32 type) {
         GpuBindingPoint type_ = static_cast<GpuBindingPoint>(type);
         switch (type_) {
         case GpuBindingPoint::ARRAY_BUFFER: return GL_ARRAY_BUFFER;
@@ -55,27 +55,27 @@ namespace stratus {
         throw std::invalid_argument("Unknown storage type");
     }
 
-    static uint32_t _CalculateSizeBytes(int32_t sizePerElem, GpuStorageType type) {
+    static u32 _CalculateSizeBytes(i32 sizePerElem, GpuStorageType type) {
         switch (type) {
         case GpuStorageType::BYTE:
-        case GpuStorageType::UNSIGNED_BYTE: return sizePerElem * sizeof(uint8_t);
+        case GpuStorageType::UNSIGNED_BYTE: return sizePerElem * sizeof(u8);
         case GpuStorageType::SHORT:
-        case GpuStorageType::UNSIGNED_SHORT: return sizePerElem * sizeof(uint16_t);
+        case GpuStorageType::UNSIGNED_SHORT: return sizePerElem * sizeof(u16);
         case GpuStorageType::INT:
-        case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(uint32_t);
-        case GpuStorageType::FLOAT: return sizePerElem * sizeof(float);
+        case GpuStorageType::UNSIGNED_INT: return sizePerElem * sizeof(u32);
+        case GpuStorageType::FLOAT: return sizePerElem * sizeof(f32);
         }
 
         throw std::invalid_argument("Unable to calculate size in bytes");
     }
 
-    static void _CreateBuffer(GLuint & buffer, const void * data, const uintptr_t sizeBytes, const Bitfield usage) {
+    static void _CreateBuffer(GLuint & buffer, const void * data, const usize sizeBytes, const Bitfield usage) {
         glCreateBuffers(1, &buffer);
         glNamedBufferStorage(buffer, sizeBytes, data, _ConvertUsageType(usage));
     }
 
     struct GpuBufferImpl {
-        GpuBufferImpl(const void * data, const uintptr_t sizeBytes, const Bitfield usage) 
+        GpuBufferImpl(const void * data, const usize sizeBytes, const Bitfield usage) 
             : _sizeBytes(sizeBytes) {
             _CreateBuffer(_buffer, data, sizeBytes, usage);
         }
@@ -90,29 +90,29 @@ namespace stratus {
             }
         }
 
-    void EnableAttribute(int32_t attribute, 
-                         int32_t sizePerElem, 
+    void EnableAttribute(i32 attribute, 
+                         i32 sizePerElem, 
                          GpuStorageType storage, 
                          bool normalized, 
-                         uint32_t stride, 
-                         uint32_t offset, 
-                         uint32_t divisor = 0) {
+                         u32 stride, 
+                         u32 offset, 
+                         u32 divisor = 0) {
 
         // If we exceed OpenGL's max of 4, we need to calculate a new stride that we
         // can use in the loop below
         if (sizePerElem > 4) {
-            // Ex: for a 4x4 float matrix this will be 64 (16 * sizeof(float))
-            const uint32_t totalSizeBytes = _CalculateSizeBytes(sizePerElem, storage);
+            // Ex: for a 4x4 f32 matrix this will be 64 (16 * sizeof(f32))
+            const u32 totalSizeBytes = _CalculateSizeBytes(sizePerElem, storage);
             stride = stride + totalSizeBytes;
         }
         
         const auto enable = [this, attribute, sizePerElem, storage, normalized, stride, offset, divisor]() {
             // OpenGL caps each attrib to 4 elements, so if we have one that's larger
             // then we need treat it as multiple attribs
-            for (int32_t i = 0, elem = 0; elem < sizePerElem; ++i, elem += 4) {
-                const int32_t pos = attribute + i;
-                const int32_t elemSize = (sizePerElem - elem) > 4 ? 4 : (sizePerElem - elem);
-                const uint32_t totalSizeBytes = _CalculateSizeBytes(elemSize, storage);
+            for (i32 i = 0, elem = 0; elem < sizePerElem; ++i, elem += 4) {
+                const i32 pos = attribute + i;
+                const i32 elemSize = (sizePerElem - elem) > 4 ? 4 : (sizePerElem - elem);
+                const u32 totalSizeBytes = _CalculateSizeBytes(elemSize, storage);
                 glEnableVertexAttribArray(pos);
                 glVertexAttribPointer(
                     pos, 
@@ -132,16 +132,16 @@ namespace stratus {
     }
 
     void Bind(const GpuBindingPoint point) const {
-        glBindBuffer(_ConvertBufferType(int(point)), _buffer);
+        glBindBuffer(_ConvertBufferType(i32(point)), _buffer);
         for (auto& enable : _enableAttributes) enable();
     }
 
     void Unbind(const GpuBindingPoint point) const {
-        glBindBuffer(_ConvertBufferType(int(point)), 0);
+        glBindBuffer(_ConvertBufferType(i32(point)), 0);
     }
 
-    void BindBase(const GpuBaseBindingPoint point, const uint32_t index) const {
-        glBindBufferBase(_ConvertBufferType(int(point)), index, _buffer);
+    void BindBase(const GpuBaseBindingPoint point, const u32 index) const {
+        glBindBufferBase(_ConvertBufferType(i32(point)), index, _buffer);
     }
 
     void * MapMemory(const Bitfield access) const {
@@ -159,11 +159,11 @@ namespace stratus {
         return _isMemoryMapped;
     }
 
-    uintptr_t SizeBytes() const {
+    usize SizeBytes() const {
         return _sizeBytes;
     }
 
-    void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
+    void CopyDataToBuffer(isize offset, usize size, const void * data) {
         if (offset + size > SizeBytes()) {
             throw std::runtime_error("offset+size exceeded maximum GPU buffer size");
         }
@@ -180,7 +180,7 @@ namespace stratus {
         glCopyNamedBufferSubData(buffer._buffer, _buffer, 0, 0, buffer.SizeBytes());
     }
 
-    void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
+    void CopyDataFromBufferToSysMem(isize offset, usize size, void * data) {
         if (offset + size > SizeBytes()) {
             throw std::runtime_error("offset+size exceeded maximum GPU buffer size");
         }
@@ -201,16 +201,16 @@ namespace stratus {
 
     private:
         GLuint _buffer;
-        uintptr_t _sizeBytes;
+        usize _sizeBytes;
         mutable bool _isMemoryMapped = false;
 
         std::vector<GpuBufferCommand> _enableAttributes;
     };
 
-    GpuBuffer::GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage)
+    GpuBuffer::GpuBuffer(const void * data, const usize sizeBytes, const Bitfield usage)
         : impl_(std::make_shared<GpuBufferImpl>(data, sizeBytes, usage)) {}
 
-    void GpuBuffer::EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType storage, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor) {
+    void GpuBuffer::EnableAttribute(i32 attribute, i32 sizePerElem, GpuStorageType storage, bool normalized, u32 stride, u32 offset, u32 divisor) {
         impl_->EnableAttribute(attribute, sizePerElem, storage, normalized, stride, offset, divisor);
     }
 
@@ -222,7 +222,7 @@ namespace stratus {
         impl_->Unbind(point);
     }
 
-    void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const uint32_t index) const {
+    void GpuBuffer::BindBase(const GpuBaseBindingPoint point, const u32 index) const {
         impl_->BindBase(point, index);
     }
 
@@ -238,11 +238,11 @@ namespace stratus {
         return impl_->IsMemoryMapped();
     }
 
-    uintptr_t GpuBuffer::SizeBytes() const {
+    usize GpuBuffer::SizeBytes() const {
         return impl_->SizeBytes();
     }
 
-    void GpuBuffer::CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data) {
+    void GpuBuffer::CopyDataToBuffer(isize offset, usize size, const void * data) {
         impl_->CopyDataToBuffer(offset, size, data);
     }
 
@@ -253,7 +253,7 @@ namespace stratus {
         impl_->CopyDataFromBuffer(*buffer.impl_);
     }
 
-    void GpuBuffer::CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data) {
+    void GpuBuffer::CopyDataFromBufferToSysMem(isize offset, usize size, void * data) {
         impl_->CopyDataFromBufferToSysMem(offset, size, data);
     }
 
@@ -261,7 +261,7 @@ namespace stratus {
         impl_->FinalizeMemory();
     }
 
-    GpuPrimitiveBuffer::GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage)
+    GpuPrimitiveBuffer::GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const usize sizeBytes, const Bitfield usage)
         : GpuBuffer(data, sizeBytes, usage),
           type_(type) {}
 
@@ -292,15 +292,15 @@ namespace stratus {
         buffers_->clear();
     }
 
-    size_t GpuArrayBuffer::GetNumBuffers() const {
+    usize GpuArrayBuffer::GetNumBuffers() const {
         return buffers_->size();
     }
 
-    GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) {
+    GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(usize index) {
         return *(*buffers_)[index];
     }
 
-    const GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(size_t index) const {
+    const GpuPrimitiveBuffer& GpuArrayBuffer::GetBuffer(usize index) const {
         return *(*buffers_)[index];
     }
 
@@ -330,8 +330,8 @@ namespace stratus {
     // It can support a maximum of UINT_MAX vertices and UINT_MAX indices.
     // class GpuMeshAllocator final {
     //     struct _MeshData {
-    //         size_t nextByte;
-    //         size_t lastByte;
+    //         usize nextByte;
+    //         usize lastByte;
     //     };
 
     //     GpuMeshAllocator() {}
@@ -340,16 +340,16 @@ namespace stratus {
     //     // Allocates 64-byte block vertex data where each element represents a GpuMeshData type.
     //     //
     //     // @return offset into global GPU vertex data array where data begins
-    //     static uint32_t AllocateVertexData(const uint32_t numVertices);
+    //     static u32 AllocateVertexData(const u32 numVertices);
     //     // @return offset into global GPU index data array where data begins
-    //     static uint32_t AllocateIndexData(const uint32_t numIndices);
+    //     static u32 AllocateIndexData(const u32 numIndices);
 
     //     // Deallocation
-    //     static void DeallocateVertexData(const uint32_t offset, const uint32_t numVertices);
-    //     static void DeallocateIndexData(const uint32_t offset, const uint32_t numIndices);
+    //     static void DeallocateVertexData(const u32 offset, const u32 numVertices);
+    //     static void DeallocateIndexData(const u32 offset, const u32 numIndices);
 
-    //     static void CopyVertexData(const std::vector<GpuMeshData>&, const uint32_t offset);
-    //     static void CopyIndexData(const std::vector<uint32_t>&, const uint32_t offset);
+    //     static void CopyVertexData(const std::vector<GpuMeshData>&, const u32 offset);
+    //     static void CopyIndexData(const std::vector<u32>&, const u32 offset);
 
     //     static void BindBase(const GpuBaseBindingPoint&);
 
@@ -372,14 +372,14 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeVertices_;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeIndices_;
     bool GpuMeshAllocator::initialized_ = false;
-    static constexpr size_t startVertices = 1024 * 1024 * 10;
-    static constexpr size_t minVerticesPerAlloc = startVertices; //1024 * 1024;
-    static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
-    static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
-    //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
-    //static constexpr size_t maxIndexBytes = startVertices * sizeof(uint32_t);
+    static constexpr usize startVertices = 1024 * 1024 * 10;
+    static constexpr usize minVerticesPerAlloc = startVertices; //1024 * 1024;
+    static constexpr usize maxVertexBytes = std::numeric_limits<u32>::max() * sizeof(GpuMeshData);
+    static constexpr usize maxIndexBytes = std::numeric_limits<u32>::max() * sizeof(u32);
+    //static constexpr usize maxVertexBytes = startVertices * sizeof(GpuMeshData);
+    //static constexpr usize maxIndexBytes = startVertices * sizeof(u32);
 
-    GpuMeshAllocator::_MeshData * GpuMeshAllocator::FindFreeSlot_(std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t bytes) {
+    GpuMeshAllocator::_MeshData * GpuMeshAllocator::FindFreeSlot_(std::vector<GpuMeshAllocator::_MeshData>& freeList, const usize bytes) {
         for (_MeshData& data : freeList) {
             auto remaining = RemainingBytes_(data);
             // TODO: Instead choose smallest buffer that will work rather than first available?
@@ -390,13 +390,13 @@ namespace stratus {
         return nullptr;
     }
 
-    uint32_t GpuMeshAllocator::AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+    u32 GpuMeshAllocator::AllocateData_(const u32 size, const usize byteMultiplier, const usize maxBytes, 
                                              GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
         assert(size > 0);
 
         _MeshData * dataPtr = &data;
-        const size_t totalSizeBytes = size_t(size) * byteMultiplier;
-        const size_t remainingBytes = RemainingBytes_(data);
+        const usize totalSizeBytes = usize(size) * byteMultiplier;
+        const usize remainingBytes = RemainingBytes_(data);
 
         if (totalSizeBytes > remainingBytes) {
             // See if one of the slots has data we can use
@@ -406,7 +406,7 @@ namespace stratus {
             }
             // If not perform a resize
             else {
-                const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVerticesPerAlloc) * byteMultiplier;
+                const usize newSizeBytes = data.lastByte + std::max(usize(size), minVerticesPerAlloc) * byteMultiplier;
                 if (newSizeBytes > maxBytes) {
                     throw std::runtime_error("Maximum GpuMesh bytes exceeded");
                 }
@@ -414,7 +414,7 @@ namespace stratus {
             }
         }
 
-        const uint32_t offset = dataPtr->nextByte / byteMultiplier;
+        const u32 offset = dataPtr->nextByte / byteMultiplier;
         dataPtr->nextByte += totalSizeBytes;
 
         // We pulled from a free list - delete if empty
@@ -428,15 +428,15 @@ namespace stratus {
         return offset;
     }
 
-    uint32_t GpuMeshAllocator::AllocateVertexData(const uint32_t numVertices) {
+    u32 GpuMeshAllocator::AllocateVertexData(const u32 numVertices) {
         return AllocateData_(numVertices, sizeof(GpuMeshData), maxVertexBytes, vertices_, lastVertex_, freeVertices_);
     }
 
-    uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
-        return AllocateData_(numIndices, sizeof(uint32_t), maxIndexBytes, indices_, lastIndex_, freeIndices_);
+    u32 GpuMeshAllocator::AllocateIndexData(const u32 numIndices) {
+        return AllocateData_(numIndices, sizeof(u32), maxIndexBytes, indices_, lastIndex_, freeIndices_);
     }
 
-    void GpuMeshAllocator::DeallocateData_(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t offsetBytes, const size_t lastByte) {
+    void GpuMeshAllocator::DeallocateData_(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const usize offsetBytes, const usize lastByte) {
         // If it's at the end just return it to the last vertex to allow O(1) allocation
         if (lastByte == last.lastByte) {
             last.nextByte = offsetBytes;
@@ -468,8 +468,8 @@ namespace stratus {
 
             // Try to merge any that we can
             if (freeList.size() > 1) {
-                size_t numElements = 1;
-                for (size_t i = 0; i < freeList.size() - 1; ++i) {
+                usize numElements = 1;
+                for (usize i = 0; i < freeList.size() - 1; ++i) {
                     _MeshData& current = freeList[i];
                     _MeshData& next = freeList[i + 1];
                     // See if current and next can be merged
@@ -489,7 +489,7 @@ namespace stratus {
                         [](const _MeshData& d) { return RemainingBytes_(d) != 0; }
                     );
                     auto removed = std::distance(it, freeList.end());
-                    for (int i = 0; i < removed; ++i) {
+                    for (i32 i = 0; i < removed; ++i) {
                         freeList.pop_back();
                     }
                 }
@@ -505,29 +505,29 @@ namespace stratus {
         }
     }
 
-    void GpuMeshAllocator::DeallocateVertexData(const uint32_t offset, const uint32_t numVertices) {
-        const size_t offsetBytes = offset * sizeof(GpuMeshData);
-        const size_t lastByte = offsetBytes + numVertices * sizeof(GpuMeshData);
+    void GpuMeshAllocator::DeallocateVertexData(const u32 offset, const u32 numVertices) {
+        const usize offsetBytes = offset * sizeof(GpuMeshData);
+        const usize lastByte = offsetBytes + numVertices * sizeof(GpuMeshData);
         DeallocateData_(lastVertex_, freeVertices_, offsetBytes, lastByte);
     }
 
-    void GpuMeshAllocator::DeallocateIndexData(const uint32_t offset, const uint32_t numIndices) {
-        const size_t offsetBytes = offset * sizeof(uint32_t);
-        const size_t lastByte = offsetBytes + numIndices * sizeof(uint32_t);
+    void GpuMeshAllocator::DeallocateIndexData(const u32 offset, const u32 numIndices) {
+        const usize offsetBytes = offset * sizeof(u32);
+        const usize lastByte = offsetBytes + numIndices * sizeof(u32);
         DeallocateData_(lastIndex_, freeIndices_, offsetBytes, lastByte);
     }
 
-    void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const uint32_t offset) {
-        const intptr_t byteOffset = intptr_t(offset) * sizeof(GpuMeshData);
+    void GpuMeshAllocator::CopyVertexData(const std::vector<GpuMeshData>& data, const u32 offset) {
+        const isize byteOffset = isize(offset) * sizeof(GpuMeshData);
         vertices_.CopyDataToBuffer(byteOffset, data.size() * sizeof(GpuMeshData), (const void *)data.data());
     }
 
-    void GpuMeshAllocator::CopyIndexData(const std::vector<uint32_t>& data, const uint32_t offset) {
-        const intptr_t byteOffset = intptr_t(offset) * sizeof(uint32_t);
-        indices_.CopyDataToBuffer(byteOffset, data.size() * sizeof(uint32_t), (const void *)data.data());
+    void GpuMeshAllocator::CopyIndexData(const std::vector<u32>& data, const u32 offset) {
+        const isize byteOffset = isize(offset) * sizeof(u32);
+        indices_.CopyDataToBuffer(byteOffset, data.size() * sizeof(u32), (const void *)data.data());
     }
 
-    void GpuMeshAllocator::BindBase(const GpuBaseBindingPoint& point, const uint32_t index) {
+    void GpuMeshAllocator::BindBase(const GpuBaseBindingPoint& point, const u32 index) {
         vertices_.BindBase(point, index);
     }
 
@@ -545,7 +545,7 @@ namespace stratus {
         lastVertex_.nextByte = 0;
         lastIndex_.nextByte = 0;
         Resize_(vertices_, lastVertex_, startVertices * sizeof(GpuMeshData));
-        Resize_(indices_, lastIndex_, startVertices * sizeof(uint32_t));
+        Resize_(indices_, lastIndex_, startVertices * sizeof(u32));
     }
 
     void GpuMeshAllocator::Shutdown_() {
@@ -554,7 +554,7 @@ namespace stratus {
         initialized_ = false;
     }
 
-    void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
+    void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const usize newSizeBytes) {
         STRATUS_LOG << "Resizing: " << newSizeBytes << std::endl;
         GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         // Null check
@@ -565,22 +565,22 @@ namespace stratus {
         buffer = resized;
     }
 
-    size_t GpuMeshAllocator::RemainingBytes_(const _MeshData& data) {
+    usize GpuMeshAllocator::RemainingBytes_(const _MeshData& data) {
         return data.lastByte - data.nextByte;
     }
 
-    uint32_t GpuMeshAllocator::FreeVertices() {
-        uint32_t vertices = static_cast<uint32_t>(RemainingBytes_(lastVertex_) / sizeof(GpuMeshData));
+    u32 GpuMeshAllocator::FreeVertices() {
+        u32 vertices = static_cast<u32>(RemainingBytes_(lastVertex_) / sizeof(GpuMeshData));
         for (auto& data : freeVertices_) {
-            vertices += static_cast<uint32_t>(RemainingBytes_(data) / sizeof(GpuMeshData));
+            vertices += static_cast<u32>(RemainingBytes_(data) / sizeof(GpuMeshData));
         }
         return vertices;
     }
 
-    uint32_t GpuMeshAllocator::FreeIndices() {
-        uint32_t indices = static_cast<uint32_t>(RemainingBytes_(lastIndex_) / sizeof(uint32_t));
+    u32 GpuMeshAllocator::FreeIndices() {
+        u32 indices = static_cast<u32>(RemainingBytes_(lastIndex_) / sizeof(u32));
         for (auto& data : freeIndices_) {
-            indices += static_cast<uint32_t>(RemainingBytes_(data) / sizeof(uint32_t));
+            indices += static_cast<u32>(RemainingBytes_(data) / sizeof(u32));
         }
         return indices;
     }

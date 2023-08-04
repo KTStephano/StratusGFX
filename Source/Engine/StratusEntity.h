@@ -11,6 +11,8 @@
 #include <shared_mutex>
 #include "StratusEntityCommon.h"
 #include "StratusPoolAllocator.h"
+#include "StratusCommon.h"
+#include "StratusTypes.h"
 
 template<typename E>
 std::string ClassName() {
@@ -18,7 +20,7 @@ std::string ClassName() {
 }
 
 template<typename E>
-size_t ClassHashCode() {
+stratus::usize ClassHashCode() {
     return typeid(E).hash_code();
 }
 
@@ -37,9 +39,9 @@ ComponentAllocator_<Component>& GetComponentAllocator_() {
 #define ENTITY_COMPONENT_STRUCT(name)                                                       \
     struct name final : public stratus::EntityComponent {                                   \
         static std::string STypeName() { return ClassName<name>(); }                        \
-        static size_t SHashCode() { return ClassHashCode<name>(); }                         \
+        static stratus::usize SHashCode() { return ClassHashCode<name>(); }                 \
         std::string TypeName() const override { return STypeName(); }                       \
-        size_t HashCode() const override { return SHashCode(); }                            \
+        stratus::usize HashCode() const override { return SHashCode(); }                    \
         bool operator==(const stratus::EntityComponent * other) const override {            \
             if (this == other) return true;                                                 \
             if (!other) return false;                                                       \
@@ -76,7 +78,7 @@ namespace stratus {
     struct EntityComponent {
         virtual ~EntityComponent() = default;
         virtual std::string TypeName() const = 0;
-        virtual size_t HashCode() const = 0;
+        virtual usize HashCode() const = 0;
         virtual bool operator==(const EntityComponent *) const = 0;
 
         virtual EntityComponent * Copy() const = 0;
@@ -99,7 +101,7 @@ namespace stratus {
         EntityComponentView(EntityComponent * c = nullptr)
             : component(c) {}
 
-        size_t HashCode() const {
+        usize HashCode() const {
             if (!component) return 0;
             return component->HashCode();
         }

@@ -23,17 +23,17 @@ namespace stratus {
     }
 
     bool EntityComponent::ChangedLastFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+        u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff == 1;
     }
 
     bool EntityComponent::ChangedThisFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+        u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff == 0;
     }
 
     bool EntityComponent::ChangedWithinLastFrame() const {
-        uint64_t diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+        u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
         return diff <= 1;
     }
 

@@ -3,9 +3,9 @@
 #include "StratusLog.h"
 
 namespace stratus {
-    GpuMaterialBuffer::GpuMaterialBuffer(size_t maxMaterials)
+    GpuMaterialBuffer::GpuMaterialBuffer(usize maxMaterials)
     {
-        maxMaterials = std::max<size_t>(1, maxMaterials);
+        maxMaterials = std::max<usize>(1, maxMaterials);
         materials_ = GpuTypedBuffer<GpuMaterial>::Create(maxMaterials, false);
     }
 
@@ -17,7 +17,7 @@ namespace stratus {
         return status == TextureLoadingStatus::LOADING_DONE;
     }
 
-    void GpuMaterialBuffer::CopyMaterialToGpuStaging_(const MaterialPtr& material, const int index) {
+    void GpuMaterialBuffer::CopyMaterialToGpuStaging_(const MaterialPtr& material, const i32 index) {
 
         auto mat = materials_->GetRead(index);
         GpuMaterial* gpuMaterial = &mat;
@@ -116,11 +116,11 @@ namespace stratus {
 
     void GpuMaterialBuffer::MarkMaterialsUsed(RenderComponent * component)
     {
-        for (size_t i = 0; i < component->GetMaterialCount(); ++i) {
+        for (usize i = 0; i < component->GetMaterialCount(); ++i) {
             auto material = component->GetMaterialAt(i);
 
             auto it = usedIndices_.find(material);
-            uint32_t index;
+            u32 index;
             // No materials currently reference this material so add a new entry
             if (it == usedIndices_.end()) {
                 index = materials_->Add(GpuMaterial());
@@ -129,7 +129,7 @@ namespace stratus {
                 availableMaterials_.insert(std::make_pair(material, std::unordered_set<RenderComponent *>()));
                 residentTexturesPerMaterial_.insert(std::make_pair(material, std::vector<TextureMemResidencyGuard>()));
 
-                CopyMaterialToGpuStaging_(material, static_cast<int>(index));
+                CopyMaterialToGpuStaging_(material, static_cast<i32>(index));
             }
             else {
                 index = it->second;
@@ -141,7 +141,7 @@ namespace stratus {
 
     void GpuMaterialBuffer::MarkMaterialsUnused(RenderComponent * component)
     {
-        for (size_t i = 0; i < component->GetMaterialCount(); ++i) {
+        for (usize i = 0; i < component->GetMaterialCount(); ++i) {
             auto material = component->GetMaterialAt(i);
             auto mcit = availableMaterials_.find(material);
             if (mcit == availableMaterials_.end()) continue;
@@ -161,7 +161,7 @@ namespace stratus {
         }
     }
 
-    uint32_t GpuMaterialBuffer::GetMaterialIndex(const MaterialPtr material) const
+    u32 GpuMaterialBuffer::GetMaterialIndex(const MaterialPtr material) const
     {
         auto it = usedIndices_.find(material);
         if (it == usedIndices_.end()) {
@@ -175,7 +175,7 @@ namespace stratus {
     {
         auto pending = std::move(pendingMaterials_);
         for (auto& p : pending) {
-            const int index = static_cast<int>(usedIndices_.find(p)->second);
+            const i32 index = static_cast<i32>(usedIndices_.find(p)->second);
             CopyMaterialToGpuStaging_(p, index);
         }
 

@@ -17,30 +17,31 @@
 #include <limits>
 #include <random>
 #include "StratusGpuCommon.h"
+#include "StratusTypes.h"
 
 #define STRATUS_PI 3.14159265358979323846
 
 namespace stratus {
 	class Degrees;
 	class Radians {
-		float rad_;
+		f32 rad_;
 
 	public:
 		Radians() : Radians(0.0f) {}
 		// Constructor assumes input is already in radians
-		explicit Radians(float rad) : rad_(rad) {}
+		explicit Radians(f32 rad) : rad_(rad) {}
 		Radians(const Degrees&);
 		Radians(const Radians&) = default;
 		Radians(Radians&&) = default;
 
-		float value() const { return rad_; }
+		f32 value() const { return rad_; }
 
-		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
-		Radians operator*(const float f) const { return Radians(value() * f); }
-		Radians operator/(const float f) const { return Radians(value() / f); }
+		// We allow * and / with a f32 to act as scaling, but + and - should be with either Radians or Degrees
+		Radians operator*(const f32 f) const { return Radians(value() * f); }
+		Radians operator/(const f32 f) const { return Radians(value() / f); }
 		
-		Radians& operator*=(const float f) { rad_ *= f; return *this; }
-		Radians& operator/=(const float f) { rad_ /= f; return *this; }
+		Radians& operator*=(const f32 f) { rad_ *= f; return *this; }
+		Radians& operator/=(const f32 f) { rad_ /= f; return *this; }
 
 		// Operators which require no conversions
 		Radians& operator=(const Radians&) = default;
@@ -76,24 +77,24 @@ namespace stratus {
 	};
 
 	class Degrees {
-		float deg_;
+		f32 deg_;
 	
 	public:
 		Degrees() : Degrees(0.0f) {}
 		// Constructor assumes input is already in degrees
-		explicit Degrees(float deg) : deg_(deg) {}
+		explicit Degrees(f32 deg) : deg_(deg) {}
 		Degrees(const Radians&);
 		Degrees(const Degrees&) = default;
 		Degrees(Degrees&&) = default;
 
-		float value() const { return deg_; }
+		f32 value() const { return deg_; }
 
-		// We allow * and / with a float to act as scaling, but + and - should be with either Radians or Degrees
-		Degrees operator*(const float f) const { return Degrees(value() * f); }
-		Degrees operator/(const float f) const { return Degrees(value() / f); }
+		// We allow * and / with a f32 to act as scaling, but + and - should be with either Radians or Degrees
+		Degrees operator*(const f32 f) const { return Degrees(value() * f); }
+		Degrees operator/(const f32 f) const { return Degrees(value() / f); }
 		
-		Degrees& operator*=(const float f) { deg_ *= f; return *this; }
-		Degrees& operator/=(const float f) { deg_ /= f; return *this; }
+		Degrees& operator*=(const f32 f) { deg_ *= f; return *this; }
+		Degrees& operator/=(const f32 f) { deg_ /= f; return *this; }
 
 		// Operators which require no conversions
 		Degrees& operator=(const Degrees&) = default;
@@ -185,7 +186,7 @@ namespace stratus {
         glm::vec2 deltaUV2 = uv3 - uv1;
 
         // Compute the determinant
-        float uvDet = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+        f32 uvDet = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
 
         glm::vec3 tangent(
             ((edge1.x * deltaUV2.y) - (edge2.x * deltaUV1.y)) * uvDet,
@@ -203,13 +204,13 @@ namespace stratus {
     }
 
     static void matRotate(glm::mat4& out, const Rotation& rotation) {
-        float cx = cosine(rotation.x).value();
-        float cy = cosine(rotation.y).value();
-        float cz = cosine(rotation.z).value();
+        f32 cx = cosine(rotation.x).value();
+        f32 cy = cosine(rotation.y).value();
+        f32 cz = cosine(rotation.z).value();
 
-        float sx = sine(rotation.x).value();
-        float sy = sine(rotation.y).value();
-        float sz = sine(rotation.z).value();
+        f32 sx = sine(rotation.x).value();
+        f32 sy = sine(rotation.y).value();
+        f32 sz = sine(rotation.z).value();
 
         out[0] = glm::vec4(cy * cz,
             sx * sy * cz + cx * sz,
@@ -293,11 +294,11 @@ namespace stratus {
 
     // See http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-17-quaternions/
     static glm::mat4 RotationAboutAxis(const glm::vec3& axis, const Radians& angle) {
-        const float halfAngle = angle.value() / 2.0f;
-        const float x = axis.x * glm::sin(halfAngle);
-        const float y = axis.y * glm::sin(halfAngle);
-        const float z = axis.z * glm::sin(halfAngle);
-        const float w = glm::cos(halfAngle);
+        const f32 halfAngle = angle.value() / 2.0f;
+        const f32 x = axis.x * glm::sin(halfAngle);
+        const f32 y = axis.y * glm::sin(halfAngle);
+        const f32 z = axis.z * glm::sin(halfAngle);
+        const f32 w = glm::cos(halfAngle);
 
         const auto rotation = glm::quat(w, x, y, z);
 
@@ -322,8 +323,8 @@ namespace stratus {
         // column-major GLM matrix
         aiMatrix4x4 aim = _aim;
         aim = aim.Transpose();
-        for (size_t i = 0; i < 4; ++i) {
-            for (size_t j = 0; j < 4; ++j) {
+        for (usize i = 0; i < 4; ++i) {
+            for (usize j = 0; j < 4; ++j) {
                 gm[i][j] = aim[i][j];
             }
         }
@@ -332,8 +333,8 @@ namespace stratus {
 
     // static glm::mat4 ToMat4(const aiMatrix3x3& aim) {
     //     glm::mat4 gm(1.0f);
-    //     for (size_t i = 0; i < 3; ++i) {
-    //         for (size_t j = 0; j < 3; ++j) {
+    //     for (usize i = 0; i < 3; ++i) {
+    //         for (usize j = 0; j < 3; ++j) {
     //             gm[i][j] = aim[i][j];
     //         }
     //     }
@@ -344,7 +345,7 @@ namespace stratus {
     // is logarithmically spaced.
     // See https://www.codeproject.com/Questions/188926/Generating-a-logarithmically-spaced-numbers
     template<typename T>
-    static std::vector<T> LogSpace(const T start, const T end, const size_t count) {
+    static std::vector<T> LogSpace(const T start, const T end, const usize count) {
         if (count < 2 || end <= start || start < 1) throw std::runtime_error("Bad range to LogSpace");
 
         const T logBase = M_E;
@@ -354,7 +355,7 @@ namespace stratus {
         
         std::vector<T> result(count);
         T accDelta = T(0);
-        for (size_t i = 0; i < count; ++i) {
+        for (usize i = 0; i < count; ++i) {
             result[i] = std::pow(logBase, logMin + accDelta);
             accDelta += delta;
         }
@@ -367,7 +368,7 @@ namespace stratus {
         const glm::vec4 vmin = aabb.vmin.ToVec4();
         const glm::vec4 vmax = aabb.vmax.ToVec4();
 
-        for (int i = 0; i < 6; ++i) {
+        for (i32 i = 0; i < 6; ++i) {
             const glm::vec4& g = frustumPlanes[i];
             if ((glm::dot(g, glm::vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
                 (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
@@ -387,7 +388,7 @@ namespace stratus {
 
     template<typename Array>
     bool IsPointInFrustum(const glm::vec3& point, const Array& frustumPlanes) {
-        for (int i = 0; i < 6; ++i) {
+        for (i32 i = 0; i < 6; ++i) {
             const glm::vec4& g = frustumPlanes[i];
             if (glm::dot(g, glm::vec4(point, 1.0f)) < 0.0) {
                 return false;
@@ -398,10 +399,10 @@ namespace stratus {
     }
 
     template<typename Array>
-    bool IsSphereInFrustum(const glm::vec3& center, const float radius, const Array& frustumPlanes) {
-        for (int i = 0; i < 6; ++i) {
+    bool IsSphereInFrustum(const glm::vec3& center, const f32 radius, const Array& frustumPlanes) {
+        for (i32 i = 0; i < 6; ++i) {
             const glm::vec4& g = frustumPlanes[i];
-            const float distance = glm::dot(g, glm::vec4(center, 1.0f));
+            const f32 distance = glm::dot(g, glm::vec4(center, 1.0f));
 
             if (distance < -radius) {
                 return false;
@@ -412,10 +413,10 @@ namespace stratus {
     }
 
     // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
-    inline float DistanceFromPointToAABB(const glm::vec3& point, const GpuAABB& aabb) {
-        float dx = std::max<float>(aabb.vmin.v[0] - point.x, std::max<float>(0.0f, point.x - aabb.vmax.v[0]));
-        float dy = std::max<float>(aabb.vmin.v[1] - point.y, std::max<float>(0.0f, point.y - aabb.vmax.v[1]));
-        float dz = std::max<float>(aabb.vmin.v[2] - point.z, std::max<float>(0.0f, point.z - aabb.vmax.v[2]));
+    inline f32 DistanceFromPointToAABB(const glm::vec3& point, const GpuAABB& aabb) {
+        f32 dx = std::max<f32>(aabb.vmin.v[0] - point.x, std::max<f32>(0.0f, point.x - aabb.vmax.v[0]));
+        f32 dy = std::max<f32>(aabb.vmin.v[1] - point.y, std::max<f32>(0.0f, point.y - aabb.vmax.v[1]));
+        f32 dz = std::max<f32>(aabb.vmin.v[2] - point.z, std::max<f32>(0.0f, point.z - aabb.vmax.v[2]));
 
         return std::sqrt(dx * dx + dy * dy + dz + dz);
     }
@@ -423,7 +424,7 @@ namespace stratus {
     // These are the first 512 values of the Halton sequence. For more information see:
     //     https://en.wikipedia.org/wiki/Halton_sequence
     //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
-    static const std::vector<std::pair<float, float>> haltonSequence = {
+    static const std::vector<std::pair<f32, f32>> haltonSequence = {
         {1.0f / 2.0f, 1.0f / 3.0f},
         {1.0f / 4.0f, 2.0f / 3.0f},
         {3.0f / 4.0f, 1.0f / 9.0f},
@@ -939,18 +940,18 @@ namespace stratus {
     };
 
     // Interval is [0, 1)
-    inline float RandomFloat() {
+    inline f32 RandomFloat() {
         static std::random_device device;
         static std::mt19937 generator(device());
         static std::uniform_real_distribution<> distribution(0.0, 1.0);
-        return static_cast<float>(distribution(generator));
+        return static_cast<f32>(distribution(generator));
     }
 
-    inline float RandomFloat(const float fmin, const float fmax) {
+    inline f32 RandomFloat(const f32 fmin, const f32 fmax) {
         return fmin + (fmax - fmin) * RandomFloat();
     }
 
-    inline glm::vec3 RandomVector(const float fmin, const float fmax) {
+    inline glm::vec3 RandomVector(const f32 fmin, const f32 fmax) {
         return glm::vec3(RandomFloat(fmin, fmax), RandomFloat(fmin, fmax), RandomFloat(fmin, fmax));
     }
 
@@ -962,10 +963,10 @@ namespace stratus {
     // Also keep in mind this function generates points within the sphere. It's not trying to generate surface points.
     // Source is here: https://github.com/RayTracing/raytracing.github.io/blob/master/src/common/vec3.h
     inline glm::vec3 RandomPointInUnitSphere() {
-        static constexpr float radius = 1.0f;
+        static constexpr f32 radius = 1.0f;
         while (true) {
             const glm::vec3 position = RandomVector(-1.0f, 1.0f);
-            const float lengthSquared = glm::dot(position, position);
+            const f32 lengthSquared = glm::dot(position, position);
             if (lengthSquared >= radius) continue;
             return position;
         }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include "StratusTypes.h"
 
 namespace stratus {
     template<typename T>
@@ -13,7 +14,7 @@ namespace stratus {
     template<typename T, typename Deleter>
     struct UnsafePtrControlBlock_ {
         Deleter deleter;
-        size_t refcount = 1;
+        usize refcount = 1;
         T * ptr = nullptr;
 
         UnsafePtrControlBlock_(T * ptr, Deleter deleter)
@@ -127,7 +128,7 @@ namespace stratus {
             control_ = nullptr;
         }
 
-        size_t RefCount() const {
+        usize RefCount() const {
             return control_ == nullptr ? 0 : control_->refcount;
         }
 

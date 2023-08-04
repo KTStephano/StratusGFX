@@ -30,6 +30,7 @@
 #include "StratusStackAllocator.h"
 #include <set>
 #include "StratusGpuCommandBuffer.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     class Pipeline;
@@ -42,9 +43,9 @@ namespace stratus {
 
     extern bool IsRenderable(const EntityPtr&);
     extern bool IsLightInteracting(const EntityPtr&);
-    extern size_t GetMeshCount(const EntityPtr&);
+    extern usize GetMeshCount(const EntityPtr&);
 
-    enum class RendererCascadeResolution : int {
+    enum class RendererCascadeResolution : i32 {
         CASCADE_RESOLUTION_1024 = 1024,
         CASCADE_RESOLUTION_2048 = 2048,
         CASCADE_RESOLUTION_4096 = 4096,
@@ -54,7 +55,7 @@ namespace stratus {
     struct RenderMeshContainer {
         RenderComponent * render = nullptr;
         MeshWorldTransforms * transform = nullptr;
-        size_t meshIndex = 0;
+        usize meshIndex = 0;
     };
 
     typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
@@ -63,18 +64,18 @@ namespace stratus {
     //     std::vector<glm::mat4> modelMatrices;
     //     std::vector<glm::vec3> diffuseColors;
     //     std::vector<glm::vec3> baseReflectivity;
-    //     std::vector<float> roughness;
-    //     std::vector<float> metallic;
+    //     std::vector<f32> roughness;
+    //     std::vector<f32> metallic;
     //     GpuArrayBuffer buffers;
-    //     size_t size = 0;    
+    //     usize size = 0;    
     //     // if true, regenerate buffers
     //     bool dirty;
     // };
 
     struct RendererMouseState {
-        int32_t x;
-        int32_t y;
-        uint32_t mask;
+        i32 x;
+        i32 y;
+        u32 mask;
     };
 
     typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
@@ -90,21 +91,21 @@ namespace stratus {
         glm::vec4 cascadePlane;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
-        float cascadeRadius;
-        float cascadeBegins;
-        float cascadeEnds;
+        f32 cascadeRadius;
+        f32 cascadeBegins;
+        f32 cascadeEnds;
     };
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
-        uint32_t cascadeResolutionXY;
+        u32 cascadeResolutionXY;
         InfiniteLightPtr worldLight;
         CameraPtr worldLightCamera;
         glm::vec3 worldLightDirectionCameraSpace;
-        float znear;
-        float zfar;
+        f32 znear;
+        f32 zfar;
         bool regenerateFbo;    
     };
 
@@ -173,7 +174,7 @@ namespace stratus {
             existing_.clear();
         }
 
-        size_t Size() const {
+        usize Size() const {
             return queue_.size();
         }
 
@@ -195,108 +196,108 @@ namespace stratus {
         RendererCascadeResolution cascadeResolution = RendererCascadeResolution::CASCADE_RESOLUTION_1024;
         // Records how much temporary memory the renderer is allowed to use
         // per frame
-        size_t perFrameMaxScratchMemoryBytes = 134217728; // 128 mb
+        usize perFrameMaxScratchMemoryBytes = 134217728; // 128 mb
 
-        float GetEmissionStrength() const {
+        f32 GetEmissionStrength() const {
             return emissionStrength_;
         }
 
-        void SetEmissionStrength(const float strength) {
-            emissionStrength_ = std::max<float>(strength, 0.0f);
+        void SetEmissionStrength(const f32 strength) {
+            emissionStrength_ = std::max<f32>(strength, 0.0f);
         }
 
-        float GetEmissiveTextureMultiplier() const {
+        f32 GetEmissiveTextureMultiplier() const {
             return emissiveTextureMultiplier_;
         }
 
-        void SetEmissiveTextureMultiplier(const float multiplier) {
-            emissiveTextureMultiplier_ = std::max<float>(multiplier, 0.0f);
+        void SetEmissiveTextureMultiplier(const f32 multiplier) {
+            emissiveTextureMultiplier_ = std::max<f32>(multiplier, 0.0f);
         }
 
         glm::vec3 GetFogColor() const {
             return fogColor_;
         }
 
-        float GetFogDensity() const {
+        f32 GetFogDensity() const {
             return fogDensity_;
         }
 
         void SetFogColor(const glm::vec3& color) {
             fogColor_ = glm::vec3(
-                std::max<float>(color[0], 0.0f),
-                std::max<float>(color[1], 0.0f),
-                std::max<float>(color[2], 0.0f)
+                std::max<f32>(color[0], 0.0f),
+                std::max<f32>(color[1], 0.0f),
+                std::max<f32>(color[2], 0.0f)
             );
         }
 
-        void SetFogDensity(const float density) {
-            fogDensity_ = std::max<float>(density, 0.0f);
+        void SetFogDensity(const f32 density) {
+            fogDensity_ = std::max<f32>(density, 0.0f);
         }
 
         glm::vec3 GetSkyboxColorMask() const {
             return skyboxColorMask_;
         }
 
-        float GetSkyboxIntensity() const {
+        f32 GetSkyboxIntensity() const {
             return skyboxIntensity_;
         }
 
         void SetSkyboxColorMask(const glm::vec3& mask) {
             skyboxColorMask_ = glm::vec3(
-                std::max<float>(mask[0], 0.0f),
-                std::max<float>(mask[1], 0.0f),
-                std::max<float>(mask[2], 0.0f)
+                std::max<f32>(mask[0], 0.0f),
+                std::max<f32>(mask[1], 0.0f),
+                std::max<f32>(mask[2], 0.0f)
             );
         }
 
-        void SetSkyboxIntensity(const float intensity) {
-            skyboxIntensity_ = std::max<float>(intensity, 0.0f);
+        void SetSkyboxIntensity(const f32 intensity) {
+            skyboxIntensity_ = std::max<f32>(intensity, 0.0f);
         }
 
-        float GetMinRoughness() const {
+        f32 GetMinRoughness() const {
             return minRoughness_;
         }
 
-        void SetMinRoughness(const float roughness) {
-            minRoughness_ = std::max<float>(roughness, 0.0f);
+        void SetMinRoughness(const f32 roughness) {
+            minRoughness_ = std::max<f32>(roughness, 0.0f);
         }
 
-        void SetAlphaDepthTestThreshold(const float threshold) {
-            alphaDepthTestThreshold_ = std::clamp<float>(threshold, 0.0f, 1.0f);
+        void SetAlphaDepthTestThreshold(const f32 threshold) {
+            alphaDepthTestThreshold_ = std::clamp<f32>(threshold, 0.0f, 1.0f);
         }
 
-        float GetAlphaDepthTestThreshold() const {
+        f32 GetAlphaDepthTestThreshold() const {
             return alphaDepthTestThreshold_;
         }
 
         // Values of 1.0 mean that GI occlusion will result in harsh shadow cutoffs
         // Values < 1.0 effectively brighten the scene
-        void SetMinGiOcclusionFactor(const float value) {
-            minGiOcclusionFactor_ = std::clamp<float>(value, 0.0f, 1.0f);
+        void SetMinGiOcclusionFactor(const f32 value) {
+            minGiOcclusionFactor_ = std::clamp<f32>(value, 0.0f, 1.0f);
         }
 
-        float GetMinGiOcclusionFactor() const {
+        f32 GetMinGiOcclusionFactor() const {
             return minGiOcclusionFactor_;
         }
 
     private:
         // These are all values we need to range check when they are set
         glm::vec3 fogColor_ = glm::vec3(0.5f);
-        float fogDensity_ = 0.0f;
-        float emissionStrength_ = 0.0f;
+        f32 fogDensity_ = 0.0f;
+        f32 emissionStrength_ = 0.0f;
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
-        float skyboxIntensity_ = 3.0f;
-        float minRoughness_ = 0.08f;
-        float alphaDepthTestThreshold_ = 0.5f;
+        f32 skyboxIntensity_ = 3.0f;
+        f32 minRoughness_ = 0.08f;
+        f32 alphaDepthTestThreshold_ = 0.5f;
         // This works as a multiplicative effect on top of emission strength
-        float emissiveTextureMultiplier_ = 1.0f;
-        float minGiOcclusionFactor_ = 0.95f;
+        f32 emissiveTextureMultiplier_ = 1.0f;
+        f32 minGiOcclusionFactor_ = 0.95f;
     };
 
     // Represents data for current active frame
     struct RendererFrame {
-        uint32_t viewportWidth;
-        uint32_t viewportHeight;
+        u32 viewportWidth;
+        u32 viewportHeight;
         Radians fovy;
         CameraPtr camera;
         std::vector<glm::vec4, StackBasedPoolAllocator<glm::vec4>> viewFrustumPlanes;
@@ -307,8 +308,8 @@ namespace stratus {
         std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpdate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
-        float znear;
-        float zfar;
+        f32 znear;
+        f32 zfar;
         glm::mat4 projection;
         glm::mat4 view;
         glm::mat4 projectionView;
@@ -343,10 +344,10 @@ namespace stratus {
 
         struct VirtualPointLightData {
             // For splitting viewport into tiles
-            const int tileXDivisor = 5;
-            const int tileYDivisor = 5;
+            const i32 tileXDivisor = 5;
+            const i32 tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
-            int vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
+            i32 vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
             //GpuBuffer vplDiffuseMaps;
             //GpuBuffer vplShadowMaps;
             GpuBuffer shadowDiffuseIndices;
@@ -363,10 +364,10 @@ namespace stratus {
         };
 
         struct RenderState {
-            int numRegularShadowMaps = 200;
-            int shadowCubeMapX = 256, shadowCubeMapY = 256;
-            int maxShadowCastingLightsPerFrame = 200; // per frame
-            int maxTotalRegularLightsPerFrame = 200; // per frame
+            i32 numRegularShadowMaps = 200;
+            i32 shadowCubeMapX = 256, shadowCubeMapY = 256;
+            i32 maxShadowCastingLightsPerFrame = 200; // per frame
+            i32 maxTotalRegularLightsPerFrame = 200; // per frame
             GpuBuffer nonShadowCastingPointLights;
             //GpuBuffer shadowCubeMaps;
             GpuBuffer shadowIndices;
@@ -375,7 +376,7 @@ namespace stratus {
             // How many shadow maps can be rebuilt each frame
             // Lights are inserted into a queue to prevent any light from being
             // over updated or neglected
-            int maxShadowUpdatesPerFrame = 3;
+            i32 maxShadowUpdatesPerFrame = 3;
             //std::shared_ptr<Camera> camera;
             Pipeline * currentShader = nullptr;
             // Buffer where all color data is written
@@ -409,10 +410,10 @@ namespace stratus {
             // Need to keep track of these to clear them at the end of each frame
             std::vector<GpuArrayBuffer> gpuBuffers;
             // For everything else including bloom post-processing
-            int numBlurIterations = 10;
+            i32 numBlurIterations = 10;
             // Might change from frame to frame
-            int numDownsampleIterations = 0;
-            int numUpsampleIterations = 0;
+            i32 numDownsampleIterations = 0;
+            i32 numUpsampleIterations = 0;
             std::vector<PostFXBuffer> gaussianBuffers;
             std::vector<PostFXBuffer> postFxBuffers;
             // Handles atmospheric post processing
@@ -549,7 +550,7 @@ namespace stratus {
         bool isValid_ = false;
 
     public:
-        explicit RendererBackend(const uint32_t width, const uint32_t height, const std::string&);
+        explicit RendererBackend(const u32 width, const u32 height, const std::string&);
         ~RendererBackend();
 
         /**
@@ -585,7 +586,7 @@ namespace stratus {
         void Begin(const std::shared_ptr<RendererFrame>&, bool clearScreen);
 
         // Takes all state set during Begin and uses it to render the scene
-        void RenderScene(const double);
+        void RenderScene(const f64);
 
         /**
          * Finalizes the current scene and displays it.
@@ -601,9 +602,9 @@ namespace stratus {
     private:
         struct VplDistKey_ {
             LightPtr key;
-            double distance = 0.0;
+            f64 distance = 0.0;
 
-            VplDistKey_(const LightPtr& key = nullptr, const double distance = 0.0)
+            VplDistKey_(const LightPtr& key = nullptr, const f64 distance = 0.0)
                 : key(key), distance(distance) {}
 
             bool operator<(const VplDistKey_& other) const {
@@ -631,7 +632,7 @@ namespace stratus {
         void InitPointShadowMaps_();
         // void _InitAllEntityMeshData();
         void InitCoreCSMData_(Pipeline *);
-        void InitLights_(Pipeline * s, const VplDistVector_& lights, const size_t maxShadowLights);
+        void InitLights_(Pipeline * s, const VplDistVector_& lights, const usize maxShadowLights);
         void InitSSAO_();
         void InitAtmosphericShadowing_();
         // void _InitEntityMeshData(RendererEntityData &);
@@ -661,12 +662,12 @@ namespace stratus {
             VplDistVector_&,
             VplDistMultiSet_&,
             VplDistVector_&,
-            std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices
+            std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices
         );
-        void PerformVirtualPointLightCullingStage1_(VplDistVector_&, std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices);
-        //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
+        void PerformVirtualPointLightCullingStage1_(VplDistVector_&, std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices);
+        //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, f64>>&, const std::vector<i32>& visibleVplIndices);
         void PerformVirtualPointLightCullingStage2_(const VplDistVector_&);
-        void ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_&, const double);
+        void ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_&, const f64);
         void RenderCSMDepth_();
         void RenderQuad_();
         void RenderSkybox_(Pipeline *, const glm::mat4&);
@@ -677,7 +678,7 @@ namespace stratus {
         void RenderSsaoBlur_();
         glm::vec3 CalculateAtmosphericLightPosition_() const;
         void RenderAtmosphericShadowing_();
-        ShadowMapCache CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl, const TextureComponentSize&);
+        ShadowMapCache CreateShadowMap3DCache_(u32 resolutionX, u32 resolutionY, u32 count, bool vpl, const TextureComponentSize&);
         GpuAtlasEntry GetOrAllocateShadowMapForLight_(LightPtr);
         void SetLightShadowMap3D_(LightPtr, GpuAtlasEntry);
         GpuAtlasEntry EvictLightFromShadowMapCache_(LightPtr);

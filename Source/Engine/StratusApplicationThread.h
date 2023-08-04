@@ -5,6 +5,7 @@
 #include <vector>
 #include <list>
 #include <mutex>
+#include "StratusTypes.h"
 
 void EnsureIsApplicationThread();
 #define CHECK_IS_APPLICATION_THREAD() EnsureIsApplicationThread()

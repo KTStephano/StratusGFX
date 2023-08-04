@@ -9,6 +9,7 @@
 #include <memory>
 #include "StratusLog.h"
 #include "StratusEngine.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     class InfiniteLight;
@@ -22,10 +23,10 @@ namespace stratus {
         SPOTLIGHT
     };
 
-    constexpr float maxLightColor = 10000.0f;
-    constexpr float minLightColor = 0.25f;
-    constexpr float maxAmbientIntensity = 0.02;
-    constexpr float minAmbientIntensity = 0.001;
+    constexpr f32 maxLightColor = 10000.0f;
+    constexpr f32 minLightColor = 0.25f;
+    constexpr f32 maxAmbientIntensity = 0.02;
+    constexpr f32 minAmbientIntensity = 0.001;
 
     // Serves as a global world light
     class InfiniteLight {
@@ -34,18 +35,18 @@ namespace stratus {
         Rotation rotation_;
         // Used to calculate ambient intensity based on sun orientation
         stratus::Radians rotSine_;
-        float intensity_ = 4.0f;
-        float ambientIntensity_ = minAmbientIntensity;
+        f32 intensity_ = 4.0f;
+        f32 ambientIntensity_ = minAmbientIntensity;
         bool enabled_ = true;
         bool runAlphaTest_ = true;
         // This is the number of rays we march per pixel to determine the final
         // atmospheric value
         int numAtmosphericSamples_ = 64;
-        float particleDensity_ = 0.002f;
+        f32 particleDensity_ = 0.002f;
         // If > 1, then backscattered light will be greater than forwardscattered light
-        float scatterControl_ = 0.004f; // 0.004 is roughly a G of 0.7
+        f32 scatterControl_ = 0.004f; // 0.004 is roughly a G of 0.7
         glm::vec3 atmosphereColor_ = glm::vec3(1.0f);
-        float depthBias_ = 0.0f;
+        f32 depthBias_ = 0.0f;
 
     public:
         InfiniteLight(const bool enabled = true)
@@ -81,7 +82,7 @@ namespace stratus {
             SetRotation(rot);
         }
 
-        float GetIntensity() const { 
+        f32 GetIntensity() const { 
             // Reduce light intensity as sun goes down
             // if (rotSine_.value() < 0.0f) {
             //     return std::max(minLightColor, intensity_ * (1.0f + rotSine_.value()));
@@ -89,10 +90,10 @@ namespace stratus {
             return intensity_; 
         }
 
-        void SetIntensity(float intensity) { intensity_ = std::max(intensity, 0.0f); }
+        void SetIntensity(f32 intensity) { intensity_ = std::max(intensity, 0.0f); }
 
-        float GetAmbientIntensity() const { 
-            //const float ambient = _rotSine.value() * maxAmbientIntensity;
+        f32 GetAmbientIntensity() const { 
+            //const f32 ambient = _rotSine.value() * maxAmbientIntensity;
             //return std::min(maxAmbientIntensity, std::max(ambient, minAmbientIntensity));
             return minAmbientIntensity;
         }
@@ -106,7 +107,7 @@ namespace stratus {
         bool GetAlphaTest() const { return runAlphaTest_; }
 
         // If scatterControl > 1, then backscattered light will be greater than forwardscattered light
-        void SetAtmosphericLightingConstants(float particleDensity, float scatterControl) {
+        void SetAtmosphericLightingConstants(f32 particleDensity, f32 scatterControl) {
             particleDensity_ = std::max(0.0f, std::min(particleDensity, 1.0f));
             scatterControl_ = std::max(0.0f, scatterControl);
         }
@@ -124,11 +125,11 @@ namespace stratus {
             return numAtmosphericSamples_;
         }
 
-        float GetAtmosphericParticleDensity() const {
+        f32 GetAtmosphericParticleDensity() const {
             return particleDensity_;
         }
 
-        float GetAtmosphericScatterControl() const {
+        f32 GetAtmosphericScatterControl() const {
             return scatterControl_;
         }
 
@@ -136,11 +137,11 @@ namespace stratus {
             return atmosphereColor_;
         }
 
-        float GetDepthBias() const {
+        f32 GetDepthBias() const {
             return depthBias_;
         }
 
-        void SetDepthBias(const float bias) {
+        void SetDepthBias(const f32 bias) {
             depthBias_ = bias;
         }
 
@@ -154,10 +155,10 @@ namespace stratus {
         glm::vec3 position_ = glm::vec3(0.0f);
         glm::vec3 color_ = glm::vec3(1.0f);
         glm::vec3 baseColor_ = color_;
-        uint64_t lastFramePositionChanged_ = 0;
-        uint64_t lastFrameRadiusChanged_ = 0;
-        float intensity_ = 200.0f;
-        float radius_ = 1.0f;
+        u64 lastFramePositionChanged_ = 0;
+        u64 lastFrameRadiusChanged_ = 0;
+        f32 intensity_ = 200.0f;
+        f32 radius_ = 1.0f;
         bool castsShadows_ = true;
         // If virtual we intend to use it less as a natural light and more
         // as a way of simulating bounce lighting
@@ -207,7 +208,7 @@ namespace stratus {
          * number > 0.0 for each color component. To make this
          * work, HDR support is required.
          */
-        void SetColor(float r, float g, float b) {
+        void SetColor(f32 r, f32 g, f32 b) {
             r = std::max(0.0f, r);
             g = std::max(0.0f, g);
             b = std::max(0.0f, b);
@@ -227,19 +228,19 @@ namespace stratus {
          * should be.
          * @param i
          */
-        void SetIntensity(float i) {
+        void SetIntensity(f32 i) {
             if (i < 0) return;
             intensity_ = i;
             RecalcColorWithIntensity_();
             RecalcRadius_();
         }
 
-        float GetIntensity() const {
+        f32 GetIntensity() const {
             return intensity_;
         }
 
         // Gets radius but bounded
-        virtual float GetRadius() const {
+        virtual f32 GetRadius() const {
             return std::max(150.0f, radius_);
         }
 
@@ -267,9 +268,9 @@ namespace stratus {
     private:
         // See https://learnopengl.com/Advanced-Lighting/Deferred-Shading for the equation
         void RecalcRadius_() {
-            static const float lightMin = 256.0 / 5;
+            static const f32 lightMin = 256.0 / 5;
             const glm::vec3 intensity = GetColor(); // Factors in intensity already
-            const float Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
+            const f32 Imax = std::max(intensity.x, std::max(intensity.y, intensity.z));
             //_radius = sqrtf(4.0f * (Imax * lightMin - 1.0f)) / 2.0f;
             radius_ = sqrtf(Imax * lightMin - 1.0f) * 2.0f;
             lastFrameRadiusChanged_ = INSTANCE(Engine)->FrameCount();
@@ -288,8 +289,8 @@ namespace stratus {
         // ShadowMapHandle _shadowHap = -1;
 
         // These are used to set up the light view matrix
-        float lightNearPlane = 0.1f;
-        float lightFarPlane = 500.0f;
+        f32 lightNearPlane = 0.1f;
+        f32 lightFarPlane = 500.0f;
 
     protected:
         PointLight(const bool virtualLight, const bool staticLight) 
@@ -308,16 +309,16 @@ namespace stratus {
         //     return this->_shadowHap;
         // }
 
-        void SetNearFarPlane(float nearPlane, float farPlane) {
+        void SetNearFarPlane(f32 nearPlane, f32 farPlane) {
             this->lightNearPlane = nearPlane;
             this->lightFarPlane = farPlane;
         }
 
-        float GetNearPlane() const {
+        f32 GetNearPlane() const {
             return this->lightNearPlane;
         }
 
-        float GetFarPlane() const {
+        f32 GetFarPlane() const {
             //return this->lightFarPlane;
             return this->GetRadius();
         }
@@ -342,8 +343,8 @@ namespace stratus {
         VirtualPointLight() : PointLight(/* virtualLight = */ true, /* staticLight = */ true) {}
         virtual ~VirtualPointLight() = default;
 
-        void SetNumShadowSamples(uint32_t samples) { numShadowSamples_ = samples; }
-        uint32_t GetNumShadowSamples() const { return numShadowSamples_; }
+        void SetNumShadowSamples(u32 samples) { numShadowSamples_ = samples; }
+        u32 GetNumShadowSamples() const { return numShadowSamples_; }
 
         // This MUST be done or else the engine makes copies and it will defer
         // to PointLight instead of this and then cause horrible strange errors
@@ -351,12 +352,12 @@ namespace stratus {
             return LightPtr(new VirtualPointLight(*this));
         }
 
-        virtual float GetRadius() const override {
+        virtual f32 GetRadius() const override {
             return std::max(500.0f, radius_);
         }
 
     private:
-        uint32_t numShadowSamples_ = 3;
+        u32 numShadowSamples_ = 3;
     };
 }
 

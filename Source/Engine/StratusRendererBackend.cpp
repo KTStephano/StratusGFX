@@ -29,11 +29,11 @@ bool IsLightInteracting(const EntityPtr& p) {
     return component.status == EntityComponentStatus::COMPONENT_ENABLED;
 }
 
-size_t GetMeshCount(const EntityPtr& p) {
+usize GetMeshCount(const EntityPtr& p) {
     return p->Components().GetComponent<RenderComponent>().component->GetMeshCount();
 }
 
-static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
+static MeshPtr GetMesh(const EntityPtr& p, const usize meshIndex) {
     return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
 }
 
@@ -58,7 +58,7 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
-RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, const std::string& appName) {
+RendererBackend::RendererBackend(const u32 width, const u32 height, const std::string& appName) {
     static_assert(sizeof(GpuVec) == 16, "Memory alignment must match up with GLSL");
 
     isValid_ = true;
@@ -142,7 +142,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.bloom.get());
 
-    for (int i = 0; i < 6; ++i) {
+    for (i32 i = 0; i < 6; ++i) {
         state_.csmDepth.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"csm.vs", ShaderType::VERTEX},
             //Shader{"csm.gs", ShaderType::GEOMETRY},
@@ -266,7 +266,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     InitializeVplData_();
 
     // Initialize Halton sequence
-    if (haltonSequence.size() * sizeof(std::pair<float, float>) != haltonSequence.size() * sizeof(GpuHaltonEntry)) {
+    if (haltonSequence.size() * sizeof(std::pair<f32, f32>) != haltonSequence.size() * sizeof(GpuHaltonEntry)) {
         throw std::runtime_error("Halton sequence size check failed");
     }
     haltonSequence_ = GpuBuffer((const void *)haltonSequence.data(), sizeof(GpuHaltonEntry) * haltonSequence.size(), GPU_DYNAMIC_DATA);
@@ -274,7 +274,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     // Initialize per light draw calls
     state_.dynamicPerPointLightDrawCalls.resize(6);
     state_.staticPerPointLightDrawCalls.resize(6);
-    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+    for (usize i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
         state_.dynamicPerPointLightDrawCalls[i] = GpuCommandReceiveManager::Create();
         state_.staticPerPointLightDrawCalls[i]  = GpuCommandReceiveManager::Create();
     }
@@ -302,11 +302,11 @@ void RendererBackend::InitPointShadowMaps_() {
 void RendererBackend::InitializeVplData_() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     // +1 since we store the total size of the visibility array at the first index
-    std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
-    state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
+    std::vector<i32> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
+    state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(i32) * visibleIndicesData.size(), flags);
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
-    //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
+    //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(i32), flags);
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -340,8 +340,8 @@ const Pipeline *RendererBackend::GetCurrentShader() const {
 }
 
 void RendererBackend::RecalculateCascadeData_() {
-    const uint32_t cascadeResolutionXY = frame_->csc.cascadeResolutionXY;
-    const uint32_t numCascades = frame_->csc.cascades.size();
+    const u32 cascadeResolutionXY = frame_->csc.cascadeResolutionXY;
+    const u32 numCascades = frame_->csc.cascades.size();
     if (frame_->csc.regenerateFbo || !frame_->csc.fbo.Valid()) {
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
@@ -439,7 +439,7 @@ void RendererBackend::UpdateWindowDimensions_() {
 
     // Set up VPL tile data
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    const int totalTiles = (frame_->viewportWidth / state_.vpls.tileXDivisor) * (frame_->viewportHeight / state_.vpls.tileYDivisor);
+    const i32 totalTiles = (frame_->viewportWidth / state_.vpls.tileXDivisor) * (frame_->viewportHeight / state_.vpls.tileYDivisor);
     std::vector<GpuVplStage2PerTileOutputs> data(totalTiles, GpuVplStage2PerTileOutputs());
     state_.vpls.vplStage1Results = GpuBuffer(nullptr, sizeof(GpuVplStage1PerTileOutputs) * totalTiles, flags);
     state_.vpls.vplVisiblePerTile = GpuBuffer((const void *)data.data(), sizeof(GpuVplStage2PerTileOutputs) * totalTiles, flags);
@@ -602,8 +602,8 @@ void RendererBackend::UpdateWindowDimensions_() {
 }
 
 void RendererBackend::InitializePostFxBuffers_() {
-    uint32_t currWidth = frame_->viewportWidth;
-    uint32_t currHeight = frame_->viewportHeight;
+    u32 currWidth = frame_->viewportWidth;
+    u32 currHeight = frame_->viewportHeight;
     state_.numDownsampleIterations = 0;
     state_.numUpsampleIterations = 0;
 
@@ -626,7 +626,7 @@ void RendererBackend::InitializePostFxBuffers_() {
 
         // Create the Gaussian Blur buffers
         PostFXBuffer dualBlurFbos[2];
-        for (int i = 0; i < 2; ++i) {
+        for (i32 i = 0; i < 2; ++i) {
             FrameBuffer& blurFbo = dualBlurFbos[i].fbo;
             Texture tex = Texture(color.GetConfig(), NoTextureData);
             tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
@@ -636,8 +636,8 @@ void RendererBackend::InitializePostFxBuffers_() {
         }
     }
 
-    std::vector<std::pair<uint32_t, uint32_t>> sizes;
-    for (int i = state_.numDownsampleIterations - 2; i >= 0; --i) {
+    std::vector<std::pair<u32, u32>> sizes;
+    for (i32 i = state_.numDownsampleIterations - 2; i >= 0; --i) {
         auto tex = state_.postFxBuffers[i].fbo.GetColorAttachments()[0];
         sizes.push_back(std::make_pair(tex.Width(), tex.Height()));
     }
@@ -740,7 +740,7 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         // Depending on when this happens we may not have generated cascadeFbo yet
         if (frame_->csc.fbo.Valid()) {
             frame_->csc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-            //const int index = Engine::Instance()->FrameCount() % 4;
+            //const i32 index = Engine::Instance()->FrameCount() % 4;
             //_frame->csc.fbo.ClearDepthStencilLayer(index);
         }
 
@@ -758,15 +758,15 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
 
 void RendererBackend::InitSSAO_() {
     // Create k values 0 to 15 and randomize them
-    std::vector<float> ks(16);
+    std::vector<f32> ks(16);
     std::iota(ks.begin(), ks.end(), 0.0f);
     std::shuffle(ks.begin(), ks.end(), std::default_random_engine{});
 
     // Create the data for the 4x4 lookup table
-    float table[16 * 3]; // RGB
-    for (size_t i = 0; i < ks.size(); ++i) {
-        const float k = ks[i];
-        const Radians r(2.0f * float(STRATUS_PI) * k / 16.0f);
+    f32 table[16 * 3]; // RGB
+    for (usize i = 0; i < ks.size(); ++i) {
+        const f32 k = ks[i];
+        const Radians r(2.0f * f32(STRATUS_PI) * k / 16.0f);
         table[i * 3    ] = cosine(r).value();
         table[i * 3 + 1] = sine(r).value();
         table[i * 3 + 2] = 0.0f;
@@ -781,12 +781,12 @@ void RendererBackend::InitSSAO_() {
 void RendererBackend::InitAtmosphericShadowing_() {
     auto re = std::default_random_engine{};
     // On the range [0.0, 1.0) --> we technically want [0.0, 1.0] but it's close enough
-    std::uniform_real_distribution<float> real(0.0f, 1.0f);
+    std::uniform_real_distribution<f32> real(0.0f, 1.0f);
 
     // Create the 64x64 noise texture
-    const size_t size = 64 * 64;
-    std::vector<float> table(size);
-    for (size_t i = 0; i < size; ++i) {
+    const usize size = 64 * 64;
+    std::vector<f32> table(size);
+    for (usize i = 0; i < size; ++i) {
         table[i] = real(re);
     }
 
@@ -797,7 +797,7 @@ void RendererBackend::InitAtmosphericShadowing_() {
 }
 
 void RendererBackend::ClearRemovedLightData_() {
-    int lightsCleared = 0;
+    i32 lightsCleared = 0;
     for (auto ptr : frame_->lightsToRemove) {
         RemoveLightFromShadowMapCache_(ptr);
         ++lightsCleared;
@@ -935,7 +935,7 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
     // _state.aabbDraw->setMat4("view", _frame->camera->getViewTransform());
     state_.aabbDraw->SetMat4("projectionView", frame_->projectionView);
 
-    for (int i = 0; i < buffer->NumDrawCommands(); ++i) {
+    for (i32 i = 0; i < buffer->NumDrawCommands(); ++i) {
         state_.aabbDraw->SetInt("modelIndex", i);
         glDrawArrays(GL_LINES, 0, 24);
     }
@@ -1105,7 +1105,7 @@ void RendererBackend::RenderCSMDepth_() {
     }
     glViewport(0, 0, depth->Width(), depth->Height());
 
-    for (size_t cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
+    for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
         Pipeline * shader = frame_->csc.worldLight->GetAlphaTest() && cascade < 2 ?
             state_.csmDepthRunAlphaTest[cascade].get() :
             state_.csmDepth[cascade].get();
@@ -1117,13 +1117,13 @@ void RendererBackend::RenderCSMDepth_() {
         shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
 
         // Set up each individual view-projection matrix
-        // for (int i = 0; i < _frame->csc.cascades.size(); ++i) {
+        // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
         //     auto& csm = _frame->csc.cascades[i];
         //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
         // }
 
         // Select face (one per frame)
-        //const int face = Engine::Instance()->FrameCount() % 4;
+        //const i32 face = Engine::Instance()->FrameCount() % 4;
         //_state.csmDepth->setInt("face", face);
 
         // Render everything
@@ -1162,12 +1162,12 @@ void RendererBackend::RenderSsaoOcclude_() {
     glDisable(GL_DEPTH_TEST);
 
     // Aspect ratio
-    const float ar        = float(frame_->viewportWidth) / float(frame_->viewportHeight);
+    const f32 ar        = f32(frame_->viewportWidth) / f32(frame_->viewportHeight);
     // Distance to the view projection plane
-    const float g         = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
-    const float w         = frame_->viewportWidth;
+    const f32 g         = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
+    const f32 w         = frame_->viewportWidth;
     // Gets fed into sigma value
-    const float intensity = 5.0f;
+    const f32 intensity = 5.0f;
 
     BindShader_(state_.ssaoOcclude.get());
     state_.ssaoOcclusionBuffer.Bind();
@@ -1207,26 +1207,26 @@ void RendererBackend::RenderSsaoBlur_() {
 void RendererBackend::RenderAtmosphericShadowing_() {
     if (!frame_->csc.worldLight->GetEnabled()) return;
 
-    constexpr float preventDivByZero = std::numeric_limits<float>::epsilon();
+    constexpr f32 preventDivByZero = std::numeric_limits<f32>::epsilon();
 
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
     auto re = std::default_random_engine{};
-    const float n = frame_->csc.worldLight->GetAtmosphericNumSamplesPerPixel();
+    const f32 n = frame_->csc.worldLight->GetAtmosphericNumSamplesPerPixel();
     // On the range [0.0, 1/n)
-    std::uniform_real_distribution<float> real(0.0f, 1.0f / n);
+    std::uniform_real_distribution<f32> real(0.0f, 1.0f / n);
     const glm::vec2 noiseShift(real(re), real(re));
-    const float dmin     = frame_->znear;
-    const float dmax     = frame_->csc.cascades[frame_->csc.cascades.size() - 1].cascadeEnds;
-    const float lambda   = frame_->csc.worldLight->GetAtmosphericParticleDensity();
+    const f32 dmin     = frame_->znear;
+    const f32 dmax     = frame_->csc.cascades[frame_->csc.cascades.size() - 1].cascadeEnds;
+    const f32 lambda   = frame_->csc.worldLight->GetAtmosphericParticleDensity();
     // cbrt = cube root
-    const float cubeR    = std::cbrt(frame_->csc.worldLight->GetAtmosphericScatterControl());
-    const float g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
+    const f32 cubeR    = std::cbrt(frame_->csc.worldLight->GetAtmosphericScatterControl());
+    const f32 g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
     // aspect ratio
-    const float ar       = float(frame_->viewportWidth) / float(frame_->viewportHeight);
+    const f32 ar       = f32(frame_->viewportWidth) / f32(frame_->viewportHeight);
     // g in frustum parameters
-    const float projDist = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
+    const f32 projDist = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
     const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
     const glm::mat4 shadowMatrix = frame_->csc.cascades[0].projectionViewSample * frame_->camera->GetWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
@@ -1234,7 +1234,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
 
     const auto timePoint = std::chrono::high_resolution_clock::now();
-    const float milliseconds = float(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
+    const f32 milliseconds = f32(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
 
     BindShader_(state_.atmospheric.get());
     state_.atmosphericFbo.Bind();
@@ -1245,7 +1245,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetFloat("time", milliseconds);
     
     // Set up cascade data
-    for (int i = 0; i < 4; ++i) {
+    for (i32 i = 0; i < 4; ++i) {
         const auto& cascade = frame_->csc.cascades[i];
         const std::string si = "[" + std::to_string(i) + "]";
         state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
@@ -1265,8 +1265,8 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetVec3("normalizedCameraLightDirection", normalizedCameraLightDirection);
     state_.atmospheric->SetVec2("noiseShift", noiseShift);
     const Texture& colorTex = state_.atmosphericFbo.GetColorAttachments()[0];
-    state_.atmospheric->SetFloat("windowWidth", float(colorTex.Width()));
-    state_.atmospheric->SetFloat("windowHeight", float(colorTex.Height()));
+    state_.atmospheric->SetFloat("windowWidth", f32(colorTex.Width()));
+    state_.atmospheric->SetFloat("windowHeight", f32(colorTex.Height()));
 
     glViewport(0, 0, colorTex.Width(), colorTex.Height());
     RenderQuad_();
@@ -1280,7 +1280,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
 
 void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer) {
     std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
-    for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
+    for (usize i = 0; i < perVPLDistToViewer.size(); ++i) {
         const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
@@ -1293,20 +1293,20 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
 
 static inline void PerformPointLightGeometryCulling(
     Pipeline& pipeline,
-    const size_t lod,
+    const usize lod,
     const std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands,
     const std::vector<GpuCommandReceiveManagerPtr>& receivers,
     const std::function<GpuBuffer (const GpuCommandReceiveManagerPtr&, const RenderFaceCulling& cull)>& select,
     const std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>>& viewProj
 ) {
-    for (size_t i = 0; i < viewProj.size(); ++i) {
+    for (usize i = 0; i < viewProj.size(); ++i) {
         pipeline.SetMat4("viewProj[" + std::to_string(i) + "]", viewProj[i]);
     }
 
     for (auto& [cull, buffer] : commands) {
         if (buffer->NumDrawCommands() == 0) continue;
 
-        pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
+        pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
         
         buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
         buffer->BindModelTransformBuffer(2);
@@ -1331,7 +1331,7 @@ void RendererBackend::UpdatePointLights_(
     VplDistVector_& perLightShadowCastingDistToViewerVec,
     VplDistMultiSet_& perVPLDistToViewerSet,
     VplDistVector_& perVPLDistToViewerVec,
-    std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
+    std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices) {
 
     const Camera& c = *frame_->camera;
 
@@ -1357,7 +1357,7 @@ void RendererBackend::UpdatePointLights_(
 
     // Init per light instance data
     for (auto& light : frame_->lights) {
-        const double distance = glm::distance(c.GetPosition(), light->GetPosition());
+        const f64 distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
             if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
@@ -1402,8 +1402,8 @@ void RendererBackend::UpdatePointLights_(
         }
     }
 
-    for (size_t i = 0, updates = 0; i < visibleVplIndices.size() && updates < state_.maxShadowUpdatesPerFrame; ++i) {
-        const int index = visibleVplIndices[i];
+    for (usize i = 0, updates = 0; i < visibleVplIndices.size() && updates < state_.maxShadowUpdatesPerFrame; ++i) {
+        const i32 index = visibleVplIndices[i];
         auto light = perVPLDistToViewerVec[index].key;
         if (!ShadowMapExistsForLight_(light)) {
             // Pushing to front will cause the light update queue to be reordered biased towards VPLs
@@ -1414,7 +1414,7 @@ void RendererBackend::UpdatePointLights_(
     }
 
     // Make sure we have enough space to generate the point light draw calls
-    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+    for (usize i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
         state_.dynamicPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
         state_.staticPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
     }
@@ -1423,11 +1423,11 @@ void RendererBackend::UpdatePointLights_(
     // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
     // Perform the shadow volume pre-pass
-    for (int shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpdate.Size() > 0; ++shadowUpdates) {
+    for (i32 shadowUpdates = 0; shadowUpdates < state_.maxShadowUpdatesPerFrame && frame_->lightsToUpdate.Size() > 0; ++shadowUpdates) {
         auto light = frame_->lightsToUpdate.PopFront();
         // Ideally this won't be needed but just in case
         if ( !light->CastsShadows() ) continue;
-        //const double distance = perLightShadowCastingDistToViewer.find(light)->second;
+        //const f64 distance = perLightShadowCastingDistToViewer.find(light)->second;
     
         // TODO: Make this work with spotlights
         //PointLightPtr point = (PointLightPtr)light;
@@ -1447,13 +1447,13 @@ void RendererBackend::UpdatePointLights_(
 
         const auto cubeMapWidth = cache.buffers[smap.index].GetDepthStencilAttachment()->Width();
         const auto cubeMapHeight = cache.buffers[smap.index].GetDepthStencilAttachment()->Height();
-        const glm::mat4 lightPerspective = glm::perspective<float>(glm::radians(90.0f), float(cubeMapWidth) / float(cubeMapHeight), point->GetNearPlane(), point->GetFarPlane());
+        const glm::mat4 lightPerspective = glm::perspective<f32>(glm::radians(90.0f), f32(cubeMapWidth) / f32(cubeMapHeight), point->GetNearPlane(), point->GetFarPlane());
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
         if (cache.buffers[smap.index].GetColorAttachments().size() > 0) {
             cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, nullptr);
         }
-        float depthClear = 1.0f;
+        f32 depthClear = 1.0f;
         cache.buffers[smap.index].GetDepthStencilAttachment()->ClearLayer(0, smap.layer, &depthClear);
 
         cache.buffers[smap.index].Bind();
@@ -1507,12 +1507,12 @@ void RendererBackend::UpdatePointLights_(
 
         state_.viscullPointLights->Unbind();
 
-        for (size_t i = 0; i < lightViewProj.size(); ++i) {
+        for (usize i = 0; i < lightViewProj.size(); ++i) {
             const glm::mat4& projectionView = lightViewProj[i];
 
             // * 6 since each cube map is accessed by a layer-face which is divisible by 6
             BindShader_(shader);
-            shader->SetInt("layer", int(smap.layer * 6 + i));
+            shader->SetInt("layer", i32(smap.layer * 6 + i));
             shader->SetMat4("shadowMatrix", projectionView);
             shader->SetVec3("lightPos", light->GetPosition());
             shader->SetFloat("farPlane", point->GetFarPlane());
@@ -1520,7 +1520,7 @@ void RendererBackend::UpdatePointLights_(
 
             if (point->IsVirtualLight()) {
                 // Use lower LOD
-                const size_t lod = frame_->drawCommands->NumLods() - 1;
+                const usize lod = frame_->drawCommands->NumLods() - 1;
                 const CommandBufferSelectionFunction select = [this, lod, i](GpuCommandBufferPtr& b) {
                     //return b->GetVisibleLowestLodDrawCommandsBuffer();
                     //return b->GetIndirectDrawCommandsBuffer(lod);
@@ -1535,7 +1535,7 @@ void RendererBackend::UpdatePointLights_(
                 glDepthFunc(GL_LEQUAL);
 
                 BindShader_(state_.skyboxLayered.get());
-                state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
+                state_.skyboxLayered->SetInt("layer", i32(smap.layer * 6 + i));
 
                 auto tmp = frame_->settings.GetSkyboxIntensity();
                 if (tmp > 1.0f) {
@@ -1577,7 +1577,7 @@ void RendererBackend::UpdatePointLights_(
 
 void RendererBackend::PerformVirtualPointLightCullingStage1_(
     VplDistVector_& perVPLDistToViewer,
-    std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
+    std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices) {
 
     if (perVPLDistToViewer.size() == 0) return;
 
@@ -1591,8 +1591,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
 
     // Set up # visible atomic counter
-    int numVisible = 0;
-    //state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&numVisible);
+    i32 numVisible = 0;
+    //state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(i32), (const void *)&numVisible);
     //state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
@@ -1606,15 +1606,15 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->Unbind();
 
-    // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
+    // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
 
     // if (totalVisible > 0) {
     //     // These should still be sorted since the GPU compute shader doesn't reorder them
-    //     int* indices = (int*)state_.vpls.vplVisibleIndices.MapMemory();
+    //     i32* indices = (i32*)state_.vpls.vplVisibleIndices.MapMemory();
     //     visibleVplIndices.resize(totalVisible);
 
-    //     for (int i = 0; i < totalVisible; ++i) {
+    //     for (i32 i = 0; i < totalVisible; ++i) {
     //         visibleVplIndices[i] = indices[i];
     //     }
 
@@ -1633,43 +1633,43 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     //    // visibleVplIndices.clear();
 
     //    // // We want at least 64 lights close to the viewer
-    //    // for (int i = 0; i < 64; ++i) {
+    //    // for (i32 i = 0; i < 64; ++i) {
     //    //     visibleVplIndices.push_back(indices[i]);
     //    // }
 
-    //    // const int rest = totalVisible - 64;
-    //    // const int step = std::max<int>(rest / (MAX_TOTAL_VPLS_PER_FRAME - 64), 1);
-    //    // for (int i = 64; i < totalVisible; i += step) {
+    //    // const i32 rest = totalVisible - 64;
+    //    // const i32 step = std::max<i32>(rest / (MAX_TOTAL_VPLS_PER_FRAME - 64), 1);
+    //    // for (i32 i = 64; i < totalVisible; i += step) {
     //    //     visibleVplIndices.push_back(indices[i]);
     //    // }
 
-    //    // totalVisible = int(visibleVplIndices.size());
+    //    // totalVisible = i32(visibleVplIndices.size());
     //    // // Make sure we didn't go over because of step size
     //    // if (visibleVplIndices.size() > MAX_TOTAL_VPLS_PER_FRAME) {
     //    //     visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
     //    //     totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
     //    // }
 
-    //    state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(int), (const void *)&totalVisible);
-    //    state_.vpls.vplVisibleIndices.CopyDataToBuffer(0, sizeof(int) * totalVisible, (const void *)visibleVplIndices.data());
+    //    state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(i32), (const void *)&totalVisible);
+    //    state_.vpls.vplVisibleIndices.CopyDataToBuffer(0, sizeof(i32) * totalVisible, (const void *)visibleVplIndices.data());
     //}
 }
 
 // void RendererBackend::PerformVirtualPointLightCullingStage2_(
-//     const std::vector<std::pair<LightPtr, double>>& perVPLDistToViewer,
-//     const std::vector<int>& visibleVplIndices) {
+//     const std::vector<std::pair<LightPtr, f64>>& perVPLDistToViewer,
+//     const std::vector<i32>& visibleVplIndices) {
 void RendererBackend::PerformVirtualPointLightCullingStage2_(
     const VplDistVector_& perVPLDistToViewer) {
 
-    // int totalVisible = *(int *)state_.vpls.vplNumVisible.MapMemory();
+    // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
 
     //if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
     if (perVPLDistToViewer.size() == 0) return;
 
-    int* visibleVplIndices = (int*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
+    i32* visibleVplIndices = (i32*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
     // First index is reserved for the size of the array
-    const int totalVisible = visibleVplIndices[0];
+    const i32 totalVisible = visibleVplIndices[0];
     visibleVplIndices += 1;
     
     if (totalVisible == 0) {
@@ -1682,8 +1682,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     diffuseHandles.reserve(totalVisible);
     std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
-    for (size_t i = 0; i < totalVisible; ++i) {
-        const int index = visibleVplIndices[i];
+    for (usize i = 0; i < totalVisible; ++i) {
+        const i32 index = visibleVplIndices[i];
         const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
         auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].key);
         shadowDiffuseIndices.push_back(smap);
@@ -1705,7 +1705,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
     state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
-    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+    for (usize i = 0; i < cache.buffers.size(); ++i) {
         state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
         state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
@@ -1744,8 +1744,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     // // Dispatch and synchronize
     // state_.vplTileDeferredCullingStage1->DispatchCompute(
-    //     (unsigned int)frame_->viewportWidth  / state_.vpls.tileXDivisor,
-    //     (unsigned int)frame_->viewportHeight / state_.vpls.tileYDivisor,
+    //     (u32)frame_->viewportWidth  / state_.vpls.tileXDivisor,
+    //     (u32)frame_->viewportHeight / state_.vpls.tileYDivisor,
     //     1
     // );
     // state_.vplTileDeferredCullingStage1->SynchronizeCompute();
@@ -1769,22 +1769,22 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     
     // // Dispatch and synchronize
     // state_.vplTileDeferredCullingStage2->DispatchCompute(
-    //     (unsigned int)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
-    //     (unsigned int)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
+    //     (u32)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
+    //     (u32)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
     //     1
     // );
     // state_.vplTileDeferredCullingStage2->SynchronizeCompute();
 
     // state_.vplTileDeferredCullingStage2->Unbind();
 
-    // int * tv = (int *)_state.vpls.vplNumVisible.MapMemory();
+    // i32 * tv = (i32 *)_state.vpls.vplNumVisible.MapMemory();
     // GpuVplStage2PerTileOutputs * tiles = (GpuVplStage2PerTileOutputs *)_state.vpls.vplVisiblePerTile.MapMemory();
     // GpuVplData * vpld = (GpuVplData *)_state.vpls.vplData.MapMemory();
-    // int m = 0;
-    // int mi = std::numeric_limits<int>::max();
+    // i32 m = 0;
+    // i32 mi = std::numeric_limits<i32>::max();
     // std::cout << "Total Visible: " << *tv << std::endl;
 
-    // for (int i = 0; i < *tv; ++i) {
+    // for (i32 i = 0; i < *tv; ++i) {
     //     auto& position = vpld[i].position;
     //     auto& color = vpld[i].color;
     //     std::cout << position.v[0] << ", " << position.v[1] << ", " << position.v[2] << std::endl;
@@ -1794,8 +1794,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     //     std::cout << vpld[i].radius << std::endl;
     // }
 
-    // int numNonZero = 0;
-    // for (int i = 0; i < 1920 * 1080; ++i) {
+    // i32 numNonZero = 0;
+    // for (i32 i = 0; i < 1920 * 1080; ++i) {
     //     m = std::max(m, tiles[i].numVisible);
     //     mi = std::min(mi, tiles[i].numVisible);
     //     if (tiles[i].numVisible > 0) ++numNonZero;
@@ -1808,15 +1808,15 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const double deltaSeconds) {
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const f64 deltaSeconds) {
     if (perVPLDistToViewer.size() == 0) return;
 
-    // auto space = LogSpace<float>(1, 512, 30);
+    // auto space = LogSpace<f32>(1, 512, 30);
     // for (const auto& s : space) std::cout << s << " ";
     // std::cout << std::endl;
 
     const auto timePoint = std::chrono::high_resolution_clock::now();
-    const float milliseconds = float(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
+    const f32 milliseconds = f32(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
 
     glDisable(GL_DEPTH_TEST);
     BindShader_(state_.vplGlobalIllumination.get());
@@ -1837,10 +1837,10 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-    state_.vplGlobalIllumination->SetInt("haltonSize", int(haltonSequence.size()));
+    state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
-    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+    for (usize i = 0; i < cache.buffers.size(); ++i) {
         state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
 
@@ -1855,7 +1855,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
-    state_.vplGlobalIllumination->SetInt("frameCount", int(INSTANCE(Engine)->FrameCount()));
+    state_.vplGlobalIllumination->SetInt("frameCount", i32(INSTANCE(Engine)->FrameCount()));
     state_.vplGlobalIllumination->SetFloat("minGiOcclusionFactor", frame_->settings.GetMinGiOcclusionFactor());
 
     state_.vplGlobalIllumination->SetVec3("fogColor", frame_->settings.GetFogColor());
@@ -1900,19 +1900,19 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
-    state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
+    state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", f32(1.0 / deltaSeconds));
     state_.vplGlobalIlluminationDenoising->SetMat4("invProjectionView", frame_->invProjectionView);
     state_.vplGlobalIlluminationDenoising->SetMat4("prevInvProjectionView", frame_->prevInvProjectionView);
 
-    size_t bufferIndex = 0;
-    const int maxReservoirMergingPasses = 1;
-    const int maxIterations = 4;
+    usize bufferIndex = 0;
+    const i32 maxReservoirMergingPasses = 1;
+    const i32 maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
         // start increasing the multiplier until after the reservoir merging passes
-        const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
-        const int multiplier = std::pow(2, i) - 1;
+        const i32 i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
+        const i32 multiplier = std::pow(2, i) - 1;
         FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
 
         buffer->Bind();
@@ -1946,7 +1946,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
 }
 
-void RendererBackend::RenderScene(const double deltaSeconds) {
+void RendererBackend::RenderScene(const f64 deltaSeconds) {
     CHECK_IS_APPLICATION_THREAD();
 
     const Camera& c = *frame_->camera;
@@ -1971,7 +1971,7 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     VplDistMultiSet_ perVPLDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
     VplDistVector_ perVPLDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
-    std::vector<int, StackBasedPoolAllocator<int>> visibleVplIndices(StackBasedPoolAllocator<int>(frame_->perFrameScratchMemory));
+    std::vector<i32, StackBasedPoolAllocator<i32>> visibleVplIndices(StackBasedPoolAllocator<i32>(frame_->perFrameScratchMemory));
 
     // Perform point light pass
     UpdatePointLights_(
@@ -2166,13 +2166,13 @@ void RendererBackend::PerformBloomPostFx_() {
     bloom->SetBool("upsamplingStage", false);
     bloom->SetBool("finalStage", false);
     bloom->SetBool("gaussianStage", false);
-    for (int i = 0, gaussian = 0; i < state_.numDownsampleIterations; ++i, gaussian += 2) {
+    for (i32 i = 0, gaussian = 0; i < state_.numDownsampleIterations; ++i, gaussian += 2) {
         PostFXBuffer& buffer = state_.postFxBuffers[i];
         Texture colorTex = buffer.fbo.GetColorAttachments()[0];
         auto width = colorTex.Width();
         auto height = colorTex.Height();
-        bloom->SetFloat("viewportX", float(width));
-        bloom->SetFloat("viewportY", float(height));
+        bloom->SetFloat("viewportX", f32(width));
+        bloom->SetFloat("viewportY", f32(height));
         buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         if (i == 0) {
@@ -2189,7 +2189,7 @@ void RendererBackend::PerformBloomPostFx_() {
         bloom->SetBool("downsamplingStage", false);
         bloom->SetBool("gaussianStage", true);
         BufferBounds bounds = BufferBounds{0, 0, width, height};
-        for (int i = 0; i < 2; ++i) {
+        for (i32 i = 0; i < 2; ++i) {
             FrameBuffer& blurFbo = state_.gaussianBuffers[gaussian + i].fbo;
             FrameBuffer copyFromFbo;
             if (i == 0) {
@@ -2217,13 +2217,13 @@ void RendererBackend::PerformBloomPostFx_() {
     bloom->SetBool("upsamplingStage", true);
     bloom->SetBool("finalStage", false);
     bloom->SetBool("gaussianStage", false);
-    int postFXIndex = state_.numDownsampleIterations;
-    for (int i = state_.numDownsampleIterations - 1; i >= 0; --i, ++postFXIndex) {
+    i32 postFXIndex = state_.numDownsampleIterations;
+    for (i32 i = state_.numDownsampleIterations - 1; i >= 0; --i, ++postFXIndex) {
         PostFXBuffer& buffer = state_.postFxBuffers[postFXIndex];
         auto width = buffer.fbo.GetColorAttachments()[0].Width();
         auto height = buffer.fbo.GetColorAttachments()[0].Height();
-        bloom->SetFloat("viewportX", float(width));
-        bloom->SetFloat("viewportY", float(height));
+        bloom->SetFloat("viewportX", f32(width));
+        bloom->SetFloat("viewportY", f32(height));
         buffer.fbo.Bind();
         glViewport(0, 0, width, height);
         //bloom->bindTexture("mainTexture", _state.postFxBuffers[postFXIndex - 1].fbo.getColorAttachments()[0]);
@@ -2251,12 +2251,12 @@ glm::vec3 RendererBackend::CalculateAtmosphericLightPosition_() const {
     // See page 354, eqs. 10.81 and 10.82
     const glm::vec3& normalizedLightDirCamSpace = frame_->csc.worldLightDirectionCameraSpace;
     const Texture& colorTex = state_.atmosphericTexture;
-    const float w = colorTex.Width();
-    const float h = colorTex.Height();
-    const float xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
+    const f32 w = colorTex.Width();
+    const f32 h = colorTex.Height();
+    const f32 xlight = w * ((projection[0][0] * normalizedLightDirCamSpace.x + 
                                projection[0][1] * normalizedLightDirCamSpace.y + 
                                projection[0][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
-    const float ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
+    const f32 ylight = h * ((projection[1][0] * normalizedLightDirCamSpace.x + 
                                projection[1][1] * normalizedLightDirCamSpace.y + 
                                projection[1][2] * normalizedLightDirCamSpace.z) / (2.0f * normalizedLightDirCamSpace.z) + 0.5f);
     
@@ -2269,8 +2269,8 @@ void RendererBackend::PerformAtmosphericPostFx_() {
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();
-    //const float sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
-    //const float cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
+    //const f32 sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
+    //const f32 cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
     const glm::vec3 lightColor = frame_->csc.worldLight->GetAtmosphereColor();// * glm::vec3(cosX, cosX, sinX);
 
     BindShader_(state_.atmosphericPostFx.get());
@@ -2389,20 +2389,20 @@ void RendererBackend::RenderQuad_() {
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
-RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_t resolutionX, uint32_t resolutionY, uint32_t count, bool vpl, const TextureComponentSize& bits) {
+RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 resolutionX, u32 resolutionY, u32 count, bool vpl, const TextureComponentSize& bits) {
     ShadowMapCache cache;
     
-    int remaining = int(count);
+    i32 remaining = i32(count);
     while (remaining > 0 && cache.buffers.size() < MAX_TOTAL_SHADOW_ATLASES) {
         // Determine how many entries will be present in this atlas
-        int tmp = remaining - MAX_TOTAL_SHADOWS_PER_ATLAS;
-        int entries = MAX_TOTAL_SHADOWS_PER_ATLAS;
+        i32 tmp = remaining - MAX_TOTAL_SHADOWS_PER_ATLAS;
+        i32 entries = MAX_TOTAL_SHADOWS_PER_ATLAS;
         if (tmp < 0) {
             entries = remaining;
         }
         remaining = tmp;
 
-        const uint32_t numLayers = entries;
+        const u32 numLayers = entries;
 
         std::vector<Texture> attachments;
         Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, bits, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
@@ -2430,9 +2430,9 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_
     }
 
     // Initialize individual entries
-    for (int index = 0; index < cache.buffers.size(); ++index) {
-        const int depth = int(cache.buffers[index].GetDepthStencilAttachment()->Depth());
-        for (int layer = 0; layer < depth; ++layer) {
+    for (i32 index = 0; index < cache.buffers.size(); ++index) {
+        const i32 depth = i32(cache.buffers[index].GetDepthStencilAttachment()->Depth());
+        for (i32 layer = 0; layer < depth; ++layer) {
             GpuAtlasEntry entry;
             entry.index = index;
             entry.layer = layer;
@@ -2451,24 +2451,24 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
 
     s->SetVec3("infiniteLightDirection", direction);    
     s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
-    for (int i = 0; i < frame_->csc.cascades.size(); ++i) {
+    for (i32 i = 0; i < frame_->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 
-    for (int i = 0; i < 2; ++i) {
+    for (i32 i = 0; i < 2; ++i) {
         s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->csc.cascadeShadowOffsets[i]);
     }
 
-    for (int i = 0; i < frame_->csc.cascades.size() - 1; ++i) {
+    for (i32 i = 0; i < frame_->csc.cascades.size() - 1; ++i) {
         // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
         // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
         s->SetVec4("cascadePlanes[" + std::to_string(i) + "]", frame_->csc.cascades[i + 1].cascadePlane);
     }
 }
 
-void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, const size_t maxShadowLights) {
+void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, const usize maxShadowLights) {
     // Set up point lights
 
     // Make sure everything is set to some sort of default to prevent shader crashes or huge performance drops
@@ -2481,12 +2481,12 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
 
     const Camera& c = *frame_->camera;
     glm::vec3 lightColor;
-    //int lightIndex = 0;
-    //int shadowLightIndex = 0;
-    //for (int i = 0; i < lights.size(); ++i) {
+    //i32 lightIndex = 0;
+    //i32 shadowLightIndex = 0;
+    //for (i32 i = 0; i < lights.size(); ++i) {
     //    LightPtr light = lights[i].first;
     //    PointLight * point = (PointLight *)light.get();
-    //    const double distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
+    //    const f64 distance = lights[i].second; //glm::distance(c.getPosition(), light->position);
     //    // Skip lights too far from camera
     //    //if (distance > (2 * light->getRadius())) continue;
 
@@ -2521,7 +2521,7 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     gpuLights.reserve(lights.size());
     gpuShadowCubeMaps.reserve(maxShadowLights);
     gpuShadowLights.reserve(maxShadowLights);
-    for (int i = 0; i < lights.size(); ++i) {
+    for (i32 i = 0; i < lights.size(); ++i) {
         LightPtr light = lights[i].key;
         PointLight* point = (PointLight*)light.get();
 
@@ -2564,13 +2564,13 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     */
 
     auto& cache = smapCache_;
-    s->SetInt("numLights", int(gpuLights.size()));
-    s->SetInt("numShadowLights", int(gpuShadowLights.size()));
+    s->SetInt("numLights", i32(gpuLights.size()));
+    s->SetInt("numShadowLights", i32(gpuShadowLights.size()));
     s->SetVec3("viewPosition", c.GetPosition());
     s->SetFloat("emissionStrength", frame_->settings.GetEmissionStrength());
     s->SetFloat("minRoughness", frame_->settings.GetMinRoughness());
     s->SetBool("usePerceptualRoughness", frame_->settings.usePerceptualRoughness);
-    for (size_t i = 0; i < cache.buffers.size(); ++i) {
+    for (usize i = 0; i < cache.buffers.size(); ++i) {
         s->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();

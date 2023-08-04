@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 #include "StratusTexture.h"
 #include <vector>
+#include "StratusTypes.h"
 
 namespace stratus {
     enum BufferBit {
@@ -18,10 +19,10 @@ namespace stratus {
     };
 
     struct BufferBounds {
-        uint32_t startX;
-        uint32_t startY;
-        uint32_t endX;
-        uint32_t endY;
+        u32 startX;
+        u32 startY;
+        u32 endX;
+        u32 endY;
     };
 
     class FrameBufferImpl;
@@ -41,8 +42,8 @@ namespace stratus {
 
         // Clears the color, depth and stencil buffers using rgba
         void Clear(const glm::vec4 & rgba);
-        void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer);
-        void ClearDepthStencilLayer(const int layer);
+        void ClearColorLayer(const glm::vec4& rgba, const usize colorIndex, const i32 layer);
+        void ClearDepthStencilLayer(const i32 layer);
         // from = rectangular region in *other* to copy from
         // to = rectangular region in *this* to copy to
         void CopyFrom(const FrameBuffer & other, const BufferBounds & from, const BufferBounds & to, BufferBit bit, BufferFilter filter);
@@ -53,8 +54,8 @@ namespace stratus {
         void Unbind() const;
 
         // Useful for layered rendering
-        void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer);
-        void SetDepthTextureLayer(const int layer);
+        void SetColorTextureLayer(const i32 attachmentNum, const i32 mipLevel, const i32 layer);
+        void SetDepthTextureLayer(const i32 layer);
 
         bool Valid() const;
         void * Underlying() const;

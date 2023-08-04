@@ -9,6 +9,7 @@
 #include <memory>
 #include "StratusLog.h"
 #include "StratusSystemModule.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     class Material;
@@ -47,16 +48,16 @@ namespace stratus {
         // Get and set material properties
         glm::vec4 GetDiffuseColor() const;
         glm::vec3 GetEmissiveColor() const;
-        float GetReflectance() const;
-        float GetRoughness() const;
-        float GetMetallic() const;
+        f32 GetReflectance() const;
+        f32 GetRoughness() const;
+        f32 GetMetallic() const;
 
         void SetDiffuseColor(const glm::vec4&);
         void SetEmissiveColor(const glm::vec3&);
-        void SetReflectance(float);
+        void SetReflectance(f32);
         void SetMaxReflectivity(const glm::vec3&);
-        void SetRoughness(float);
-        void SetMetallic(float);
+        void SetRoughness(f32);
+        void SetMetallic(f32);
 
         // Get and set material properties as textures
         TextureHandle GetDiffuseMap() const;
@@ -95,12 +96,12 @@ namespace stratus {
         std::string name_;
         // Register self with material manager
         bool registerSelf_;
-        uint64_t lastFrameChanged_ = 0;
+        u64 lastFrameChanged_ = 0;
         glm::vec4 diffuseColor_ = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
         glm::vec3 emissiveColor = glm::vec3(0.0f, 0.0f, 0.0f);
-        float reflectance_ = 0.05f;
-        float roughness_ = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
-        float metallic_ = 0.04f; // 0.04 is good for many non-metallic surfaces
+        f32 reflectance_ = 0.05f;
+        f32 roughness_ = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
+        f32 metallic_ = 0.04f; // 0.04 is good for many non-metallic surfaces
         // Not required to have a texture
         TextureHandle diffuseTexture_ = TextureHandle::Null();
         // Not required to have an ambient texture

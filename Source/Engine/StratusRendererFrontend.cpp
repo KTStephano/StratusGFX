@@ -23,7 +23,7 @@ namespace stratus {
     struct RenderEntityProcess : public EntityProcess {
         virtual ~RenderEntityProcess() = default;
 
-        virtual void Process(const double deltaSeconds) {}
+        virtual void Process(const f64 deltaSeconds) {}
 
         void EntitiesAdded(const std::unordered_set<stratus::EntityPtr>& e) override {
             auto rf = INSTANCE(RendererFrontend);
@@ -54,7 +54,7 @@ namespace stratus {
         auto meshTransform = p->Components().GetComponent<MeshWorldTransforms>().component;
         meshTransform->transforms.resize(rc->GetMeshCount());
 
-        for (size_t i = 0; i < rc->GetMeshCount(); ++i) {
+        for (usize i = 0; i < rc->GetMeshCount(); ++i) {
             meshTransform->transforms[i] = global->GetGlobalTransform() * rc->meshes->transforms[i];
         }
     }
@@ -64,15 +64,15 @@ namespace stratus {
         return sc.component != nullptr && sc.status == EntityComponentStatus::COMPONENT_ENABLED;
     }
 
-    static glm::vec3 GetWorldTransform(const EntityPtr& p, const size_t meshIndex) {
+    static glm::vec3 GetWorldTransform(const EntityPtr& p, const usize meshIndex) {
         return glm::vec3(GetTranslate(p->Components().GetComponent<MeshWorldTransforms>().component->transforms[meshIndex]));
     }
 
-    static MeshPtr GetMesh(const EntityPtr& p, const size_t meshIndex) {
+    static MeshPtr GetMesh(const EntityPtr& p, const usize meshIndex) {
         return p->Components().GetComponent<RenderComponent>().component->GetMesh(meshIndex);
     }
 
-    static bool InsertMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
+    static bool InsertMesh(EntityMeshData& map, const EntityPtr& p, const usize meshIndex) {
         auto it = map.find(p);
         if (it == map.end()) {
             map.insert(std::make_pair(p, std::vector<RenderMeshContainerPtr>()));
@@ -96,7 +96,7 @@ namespace stratus {
         return true;
     }
 
-    static bool RemoveMesh(EntityMeshData& map, const EntityPtr& p, const size_t meshIndex) {
+    static bool RemoveMesh(EntityMeshData& map, const EntityPtr& p, const usize meshIndex) {
         auto it = map.find(p);
         if (it == map.end()) return false;
 
@@ -183,7 +183,7 @@ namespace stratus {
             //_renderComponents.insert(p->Components().GetComponent<RenderComponent>().component);
             
             if (IsLightInteracting(p)) {
-                for (size_t i = 0; i < GetMeshCount(p); ++i) {
+                for (usize i = 0; i < GetMeshCount(p); ++i) {
                     if (isStatic) InsertMesh(staticPbrEntities_, p, i);
                     else InsertMesh(dynamicPbrEntities_, p, i);
 
@@ -201,7 +201,7 @@ namespace stratus {
                 }
             }
             else {
-                for (size_t i = 0; i < GetMeshCount(p); ++i) {
+                for (usize i = 0; i < GetMeshCount(p); ++i) {
                     InsertMesh(flatEntities_, p, i);
                 }
             }
@@ -233,7 +233,7 @@ namespace stratus {
                 continue;
             }
 
-            for (size_t i = 0; i < GetMeshCount(p); ++i) {
+            for (usize i = 0; i < GetMeshCount(p); ++i) {
                 auto pos = entry->GetPosition();
                 if (glm::distance(GetWorldTransform(p, i), pos) > entry->GetRadius()) {
                 //if (DistanceFromPointToAABB(pos, mesh->GetAABB()) > entry->GetRadius()) {
@@ -337,7 +337,7 @@ namespace stratus {
         viewportDirty_ = true;
     }
 
-    void RendererFrontend::SetNearFar(const float znear, const float zfar) {
+    void RendererFrontend::SetNearFar(const f32 znear, const f32 zfar) {
         auto ul = LockWrite_();
         params_.znear = znear;
         params_.zfar  = zfar;
@@ -359,7 +359,7 @@ namespace stratus {
         frame_->settings = settings;
     }
 
-    static glm::vec2 GetJitterForIndex(const size_t index, const float width, const float height) {
+    static glm::vec2 GetJitterForIndex(const usize index, const f32 width, const f32 height) {
         glm::vec2 jitter(haltonSequence[index].first, haltonSequence[index].second);
         // Halton numbers are from [0, 1] so we convert this to an appropriate +/- subpixel offset
         //jitter = ((jitter - glm::vec2(0.5f)) / glm::vec2(width, height)) * 2.0f;
@@ -371,7 +371,7 @@ namespace stratus {
         return jitter;
     }
 
-    SystemStatus RendererFrontend::Update(const double deltaSeconds) {
+    SystemStatus RendererFrontend::Update(const f64 deltaSeconds) {
         CHECK_IS_APPLICATION_THREAD();
 
         auto ul = LockWrite_();
@@ -401,13 +401,13 @@ namespace stratus {
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
 
         // Increment halton index - only use a max of the first 16 samples
-        const size_t maxIndex = std::min<size_t>(16, haltonSequence.size());
+        const usize maxIndex = std::min<usize>(16, haltonSequence.size());
         currentHaltonIndex_ = (currentHaltonIndex_ + 1) % maxIndex;
 
         // Set up the jittered variant
         glm::vec2 jitter(0.0f);
         if (frame_->settings.taaEnabled) {
-            jitter = GetJitterForIndex(currentHaltonIndex_, float(frame_->viewportWidth), float(frame_->viewportHeight));
+            jitter = GetJitterForIndex(currentHaltonIndex_, f32(frame_->viewportWidth), f32(frame_->viewportHeight));
         }
         frame_->jitterProjectionView = frame_->projection;
         frame_->jitterProjectionView[3][0] += jitter.x;
@@ -461,7 +461,7 @@ namespace stratus {
         frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
 
-        for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+        for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             frame_->csc.cascades[i].drawCommands = GpuCommandReceiveManager::Create();
         }
 
@@ -539,7 +539,7 @@ namespace stratus {
         if (!viewportDirty_) return;
         viewportDirty_ = false;
 
-        const float aspect = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
+        const f32 aspect = f32(Window::Instance()->GetWindowDims().first) / f32(Window::Instance()->GetWindowDims().second);
         projection_        = glm::perspective(
             Radians(params_.fovy).value(),
             aspect,
@@ -556,15 +556,15 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdateCascadeData_() {
-        auto requestedCascadeResolutionXY = static_cast<uint32_t>(frame_->settings.cascadeResolution);
+        auto requestedCascadeResolutionXY = static_cast<u32>(frame_->settings.cascadeResolution);
 
         frame_->csc.regenerateFbo = frame_->csc.cascadeResolutionXY != requestedCascadeResolutionXY;
 
         frame_->csc.cascadeResolutionXY = requestedCascadeResolutionXY;
 
-        const float cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
-        const float cascadeDelta = cascadeResReciprocal;
-        const size_t numCascades = frame_->csc.cascades.size();
+        const f32 cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
+        const f32 cascadeDelta = cascadeResReciprocal;
+        const usize numCascades = frame_->csc.cascades.size();
 
         frame_->csc.worldLightCamera = CameraPtr(new Camera(false, false));
         auto worldLightCamera = frame_->csc.worldLightCamera;
@@ -603,39 +603,39 @@ namespace stratus {
 
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
-        const float ar = float(Window::Instance()->GetWindowDims().first) / float(Window::Instance()->GetWindowDims().second);
-        //const float tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
-        //const float tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
-        const float projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
-        const float znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
+        const f32 ar = f32(Window::Instance()->GetWindowDims().first) / f32(Window::Instance()->GetWindowDims().second);
+        //const f32 tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
+        //const f32 tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+        const f32 projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
+        const f32 znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
-        const float zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
+        const f32 zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
         frame_->csc.znear = znear;
         frame_->csc.zfar = zfar;
 
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
         // @see https://developer.download.nvidia.com/SDK/10.5/opengl/src/cascaded_shadow_maps/doc/cascaded_shadow_maps.pdf
-        const float lambda = 0.5f;
-        const float clipRange = zfar - znear;
-        const float ratio = zfar / znear;
-        std::vector<float> cascadeEnds(numCascades);
-        for (size_t i = 0; i < numCascades; ++i) {
+        const f32 lambda = 0.5f;
+        const f32 clipRange = zfar - znear;
+        const f32 ratio = zfar / znear;
+        std::vector<f32> cascadeEnds(numCascades);
+        for (usize i = 0; i < numCascades; ++i) {
             // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
             // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
             // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
             // distances.
-            const float p = (i + 1) / float(numCascades);
-            const float log = znear * std::pow(ratio, p);
-            const float uniform = znear + clipRange * p;
-            //const float d = floorf(lambda * (log - uniform) + uniform);
-            const float d = floorf(lambda * log + (1.0f - lambda) * uniform);
+            const f32 p = (i + 1) / f32(numCascades);
+            const f32 log = znear * std::pow(ratio, p);
+            const f32 uniform = znear + clipRange * p;
+            //const f32 d = floorf(lambda * (log - uniform) + uniform);
+            const f32 d = floorf(lambda * log + (1.0f - lambda) * uniform);
             cascadeEnds[i] = d;
             //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
         }
 
-        // std::vector<float> cascadeEnds = {
+        // std::vector<f32> cascadeEnds = {
         //     5.0f,
         //     20.0f,
         //     100.0f,
@@ -645,29 +645,29 @@ namespace stratus {
         // see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // see https://ogldev.org/www/tutorial49/tutorial49.html
         // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
-        //const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
-        const std::vector<float> cascadeBegins = { 0.0f, cascadeEnds[0] - 4.0f,  cascadeEnds[1] - 4.0f, cascadeEnds[2] - 4.0f }; // 4 cascades max
-        //const std::vector<float> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
-        std::vector<float> aks;
-        std::vector<float> bks;
-        std::vector<float> dks;
+        //const std::vector<f32> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+        const std::vector<f32> cascadeBegins = { 0.0f, cascadeEnds[0] - 4.0f,  cascadeEnds[1] - 4.0f, cascadeEnds[2] - 4.0f }; // 4 cascades max
+        //const std::vector<f32> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
+        std::vector<f32> aks;
+        std::vector<f32> bks;
+        std::vector<f32> dks;
         std::vector<glm::vec3> sks;
-        std::vector<float> zmins;
-        std::vector<float> zmaxs;
+        std::vector<f32> zmins;
+        std::vector<f32> zmaxs;
 
-        for (size_t i = 0; i < numCascades; ++i) {
-            const float ak = cascadeBegins[i];
-            const float bk = cascadeEnds[i];
+        for (usize i = 0; i < numCascades; ++i) {
+            const f32 ak = cascadeBegins[i];
+            const f32 bk = cascadeEnds[i];
             frame_->csc.cascades[i].cascadeBegins = ak;
             frame_->csc.cascades[i].cascadeEnds   = bk;
             aks.push_back(ak);
             bks.push_back(bk);
 
             // These base values are in camera space and define our frustum corners
-            const float xn = ak * ar * projPlaneDist;
-            const float xf = bk * ar * projPlaneDist;
-            const float yn = ak * projPlaneDist;
-            const float yf = bk * projPlaneDist;
+            const f32 xn = ak * ar * projPlaneDist;
+            const f32 xf = bk * ar * projPlaneDist;
+            const f32 yn = ak * projPlaneDist;
+            const f32 yf = bk * projPlaneDist;
             // Keep all of these in camera space for now
             std::vector<glm::vec4, Vec4Allocator> frustumCorners({
                 // Near corners
@@ -690,29 +690,29 @@ namespace stratus {
             // @see https://ahbejarano.gitbook.io/lwjglgamedev/chapter26
             glm::vec3 frustumSum(0.0f);
             for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
-            const glm::vec3 frustumCenter = frustumSum / float(frustumCorners.size());
+            const glm::vec3 frustumCenter = frustumSum / f32(frustumCorners.size());
 
             // Calculate max diameter across frustum
-            float maxLength = std::numeric_limits<float>::min();
-            for (int i = 0; i < frustumCorners.size() - 1; ++i) {
-                for (int j = 1; j < frustumCorners.size(); ++j) {
-                    maxLength = std::max<float>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+            f32 maxLength = std::numeric_limits<f32>::min();
+            for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
+                for (i32 j = 1; j < frustumCorners.size(); ++j) {
+                    maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
                 }
             }
             
             // This tells us the maximum diameter for the cascade bounding box
-            //const float dk = std::ceilf(std::max<float>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
             //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            const float dk = ceilf(maxLength);
+            const f32 dk = ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            const float T = dk / frame_->csc.cascadeResolutionXY;
+            const f32 T = dk / frame_->csc.cascadeResolutionXY;
             frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;
             glm::vec3 maxVec;
-            for (int j = 0; j < frustumCorners.size(); ++j) {
+            for (i32 j = 0; j < frustumCorners.size(); ++j) {
                 // First make sure to transform frustumCorners[j] from camera space to light space
                 frustumCorners[j] = L * frustumCorners[j];
                 const glm::vec3 frustumVec = frustumCorners[j];
@@ -726,14 +726,14 @@ namespace stratus {
                 }
             }
 
-            const float minX = minVec.x;
-            const float maxX = maxVec.x;
+            const f32 minX = minVec.x;
+            const f32 maxX = maxVec.x;
 
-            const float minY = minVec.y;
-            const float maxY = maxVec.y;
+            const f32 minY = minVec.y;
+            const f32 maxY = maxVec.y;
 
-            const float minZ = minVec.z;
-            const float maxZ = maxVec.z;
+            const f32 minZ = minVec.z;
+            const f32 maxZ = maxVec.z;
 
             zmins.push_back(minZ);
             zmaxs.push_back(maxZ);
@@ -756,7 +756,7 @@ namespace stratus {
                                                             glm::vec4(-sk, 1.0f));
 
             // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
-            const float shadowDepthOffset = 0.0f;//2e-19;
+            const f32 shadowDepthOffset = 0.0f;//2e-19;
             // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
             // so it enables us to use the simplified Orthographic Projection matrix below
             //
@@ -829,7 +829,7 @@ namespace stratus {
                         auto lightPos = light->GetPosition();
                         auto lightRadius = light->GetRadius();
                         //If the EntityView is in the light's visible set, its shadows are now out of date
-                        for (size_t i = 0; i < GetMeshCount(entity); ++i) {
+                        for (usize i = 0; i < GetMeshCount(entity); ++i) {
                             if (glm::distance(GetWorldTransform(entity, i), lightPos) > lightRadius) {
                                 frame_->lightsToUpdate.PushBack(light);
                             }
@@ -934,7 +934,7 @@ namespace stratus {
         glm::vec3 vmin3 = corners[0];
         glm::vec3 vmax3 = corners[0];
 
-        for (int i = 1; i < 8; ++i) {
+        for (i32 i = 1; i < 8; ++i) {
             vmin3 = glm::min(vmin3, glm::vec3(corners[i]));
             vmax3 = glm::max(vmax3, glm::vec3(corners[i]));
         }
@@ -975,7 +975,7 @@ namespace stratus {
         viscullCsms_->Bind();
 
         // Ensure cascade draw command buffers have enough space
-        for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+        for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             auto& csm = frame_->csc.cascades[i];
             csm.drawCommands->EnsureCapacity(frame_->drawCommands);
             
@@ -1010,9 +1010,9 @@ namespace stratus {
         for (auto& [cull, buffer] : commands) {
             if (buffer->NumDrawCommands() == 0) continue;
 
-            pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
+            pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
 
-            const size_t maxLod = buffer->NumLods() - 2;
+            const usize maxLod = buffer->NumLods() - 2;
 
             buffer->BindModelTransformBuffer(2);
             buffer->BindAabbBuffer(3);
@@ -1067,7 +1067,7 @@ namespace stratus {
 	    // };
 
         // // This will convert the corners from NDC -> world space
-        // for (int i = 0; i < 8; i++) {
+        // for (i32 i = 0; i < 8; i++) {
         //     const glm::vec4 q = ivp * corners[i];
         //     corners[i] = q / q.w;
         // }
@@ -1090,7 +1090,7 @@ namespace stratus {
 
         pipeline.Bind();
 
-        for (size_t i = 0; i < 6; ++i) {
+        for (usize i = 0; i < 6; ++i) {
             pipeline.SetVec4("frustumPlanes[" + std::to_string(i) + "]", frustumPlanes[i]);
         }
 
@@ -1109,13 +1109,13 @@ namespace stratus {
             if (selectLods) {
                 it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
                 // The render component has code to deal with indexing past the last lod (returns the highest lod it has)
-                const size_t numLods = 8;
-                for (size_t k = 0; k < numLods; ++k) {
+                const usize numLods = 8;
+                for (usize k = 0; k < numLods; ++k) {
                     it->second->GetIndirectDrawCommandsBuffer(k).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
                 }
             }
 
-            pipeline.SetUint("numDrawCalls", (unsigned int)(it->second->NumDrawCommands()));
+            pipeline.SetUint("numDrawCalls", (u32)(it->second->NumDrawCommands()));
             pipeline.SetMat4("view", view);
             //pipeline.setMat4("view", _frame->camera->getViewTransform());
             //pipeline.setMat4("projection", _frame->projection);
@@ -1125,15 +1125,15 @@ namespace stratus {
 
         pipeline.Unbind();
 
-        //for (size_t i = 0; i < drawCommands.size(); ++i) {
+        //for (usize i = 0; i < drawCommands.size(); ++i) {
         //   auto& map = drawCommands[i];
         //   for (const auto& cull : culling) {
         //       auto outIt = map->find(cull);
         //       const auto& buffer = outIt->second;
         //       if (buffer->NumDrawCommands() == 0) continue;
-        //       int numCommands = 0;
+        //       i32 numCommands = 0;
 
-        //       for (size_t k = 0; k < buffer->NumDrawCommands(); ++k) {
+        //       for (usize k = 0; k < buffer->NumDrawCommands(); ++k) {
         //           GpuAABB aabb = TransformAabb(buffer->aabbs[k], buffer->globalTransforms[k]);
         //           if (!IsAabbVisible(aabb, frustumPlanes)) {
         //               buffer->indirectDrawCommands[k].instanceCount = 0;

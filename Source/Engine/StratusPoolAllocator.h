@@ -7,6 +7,7 @@
 #include <functional>
 #include <atomic>
 #include "StratusPointer.h"
+#include "StratusTypes.h"
 
 // See https://www.qt.io/blog/a-fast-and-thread-safe-pool-allocator-for-qt-part-1
 // for some more information
@@ -14,17 +15,17 @@
 namespace stratus {
     template<typename C>
     struct DefaultChunkAllocator_ final {
-        static C * AllocateConstruct(const size_t count) {
+        static C * AllocateConstruct(const usize count) {
             return (C *)std::malloc(sizeof(C) * count);
         }
 
         template<typename ... Args>
         static void Construct(C * at, Args&&... args) {
-            uint8_t * memory = reinterpret_cast<uint8_t *>(at);
+            u8 * memory = reinterpret_cast<u8 *>(at);
             ::new (memory) C(std::forward<Args>(args)...);
         }
 
-        static void Deallocate(C * ptr, const size_t count) {
+        static void Deallocate(C * ptr, const usize count) {
             std::free(reinterpret_cast<void *>(ptr));
         }
 
@@ -48,17 +49,17 @@ namespace stratus {
 
     // Allocates memory of a pre-defined size provide optimal data locality
     // with zero fragmentation
-    template<typename E, typename Lock, size_t ElemsPerChunk, size_t Chunks, template<typename C> typename ChunkAllocator>
+    template<typename E, typename Lock, usize ElemsPerChunk, usize Chunks, template<typename C> typename ChunkAllocator>
     struct PoolAllocatorImpl_ {
         static_assert(ElemsPerChunk > 0);
         static_assert(Chunks > 0);
 
         // We need to at least be able to store the next pointer
-        static constexpr size_t BytesPerElem = std::max<size_t>(sizeof(void *), sizeof(E));
-        static constexpr size_t BytesPerChunk = BytesPerElem * ElemsPerChunk;
+        static constexpr usize BytesPerElem = std::max<usize>(sizeof(void *), sizeof(E));
+        static constexpr usize BytesPerChunk = BytesPerElem * ElemsPerChunk;
 
         PoolAllocatorImpl_() {
-            for (size_t i = 0; i < Chunks; ++i) {
+            for (usize i = 0; i < Chunks; ++i) {
                 InitChunk_();
             }
         }
@@ -84,7 +85,7 @@ namespace stratus {
 
     private:
         template<typename ... Types>
-        static E * PlacementNew_(uint8_t * memory, const Types&... args) {
+        static E * PlacementNew_(u8 * memory, const Types&... args) {
             return new (memory) E(args...);
         }
 
@@ -96,7 +97,7 @@ namespace stratus {
 
         template<typename Construct, typename ... Types>
         E * AllocateCustomConstruct(Construct c, const Types&... args) {
-            uint8_t* bytes = nullptr;
+            u8 * bytes = nullptr;
             {
                 //auto wlf = _frontBufferLock.LockWrite();
                 if (!frontBuffer_) {
@@ -112,9 +113,9 @@ namespace stratus {
                     }
                 }
 
-                MemBlock_* next = frontBuffer_;
+                MemBlock_ * next = frontBuffer_;
                 frontBuffer_ = frontBuffer_->next;
-                bytes = reinterpret_cast<uint8_t*>(next);
+                bytes = reinterpret_cast<u8 *>(next);
             }
             return c(bytes, args...);
         }
@@ -123,18 +124,18 @@ namespace stratus {
             if (ptr == nullptr) return;
             ptr->~E();
             auto wlb = backBufferLock_.LockWrite();
-            uint8_t * bytes = reinterpret_cast<uint8_t *>(ptr);
+            u8 * bytes = reinterpret_cast<u8 *>(ptr);
             MemBlock_* b = reinterpret_cast<MemBlock_*>(bytes);
             b->next = backBuffer_;
             backBuffer_ = b;
         }
 
-        size_t NumChunks() const {
+        usize NumChunks() const {
             //auto sl = _frontBufferLock.LockRead();
             return numChunks_;
         }
 
-        size_t NumElems() const {
+        usize NumElems() const {
             //auto sl = _frontBufferLock.LockRead();
             return numElems_;
         }
@@ -146,7 +147,7 @@ namespace stratus {
         };
 
         struct Chunk_ {
-            alignas(E) uint8_t memory[BytesPerChunk];
+            alignas(E) u8 memory[BytesPerChunk];
             Chunk_ * next = nullptr;
         };
 
@@ -157,11 +158,11 @@ namespace stratus {
         //
         // (we are running with the assumption that only one thread can allocate but many
         //  can deallocate for the same allocator object)
-        MemBlock_* frontBuffer_ = nullptr;
-        MemBlock_* backBuffer_ = nullptr;
-        Chunk_* chunks_ = nullptr;
-        size_t numChunks_ = 0;
-        size_t numElems_ = 0;
+        MemBlock_ * frontBuffer_ = nullptr;
+        MemBlock_ * backBuffer_ = nullptr;
+        Chunk_ * chunks_ = nullptr;
+        usize numChunks_ = 0;
+        usize numElems_ = 0;
         ChunkAllocator<Chunk_> chunkAllocator_;
 
     private:
@@ -172,9 +173,9 @@ namespace stratus {
             numElems_ += ElemsPerChunk;
 
             // Start at the end and add to freelist in reverse order
-            uint8_t * mem = c->memory + BytesPerElem * (ElemsPerChunk - 1);
-            for (size_t i = ElemsPerChunk; i > 0; --i, mem -= BytesPerElem) {
-                MemBlock_* b = reinterpret_cast<MemBlock_*>(mem);
+            u8 * mem = c->memory + BytesPerElem * (ElemsPerChunk - 1);
+            for (usize i = ElemsPerChunk; i > 0; --i, mem -= BytesPerElem) {
+                MemBlock_ * b = reinterpret_cast<MemBlock_ *>(mem);
                 b->next = frontBuffer_;
                 frontBuffer_ = b;
             }
@@ -184,7 +185,7 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
+    template<typename E, usize ElemsPerChunk = 64, usize Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
     struct PoolAllocator : public PoolAllocatorImpl_<E, NoOpLock_, ElemsPerChunk, Chunks, ChunkAllocator> {
         virtual ~PoolAllocator() = default;
     };
@@ -253,11 +254,11 @@ namespace stratus {
         }
     };
 
-    template<typename E, size_t ElemsPerChunk = 64, size_t Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
+    template<typename E, usize ElemsPerChunk = 64, usize Chunks = 1, template<typename C> typename ChunkAllocator = DefaultChunkAllocator_>
     struct ThreadSafeSmartPoolAllocator {
         typedef PoolAllocatorImpl_<E, Lock_, ElemsPerChunk, Chunks, ChunkAllocator> Allocator;
-        static constexpr size_t BytesPerElem = Allocator::BytesPerElem;
-        static constexpr size_t BytesPerChunk = Allocator::BytesPerChunk;
+        static constexpr usize BytesPerElem = Allocator::BytesPerElem;
+        static constexpr usize BytesPerChunk = Allocator::BytesPerChunk;
 
     public:
         struct Deleter {
@@ -325,13 +326,13 @@ namespace stratus {
             return SharedPtr(alloc->AllocateCustomConstruct(c, args...), Deleter(alloc));
         }
 
-        static size_t NumChunks() {
+        static usize NumChunks() {
             auto alloc = WeakGetAllocator_();
             if (!alloc) return 0;
             return alloc->NumChunks();
         }
 
-        static size_t NumElems() {
+        static usize NumElems() {
             auto alloc = WeakGetAllocator_();
             if (!alloc) return 0;
             return alloc->NumElems();

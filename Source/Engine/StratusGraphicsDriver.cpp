@@ -60,7 +60,7 @@ namespace stratus {
         log << std::endl << "\t==> Virtual/Sparse Texture Information" << std::endl;
         const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
         const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
-        for (int i = 0; i < internalFormats.size(); ++i) {
+        for (i32 i = 0; i < internalFormats.size(); ++i) {
             log << "\t" << strInternalFormats[i] << std::endl;
             log << "\t\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D[i] << std::endl;
             if (config.supportsSparseTextures2D[i]) {
@@ -140,7 +140,7 @@ namespace stratus {
         glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS, &context.config.maxComputeAtomicCounterBuffers);
         glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &context.config.maxComputeWorkGroupInvocations);
         // 0, 1, 2 count for x, y and z dims
-        for (int i = 0; i < 3; ++i) {
+        for (i32 i = 0; i < 3; ++i) {
             glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &context.config.maxComputeWorkGroupCount[i]);
             glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &context.config.maxComputeWorkGroupSize[i]);
         }
@@ -151,7 +151,7 @@ namespace stratus {
         }
 
         const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-        for (int i = 0; i < internalFormats.size(); ++i) {
+        for (i32 i = 0; i < internalFormats.size(); ++i) {
             const GLenum internalFormat = internalFormats[i];
             // Query OpenGL about sparse textures (2D)
             glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &context.config.numPageSizes2D[i]);

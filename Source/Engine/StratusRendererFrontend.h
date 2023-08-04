@@ -19,13 +19,14 @@
 #include "StratusPipeline.h"
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     struct RendererParams {
         std::string appName;
         Degrees fovy;
-        float znear = 1.0f;
-        float zfar = 1000.0f;
+        f32 znear = 1.0f;
+        f32 zfar = 1000.0f;
         bool vsyncEnabled;
     };
 
@@ -46,7 +47,7 @@ namespace stratus {
         void SetCamera(const CameraPtr&);
         CameraPtr GetCamera() const;
         void SetFovY(const Degrees&);
-        void SetNearFar(const float znear, const float zfar);
+        void SetNearFar(const f32 znear, const f32 zfar);
         void SetClearColor(const glm::vec4&);
         RendererSettings GetSettings() const;
         void SetSettings(const RendererSettings&);
@@ -120,7 +121,7 @@ namespace stratus {
         EntityMeshData flatEntities_;
         EntityMeshData dynamicPbrEntities_;
         EntityMeshData staticPbrEntities_;
-        uint64_t lastFrameMaterialIndicesRecomputed_ = 0;
+        u64 lastFrameMaterialIndicesRecomputed_ = 0;
         CameraPtr camera_;
         glm::mat4 projection_ = glm::mat4(1.0f);
         bool viewportDirty_ = true;
@@ -135,7 +136,7 @@ namespace stratus {
         std::unique_ptr<Pipeline> viscullCsms_;
         std::unique_ptr<Pipeline> updateTransforms_;
         // Used for temporal anti-aliasing
-        size_t currentHaltonIndex_ = 0;
+        usize currentHaltonIndex_ = 0;
         mutable std::shared_mutex mutex_;
     };
 }

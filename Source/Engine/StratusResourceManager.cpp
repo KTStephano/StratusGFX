@@ -51,9 +51,9 @@ namespace stratus {
 
     void ResourceManager::ClearAsyncTextureData_() {
         std::vector<TextureHandle> toDelete;
-        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
-        size_t totalTex = 0;
-        size_t totalBytes = 0;
+        //constexpr usize maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        usize totalTex = 0;
+        usize totalBytes = 0;
         std::vector<TextureHandle> handles;
         std::vector<std::shared_ptr<RawTextureData>> rawTexData;
         for (auto& tpair : asyncLoadedTextureData_) {
@@ -82,12 +82,12 @@ namespace stratus {
 
         ApplicationThread::Instance()->Queue([this, handles, rawTexData]() {
             std::vector<Texture *> ptrs(rawTexData.size());
-            for (int i = 0; i < rawTexData.size(); ++i) {
+            for (i32 i = 0; i < rawTexData.size(); ++i) {
                 ptrs[i] = FinalizeTexture_(*rawTexData[i]);
             }
 
             auto ul = LockWrite_();
-            for (int i = 0; i < handles.size(); ++i) {
+            for (i32 i = 0; i < handles.size(); ++i) {
                 texturesStillLoading_.erase(handles[i]);
                 loadedTextures_.insert(std::make_pair(handles[i], Async<Texture>(std::shared_ptr<Texture>(ptrs[i]))));
             }
@@ -95,9 +95,9 @@ namespace stratus {
     }
 
     void ResourceManager::ClearAsyncModelData_() {
-        static constexpr size_t maxModelBytesPerFrame = 1024 * 1024 * 2;
+        static constexpr usize maxModelBytesPerFrame = 1024 * 1024 * 2;
         // First generate GPU data for some of the meshes
-        size_t totalBytes = 0;
+        usize totalBytes = 0;
         std::vector<MeshPtr> removeFromGpuDataQueue;
         for (auto mesh : generateMeshGpuDataQueue_) {
             mesh->FinalizeData();
@@ -114,7 +114,7 @@ namespace stratus {
         // If none other left to finalize, end early
         if (pendingFinalize_.size() == 0) return;
 
-        //constexpr size_t maxBytes = 1024 * 1024 * 10; // 10 mb per frame
+        //constexpr usize maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;
         for (auto& mpair : pendingFinalize_) {
             if (mpair.second.Completed() && !mpair.second.Failed()) {
@@ -131,9 +131,9 @@ namespace stratus {
 
         if (meshFinalizeQueue_.size() == 0) return;
 
-        //size_t totalBytes = 0;
+        //usize totalBytes = 0;
         std::vector<MeshPtr> meshesToDelete(meshFinalizeQueue_.size());
-        size_t idx = 0;
+        usize idx = 0;
         for (auto& mesh : meshFinalizeQueue_) {
             meshesToDelete[idx] = mesh;
             ++idx;
@@ -149,13 +149,13 @@ namespace stratus {
         // }
 
         std::vector<Async<bool>> waiting;
-        const size_t numThreads = INSTANCE(TaskSystem)->Size();
-        for (size_t i = 0; i < numThreads; ++i) {
-            const size_t threadIndex = i;
+        const usize numThreads = INSTANCE(TaskSystem)->Size();
+        for (usize i = 0; i < numThreads; ++i) {
+            const usize threadIndex = i;
 
             const auto process = [this, threadIndex, numThreads, meshesToDelete]() {
                 STRATUS_LOG << "Processing " << meshesToDelete.size() << " as a task group" << std::endl;
-                for (size_t i = threadIndex; i < meshesToDelete.size(); i += numThreads) {
+                for (usize i = threadIndex; i < meshesToDelete.size(); i += numThreads) {
                     MeshPtr mesh = meshesToDelete[i];
                     mesh->PackCpuData();
                     mesh->CalculateAabbs(glm::mat4(1.0f));
@@ -200,7 +200,7 @@ namespace stratus {
         auto rnode = ptr->Components().GetComponent<RenderComponent>().component;
         if (rnode == nullptr) return;
 
-        for (int i = 0; i < rnode->meshes->meshes.size(); ++i) {
+        for (i32 i = 0; i < rnode->meshes->meshes.size(); ++i) {
             meshFinalizeQueue_.insert(rnode->meshes->meshes[i]);
         }
     }
@@ -313,7 +313,7 @@ namespace stratus {
     }
 
     static void PrintMatType(const aiMaterial * aimat, const aiTextureType type) {
-        static const std::unordered_map<int, std::string> conversion = {
+        static const std::unordered_map<i32, std::string> conversion = {
             {aiTextureType_DIFFUSE, "Diffuse"},
             {aiTextureType_SPECULAR, "Specular"},
             {aiTextureType_AMBIENT, "Ambient"},
@@ -381,7 +381,7 @@ namespace stratus {
         MeshPtr rmesh = processMesh.mesh;
 
         // Process core primitive data
-        for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+        for (u32 i = 0; i < mesh->mNumVertices; i++) {
             rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
             rmesh->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
 
@@ -397,9 +397,9 @@ namespace stratus {
         }
 
         // Process indices
-        for(uint32_t i = 0; i < mesh->mNumFaces; i++) {
+        for(u32 i = 0; i < mesh->mNumFaces; i++) {
             aiFace face = mesh->mFaces[i];
-            for(uint32_t j = 0; j < face.mNumIndices; j++) {
+            for(u32 j = 0; j < face.mNumIndices; j++) {
                 rmesh->AddIndex(face.mIndices[j]);
             }
         }
@@ -413,7 +413,7 @@ namespace stratus {
             aiMaterial * aimat = scene->mMaterials[mesh->mMaterialIndex];
 
             // Disable face culling if applicable
-            int doubleSided = 0;
+            i32 doubleSided = 0;
             if(AI_SUCCESS == aimat->Get(AI_MATKEY_TWOSIDED, doubleSided)) {
                 //STRATUS_LOG << "Double Sided: " << doubleSided << std::endl;
                 if (doubleSided != 0) {
@@ -465,11 +465,11 @@ namespace stratus {
             aiColor4D reflective;
             aiColor4D specular;
             aiColor4D emissive;
-            float metallic;
-            float roughness;
-            float opacity;
-            float specularFactor;
-            unsigned int max = 1;
+            f32 metallic;
+            f32 roughness;
+            f32 opacity;
+            f32 specularFactor;
+            u32 max = 1;
             aiColor4D transparency;
 
             if (aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic) == AI_SUCCESS) {
@@ -490,7 +490,7 @@ namespace stratus {
                 material->SetEmissiveColor(glm::vec3(0.0f));
             }
             if (aiGetMaterialColor(aimat, AI_MATKEY_COLOR_REFLECTIVE, &reflective) == AI_SUCCESS) {
-                material->SetReflectance(std::max<float>(reflective.r, std::max<float>(reflective.g, reflective.b)));
+                material->SetReflectance(std::max<f32>(reflective.r, std::max<f32>(reflective.g, reflective.b)));
                 //material->SetBaseReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
                 //material->SetMaxReflectivity(glm::vec3(reflective.r, reflective.g, reflective.b));
                 //STRATUS_LOG << "RF: " << reflective.r << " " << reflective.g << " " << reflective.b << std::endl;
@@ -501,7 +501,7 @@ namespace stratus {
             //}
             else if (aiGetMaterialFloatArray(aimat, AI_MATKEY_REFRACTI, &specularFactor, &max) == AI_SUCCESS) {
                 //STRATUS_LOG << "SP: " << specularFactor << " " << max << std::endl;
-                float reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
+                f32 reflectance = (specularFactor - 1.0) / (specularFactor + 1.0);
                 reflectance = reflectance * reflectance;
                 material->SetReflectance(reflectance);
                 //material->SetBaseReflectivity(glm::vec3(reflectance));
@@ -576,19 +576,19 @@ namespace stratus {
             auto gt = ToMat4(transform);
 
             // Process all node meshes (if any)
-            for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
+            for (u32 i = 0; i < node->mNumMeshes; ++i) {
                 aiMesh * mesh = scene->mMeshes[node->mMeshes[i]];
                 // aiMaterial* aimat = scene->mMaterials[mesh->mMaterialIndex];
                 // STRATUS_LOG << "Material Idx / Num Properties " << mesh->mMaterialIndex << " / " << aimat->mNumProperties << std::endl;
-                // std::vector<float> values(4);
-                // for (int i = 0; i < aimat->mNumProperties; ++i) {
+                // std::vector<f32> values(4);
+                // for (i32 i = 0; i < aimat->mNumProperties; ++i) {
                 //     STRATUS_LOG << aimat->mProperties[i]->mKey.C_Str() << " " << aimat->mProperties[i]->mDataLength << std::endl;
                 // }
                 // aiColor4D emissive;
-                // float metallic;
-                // float roughness;
-                // unsigned int max = 4;
-                // float refracti;
+                // f32 metallic;
+                // f32 roughness;
+                // u32 max = 4;
+                // f32 refracti;
                 // aiGetMaterialFloatArray(aimat, AI_MATKEY_SHININESS, values.data(), &max);
                 // aiGetMaterialColor(aimat, AI_MATKEY_COLOR_EMISSIVE, &emissive);
                 // aiGetMaterialFloat(aimat, AI_MATKEY_METALLIC_FACTOR, &metallic);
@@ -604,8 +604,8 @@ namespace stratus {
                 if (mesh->mNormals == nullptr) continue;
                 // Attempt to find degenerate meshes
                 if (mesh->mNumFaces > 0) {
-                    uint32_t numIndices = 0;
-                    for(uint32_t i = 0; i < mesh->mNumFaces; i++) {
+                    u32 numIndices = 0;
+                    for(u32 i = 0; i < mesh->mNumFaces; i++) {
                         aiFace face = mesh->mFaces[i];
                         numIndices += face.mNumIndices;
                     }
@@ -635,7 +635,7 @@ namespace stratus {
         }
 
         // Now do the same for each child
-        for (uint32_t i = 0; i < node->mNumChildren; ++i) {
+        for (u32 i = 0; i < node->mNumChildren; ++i) {
             // Create a new container Entity
             EntityPtr centity = CreateTransformEntity();
             entity->AttachChildNode(centity);
@@ -650,7 +650,7 @@ namespace stratus {
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
         importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4096);
 
-        unsigned int pflags = aiProcess_Triangulate |
+        u32 pflags = aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |
             aiProcess_SortByPType |
             aiProcess_GenNormals |
@@ -684,7 +684,7 @@ namespace stratus {
         }
 
         // Create all scene materials
-        for (uint32_t i = 0; i < scene->mNumMaterials; ++i) {
+        for (u32 i = 0; i < scene->mNumMaterials; ++i) {
             const std::string materialName = name + "#" + std::to_string(i);
             auto material = INSTANCE(MaterialManager)->CreateMaterial(materialName);
         }
@@ -702,14 +702,14 @@ namespace stratus {
         std::vector<Async<void>> waiting;
         // There are cases where the number of meshes to process is less than the total available threads,
         // so in that case just use meshes.size() as the upper limit
-        const size_t numThreads = std::min(INSTANCE(TaskSystem)->Size(), meshes.size());
-        std::atomic<size_t> counter = 0;
+        const usize numThreads = std::min(INSTANCE(TaskSystem)->Size(), meshes.size());
+        std::atomic<usize> counter = 0;
         // Important we start at 1 since we are including this current task thread already
-        for (size_t i = 1; i < numThreads; ++i) {
-            const size_t threadNum = i;
+        for (usize i = 1; i < numThreads; ++i) {
+            const usize threadNum = i;
             const auto process = [&counter, &meshes, threadNum, numThreads, scene, &directory, &extension, &defaultCullMode, &cspace]() {
-                size_t processed = 0;
-                for (size_t idx = threadNum; idx < meshes.size(); idx += numThreads, ++processed) {
+                usize processed = 0;
+                for (usize idx = threadNum; idx < meshes.size(); idx += numThreads, ++processed) {
                     ProcessMesh(meshes[idx], scene, directory, extension, defaultCullMode, cspace);
                 }
 
@@ -720,8 +720,8 @@ namespace stratus {
         }
 
         // Now process our portion
-        size_t processed = 0;
-        for (size_t i = 0; i < meshes.size(); i += numThreads, ++processed) {
+        usize processed = 0;
+        for (usize i = 0; i < meshes.size(); i += numThreads, ++processed) {
             ProcessMesh(meshes[i], scene, directory, extension, defaultCullMode, cspace);
         }
 
@@ -758,7 +758,7 @@ namespace stratus {
             std::replace(file.begin(), file.end(), '\\', '/');
             STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
 
-            int width, height, numChannels;
+            i32 width, height, numChannels;
             // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
             uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
             if (data) {
@@ -775,8 +775,8 @@ namespace stratus {
                 config.storage = TextureComponentSize::BITS_DEFAULT;
                 config.generateMipMaps = true;
                 config.dataType = TextureComponentType::UINT;
-                config.width = (uint32_t)width;
-                config.height = (uint32_t)height;
+                config.width = (u32)width;
+                config.height = (u32)height;
                 config.depth = 0;
                 // This loads the textures with sRGB in mind so that they get converted back
                 // to linear color space. Warning: if the texture was not actually specified as an
@@ -837,7 +837,7 @@ namespace stratus {
 
     Texture * ResourceManager::FinalizeTexture_(const RawTextureData& data) {
         stratus::TextureArrayData texArrayData(data.data.size());
-        for (size_t i = 0; i < texArrayData.size(); ++i) {
+        for (usize i = 0; i < texArrayData.size(); ++i) {
             texArrayData[i].data = (const void *)data.data[i];
         }
         Texture* texture = new Texture(data.config, texArrayData, false);
@@ -925,10 +925,10 @@ namespace stratus {
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
         rc->AddMaterial(mat);
 
-        const size_t cubeStride = 14;
-        const size_t cubeNumVertices = cubeData.size() / cubeStride;
+        const usize cubeStride = 14;
+        const usize cubeNumVertices = cubeData.size() / cubeStride;
 
-        for (size_t i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
+        for (usize i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
             mesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
             mesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
             mesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
@@ -955,10 +955,10 @@ namespace stratus {
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
         rc->AddMaterial(mat);
 
-        const size_t quadStride = 14;
-        const size_t quadNumVertices = quadData.size() / quadStride;
+        const usize quadStride = 14;
+        const usize quadNumVertices = quadData.size() / quadStride;
 
-        for (size_t i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
+        for (usize i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
             mesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
             mesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
             mesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));

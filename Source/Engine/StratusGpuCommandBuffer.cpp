@@ -1,13 +1,13 @@
 #include "StratusGpuCommandBuffer.h"
 
 namespace stratus {
-    GpuCommandBuffer::GpuCommandBuffer(const RenderFaceCulling& culling, size_t numLods, size_t commandBlockSize)
+    GpuCommandBuffer::GpuCommandBuffer(const RenderFaceCulling& culling, usize numLods, usize commandBlockSize)
     {
         culling_ = culling;
-        numLods = std::max<size_t>(1, numLods);
+        numLods = std::max<usize>(1, numLods);
 
         drawCommands_.resize(numLods);
-        for (size_t i = 0; i < numLods; ++i) {
+        for (usize i = 0; i < numLods; ++i) {
             drawCommands_[i] = (GpuTypedBuffer<GpuDrawElementsIndirectCommand>::Create(commandBlockSize, true));
         }
 
@@ -16,20 +16,20 @@ namespace stratus {
         prevFrameModelTransforms_ = GpuTypedBuffer<glm::mat4>::Create(commandBlockSize, true);
         modelTransforms_ = GpuTypedBuffer<glm::mat4>::Create(commandBlockSize, true);
         aabbs_ = GpuTypedBuffer<GpuAABB>::Create(commandBlockSize, true);
-        materialIndices_ = GpuTypedBuffer<uint32_t>::Create(commandBlockSize, true);
+        materialIndices_ = GpuTypedBuffer<u32>::Create(commandBlockSize, true);
     }
 
-    size_t GpuCommandBuffer::NumDrawCommands() const
+    usize GpuCommandBuffer::NumDrawCommands() const
     {
         return drawCommands_[0]->Size();
     }
 
-    size_t GpuCommandBuffer::NumLods() const
+    usize GpuCommandBuffer::NumLods() const
     {
         return drawCommands_.size();
     }
 
-    size_t GpuCommandBuffer::CommandCapacity() const {
+    usize GpuCommandBuffer::CommandCapacity() const {
         return drawCommands_[0]->Capacity();
     }
 
@@ -41,8 +41,8 @@ namespace stratus {
     void GpuCommandBuffer::RecordCommand(
         RenderComponent* component, 
         MeshWorldTransforms* transforms,
-        const size_t meshIndex,
-        const size_t materialIndex)
+        const usize meshIndex,
+        const usize materialIndex)
     {
         const MeshPtr mesh = component->GetMesh(meshIndex);
 
@@ -53,7 +53,7 @@ namespace stratus {
         if (it == drawCommandIndices_.end()) {
             it = drawCommandIndices_.insert(std::make_pair(
                 component,
-                std::unordered_map<MeshPtr, uint32_t>()
+                std::unordered_map<MeshPtr, u32>()
             )).first;
         }
         // Command already exists for render component/mesh pair
@@ -72,7 +72,7 @@ namespace stratus {
         visibleCommands_->Add(GpuDrawElementsIndirectCommand());
         selectedLodCommands_->Add(GpuDrawElementsIndirectCommand());
 
-        for (size_t lod = 0; lod < NumLods(); ++lod) {
+        for (usize lod = 0; lod < NumLods(); ++lod) {
             GpuDrawElementsIndirectCommand command;
 
             if (mesh->IsFinalized()) {
@@ -114,7 +114,7 @@ namespace stratus {
             materialIndices_->Remove(index);
 
             // Remove all lods
-            for (size_t i = 0; i < NumLods(); ++i) {
+            for (usize i = 0; i < NumLods(); ++i) {
                 drawCommands_[i]->Remove(index);
             }
 
@@ -131,7 +131,7 @@ namespace stratus {
             return;
         }
 
-        for (size_t i = 0; i < component->GetMeshCount(); ++i) {
+        for (usize i = 0; i < component->GetMeshCount(); ++i) {
             const MeshPtr mesh = component->GetMesh(i);
             auto index = it->second.find(mesh);
             // Mesh does not match this command buffer
@@ -151,7 +151,7 @@ namespace stratus {
             return;
         }
 
-        for (size_t i = 0; i < component->GetMeshCount(); ++i) {
+        for (usize i = 0; i < component->GetMeshCount(); ++i) {
             const MeshPtr mesh = component->GetMesh(i);
             auto index = it->second.find(mesh);
             // Mesh does not match this command buffer
@@ -181,7 +181,7 @@ namespace stratus {
                 performedUpdate_ = true;
                 aabbs_->Set(mesh->GetAABB(), index);
 
-                for (size_t lod = 0; lod < NumLods(); ++lod) {
+                for (usize lod = 0; lod < NumLods(); ++lod) {
                     GpuDrawElementsIndirectCommand command;
                     command.baseInstance = 0;
                     command.baseVertex = 0;
@@ -196,7 +196,7 @@ namespace stratus {
 
         // Don't need to upload for visibleCommands_ or selectedLodCommands_ since
         // they are meant to be directly modified on the GPU
-        for (size_t i = 0; i < NumLods(); ++i) {
+        for (usize i = 0; i < NumLods(); ++i) {
             drawCommands_[i]->UploadChangesToGpu();
         }
 
@@ -210,7 +210,7 @@ namespace stratus {
         return updated;
     }
 
-    void GpuCommandBuffer::BindMaterialIndicesBuffer(uint32_t index) const
+    void GpuCommandBuffer::BindMaterialIndicesBuffer(u32 index) const
     {
         auto buffer = materialIndices_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -219,7 +219,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(uint32_t index) const
+    void GpuCommandBuffer::BindPrevFrameModelTransformBuffer(u32 index) const
     {
         auto buffer = prevFrameModelTransforms_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -228,7 +228,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindModelTransformBuffer(uint32_t index) const
+    void GpuCommandBuffer::BindModelTransformBuffer(u32 index) const
     {
         auto buffer = modelTransforms_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -237,7 +237,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindAabbBuffer(uint32_t index) const
+    void GpuCommandBuffer::BindAabbBuffer(u32 index) const
     {
         auto buffer = aabbs_->GetBuffer();
         if (buffer == GpuBuffer()) {
@@ -246,7 +246,7 @@ namespace stratus {
         buffer.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, index);
     }
 
-    void GpuCommandBuffer::BindIndirectDrawCommands(const size_t lod) const
+    void GpuCommandBuffer::BindIndirectDrawCommands(const usize lod) const
     {
         if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
@@ -254,7 +254,7 @@ namespace stratus {
         drawCommands_[lod]->GetBuffer().Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
-    void GpuCommandBuffer::UnbindIndirectDrawCommands(const size_t lod) const
+    void GpuCommandBuffer::UnbindIndirectDrawCommands(const usize lod) const
     {
         if (lod >= NumLods() || drawCommands_[lod]->GetBuffer() == GpuBuffer()) {
             throw std::runtime_error("Null indirect draw command buffer");
@@ -262,7 +262,7 @@ namespace stratus {
         drawCommands_[lod]->GetBuffer().Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
     }
 
-    GpuBuffer GpuCommandBuffer::GetIndirectDrawCommandsBuffer(const size_t lod) const
+    GpuBuffer GpuCommandBuffer::GetIndirectDrawCommandsBuffer(const usize lod) const
     {
         if (lod >= NumLods()) {
             throw std::runtime_error("LOD requested exceeds max available LOD");
@@ -300,7 +300,7 @@ namespace stratus {
     }
 
     void GpuCommandReceiveBuffer::EnsureCapacity(const GpuCommandBufferPtr& buffer) {
-        const size_t capacity = capacityBytes_ / sizeof(GpuDrawElementsIndirectCommand);
+        const usize capacity = capacityBytes_ / sizeof(GpuDrawElementsIndirectCommand);
         const bool resize = capacity < buffer->CommandCapacity();
 
         if (resize) {
@@ -314,9 +314,9 @@ namespace stratus {
         return receivedCommands_;
     }
 
-    GpuCommandManager::GpuCommandManager(size_t numLods)
+    GpuCommandManager::GpuCommandManager(usize numLods)
     {
-        numLods = std::max<size_t>(1, numLods);
+        numLods = std::max<usize>(1, numLods);
         numLods_ = numLods;
 
         static constexpr RenderFaceCulling cullingValues[] = {
@@ -325,7 +325,7 @@ namespace stratus {
             RenderFaceCulling::CULLING_NONE
         };
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             auto fm = GpuCommandBuffer::Create(cullingValues[i], numLods, 10000);
             auto dm = GpuCommandBuffer::Create(cullingValues[i], numLods, 10000);
             auto sm = GpuCommandBuffer::Create(cullingValues[i], numLods, 10000);
@@ -336,7 +336,7 @@ namespace stratus {
         }
     }
 
-    size_t GpuCommandManager::NumLods() const
+    usize GpuCommandManager::NumLods() const
     {
         return numLods_;
     }
@@ -392,9 +392,9 @@ namespace stratus {
             }
         }
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
-            for (size_t meshIndex = 0; meshIndex < c->GetMeshCount(); ++meshIndex) {
+            for (usize meshIndex = 0; meshIndex < c->GetMeshCount(); ++meshIndex) {
                 auto materialIndex = materials->GetMaterialIndex(c->GetMaterialAt(meshIndex));
                 buffer->find(cull)->second->RecordCommand(c, mt, meshIndex, materialIndex);
             }
@@ -423,9 +423,9 @@ namespace stratus {
 
         auto c = GetComponent<RenderComponent>(e);
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
-            for (size_t k = 0; k < 3; ++k) {
+            for (usize k = 0; k < 3; ++k) {
                 auto buffer = buffers[k];
 
                 buffer->find(cull)->second->RemoveAllCommands(c);
@@ -461,9 +461,9 @@ namespace stratus {
         auto c = GetComponent<RenderComponent>(e);
         auto mt = GetComponent<MeshWorldTransforms>(e);
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
-            for (size_t k = 0; k < 3; ++k) {
+            for (usize k = 0; k < 3; ++k) {
                 auto buffer = buffers[k];
 
                 buffer->find(cull)->second->UpdateTransforms(c, mt);
@@ -491,9 +491,9 @@ namespace stratus {
 
         auto c = GetComponent<RenderComponent>(e);
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
-            for (size_t k = 0; k < 3; ++k) {
+            for (usize k = 0; k < 3; ++k) {
                 auto buffer = buffers[k];
 
                 buffer->find(cull)->second->UpdateMaterials(c, materials);
@@ -511,7 +511,7 @@ namespace stratus {
 
         bool changed = false;
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
             changed = changed || flatMeshes.find(cull)->second->UploadDataToGpu();
         }
@@ -529,7 +529,7 @@ namespace stratus {
 
         bool changed = false;
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
             changed = changed || dynamicPbrMeshes.find(cull)->second->UploadDataToGpu();
         }
@@ -547,7 +547,7 @@ namespace stratus {
 
         bool changed = false;
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
             changed = changed || staticPbrMeshes.find(cull)->second->UploadDataToGpu();
         }
@@ -567,7 +567,7 @@ namespace stratus {
             RenderFaceCulling::CULLING_NONE
         };
 
-        for (size_t i = 0; i < 3; ++i) {
+        for (usize i = 0; i < 3; ++i) {
             const auto cull = cullingValues[i];
             flatMeshes.insert(std::make_pair(cull, GpuCommandReceiveBuffer::Create()));
             dynamicPbrMeshes.insert(std::make_pair(cull, GpuCommandReceiveBuffer::Create()));

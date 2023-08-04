@@ -4,12 +4,13 @@
 #include <vector>
 #include "StratusHandle.h"
 #include "StratusGpuCommon.h"
+#include "StratusTypes.h"
 
 namespace stratus {    
     class Texture;
     typedef Handle<Texture> TextureHandle;
 
-    enum class TextureType : int {
+    enum class TextureType : i32 {
         TEXTURE_2D,
         TEXTURE_2D_ARRAY,
         // Corresponds to GL_TEXTURE_CUBE_MAP
@@ -19,7 +20,7 @@ namespace stratus {
         TEXTURE_RECTANGLE
     };
 
-    enum class TextureComponentFormat : int {
+    enum class TextureComponentFormat : i32 {
         RED,
         RGB,
         RG,
@@ -30,7 +31,7 @@ namespace stratus {
         DEPTH_STENCIL
     };
 
-    enum class TextureComponentSize : int {
+    enum class TextureComponentSize : i32 {
         BITS_DEFAULT,
         BITS_8,
         BITS_16,
@@ -38,14 +39,14 @@ namespace stratus {
         BITS_11_11_10 // Only valid for float: R11G11B10_F
     };
 
-    enum class TextureComponentType : int {
+    enum class TextureComponentType : i32 {
         INT,
         UINT,
         FLOAT
     };
 
     // Specifies the behavior for when coordinates under or overflow
-    enum class TextureCoordinateWrapping : int {
+    enum class TextureCoordinateWrapping : i32 {
         REPEAT,
         NEAREST,
         LINEAR,
@@ -55,7 +56,7 @@ namespace stratus {
         MIRROR_CLAMP_TO_EDGE
     };
 
-    enum class TextureMinificationFilter : int {
+    enum class TextureMinificationFilter : i32 {
         NEAREST,
         LINEAR,
         NEAREST_MIPMAP_NEAREST,
@@ -64,19 +65,19 @@ namespace stratus {
         LINEAR_MIPMAP_LINEAR
     };
 
-    enum class TextureMagnificationFilter : int {
+    enum class TextureMagnificationFilter : i32 {
         NEAREST,
         LINEAR
     };
 
-    enum class TextureCompareMode : int {
+    enum class TextureCompareMode : i32 {
         NONE,
         // Interpolated and clamped r texture coordinate should be compared to the value
         // in the currently bound depth texture
         COMPARE_REF_TO_TEXTURE
     };
 
-    enum class TextureCompareFunc : int {
+    enum class TextureCompareFunc : i32 {
         ALWAYS,
         NEVER,
         LESS,
@@ -87,7 +88,7 @@ namespace stratus {
         NOTEQUAL
     };
 
-    enum class ImageTextureAccessMode : int {
+    enum class ImageTextureAccessMode : i32 {
         IMAGE_READ_ONLY,
         IMAGE_WRITE_ONLY,
         IMAGE_READ_WRITE
@@ -98,9 +99,9 @@ namespace stratus {
         TextureComponentFormat format;
         TextureComponentSize storage;
         TextureComponentType dataType;
-        uint32_t width;
-        uint32_t height;
-        uint32_t depth;
+        u32 width;
+        u32 height;
+        u32 depth;
         bool generateMipMaps;
     };
 
@@ -143,20 +144,20 @@ namespace stratus {
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
 
-        uint32_t Width() const;
-        uint32_t Height() const;
-        uint32_t Depth() const;
+        u32 Width() const;
+        u32 Height() const;
+        u32 Depth() const;
 
-        void Bind(int activeTexture = 0) const;
+        void Bind(i32 activeTexture = 0) const;
         void Unbind() const;
 
-        void BindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
 
         bool Valid() const;
 
         // clearValue is between one and four components worth of data (or nullptr - in which case the texture is filled with 0s)
-        void Clear(const int mipLevel, const void * clearValue) const;
-        void ClearLayer(const int mipLevel, const int layer, const void * clearValue) const;
+        void Clear(const i32 mipLevel, const void * clearValue) const;
+        void ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * Underlying() const;
@@ -165,7 +166,7 @@ namespace stratus {
         bool operator==(const Texture & other) const;
 
         // Creates a new texture and copies this texture into it
-        Texture Copy(uint32_t newWidth, uint32_t newHeight) const;
+        Texture Copy(u32 newWidth, u32 newHeight) const;
         const TextureConfig & GetConfig() const;
 
     private:

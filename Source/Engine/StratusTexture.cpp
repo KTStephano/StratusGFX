@@ -18,9 +18,9 @@ namespace stratus {
 
         GLuint texture_;
         TextureConfig config_;
-        mutable int activeTexture_ = -1;
+        mutable i32 activeTexture_ = -1;
         TextureHandle handle_;
-        int memRefcount_ = 0;
+        i32 memRefcount_ = 0;
 
     public:
         TextureImpl(const TextureConfig & config, const TextureArrayData& data, bool initHandle) {
@@ -64,7 +64,7 @@ namespace stratus {
                 //     throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
                 // }
 
-                uint32_t depth = config.depth;
+                u32 depth = config.depth;
                 // Cube map array depth is in terms of faces, so it should be desired depth * 6
                 if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
                     depth *= 6;
@@ -91,7 +91,7 @@ namespace stratus {
                     throw std::runtime_error("Unable to create cube map texture");
                 }
 
-                for (int face = 0; face < 6; ++face) {
+                for (i32 face = 0; face < 6; ++face) {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
                         0, 
                         _convertInternalFormat(config.format, config.storage, config.dataType),
@@ -162,7 +162,7 @@ namespace stratus {
             handle_ = handle;
         }
 
-        void Clear(const int mipLevel, const void * clearValue) const {
+        void Clear(const i32 mipLevel, const void * clearValue) const {
             glClearTexImage(
                 texture_, 
                 mipLevel,
@@ -176,16 +176,16 @@ namespace stratus {
         // for information about how to handle different texture types.
         //
         // This does not work for compressed textures or texture buffers.
-        void clearLayer(const int mipLevel, const int layer, const void * clearValue) const {
+        void clearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const {
             if (type() == TextureType::TEXTURE_2D || type() == TextureType::TEXTURE_RECTANGLE) {
                 Clear(mipLevel, clearValue);
             }
             else {
                 // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
-                const int multiplier = type() == TextureType::TEXTURE_2D_ARRAY ? 1 : 6;
-                const int xoffset = 0, yoffset = 0;
-                const int zoffset = layer * multiplier;
-                const int depth = multiplier; // number of layers to clear which for a cubemap is 6
+                const i32 multiplier = type() == TextureType::TEXTURE_2D_ARRAY ? 1 : 6;
+                const i32 xoffset = 0, yoffset = 0;
+                const i32 zoffset = layer * multiplier;
+                const i32 depth = multiplier; // number of layers to clear which for a cubemap is 6
                 glClearTexSubImage(
                     texture_, 
                     mipLevel, 
@@ -226,20 +226,20 @@ namespace stratus {
             glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle());
         }
 
-        uint32_t width() const                 { return config_.width; }
-        uint32_t height() const                { return config_.height; }
-        uint32_t depth() const                 { return config_.depth; }
+        u32 width() const                 { return config_.width; }
+        u32 height() const                { return config_.height; }
+        u32 depth() const                 { return config_.depth; }
         void * Underlying() const              { return (void *)&texture_; }
 
     public:
-        void bind(int activeTexture = 0) const {
+        void bind(i32 activeTexture = 0) const {
             unbind();
             glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(config_.type), texture_);
             activeTexture_ = activeTexture;
         }
 
-        void bindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+        void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
             GLenum accessMode = _convertImageAccessMode(access);
             glBindImageTexture(unit, 
                                texture_, 
@@ -533,19 +533,19 @@ namespace stratus {
     void Texture::MakeResident_(const Texture& texture) { TextureImpl::MakeResident(texture); }
     void Texture::MakeNonResident_(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
-    uint32_t Texture::Width() const { return impl_->width(); }
-    uint32_t Texture::Height() const { return impl_->height(); }
-    uint32_t Texture::Depth() const { return impl_->depth(); }
+    u32 Texture::Width() const { return impl_->width(); }
+    u32 Texture::Height() const { return impl_->height(); }
+    u32 Texture::Depth() const { return impl_->depth(); }
 
-    void Texture::Bind(int activeTexture) const { impl_->bind(activeTexture); }
-    void Texture::BindAsImageTexture(uint32_t unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+    void Texture::Bind(i32 activeTexture) const { impl_->bind(activeTexture); }
+    void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
         impl_->bindAsImageTexture(unit, layered, layer, access);
     }
     void Texture::Unbind() const { impl_->unbind(); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::Clear(const int mipLevel, const void * clearValue) const { impl_->Clear(mipLevel, clearValue); }
-    void Texture::ClearLayer(const int mipLevel, const int layer, const void * clearValue) const { impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::Clear(const i32 mipLevel, const void * clearValue) const { impl_->Clear(mipLevel, clearValue); }
+    void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { impl_->clearLayer(mipLevel, layer, clearValue); }
 
     const void * Texture::Underlying() const { return impl_->Underlying(); }
 
@@ -558,7 +558,7 @@ namespace stratus {
     }
 
     // Creates a new texture and copies this texture into it
-    Texture Texture::Copy(uint32_t newWidth, uint32_t newHeight) const {
+    Texture Texture::Copy(u32 newWidth, u32 newHeight) const {
         throw std::runtime_error("Must implement");
     }
 

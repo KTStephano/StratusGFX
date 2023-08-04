@@ -5,6 +5,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <atomic>
+#include "StratusTypes.h"
 
 namespace stratus {
     /**
@@ -59,7 +60,7 @@ namespace stratus {
     public:
         typedef K key_type;
         typedef V value_type;
-        typedef size_t size_type;
+        typedef usize size_type;
         typedef std::pair<key_type, value_type> entry_type;
         typedef std::pair<const key_type, value_type> const_entry_type;
 
@@ -78,28 +79,28 @@ namespace stratus {
             /**
              * Cached hash code so that we don't ever need to recalculate it
              */
-            const size_t hashCode;
+            const usize hashCode;
 
             Entry(const std::shared_ptr<const_entry_type> & entry,
-                size_t hashCode)
+                usize hashCode)
                 :
                 entry(entry),
                 hashCode(hashCode) { }
 
             Entry(std::shared_ptr<const_entry_type> && entry,
-                size_t hashCode)
+                usize hashCode)
                 :
                 entry(std::forward<std::shared_ptr<const_entry_type>>(entry)),
                 hashCode(hashCode) { }
 
             Entry(const entry_type & entry,
-                size_t hashCode)
+                usize hashCode)
                 :
                 entry(std::make_shared<const_entry_type>(entry)),
                 hashCode(hashCode) { }
 
             Entry(entry_type && entry,
-                size_t hashCode)
+                usize hashCode)
                 :
                 entry(std::make_shared<const_entry_type>(std::forward<entry_type &&>(entry))),
                 hashCode(hashCode) { }
@@ -119,45 +120,45 @@ namespace stratus {
         class ConcurrentIterator;
         struct Bucket {
             //typedef std::atomic<uint32_t> control_block_type;
-            typedef uint8_t control_block_type;
+            typedef u8 control_block_type;
 
             friend class ConcurrentIterator;
 
             /**
              * This represents a slot whose memory can be freely repurposed.
              */
-            static const uint8_t EMPTY_SLOT = 0;
+            static const u8 EMPTY_SLOT = 0;
 
             /**
              * A busy slot could be empty, tombstone, or occupied. However, when a slot
              * is marked busy write, it is unsafe for readers to attempt to read the memory
              * or for other writers to secure a lock on the slot.
              */
-            static const uint8_t BUSY_WRITE_SLOT = 1;
+            static const u8 BUSY_WRITE_SLOT = 1;
 
             /**
              * When a slot is marked busy read, other readers can safely secure the slot
              * and read also. However, 
              */
-            static const uint8_t BUSY_READ_SLOT = 2;
+            static const u8 BUSY_READ_SLOT = 2;
             
             /**
              * A tombstone slot is a slot that was previously occupied but was then
              * deleted. Its memory can now be repurposed.
              */
-            static const uint8_t TOMBSTONE_SLOT = 3;
+            static const u8 TOMBSTONE_SLOT = 3;
 
             /**
              * This shows up during table resizes. Old entries will be marked as moved
              * to let functions like Contains() know that it would be a good idea
              * to retry their search.
              */
-            static const uint8_t MOVED_SLOT = 4;
+            static const u8 MOVED_SLOT = 4;
 
             /**
              * An occupied slot is one whose memory is used and is safe to access.
              */
-            static const uint8_t OCCUPIED_SLOT = 5;
+            static const u8 OCCUPIED_SLOT = 5;
 
             /**
              * Since a control block is embedded within the buffer, to get to the next
@@ -173,11 +174,11 @@ namespace stratus {
 
             /**
              * Garbage-collected pointer to the table, represented
-             * as a uint8_t buffer. This buffer contains extra embedded
+             * as a u8 buffer. This buffer contains extra embedded
              * data for the algorithm to use, and so different parts of the buffer
              * get interpreted as different types.
              */
-            std::shared_ptr<uint8_t> table;
+            std::shared_ptr<u8> table;
 
             /**
              * Represents how many elements can be stored if all slots are
@@ -243,7 +244,7 @@ namespace stratus {
                 return numEntries;
             }
 
-            bool Contains(const key_type & key, size_t hashCode) const {
+            bool Contains(const key_type & key, usize hashCode) const {
                 std::shared_lock<std::shared_mutex> sl(lock);
                 hashCode = Hash_(hashCode);
                 auto[entry, index, oldVal] = FindSlotForRead_(key, hashCode);
@@ -251,7 +252,7 @@ namespace stratus {
             }
 
             std::pair<std::shared_ptr<const_entry_type>, size_type> Find(const key_type & key,
-                                                        size_t hashCode) const {
+                                                        usize hashCode) const {
                 std::shared_lock<std::shared_mutex> sl(lock);
                 hashCode = Hash_(hashCode);
                 auto[entry, index, marker] = FindSlotForRead_(key, hashCode);
@@ -260,7 +261,7 @@ namespace stratus {
             }
 
             template<typename E>
-            bool Insert(E && entry, size_t hashCode) {
+            bool Insert(E && entry, usize hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
                 if (Size() > threshold) Rehash_(capacity << 1);
                 hashCode = Hash_(hashCode);
@@ -268,14 +269,14 @@ namespace stratus {
             }
 
             template<typename E>
-            bool InsertIfAbsent(E && entry, size_t hashCode) {
+            bool InsertIfAbsent(E && entry, usize hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
                 if (Size() > threshold) Rehash_(capacity << 1);
                 hashCode = Hash_(hashCode);
                 return std::get<2>(InsertIfAbsent_<E &&>(std::forward<E &&>(entry), hashCode));
             }
 
-            std::shared_ptr<const_entry_type> Remove(const key_type & key, size_t hashCode) {
+            std::shared_ptr<const_entry_type> Remove(const key_type & key, usize hashCode) {
                 std::unique_lock<std::shared_mutex> ul(lock);
                 hashCode = Hash_(hashCode);
                 auto[entry, index, oldVal] = FindSlotForRead_(key, hashCode);
@@ -300,7 +301,7 @@ namespace stratus {
 
             void Clear() {
                 std::unique_lock<std::shared_mutex> ul(lock);
-                uint8_t * tab = table.get();
+                u8 * tab = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
                     auto entry = GetEntry_(tab, i);
                     auto control = GetControlBlock_(entry);
@@ -327,7 +328,7 @@ namespace stratus {
             }
 
             template<typename E>
-            std::tuple<Entry *, size_type, bool> Insert_(E && entry, size_t hashCode) {
+            std::tuple<Entry *, size_type, bool> Insert_(E && entry, usize hashCode) {
                 auto[entryPtr, index, oldVal] = FindSlotForEntry_(GetKey_(entry), hashCode);
                 bool existing = false;
                 if (oldVal == OCCUPIED_SLOT) {
@@ -344,7 +345,7 @@ namespace stratus {
             }
 
             template<typename E>
-            std::tuple<Entry *, size_type, bool> InsertIfAbsent_(E && entry, size_t hashCode) {
+            std::tuple<Entry *, size_type, bool> InsertIfAbsent_(E && entry, usize hashCode) {
                 auto[entryPtr, index, oldVal] = FindSlotForEntry_(GetKey_(entry), hashCode);
                 if (oldVal == OCCUPIED_SLOT) return std::make_tuple(entryPtr, index, false);
                 new ((void *)entryPtr) Entry(std::forward<E &&>(entry), hashCode);
@@ -354,20 +355,20 @@ namespace stratus {
                 return std::make_tuple(entryPtr, index, true);
             }
 
-            std::tuple<Entry *, size_type, uint32_t> FindSlotForEntry_(const key_type & key, size_t hashCode) {
+            std::tuple<Entry *, size_type, uint32_t> FindSlotForEntry_(const key_type & key, usize hashCode) {
                 auto result = FindSlotForRead_(key, hashCode);
                 if (std::get<0>(result) != nullptr) return result;
                 Rehash_(capacity << 1);
                 return FindSlotForEntry_(key, hashCode);
             }
 
-            std::tuple<Entry *, size_type, uint32_t> FindSlotForRead_(const key_type & key, size_t hashCode) const {
-                uint8_t * tab = table.get();
+            std::tuple<Entry *, size_type, uint32_t> FindSlotForRead_(const key_type & key, usize hashCode) const {
+                u8 * tab = table.get();
                 auto index = GetIndex_(hashCode, mask);
                 auto startIndex = index;
                 auto rootEntry = GetEntry_(tab, index);
                 //auto collisions = _getCollisionCount(rootEntry);
-                size_t reprobes = 0;
+                usize reprobes = 0;
                 for (auto entry = rootEntry; reprobes < reprobeLimit; ++reprobes,
                     index = NextIndex_(startIndex, reprobes),
                     entry = GetEntry_(tab, index)) {
@@ -404,11 +405,11 @@ namespace stratus {
                 //control->store(newTag);
             }
             
-            static Entry * GetEntry_(uint8_t * table, size_type index) {
+            static Entry * GetEntry_(u8 * table, size_type index) {
                 return (Entry *)(table + ELEM_OFFSET * index);
             }
 
-            static control_block_type * GetControlBlock_(uint8_t * table, size_type index) {
+            static control_block_type * GetControlBlock_(u8 * table, size_type index) {
                 return (control_block_type *)(table + ELEM_OFFSET * index + sizeof(Entry));
             }
 
@@ -416,20 +417,20 @@ namespace stratus {
                 return (control_block_type *)(entry + 1);
             }
 
-            size_t Hash_(size_t hashCode) const {
-                static std::hash<size_t> hashFunc;
+            usize Hash_(usize hashCode) const {
+                static std::hash<usize> hashFunc;
                 //return hashFunc(hashCode);
                 //return hashCode;
-                static size_t halfSizeTBits = sizeof(size_t) * 8 / 2;
-                static size_t upperBits = (~0) << halfSizeTBits;
-                static size_t lowerBits = upperBits >> halfSizeTBits;
+                static usize halfSizeTBits = sizeof(usize) * 8 / 2;
+                static usize upperBits = (~0) << halfSizeTBits;
+                static usize lowerBits = upperBits >> halfSizeTBits;
                 return ((hashCode & upperBits) >> halfSizeTBits) + ((hashCode & lowerBits) << halfSizeTBits);
             }
 
             void Rehash_(size_type newCapacity) {
                 //std::cout << "Resizing to " << newCapacity << std::endl;
                 Bucket newBucket(newCapacity);
-                uint8_t * tab = table.get();
+                u8 * tab = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
                     //auto[entry, oldVal] = _acquireEntry(tab, i, SlotAcquireType::WRITE);
                     auto entry = GetEntry_(tab, i);
@@ -444,17 +445,17 @@ namespace stratus {
                 Move_(std::move(newBucket));
             }
 
-            size_t GetIndex_(size_t hashCode, size_type mask) const {
+            usize GetIndex_(usize hashCode, size_type mask) const {
                 return hashCode & mask;
             }
 
-            size_t NextIndex_(size_t index, size_t step) const {
+            usize NextIndex_(usize index, usize step) const {
                 //index = index + step;
                 //return index < capacity ? index : 0;
                 return (index + step) & mask;
             }
 
-            size_t PrevIndex_(size_t index, size_t step) const {
+            usize PrevIndex_(usize index, usize step) const {
                 //index = index + step;
                 //return index < capacity ? index : 0;
                 return (index - step) & mask;
@@ -480,20 +481,20 @@ namespace stratus {
                 this->mask = capacity - 1;
                 this->reprobeLimit = capacity >> 2;
                 this->threshold = capacity * LOAD_FACTOR;
-                auto ptr = new uint8_t[sizeof(size_type) + ELEM_OFFSET * capacity]();
+                auto ptr = new u8[sizeof(size_type) + ELEM_OFFSET * capacity]();
                 size_type * internalCapacity = (size_type *)ptr;
                 *internalCapacity = capacity;
-                table = std::shared_ptr<uint8_t>(ptr + sizeof(size_type), FreeMemory_);
+                table = std::shared_ptr<u8>(ptr + sizeof(size_type), FreeMemory_);
                 ptr = table.get();
                 for (size_type i = 0; i < capacity; ++i) {
                     auto control = GetControlBlock_(ptr, i);
                     //auto collisions = _getCollisionCount(ptr, i);
                     new (control) control_block_type(EMPTY_SLOT);
-                    //new (collisions) size_t(0);
+                    //new (collisions) usize(0);
                 }
             }
 
-            static void FreeMemory_(uint8_t * ptr) {
+            static void FreeMemory_(u8 * ptr) {
                 auto originalPtr = (ptr - sizeof(size_type));
                 // First pull out the capacity information
                 size_type capacity = *(size_type *)originalPtr;
@@ -539,14 +540,14 @@ namespace stratus {
              * Keeping this reference prevents it from being garbage collected while
              * we are still working with it.
              */
-            std::shared_ptr<uint8_t> currentTable_;
+            std::shared_ptr<u8> currentTable_;
 
             /**
              * Raw table pointer which is needed to call certain Bucket static functions. This is cached
              * just so that we don't need to make a function call every time we want to
              * get the pointer that _currentTable manages.
              */
-            uint8_t * currentTablePtr_;
+            u8 * currentTablePtr_;
 
             /**
              * Current entry we are looking at from the current table. We need to store a strong
@@ -558,7 +559,7 @@ namespace stratus {
         public:
             typedef std::input_iterator_tag iterator_category;
             typedef entry_type value_type;
-            typedef size_t difference_type;
+            typedef usize difference_type;
             typedef const_entry_type * pointer;
             typedef const_entry_type & reference;
             typedef const const_entry_type & const_reference;
@@ -620,13 +621,13 @@ namespace stratus {
                 return current;
             }
 
-            ConcurrentIterator operator+(size_t index) const {
+            ConcurrentIterator operator+(usize index) const {
                 ConcurrentIterator iter(*this);
                 iter.next(index);
                 return iter;
             }
 
-            ConcurrentIterator & operator+=(size_t index) {
+            ConcurrentIterator & operator+=(usize index) {
                 next(index);
                 return this->iter_;
             }
@@ -868,11 +869,11 @@ namespace stratus {
         }
 
     private:
-        size_t Hash_(const key_type & key) const {
+        usize Hash_(const key_type & key) const {
             return hashFunc_(key);
         }
 
-        size_t GetIndex_(size_t hashCode) const {
+        usize GetIndex_(usize hashCode) const {
             return hashCode & mask_;
         }
 

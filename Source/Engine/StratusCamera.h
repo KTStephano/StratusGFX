@@ -4,6 +4,7 @@
 
 #include "StratusEntity.h"
 #include "StratusMath.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     class Camera;
@@ -42,7 +43,7 @@ public:
     void SetAngle(const Rotation & rotation);
     const Rotation & GetRotation() const;
 
-    void SetPosition(float x, float y, float z);
+    void SetPosition(f32 x, f32 y, f32 z);
     void SetPosition(const glm::vec3 & position);
     const glm::vec3 & GetPosition() const;
 
@@ -60,15 +61,15 @@ public:
      * @param strafe negative values send it left, positive send
      *      it right
      */
-    void SetSpeed(float forward, float up, float strafe);
+    void SetSpeed(f32 forward, f32 up, f32 strafe);
     void SetSpeed(const glm::vec3 &);
     const glm::vec3 & GetSpeed() const;
 
     /**
      * Helper functions that return the pitch/yaw.
      */
-    float GetYaw() const;
-    float GetPitch() const;
+    f32 GetYaw() const;
+    f32 GetPitch() const;
 
     // Applies position += speed * deltaSeconds
     void Update(double deltaSeconds);

@@ -14,12 +14,12 @@ std::ostream& operator<<(std::ostream& os, const glm::vec4& v) {
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat2& m) {
-    static constexpr size_t size = 2;
+    static constexpr stratus::usize size = 2;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
     os << "(";
-    for (int r = 0; r < size; ++r) {
-        for (int c = 0; c < size; ++c) {
+    for (stratus::i32 r = 0; r < size; ++r) {
+        for (stratus::i32 c = 0; c < size; ++c) {
             os << m[c][r];
             if (c < (size - 1)) os << ", ";
         }
@@ -29,12 +29,12 @@ std::ostream& operator<<(std::ostream& os, const glm::mat2& m) {
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat3& m) {
-    static constexpr size_t size = 3;
+    static constexpr stratus::usize size = 3;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
     os << "(";
-    for (int r = 0; r < size; ++r) {
-        for (int c = 0; c < size; ++c) {
+    for (stratus::i32 r = 0; r < size; ++r) {
+        for (stratus::i32 c = 0; c < size; ++c) {
             os << m[c][r];
             if (c < (size - 1)) os << ", ";
         }
@@ -44,12 +44,12 @@ std::ostream& operator<<(std::ostream& os, const glm::mat3& m) {
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::mat4& m) {
-    static constexpr size_t size = 4;
+    static constexpr stratus::usize size = 4;
     os << std::fixed << std::showpoint << std::setprecision(5);
     // glm::mat4 is column-major, and m[0] is the first column
     os << "(";
-    for (int r = 0; r < size; ++r) {
-        for (int c = 0; c < size; ++c) {
+    for (stratus::i32 r = 0; r < size; ++r) {
+        for (stratus::i32 c = 0; c < size; ++c) {
             os << m[c][r];
             if (c < (size - 1)) os << ", ";
         }
@@ -85,7 +85,7 @@ namespace stratus {
 
     // See https://stackoverflow.com/questions/5878775/how-to-find-and-replace-string
 	bool ReplaceFirst(std::string& src, const std::string& oldstr, const std::string& newstr) {
-        const std::size_t pos = src.find(oldstr);
+        const stratus::usize pos = src.find(oldstr);
         if (pos == std::string::npos) {
             return false;
         }
@@ -94,7 +94,7 @@ namespace stratus {
     }
 
 	bool ReplaceAll(std::string& src, const std::string& oldstr, const std::string& newstr) {
-        size_t pos = 0;
+        stratus::usize pos = 0;
         bool replaced = false;
         while ((pos = src.find(oldstr, pos)) != std::string::npos) {
             replaced = true;
@@ -108,7 +108,7 @@ namespace stratus {
     bool BeginsWith(const std::string& src, const std::string& phrase) {
         if (phrase.size() > src.size()) return false;
 
-        for (size_t i = 0; i < phrase.size(); ++i) {
+        for (stratus::usize i = 0; i < phrase.size(); ++i) {
             if (src[i] != phrase[i]) return false;
         }
 

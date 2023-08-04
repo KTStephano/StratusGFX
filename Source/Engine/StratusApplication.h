@@ -2,6 +2,7 @@
 
 #include "StratusSystemModule.h"
 #include <string>
+#include "StratusTypes.h"
 
 namespace stratus {
     class ResourceManager;

@@ -12,14 +12,15 @@
 #include <vector>
 #include <shared_mutex>
 #include <unordered_map>
+#include "StratusTypes.h"
 
 namespace stratus {
-    enum class ColorSpace : int {
+    enum class ColorSpace : i32 {
         NONE,
         SRGB
     };
 
-    enum class TextureLoadingStatus : int {
+    enum class TextureLoadingStatus : i32 {
         LOADING,
         FAILED,
         LOADING_DONE

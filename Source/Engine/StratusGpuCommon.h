@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StratusCommon.h"
+#include "StratusTypes.h"
 
 // For forcing 1-byte tight struct packing (we need to precisely control alignment and padding)
 #ifdef __GNUC__
@@ -45,7 +46,7 @@
 
 namespace stratus {
     // Used with bindless textures
-    typedef uint64_t GpuTextureHandle;
+    typedef u64 GpuTextureHandle;
 
     // Matches the definition in vpl_common.glsl
     // See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
@@ -53,16 +54,16 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GPU_ALIGNAS(16) GpuVec {
-        float v[4];
+        f32 v[4];
 
-        GpuVec(float x, float y, float z, float w) {
+        GpuVec(f32 x, f32 y, f32 z, f32 w) {
             v[0] = x;
             v[1] = y;
             v[2] = z;
             v[3] = w;
         }
 
-        GpuVec(float xyzw) : GpuVec(xyzw, xyzw, xyzw, xyzw) {}
+        GpuVec(f32 xyzw) : GpuVec(xyzw, xyzw, xyzw, xyzw) {}
         GpuVec(const glm::vec4& v) : GpuVec(v[0], v[1], v[2], v[3]) {}
         GpuVec(const glm::vec3& v) : GpuVec(glm::vec4(v, 0.0f)) {}
         GpuVec() : GpuVec(0.0f) {}
@@ -91,7 +92,7 @@ namespace stratus {
             return *this;
         }
 
-        GpuVec& operator=(float xyzw) {
+        GpuVec& operator=(f32 xyzw) {
             _Copy(glm::vec4(xyzw, xyzw, xyzw, xyzw));
             return *this;
         }
@@ -130,19 +131,19 @@ namespace stratus {
         GpuTextureHandle metallicMap;
         // total bytes next 3 entries = GpuVec
         GpuTextureHandle metallicRoughnessMap;
-        float diffuseColor[4];
-        float emissiveColor[3];
+        f32 diffuseColor[4];
+        f32 emissiveColor[3];
         // Base and max are interpolated between based on metallic
         // metallic of 0 = base reflectivity
         // metallic of 1 = max reflectivity
-        float reflectance;
-        //float baseReflectivity[3];
-        //float maxReflectivity[3];
+        f32 reflectance;
+        //f32 baseReflectivity[3];
+        //f32 maxReflectivity[3];
         // First two values = metallic, roughness
         // last two values = padding
-        float metallicRoughness[2];
-        unsigned int flags = 0;
-        unsigned int placeholder1_ = 0;
+        f32 metallicRoughness[2];
+        u32 flags = 0;
+        u32 placeholder1_ = 0;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -159,11 +160,11 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuMeshData {
-        float position[3];
-        float texCoord[2];
-        float normal[3];
-        float tangent[3];
-        float bitangent[3];
+        f32 position[3];
+        f32 texCoord[2];
+        f32 normal[3];
+        f32 tangent[3];
+        f32 bitangent[3];
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -175,12 +176,12 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuDrawElementsIndirectCommand {
-        uint32_t vertexCount = 0;
-        uint32_t instanceCount = 0;
+        u32 vertexCount = 0;
+        u32 instanceCount = 0;
         // Measured in units of indices instead of the normal bytes
-        uint32_t firstIndex = 0;
-        int32_t baseVertex = 0;
-        uint32_t baseInstance = 0;
+        u32 firstIndex = 0;
+        i32 baseVertex = 0;
+        u32 baseInstance = 0;
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -201,8 +202,8 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuVplStage2PerTileOutputs {
-        int numVisible;
-        int indices[MAX_VPLS_PER_TILE];
+        i32 numVisible;
+        i32 indices[MAX_VPLS_PER_TILE];
 
         GpuVplStage2PerTileOutputs() :
             numVisible(0) {}
@@ -218,10 +219,10 @@ namespace stratus {
         GpuVec position;
         GpuVec color;
         GpuVec specularPosition;
-        float radius;
-        float farPlane;
-        float intensity;
-        float placeholder2_;
+        f32 radius;
+        f32 farPlane;
+        f32 intensity;
+        f32 placeholder2_;
 
         GpuVplData() :
             position(0.0f),
@@ -261,9 +262,9 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuPointLight {
         GpuVec position;
         GpuVec color;
-        float radius;
-        float farPlane;
-        float placeholder_[2];
+        f32 radius;
+        f32 farPlane;
+        f32 placeholder_[2];
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -274,8 +275,8 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuAtlasEntry {
-        int index = -1;
-        int layer = -1;
+        i32 index = -1;
+        i32 layer = -1;
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -286,8 +287,8 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuHaltonEntry {
-        float base2;
-        float base3;
+        f32 base2;
+        f32 base3;
     };
 #ifndef __GNUC__
     #pragma pack(pop)

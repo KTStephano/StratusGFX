@@ -12,13 +12,14 @@
 #include <unordered_set>
 #include "StratusLog.h"
 #include <list>
+#include "StratusTypes.h"
 
 #define MINIMUM_GPU_BLOCK_SIZE 64
 // 2^30
 #define MAX_GPU_BLOCK_SIZE 1073741824
 
 namespace stratus {
-    enum class GpuBindingPoint : int {
+    enum class GpuBindingPoint : i32 {
         // Good for things like vertices and normals
         ARRAY_BUFFER            = BITMASK64_POW2(1),
         // Good for indices
@@ -33,17 +34,17 @@ namespace stratus {
 
     // A more restrictive set of bindings good for things like floating point (vertex, normal, etc.)
     // and integer (index) buffers
-    enum class GpuPrimitiveBindingPoint : int {
-        ARRAY_BUFFER            = int(GpuBindingPoint::ARRAY_BUFFER),
-        ELEMENT_ARRAY_BUFFER    = int(GpuBindingPoint::ELEMENT_ARRAY_BUFFER)
+    enum class GpuPrimitiveBindingPoint : i32 {
+        ARRAY_BUFFER            = i32(GpuBindingPoint::ARRAY_BUFFER),
+        ELEMENT_ARRAY_BUFFER    = i32(GpuBindingPoint::ELEMENT_ARRAY_BUFFER)
     };
 
-    enum class GpuBaseBindingPoint : int {
-        UNIFORM_BUFFER          = int(GpuBindingPoint::UNIFORM_BUFFER),
-        SHADER_STORAGE_BUFFER   = int(GpuBindingPoint::SHADER_STORAGE_BUFFER)
+    enum class GpuBaseBindingPoint : i32 {
+        UNIFORM_BUFFER          = i32(GpuBindingPoint::UNIFORM_BUFFER),
+        SHADER_STORAGE_BUFFER   = i32(GpuBindingPoint::SHADER_STORAGE_BUFFER)
     };
 
-    enum class GpuStorageType : int {
+    enum class GpuStorageType : i32 {
         BYTE,
         UNSIGNED_BYTE,
         SHORT,
@@ -53,7 +54,7 @@ namespace stratus {
         FLOAT
     };
 
-    typedef int Bitfield;
+    typedef i32 Bitfield;
 
     // Describes how the data will likely be used, meaning whether it will be changed
     // frequently, mapped for read/write or mapped persistently
@@ -78,25 +79,25 @@ namespace stratus {
     // TODO: Look into use cases for things other than STATIC_DRAW
     struct GpuBuffer {
         GpuBuffer() {}
-        GpuBuffer(const void * data, const uintptr_t sizeBytes, const Bitfield usage = GPU_MAP_READ | GPU_MAP_WRITE);
+        GpuBuffer(const void * data, const usize sizeBytes, const Bitfield usage = GPU_MAP_READ | GPU_MAP_WRITE);
         virtual ~GpuBuffer() = default;
 
-        void EnableAttribute(int32_t attribute, int32_t sizePerElem, GpuStorageType, bool normalized, uint32_t stride, uint32_t offset, uint32_t divisor = 0);
+        void EnableAttribute(i32 attribute, i32 sizePerElem, GpuStorageType, bool normalized, u32 stride, u32 offset, u32 divisor = 0);
         virtual void Bind(const GpuBindingPoint) const;
         virtual void Unbind(const GpuBindingPoint) const;
         // From what I can tell there shouldn't be a need to unbind UBOs
-        virtual void BindBase(const GpuBaseBindingPoint, const uint32_t index) const;
+        virtual void BindBase(const GpuBaseBindingPoint, const u32 index) const;
 
         // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
         void * MapMemory(const Bitfield access) const;
         void UnmapMemory() const;
         bool IsMemoryMapped() const;
 
-        uintptr_t SizeBytes() const;
+        usize SizeBytes() const;
         // Make sure GPU_DYNAMIC_DATA is set
-        void CopyDataToBuffer(intptr_t offset, uintptr_t size, const void * data);
+        void CopyDataToBuffer(isize offset, usize size, const void * data);
         void CopyDataFromBuffer(const GpuBuffer&);
-        void CopyDataFromBufferToSysMem(intptr_t offset, uintptr_t size, void * data);
+        void CopyDataFromBufferToSysMem(isize offset, usize size, void * data);
 
         // Memory mapping and data copying won't work after this
         void FinalizeMemory();
@@ -116,7 +117,7 @@ namespace stratus {
 
     struct GpuPrimitiveBuffer final : public GpuBuffer {
         GpuPrimitiveBuffer() : GpuBuffer() {}
-        GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const uintptr_t sizeBytes, const Bitfield usage = 0);
+        GpuPrimitiveBuffer(const GpuPrimitiveBindingPoint type, const void * data, const usize sizeBytes, const Bitfield usage = 0);
         virtual ~GpuPrimitiveBuffer() = default;
 
         void Bind() const;
@@ -132,9 +133,9 @@ namespace stratus {
         ~GpuArrayBuffer() = default;
 
         void AddBuffer(const GpuPrimitiveBuffer&);
-        size_t GetNumBuffers() const;
-        GpuPrimitiveBuffer& GetBuffer(size_t);
-        const GpuPrimitiveBuffer& GetBuffer(size_t) const;
+        usize GetNumBuffers() const;
+        GpuPrimitiveBuffer& GetBuffer(usize);
+        const GpuPrimitiveBuffer& GetBuffer(usize) const;
         void UnmapAllMemory() const;
         bool IsMemoryMapped() const;
         void FinalizeAllMemory();
@@ -147,7 +148,7 @@ namespace stratus {
     };
 
     // struct GpuTypedBufferMemoryPointer {
-//     uint32_t index;
+//     u32 index;
 // };
 
     template<typename E>
@@ -161,9 +162,9 @@ namespace stratus {
     // and unused.
     template<typename E>
     struct GpuTypedBuffer {
-        GpuTypedBuffer(size_t blockSize, const bool allowResizing) 
+        GpuTypedBuffer(usize blockSize, const bool allowResizing) 
             : allowResizing_(allowResizing) {
-            blockSize_ = std::max<size_t>(MINIMUM_GPU_BLOCK_SIZE, blockSize);
+            blockSize_ = std::max<usize>(MINIMUM_GPU_BLOCK_SIZE, blockSize);
             //Resize_(blockSize_);
         }
 
@@ -176,8 +177,8 @@ namespace stratus {
         // Changes are buffered on the CPU
         void UploadChangesToGpu() {
             if (firstModifiedIndex_ != lastModifiedIndex_) {
-                const intptr_t offsetBytes = intptr_t(firstModifiedIndex_) * sizeof(E);
-                const uintptr_t sizeBytes = uintptr_t(lastModifiedIndex_ - firstModifiedIndex_) * sizeof(E);
+                const isize offsetBytes = isize(firstModifiedIndex_) * sizeof(E);
+                const usize sizeBytes = usize(lastModifiedIndex_ - firstModifiedIndex_) * sizeof(E);
                 const void * data = (const void *)(cpuMemory_.data() + firstModifiedIndex_);
                 gpuMemory_.CopyDataToBuffer(offsetBytes, sizeBytes, data);
 
@@ -188,7 +189,7 @@ namespace stratus {
 
         // Adds an element to either an existing slot
         // or to a new slot after resizing the buffer
-        uint32_t Add(const E& elem) {
+        u32 Add(const E& elem) {
             if (NumFreeIndices() == 0) {
                 Resize_(Capacity() + BlockSize());
             }
@@ -202,13 +203,13 @@ namespace stratus {
         }
 
         // Removes element at index (sets it to be equal to default E())
-        void Remove(const uint32_t index) {
+        void Remove(const u32 index) {
             Remove_(index, true);
         }
 
         // Marks entire memory region as free (sets everything to default E())
         void Clear() {
-            for (uint32_t i = 0; i < capacity_; ++i) {
+            for (u32 i = 0; i < capacity_; ++i) {
                 Remove_(i, false);
             }
 
@@ -217,7 +218,7 @@ namespace stratus {
 
         // Pulls data from the CPU buffer for reading - may not
         // be in sync with the GPU memory if the GPU wrote to it
-        const E& GetRead(const uint32_t index) const {
+        const E& GetRead(const u32 index) const {
             if (index >= Capacity()) {
                 throw std::runtime_error("Index exceeds capacity");
             }
@@ -227,10 +228,10 @@ namespace stratus {
 
         // Sets the element at index. If the index is beyond the bounds
         // of the current capacity it will attempt to resize it.
-        void Set(const E& elem, const uint32_t index) {
+        void Set(const E& elem, const u32 index) {
             if (index >= Capacity()) {
-                const size_t offsetIndex = 1 + index - Capacity();
-                size_t multiplier = offsetIndex / BlockSize();
+                const usize offsetIndex = 1 + index - Capacity();
+                usize multiplier = offsetIndex / BlockSize();
                 multiplier += 1;
 
                 Resize_(Capacity() + multiplier * BlockSize());
@@ -241,7 +242,7 @@ namespace stratus {
             usedIndices_[index] = true;
             cpuMemory_[index] = elem;
 
-            UpdateModifiedIndices_(static_cast<int>(index));
+            UpdateModifiedIndices_(static_cast<i32>(index));
 
             if (index >= maxIndex_) {
                 maxIndex_ = index + 1;
@@ -254,33 +255,33 @@ namespace stratus {
         }
 
         // Memory is allocated in fixed size blocks
-        size_t BlockSize() const {
+        usize BlockSize() const {
             return blockSize_;
         }
 
         // This is an estimate of the current size. It returns the largest
         // index where data is occupied. The GPU will need to manually check
         // if each element before Size() - 1 is equal to E() or not.
-        size_t Size() const {
+        usize Size() const {
             return maxIndex_;
         }
 
         // Returns current capacity which may change if resizing is enabled
-        size_t Capacity() const {
+        usize Capacity() const {
             return capacity_;
         }
 
         // Returns how many memory slots are free for use
-        size_t NumFreeIndices() {
+        usize NumFreeIndices() {
             return freeIndices_.size();
         }
 
-        static inline GpuTypedBufferPtr<E> Create(const size_t blockSize, const bool allowResizing) {
+        static inline GpuTypedBufferPtr<E> Create(const usize blockSize, const bool allowResizing) {
             return GpuTypedBufferPtr<E>(new GpuTypedBuffer<E>(blockSize, allowResizing));
         }
 
     private:
-        void Resize_(const size_t newSize) {
+        void Resize_(const usize newSize) {
             if (newSize < capacity_) return;
 
             if (newSize > MAX_GPU_BLOCK_SIZE) {
@@ -296,7 +297,7 @@ namespace stratus {
             usedIndices_.resize(newSize, false);
             gpuMemory_ = GpuBuffer((const void*)cpuMemory_.data(), sizeof(E) * newSize, flags);
 
-            for (size_t i = capacity_; i < newSize; ++i) {
+            for (usize i = capacity_; i < newSize; ++i) {
                 freeIndices_.push_back(i);
             }
 
@@ -306,7 +307,7 @@ namespace stratus {
             lastModifiedIndex_ = -1;
         }
 
-        void UpdateModifiedIndices_(const int index) {
+        void UpdateModifiedIndices_(const i32 index) {
             if (index <= firstModifiedIndex_ || firstModifiedIndex_ == -1) {
                 firstModifiedIndex_ = index;
             }
@@ -316,7 +317,7 @@ namespace stratus {
             }
         }
 
-        void Remove_(const uint32_t index, const bool findNewMaxIndex) {
+        void Remove_(const u32 index, const bool findNewMaxIndex) {
             if (index > capacity_ || usedIndices_[index] == false) return;
 
             if (NumFreeIndices() == 0 || index > freeIndices_.front()) {
@@ -329,13 +330,13 @@ namespace stratus {
             usedIndices_[index] = false;
             cpuMemory_[index] = E();
 
-            UpdateModifiedIndices_(static_cast<int>(index));
+            UpdateModifiedIndices_(static_cast<i32>(index));
 
             if (findNewMaxIndex && (index + 1) == maxIndex_) {
                 maxIndex_ = 0;
-                for (int i = static_cast<int>(index) - 1; i >= 0; --i) {
+                for (i32 i = static_cast<i32>(index) - 1; i >= 0; --i) {
                     if (usedIndices_[i]) {
-                        maxIndex_ = static_cast<size_t>(i) + 1;
+                        maxIndex_ = static_cast<usize>(i) + 1;
                         break;
                     }
                 }
@@ -345,13 +346,13 @@ namespace stratus {
     private:
         std::vector<E> cpuMemory_;
         GpuBuffer gpuMemory_;
-        std::list<uint32_t> freeIndices_;
+        std::list<u32> freeIndices_;
         std::vector<bool> usedIndices_;
-        size_t capacity_ = 0;
-        size_t blockSize_ = 0;
-        size_t maxIndex_ = 0;
-        int firstModifiedIndex_ = -1;
-        int lastModifiedIndex_ = -1;
+        usize capacity_ = 0;
+        usize blockSize_ = 0;
+        usize maxIndex_ = 0;
+        i32 firstModifiedIndex_ = -1;
+        i32 lastModifiedIndex_ = -1;
         bool allowResizing_;
     };
 
@@ -367,8 +368,8 @@ namespace stratus {
         friend class GraphicsDriver;
 
         struct _MeshData {
-            size_t nextByte;
-            size_t lastByte;
+            usize nextByte;
+            usize lastByte;
         };
 
         GpuMeshAllocator() {}
@@ -377,35 +378,35 @@ namespace stratus {
         // Allocates 64-byte block vertex data where each element represents a GpuMeshData type.
         //
         // @return offset into global GPU vertex data array where data begins
-        static uint32_t AllocateVertexData(const uint32_t numVertices);
+        static u32 AllocateVertexData(const u32 numVertices);
         // @return offset into global GPU index data array where data begins
-        static uint32_t AllocateIndexData(const uint32_t numIndices);
+        static u32 AllocateIndexData(const u32 numIndices);
 
         // Deallocation
-        static void DeallocateVertexData(const uint32_t offset, const uint32_t numVertices);
-        static void DeallocateIndexData(const uint32_t offset, const uint32_t numIndices);
+        static void DeallocateVertexData(const u32 offset, const u32 numVertices);
+        static void DeallocateIndexData(const u32 offset, const u32 numIndices);
 
-        static void CopyVertexData(const std::vector<GpuMeshData>&, const uint32_t offset);
-        static void CopyIndexData(const std::vector<uint32_t>&, const uint32_t offset);
+        static void CopyVertexData(const std::vector<GpuMeshData>&, const u32 offset);
+        static void CopyIndexData(const std::vector<u32>&, const u32 offset);
 
         // Binds the GpuMesh buffer
-        static void BindBase(const GpuBaseBindingPoint&, const uint32_t);
+        static void BindBase(const GpuBaseBindingPoint&, const u32);
         // Binds/unbinds indices buffer
         static void BindElementArrayBuffer();
         static void UnbindElementArrayBuffer();
 
-        static uint32_t FreeVertices();
-        static uint32_t FreeIndices();
+        static u32 FreeVertices();
+        static u32 FreeIndices();
 
     private:
-        static _MeshData * FindFreeSlot_(std::vector<_MeshData>&, const size_t bytes);
-        static uint32_t AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+        static _MeshData * FindFreeSlot_(std::vector<_MeshData>&, const usize bytes);
+        static u32 AllocateData_(const u32 size, const usize byteMultiplier, const usize maxBytes, 
                                       GpuBuffer&, _MeshData&, std::vector<GpuMeshAllocator::_MeshData>&);
-        static void DeallocateData_(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const size_t offsetBytes, const size_t lastByte);
+        static void DeallocateData_(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const usize offsetBytes, const usize lastByte);
         static void Initialize_();
         static void Shutdown_();
-        static void Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
-        static size_t RemainingBytes_(const _MeshData& data);
+        static void Resize_(GpuBuffer& buffer, _MeshData& data, const usize newSizeBytes);
+        static usize RemainingBytes_(const _MeshData& data);
 
     private:
         static GpuBuffer vertices_;

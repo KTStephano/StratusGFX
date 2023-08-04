@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include "StratusTypes.h"
 
 namespace stratus {
     struct Filesystem {

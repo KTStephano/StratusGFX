@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include "glm/glm.hpp"
 #include <filesystem>
+#include "StratusTypes.h"
 
 namespace stratus {
     enum class ShaderType {
@@ -24,8 +25,8 @@ namespace stratus {
     };
 
     struct ShaderApiVersion {
-        int major;
-        int minor;
+        i32 major;
+        i32 minor;
     };
 
 class Pipeline {
@@ -51,7 +52,7 @@ class Pipeline {
     std::unordered_map<std::string, Texture> boundTextures_;
 
     // Lets us keep track of the next texture index to use
-    int activeTextureIndex_ = 0;
+    i32 activeTextureIndex_ = 0;
 
     /**
      * Program handle returned from OpenGL
@@ -114,26 +115,26 @@ public:
      */
     // Here x/y/zGroups specify work group units, so if they are defined by (local_size_x = 32)
     // then passing 2 for xGroups would result in 2 * 32 = 64 invokations
-    void DispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups);
+    void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups);
     void SynchronizeCompute();
 
     /**
      * Various setters to make it easy to set various uniforms
-     * such as bool, int, float, vector, matrix.
+     * such as bool, i32, f32, vector, matrix.
      */
      void SetBool(const std::string & uniform, bool b) const;
-     void SetUint(const std::string& uniform, unsigned int i) const;
-     void SetInt(const std::string & uniform, int i) const;
-     void SetFloat(const std::string & uniform, float f) const;
-     void SetUVec2(const std::string & uniform, const unsigned int * vec, int num = 1) const;
-     void SetUVec3(const std::string & uniform, const unsigned int * vec, int num = 1) const;
-     void SetUVec4(const std::string & uniform, const unsigned int * vec, int num = 1) const;
-     void SetVec2(const std::string & uniform, const float * vec, int num = 1) const;
-     void SetVec3(const std::string & uniform, const float * vec, int num = 1) const;
-     void SetVec4(const std::string & uniform, const float * vec, int num = 1) const;
-     void SetMat2(const std::string & uniform, const float * mat, int num = 1) const;
-     void SetMat3(const std::string & uniform, const float * mat, int num = 1) const;
-     void SetMat4(const std::string & uniform, const float * mat, int num = 1) const;
+     void SetUint(const std::string& uniform, u32 i) const;
+     void SetInt(const std::string & uniform, i32 i) const;
+     void SetFloat(const std::string & uniform, f32 f) const;
+     void SetUVec2(const std::string & uniform, const u32 * vec, i32 num = 1) const;
+     void SetUVec3(const std::string & uniform, const u32 * vec, i32 num = 1) const;
+     void SetUVec4(const std::string & uniform, const u32 * vec, i32 num = 1) const;
+     void SetVec2(const std::string & uniform, const f32 * vec, i32 num = 1) const;
+     void SetVec3(const std::string & uniform, const f32 * vec, i32 num = 1) const;
+     void SetVec4(const std::string & uniform, const f32 * vec, i32 num = 1) const;
+     void SetMat2(const std::string & uniform, const f32 * mat, i32 num = 1) const;
+     void SetMat3(const std::string & uniform, const f32 * mat, i32 num = 1) const;
+     void SetMat4(const std::string & uniform, const f32 * mat, i32 num = 1) const;
 
      void SetUVec2(const std::string & uniform, const glm::uvec2&) const;
      void SetUVec3(const std::string & uniform, const glm::uvec3&) const;

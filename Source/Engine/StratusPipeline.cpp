@@ -22,8 +22,8 @@ Pipeline::~Pipeline() {
 static void PrintSourceWithLineNums(const std::string& source) {
     std::cout << "==Begin Shader Source==" << std::endl;
     std::cout << "1. ";
-    size_t lineNum = 2;
-    for (size_t i = 0; i < source.size(); ++i) {
+    usize lineNum = 2;
+    for (usize i = 0; i < source.size(); ++i) {
         std::cout << source[i];
         if (source[i] == '\n') {
             std::cout << lineNum << ". ";
@@ -54,7 +54,7 @@ static bool checkShaderError(GLuint shader, const std::string & filename, const 
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         if (logLength > 0) {
             std::string errorLog;
-            errorLog.resize(static_cast<uint32_t>(logLength));
+            errorLog.resize(static_cast<u32>(logLength));
 
             glGetShaderInfoLog(shader, logLength, nullptr, &errorLog[0]);
             std::cout << errorLog << std::endl;
@@ -83,7 +83,7 @@ static bool checkProgramError(GLuint program, const std::vector<Shader> & shader
 
         if (logLength > 0) {
             std::string errorLog;
-            errorLog.resize(static_cast<uint32_t>(logLength));
+            errorLog.resize(static_cast<u32>(logLength));
             glGetProgramInfoLog(program, logLength, nullptr, &errorLog[0]);
             std::cout << errorLog << std::endl;
         }
@@ -124,7 +124,7 @@ static std::string BuildShaderApiVersion(const ShaderApiVersion& version) {
 static std::string ExtractFirstInclude(const std::string& source) {
     std::string result;
 
-    for (size_t i = 0; i < source.size(); ++i) {
+    for (usize i = 0; i < source.size(); ++i) {
         std::string line;
         bool foundWhitespace = false;
         // Read current line
@@ -160,7 +160,7 @@ static std::string ExtractFirstInclude(const std::string& source) {
 static std::string ExtractIncludeFile(const std::string& source) {
     std::string file;
     bool foundQuote = false;
-    for (size_t i = 0; i < source.size(); ++i) {
+    for (usize i = 0; i < source.size(); ++i) {
         const char c = source[i];
         if (c == '\"') {
             if (foundQuote) {
@@ -301,51 +301,51 @@ void Pipeline::SetBool(const std::string &uniform, bool b) const {
     SetInt(uniform, b ? 1 : 0);
 }
 
-void Pipeline::SetUint(const std::string& uniform, unsigned int i) const {
+void Pipeline::SetUint(const std::string& uniform, u32 i) const {
     glUniform1ui(GetUniformLocation(uniform), i);
 }
 
-void Pipeline::SetInt(const std::string &uniform, int i) const {
+void Pipeline::SetInt(const std::string &uniform, i32 i) const {
     glUniform1i(GetUniformLocation(uniform), i);
 }
 
-void Pipeline::SetFloat(const std::string &uniform, float f) const {
+void Pipeline::SetFloat(const std::string &uniform, f32 f) const {
     glUniform1f(GetUniformLocation(uniform), f);
 }
 
-void Pipeline::SetUVec2(const std::string & uniform, const unsigned int * vec, int num) const {
+void Pipeline::SetUVec2(const std::string & uniform, const u32 * vec, i32 num) const {
     glUniform2uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetUVec3(const std::string & uniform, const unsigned int * vec, int num) const {
+void Pipeline::SetUVec3(const std::string & uniform, const u32 * vec, i32 num) const {
     glUniform3uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetUVec4(const std::string & uniform, const unsigned int * vec, int num) const {
+void Pipeline::SetUVec4(const std::string & uniform, const u32 * vec, i32 num) const {
     glUniform4uiv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetVec2(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::SetVec2(const std::string &uniform, const f32 *vec, i32 num) const {
     glUniform2fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetVec3(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::SetVec3(const std::string &uniform, const f32 *vec, i32 num) const {
     glUniform3fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetVec4(const std::string &uniform, const float *vec, int num) const {
+void Pipeline::SetVec4(const std::string &uniform, const f32 *vec, i32 num) const {
     glUniform4fv(GetUniformLocation(uniform), num, vec);
 }
 
-void Pipeline::SetMat2(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::SetMat2(const std::string &uniform, const f32 *mat, i32 num) const {
     glUniformMatrix2fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Pipeline::SetMat3(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::SetMat3(const std::string &uniform, const f32 *mat, i32 num) const {
     glUniformMatrix3fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
-void Pipeline::SetMat4(const std::string &uniform, const float *mat, int num) const {
+void Pipeline::SetMat4(const std::string &uniform, const f32 *mat, i32 num) const {
     glUniformMatrix4fv(GetUniformLocation(uniform), num, GL_FALSE, mat);
 }
 
@@ -362,27 +362,27 @@ void Pipeline::SetUVec4(const std::string & uniform, const glm::uvec4& v) const 
 }
 
 void Pipeline::SetVec2(const std::string & uniform, const glm::vec2& v) const {
-    SetVec2(uniform, (const float *)&v[0]);
+    SetVec2(uniform, (const f32 *)&v[0]);
 }
 
 void Pipeline::SetVec3(const std::string & uniform, const glm::vec3& v) const {
-    SetVec3(uniform, (const float *)&v[0]);
+    SetVec3(uniform, (const f32 *)&v[0]);
 }
 
 void Pipeline::SetVec4(const std::string & uniform, const glm::vec4& v) const {
-    SetVec4(uniform, (const float *)&v[0]);
+    SetVec4(uniform, (const f32 *)&v[0]);
 }
 
 void Pipeline::SetMat2(const std::string & uniform, const glm::mat2& m) const {
-    SetMat2(uniform, (const float *)&m[0][0]);
+    SetMat2(uniform, (const f32 *)&m[0][0]);
 }
 
 void Pipeline::SetMat3(const std::string & uniform, const glm::mat3& m) const {
-    SetMat3(uniform, (const float *)&m[0][0]);
+    SetMat3(uniform, (const f32 *)&m[0][0]);
 }
 
 void Pipeline::SetMat4(const std::string & uniform, const glm::mat4& m) const {
-    SetMat4(uniform, (const float *)&m[0][0]);
+    SetMat4(uniform, (const f32 *)&m[0][0]);
 }
 
 GLint Pipeline::GetUniformLocation(const std::string &uniform) const {
@@ -409,7 +409,7 @@ void Pipeline::Print() const {
     log << std::endl;
 }
 
-void Pipeline::DispatchCompute(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups) {
+void Pipeline::DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) {
     glDispatchCompute(xGroups, yGroups, zGroups);
 }
 
@@ -431,7 +431,7 @@ void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {
         it->second.Unbind();
     }
 
-    const int activeTexture = activeTextureIndex_++;
+    const i32 activeTexture = activeTextureIndex_++;
     tex.Bind(activeTexture);
     SetInt(uniform, activeTexture);
     boundTextures_.insert(std::make_pair(uniform, tex));

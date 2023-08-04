@@ -63,17 +63,17 @@ namespace stratus {
         return emissiveColor;
     }
 
-    float Material::GetReflectance() const {
+    f32 Material::GetReflectance() const {
         auto sl = LockRead_();
         return reflectance_;
     }
 
-    float Material::GetRoughness() const {
+    f32 Material::GetRoughness() const {
         auto sl = LockRead_();
         return roughness_;
     }
 
-    float Material::GetMetallic() const {
+    f32 Material::GetMetallic() const {
         auto sl = LockRead_();
         return metallic_;
     }
@@ -90,19 +90,19 @@ namespace stratus {
         emissiveColor = ambient;
     }
 
-    void Material::SetReflectance(float reflectance) {
+    void Material::SetReflectance(f32 reflectance) {
         MarkChanged();
         auto ul = LockWrite_();
         reflectance_ = reflectance;
     }
 
-    void Material::SetRoughness(float roughness) {
+    void Material::SetRoughness(f32 roughness) {
         MarkChanged();
         auto ul = LockWrite_();
         roughness_ = roughness;
     }
 
-    void Material::SetMetallic(float metallic) {
+    void Material::SetMetallic(f32 metallic) {
         MarkChanged();
         auto ul = LockWrite_();
         metallic_ = metallic;

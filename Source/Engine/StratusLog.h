@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "StratusSystemModule.h"
+#include "StratusTypes.h"
 
 // Usage example:
 //      STRATUS_LOG << "Initializing system" << std::endl;
@@ -19,9 +20,9 @@ namespace stratus {
         Log& operator=(Log&&) = delete;
 
         // Main logging functions
-        std::ostream& Inform(const std::string & function, const int line) const;
-        std::ostream& Warn(const std::string & function, const int line) const;
-        std::ostream& Error(const std::string & function, const int line) const;
+        std::ostream& Inform(const std::string & function, const i32 line) const;
+        std::ostream& Warn(const std::string & function, const i32 line) const;
+        std::ostream& Error(const std::string & function, const i32 line) const;
 
     private:
         // SystemModule inteface     

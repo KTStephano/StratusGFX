@@ -62,7 +62,7 @@ namespace stratus {
         auto numIndicesPerLod = numIndicesPerLod_;
         const auto deallocate = [vertexOffset, numVertices, indexOffsetPerLod, numIndicesPerLod]() {
             GpuMeshAllocator::DeallocateVertexData(vertexOffset, numVertices);
-            for (size_t i = 0; i < indexOffsetPerLod.size(); ++i) {
+            for (usize i = 0; i < indexOffsetPerLod.size(); ++i) {
                 GpuMeshAllocator::DeallocateIndexData(indexOffsetPerLod[i], numIndicesPerLod[i]);
             }
         };
@@ -122,7 +122,7 @@ namespace stratus {
         cpuData_->needsRepacking = true;
     }
 
-    void Mesh::AddIndex(uint32_t i) {
+    void Mesh::AddIndex(u32 i) {
         EnsureNotFinalized_();
         cpuData_->indices.push_back(i);
         numIndices_ = cpuData_->indices.size();
@@ -134,11 +134,11 @@ namespace stratus {
         cpuData_->tangents.clear();
         cpuData_->bitangents.clear();
 
-        std::vector<uint32_t> indexBuffer;
-        const std::vector<uint32_t> * order;
+        std::vector<u32> indexBuffer;
+        const std::vector<u32> * order;
         if (numIndices_ == 0) {
             indexBuffer.resize(numVertices_);
-            for (uint32_t i = 0; i < numVertices_; ++i) indexBuffer[i] = i;
+            for (u32 i = 0; i < numVertices_; ++i) indexBuffer[i] = i;
             order = &indexBuffer;
         }
         else {
@@ -147,10 +147,10 @@ namespace stratus {
 
         cpuData_->tangents = std::vector<glm::vec3>(numVertices_, glm::vec3(0.0f));
         cpuData_->bitangents = std::vector<glm::vec3>(numVertices_, glm::vec3(0.0f));
-        for (int i = 0; i < order->size(); i += 3) {
-            const uint32_t i0 = (*order)[i];
-            const uint32_t i1 = (*order)[i + 1];
-            const uint32_t i2 = (*order)[i + 2];
+        for (i32 i = 0; i < order->size(); i += 3) {
+            const u32 i0 = (*order)[i];
+            const u32 i1 = (*order)[i + 1];
+            const u32 i2 = (*order)[i + 2];
             auto tanBitan = calculateTangentAndBitangent(cpuData_->vertices[i0], cpuData_->vertices[i1], cpuData_->vertices[i2], cpuData_->uvs[i0], cpuData_->uvs[i1], cpuData_->uvs[i2]);
             
             cpuData_->tangents[i0] += tanBitan.tangent;
@@ -162,7 +162,7 @@ namespace stratus {
             cpuData_->bitangents[i2] += tanBitan.bitangent;
         }
 
-        for (size_t i = 0; i < numVertices_; ++i) {
+        for (usize i = 0; i < numVertices_; ++i) {
             glm::vec3 & tangent = cpuData_->tangents[i];
             glm::vec3 & bitangent = cpuData_->bitangents[i];
             const glm::vec3 & normal = cpuData_->normals[i];
@@ -170,7 +170,7 @@ namespace stratus {
             t = glm::normalize(t);
 
             glm::vec3 c = glm::cross(normal, t); // Compute orthogonal 3rd basis vector
-            float w = (glm::dot(c, bitangent) < 0) ? -1.0f : 1.0f;
+            f32 w = (glm::dot(c, bitangent) < 0) ? -1.0f : 1.0f;
             tangent = t * w;
             bitangent = glm::normalize(c);
         }
@@ -187,7 +187,7 @@ namespace stratus {
         cpuData_->data.clear();
         cpuData_->data.resize(numVertices_);
         //_cpuData->data.reserve(_cpuData->vertices.size() * 3 + _cpuData->uvs.size() * 2 + _cpuData->normals.size() * 3 + _cpuData->tangents.size() * 3 + _cpuData->bitangents.size() * 3);
-        for (int i = 0; i < numVertices_; ++i) {
+        for (i32 i = 0; i < numVertices_; ++i) {
             // _cpuData->data.push_back(_cpuData->vertices[i].x);
             // _cpuData->data.push_back(_cpuData->vertices[i].y);
             // _cpuData->data.push_back(_cpuData->vertices[i].z);
@@ -232,7 +232,7 @@ namespace stratus {
         // If no indices generate a buffer from [0, num vertices)
         // This does not require CPU data to be repacked
         if (cpuData_->indices.size() == 0) {
-            for (uint32_t i = 0; i < numVertices_; ++i) {
+            for (u32 i = 0; i < numVertices_; ++i) {
                 AddIndex(i);
             }
         }
@@ -240,7 +240,7 @@ namespace stratus {
         glm::vec3 vertex = glm::vec3(transform * glm::vec4(cpuData_->vertices[cpuData_->indices[0]], 1.0f));
 		glm::vec3 vmin = vertex;
 		glm::vec3 vmax = vertex;
-        for (size_t i = 0; i < cpuData_->indices.size(); ++i) {
+        for (usize i = 0; i < cpuData_->indices.size(); ++i) {
             vertex = glm::vec3(transform * glm::vec4(cpuData_->vertices[cpuData_->indices[i]], 1.0f));
             vmin = glm::min(vmin, vertex);
             vmax = glm::max(vmax, vertex);
@@ -259,7 +259,7 @@ namespace stratus {
         // If no indices generate a buffer from [0, num vertices)
         // This does not require CPU data to be repacked
         if (cpuData_->indices.size() == 0) {
-            for (uint32_t i = 0; i < numVertices_; ++i) {
+            for (u32 i = 0; i < numVertices_; ++i) {
                 AddIndex(i);
             }
         }
@@ -270,28 +270,28 @@ namespace stratus {
         cpuData_->indicesPerLod.push_back(cpuData_->indices);
         numIndicesPerLod_.clear();
         numIndicesPerLod_.push_back(cpuData_->indices.size());
-        // std::vector<float> errors = {
+        // std::vector<f32> errors = {
         //     0.002f, 0.0025f, 0.003f, 0.0035f, 0.004f, 0.0045f, 0.005f
         // };
-        const std::vector<float> errors = {
+        const std::vector<f32> errors = {
             0.0005f, 0.0005f, 0.001f, 0.001f, 0.005f, 0.01f, 0.01f
         };
         
-        const std::vector<float> targetPercentages = {
+        const std::vector<f32> targetPercentages = {
             0.05f, 0.05f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f
         };
 
-        for (int i = 0; i < errors.size(); ++i) {
+        for (i32 i = 0; i < errors.size(); ++i) {
             auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
-            const size_t targetIndices = size_t(prevIndices.size() * 0.5);
-            std::vector<uint32_t> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, 0.005f);
-            //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, errors[i]);
+            const usize targetIndices = usize(prevIndices.size() * 0.5);
+            std::vector<u32> simplified(prevIndices.size());
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
+            //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
             //if ((prevIndices.size() * 0.9) < double(size)) {
-            //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, 0.01f);
+            //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, 0.01f);
             //   error *= 2.0f;
-            //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, prevIndices.size() / 2, error);
+            //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, error);
             //}
             simplified.resize(size);
             meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
@@ -302,9 +302,9 @@ namespace stratus {
 
         // One last lod computed more aggressively than the previous ones
         auto& prevIndices = cpuData_->indicesPerLod[0];
-        std::vector<uint32_t> simplified(prevIndices.size());
-        const size_t targetIndices = std::min<size_t>(prevIndices.size(), 1024);
-        auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(float) * 3, targetIndices, 0.8f);
+        std::vector<u32> simplified(prevIndices.size());
+        const usize targetIndices = std::min<usize>(prevIndices.size(), 1024);
+        auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.8f);
         simplified.resize(size);
         meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
         cpuData_->indicesPerLod.push_back(std::move(simplified));
@@ -314,7 +314,7 @@ namespace stratus {
         cpuData_->indicesPerLod[0] = cpuData_->indices;
     }
 
-    size_t Mesh::GetGpuSizeBytes() const {
+    usize Mesh::GetGpuSizeBytes() const {
         EnsureFinalized_();
         return dataSizeBytes_;
     }
@@ -324,16 +324,16 @@ namespace stratus {
         return aabb_;
     }
 
-    uint32_t Mesh::GetVertexOffset() const {
+    u32 Mesh::GetVertexOffset() const {
         return vertexOffset_;
     }
 
-    uint32_t Mesh::GetIndexOffset(size_t lod) const {
+    u32 Mesh::GetIndexOffset(usize lod) const {
         lod = lod >= indexOffsetPerLod_.size() ? indexOffsetPerLod_.size() - 1 : lod;
         return indexOffsetPerLod_[lod];
     }
 
-    uint32_t Mesh::GetNumIndices(size_t lod) const {
+    u32 Mesh::GetNumIndices(usize lod) const {
         lod = lod >= numIndicesPerLod_.size() ? numIndicesPerLod_.size() - 1 : lod;
         return numIndicesPerLod_[lod];
     }
@@ -352,7 +352,7 @@ namespace stratus {
             indexOffsetPerLod_.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
             // Account for the fact that all vertices are stored in a global GpuBuffer and so
             // the indices need to be offset
-            for (size_t i = 0; i < indices.size(); ++i) {
+            for (usize i = 0; i < indices.size(); ++i) {
                 indices[i] += vertexOffset_;
             }
             
@@ -362,31 +362,31 @@ namespace stratus {
         GpuMeshAllocator::CopyVertexData(cpuData_->data, vertexOffset_);
 
         //_meshData = GpuBuffer((const void *)_cpuData->data.data(), _dataSizeBytes, GPU_MAP_READ);
-        //_indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(uint32_t));
+        //_indices = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ELEMENT_ARRAY_BUFFER, _cpuData->indices.data(), _cpuData->indices.size() * sizeof(u32));
         //_buffers.AddBuffer(buffer);
         //_cpuData->indicesMapped = buffer.MapMemory();
 
         // To get to the next full element we have to skip past a set of vertices (3), uvs (2), normals (3), tangents (3), and bitangents (3)
-        // buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, _cpuData->data.data(), _cpuData->data.size() * sizeof(float));
+        // buffer = GpuPrimitiveBuffer(GpuPrimitiveBindingPoint::ARRAY_BUFFER, _cpuData->data.data(), _cpuData->data.size() * sizeof(f32));
         // _buffers.AddBuffer(buffer);
         // //_primitiveMapped = buffer.MapMemory();
         
-        // const float stride = (3 + 2 + 3 + 3 + 3) * sizeof(float);
+        // const f32 stride = (3 + 2 + 3 + 3 + 3) * sizeof(f32);
 
         // // Vertices
         // buffer.EnableAttribute(0, 3, GpuStorageType::FLOAT, false, stride, 0);
 
         // // UVs
-        // buffer.EnableAttribute(1, 2, GpuStorageType::FLOAT, false, stride, 3 * sizeof(float));
+        // buffer.EnableAttribute(1, 2, GpuStorageType::FLOAT, false, stride, 3 * sizeof(f32));
 
         // // Normals
-        // buffer.EnableAttribute(2, 3, GpuStorageType::FLOAT, false, stride, 5 * sizeof(float));
+        // buffer.EnableAttribute(2, 3, GpuStorageType::FLOAT, false, stride, 5 * sizeof(f32));
 
         // // Tangents
-        // buffer.EnableAttribute(3, 3, GpuStorageType::FLOAT, false, stride, 8 * sizeof(float));
+        // buffer.EnableAttribute(3, 3, GpuStorageType::FLOAT, false, stride, 8 * sizeof(f32));
 
         // // Bitangents
-        // buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(float));
+        // buffer.EnableAttribute(4, 3, GpuStorageType::FLOAT, false, stride, 11 * sizeof(f32));
 
         // Clear CPU memory
         delete cpuData_;
@@ -408,7 +408,7 @@ namespace stratus {
         }
     }
 
-    void Mesh::Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const {
+    void Mesh::Render(usize numInstances, const GpuArrayBuffer& additionalBuffers) const {
         if (!IsFinalized()) return;
 
         //if (_primitiveMapped != nullptr || _cpuData->indicesMapped != nullptr) {
@@ -420,7 +420,7 @@ namespace stratus {
         // Matches the location in mesh_data.glsl
         additionalBuffers.Bind();
 
-        glDrawElementsInstanced(GL_TRIANGLES, numIndices_, GL_UNSIGNED_INT, (const void *)(GetIndexOffset(0) * sizeof(uint32_t)), numInstances);
+        glDrawElementsInstanced(GL_TRIANGLES, numIndices_, GL_UNSIGNED_INT, (const void *)(GetIndexOffset(0) * sizeof(u32)), numInstances);
 
         additionalBuffers.Unbind();
         //GpuMeshAllocator::UnbindElementArrayBuffer();
@@ -442,19 +442,19 @@ namespace stratus {
         this->materials_ = other.materials_;
     }
 
-    MeshPtr RenderComponent::GetMesh(const size_t meshIndex) const {
+    MeshPtr RenderComponent::GetMesh(const usize meshIndex) const {
         return meshes->meshes[meshIndex];
     }
 
-    size_t RenderComponent::GetMeshCount() const {
+    usize RenderComponent::GetMeshCount() const {
         return meshes->meshes.size();
     }
 
-    const glm::mat4& RenderComponent::GetMeshTransform(const size_t meshIndex) const {
+    const glm::mat4& RenderComponent::GetMeshTransform(const usize meshIndex) const {
         return meshes->transforms[meshIndex];
     }
 
-    size_t RenderComponent::GetMaterialCount() const {
+    usize RenderComponent::GetMaterialCount() const {
         return materials_.size();
     }
 
@@ -462,7 +462,7 @@ namespace stratus {
         return materials_;
     }
 
-    const MaterialPtr& RenderComponent::GetMaterialAt(size_t index) const {
+    const MaterialPtr& RenderComponent::GetMaterialAt(usize index) const {
         return materials_[index];
     }
 
@@ -471,7 +471,7 @@ namespace stratus {
         MarkChanged();
     }
 
-    void RenderComponent::SetMaterialAt(MaterialPtr material, size_t index) {
+    void RenderComponent::SetMaterialAt(MaterialPtr material, usize index) {
         materials_[index] = material;
         MarkChanged();
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StratusSystemStatus.h"
+#include "StratusTypes.h"
 
 namespace stratus {
 
@@ -28,7 +29,7 @@ namespace stratus {
         // Return true for success, false for failure
         virtual bool Initialize() = 0;
         // SystemStatus return tells the engine how to proceed
-        virtual SystemStatus Update(const double deltaSeconds) = 0;
+        virtual SystemStatus Update(const f64 deltaSeconds) = 0;
         // Clean up all resources
         virtual void Shutdown() = 0;
     };

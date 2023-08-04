@@ -23,7 +23,7 @@ namespace stratus {
     void Camera::SetAngle(const Rotation & rotation) {
         rotation_ = rotation;
         if (rangeCheckAngles_) {
-            const float minMax = 75.0f;
+            const f32 minMax = 75.0f;
             if (rotation_.x.value() > minMax) rotation_.x = Degrees(minMax);
             else if (rotation_.x.value() < -minMax) rotation_.x = Degrees(-minMax);
         }
@@ -34,7 +34,7 @@ namespace stratus {
         return rotation_;
     }
 
-    void Camera::SetPosition(float x, float y, float z) {
+    void Camera::SetPosition(f32 x, f32 y, f32 z) {
         SetPosition(glm::vec3(x, y, z));
     }
 
@@ -59,7 +59,7 @@ namespace stratus {
         return -glm::cross(GetDirection(), GetUp());
     }
 
-    void Camera::SetSpeed(float forward, float up, float strafe) {
+    void Camera::SetSpeed(f32 forward, f32 up, f32 strafe) {
         SetSpeed(glm::vec3(forward, up, strafe));
     }
 
@@ -71,20 +71,20 @@ namespace stratus {
         return speed_;
     }
 
-    //void Camera::Update(double deltaSeconds) {
+    //void Camera::Update(f64 deltaSeconds) {
     //    glm::vec3 dir = GetDirection();
     //    glm::vec3 up = GetUp();
     //    glm::vec3 side = GetSide();
 
     //    // Update the position
-    //    position_ += dir * speed_.z * (float)deltaSeconds;
-    //    position_ += up * speed_.y * (float)deltaSeconds;
-    //    position_ += side * speed_.x * (float)deltaSeconds;
+    //    position_ += dir * speed_.z * (f32)deltaSeconds;
+    //    position_ += up * speed_.y * (f32)deltaSeconds;
+    //    position_ += side * speed_.x * (f32)deltaSeconds;
 
     //    InvalidateView_();
     //}
 
-    void Camera::Update(double deltaSeconds) {
+    void Camera::Update(f64 deltaSeconds) {
         glm::vec3 dir = GetDirection();
         glm::vec3 up = GetUp();
         glm::vec3 side = GetSide();
@@ -96,9 +96,9 @@ namespace stratus {
         }
 
         // Update the position
-        position_ += dir  * speed_.z * (float)deltaSeconds;
-        position_ += up   * speed_.y * (float)deltaSeconds;
-        position_ += side * speed_.x * (float)deltaSeconds;
+        position_ += dir  * speed_.z * (f32)deltaSeconds;
+        position_ += up   * speed_.y * (f32)deltaSeconds;
+        position_ += side * speed_.x * (f32)deltaSeconds;
 
         InvalidateView_();
     }
@@ -161,7 +161,7 @@ namespace stratus {
 //     _viewTransform = glm::lookAt(position, position + _dir, _up);
 // }
 
-// void Camera::modifyAngle(double deltaYaw, double deltaPitch) {
+// void Camera::modifyAngle(f64 deltaYaw, f64 deltaPitch) {
 //     // rotation.x += deltaYaw;
 //     // rotation.y += deltaPitch;
 //     rotation.x -= deltaYaw;
@@ -190,7 +190,7 @@ namespace stratus {
 //     _dir = -glm::vec3(_worldTransform[2]);
 // }
 
-// void Camera::setSpeed(float forward, float up, float strafe) {
+// void Camera::setSpeed(f32 forward, f32 up, f32 strafe) {
 //     speed.z = forward;
 //     speed.y = up;
 //     speed.x = strafe;
@@ -200,11 +200,11 @@ namespace stratus {
 //     return speed;
 // }
 
-// void Camera::update(double deltaSeconds) {
+// void Camera::update(f64 deltaSeconds) {
 //     // Update the position
-//     position += _dir * speed.z * (float)deltaSeconds;
-//     position += _up * speed.y * (float)deltaSeconds;
-//     position += _side * speed.x * (float)deltaSeconds;
+//     position += _dir * speed.z * (f32)deltaSeconds;
+//     position += _up * speed.y * (f32)deltaSeconds;
+//     position += _side * speed.x * (f32)deltaSeconds;
 
 //     // Update the view transform
 //     _updateViewTransform();
@@ -212,11 +212,11 @@ namespace stratus {
 //     //    ", y: " << position.y << ", z: " << position.z << std::endl;
 // }
 
-// float Camera::getYaw() const {
+// f32 Camera::getYaw() const {
 //     return rotation.x;
 // }
 
-// float Camera::getPitch() const {
+// f32 Camera::getPitch() const {
 //     return rotation.y;
 // }
 
@@ -228,7 +228,7 @@ namespace stratus {
 //     return _worldTransform;
 // }
 
-// void Camera::setPosition(float x, float y, float z) {
+// void Camera::setPosition(f32 x, f32 y, f32 z) {
 //     Entity::setPosition(x, y, z);
 // }
 

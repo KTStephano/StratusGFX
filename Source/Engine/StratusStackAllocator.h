@@ -4,6 +4,7 @@
 #include <typeinfo>
 #include <exception>
 #include "StratusPointer.h"
+#include "StratusTypes.h"
 
 // A stack allocator is meant to provide O(1) allocation by only ever moving
 // down the stack. This is best used for short duration allocations such as a
@@ -12,8 +13,8 @@
 
 namespace stratus {
 	struct StackAllocator {
-		StackAllocator(const size_t maxBytes) {
-			start_ = (uint8_t *)std::malloc(maxBytes);
+		StackAllocator(const usize maxBytes) {
+			start_ = (u8 *)std::malloc(maxBytes);
 			end_ = start_ + maxBytes;
 			current_ = start_;
 		}
@@ -28,8 +29,8 @@ namespace stratus {
 		}
 
 		// Allocates a block of memory
-		void * Allocate(const size_t bytes) {
-			uint8_t * memory = current_;
+		void * Allocate(const usize bytes) {
+			u8 * memory = current_;
 			current_ = current_ + bytes;
 			if (current_ > end_) {
 				throw std::bad_alloc();
@@ -44,20 +45,20 @@ namespace stratus {
 		}
 
 		// Capacity in bytes
-		size_t Capacity() const noexcept {
+		usize Capacity() const noexcept {
 			return end_ - start_;
 		}
 
 		// Remaining bytes
-		size_t Remaining() const noexcept {
+		usize Remaining() const noexcept {
 			if (current_ >= end_) return 0;
 			return end_ - current_;
 		}
 
 	private:
-		uint8_t * start_ = nullptr;
-		uint8_t * end_ = nullptr;
-		uint8_t * current_ = nullptr;
+		u8 * start_ = nullptr;
+		u8 * end_ = nullptr;
+		u8 * current_ = nullptr;
 	};
 
 	inline static UnsafePtr<StackAllocator> GetDefaultStackAllocator_() {
@@ -80,13 +81,13 @@ namespace stratus {
 		typedef const T*       const_pointer;
 		typedef T&             reference;
 		typedef const T&       const_reference;
-		typedef std::size_t    size_type;
+		typedef usize		   size_type;
 		typedef std::ptrdiff_t difference_type;
 
 		StackBasedPoolAllocator()
 			: StackBasedPoolAllocator(GetDefaultStackAllocator_()) {}
 
-		StackBasedPoolAllocator(const size_t maxObjects)
+		StackBasedPoolAllocator(const usize maxObjects)
 			: StackBasedPoolAllocator(MakeUnsafe<StackAllocator>(sizeof(value_type) * maxObjects)) {}
 
 		StackBasedPoolAllocator(const UnsafePtr<StackAllocator>& allocator)
@@ -97,12 +98,12 @@ namespace stratus {
 			: allocator_(other.Allocator()) {}
 
 		// Capacity in terms of # objects
-		size_t Capacity() const noexcept {
+		usize Capacity() const noexcept {
 			return allocator_->Capacity() / sizeof(value_type);
 		}
 
 		// Remaining in terms of # objects
-		size_t Remaining() const noexcept {
+		usize Remaining() const noexcept {
 			return allocator_->Remaining() / sizeof(value_type);
 		}
 
@@ -119,11 +120,11 @@ namespace stratus {
 			return &x;
 		}
 
-		pointer allocate(std::size_t n) {
+		pointer allocate(usize n) {
 			return (pointer)allocator_->Allocate(sizeof(value_type) * n);
 		}
 
-		void deallocate(pointer p, std::size_t n) {
+		void deallocate(pointer p, usize n) {
 			// Do nothing
 		}
 
@@ -133,7 +134,7 @@ namespace stratus {
 
 		template<typename U, typename ... Args>
 		void construct(U * p, Args&&... args) {
-			uint8_t * memory = reinterpret_cast<uint8_t *>(p);
+			u8 * memory = reinterpret_cast<u8 *>(p);
 			::new (memory) U(std::forward<Args>(args)...);
 		}
 

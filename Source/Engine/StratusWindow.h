@@ -6,17 +6,18 @@
 #include <shared_mutex>
 #include <memory>
 #include "StratusCommon.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     struct MouseState {
         int x;
         int y;
-        uint32_t mask;
+        u32 mask;
     };
 
     struct InputHandler : public std::enable_shared_from_this<InputHandler> {
         virtual ~InputHandler() = default;
-        virtual void HandleInput(const MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) = 0;
+        virtual void HandleInput(const MouseState& mouse, const std::vector<SDL_Event>& input, const f64 deltaSeconds) = 0;
     };
 
     typedef std::shared_ptr<InputHandler> InputHandlerPtr;
@@ -34,7 +35,7 @@ namespace stratus {
 
     private:
         bool Initialize() override;
-        SystemStatus Update(const double deltaSeconds) override;
+        SystemStatus Update(const f64 deltaSeconds) override;
         void Shutdown() override;
 
         // end SystemModule interface
@@ -52,18 +53,18 @@ namespace stratus {
 
     SYSTEM_MODULE_CLASS(Window)
     private:
-        Window(uint32_t width, uint32_t height);
+        Window(u32 width, u32 height);
 
         bool Initialize() override;
-        SystemStatus Update(const double deltaSeconds) override;
+        SystemStatus Update(const f64 deltaSeconds) override;
         void Shutdown() override;
 
     public:
         // end SystemModule interface
 
         // Window dimensions
-        std::pair<uint32_t, uint32_t> GetWindowDims() const;
-        void SetWindowDims(const uint32_t width, const uint32_t height);
+        std::pair<u32, u32> GetWindowDims() const;
+        void SetWindowDims(const u32 width, const u32 height);
         bool WindowResizedWithinLastFrame() const;
 
         // Only useful to internal engine code
@@ -73,10 +74,10 @@ namespace stratus {
         mutable std::shared_mutex m_;
         SDL_Window * window_;
         MouseState mouse_;
-        uint32_t width_ = 0;
-        uint32_t height_ = 0;
-        uint32_t prevWidth_ = 0;
-        uint32_t prevHeight_ = 0;
+        u32 width_ = 0;
+        u32 height_ = 0;
+        u32 prevWidth_ = 0;
+        u32 prevHeight_ = 0;
         bool resized_ = false;
     };
 }

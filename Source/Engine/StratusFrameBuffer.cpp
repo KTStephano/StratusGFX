@@ -47,7 +47,7 @@ namespace stratus {
             if (bindAndUnbind) Unbind();
         }
 
-        void ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {
+        void ClearColorLayer(const glm::vec4& rgba, const usize colorIndex, const i32 layer) {
             if (colorAttachments_.size() < colorIndex) {
                 throw std::runtime_error("Color index exceeds maximum total bound color buffers");
             }
@@ -59,7 +59,7 @@ namespace stratus {
             color.ClearLayer(0, layer, (const void *)&rgba[0]);
         }
 
-        void ClearDepthStencilLayer(const int layer) {
+        void ClearDepthStencilLayer(const i32 layer) {
             if (depthStencilAttachment_ == Texture()) {
                 throw std::runtime_error("Attempt to clear null depth/stencil attachment");
             }
@@ -82,7 +82,7 @@ namespace stratus {
             currentBindingPoint_ = 0;
         }
 
-        void SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer) {
+        void SetColorTextureLayer(const i32 attachmentNum, const i32 mipLevel, const i32 layer) {
             if (colorAttachments_.size() < attachmentNum) {
                 throw std::runtime_error("Attachment number exceeds amount of attached color textures");
             }
@@ -95,7 +95,7 @@ namespace stratus {
             );
         }
 
-        void SetDepthTextureLayer(const int layer) {
+        void SetDepthTextureLayer(const i32 layer) {
             if (depthStencilAttachment_ == Texture()) {
                 throw std::runtime_error("Attempt to use null depth/stencil attachment");
             }
@@ -115,10 +115,10 @@ namespace stratus {
             Bind();
 
             // We can only have 1 max for each
-            int numDepthStencilAttachments = 0;
+            i32 numDepthStencilAttachments = 0;
 
             // In the case of multiple color attachments we need to let OpenGL know
-            std::vector<uint32_t> drawBuffers;
+            std::vector<u32> drawBuffers;
 
             for (Texture tex : attachments) {
                 tex.Bind();
@@ -230,11 +230,11 @@ namespace stratus {
         fbo_->Clear(rgba);
     }
 
-    void FrameBuffer::ClearColorLayer(const glm::vec4& rgba, const size_t colorIndex, const int layer) {
+    void FrameBuffer::ClearColorLayer(const glm::vec4& rgba, const usize colorIndex, const i32 layer) {
         fbo_->ClearColorLayer(rgba, colorIndex, layer);
     }
 
-    void FrameBuffer::ClearDepthStencilLayer(const int layer) {
+    void FrameBuffer::ClearDepthStencilLayer(const i32 layer) {
         fbo_->ClearDepthStencilLayer(layer);
     }
 
@@ -252,11 +252,11 @@ namespace stratus {
     bool FrameBuffer::Valid() const        { return fbo_ != nullptr && fbo_->Valid(); }
     void * FrameBuffer::Underlying() const { return fbo_->Underlying(); }
 
-    void FrameBuffer::SetColorTextureLayer(const int attachmentNum, const int mipLevel, const int layer) { 
+    void FrameBuffer::SetColorTextureLayer(const i32 attachmentNum, const i32 mipLevel, const i32 layer) { 
         fbo_->SetColorTextureLayer(attachmentNum, mipLevel, layer); 
     }
 
-    void FrameBuffer::SetDepthTextureLayer(const int layer) { 
+    void FrameBuffer::SetDepthTextureLayer(const i32 layer) { 
         fbo_->SetDepthTextureLayer(layer);
     }
 }

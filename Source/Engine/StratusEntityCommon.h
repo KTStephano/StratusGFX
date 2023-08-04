@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "StratusTypes.h"
 
 namespace stratus {
     class Entity;

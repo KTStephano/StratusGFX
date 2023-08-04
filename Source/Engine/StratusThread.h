@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include "StratusHandle.h"
 #include "StratusCommon.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     class Thread;

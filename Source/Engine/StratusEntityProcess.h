@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "StratusEntityCommon.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     // An entity system process signals to the engine that it wants to be called once
@@ -18,7 +19,7 @@ namespace stratus {
         //
         // Requirement: when Process returns no entity data is being touched
         // by any other threads
-        virtual void Process(const double deltaSeconds) = 0;
+        virtual void Process(const f64 deltaSeconds) = 0;
 
         // Called when an entity is added or removed from the world directly,
         // or when it is attached or detached from a parent entity who is

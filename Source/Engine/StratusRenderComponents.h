@@ -12,6 +12,7 @@
 #include "StratusEntityCommon.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "StratusTypes.h"
 
 #define GPU_MESH_CHUNK_SIZE (65536)
 
@@ -34,7 +35,7 @@ namespace stratus {
         Mesh();
 
     private:
-        static Mesh * PlacementNew_(uint8_t *);
+        static Mesh * PlacementNew_(u8 *);
 
     public:
         static MeshPtr Create();
@@ -48,12 +49,12 @@ namespace stratus {
         void AddNormal(const glm::vec3&);
         void AddTangent(const glm::vec3&);
         void AddBitangent(const glm::vec3&);
-        void AddIndex(uint32_t);
+        void AddIndex(u32);
 
         bool IsFinalized() const;
         void FinalizeData();
 
-        size_t GetGpuSizeBytes() const;
+        usize GetGpuSizeBytes() const;
 
         void SetFaceCulling(const RenderFaceCulling&);
         RenderFaceCulling GetFaceCulling() const;
@@ -67,12 +68,12 @@ namespace stratus {
         void GenerateLODs();
 
         // Temporary - to be removed
-        void Render(size_t numInstances, const GpuArrayBuffer& additionalBuffers) const;
+        void Render(usize numInstances, const GpuArrayBuffer& additionalBuffers) const;
 
         // Offsets into global GPU buffers
-        uint32_t GetVertexOffset() const;
-        uint32_t GetIndexOffset(size_t lod) const;
-        uint32_t GetNumIndices(size_t lod) const;
+        u32 GetVertexOffset() const;
+        u32 GetIndexOffset(usize lod) const;
+        u32 GetNumIndices(usize lod) const;
 
         const GpuAABB& GetAABB() const;
 
@@ -89,22 +90,22 @@ namespace stratus {
             std::vector<glm::vec3> normals;
             std::vector<glm::vec3> tangents;
             std::vector<glm::vec3> bitangents;
-            std::vector<uint32_t> indices;
+            std::vector<u32> indices;
             std::vector<GpuMeshData> data;
-            std::vector<std::vector<uint32_t>> indicesPerLod;
+            std::vector<std::vector<u32>> indicesPerLod;
             bool needsRepacking = false;
         };
 
     private:
         MeshCpuData_ * cpuData_;
         GpuAABB aabb_;
-        size_t dataSizeBytes_;
-        uint32_t numVertices_;
-        uint32_t numIndices_;
-        uint32_t vertexOffset_; // Into global GpuBuffer
-        std::vector<uint32_t> numIndicesPerLod_;
-        std::vector<uint32_t> indexOffsetPerLod_; // Into global GpuBuffer
-        uint32_t numIndicesApproximateLod_;
+        usize dataSizeBytes_;
+        u32 numVertices_;
+        u32 numIndices_;
+        u32 vertexOffset_; // Into global GpuBuffer
+        std::vector<u32> numIndicesPerLod_;
+        std::vector<u32> indexOffsetPerLod_; // Into global GpuBuffer
+        u32 numIndicesApproximateLod_;
 
         RenderFaceCulling cullMode_ = RenderFaceCulling::CULLING_CCW;
     };
@@ -128,16 +129,16 @@ namespace stratus {
         RenderComponent();
         RenderComponent(const RenderComponent&);
 
-        MeshPtr GetMesh(const size_t) const;
-        const glm::mat4& GetMeshTransform(const size_t) const;
-        size_t GetMeshCount() const;
+        MeshPtr GetMesh(const usize) const;
+        const glm::mat4& GetMeshTransform(const usize) const;
+        usize GetMeshCount() const;
 
         // There will always be 1 material per mesh
-        size_t GetMaterialCount() const;
+        usize GetMaterialCount() const;
         const std::vector<MaterialPtr>& GetAllMaterials() const;
-        const MaterialPtr& GetMaterialAt(size_t) const;
+        const MaterialPtr& GetMaterialAt(usize) const;
         void AddMaterial(MaterialPtr);
-        void SetMaterialAt(MaterialPtr, size_t);
+        void SetMaterialAt(MaterialPtr, usize);
 
     private:
         // This is per RenderComponent which means the same mesh may end up being

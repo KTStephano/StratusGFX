@@ -7,6 +7,7 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include "StratusTypes.h"
 
 // Printing helper functions
 std::ostream& operator<<(std::ostream& os, const glm::vec2& v);

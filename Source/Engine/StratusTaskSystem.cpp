@@ -8,14 +8,14 @@ namespace stratus {
     bool TaskSystem::Initialize() {
         taskThreads_.clear();
         // Important that this is > 1
-        unsigned int concurrency = 2;
+        u32 concurrency = 2;
         if (std::thread::hardware_concurrency() > concurrency) {
             concurrency = std::thread::hardware_concurrency();
         }
 
-        for (unsigned int i = 0; i < concurrency; ++i) {
+        for (u32 i = 0; i < concurrency; ++i) {
             Thread * ptr = new Thread("TaskThread#" + std::to_string(i + 1), true);
-            threadsWorking_.push_back(std::unique_ptr<std::atomic<size_t>>(new std::atomic<size_t>(0)));
+            threadsWorking_.push_back(std::unique_ptr<std::atomic<usize>>(new std::atomic<usize>(0)));
             threadToIndexMap_.insert(std::make_pair(ptr->Id(), threadsWorking_.size() - 1));
             taskThreads_.push_back(ThreadPtr(std::move(ptr)));
         }
@@ -27,7 +27,7 @@ namespace stratus {
         return true;
     }
 
-    SystemStatus TaskSystem::Update(const double) {
+    SystemStatus TaskSystem::Update(const f64) {
         for (ThreadPtr& thread : taskThreads_) {
             if (thread->Idle()) {
                 thread->Dispatch();
@@ -54,8 +54,8 @@ namespace stratus {
 
     void TaskSystem::Shutdown() {
         bool allIdle = false;
-        size_t updateCount = 0;
-        size_t messageCount = 1;
+        usize updateCount = 0;
+        usize messageCount = 1;
         
         while (!allIdle) {
             if (updateCount % 1000 == 0) {

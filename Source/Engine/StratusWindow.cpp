@@ -28,7 +28,7 @@ namespace stratus {
 
     bool InputManager::Initialize() { return true; }
 
-    SystemStatus InputManager::Update(const double deltaSeconds) {
+    SystemStatus InputManager::Update(const f64 deltaSeconds) {
         // Commit input handler changes
         inputHandlers_.insert(inputHandlersToAdd_.begin(), inputHandlersToAdd_.end());
         inputHandlers_.erase(inputHandlersToRemove_.begin(), inputHandlersToRemove_.end());
@@ -57,7 +57,7 @@ namespace stratus {
 
     Window::Window() : Window(1920, 1080) {}
     
-    Window::Window(uint32_t width, uint32_t height) {
+    Window::Window(u32 width, u32 height) {
         SetWindowDims(width, height);
     }
 
@@ -88,7 +88,7 @@ namespace stratus {
         return true;
     }
 
-    SystemStatus Window::Update(const double deltaSeconds) {
+    SystemStatus Window::Update(const f64 deltaSeconds) {
         // We need this to run on Application thread since it involves the
         // graphics backend to some extent
         CHECK_IS_APPLICATION_THREAD();
@@ -143,12 +143,12 @@ namespace stratus {
         }
     }
 
-    std::pair<uint32_t, uint32_t> Window::GetWindowDims() const {
+    std::pair<u32, u32> Window::GetWindowDims() const {
         auto sl = std::shared_lock<std::shared_mutex>(m_);
         return std::make_pair(width_, height_);
     }
 
-    void Window::SetWindowDims(const uint32_t width, const uint32_t height) {
+    void Window::SetWindowDims(const u32 width, const u32 height) {
         assert(width > 0 && height > 0);
         auto ul = std::unique_lock<std::shared_mutex>(m_);
         width_ = width;

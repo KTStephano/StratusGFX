@@ -11,6 +11,7 @@
 #include <vector>
 #include "StratusEntityCommon.h"
 #include "StratusEntityProcess.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     SYSTEM_MODULE_CLASS(EntityManager)
