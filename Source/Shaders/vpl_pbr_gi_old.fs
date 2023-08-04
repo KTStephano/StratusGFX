@@ -79,6 +79,19 @@ uniform int haltonSize;
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
     //if (length(screenColor) > 0.0) return screenColor;
 
+    // ivec2 numTiles = ivec2(numTilesX, numTilesY);
+    // // For example: 16, 9
+    // ivec2 multiplier = ivec2(viewportWidth, viewportHeight) / numTiles;
+    // uvec2 tileCoords = uvec2(pixelCoords / vec2(multiplier));
+    // //uvec2 tileCoords = uvec2(pixelCoords);
+    // if (tileCoords.x >= numTiles.x || tileCoords.y >= numTiles.y) return screenColor;
+
+    // // Each entry in the activeLightIndicesPerTile buffer has MAX_VPLS_PER_TILE entries
+    // int baseTileIndex = int(tileCoords.x + tileCoords.y * numTiles.x);
+    // // numActiveVPLsPerTile only has one int per entry
+    // int numActiveVPLs = tileData[baseTileIndex].numVisible;
+    // if (numActiveVPLs > MAX_VPLS_PER_TILE) return screenColor;
+
     float depth = textureLod(gDepth, texCoords, 0).r;
     vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
     //vec3 fragPos = texture(gPosition, texCoords).rgb;

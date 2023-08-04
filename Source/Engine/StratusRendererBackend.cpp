@@ -120,7 +120,7 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
     state_.shaders.push_back(state_.shadows.get());
 
     state_.vplShadows = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"shadow.vs", ShaderType::VERTEX},
+        Shader{"shadowVpl.vs", ShaderType::VERTEX},
         //Shader{"shadow.gs", ShaderType::GEOMETRY},
         Shader{"shadowVpl.fs", ShaderType::FRAGMENT}}
     ));
@@ -302,13 +302,20 @@ void RendererBackend::InitPointShadowMaps_() {
     std::vector<GpuProbeTextureData> probeData(vplSmapCache_.buffers.size());
     for (usize i = 0; i < vplSmapCache_.buffers.size(); ++i) {
         auto color = vplSmapCache_.buffers[i].GetColorAttachments()[0];
+        auto normal = vplSmapCache_.buffers[i].GetColorAttachments()[1];
+        auto properties = vplSmapCache_.buffers[i].GetColorAttachments()[2];
         auto depth = *vplSmapCache_.buffers[i].GetDepthStencilAttachment();
+
         state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(color));
+        state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(normal));
+        state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(properties));
         state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(depth));
 
         GpuProbeTextureData data;
         data.occlusion = depth.GpuHandle();
         data.diffuse = color.GpuHandle();
+        data.normals = normal.GpuHandle();
+        data.properties = properties.GpuHandle();
 
         probeData[i] = data;
     }
@@ -1469,7 +1476,10 @@ void RendererBackend::UpdatePointLights_(
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
         if (cache.buffers[smap.index].GetColorAttachments().size() > 0) {
             cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, nullptr);
+            cache.buffers[smap.index].GetColorAttachments()[1].ClearLayer(0, smap.layer, nullptr);
+            cache.buffers[smap.index].GetColorAttachments()[2].ClearLayer(0, smap.layer, nullptr);
         }
+
         f32 depthClear = 1.0f;
         cache.buffers[smap.index].GetDepthStencilAttachment()->ClearLayer(0, smap.layer, &depthClear);
 
@@ -1546,26 +1556,6 @@ void RendererBackend::UpdatePointLights_(
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
-
-                const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
-
-                glDepthFunc(GL_LEQUAL);
-
-                BindShader_(state_.skyboxLayered.get());
-                state_.skyboxLayered->SetInt("layer", i32(smap.layer * 6 + i));
-
-                auto tmp = frame_->settings.GetSkyboxIntensity();
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(1.0f);
-                }
-                
-                RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
-
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(tmp);
-                }
-
-                glDepthFunc(GL_LESS);
             }
             else {
                 const CommandBufferSelectionFunction selectDynamic = [this, i](GpuCommandBufferPtr& b) {
@@ -1916,7 +1906,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 4;
+    const i32 maxIterations = 1;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
@@ -2422,7 +2412,22 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
         attachments.push_back(texture); 
 
         if (vpl) {
-            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            // Diffuse
+            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+            attachments.push_back(texture);
+
+            // Normals
+            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+            attachments.push_back(texture);
+
+            // Other material data
+            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
             texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
