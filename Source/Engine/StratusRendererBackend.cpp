@@ -188,17 +188,17 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"viscull_vpls.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplCulling.get());
 
-    state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
-    state_.shaders.push_back(state_.vplColoring.get());
+    //state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    //    Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
+    //state_.shaders.push_back(state_.vplColoring.get());
 
-    state_.vplTileDeferredCullingStage1 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_tiled_deferred_culling_stage1.cs", ShaderType::COMPUTE}}));
-    state_.shaders.push_back(state_.vplTileDeferredCullingStage1.get());
+    //state_.vplTileDeferredCullingStage1 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    //    Shader{"vpl_tiled_deferred_culling_stage1.cs", ShaderType::COMPUTE}}));
+    //state_.shaders.push_back(state_.vplTileDeferredCullingStage1.get());
 
-    state_.vplTileDeferredCullingStage2 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_tiled_deferred_culling_stage2.cs", ShaderType::COMPUTE}}));
-    state_.shaders.push_back(state_.vplTileDeferredCullingStage2.get());
+    //state_.vplTileDeferredCullingStage2 = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    //    Shader{"vpl_tiled_deferred_culling_stage2.cs", ShaderType::COMPUTE}}));
+    //state_.shaders.push_back(state_.vplTileDeferredCullingStage2.get());
 
     state_.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
@@ -1308,9 +1308,9 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
         const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
-        data.farPlane = point->GetFarPlane();
+        //data.farPlane = point->GetFarPlane();
         data.radius = point->GetRadius();
-        data.intensity = point->GetIntensity();
+        //data.intensity = point->GetIntensity();
     }
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
@@ -1685,8 +1685,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     }
 
     // Pack data into system memory
-    std::vector<GpuTextureHandle, StackBasedPoolAllocator<GpuTextureHandle>> diffuseHandles(StackBasedPoolAllocator<GpuTextureHandle>(frame_->perFrameScratchMemory));
-    diffuseHandles.reserve(totalVisible);
     std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
     for (usize i = 0; i < totalVisible; ++i) {
@@ -1706,27 +1704,27 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.GetDirection();
 
-    state_.vplColoring->Bind();
+    //state_.vplColoring->Bind();
 
-    // Bind inputs
-    auto& cache = vplSmapCache_;
-    state_.vplColoring->SetVec3("infiniteLightDirection", direction);
-    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
+    //// Bind inputs
+    //auto& cache = vplSmapCache_;
+    //state_.vplColoring->SetVec3("infiniteLightDirection", direction);
+    //state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
 
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    ////state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    //state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
-    InitCoreCSMData_(state_.vplColoring.get());
+    //InitCoreCSMData_(state_.vplColoring.get());
 
-    // Bind outputs
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    //// Bind outputs
+    //state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
 
-    // Dispatch and synchronize
-    state_.vplColoring->DispatchCompute(1, 1, 1);
-    state_.vplColoring->SynchronizeCompute();
+    //// Dispatch and synchronize
+    //state_.vplColoring->DispatchCompute(1, 1, 1);
+    //state_.vplColoring->SynchronizeCompute();
 
-    state_.vplColoring->Unbind();
+    //state_.vplColoring->Unbind();
 
     // Now perform culling per tile since we now know which lights are active
     // state_.vplTileDeferredCullingStage1->Bind();

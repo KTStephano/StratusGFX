@@ -460,9 +460,9 @@ namespace stratus {
             std::unique_ptr<Pipeline> bloom;
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;
-            std::unique_ptr<Pipeline> vplColoring;
-            std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
-            std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
+            //std::unique_ptr<Pipeline> vplColoring;
+            //std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
+            //std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
             // Draws axis-aligned bounding boxes
             std::unique_ptr<Pipeline> aabbDraw;
             // Handles cascading shadow map depth buffer rendering

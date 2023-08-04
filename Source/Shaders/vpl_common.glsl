@@ -47,12 +47,8 @@ struct VplStage2PerTileOutputs {
 
 struct VplData {
     vec4 position;
-    vec4 color;
-    vec4 specularPosition;
     float radius;
-    float farPlane;
-    float intensity;
-    float _1;
+    float placeholder_[3];
 };
 
 struct ProbeTextureData {

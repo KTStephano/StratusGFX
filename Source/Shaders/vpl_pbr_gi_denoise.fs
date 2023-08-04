@@ -264,6 +264,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     return centerReservoir;
 }
 
+// vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
+//     return texture(indirectShadows, fsTexCoords).rgba;
+// }
+
 void main() {
     vec2 widthHeight = textureSize(screen, 0);
     vec2 texelWidthHeight = 1.0 / widthHeight;
@@ -413,8 +417,8 @@ void main() {
         historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        //illumAvg = currGi;
+        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }
