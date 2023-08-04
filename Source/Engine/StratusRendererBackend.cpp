@@ -185,7 +185,7 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
     state_.shaders.push_back(state_.atmosphericPostFx.get());
 
     state_.vplCulling = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_light_cull.cs", ShaderType::COMPUTE}}));
+        Shader{"viscull_vpls.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplCulling.get());
 
     state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -240,6 +240,10 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         }));
     state_.shaders.push_back(state_.fullscreen.get());
 
+    state_.viscullPointLights = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"viscull_point_lights.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.viscullPointLights.get());
+
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -266,6 +270,14 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         throw std::runtime_error("Halton sequence size check failed");
     }
     haltonSequence_ = GpuBuffer((const void *)haltonSequence.data(), sizeof(GpuHaltonEntry) * haltonSequence.size(), GPU_DYNAMIC_DATA);
+
+    // Initialize per light draw calls
+    state_.dynamicPerPointLightDrawCalls.resize(6);
+    state_.staticPerPointLightDrawCalls.resize(6);
+    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+        state_.dynamicPerPointLightDrawCalls[i] = GpuCommandReceiveManager::Create();
+        state_.staticPerPointLightDrawCalls[i]  = GpuCommandReceiveManager::Create();
+    }
 }
 
 void RendererBackend::InitPointShadowMaps_() {
@@ -909,7 +921,7 @@ static bool ValidateTexture(const Texture& tex, const TextureLoadingStatus& stat
     return status == TextureLoadingStatus::LOADING_DONE;
 }
 
-void RendererBackend::RenderBoundingBoxes_(GpuCommandBuffer2Ptr& buffer) {
+void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
     if (buffer->NumDrawCommands() == 0) return;
 
     SetCullState(RenderFaceCulling::CULLING_NONE);
@@ -931,13 +943,13 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBuffer2Ptr& buffer) {
     UnbindShader_();
 }
 
-void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map) {
+void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map) {
     for (auto& entry : map) {
         RenderBoundingBoxes_(entry.second);
     }
 }
 
-void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select) {
+void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select) {
     if (buffer->NumDrawCommands() == 0) return;
 
     frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
@@ -953,7 +965,7 @@ void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandB
     select(buffer).Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 }
 
-void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBuffer2Ptr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
@@ -1008,13 +1020,13 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
     for (auto& entry : map) {
         Render_(s, entry.first, entry.second, select, isLightInteracting, removeViewTranslation);
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
     for (auto& entry : map) {
         auto cull = entry.first;
         if (reverseCullFace) {
@@ -1119,22 +1131,19 @@ void RendererBackend::RenderCSMDepth_() {
         // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
-        // const size_t lod = cascade * 2 + 1;
-        const size_t lod = frame_->drawCommands->NumLods() - 2;
-        if (cascade < 2) {
-            const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
-                return b->GetSelectedLodDrawCommandsBuffer();
-            };
-            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
-            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
-        }
-        else {
-            const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
-                return b->GetIndirectDrawCommandsBuffer(lod);
-            };
-            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, true);
-            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, true);
-        }
+
+        CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
+            const auto cull = b->GetFaceCulling();
+            return frame_->csc.cascades[cascade].drawCommands->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+        };
+
+        CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
+            const auto cull = b->GetFaceCulling();
+            return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+        };
+
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
         // RenderImmediate_(csm.visibleStaticPbrMeshes);
@@ -1282,6 +1291,39 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
 
+static inline void PerformPointLightGeometryCulling(
+    Pipeline& pipeline,
+    const size_t lod,
+    const std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands,
+    const std::vector<GpuCommandReceiveManagerPtr>& receivers,
+    const std::function<GpuBuffer (const GpuCommandReceiveManagerPtr&, const RenderFaceCulling& cull)>& select,
+    const std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>>& viewProj
+) {
+    for (size_t i = 0; i < viewProj.size(); ++i) {
+        pipeline.SetMat4("viewProj[" + std::to_string(i) + "]", viewProj[i]);
+    }
+
+    for (auto& [cull, buffer] : commands) {
+        if (buffer->NumDrawCommands() == 0) continue;
+
+        pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
+        
+        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+        buffer->BindModelTransformBuffer(2);
+        buffer->BindAabbBuffer(3);
+
+        select(receivers[0], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+        select(receivers[1], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+        select(receivers[2], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
+        select(receivers[3], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
+        select(receivers[4], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
+        select(receivers[5], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
+
+        pipeline.DispatchCompute(1, 1, 1);
+        pipeline.SynchronizeCompute();
+    }
+}
+
 void RendererBackend::UpdatePointLights_(
     VplDistMultiSet_& perLightDistToViewerSet,
     VplDistVector_& perLightDistToViewerVec,
@@ -1371,6 +1413,12 @@ void RendererBackend::UpdatePointLights_(
         }
     }
 
+    // Make sure we have enough space to generate the point light draw calls
+    for (size_t i = 0; i < state_.dynamicPerPointLightDrawCalls.size(); ++i) {
+        state_.dynamicPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
+        state_.staticPerPointLightDrawCalls[i]->EnsureCapacity(frame_->drawCommands);
+    }
+
     // Set blend func just for shadow pass
     // glBlendFunc(GL_ONE, GL_ONE);
     glEnable(GL_DEPTH_TEST);
@@ -1416,8 +1464,51 @@ void RendererBackend::UpdatePointLights_(
         Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
         auto transforms = GenerateLightViewTransforms(point->GetPosition(), frame_->perFrameScratchMemory);
 
-        for (size_t i = 0; i < transforms.size(); ++i) {
-            const glm::mat4 projectionView = lightPerspective * transforms[i];
+        std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>> lightViewProj(
+            {
+                lightPerspective * transforms[0],
+                lightPerspective * transforms[1],
+                lightPerspective * transforms[2],
+                lightPerspective * transforms[3],
+                lightPerspective * transforms[4],
+                lightPerspective * transforms[5],
+            },
+
+            StackBasedPoolAllocator<glm::mat4>(frame_->perFrameScratchMemory)
+        );
+
+        // Perform visibility culling
+
+        state_.viscullPointLights->Bind();
+
+        PerformPointLightGeometryCulling(
+            *state_.viscullPointLights.get(),
+            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            frame_->drawCommands->staticPbrMeshes,
+            state_.staticPerPointLightDrawCalls,
+            [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
+                return manager->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+            },
+            lightViewProj
+        );
+
+        if (!light->IsStaticLight() && !light->IsVirtualLight()) {
+            PerformPointLightGeometryCulling(
+                *state_.viscullPointLights.get(),
+                0, // lod
+                frame_->drawCommands->dynamicPbrMeshes,
+                state_.dynamicPerPointLightDrawCalls,
+                [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
+                    return manager->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+                },
+                lightViewProj
+            );
+        }
+
+        state_.viscullPointLights->Unbind();
+
+        for (size_t i = 0; i < lightViewProj.size(); ++i) {
+            const glm::mat4& projectionView = lightViewProj[i];
 
             // * 6 since each cube map is accessed by a layer-face which is divisible by 6
             BindShader_(shader);
@@ -1430,9 +1521,11 @@ void RendererBackend::UpdatePointLights_(
             if (point->IsVirtualLight()) {
                 // Use lower LOD
                 const size_t lod = frame_->drawCommands->NumLods() - 1;
-                const CommandBufferSelectionFunction select = [lod](GpuCommandBuffer2Ptr& b) {
+                const CommandBufferSelectionFunction select = [this, lod, i](GpuCommandBufferPtr& b) {
                     //return b->GetVisibleLowestLodDrawCommandsBuffer();
-                    return b->GetIndirectDrawCommandsBuffer(lod);
+                    //return b->GetIndirectDrawCommandsBuffer(lod);
+                    const auto cull = b->GetFaceCulling();
+                    return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
@@ -1458,11 +1551,20 @@ void RendererBackend::UpdatePointLights_(
                 glDepthFunc(GL_LESS);
             }
             else {
-                const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
-                    return b->GetIndirectDrawCommandsBuffer(0);
+                const CommandBufferSelectionFunction selectDynamic = [this, i](GpuCommandBufferPtr& b) {
+                    const auto cull = b->GetFaceCulling();
+                    return state_.dynamicPerPointLightDrawCalls[i]->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+                    //return b->GetIndirectDrawCommandsBuffer(0);
                 };
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, false);
+
+                const CommandBufferSelectionFunction selectStatic = [this, i](GpuCommandBufferPtr& b) {
+                    const auto cull = b->GetFaceCulling();
+                    return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+                    //return b->GetIndirectDrawCommandsBuffer(0);
+                };
+
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, false);
             }
 
             UnbindShader_();
@@ -1991,7 +2093,7 @@ void RendererBackend::RenderForwardPassPbr_() {
 
     //glDepthFunc(GL_LEQUAL);
 
-    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
@@ -2014,7 +2116,7 @@ void RendererBackend::RenderForwardPassFlat_() {
     glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
 
-    const CommandBufferSelectionFunction select = [](GpuCommandBuffer2Ptr& b) {
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
         return b->GetVisibleDrawCommandsBuffer();
     };
 

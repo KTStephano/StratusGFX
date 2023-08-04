@@ -364,8 +364,8 @@ namespace stratus {
 
     template<typename Array>
     bool IsAabbInFrustum(const GpuAABB& aabb, const Array& frustumPlanes) {
-        const glm::vec4& vmin = aabb.vmin;
-        const glm::vec4& vmax = aabb.vmax;
+        const glm::vec4 vmin = aabb.vmin.ToVec4();
+        const glm::vec4 vmax = aabb.vmax.ToVec4();
 
         for (int i = 0; i < 6; ++i) {
             const glm::vec4& g = frustumPlanes[i];
@@ -417,7 +417,7 @@ namespace stratus {
         float dy = std::max<float>(aabb.vmin.v[1] - point.y, std::max<float>(0.0f, point.y - aabb.vmax.v[1]));
         float dz = std::max<float>(aabb.vmin.v[2] - point.z, std::max<float>(0.0f, point.z - aabb.vmax.v[2]));
 
-        return std::sqrtf(dx * dx + dy * dy + dz + dz);
+        return std::sqrt(dx * dx + dy * dy + dz + dz);
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:

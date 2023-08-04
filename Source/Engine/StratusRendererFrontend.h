@@ -87,9 +87,14 @@ namespace stratus {
         void UpdateVisibility_(
             Pipeline& pipeline,
             const glm::mat4&, const glm::mat4&, 
-            std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>&,
+            std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&,
             const bool selectLods
             );
+        void UpdateCascadeVisibility_(
+            Pipeline& pipeline,
+            const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+            std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+        );
         void UpdatePrevFrameModelTransforms_();
 
     private:
@@ -127,6 +132,7 @@ namespace stratus {
         // Compute pipeline which performs AABB checks against view frustum
         std::unique_ptr<Pipeline> viscullLodSelect_;
         std::unique_ptr<Pipeline> viscull_;
+        std::unique_ptr<Pipeline> viscullCsms_;
         std::unique_ptr<Pipeline> updateTransforms_;
         // Used for temporal anti-aliasing
         size_t currentHaltonIndex_ = 0;

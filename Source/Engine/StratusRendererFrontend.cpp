@@ -421,6 +421,8 @@ namespace stratus {
             renderer_->RecompileShaders();
             viscullLodSelect_->Recompile();
             viscull_->Recompile();
+            viscullCsms_->Recompile();
+            updateTransforms_->Recompile();
             recompileShaders_ = false;
         }
 
@@ -459,6 +461,10 @@ namespace stratus {
         frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
 
+        for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+            frame_->csc.cascades[i].drawCommands = GpuCommandReceiveManager::Create();
+        }
+
         // Set materials per frame and initialize material buffer
         frame_->materialInfo = GpuMaterialBuffer::Create(8192);
 
@@ -482,13 +488,17 @@ namespace stratus {
         const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
         viscullLodSelect_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-            Shader{"visibility_culling.cs", ShaderType::COMPUTE}},
+            Shader{"viscull_lods.cs", ShaderType::COMPUTE}},
             // Defines
             { {"SELECT_LOD", "1"} }
         ));
 
         viscull_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-            Shader{"visibility_culling.cs", ShaderType::COMPUTE} }
+            Shader{"viscull_lods.cs", ShaderType::COMPUTE} }
+        ));
+
+        viscullCsms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+            Shader{"viscull_csms.cs", ShaderType::COMPUTE} }
         ));
 
         updateTransforms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -498,7 +508,11 @@ namespace stratus {
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
-        return renderer_->Valid() && viscullLodSelect_->IsValid() && viscull_->IsValid() && updateTransforms_->IsValid();
+        return renderer_->Valid() && 
+               viscullLodSelect_->IsValid() && 
+               viscull_->IsValid() && 
+               viscullCsms_->IsValid() &&
+               updateTransforms_->IsValid();
     }
 
     void RendererFrontend::Shutdown() {
@@ -933,48 +947,13 @@ namespace stratus {
     }
 
     bool IsAabbVisible(const GpuAABB& aabb, const std::vector<glm::vec4>& frustumPlanes) {
-        glm::vec4 vmin = aabb.vmin.ToVec4();
-        glm::vec4 vmax = aabb.vmax.ToVec4();
-
-        for (int i = 0; i < 6; ++i) {
-            const glm::vec4& g = frustumPlanes[i];
-    		if ((glm::dot(g, glm::vec4(vmin.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0) &&
-			    (glm::dot(g, glm::vec4(vmax.x, vmax.y, vmax.z, 1.0f)) < 0.0))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return IsAabbInFrustum(aabb, frustumPlanes);
     }
-
-    // bool IsAabbVisible(const GpuAABB& aabb, const std::vector<glm::vec4>& frustumPlanes) {
-    //     const glm::vec3 vmin   = aabb.vmin.ToVec4();
-    //     const glm::vec3 vmax   = aabb.vmax.ToVec4();
-    //     const glm::vec4 center = glm::vec4((vmin + vmax) * 0.5f, 1.0);
-    //     const glm::vec4 size   = glm::vec4((vmax - vmin) * 0.5f, 1.0);
-
-    //     for (int i = 0; i < 6; ++i) {
-    //         const glm::vec4& g = frustumPlanes[i];
-    //         const float rg = std::fabs(g.x * size.x) + std::fabs(g.y * size.y) + std::fabs(g.z * size.z);
-    //         if (glm::dot(g, center) <= -rg) {
-    //             return false;
-    //         }
-    //     }
-
-    //     return true;
-    // }
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::UpdateVisibility_() {   
-        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
-        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> commands({
+        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> commands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
@@ -992,13 +971,75 @@ namespace stratus {
                 true
             );
         }
+
+        viscullCsms_->Bind();
+
+        // Ensure cascade draw command buffers have enough space
+        for (size_t i = 0; i < frame_->csc.cascades.size(); ++i) {
+            auto& csm = frame_->csc.cascades[i];
+            csm.drawCommands->EnsureCapacity(frame_->drawCommands);
+            
+            viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.projectionViewRender);
+        }
+
+        // Dynamic pbr
+        UpdateCascadeVisibility_(
+            *viscullCsms_.get(),
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommands->dynamicPbrMeshes.find(cull)->second;
+            },
+            frame_->drawCommands->dynamicPbrMeshes
+        );
+
+        UpdateCascadeVisibility_(
+            *viscullCsms_.get(),
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommands->staticPbrMeshes.find(cull)->second;
+            },
+            frame_->drawCommands->staticPbrMeshes
+        );
+
+        viscullCsms_->Unbind();
+    }
+
+    void RendererFrontend::UpdateCascadeVisibility_(
+        Pipeline& pipeline,
+        const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+    ) {
+        for (auto& [cull, buffer] : commands) {
+            if (buffer->NumDrawCommands() == 0) continue;
+
+            pipeline.SetUint("numDrawCalls", (unsigned int)buffer->NumDrawCommands());
+
+            const size_t maxLod = buffer->NumLods() - 2;
+
+            buffer->BindModelTransformBuffer(2);
+            buffer->BindAabbBuffer(3);
+
+            buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+
+            auto out0 = select(frame_->csc.cascades[0], cull);
+            auto out1 = select(frame_->csc.cascades[1], cull);
+            auto out2 = select(frame_->csc.cascades[2], cull);
+            auto out3 = select(frame_->csc.cascades[3], cull);
+        
+            out0->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+            out1->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
+            out2->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
+            out3->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
+
+            pipeline.DispatchCompute(1, 1, 1);
+            pipeline.SynchronizeCompute();
+        }
     }
 
     void RendererFrontend::UpdateVisibility_(
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
-        std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>& inOutDrawCommands,
+        std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& inOutDrawCommands,
         const bool selectLods) {
 
         static const std::vector<RenderFaceCulling> culling{
@@ -1064,7 +1105,6 @@ namespace stratus {
             it->second->GetVisibleDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
             it->second->BindModelTransformBuffer(2);
             it->second->BindAabbBuffer(3);
-            it->second->GetVisibleLowestLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 15);
 
             if (selectLods) {
                 it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
@@ -1112,8 +1152,8 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdatePrevFrameModelTransforms_() {
-        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*>;
-        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBuffer2Ptr>*, CommandBufferAllocator> drawCommands({
+        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> drawCommands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
             &frame_->drawCommands->staticPbrMeshes
