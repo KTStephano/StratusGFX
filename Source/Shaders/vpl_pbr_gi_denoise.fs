@@ -17,6 +17,7 @@ STRATUS_GLSL_VERSION
 #include "pbr2.glsl"
 #include "vpl_common.glsl"
 #include "aa_common.glsl"
+#include "random.glsl"
 
 // Input from vertex shader
 in vec2 fsTexCoords;
@@ -219,7 +220,6 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
         float randUpdate = random(seed);                                                                    \
-        seed.z += 10000.0;                                                                                  \
         float probability_ = currReservoir.a * probabilisticWeight;                                         \
         centerReservoir.a += probability_;                                                                  \
         if (randUpdate < (probability_ / centerReservoir.a)) {                                              \
@@ -229,9 +229,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
 #define ACCEPT_OR_REJECT_RESERVOIR_RANDOM(n, halfN, minmaxOffset)                                           \
         float randX = random(seed);                                                                         \
-        seed.z += 10000.0;                                                                                  \
         float randY = random(seed);                                                                         \
-        seed.z += 10000.0;                                                                                  \
         /* Sample within the neighborhood randomly */                                                       \
         int dx_ = int(n * randX) - halfN;                                                                   \
         int dy_ = int(n * randY) - halfN;                                                                   \

@@ -5,6 +5,7 @@ STRATUS_GLSL_VERSION
 #include "pbr.glsl"
 #include "pbr2.glsl"
 #include "vpl_common.glsl"
+#include "random.glsl"
 
 // Input from vertex shader
 in vec2 fsTexCoords;
@@ -76,11 +77,17 @@ layout (std430, binding = 4) readonly buffer inputBlock5 {
 
 uniform int haltonSize;
 
+vec3 computeReflection(vec3 v, vec3 normal) {
+    return v - 2.0 * dot(v, normal) * normal;
+}
+
 void trace(
     inout vec3 seed, 
     in vec3 baseColor,
     in vec3 normal,
     in vec3 fragPos,
+    in vec2 roughnessMetallic,
+    in vec3 startDirection,
     inout int resamples,
     inout float validSamples,
     inout vec4 traceReservoir) {
@@ -88,13 +95,15 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 100;
+    const int maxResamples = 200;
 
     int maxRandomIndex = numVisible[0] - 1;
 
     vec3 currDiffuse = baseColor;
     vec3 currFragPos = fragPos;
     vec3 currNormal = normal;
+    vec2 currRoughnessMetallic = roughnessMetallic;
+    vec3 currDirection = startDirection;
 
     float foundLight = 0.0;
 
@@ -104,8 +113,7 @@ void trace(
             validSamples += 1;
         }
 
-        float rand = random(seed);                                                                                                          
-        seed.z += seedZOffset;                                                                                                              
+        float rand = random(seed);                                                                                                                                                                                                                      
         int lightIndex = int(maxRandomIndex * rand);                                                                                        
         AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
                                                                                                                                                                                                                                                                                 \
@@ -115,11 +123,10 @@ void trace(
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
         vec3 direction = lightPosition - currFragPos;                                                                                  
-        float lightRadius = lightData[lightIndex].radius;                                                                                   
+        float lightRadius = lightData[lightIndex].radius * 0.5;                                                                                  
         float distance = length(direction);        
-        direction = normalize(direction);
 
-        float sideCheck = dot(currNormal, direction);                                                                       
+        float sideCheck = dot(currNormal, normalize(direction));                                                                       
         if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
             ++resamples;                                                                                                                
             --i;                                                                                                                        
@@ -142,48 +149,48 @@ void trace(
 
         //direction = normalize(direction);
 
-        direction = direction;
+        // TODO: Replace with actual unit sphere random
+        //vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
+        vec3 unit = randomVector(seed, -1, 1);
 
-        float randX = 2.0 * random(seed) - 1.0;
-        seed.z += seedZOffset;
+        vec3 scatteredVec = normalize(currNormal + unit);
+        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * unit);
+        vec3 target = reflectedVec;//mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
-        float randY = 2.0 * random(seed) - 1.0;
-        seed.z += seedZOffset;
-
-        float randZ = 2.0 * random(seed) - 1.0;
-        seed.z += seedZOffset;
-
-        direction = normalize(direction + vec3(randX, randY, randZ));
-
-        vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(direction, float(entry.layer)), 0).rgba;
+        vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
         if (newDiffuse.a < 0.5) {
             foundLight = 1.0;
             break;
         }
 
-        float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(direction, float(entry.layer)), 0).r;
-        vec3 newPosition = lightData[lightIndex].position.xyz + 1.0 * magnitude * direction;
-        vec3 newNormal = normalize(textureLod(probeTextures[entry.index].normals, vec4(direction, float(entry.layer)), 0).rgb * 2.0 - vec3(1.0));
+        float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(target, float(entry.layer)), 0).r;
+        vec3 newPosition = lightData[lightIndex].position.xyz + 1.0 * magnitude * target;
+        vec4 newNormal = textureLod(probeTextures[entry.index].normals, vec4(target, float(entry.layer)), 0).rgba;
+        newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
+        float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
 
         currDiffuse = currDiffuse * newDiffuse.rgb;
         currFragPos = newPosition;
-        currNormal = newNormal;
+        currNormal = newNormal.rgb;
+        currRoughnessMetallic = vec2(newNormal.a, newMetallic);
+        currDirection = target;
     }
 
     validSamples += 1.0;
 
     validSamples = max(validSamples, 1.0);
 
-    traceReservoir += vec4(3 * foundLight * vec3(currDiffuse), validSamples);
+    traceReservoir += vec4(infiniteLightColor * foundLight * vec3(currDiffuse), validSamples);
     traceReservoir = vec4(boundHDR(traceReservoir.rgb), traceReservoir.a);
 }
 
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    if (screenColor.r > 0.0 || screenColor.g > 0.0 || screenColor.b > 0.0) {
-        color = vec3(0.0);
-        reservoir = vec4(1.0);
-    }
+    // if (screenColor.r > 0.0 || screenColor.g > 0.0 || screenColor.b > 0.0) {
+    //     color = vec3(0.0);
+    //     reservoir = vec4(1.0);
+    //     return;
+    // }
 
     float depth = textureLod(gDepth, texCoords, 0).r;
     vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
@@ -196,7 +203,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
     float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
-    roughness = max(0.5, roughness);
+    //roughness = max(0.5, roughness);
     float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
@@ -236,8 +243,9 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec4 traceReservoir = vec4(0.0);
 
     int numTraceSamples = 1;
+    vec3 startDirection = normalize(fragPos - viewPosition);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, vec3(1.0), normal, fragPos, resamples, validSamples, traceReservoir);
+    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), startDirection, resamples, validSamples, traceReservoir);
     }
 
     color = baseColor;

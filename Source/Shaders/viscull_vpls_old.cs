@@ -61,7 +61,17 @@ void main() {
     barrier();
 
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
-        lightVisible[index] = true;
+        vec3 lightPos = lightData[index].position.xyz;
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[1], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[2], vec4(lightPos, 1.0)));
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection, false);
+        if (shadowFactor < 1.0) {
+            lightVisible[index] = true;
+            // int next = atomicAdd(localNumVisible, 1);
+            // vplVisibleIndex[next] = index;
+            //lightData[index].color = vec4(vec3(1.0) * 500, 1.0);
+        }
     }
 
     barrier();
@@ -94,4 +104,17 @@ void main() {
         lightVisibleIndex = lightVisibleIndex > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : lightVisibleIndex;
         vplVisibleIndex[0] = lightVisibleIndex;
     }
+
+    // if (gl_LocalInvocationIndex == 0) {
+    //     int localNumVisible = 0;
+    //     for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
+    //         if (lightVisible[i]) {
+    //             updatedLightData[localNumVisible] = lightData[i];
+    //             vplVisibleIndex[localNumVisible] = i;
+    //             ++localNumVisible;
+    //         }
+    //     }
+
+    //     numVisible = localNumVisible;
+    // }
 }
