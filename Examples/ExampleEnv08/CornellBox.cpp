@@ -180,116 +180,18 @@ public:
             // const std::vector<float> ys = { -30.0f, 10.0f };
             // const float offset = 60.0f;
             const float vplIntensity = 1.0f / 50.0f; //0.05f / 1.0f;
-            const bool showVpls = false;
+            const bool showVpls = true;
 
-            // Floor
-            for (float x = -14.0f; x <= 14.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
+            for (float x = -14; x <= 14; x += 2.0f) {
+                for (float y = 2; y <= 30; y += 3.0f) {
+                    for (float z = -15.0f; z <= 15.0f; z += 4.0f) {
                         ++spawned;
-                        const glm::vec3 location(x, 1.0f, z);
+                        const glm::vec3 location(x, y, z);
                         LightCreator::CreateVirtualPointLight(
                             LightParams(location, glm::vec3(1.0f), vplIntensity),
                             showVpls
                         );
-                    //}
-                }
-            }
-
-            // Ceiling
-            for (float x = -14.0f; x <= 14.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
-                        ++spawned;
-                        const glm::vec3 location(x, 29.5f, z);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Left wall
-            for (float y = 0.0f; y <= 28.0f; y += 2.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
-                        ++spawned;
-                        const glm::vec3 location(14.5f, y, z);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Back wall
-            for (float x = -13.0f; x <= 13.0f; x += 2.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float y = 0; y <= 28.0f; y += 1.0f) {
-                        ++spawned;
-                        const glm::vec3 location(x, y, 14.0f);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Tall box side
-            // for (float y = 2; y <= 17.0f; y += 1.0f) {
-            //     for (float z = -1; z <= 4.0f; z += 1.0f) {
-            //         ++spawned;
-            //         const glm::vec3 location(9, y, z);
-            //         LightCreator::CreateVirtualPointLight(
-            //             LightParams(location, glm::vec3(1.0f), vplIntensity),
-            //             showVpls
-            //         );
-            //         //}
-            //     }
-            // }
-
-            // Tall box front
-            for (float x = 0; x <= 6.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                for (float y = 0; y <= 18.0f; y += 1.0f) {
-                    ++spawned;
-                    const glm::vec3 location(x, y, -2.0f);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
-                }
-            }
-
-            // Short box side
-            for (float y = 0; y <= 10.0f; y += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                for (float z = -10.0f; z <= -2.0f; z += 1.0f) {
-                    ++spawned;
-                    const glm::vec3 location(-10.0f, y, z);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
-                }
-            }
-
-            // Short box front
-            for (float x = -7.0f; x <= -1.0; x += 1.0f) {
-                for (float y = 2.0f; y <= 8.0f; y += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    ++spawned;
-                    const glm::vec3 location(x, y, -11.0f);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
+                    }
                 }
             }
 

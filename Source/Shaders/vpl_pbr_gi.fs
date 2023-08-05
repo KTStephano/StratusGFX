@@ -83,13 +83,12 @@ void trace(
     in vec3 fragPos,
     inout int resamples,
     inout float validSamples,
-    inout vec3 traceColor,
     inout vec4 traceReservoir) {
 
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 50;
+    const int maxResamples = 100;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -100,7 +99,11 @@ void trace(
     float foundLight = 0.0;
 
     // Each successful iteration = 1 bounce of light
-    for (int i = 0; i < 3; i += 1) {
+    for (int i = 0; i < 4 && resamples < maxResamples; i += 1) {
+        if (i == 0) {
+            validSamples += 1;
+        }
+
         float rand = random(seed);                                                                                                          
         seed.z += seedZOffset;                                                                                                              
         int lightIndex = int(maxRandomIndex * rand);                                                                                        
@@ -111,46 +114,56 @@ void trace(
         /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
-        vec3 direction = lightPosition - currFragPos;                                                                                      
+        vec3 direction = lightPosition - currFragPos;                                                                                  
         float lightRadius = lightData[lightIndex].radius;                                                                                   
         float distance = length(direction);        
+        direction = normalize(direction);
 
-        if (resamples < maxResamples) {                                                                                          
-            float sideCheck = dot(currNormal, normalize(direction));                                                                       
-            if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
-                ++resamples;                                                                                                                
-                --i;                                                                                                                        
-                continue;                                                                                                                   
-            }                                                                                                                               
-        }                                                                                                                                   
-                                                                                                                                            
-        float distanceRatio = clamp((2.0 * distance) / lightRadius, 0.0, 1.0);                                                              
-        float distAttenuation = distanceRatio;                                                                                              
-                                                                                                                                            
-        vec3 lightColor = vec3(50000.0);                                                                          
-                                                                                                                                            
+        float sideCheck = dot(currNormal, direction);                                                                       
+        if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
+            ++resamples;                                                                                                                
+            --i;                                                                                                                        
+            continue;                                                                                                                   
+        }                                                        
+
+        const float minBias = 0.05;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
                                                         currFragPos,                                                                           
                                                         lightPosition,                                                                     
-                                                        dot(direction, currNormal), 0.05);
+                                                        dot(direction, currNormal), minBias);
         
-        if (shadowFactor > 0.0 && resamples < maxResamples) {
+        if (shadowFactor > 0.0) {
             ++resamples;
             --i;
             continue;
         }
 
+        //direction = normalize(direction);
+
+        direction = direction;
+
+        float randX = 2.0 * random(seed) - 1.0;
+        seed.z += seedZOffset;
+
+        float randY = 2.0 * random(seed) - 1.0;
+        seed.z += seedZOffset;
+
+        float randZ = 2.0 * random(seed) - 1.0;
+        seed.z += seedZOffset;
+
+        direction = normalize(direction + vec3(randX, randY, randZ));
+
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(direction, float(entry.layer)), 0).rgba;
 
-        if (newDiffuse.a == 0.0 && resamples < maxResamples) {
+        if (newDiffuse.a < 0.5) {
             foundLight = 1.0;
             break;
         }
 
         float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(direction, float(entry.layer)), 0).r;
-        vec3 newPosition = lightData[lightIndex].position.xyz + magnitude * direction;
+        vec3 newPosition = lightData[lightIndex].position.xyz + 1.0 * magnitude * direction;
         vec3 newNormal = normalize(textureLod(probeTextures[entry.index].normals, vec4(direction, float(entry.layer)), 0).rgb * 2.0 - vec3(1.0));
 
         currDiffuse = currDiffuse * newDiffuse.rgb;
@@ -158,14 +171,19 @@ void trace(
         currNormal = newNormal;
     }
 
+    validSamples += 1.0;
+
     validSamples = max(validSamples, 1.0);
 
-    traceColor = vec3(currDiffuse);
-    traceReservoir = vec4(boundHDR(vec3(1.0)), validSamples);
+    traceReservoir += vec4(3 * foundLight * vec3(currDiffuse), validSamples);
+    traceReservoir = vec4(boundHDR(traceReservoir.rgb), traceReservoir.a);
 }
 
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    //if (length(screenColor) > 0.0) return screenColor;
+    if (screenColor.r > 0.0 || screenColor.g > 0.0 || screenColor.b > 0.0) {
+        color = vec3(0.0);
+        reservoir = vec4(1.0);
+    }
 
     float depth = textureLod(gDepth, texCoords, 0).r;
     vec3 fragPos = worldPositionFromDepth(texCoords, depth, invProjectionView);
@@ -199,7 +217,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
 
     float seedZ = time;
-    vec3 seed = vec3(gl_FragCoord.xy, time);
+    //vec3 seed = vec3(gl_FragCoord.xy, time);
+    vec3 seed = vec3(fragPos.xy, fragPos.z + time);
     float validSamples = 0.0;
 
     vec3 colorNoShadow = vec3(0.0);
@@ -216,10 +235,13 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int resamples = 0;
     vec4 traceReservoir = vec4(0.0);
 
-    trace(seed, baseColor, normal, fragPos, resamples, validSamples, traceColor, traceReservoir);
+    int numTraceSamples = 1;
+    for (int i = 0; i < numTraceSamples; ++i) {
+    trace(seed, vec3(1.0), normal, fragPos, resamples, validSamples, traceReservoir);
+    }
 
-    color = traceColor;
-    reservoir = traceReservoir;
+    color = baseColor;
+    reservoir = traceReservoir / float(numTraceSamples);
 
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
     

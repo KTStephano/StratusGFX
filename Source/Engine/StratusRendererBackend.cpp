@@ -1904,7 +1904,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 1;
+    const i32 maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
@@ -2404,7 +2404,7 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
 
         std::vector<Texture> attachments;
         Texture texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::DEPTH, bits, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-        texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         attachments.push_back(texture); 
@@ -2412,21 +2412,21 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
         if (vpl) {
             // Diffuse
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);
 
             // Normals
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);
 
             // Other material data
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);

@@ -95,7 +95,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 2;
+const int dminmax = 0;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
@@ -248,17 +248,17 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 0;
-    for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
-        for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
-            ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
-        }
-    }
-
     // int minmaxNearest = 0;
-    // for (int count = 0; count < numReservoirNeighbors; ++count) {
-    //     ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
+    // for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
+    //     for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
+    //         ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
+    //     }
     // }
+
+    int minmaxNearest = 0;
+    for (int count = 0; count < numReservoirNeighbors; ++count) {
+        ACCEPT_OR_REJECT_RESERVOIR_RANDOM(neighborhood, halfNeighborhood, minmaxNearest)
+    }
 
     centerReservoir.a = runningSum;
     return centerReservoir;
@@ -423,6 +423,7 @@ void main() {
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }
 
+    //combinedColor = screenColor + gi * illumAvg;
     combinedColor = screenColor + gi * illumAvg;
     giColor = illumAvg;
     reservoirValue = vec4(shadowFactor, 1.0);
