@@ -1559,23 +1559,23 @@ void RendererBackend::UpdatePointLights_(
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
 
-                glDepthFunc(GL_LEQUAL);
+                // glDepthFunc(GL_LEQUAL);
 
-                BindShader_(state_.skyboxLayered.get());
-                state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
+                // BindShader_(state_.skyboxLayered.get());
+                // state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
 
-                auto tmp = frame_->settings.GetSkyboxIntensity();
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(1.0f);
-                }
+                // auto tmp = frame_->settings.GetSkyboxIntensity();
+                // if (tmp > 1.0f) {
+                //     frame_->settings.SetSkyboxIntensity(1.0f);
+                // }
 
-                RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
+                // RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
 
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(tmp);
-                }
+                // if (tmp > 1.0f) {
+                //     frame_->settings.SetSkyboxIntensity(tmp);
+                // }
 
-                glDepthFunc(GL_LESS);
+                // glDepthFunc(GL_LESS);
             }
             else {
                 const CommandBufferSelectionFunction selectDynamic = [this, i](GpuCommandBufferPtr& b) {

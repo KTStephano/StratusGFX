@@ -31,9 +31,9 @@ float floatConstruct( uint m ) {
 // Pseudo-random value in half-open range [0:1].
 
 void typeOffset(inout float x) { x += 8192; }
-void typeOffset(inout vec2 x) { x += vec2(x.r, 8192); }
-void typeOffset(inout vec3 x) { x += vec3(x.r, x.g, 8192); }
-void typeOffset(inout vec4 x) { x += vec4(x.r, x.g, x.b, 8192); }
+void typeOffset(inout vec2 x) { x += vec2(0, 8192); }
+void typeOffset(inout vec3 x) { x += vec3(0, 0, 8192); }
+void typeOffset(inout vec4 x) { x += vec4(0, 0, 0, 8192); }
 
 #define RANDOM_FUNCTION_TEMPLATE(type)  \
     float random( inout type x ) { float result = floatConstruct(hash(floatBitsToUint(x))); typeOffset(x); return result; }
@@ -84,11 +84,11 @@ RANDOM_UNIT_SPHERE_VECTOR(vec2)
 RANDOM_UNIT_SPHERE_VECTOR(vec3)
 RANDOM_UNIT_SPHERE_VECTOR(vec4)
 
-#define RANDOM_UNIT_VECTOR(type) \
-    vec3 randomUnitVector( inout type x ) { return normalize(randomPointInUnitSphere(x)); }
-
 ////#define RANDOM_UNIT_VECTOR(type) \
-////    vec3 randomUnitVector( inout type x ) { return normalize(randomVector(x, -1.0, 1.0)); }
+////    vec3 randomUnitVector( inout type x ) { return normalize(randomPointInUnitSphere(x)); }
+
+#define RANDOM_UNIT_VECTOR(type) \
+    vec3 randomUnitVector( inout type x ) { return normalize(randomVector(x, -1.0, 1.0)); }
 
 RANDOM_UNIT_VECTOR(float)
 RANDOM_UNIT_VECTOR(vec2)

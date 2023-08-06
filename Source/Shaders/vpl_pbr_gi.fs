@@ -109,8 +109,9 @@ void trace(
     vec3 lightMask = vec3(0.0);
     //validSamples += 1;
 
+    const int maxBounces = 3;
     // Each successful iteration = 1 bounce of light
-    for (int i = 0; i < 1 && resamples < maxResamples; i += 1) {
+    for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         // if (i == 0) {
         //     validSamples += 1;
         // }
@@ -124,7 +125,7 @@ void trace(
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
         vec3 direction = lightPosition - currFragPos;                                                                                  
-        float lightRadius = 15;//lightData[lightIndex].radius;                                                                                  
+        float lightRadius = 15;//lightData[lightIndex].radius;                                                                               
         float distance = length(direction);        
         direction = normalize(direction);
 
@@ -135,7 +136,7 @@ void trace(
             continue;                                                                                                                   
         }                                                        
 
-        const float minBias = 0.05;                                                                                                                                    
+        const float minBias = 0.0;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
@@ -155,9 +156,9 @@ void trace(
         //vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
 
         //vec3 scatteredVec = normalize(currNormal + currRoughnessMetallic.r * randomVector(seed, -1, 1));
-        vec3 scatteredVec = currNormal + randomUnitVector(seed);
+        vec3 scatteredVec = normalize(-direction + randomUnitVector(seed));
         vec3 reflectedVec = normalize(computeReflection(-direction, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
-        vec3 target = scatteredVec;//mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+        vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
@@ -211,7 +212,35 @@ void trace(
         newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
         currRoughnessMetallic = vec2(1.0, 0.0);
 
-        if (lightData[lightIndex].visible > 0) {
+        // if (lightData[lightIndex].visible > 0) {
+        //     validSamples += 1.0;
+        //     currDiffuse = currDiffuse * newDiffuse.rgb;
+        //     currFragPos = newPosition;
+        //     currNormal = newNormal.rgb;
+        //     currDirection = target;
+        //     lightMask = vec3(1.0);
+        //     break;
+        // }
+
+        // if ((i + 1) < maxBounces) {
+        //     currDiffuse = currDiffuse * newDiffuse.rgb;
+        //     currFragPos = newPosition;
+        //     currNormal = newNormal.rgb;
+        //     currDirection = target;
+        // }
+        // else {
+        //     ++resamples;
+        //     --i;
+        // }
+
+        //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
+
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
+                                  dot(cascadePlanes[1], vec4(newPosition, 1.0)),
+                                  dot(cascadePlanes[2], vec4(newPosition, 1.0)));
+        shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
+
+        if (shadowFactor > 0.0) {
             validSamples += 1.0;
             currDiffuse = currDiffuse * newDiffuse.rgb;
             currFragPos = newPosition;
@@ -221,29 +250,16 @@ void trace(
             break;
         }
 
-        ++resamples;
-        --i;
-
-        //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
-
-        // vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
-        //                           dot(cascadePlanes[1], vec4(newPosition, 1.0)),
-        //                           dot(cascadePlanes[2], vec4(newPosition, 1.0)));
-        // shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
-
-        // if (shadowFactor > 0.0) {
-        //     validSamples += 1.0;
-        //     currDiffuse = currDiffuse * newDiffuse.rgb;
-        //     currFragPos = newPosition;
-        //     currNormal = newNormal.rgb;
-        //     //currRoughnessMetallic = vec2(newNormal.a, newMetallic);
-        //     currDirection = target;
-        //     lightMask = vec3(1.0);
-        //     break;
-        // }
-
-        // ++resamples;
-        // --i;
+        if ((i + 1) < maxBounces) {
+            currDiffuse = currDiffuse * newDiffuse.rgb;
+            currFragPos = newPosition;
+            currNormal = newNormal.rgb;
+            currDirection = target;
+        }
+        else {
+            ++resamples;
+            --i;
+        }
     }
 
     //validSamples += 1.0;
@@ -256,7 +272,8 @@ void trace(
     vec3 tempColor = lightMask * vec3(currDiffuse);
         //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
 
-    tempColor = calculateLighting_Lambert(infiniteLightColor, currDirection, viewDir, normal, tempColor, viewDist, 0.0, roughnessMetallic.r, roughnessMetallic.g, 1.0, length(lightMask), baseReflectivity, 1.0, 0.0, vec3(1.0), vec3(1.0));
+    float shadowFactor = length(lightMask) > 0 ? 1.0 : 0.0;
+    tempColor = calculateLighting_Lambert(infiniteLightColor, currDirection, viewDir, normal, tempColor, viewDist, 0.0, roughnessMetallic.r, roughnessMetallic.g, 1.0, shadowFactor, baseReflectivity, 1.0, 0.0, vec3(1.0), vec3(1.0));
 
     traceReservoir += vec4(tempColor, validSamples);
 
