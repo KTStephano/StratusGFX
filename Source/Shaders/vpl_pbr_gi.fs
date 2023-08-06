@@ -87,6 +87,7 @@ void trace(
     in vec3 normal,
     in vec3 fragPos,
     in vec2 roughnessMetallic,
+    in vec3 baseReflectivity,
     in vec3 startDirection,
     inout int resamples,
     inout float validSamples,
@@ -95,7 +96,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 200;
+    const int maxResamples = 500;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -105,14 +106,14 @@ void trace(
     vec2 currRoughnessMetallic = roughnessMetallic;
     vec3 currDirection = startDirection;
 
-    float foundLight = 0.0;
+    vec3 lightMask = vec3(0.0);
+    //validSamples += 1;
 
     // Each successful iteration = 1 bounce of light
-    for (int i = 0; i < 4 && resamples < maxResamples; i += 1) {
-        if (i == 0) {
-            validSamples += 1;
-        }
-
+    for (int i = 0; i < 1 && resamples < maxResamples; i += 1) {
+        // if (i == 0) {
+        //     validSamples += 1;
+        // }
         float rand = random(seed);                                                                                                                                                                                                                      
         int lightIndex = int(maxRandomIndex * rand);                                                                                        
         AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
@@ -123,10 +124,11 @@ void trace(
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
         vec3 direction = lightPosition - currFragPos;                                                                                  
-        float lightRadius = lightData[lightIndex].radius * 0.5;                                                                                  
+        float lightRadius = lightData[lightIndex].radius * 0.25;                                                                                  
         float distance = length(direction);        
+        direction = normalize(direction);
 
-        float sideCheck = dot(currNormal, normalize(direction));                                                                       
+        float sideCheck = dot(currNormal, direction);                                                                       
         if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
             ++resamples;                                                                                                                
             --i;                                                                                                                        
@@ -142,46 +144,100 @@ void trace(
                                                         dot(direction, currNormal), minBias);
         
         if (shadowFactor > 0.0) {
-            ++resamples;
-            --i;
-            continue;
+            ++resamples;                                                                                                                
+            --i;                                                                                                                        
+            continue; 
         }
 
         //direction = normalize(direction);
 
         // TODO: Replace with actual unit sphere random
         //vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
-        vec3 unit = randomVector(seed, -1, 1);
+        vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
 
         vec3 scatteredVec = normalize(currNormal + unit);
-        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * unit);
-        vec3 target = reflectedVec;//mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+        vec3 reflectedVec = normalize(computeReflection(-direction, currNormal) + unit);
+        vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
         if (newDiffuse.a < 0.5) {
-            foundLight = 1.0;
+            // if (dot(infiniteLightDirection, target) >= 0.906) {
+            //     // ++resamples;
+            //     // --i;
+            //     // continue;
+            //     //lightMask = 0.10 * newDiffuse.rgb;
+            //     // break;
+            //     lightMask = infiniteLightColor;
+            //     break;
+            // }
+
+            // lightMask = 0.25 * newDiffuse.rgb;
+            // currDirection = target;
+            // break;
+            
+            ++resamples;
+            --i;
+            continue;
+
+            // foundLight = 1.0;
+            // //validSamples += 1.0;
+            // break;
+
+            // lightMask = 0.5 * infiniteLightColor;
+            // break;
+
+            // lightMask = newDiffuse.rgb;
+            // break;
+            // ++resamples;
+            // --i;
+            // continue;
+        }
+
+        // if (lightData[lightIndex].visible > 0) {
+        //     lightMask = infiniteLightColor;
+        //     break;
+        // }
+
+        float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(target, float(entry.layer)), 0).r;
+        vec3 newPosition = lightData[lightIndex].position.xyz + 0.99 * magnitude * target;
+        vec4 newNormal = textureLod(probeTextures[entry.index].normals, vec4(target, float(entry.layer)), 0).rgba;
+        newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
+        //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
+
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
+                                  dot(cascadePlanes[1], vec4(newPosition, 1.0)),
+                                  dot(cascadePlanes[2], vec4(newPosition, 1.0)));
+        shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
+
+        if (shadowFactor > 0.0) {
+            currDiffuse = currDiffuse * newDiffuse.rgb;
+            currFragPos = newPosition;
+            currNormal = newNormal.rgb;
+            //currRoughnessMetallic = vec2(newNormal.a, newMetallic);
+            currDirection = target;
+            lightMask = vec3(1.0);
             break;
         }
 
-        float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(target, float(entry.layer)), 0).r;
-        vec3 newPosition = lightData[lightIndex].position.xyz + 1.0 * magnitude * target;
-        vec4 newNormal = textureLod(probeTextures[entry.index].normals, vec4(target, float(entry.layer)), 0).rgba;
-        newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
-        float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
-
-        currDiffuse = currDiffuse * newDiffuse.rgb;
-        currFragPos = newPosition;
-        currNormal = newNormal.rgb;
-        currRoughnessMetallic = vec2(newNormal.a, newMetallic);
-        currDirection = target;
+        ++resamples;
+        --i;
     }
 
     validSamples += 1.0;
-
     validSamples = max(validSamples, 1.0);
 
-    traceReservoir += vec4(infiniteLightColor * foundLight * vec3(currDiffuse), validSamples);
+    vec3 viewMinusFrag = viewPosition - fragPos;
+    vec3 viewDir = normalize(viewMinusFrag);
+    float viewDist = length(viewMinusFrag);
+
+    vec3 tempColor = lightMask * vec3(currDiffuse);
+        //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
+
+    tempColor = calculateLighting_Lambert(infiniteLightColor, currDirection, viewDir, normal, tempColor, viewDist, 0.0, roughnessMetallic.r, roughnessMetallic.g, 1.0, length(lightMask), baseReflectivity, 1.0, 0.0, vec3(1.0), vec3(1.0));
+
+    traceReservoir += vec4(tempColor, validSamples);
+
     traceReservoir = vec4(boundHDR(traceReservoir.rgb), traceReservoir.a);
 }
 
@@ -245,11 +301,11 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numTraceSamples = 1;
     vec3 startDirection = normalize(fragPos - viewPosition);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), startDirection, resamples, validSamples, traceReservoir);
+    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
     }
 
     color = baseColor;
-    reservoir = traceReservoir / float(numTraceSamples);
+    reservoir = traceReservoir;// / float(numTraceSamples);
 
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
     

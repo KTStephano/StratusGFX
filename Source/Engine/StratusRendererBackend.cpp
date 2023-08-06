@@ -1384,8 +1384,8 @@ void RendererBackend::UpdatePointLights_(
         const f64 distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
-            if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
-            //if (giEnabled) {
+            //if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
         }
@@ -1556,6 +1556,26 @@ void RendererBackend::UpdatePointLights_(
                 };
                 RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
+
+                const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
+
+                glDepthFunc(GL_LEQUAL);
+
+                BindShader_(state_.skyboxLayered.get());
+                state_.skyboxLayered->SetInt("layer", int(smap.layer * 6 + i));
+
+                auto tmp = frame_->settings.GetSkyboxIntensity();
+                if (tmp > 1.0f) {
+                    frame_->settings.SetSkyboxIntensity(1.0f);
+                }
+
+                RenderSkybox_(state_.skyboxLayered.get(), projectionViewNoTranslate);
+
+                if (tmp > 1.0f) {
+                    frame_->settings.SetSkyboxIntensity(tmp);
+                }
+
+                glDepthFunc(GL_LESS);
             }
             else {
                 const CommandBufferSelectionFunction selectDynamic = [this, i](GpuCommandBufferPtr& b) {
@@ -1827,7 +1847,12 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     // Set up infinite light color
     auto& cache = vplSmapCache_;
     const glm::vec3 lightColor = frame_->csc.worldLight->GetLuminance();
+
+    InitCoreCSMData_(state_.vplGlobalIllumination.get());
     state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
+    state_.vplGlobalIllumination->SetFloat("infiniteLightZnear", frame_->csc.znear);
+    state_.vplGlobalIllumination->SetFloat("infiniteLightZfar", frame_->csc.zfar);
+    state_.vplGlobalIllumination->SetFloat("infiniteLightDepthBias", frame_->csc.worldLight->GetDepthBias());
 
     state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);

@@ -146,16 +146,7 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
     // return closestDepth;
 }
 
-// For more information, see:
-//      "Foundations of Game Development, Volume 2: Rendering", pp. 189
-//      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
-//      https://ogldev.org/www/tutorial49/tutorial49.html
-//      https://alextardif.com/shadowmapping.html
-//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
-//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
-//      https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-//      http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
-float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
+float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias, float bound) {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
 	//float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
@@ -213,7 +204,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     p1.xy = shadowCoord1;
     p2.xy = shadowCoord2;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
+    //float bound = bound; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
@@ -224,6 +215,19 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
 
     // blend and return
     return mix(light2, light1, weight) * (1.0 / samples); //* 0.25;
+}
+
+// For more information, see:
+//      "Foundations of Game Development, Volume 2: Rendering", pp. 189
+//      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
+//      https://ogldev.org/www/tutorial49/tutorial49.html
+//      https://alextardif.com/shadowmapping.html
+//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+//      https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+//      https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+//      http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
+    return calculateInfiniteShadowValue(fragPos, cascadeBlends, normal, useDepthBias, 1.0);
 }
 
 float normalDistribution(float NdotH, float roughness) {

@@ -218,7 +218,8 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         f32 radius;
-        f32 placeholder_[3];
+        int visible;
+        f32 placeholder_[2];
 
         GpuVplData() :
             position(0.0f),

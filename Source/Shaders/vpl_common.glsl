@@ -48,7 +48,8 @@ struct VplStage2PerTileOutputs {
 struct VplData {
     vec4 position;
     float radius;
-    float placeholder_[3];
+    int visible;
+    float placeholder_[2];
 };
 
 struct ProbeTextureData {

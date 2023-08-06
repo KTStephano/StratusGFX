@@ -62,6 +62,17 @@ void main() {
 
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         lightVisible[index] = true;
+        vec3 lightPos = lightData[index].position.xyz;
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[1], vec4(lightPos, 1.0)),
+                                dot(cascadePlanes[2], vec4(lightPos, 1.0)));
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection, false);
+        if (shadowFactor < 1.0) {
+            lightVisible[index] = true;
+            // int next = atomicAdd(localNumVisible, 1);
+            // vplVisibleIndex[next] = index;
+            //lightData[index].color = vec4(vec3(1.0) * 500, 1.0);
+        }
     }
 
     barrier();
@@ -75,15 +86,14 @@ void main() {
     const int maxHelperThreads = 8;
     if (gl_LocalInvocationIndex < maxHelperThreads) {
         for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += maxHelperThreads) {
-            if (lightVisible[index]) {
-                int localIndex = atomicAdd(lightVisibleIndex, 1);
-                if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
-                    break;
-                }
-                updatedLightData[localIndex] = lightData[index];
-                // + 1 since we store the count in the first slot
-                vplVisibleIndex[localIndex + 1] = index;
+            int localIndex = atomicAdd(lightVisibleIndex, 1);
+            if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
+                break;
             }
+            updatedLightData[localIndex] = lightData[index];
+            updatedLightData[localIndex].visible = lightVisible[index] ? 1 : 0;
+            // + 1 since we store the count in the first slot
+            vplVisibleIndex[localIndex + 1] = index;
         }
     }
 

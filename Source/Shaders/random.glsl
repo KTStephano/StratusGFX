@@ -60,3 +60,34 @@ RANDOM_VECTOR_TEMPLATE(float)
 RANDOM_VECTOR_TEMPLATE(vec2)
 RANDOM_VECTOR_TEMPLATE(vec3)
 RANDOM_VECTOR_TEMPLATE(vec4)
+
+// Uses a simple guess and reject method. Generates a random point, checks to see
+// if the point exceeds the radius of 1, and if so rejects. Otherwise return result.
+//
+// Keep in mind the unit sphere in this function is centered at the origin, so z coordinate is always 0.
+//
+// Also keep in mind this function generates points within the sphere. It's not trying to generate surface points.
+// Source is here: https://github.com/RayTracing/raytracing.github.io/blob/master/src/common/vec3.h
+#define RANDOM_UNIT_SPHERE_VECTOR(type) \
+    vec3 randomPointInUnitSphere( inout type x ) {          \
+        const float radius = 1.0f;                          \
+        while (true) {                                      \
+            vec3 position = randomVector(x, -1.0, 1.0);     \
+            float lengthSquared = dot(position, position);  \
+            if (lengthSquared >= radius) continue;          \
+            return position;                                \
+        }                                                   \
+    }
+
+RANDOM_UNIT_SPHERE_VECTOR(float)
+RANDOM_UNIT_SPHERE_VECTOR(vec2)
+RANDOM_UNIT_SPHERE_VECTOR(vec3)
+RANDOM_UNIT_SPHERE_VECTOR(vec4)
+
+#define RANDOM_UNIT_VECTOR(type) \
+    vec3 randomUnitVector( inout type x ) { return normalize(randomPointInUnitSphere(x)); }
+
+RANDOM_UNIT_VECTOR(float)
+RANDOM_UNIT_VECTOR(vec2)
+RANDOM_UNIT_VECTOR(vec3)
+RANDOM_UNIT_VECTOR(vec4)

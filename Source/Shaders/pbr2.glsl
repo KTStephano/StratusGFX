@@ -605,7 +605,6 @@ vec3 calculatePointLighting2(
     vec3 baseReflectance) {
 
     vec3 lightDir   = lightPos - fragPosition;
-    //lightColor = vec3(277 / 255, 66 / 255, 52 / 255) * 800;
 
     return calculateLighting_Burley(lightColor, lightDir, viewDir, normal, baseColor, viewDist, length(lightColor) / 12, roughness, metallic, ambientOcclusion, 1.0 - shadowFactor, baseReflectance, quadraticAttenuation(lightDir), pointLightAmbientIntensity, vec3(1.0), vec3(1.0));
 }
