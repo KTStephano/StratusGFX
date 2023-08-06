@@ -30,7 +30,7 @@ static void setupDayTime() {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
                         LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
+                        true
                     );
             } 
         }
@@ -42,7 +42,7 @@ static void setupDayTime() {
                     ++spawned;
                     LightCreator::CreateVirtualPointLight(
                         LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
+                        true
                     );
             }
         }
@@ -54,7 +54,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
+                    true
                 );
             }
         }
@@ -66,7 +66,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
+                    true
                 );
             }
         }
@@ -78,7 +78,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
+                    true
                 );
             }
         }
@@ -89,7 +89,7 @@ static void setupDayTime() {
             ++spawned;
             LightCreator::CreateVirtualPointLight(
                 LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
-                false
+                true
             );
         }
     }
@@ -98,6 +98,7 @@ static void setupDayTime() {
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));
     settings.SetSkyboxIntensity(3.0f);
+    settings.SetSkyboxColorMask(INSTANCE(RendererFrontend)->GetWorldLight()->GetColor());
     settings.SetEmissionStrength(0.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
     INSTANCE(RendererFrontend)->GetWorldLight()->SetAtmosphericLightingConstants(0.0045f, 0.0065f);

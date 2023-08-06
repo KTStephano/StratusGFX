@@ -115,7 +115,7 @@ void trace(
         //     validSamples += 1;
         // }
         float rand = random(seed);                                                                                                                                                                                                                      
-        int lightIndex = int(maxRandomIndex * rand);                                                                                        
+        int lightIndex = int(random(seed, 0.0, float(maxRandomIndex))); //int(maxRandomIndex * rand);                                                                                        
         AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
                                                                                                                                                                                                                                                                                 \
         vec3 lightPosition = lightData[lightIndex].position.xyz;                                                                                                                                    
@@ -124,7 +124,7 @@ void trace(
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
         vec3 direction = lightPosition - currFragPos;                                                                                  
-        float lightRadius = lightData[lightIndex].radius * 0.25;                                                                                  
+        float lightRadius = 15;//lightData[lightIndex].radius;                                                                                  
         float distance = length(direction);        
         direction = normalize(direction);
 
@@ -153,11 +153,11 @@ void trace(
 
         // TODO: Replace with actual unit sphere random
         //vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
-        vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
 
-        vec3 scatteredVec = normalize(currNormal + unit);
-        vec3 reflectedVec = normalize(computeReflection(-direction, currNormal) + unit);
-        vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+        //vec3 scatteredVec = normalize(currNormal + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        vec3 scatteredVec = currNormal + randomUnitVector(seed);
+        vec3 reflectedVec = normalize(computeReflection(-direction, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        vec3 target = scatteredVec;//mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
@@ -175,10 +175,16 @@ void trace(
             // lightMask = 0.25 * newDiffuse.rgb;
             // currDirection = target;
             // break;
+
+            // if (lightData[lightIndex].visible > 0) {
+            //     validSamples += 1.0;
+            // }
             
             ++resamples;
             --i;
             continue;
+
+            //break;
 
             // foundLight = 1.0;
             // //validSamples += 1.0;
@@ -203,18 +209,13 @@ void trace(
         vec3 newPosition = lightData[lightIndex].position.xyz + 0.99 * magnitude * target;
         vec4 newNormal = textureLod(probeTextures[entry.index].normals, vec4(target, float(entry.layer)), 0).rgba;
         newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
-        //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
+        currRoughnessMetallic = vec2(1.0, 0.0);
 
-        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
-                                  dot(cascadePlanes[1], vec4(newPosition, 1.0)),
-                                  dot(cascadePlanes[2], vec4(newPosition, 1.0)));
-        shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
-
-        if (shadowFactor > 0.0) {
+        if (lightData[lightIndex].visible > 0) {
+            validSamples += 1.0;
             currDiffuse = currDiffuse * newDiffuse.rgb;
             currFragPos = newPosition;
             currNormal = newNormal.rgb;
-            //currRoughnessMetallic = vec2(newNormal.a, newMetallic);
             currDirection = target;
             lightMask = vec3(1.0);
             break;
@@ -222,9 +223,30 @@ void trace(
 
         ++resamples;
         --i;
+
+        //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
+
+        // vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
+        //                           dot(cascadePlanes[1], vec4(newPosition, 1.0)),
+        //                           dot(cascadePlanes[2], vec4(newPosition, 1.0)));
+        // shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
+
+        // if (shadowFactor > 0.0) {
+        //     validSamples += 1.0;
+        //     currDiffuse = currDiffuse * newDiffuse.rgb;
+        //     currFragPos = newPosition;
+        //     currNormal = newNormal.rgb;
+        //     //currRoughnessMetallic = vec2(newNormal.a, newMetallic);
+        //     currDirection = target;
+        //     lightMask = vec3(1.0);
+        //     break;
+        // }
+
+        // ++resamples;
+        // --i;
     }
 
-    validSamples += 1.0;
+    //validSamples += 1.0;
     validSamples = max(validSamples, 1.0);
 
     vec3 viewMinusFrag = viewPosition - fragPos;
@@ -301,10 +323,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numTraceSamples = 1;
     vec3 startDirection = normalize(fragPos - viewPosition);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
+    trace(seed, baseColor, normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
     }
 
-    color = baseColor;
+    color = vec3(1.0);
     reservoir = traceReservoir;// / float(numTraceSamples);
 
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
