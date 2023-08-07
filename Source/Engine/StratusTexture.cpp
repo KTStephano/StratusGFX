@@ -54,8 +54,11 @@ namespace stratus {
                 //maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
                 glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
             }
-            else if (config.type == TextureType::TEXTURE_2D_ARRAY || config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
-                if (config.width != config.height || config.depth < 1) {
+            else if (config.type == TextureType::TEXTURE_2D_ARRAY || 
+                     config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY ||
+                     config.type == TextureType::TEXTURE_3D) {
+
+                if ((config.type != TextureType::TEXTURE_3D && config.width != config.height) || config.depth < 1) {
                     throw std::runtime_error("Unable to create array texture");
                 }
 
@@ -70,7 +73,7 @@ namespace stratus {
                     depth *= 6;
                 }
 
-                STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
+                //STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
 
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
                 // for an example of glTexImage3D
@@ -140,7 +143,13 @@ namespace stratus {
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (config_.type == TextureType::TEXTURE_CUBE_MAP || config_.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            if (config_.type == TextureType::TEXTURE_3D || 
+                config_.type == TextureType::TEXTURE_CUBE_MAP || 
+                config_.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
+                    
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            }
+
             unbind();
         }
 
@@ -182,7 +191,7 @@ namespace stratus {
             }
             else {
                 // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
-                const i32 multiplier = type() == TextureType::TEXTURE_2D_ARRAY ? 1 : 6;
+                const i32 multiplier = type() == TextureType::TEXTURE_CUBE_MAP_ARRAY ? 6 : 1;
                 const i32 xoffset = 0, yoffset = 0;
                 const i32 zoffset = layer * multiplier;
                 const i32 depth = multiplier; // number of layers to clear which for a cubemap is 6
@@ -282,6 +291,7 @@ namespace stratus {
             case TextureType::TEXTURE_CUBE_MAP: return GL_TEXTURE_CUBE_MAP;
             case TextureType::TEXTURE_RECTANGLE: return GL_TEXTURE_RECTANGLE;
             case TextureType::TEXTURE_CUBE_MAP_ARRAY: return GL_TEXTURE_CUBE_MAP_ARRAY;
+            case TextureType::TEXTURE_3D: return GL_TEXTURE_3D;
             default: throw std::runtime_error("Unknown texture type");
             }
         }
@@ -520,34 +530,34 @@ namespace stratus {
 
     Texture::~Texture() {}
 
-    void Texture::SetCoordinateWrapping(TextureCoordinateWrapping wrap) { impl_->setCoordinateWrapping(wrap); }
-    void Texture::SetMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { impl_->setMinMagFilter(min, mag); }
-    void Texture::SetTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { impl_->setTextureCompare(mode, func); }
+    void Texture::SetCoordinateWrapping(TextureCoordinateWrapping wrap) { EnsureValid_(); impl_->setCoordinateWrapping(wrap); }
+    void Texture::SetMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { EnsureValid_(); impl_->setMinMagFilter(min, mag); }
+    void Texture::SetTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { EnsureValid_(); impl_->setTextureCompare(mode, func); }
 
-    TextureType Texture::Type() const { return impl_->type(); }
-    TextureComponentFormat Texture::Format() const { return impl_->format(); }
-    TextureHandle Texture::Handle() const { return impl_->handle(); }
+    TextureType Texture::Type() const { EnsureValid_(); return impl_->type(); }
+    TextureComponentFormat Texture::Format() const { EnsureValid_(); return impl_->format(); }
+    TextureHandle Texture::Handle() const { EnsureValid_(); return impl_->handle(); }
 
-    GpuTextureHandle Texture::GpuHandle() const { return impl_->GpuHandle(); }
+    GpuTextureHandle Texture::GpuHandle() const { EnsureValid_(); return impl_->GpuHandle(); }
 
     void Texture::MakeResident_(const Texture& texture) { TextureImpl::MakeResident(texture); }
     void Texture::MakeNonResident_(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
-    u32 Texture::Width() const { return impl_->width(); }
-    u32 Texture::Height() const { return impl_->height(); }
-    u32 Texture::Depth() const { return impl_->depth(); }
+    u32 Texture::Width() const { EnsureValid_(); return impl_->width(); }
+    u32 Texture::Height() const { EnsureValid_(); return impl_->height(); }
+    u32 Texture::Depth() const { EnsureValid_(); return impl_->depth(); }
 
-    void Texture::Bind(i32 activeTexture) const { impl_->bind(activeTexture); }
+    void Texture::Bind(i32 activeTexture) const { EnsureValid_(); impl_->bind(activeTexture); }
     void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
-        impl_->bindAsImageTexture(unit, layered, layer, access);
+        EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access);
     }
-    void Texture::Unbind() const { impl_->unbind(); }
+    void Texture::Unbind() const { EnsureValid_(); impl_->unbind(); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::Clear(const i32 mipLevel, const void * clearValue) const { impl_->Clear(mipLevel, clearValue); }
-    void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::Clear(const i32 mipLevel, const void * clearValue) const { EnsureValid_(); impl_->Clear(mipLevel, clearValue); }
+    void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { EnsureValid_(); impl_->clearLayer(mipLevel, layer, clearValue); }
 
-    const void * Texture::Underlying() const { return impl_->Underlying(); }
+    const void * Texture::Underlying() const { EnsureValid_(); return impl_->Underlying(); }
 
     size_t Texture::HashCode() const {
         return std::hash<void *>{}((void *)impl_.get());
@@ -563,11 +573,17 @@ namespace stratus {
     }
 
     const TextureConfig & Texture::GetConfig() const {
-        return impl_->getConfig();
+        EnsureValid_(); return impl_->getConfig();
     }
 
     void Texture::SetHandle_(const TextureHandle handle) {
-        impl_->setHandle(handle);
+        EnsureValid_(); impl_->setHandle(handle);
+    }
+
+    void Texture::EnsureValid_() const {
+        if (impl_ == nullptr) {
+            throw std::runtime_error("Attempt to use null texture");
+        }
     }
 
     TextureMemResidencyGuard::TextureMemResidencyGuard()

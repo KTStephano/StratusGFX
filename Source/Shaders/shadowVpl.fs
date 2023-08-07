@@ -24,7 +24,7 @@ uniform float farPlane;
 
 layout (location = 0) out vec4 gColor;
 layout (location = 1) out vec4 gNormal;
-layout (location = 2) out float gMetallic;
+// layout (location = 2) out float gMetallic;
 
 vec3 calculateNormal(in Material material, in vec2 texCoords) {
     vec3 normal = texture(material.normalMap, texCoords).rgb;
@@ -66,5 +66,5 @@ void main() {
 
     gColor = vec4(baseColor.rgb, 1.0);
     gNormal = vec4(normal, roughness);
-    gMetallic = metallic;
+    // gMetallic = metallic;
 }

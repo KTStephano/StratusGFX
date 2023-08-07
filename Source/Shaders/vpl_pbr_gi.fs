@@ -103,13 +103,13 @@ void trace(
     vec3 currDiffuse = baseColor;
     vec3 currFragPos = fragPos;
     vec3 currNormal = normal;
-    vec2 currRoughnessMetallic = roughnessMetallic;
+    vec2 currRoughnessMetallic = vec2(roughnessMetallic.r, 0.4);
     vec3 currDirection = startDirection;
 
     vec3 lightMask = vec3(0.0);
     //validSamples += 1;
 
-    const int maxBounces = 2;
+    const int maxBounces = 0;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         // if (i == 0) {

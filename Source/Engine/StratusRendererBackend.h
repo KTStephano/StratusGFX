@@ -357,6 +357,7 @@ namespace stratus {
             GpuBuffer vplUpdatedData;
             GpuBuffer vplVisibleIndices;
             GpuBuffer probeTextureData;
+            Texture probeRayLookup;
             std::vector<TextureMemResidencyGuard> probeTextureResidencies;
             //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;

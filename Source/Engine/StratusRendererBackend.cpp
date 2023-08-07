@@ -303,7 +303,7 @@ void RendererBackend::InitPointShadowMaps_() {
     for (usize i = 0; i < vplSmapCache_.buffers.size(); ++i) {
         auto color = vplSmapCache_.buffers[i].GetColorAttachments()[0];
         auto normal = vplSmapCache_.buffers[i].GetColorAttachments()[1];
-        auto properties = vplSmapCache_.buffers[i].GetColorAttachments()[2];
+        auto properties = Texture(); //vplSmapCache_.buffers[i].GetColorAttachments()[2];
         auto depth = *vplSmapCache_.buffers[i].GetDepthStencilAttachment();
 
         state_.vpls.probeTextureResidencies.push_back(TextureMemResidencyGuard(color));
@@ -315,7 +315,7 @@ void RendererBackend::InitPointShadowMaps_() {
         data.occlusion = depth.GpuHandle();
         data.diffuse = color.GpuHandle();
         data.normals = normal.GpuHandle();
-        data.properties = properties.GpuHandle();
+        data.properties = 0;// properties.GpuHandle();
 
         probeData[i] = data;
     }
@@ -331,6 +331,19 @@ void RendererBackend::InitializeVplData_() {
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
     //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(i32), flags);
+    state_.vpls.probeRayLookup = Texture(
+        TextureConfig{
+            TextureType::TEXTURE_3D,
+            TextureComponentFormat::RED,
+            TextureComponentSize::BITS_16,
+            TextureComponentType::INT,
+            256,
+            256,
+            256,
+            false },
+
+            NoTextureData
+    );
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -1477,7 +1490,7 @@ void RendererBackend::UpdatePointLights_(
         if (cache.buffers[smap.index].GetColorAttachments().size() > 0) {
             cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, nullptr);
             cache.buffers[smap.index].GetColorAttachments()[1].ClearLayer(0, smap.layer, nullptr);
-            cache.buffers[smap.index].GetColorAttachments()[2].ClearLayer(0, smap.layer, nullptr);
+            //cache.buffers[smap.index].GetColorAttachments()[2].ClearLayer(0, smap.layer, nullptr);
         }
 
         f32 depthClear = 1.0f;
@@ -2450,11 +2463,11 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
             attachments.push_back(texture);
 
             // Other material data
-            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-            texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+            // texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            // texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            // texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-            attachments.push_back(texture);
+            // attachments.push_back(texture);
         }
 
         auto fbo = FrameBuffer(attachments);

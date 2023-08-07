@@ -16,6 +16,7 @@ namespace stratus {
         // Corresponds to GL_TEXTURE_CUBE_MAP
         TEXTURE_CUBE_MAP,
         TEXTURE_CUBE_MAP_ARRAY,
+        TEXTURE_3D,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
     };
@@ -177,6 +178,7 @@ namespace stratus {
 
     private:
         void SetHandle_(const TextureHandle);
+        void EnsureValid_() const;
     };
 
     struct TextureMemResidencyGuard {
