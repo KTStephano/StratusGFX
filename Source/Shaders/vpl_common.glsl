@@ -62,3 +62,43 @@ struct ProbeTextureData {
 layout (std430, binding = 64) readonly buffer probeDataInputBlock {
     ProbeTextureData probeTextures[];
 };
+
+layout (rg16f) uniform image3D probeRayLookupTable;
+
+void computeProbeIndexFromPosition(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, out bool success, out ivec3 index) {
+    ivec3 dimensions = probeRayLookupDimensions;
+
+    // We divide dimensions by 2 since we want to store the range [-x/2, +x/2] instead of [0, x]
+    vec3 normalization = vec3(dimensions / 2);
+    // Divided by 2 since we want each 2 units of space to increase the table index by +1
+    vec3 viewSpacePos = (worldPos - viewPosition) / 2.0;
+    // Converts from [-1, 1] to [0, 1]
+    vec3 tableIndex = (viewSpacePos / normalization + 1.0) * 0.5;
+
+    if (tableIndex.x > 1 || tableIndex.x < 0 || 
+        tableIndex.y > 1 || tableIndex.y < 0 || 
+        tableIndex.z > 1 || tableIndex.z < 0) {
+        
+        success = false;
+        return;
+    }
+
+    // For dim of 256 for example, max index is 255 so we subtract 1 from each dimension
+    success = true;
+    index = ivec3(tableIndex * (dimensions - vec3(1.0)));
+}
+
+void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, in int probeIndex) {
+    bool success;
+    ivec3 integerTableIndex;
+    computeProbeIndexFromPosition(probeRayLookupDimensions, viewPosition, worldPos, success, integerTableIndex);
+
+    if (!success) {
+        return;
+    }
+
+    // TODO: Why does imageAtomicExchange not compile???
+    //imageAtomicExchange(table, integerTableIndex, float(probeIndex));
+    //imageAtomicExchange(table, integerTableIndex, vec4(float(probeIndex)));
+    imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+}
