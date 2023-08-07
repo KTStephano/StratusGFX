@@ -6,6 +6,7 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 #include "common.glsl"
 #include "aabb.glsl"
+#include "viscull_common.glsl"
 
 uniform vec4 frustumPlanes[6];
 uniform float zfar;
@@ -60,15 +61,6 @@ layout (std430, binding = 13) buffer outputBlock2 {
 uniform uint numDrawCalls;
 uniform vec3 viewPosition;
 uniform mat4 view;
-
-// See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
-float distanceFromPointToAABB(in AABB aabb, vec3 point) {
-    float dx = max(aabb.vmin.x - point.x, max(0.0, point.x - aabb.vmax.x));
-    float dy = max(aabb.vmin.y - point.y, max(0.0, point.y - aabb.vmax.y));
-    float dz = max(aabb.vmin.z - point.z, max(0.0, point.z - aabb.vmax.z));
-
-    return sqrt(dx * dx + dy * dy + dz + dz);
-}
 
 void main() {
     // Defines local work group from layout local size tag above
