@@ -1640,6 +1640,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     state_.vplCulling->SetVec3("infiniteLightDirection", direction);
     state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
     state_.vplCulling->SetVec3("viewPosition", frame_->camera->GetPosition());
+    state_.vplCulling->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
 
     // Set up # visible atomic counter
     i32 numVisible = 0;

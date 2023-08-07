@@ -148,6 +148,8 @@ public:
 
      // Texture management
      void BindTexture(const std::string & uniform, const Texture & tex);
+     // If layered = true you can just put whatever for layer
+     void BindTextureAsImage(const std::string & uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access);
      void UnbindAllTextures();
 
 private:

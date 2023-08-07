@@ -16,7 +16,7 @@ uniform vec3 infiniteLightColor;
 uniform int totalNumLights;
 uniform vec3 viewPosition;
 
-layout (location = 19, r16f) writeonly uniform image3D probeRayLookupTable;
+layout (r16f) writeonly uniform image3D probeRayLookupTable;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
