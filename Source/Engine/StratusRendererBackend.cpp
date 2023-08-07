@@ -1882,6 +1882,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
+    state_.vplGlobalIllumination->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+
     // All relevant rendering data is moved to the GPU during the light cull phase
     state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
