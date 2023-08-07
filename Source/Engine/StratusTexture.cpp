@@ -13,6 +13,64 @@ namespace stratus {
         return data[offset].data;
     }
 
+    TextureType type;
+    TextureComponentFormat format;
+    TextureComponentSize storage;
+    TextureComponentType dataType;
+    u32 width;
+    u32 height;
+    u32 depth;
+    bool generateMipMaps;
+
+    static std::string ConvertTextureConfigToString(const TextureConfig& config) {
+        std::string result = "TextureConfig{";
+        
+        switch (config.type) {
+        case TextureType::TEXTURE_2D: result += "TEXTURE_2D, "; break;
+        case TextureType::TEXTURE_2D_ARRAY: result += "TEXTURE_2D_ARRAY, "; break;
+        case TextureType::TEXTURE_CUBE_MAP: result += "TEXTURE_CUBE_MAP, "; break;
+        case TextureType::TEXTURE_RECTANGLE: result += "TEXTURE_RECTANGLE, "; break;
+        case TextureType::TEXTURE_CUBE_MAP_ARRAY: result += "TEXTURE_CUBE_MAP_ARRAY, "; break;
+        case TextureType::TEXTURE_3D: result += "TEXTURE_3D, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.format) {
+        case TextureComponentFormat::RED: result += "RED, "; break;
+        case TextureComponentFormat::RGB: result += "RGB, "; break;
+        case TextureComponentFormat::RG: result += "RG, "; break;
+        case TextureComponentFormat::SRGB: result += "SRGB, "; break;
+        case TextureComponentFormat::RGBA: result += "RGBA, "; break;
+        case TextureComponentFormat::SRGB_ALPHA: result += "SRGB_ALPHA, "; break;
+        case TextureComponentFormat::DEPTH: result += "DEPTH, "; break;
+        case TextureComponentFormat::DEPTH_STENCIL: result += "DEPTH_STENCIL, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.storage) {
+        case TextureComponentSize::BITS_DEFAULT: result += "BITS_DEFAULT, "; break;
+        case TextureComponentSize::BITS_8: result += "BITS_8, "; break;
+        case TextureComponentSize::BITS_16: result += "BITS_16, "; break;
+        case TextureComponentSize::BITS_32: result += "BITS_32, "; break;
+        case TextureComponentSize::BITS_11_11_10: result += "BITS_11_11_10, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.dataType) {
+        case TextureComponentType::INT: result += "INT, "; break;
+        case TextureComponentType::UINT: result += "UINT, "; break;
+        case TextureComponentType::FLOAT: result += "FLOAT, "; break;
+        default: throw std::exception();
+        }
+
+        result = result + std::to_string(config.width) + ", " + 
+                          std::to_string(config.height) + ", " + 
+                          std::to_string(config.depth) + ", " + 
+                          std::to_string(config.generateMipMaps) + "}";
+
+        return result;
+    }
+
     class TextureImpl {
         friend struct TextureMemResidencyGuard;
 
@@ -77,7 +135,8 @@ namespace stratus {
 
                 // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
                 // for an example of glTexImage3D
-                glTexImage3D(_convertTexture(config.type), // target
+                glTexImage3D(
+                    _convertTexture(config.type), // target
                     0, // level 
                     _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
                     config.width, 
@@ -88,6 +147,7 @@ namespace stratus {
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
                     CastTexDataToPtr(data, 0)
                 );
+                //STRATUS_LOG << (_convertInternalFormat(config.format, config.storage, config.dataType) == GL_R16I) << std::endl;
             }
             else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
                 if (config.width != config.height) {
@@ -115,6 +175,8 @@ namespace stratus {
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(texture_);
+
+            STRATUS_LOG << ConvertTextureConfigToString(config) << std::endl;
         }
 
         ~TextureImpl() {

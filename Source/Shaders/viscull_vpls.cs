@@ -14,6 +14,9 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 uniform vec3 infiniteLightColor;
 uniform int totalNumLights;
+uniform vec3 viewPosition;
+
+layout (location = 19, r16f) writeonly uniform image3D probeRayLookupTable;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -42,16 +45,41 @@ layout (std430, binding = 3) buffer outputBlock2 {
 
 shared bool lightVisible[MAX_TOTAL_VPLS_BEFORE_CULLING];
 shared int lightVisibleIndex;
+shared ivec3 probeLookupTableDimensions;
 // shared int localNumVisible;
+
+void writeIndexToLookupTable(in ivec3 dimensions, in vec3 worldPos, in int probeIndex) {
+    // We divide dimensions by 2 since we want to store the range [-x/2, +x/2] instead of [0, x]
+    vec3 normalization = vec3(dimensions / 2);
+    // Divided by 2 since we want each 2 units of space to increase the table index by +1
+    vec3 viewSpacePos = (worldPos - viewPosition) / 2.0;
+    // Converts from [-1, 1] to [0, 1]
+    vec3 tableIndex = (viewSpacePos / normalization + 1.0) * 0.5;
+
+    if (tableIndex.x > 1 || tableIndex.x < 0 || 
+        tableIndex.y > 1 || tableIndex.y < 0 || 
+        tableIndex.z > 1 || tableIndex.z < 0) {
+        
+        return;
+    }
+
+    // For dim of 256 for example, max index is 255 so we subtract 1 from each dimension
+    ivec3 integerTableIndex = ivec3(tableIndex * (dimensions - vec3(1.0)));
+
+    // TODO: Why does imageAtomicExchange not compile???
+    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, float(probeIndex));
+    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+    imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+}
 
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    // if (gl_LocalInvocationIndex == 0) {
-    //     localNumVisible = 0;
-    // }
+    if (gl_LocalInvocationIndex == 0) {
+        probeLookupTableDimensions = imageSize(probeRayLookupTable);
+    }
 
-    // barrier();
+    barrier();
 
     // Set all visible flags to false
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
@@ -98,6 +126,17 @@ void main() {
     }
 
     barrier();
+
+    if (gl_LocalInvocationIndex == 0) {
+        lightVisibleIndex = min(lightVisibleIndex, MAX_TOTAL_VPLS_PER_FRAME);
+    }
+
+    barrier();
+
+    for (int index = int(gl_LocalInvocationIndex); index < lightVisibleIndex; index += stepSize) {
+        vec3 lightPos = updatedLightData[index].position.xyz;
+        writeIndexToLookupTable(probeLookupTableDimensions, lightPos, index);
+    }
 
     if (gl_LocalInvocationIndex == 0) {
         //numVisible = lightVisibleIndex;

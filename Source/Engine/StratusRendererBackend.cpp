@@ -336,7 +336,7 @@ void RendererBackend::InitializeVplData_() {
             TextureType::TEXTURE_3D,
             TextureComponentFormat::RED,
             TextureComponentSize::BITS_16,
-            TextureComponentType::INT,
+            TextureComponentType::FLOAT,
             256,
             256,
             256,
@@ -344,6 +344,8 @@ void RendererBackend::InitializeVplData_() {
 
             NoTextureData
     );
+    state_.vpls.probeRayLookup.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    state_.vpls.probeRayLookup.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -843,6 +845,11 @@ void RendererBackend::ClearRemovedLightData_() {
     if (lightsCleared > 0) STRATUS_LOG << "Cleared " << lightsCleared << " lights this frame" << std::endl;
 }
 
+void RendererBackend::ClearLightingData_() {
+    f32 clearValue = -1.0f;
+    state_.vpls.probeRayLookup.Clear(0, (const void*)&clearValue);
+}
+
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
     CHECK_IS_APPLICATION_THREAD();
 
@@ -865,6 +872,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // Clear out light data for lights that were removed
     ClearRemovedLightData_();
+
+    // Clear out information related to GI
+    ClearLightingData_();
 
     // Checks to see if any framebuffers need to be generated or re-generated
     RecalculateCascadeData_();
@@ -1629,6 +1639,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->SetVec3("infiniteLightDirection", direction);
     state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
+    state_.vplCulling->SetVec3("viewPosition", frame_->camera->GetPosition());
 
     // Set up # visible atomic counter
     i32 numVisible = 0;

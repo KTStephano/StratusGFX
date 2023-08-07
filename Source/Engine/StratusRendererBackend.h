@@ -641,6 +641,7 @@ namespace stratus {
         // void _InitEntityMeshData(RendererEntityData &);
         // void _ClearEntityMeshData();
         void ClearRemovedLightData_();
+        void ClearLightingData_();
         void BindShader_(Pipeline *);
         void UnbindShader_();
         void PerformPostFxProcessing_();
