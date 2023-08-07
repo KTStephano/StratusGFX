@@ -96,7 +96,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 500;
+    const int maxResamples = 300;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -109,7 +109,7 @@ void trace(
     vec3 lightMask = vec3(0.0);
     //validSamples += 1;
 
-    const int maxBounces = 3;
+    const int maxBounces = 2;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         // if (i == 0) {
@@ -156,20 +156,31 @@ void trace(
         //vec3 unit = currRoughnessMetallic.r * randomVector(seed, -1, 1);
 
         //vec3 scatteredVec = normalize(currNormal + currRoughnessMetallic.r * randomVector(seed, -1, 1));
-        vec3 scatteredVec = normalize(-direction + randomUnitVector(seed));
-        vec3 reflectedVec = normalize(computeReflection(-direction, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        vec3 scatteredVec = normalize(currNormal + randomVector(seed, -100.0, 100.0));
+        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
         vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
         if (newDiffuse.a < 0.5) {
-            // if (dot(infiniteLightDirection, target) >= 0.906) {
-            //     // ++resamples;
-            //     // --i;
-            //     // continue;
-            //     //lightMask = 0.10 * newDiffuse.rgb;
-            //     // break;
-            //     lightMask = infiniteLightColor;
+            //if (lightData[lightIndex].visible > 0 && dot(infiniteLightDirection, target) >= 0.90) {
+            // if (lightData[lightIndex].visible > 0) {
+            //     validSamples += 1.0;
+            //     vec3 finalDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb;
+            //     currDiffuse = currDiffuse * finalDiffuse;
+            //     if (i == 0) {
+            //         currDirection = target;
+            //     }
+            //     lightMask = vec3(1.0);
+            //     break;
+            // }
+
+            // if (lightData[lightIndex].visible > 0 && dot(infiniteLightDirection, target) >= 0.906) {
+            //     validSamples += 1.0;
+            //     if (i == 0) {
+            //         currDirection = target;
+            //     }
+            //     lightMask = vec3(1.0);
             //     break;
             // }
 
@@ -222,17 +233,6 @@ void trace(
         //     break;
         // }
 
-        // if ((i + 1) < maxBounces) {
-        //     currDiffuse = currDiffuse * newDiffuse.rgb;
-        //     currFragPos = newPosition;
-        //     currNormal = newNormal.rgb;
-        //     currDirection = target;
-        // }
-        // else {
-        //     ++resamples;
-        //     --i;
-        // }
-
         //float newMetallic = textureLod(probeTextures[entry.index].properties, vec4(target, float(entry.layer)), 0).r;
 
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
@@ -242,23 +242,40 @@ void trace(
 
         if (shadowFactor > 0.0) {
             validSamples += 1.0;
+            //vec3 finalDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb;
             currDiffuse = currDiffuse * newDiffuse.rgb;
             currFragPos = newPosition;
             currNormal = newNormal.rgb;
-            currDirection = target;
+            if (i == 0) {
+                currDirection = target;
+            }
             lightMask = vec3(1.0);
             break;
         }
+
+        // if (lightData[lightIndex].visible > 0) {
+        //     validSamples += 1.0;
+        //     // vec3 finalDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb;
+        //     currDiffuse = currDiffuse * newDiffuse.rgb;
+        //     currFragPos = newPosition;
+        //     currNormal = newNormal.rgb;
+        //     currDirection = target;
+        //     lightMask = vec3(1.0);
+        //     break;
+        // }
 
         if ((i + 1) < maxBounces) {
             currDiffuse = currDiffuse * newDiffuse.rgb;
             currFragPos = newPosition;
             currNormal = newNormal.rgb;
-            currDirection = target;
         }
         else {
             ++resamples;
             --i;
+        }
+
+        if (i == 0) {
+            currDirection = target;
         }
     }
 
