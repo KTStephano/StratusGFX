@@ -81,6 +81,10 @@ vec3 computeReflection(vec3 v, vec3 normal) {
     return v - 2.0 * dot(v, normal) * normal;
 }
 
+const float probeDirections[] = float[](
+    -1.0, 0.0, 1.0
+);
+
 void trace(
     inout vec3 seed, 
     in vec3 baseColor,
@@ -96,7 +100,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 100;
+    const int maxResamples = 30;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -111,19 +115,20 @@ void trace(
     vec3 lightMask = vec3(0.0);
     //validSamples += 1;
 
-    int maxStepsPerSample = 5;
+    int maxStepsPerSample = 10;
 
-    const int maxBounces = 2;
+    const int maxBounces = 5;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         //vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
         //vec3 scatteredVec = normalize(currNormal + randomUnitVector(seed));
         //vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
         //vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
-        vec3 target = normalize(currNormal + randomUnitVector(seed));//randomVector(seed, -10.0, 10.0));
+        int randDirectionIndex = int(random(seed, 0, 3));
+        vec3 target = normalize(currNormal + randomVector(seed, -10.0, 10.0));
 
         float offsetTarget = random(seed, 2.0, 5.0);
-        vec3 targetPos = currFragPos + offsetTarget * target; //offsetTarget * target;
+        vec3 targetPos = currFragPos + offsetTarget * target;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), targetPos);
         //probeIndex = ivec3(140, 154, 117);
@@ -221,7 +226,7 @@ void trace(
             if (i == 0) {
                 currDirection = target;
             }
-            lightMask = vec3(1.0);
+            lightMask = vec3(2.0);
             break;
         }
 
