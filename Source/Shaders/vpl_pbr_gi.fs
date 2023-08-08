@@ -111,18 +111,19 @@ void trace(
     vec3 lightMask = vec3(0.0);
     //validSamples += 1;
 
-    int maxStepsPerSample = 10;
+    int maxStepsPerSample = 5;
 
-    const int maxBounces = 1;
+    const int maxBounces = 2;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
-        vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
+        //vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
         //vec3 scatteredVec = normalize(currNormal + randomUnitVector(seed));
-        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
-        vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+        //vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        //vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+        vec3 target = normalize(currNormal + randomUnitVector(seed));//randomVector(seed, -10.0, 10.0));
 
-        float offsetTarget = random(seed, 2.0, 15.0);
-        vec3 targetPos = currFragPos + offsetTarget * target;
+        float offsetTarget = random(seed, 2.0, 5.0);
+        vec3 targetPos = currFragPos + offsetTarget * target; //offsetTarget * target;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), targetPos);
         //probeIndex = ivec3(140, 154, 117);
@@ -187,6 +188,11 @@ void trace(
             continue; 
         }
 
+        vec3 scatteredVec = normalize(currNormal + randomVector(seed, -100, 100));
+        //vec3 scatteredVec = normalize(currNormal + randomUnitVector(seed));
+        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
+
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
         if (newDiffuse.a < 0.5) {            
@@ -225,7 +231,9 @@ void trace(
         //     currDiffuse = currDiffuse * newDiffuse.rgb;
         //     currFragPos = newPosition;
         //     currNormal = newNormal.rgb;
-        //     currDirection = target;
+        //     if (i == 0) {
+        //         currDirection = target;
+        //     }
         //     lightMask = vec3(1.0);
         //     break;
         // }
