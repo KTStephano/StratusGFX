@@ -79,42 +79,46 @@ void main() {
 
     barrier();
 
+    // if (gl_LocalInvocationIndex == 0) {
+    //     lightVisibleIndex = 0;
+    // }
+
+    // barrier();
+
+    // const int maxHelperThreads = 8;
+    // if (gl_LocalInvocationIndex < maxHelperThreads) {
+    //     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += maxHelperThreads) {
+    //         int localIndex = atomicAdd(lightVisibleIndex, 1);
+    //         if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
+    //             break;
+    //         }
+    //         updatedLightData[localIndex] = lightData[index];
+    //         updatedLightData[localIndex].visible = lightVisible[index] ? 1 : 0;
+    //         // + 1 since we store the count in the first slot
+    //         vplVisibleIndex[localIndex + 1] = index;
+    //     }
+    // }
+
+    // barrier();
+
     if (gl_LocalInvocationIndex == 0) {
-        lightVisibleIndex = 0;
-    }
-
-    barrier();
-
-    const int maxHelperThreads = 8;
-    if (gl_LocalInvocationIndex < maxHelperThreads) {
-        for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += maxHelperThreads) {
-            int localIndex = atomicAdd(lightVisibleIndex, 1);
-            if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
-                break;
-            }
-            updatedLightData[localIndex] = lightData[index];
-            updatedLightData[localIndex].visible = lightVisible[index] ? 1 : 0;
-            // + 1 since we store the count in the first slot
-            vplVisibleIndex[localIndex + 1] = index;
-        }
-    }
-
-    barrier();
-
-    if (gl_LocalInvocationIndex == 0) {
-        lightVisibleIndex = min(lightVisibleIndex, MAX_TOTAL_VPLS_PER_FRAME);
+        lightVisibleIndex = totalNumLights > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : totalNumLights;
+        vplVisibleIndex[0] = lightVisibleIndex;
     }
 
     barrier();
 
     for (int index = int(gl_LocalInvocationIndex); index < lightVisibleIndex; index += stepSize) {
-        vec3 lightPos = updatedLightData[index].position.xyz;
-        writeProbeIndexToLookupTable(probeLookupTableDimensions, viewPosition, lightPos, index);
+        updatedLightData[index] = lightData[index];
+        updatedLightData[index].visible = lightVisible[index] ? 1 : 0;
+        // + 1 since we store the count in the first slot
+        vplVisibleIndex[index + 1] = index;
+
+        vec3 lightPos = lightData[index].position.xyz;
+        writeProbeIndexToLookupTable(probeLookupTableDimensions, vec3(0.0), lightPos, index);
     }
 
-    if (gl_LocalInvocationIndex == 0) {
-        //numVisible = lightVisibleIndex;
-        lightVisibleIndex = lightVisibleIndex > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : lightVisibleIndex;
-        vplVisibleIndex[0] = lightVisibleIndex;
-    }
+    // if (gl_LocalInvocationIndex == 0) {
+    //     vplVisibleIndex[0] = lightVisibleIndex;
+    // }
 }

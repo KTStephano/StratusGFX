@@ -63,29 +63,82 @@ layout (std430, binding = 64) readonly buffer probeDataInputBlock {
     ProbeTextureData probeTextures[];
 };
 
-layout (rg16f) uniform image3D probeRayLookupTable;
+layout (r16f) coherent uniform image3D probeRayLookupTable;
+
+//ivec3 computeProbeIndexFromPositionWithClamping(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos) {
+//    ivec3 dimensions = probeRayLookupDimensions;
+//
+//    // We divide dimensions by 2 since we want to store the range [-x/2, +x/2] instead of [0, x]
+//    vec3 normalization = vec3(dimensions * 0.5);
+//    // Divided by 2 since we want each 2 units of space to increase the table index by +1
+//    vec3 viewSpacePos = (worldPos - viewPosition) * 0.5;
+//    // Converts from [-1, 1] to [0, 1]
+//    vec3 tableIndex = (viewSpacePos / normalization + 1.0) * 0.5;
+//
+//    tableIndex = vec3(
+//        clamp(tableIndex.x, 0.0, 1.0),
+//        clamp(tableIndex.y, 0.0, 1.0),
+//        clamp(tableIndex.z, 0.0, 1.0)
+//    );
+//
+//    // For dim of 256 for example, max index is 255 so we subtract 1 from each dimension
+//    return ivec3(floor(tableIndex * (dimensions - vec3(1.0))));
+//}
+//
+//void computeProbeIndexFromPosition(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, out bool success, out ivec3 index) {
+//    ivec3 dimensions = probeRayLookupDimensions;
+//
+//    // We divide dimensions by 2 since we want to store the range [-x/2, +x/2] instead of [0, x]
+//    vec3 normalization = vec3(dimensions) * 0.5;
+//    // Divided by 2 since we want each 2 units of space to increase the table index by +1
+//    vec3 viewSpacePos = (worldPos - viewPosition) * 0.5;
+//    // Converts from [-1, 1] to [0, 1]
+//    vec3 tableIndex = (viewSpacePos / normalization + 1.0) * 0.5;
+//
+//    if (tableIndex.x > 1 || tableIndex.x < 0 || 
+//        tableIndex.y > 1 || tableIndex.y < 0 || 
+//        tableIndex.z > 1 || tableIndex.z < 0) {
+//        
+//        success = false;
+//        return;
+//    }
+//
+//    // For dim of 256 for example, max index is 255 so we subtract 1 from each dimension
+//    success = true;
+//    index = ivec3(floor(tableIndex * (dimensions - vec3(1.0))));
+//}
+
+ivec3 computeProbeIndexFromPositionWithClamping(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos) {
+    ivec3 dimensions = probeRayLookupDimensions;
+    ivec3 halfDimensions = dimensions / 2;
+
+    ivec3 coords = ivec3(floor(worldPos)) + halfDimensions;
+
+    dimensions = dimensions - ivec3(1);
+    return ivec3(
+        clamp(coords.x, 0, dimensions.x),
+        clamp(coords.y, 0, dimensions.y),
+        clamp(coords.z, 0, dimensions.z)
+    );
+}
 
 void computeProbeIndexFromPosition(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, out bool success, out ivec3 index) {
     ivec3 dimensions = probeRayLookupDimensions;
+    ivec3 halfDimensions = dimensions / 2;
 
-    // We divide dimensions by 2 since we want to store the range [-x/2, +x/2] instead of [0, x]
-    vec3 normalization = vec3(dimensions / 2);
-    // Divided by 2 since we want each 2 units of space to increase the table index by +1
-    vec3 viewSpacePos = (worldPos - viewPosition) / 2.0;
-    // Converts from [-1, 1] to [0, 1]
-    vec3 tableIndex = (viewSpacePos / normalization + 1.0) * 0.5;
+    ivec3 coords = ivec3(floor(worldPos)) + halfDimensions;
 
-    if (tableIndex.x > 1 || tableIndex.x < 0 || 
-        tableIndex.y > 1 || tableIndex.y < 0 || 
-        tableIndex.z > 1 || tableIndex.z < 0) {
-        
+    dimensions = dimensions - ivec3(1);
+    if (coords.x > dimensions.x || coords.x < 0 ||
+        coords.y > dimensions.y || coords.y < 0 ||
+        coords.z > dimensions.z || coords.z < 0) {
+
         success = false;
         return;
     }
 
-    // For dim of 256 for example, max index is 255 so we subtract 1 from each dimension
     success = true;
-    index = ivec3(tableIndex * (dimensions - vec3(1.0)));
+    index = coords;
 }
 
 void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, in int probeIndex) {
@@ -98,7 +151,7 @@ void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 vie
     }
 
     // TODO: Why does imageAtomicExchange not compile???
-    //imageAtomicExchange(table, integerTableIndex, float(probeIndex));
+    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, float(probeIndex));
     //imageAtomicExchange(table, integerTableIndex, vec4(float(probeIndex)));
     imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
 }

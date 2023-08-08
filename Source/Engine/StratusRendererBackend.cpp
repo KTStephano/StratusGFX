@@ -1734,7 +1734,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     shadowDiffuseIndices.reserve(totalVisible);
     for (usize i = 0; i < totalVisible; ++i) {
         const i32 index = visibleVplIndices[i];
-        const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
+        //const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
         auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].key);
         shadowDiffuseIndices.push_back(smap);
     }
@@ -1956,7 +1956,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 4;
+    const i32 maxIterations = 1; //= 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
