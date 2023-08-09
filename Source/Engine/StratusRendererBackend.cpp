@@ -1956,7 +1956,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 1; //= 4;
+    const i32 maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't

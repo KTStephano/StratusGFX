@@ -95,19 +95,20 @@ void trace(
     in vec3 startDirection,
     inout int resamples,
     inout float validSamples,
+    inout vec3 traceColor,
     inout vec4 traceReservoir) {
 
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 30;
+    const int maxResamples = 10;
 
     int maxRandomIndex = numVisible[0] - 1;
 
     vec3 currDiffuse = baseColor;
     vec3 currFragPos = fragPos;
     vec3 currNormal = normal;
-    vec2 currRoughnessMetallic = vec2(roughnessMetallic.r, 0.4);
+    vec2 currRoughnessMetallic = roughnessMetallic; //vec2(roughnessMetallic.r, 0.1);
     vec3 currDirection = startDirection;
 
     ivec3 probeLookupDimensions = imageSize(probeRayLookupTable);
@@ -117,7 +118,7 @@ void trace(
 
     int maxStepsPerSample = 10;
 
-    const int maxBounces = 5;
+    const int maxBounces = 15;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         //vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
@@ -125,12 +126,12 @@ void trace(
         //vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
         //vec3 target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
         int randDirectionIndex = int(random(seed, 0, 3));
-        vec3 target = normalize(currNormal + randomVector(seed, -10.0, 10.0));
+        vec3 target = normalize(currNormal + randomUnitVector(seed));
 
-        float offsetTarget = random(seed, 2.0, 5.0);
+        float offsetTarget = random(seed, 1.0, 5.0);
         vec3 targetPos = currFragPos + offsetTarget * target;
 
-        ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), targetPos);
+        ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
         //probeIndex = ivec3(140, 154, 117);
         int lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
 
@@ -142,10 +143,10 @@ void trace(
 
         bool found = lightIndex >= 0;
         for (int step = 0; step < maxStepsPerSample && !found; ++step) {
-            offsetTarget += 1.0;
+            offsetTarget += (step + 1.0);
             targetPos = currFragPos + offsetTarget * target;
 
-            probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), targetPos);
+            probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
             lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
 
             found = lightIndex >= 0;
@@ -179,7 +180,7 @@ void trace(
             continue;                                                                                                                   
         }                                             
 
-        const float minBias = 0.0;                                                                                                                                    
+        const float minBias = 0.00;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
@@ -193,9 +194,10 @@ void trace(
             continue; 
         }
 
-        vec3 scatteredVec = normalize(currNormal + randomVector(seed, -100, 100));
+        vec3 unit = randomUnitVector(seed);
+        vec3 scatteredVec = normalize(currNormal + unit);
         //vec3 scatteredVec = normalize(currNormal + randomUnitVector(seed));
-        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * randomVector(seed, -1, 1));
+        vec3 reflectedVec = normalize(computeReflection(currDirection, currNormal) + currRoughnessMetallic.r * unit);
         target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
@@ -226,9 +228,39 @@ void trace(
             if (i == 0) {
                 currDirection = target;
             }
-            lightMask = vec3(2.0);
+            lightMask = vec3(1.0);
             break;
         }
+
+        // float infLightOffset = random(seed, 1.0, 5.0);
+        // vec3 infLightTarget = currFragPos - infLightOffset * infiniteLightDirection;
+
+        // probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), infLightTarget);
+        // lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
+
+        // found = lightIndex >= 0;
+        // for (int step = 0; step < maxStepsPerSample && !found; ++step) {
+        //     infLightOffset += 1.0;
+        //     infLightTarget = currFragPos - infLightOffset * infiniteLightDirection;
+
+        //     probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, vec3(0.0), infLightTarget);
+        //     lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
+
+        //     found = lightIndex >= 0;
+        // }
+
+        // if (found && lightData[lightIndex].visible > 0) {
+        //     validSamples += 1.0;
+        //     //vec3 finalDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb;
+        //     currDiffuse = currDiffuse * newDiffuse.rgb;
+        //     currFragPos = newPosition;
+        //     currNormal = newNormal.rgb;
+        //     if (i == 0) {
+        //         currDirection = target;
+        //     }
+        //     lightMask = vec3(2.0);
+        //     break;
+        // }
 
         // if (lightData[lightIndex].visible > 0) {
         //     validSamples += 1.0;
@@ -239,7 +271,7 @@ void trace(
         //     if (i == 0) {
         //         currDirection = target;
         //     }
-        //     lightMask = vec3(1.0);
+        //     lightMask = vec3(0.5);
         //     break;
         // }
 
@@ -259,17 +291,36 @@ void trace(
     }
 
     //validSamples += 1.0;
-    validSamples = max(validSamples, 1.0);
+    validSamples = max(validSamples, 0.0);
 
     vec3 viewMinusFrag = viewPosition - fragPos;
     vec3 viewDir = normalize(viewMinusFrag);
     float viewDist = length(viewMinusFrag);
 
+    traceColor += vec3(currDiffuse);
+
     vec3 tempColor = lightMask * vec3(currDiffuse);
         //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
 
     float shadowFactor = length(lightMask) > 0 ? 1.0 : 0.0;
-    tempColor = calculateLighting_Lambert(infiniteLightColor, currDirection, viewDir, normal, tempColor, viewDist, 0.0, roughnessMetallic.r, roughnessMetallic.g, 1.0, shadowFactor, baseReflectivity, 1.0, 0.0, vec3(1.0), vec3(1.0));
+    tempColor = calculateLighting_Lambert(
+        infiniteLightColor, 
+        currDirection, 
+        viewDir, 
+        normal, 
+        tempColor, 
+        viewDist, 
+        0.0, 
+        roughnessMetallic.r, 
+        roughnessMetallic.g, 
+        1.0, 
+        shadowFactor, 
+        baseReflectivity, 
+        1.0, 
+        0.0, 
+        vec3(1.0), //currDiffuse, 
+        vec3(1.0) //1.0 / (currDiffuse + PREVENT_DIV_BY_ZERO)
+    );
 
     traceReservoir += vec4(tempColor, validSamples);
 
@@ -522,8 +573,6 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     float history = textureLod(historyDepth, texCoords, 0).r;
 
-    vec3 traceColor = vec3(0.0); //screenColor;
-
     //int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
     //int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
 
@@ -547,15 +596,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
 
     int resamples = 0;
+    vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 1;
-    vec3 startDirection = normalize(fragPos - viewPosition);
+    int numTraceSamples = 50;
+    vec3 startDirection = infiniteLightDirection;//normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, baseColor, normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
+    trace(seed, baseColor, normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceColor, traceReservoir);
     }
 
-    color = vec3(1.0);
+    color = traceColor;
     reservoir = traceReservoir;// / float(numTraceSamples);
 
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));

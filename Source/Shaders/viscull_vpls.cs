@@ -115,7 +115,7 @@ void main() {
         vplVisibleIndex[index + 1] = index;
 
         vec3 lightPos = lightData[index].position.xyz;
-        writeProbeIndexToLookupTable(probeLookupTableDimensions, vec3(0.0), lightPos, index);
+        writeProbeIndexToLookupTable(probeLookupTableDimensions, viewPosition, lightPos, index);
     }
 
     // if (gl_LocalInvocationIndex == 0) {

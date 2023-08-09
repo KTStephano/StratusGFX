@@ -159,8 +159,8 @@ void BRDF_Base(
 
     // Compute diffuse from base using metallic value
     //vec3 diffuseColor = (1.0 - clamp(metallic, 0.0, 0.95)) * baseColor;
-    diffuseColor = (1.0 - metallic) * baseColor;
-    diffuseColor = diffuseColor / (diffuseDivisor + PREVENT_DIV_BY_ZERO);
+    diffuseColor = (1.0 - metallic) * (baseColor / (diffuseDivisor + PREVENT_DIV_BY_ZERO));
+    //diffuseColor = diffuseColor / (diffuseDivisor + PREVENT_DIV_BY_ZERO);
 
     // Compute reflectance - for purely metallic materials this is used as the diffuse color
     f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
