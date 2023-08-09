@@ -318,7 +318,7 @@ namespace stratus {
                                layered ? GL_TRUE : GL_FALSE,
                                layer,
                                accessMode,
-                               _convertInternalFormat(config_.format, config_.storage, config_.dataType));
+                               _convertInternalFormatPrecise(config_.format, config_.storage, config_.dataType));
         }
 
         void unbind() const {
@@ -375,7 +375,143 @@ namespace stratus {
         // See https://gamedev.stackexchange.com/questions/168241/is-gl-depth-component32-deprecated-in-opengl-4-5 for more info on depth component
         static GLint _convertInternalFormat(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
             // If the bits are default we just mirror the format for the internal format option
-            if (format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
+            if (format == TextureComponentFormat::DEPTH_STENCIL || 
+                size == TextureComponentSize::BITS_DEFAULT ||
+                type == TextureComponentType::INT ||
+                type == TextureComponentType::UINT) {
+                    
+                switch (format) {
+                    case TextureComponentFormat::RED: return GL_RED;
+                    case TextureComponentFormat::RG: return GL_RG;
+                    case TextureComponentFormat::RGB: return GL_RGB;
+                    case TextureComponentFormat::SRGB: return GL_SRGB; // Here we specify SRGB since it's internal format
+                    case TextureComponentFormat::RGBA: return GL_RGBA;
+                    case TextureComponentFormat::SRGB_ALPHA: return GL_SRGB_ALPHA; // GL_SRGB_ALPHA since it's internal format
+                    case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT; //GL_DEPTH_COMPONENT;
+                    case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
+                    default: throw std::runtime_error("Unknown format");
+                }
+            }
+
+            // We don't support specifying bits type other than BITS_DEFAULT for SRGB and SRGB_ALPHA
+            if (format == TextureComponentFormat::SRGB || format == TextureComponentFormat::SRGB_ALPHA) {
+                throw std::runtime_error("SRGB | SRGB_ALPHA cannot be used without BITS_DEFAULT");
+            }
+
+            if (size == TextureComponentSize::BITS_8) {
+                // if (type == TextureComponentType::INT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R8I;
+                //         case TextureComponentFormat::RG: return GL_RG8I;
+                //         case TextureComponentFormat::RGB: return GL_RGB8I;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA8I;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                // if (type == TextureComponentType::UINT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R8UI;
+                //         case TextureComponentFormat::RG: return GL_RG8UI;
+                //         case TextureComponentFormat::RGB: return GL_RGB8UI;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA8UI;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8;
+                        case TextureComponentFormat::RG: return GL_RG8;
+                        case TextureComponentFormat::RGB: return GL_RGB8;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_16) {
+                // if (type == TextureComponentType::INT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R16I;
+                //         case TextureComponentFormat::RG: return GL_RG16I;
+                //         case TextureComponentFormat::RGB: return GL_RGB16I;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA16I;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                // if (type == TextureComponentType::UINT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R16UI;
+                //         case TextureComponentFormat::RG: return GL_RG16UI;
+                //         case TextureComponentFormat::RGB: return GL_RGB16UI;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA16UI;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16F;
+                        case TextureComponentFormat::RG: return GL_RG16F;
+                        case TextureComponentFormat::RGB: return GL_RGB16F;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT16;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_32) {
+                // if (type == TextureComponentType::INT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R32I;
+                //         case TextureComponentFormat::RG: return GL_RG32I;
+                //         case TextureComponentFormat::RGB: return GL_RGB32I;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA32I;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                // if (type == TextureComponentType::UINT) {
+                //     switch (format) {
+                //         case TextureComponentFormat::RED: return GL_R32UI;
+                //         case TextureComponentFormat::RG: return GL_RG32UI;
+                //         case TextureComponentFormat::RGB: return GL_RGB32UI;
+                //         case TextureComponentFormat::RGBA: return GL_RGBA32UI;
+                //         default: throw std::runtime_error("Unknown combination");
+                //     }
+                // }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32F;
+                        case TextureComponentFormat::RG: return GL_RG32F;
+                        case TextureComponentFormat::RGB: return GL_RGB32F;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT32F;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_11_11_10) {
+                if (type == TextureComponentType::FLOAT) {
+                    if (format == TextureComponentFormat::RGB) {
+                        return GL_R11F_G11F_B10F;
+                    }
+                    else {
+                        throw std::runtime_error("Invalid 11_11_10 combination");
+                    }
+                }
+                else {
+                    throw std::runtime_error("Unable to use types other than float for 11_11_10");
+                }
+            }
+
+            throw std::runtime_error("Unknown error occurred");
+        }
+
+        static GLint _convertInternalFormatPrecise(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
+            // If the bits are default we just mirror the format for the internal format option
+            if (format == TextureComponentFormat::DEPTH_STENCIL || 
+                size == TextureComponentSize::BITS_DEFAULT) {
+                    
                 switch (format) {
                     case TextureComponentFormat::RED: return GL_RED;
                     case TextureComponentFormat::RG: return GL_RG;
@@ -517,8 +653,8 @@ namespace stratus {
             }
 
             if (size == TextureComponentSize::BITS_32) {
-                if (type == TextureComponentType::INT) return GL_SHORT;
-                if (type == TextureComponentType::UINT) return GL_UNSIGNED_SHORT;
+                if (type == TextureComponentType::INT) return GL_INT;
+                if (type == TextureComponentType::UINT) return GL_UNSIGNED_INT;
                 if (type == TextureComponentType::FLOAT) return GL_FLOAT;
             }
 

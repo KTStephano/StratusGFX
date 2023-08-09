@@ -150,8 +150,14 @@ void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 vie
         return;
     }
 
-    // TODO: Why does imageAtomicExchange not compile???
-    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, float(probeIndex));
-    //imageAtomicExchange(table, integerTableIndex, vec4(float(probeIndex)));
+    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, probeIndex);
     imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+
+    //imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 0, 1), vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 1, 0), vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(1, 0, 0), vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 0, -1), vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, -1, 0), vec4(float(probeIndex)));
+    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(-1, 0, 0), vec4(float(probeIndex)));
 }
