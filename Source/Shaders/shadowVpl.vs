@@ -23,6 +23,7 @@ flat out int fsDrawID;
 flat out int fsDiffuseMapped;
 flat out int fsNormalMapped;
 flat out int fsMetallicRoughnessMapped;
+flat out int fsEmissiveMapped;
 
 // Made using the tangent, bitangent and normal
 out mat3 fsTbnMatrix;
@@ -35,6 +36,7 @@ void main() {
     fsDiffuseMapped = int(bitwiseAndBool(flags, GPU_DIFFUSE_MAPPED));
     fsNormalMapped = int(bitwiseAndBool(flags, GPU_NORMAL_MAPPED));
     fsMetallicRoughnessMapped = int(bitwiseAndBool(flags, GPU_METALLIC_ROUGHNESS_MAPPED));
+    fsEmissiveMapped = int(bitwiseAndBool(flags, GPU_EMISSIVE_MAPPED));
 
     // Select which layer of the depth texture we will write to
 	// (DEPTH_LAYER is defined in C++ code)

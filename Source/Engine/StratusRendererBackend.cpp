@@ -1534,7 +1534,7 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
-            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            0, // lod // light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
@@ -2465,14 +2465,14 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
         if (vpl) {
             // Diffuse
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);
 
             // Normals
             texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
-            texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+            texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
             attachments.push_back(texture);

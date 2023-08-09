@@ -217,10 +217,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth, float centerId
         if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
             continue;                                                                                       \
         }                                                                                                   \
-        float currId = textureOffset(ids, fsTexCoords, ivec2(dx_, dy_)).r;                                  \
+        /*float currId = textureOffset(ids, fsTexCoords, ivec2(dx_, dy_)).r;                                  \
         if (currId != centerId) {                                                                           \
             continue;                                                                                       \
-        }                                                                                                   \
+        } */                                                                                                  \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
         float randUpdate = random(seed);                                                                    \
@@ -416,11 +416,11 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 500);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        illumAvg = currGi;
+        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        //illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }

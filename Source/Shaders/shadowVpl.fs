@@ -12,6 +12,7 @@ flat in int fsDrawID;
 flat in int fsDiffuseMapped;
 flat in int fsNormalMapped;
 flat in int fsMetallicRoughnessMapped;
+flat in int fsEmissiveMapped;
 
 in vec3 fsNormal;
 /**
@@ -55,7 +56,7 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bool(fsEmissiveMapped) ? texture(material.emissiveMap, fsTexCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
     if (length(emissive) > 0) {
         baseColor = vec4(emissive, 1.0);
     }

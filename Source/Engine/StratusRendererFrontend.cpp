@@ -192,10 +192,10 @@ namespace stratus {
                         if (!entry->CastsShadows()) continue;
                         auto pos = entry->GetPosition();
                         if ((isStatic && entry->IsStaticLight()) || !entry->IsStaticLight()) {
-                            if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
+                            //if (glm::distance(GetWorldTransform(p, i), pos) < entry->GetRadius()) {
                             //if (DistanceFromPointToAABB(pos, mesh->GetAABB()) < entry->GetRadius()) {
                                 frame_->lightsToUpdate.PushBack(entry);
-                            }
+                            //}
                         }
                     }
                 }
@@ -235,10 +235,10 @@ namespace stratus {
 
             for (usize i = 0; i < GetMeshCount(p); ++i) {
                 auto pos = entry->GetPosition();
-                if (glm::distance(GetWorldTransform(p, i), pos) > entry->GetRadius()) {
+                //if (glm::distance(GetWorldTransform(p, i), pos) > entry->GetRadius()) {
                 //if (DistanceFromPointToAABB(pos, mesh->GetAABB()) > entry->GetRadius()) {
-                    continue;
-                }
+                //    continue;
+                //}
 
                 //if (entry.second.visible.erase(p)) {
                 if (entry->IsStaticLight()) {

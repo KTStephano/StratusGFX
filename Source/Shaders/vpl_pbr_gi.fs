@@ -107,7 +107,7 @@ void trace(
     vec3 currDiffuse = baseColor;
     vec3 currFragPos = fragPos;
     vec3 currNormal = normal;
-    vec2 currRoughnessMetallic = roughnessMetallic;//vec2(0.1, 1.0);
+    vec2 currRoughnessMetallic = vec2(roughnessMetallic.r, min(roughnessMetallic.g, 0.5));
     vec3 currDirection = startDirection;
 
     ivec3 probeLookupDimensions = imageSize(probeRayLookupTable);
@@ -129,8 +129,8 @@ void trace(
         int randDirectionIndex = int(random(seed, 0, 3));
         vec3 target = normalize(currNormal + randomUnitVector(seed));
 
-        float offsetTarget = random(seed, 1.0, 15.0);
-        vec3 targetPos = currFragPos + offsetTarget * target;
+        float offsetTarget = random(seed, 1.0, 5.0);
+        vec3 targetPos = currFragPos + offsetTarget * currNormal;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
         //probeIndex = ivec3(140, 154, 117);
@@ -614,7 +614,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 0;
+    int numTraceSamples = 1;
     vec3 startDirection = normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
     trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
