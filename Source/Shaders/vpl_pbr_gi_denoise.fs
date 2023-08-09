@@ -96,7 +96,7 @@ const float sigmaN = 128.0;
 const float sigmaL = 4.0;
 const float sigmaRT = 4.0;
 
-const int dminmax = 0;
+const int dminmax = 2;
 const int dminmaxVariance = 2;
 
 // See https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/descriptive-statistics/variance-and-standard-deviation.html
@@ -415,8 +415,8 @@ void main() {
         historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        illumAvg = currGi;
+        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        //illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }

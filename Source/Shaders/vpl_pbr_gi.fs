@@ -86,7 +86,7 @@ const float probeDirections[] = float[](
 );
 
 void trace(
-    inout vec3 seed, 
+    inout vec3 seed,
     in vec3 baseColor,
     in vec3 normal,
     in vec3 fragPos,
@@ -95,20 +95,19 @@ void trace(
     in vec3 startDirection,
     inout int resamples,
     inout float validSamples,
-    inout vec3 traceColor,
     inout vec4 traceReservoir) {
 
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 10;
+    const int maxResamples = 15;
 
     int maxRandomIndex = numVisible[0] - 1;
 
     vec3 currDiffuse = baseColor;
     vec3 currFragPos = fragPos;
     vec3 currNormal = normal;
-    vec2 currRoughnessMetallic = roughnessMetallic; //vec2(roughnessMetallic.r, 0.1);
+    vec2 currRoughnessMetallic = roughnessMetallic;//vec2(0.1, 0.1);
     vec3 currDirection = startDirection;
 
     ivec3 probeLookupDimensions = imageSize(probeRayLookupTable);
@@ -189,8 +188,11 @@ void trace(
                                                         dot(direction, currNormal), minBias);
         
         if (shadowFactor > 0.0) {
+            if (i == 0) {
+                validSamples += 1.0;  
+            }
             ++resamples;                                                                                                                
-            --i;                                                                                                                        
+            --i;                                                                                       
             continue; 
         }
 
@@ -297,8 +299,6 @@ void trace(
     vec3 viewDir = normalize(viewMinusFrag);
     float viewDist = length(viewMinusFrag);
 
-    traceColor += vec3(currDiffuse);
-
     vec3 tempColor = lightMask * vec3(currDiffuse);
         //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
 
@@ -318,8 +318,8 @@ void trace(
         baseReflectivity, 
         1.0, 
         0.0, 
-        vec3(1.0), //currDiffuse, 
-        vec3(1.0) //1.0 / (currDiffuse + PREVENT_DIV_BY_ZERO)
+        baseColor, 
+        1.0 / (baseColor + PREVENT_DIV_BY_ZERO)
     );
 
     traceReservoir += vec4(tempColor, validSamples);
@@ -599,13 +599,13 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 50;
+    int numTraceSamples = 1;
     vec3 startDirection = infiniteLightDirection;//normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, baseColor, normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceColor, traceReservoir);
+    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
     }
 
-    color = traceColor;
+    color = float(numTraceSamples) * baseColor;
     reservoir = traceReservoir;// / float(numTraceSamples);
 
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
