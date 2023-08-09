@@ -185,7 +185,7 @@ float filterInput(
     //return wn * wz * wl;
 }
     
-vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
+vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth, float centerId) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
     //vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
     vec4 centerReservoir = vec4(0.0);
@@ -215,6 +215,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx_, dy_)).r;                             \
         /* If the difference between current and center depth exceeds 10% of center's value, reject */      \
         if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
+            continue;                                                                                       \
+        }                                                                                                   \
+        float currId = textureOffset(ids, fsTexCoords, ivec2(dx_, dy_)).r;                                  \
+        if (currId != centerId) {                                                                           \
             continue;                                                                                       \
         }                                                                                                   \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
@@ -289,13 +293,14 @@ void main() {
     //float prevCenterDepth = texture(depth, prevTexCoords).r;
 
     vec4 reservoirFiltered = vec4(0.0);
+    float currId = texture(ids, fsTexCoords).r;
     //vec3 shadowFactor = vec3(0.0);
     //float numShadowSamples = 0.0;
     //int filterSizeXY = 2 * dminmax + 1;
     int count = 0;
     if (mergeReservoirs) {
     //if (true) {
-        reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
+        reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth, currId);
     }
     else {
         int minmaxNearest = dminmax;
@@ -349,7 +354,6 @@ void main() {
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
 
-        float currId = texture(ids, fsTexCoords).r;
         float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
@@ -412,11 +416,11 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, 500);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        illumAvg = currGi;
+        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        //illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }

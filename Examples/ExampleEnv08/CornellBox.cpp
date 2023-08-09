@@ -22,6 +22,24 @@
 #include "WorldLightController.h"
 #include "FrameRateController.h"
 
+static void InitCube(stratus::EntityPtr& cube, const glm::vec3& position, const glm::vec3& color) {
+    // cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
+    // cube->GetRenderNode()->EnableLightInteraction(false);
+    // cube->SetLocalScale(glm::vec3(1.0f));
+    // cube->SetLocalPosition(p.position);
+    // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+    auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+    auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+    //cube->Components().DisableComponent<stratus::LightInteractionComponent>();
+    local->SetLocalScale(glm::vec3(5.0f, 1.0f, 5.0f));
+    local->SetLocalPosition(position);
+    const std::string name = "CornellCube_" + std::to_string(color.r) + "_" + std::to_string(color.g) + "_" + std::to_string(color.b);
+    auto material = INSTANCE(MaterialManager)->GetOrCreateMaterial(name);
+    material->SetEmissiveColor(color);
+    rc->SetMaterialAt(material, 0);
+    rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
+}
+
 class CornellBox : public stratus::Application {
 public:
     virtual ~CornellBox() = default;
@@ -68,6 +86,14 @@ public:
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumAtmosphericSamplesPerPixel(64);  
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
+
+        auto cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(cube, glm::vec3(0.0f, 30.0f, 0.0f), glm::vec3(1.0));
+        INSTANCE(EntityManager)->AddEntity(cube);
+
+        cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(cube, glm::vec3(0.0f, 30.0f, -30.0f), glm::vec3(1.0));
+        INSTANCE(EntityManager)->AddEntity(cube);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -184,7 +210,7 @@ public:
 
             for (float x = -14; x <= 14; x += 2.0f) {
                 for (float y = 2; y <= 30; y += 3.0f) {
-                    for (float z = -30.0f; z <= 15.0f; z += 4.0f) {
+                    for (float z = -40.0f; z <= 15.0f; z += 4.0f) {
                         ++spawned;
                         const glm::vec3 location(x, y, z);
                         LightCreator::CreateVirtualPointLight(

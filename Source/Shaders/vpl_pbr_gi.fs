@@ -100,7 +100,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 50;
+    const int maxResamples = 100;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -116,6 +116,8 @@ void trace(
     //validSamples += 1;
 
     int maxStepsPerSample = 10;
+    float attenuation = 1.0;
+    vec3 lightColor = vec3(1.0);
 
     const int maxBounces = 30;
     // Each successful iteration = 1 bounce of light
@@ -127,7 +129,7 @@ void trace(
         int randDirectionIndex = int(random(seed, 0, 3));
         vec3 target = normalize(currNormal + randomUnitVector(seed));
 
-        float offsetTarget = random(seed, 1.0, 15.0);
+        float offsetTarget = random(seed, 1.0, 5.0);
         vec3 targetPos = currFragPos + offsetTarget * target;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
@@ -204,17 +206,29 @@ void trace(
 
         vec4 newDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(target, float(entry.layer)), 0).rgba;
 
-        if (newDiffuse.a < 0.5) {            
-            // ++resamples;
-            // --i;
-            // continue;
+        if (newDiffuse.a < 0.0) {            
+            ++resamples;
+            --i;
+            continue;
         }
 
         float magnitude = lightData[lightIndex].radius * textureLod(probeTextures[entry.index].occlusion, vec4(target, float(entry.layer)), 0).r;
         vec3 newPosition = lightData[lightIndex].position.xyz + 0.99 * magnitude * target;
         vec4 newNormal = textureLod(probeTextures[entry.index].normals, vec4(target, float(entry.layer)), 0).rgba;
         newNormal = vec4(normalize(newNormal.rgb * 2.0 - vec3(1.0)), newNormal.a);
-        //currRoughnessMetallic = vec2(1.0, 0.0);
+        currRoughnessMetallic = vec2(1.0, 0.0);
+
+        if (newDiffuse.a > 0.0) {
+            validSamples += 1.0;
+            lightColor = 3000.0 * newDiffuse.rgb;
+            attenuation = quadraticAttenuation(currFragPos - newPosition);
+            currFragPos = newPosition;
+            lightMask = vec3(1.0);
+            if (i == 0) {
+                currDirection = target;
+            }
+            break;
+        }
 
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(newPosition, 1.0)),
                                   dot(cascadePlanes[1], vec4(newPosition, 1.0)),
@@ -222,6 +236,7 @@ void trace(
         shadowFactor = calculateInfiniteShadowValue(vec4(newPosition, 1.0), cascadeBlends, newNormal.rgb, true, 0.0);
 
         if (shadowFactor > 0.0) {
+            lightColor = vec3(0.0);//infiniteLightColor;
             validSamples += 1.0;
             //vec3 finalDiffuse = textureLod(probeTextures[entry.index].diffuse, vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb;
             currDiffuse = currDiffuse * newDiffuse.rgb;
@@ -304,7 +319,7 @@ void trace(
 
     float shadowFactor = length(lightMask) > 0 ? 1.0 : 0.0;
     tempColor = calculateLighting_Lambert(
-        infiniteLightColor, 
+        lightColor, 
         currDirection, 
         viewDir, 
         normal, 
@@ -316,7 +331,7 @@ void trace(
         1.0, 
         shadowFactor, 
         baseReflectivity, 
-        1.0, 
+        attenuation, 
         0.0, 
         baseColor, 
         1.0 / (baseColor + PREVENT_DIV_BY_ZERO)
@@ -599,7 +614,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 1;
+    int numTraceSamples = 0;
     vec3 startDirection = normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
     trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);

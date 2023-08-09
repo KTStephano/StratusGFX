@@ -55,6 +55,11 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
+    vec3 emissive = FLOAT3_TO_VEC3(material.emissiveColor);
+    if (length(emissive) > 0) {
+        baseColor = vec4(emissive, 1.0);
+    }
+
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
     
@@ -64,7 +69,7 @@ void main() {
     // write this as modified depth
     gl_FragDepth = lightDistance;
 
-    gColor = vec4(baseColor.rgb, 1.0);
+    gColor = vec4(baseColor.rgb, length(emissive));
     gNormal = vec4(normal, roughness);
     // gMetallic = metallic;
 }

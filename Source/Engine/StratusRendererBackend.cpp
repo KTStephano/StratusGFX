@@ -1498,8 +1498,9 @@ void RendererBackend::UpdatePointLights_(
 
         // glBindFramebuffer(GL_FRAMEBUFFER, smap.frameBuffer);
         if (cache.buffers[smap.index].GetColorAttachments().size() > 0) {
-            cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, nullptr);
-            cache.buffers[smap.index].GetColorAttachments()[1].ClearLayer(0, smap.layer, nullptr);
+            const glm::vec4 clearColor = glm::vec4(-1.0f);
+            cache.buffers[smap.index].GetColorAttachments()[0].ClearLayer(0, smap.layer, (const void *)&clearColor[0]);
+            cache.buffers[smap.index].GetColorAttachments()[1].ClearLayer(0, smap.layer, (const void *)&clearColor[0]);
             //cache.buffers[smap.index].GetColorAttachments()[2].ClearLayer(0, smap.layer, nullptr);
         }
 
@@ -1533,7 +1534,7 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
-            0, // lod //light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
