@@ -54,7 +54,8 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
-        auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 10);
+        const glm::vec3 sunsetColor = glm::vec3(251.0f / 255.0f, 144.0f / 255.0f, 98.0f / 255.0f);
+        auto wc = new WorldLightController(warmMorningColor, warmMorningColor, 10);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(21.0479f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
@@ -84,8 +85,9 @@ public:
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
-        settings.SetSkyboxIntensity(0.0125f);
+        settings.SetSkyboxIntensity(3.0);
         settings.SetMinRoughness(0.0f);
+        settings.SetSkyboxColorMask(warmMorningColor);
         settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_2048;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
@@ -163,9 +165,9 @@ public:
             bathroom = nullptr;
             int spawned = 0;
 
-            for (int x = -14; x < 0; x += 3) {
-                for (int y = 3; y < 10; y += 3) {
-                    for (int z = -20; z < 10; z += 3) {
+            for (int x = -18; x < 25; x += 3) {
+                for (int y = 3; y < 25; y += 3) {
+                    for (int z = -35; z < 51; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
                             LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.01f),
@@ -177,60 +179,60 @@ public:
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-0.318954, 12.565, -6.88351), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(-0.318954, 12.565, -6.88351), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(2.5248, 11.95, -6.34403), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(7.74838, 17.105, -2.59323), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(12.338, 17.105, -14.6332), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(-20.9827, 17.035, -14.8843), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
 
-            LightCreator::CreateStationaryLight(
-                LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
-                false
-            );
+            // LightCreator::CreateStationaryLight(
+            //     LightParams(glm::vec3(-25.4929, 17.035, -2.68603), glm::vec3(0.878431, 0.615686, 0.215686), 5, true),
+            //     false
+            // );
         }
 
         //worldLight->setRotation(glm::vec3(90.0f, 0.0f, 0.0f));

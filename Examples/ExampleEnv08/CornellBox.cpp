@@ -184,7 +184,7 @@ public:
 
             for (float x = -14; x <= 14; x += 2.0f) {
                 for (float y = 2; y <= 30; y += 3.0f) {
-                    for (float z = -15.0f; z <= 15.0f; z += 4.0f) {
+                    for (float z = -30.0f; z <= 15.0f; z += 4.0f) {
                         ++spawned;
                         const glm::vec3 location(x, y, z);
                         LightCreator::CreateVirtualPointLight(
