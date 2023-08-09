@@ -84,6 +84,28 @@ struct WorldLightController : public stratus::InputHandler {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_LEFTBRACKET:
+                            if (!released) {
+                                worldLight_->OffsetRotation(
+                                    glm::vec3(
+                                        0.0f,
+                                        1.0f * 20.0f * deltaSeconds,
+                                        0.0f
+                                    )
+                                );
+                            }
+                            break;
+                        case SDL_SCANCODE_RIGHTBRACKET:
+                            if (!released) {
+                                worldLight_->OffsetRotation(
+                                    glm::vec3(
+                                        0.0f,
+                                        -1.0f * 20.0f * deltaSeconds,
+                                        0.0f
+                                    )
+                                );
+                            }
+                            break;
                         case SDL_SCANCODE_K: {
                             if (released) {
                                 rotationIndex_ = rotationIndex_ == 0 ? rotationSpeeds_.size() - 1 : rotationIndex_ - 1;

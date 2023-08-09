@@ -127,7 +127,7 @@ void trace(
         int randDirectionIndex = int(random(seed, 0, 3));
         vec3 target = normalize(currNormal + randomUnitVector(seed));
 
-        float offsetTarget = random(seed, 1.0, 5.0);
+        float offsetTarget = random(seed, 1.0, 15.0);
         vec3 targetPos = currFragPos + offsetTarget * target;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
@@ -179,7 +179,7 @@ void trace(
             continue;                                                                                                                   
         }                                             
 
-        const float minBias = 0.00;                                                                                                                                    
+        const float minBias = 0.1;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
