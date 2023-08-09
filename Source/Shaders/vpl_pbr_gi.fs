@@ -181,7 +181,7 @@ void trace(
             continue;                                                                                                                   
         }                                             
 
-        const float minBias = 0.1;                                                                                                                                    
+        const float minBias = 0.05;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
@@ -220,7 +220,7 @@ void trace(
 
         if (newDiffuse.a > 0.0) {
             validSamples += 1.0;
-            lightColor = 3000.0 * newDiffuse.rgb;
+            lightColor = 5000.0 * newDiffuse.rgb;
             attenuation = quadraticAttenuation(currFragPos - newPosition);
             currFragPos = newPosition;
             lightMask = vec3(1.0);
@@ -614,7 +614,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 0;
+    int numTraceSamples = 1;
     vec3 startDirection = normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
     trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);

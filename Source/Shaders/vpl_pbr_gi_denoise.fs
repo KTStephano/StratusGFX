@@ -416,11 +416,11 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + historyAccum * accumMultiplier, 500);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
-        //illumAvg = currGi;
+        //illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
     }
