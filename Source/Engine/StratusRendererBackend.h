@@ -46,10 +46,11 @@ namespace stratus {
     extern usize GetMeshCount(const EntityPtr&);
 
     enum class RendererCascadeResolution : i32 {
-        CASCADE_RESOLUTION_1024 = 1024,
-        CASCADE_RESOLUTION_2048 = 2048,
-        CASCADE_RESOLUTION_4096 = 4096,
-        CASCADE_RESOLUTION_8192 = 8192
+        CASCADE_RESOLUTION_1024  = 1024,
+        CASCADE_RESOLUTION_2048  = 2048,
+        CASCADE_RESOLUTION_4096  = 4096,
+        CASCADE_RESOLUTION_8192  = 8192,
+        CASCADE_RESOLUTION_16384 = 16384
     };
 
     struct RenderMeshContainer {

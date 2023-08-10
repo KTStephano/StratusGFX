@@ -6,7 +6,7 @@
 #include "StratusGpuCommon.h"
 #include "StratusTypes.h"
 
-namespace stratus {    
+namespace stratus {
     class Texture;
     typedef Handle<Texture> TextureHandle;
 
@@ -16,6 +16,7 @@ namespace stratus {
         // Corresponds to GL_TEXTURE_CUBE_MAP
         TEXTURE_CUBE_MAP,
         TEXTURE_CUBE_MAP_ARRAY,
+        TEXTURE_3D,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
     };
@@ -106,8 +107,8 @@ namespace stratus {
     };
 
     struct TextureData {
-        const void * data;
-        TextureData(const void * data = nullptr) : data(data) {}
+        const void* data;
+        TextureData(const void* data = nullptr) : data(data) {}
     };
 
     typedef std::vector<TextureData> TextureArrayData;
@@ -125,13 +126,13 @@ namespace stratus {
 
     public:
         Texture();
-        Texture(const TextureConfig & config, const TextureArrayData& data, bool initHandle = true);
+        Texture(const TextureConfig& config, const TextureArrayData& data, bool initHandle = true);
         ~Texture();
 
-        Texture(const Texture &) = default;
-        Texture(Texture &&) = default;
-        Texture & operator=(const Texture &) = default;
-        Texture & operator=(Texture &&) = default;
+        Texture(const Texture&) = default;
+        Texture(Texture&&) = default;
+        Texture& operator=(const Texture&) = default;
+        Texture& operator=(Texture&&) = default;
 
         void SetCoordinateWrapping(TextureCoordinateWrapping);
         void SetMinMagFilter(TextureMinificationFilter, TextureMagnificationFilter);
@@ -140,7 +141,7 @@ namespace stratus {
         TextureType Type() const;
         TextureComponentFormat Format() const;
         TextureHandle Handle() const;
-        
+
         // 64 bit handle representing the texture within the graphics driver
         GpuTextureHandle GpuHandle() const;
 
@@ -156,18 +157,18 @@ namespace stratus {
         bool Valid() const;
 
         // clearValue is between one and four components worth of data (or nullptr - in which case the texture is filled with 0s)
-        void Clear(const i32 mipLevel, const void * clearValue) const;
-        void ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const;
+        void Clear(const i32 mipLevel, const void* clearValue) const;
+        void ClearLayer(const i32 mipLevel, const i32 layer, const void* clearValue) const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
-        const void * Underlying() const;
+        const void* Underlying() const;
 
         size_t HashCode() const;
-        bool operator==(const Texture & other) const;
+        bool operator==(const Texture& other) const;
 
         // Creates a new texture and copies this texture into it
         Texture Copy(u32 newWidth, u32 newHeight) const;
-        const TextureConfig & GetConfig() const;
+        const TextureConfig& GetConfig() const;
 
     private:
         // Makes the texture resident in GPU memory for bindless use
@@ -177,9 +178,11 @@ namespace stratus {
 
     private:
         void SetHandle_(const TextureHandle);
+        void EnsureValid_() const;
     };
 
     struct TextureMemResidencyGuard {
+        TextureMemResidencyGuard();
         TextureMemResidencyGuard(const Texture&);
 
         TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;
@@ -197,13 +200,13 @@ namespace stratus {
 
     private:
         Texture texture_ = Texture();
-    }; 
+    };
 }
 
 namespace std {
     template<>
     struct hash<stratus::Texture> {
-        size_t operator()(const stratus::Texture & tex) const {
+        size_t operator()(const stratus::Texture& tex) const {
             return tex.HashCode();
         }
     };

@@ -457,7 +457,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->csc.cascades.resize(4);
+        frame_->csc.cascades.resize(1);
         frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
 
@@ -621,18 +621,28 @@ namespace stratus {
         const f32 clipRange = zfar - znear;
         const f32 ratio = zfar / znear;
         std::vector<f32> cascadeEnds(numCascades);
+        // for (usize i = 0; i < numCascades; ++i) {
+        //     // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
+        //     // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
+        //     // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
+        //     // distances.
+        //     const f32 p = (i + 1) / f32(numCascades);
+        //     const f32 log = znear * std::pow(ratio, p);
+        //     const f32 uniform = znear + clipRange * p;
+        //     //const f32 d = floorf(lambda * (log - uniform) + uniform);
+        //     const f32 d = floorf(lambda * log + (1.0f - lambda) * uniform);
+        //     cascadeEnds[i] = d;
+        //     //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
+        // }
+        f32 sizePerCasacde = f32(ratio) / f64(numCascades);
+        //f32 sizePerCasacde = 250.0f;
         for (usize i = 0; i < numCascades; ++i) {
             // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
             // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
             // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
             // distances.
-            const f32 p = (i + 1) / f32(numCascades);
-            const f32 log = znear * std::pow(ratio, p);
-            const f32 uniform = znear + clipRange * p;
-            //const f32 d = floorf(lambda * (log - uniform) + uniform);
-            const f32 d = floorf(lambda * log + (1.0f - lambda) * uniform);
-            cascadeEnds[i] = d;
-            //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
+            cascadeEnds[i] = (i + 1) * sizePerCasacde;
+            //STRATUS_LOG << "Cascade " << i << " ends " << cascadeEnds[i] << std::endl;
         }
 
         // std::vector<f32> cascadeEnds = {
@@ -1007,12 +1017,15 @@ namespace stratus {
         const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
     ) {
+
+        pipeline.SetUint("numCascades", (u32)frame_->csc.cascades.size());
+
         for (auto& [cull, buffer] : commands) {
             if (buffer->NumDrawCommands() == 0) continue;
 
             pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
 
-            const usize maxLod = buffer->NumLods() - 2;
+            const usize maxLod = 0;//buffer->NumLods() - 2;
 
             buffer->BindModelTransformBuffer(2);
             buffer->BindAabbBuffer(3);
@@ -1020,15 +1033,10 @@ namespace stratus {
             buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
-            auto out0 = select(frame_->csc.cascades[0], cull);
-            auto out1 = select(frame_->csc.cascades[1], cull);
-            auto out2 = select(frame_->csc.cascades[2], cull);
-            auto out3 = select(frame_->csc.cascades[3], cull);
-        
-            out0->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
-            out1->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
-            out2->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
-            out3->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
+            for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
+                auto receivePtr = select(frame_->csc.cascades[cascade], cull);
+                receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5 + cascade);
+            }
 
             pipeline.DispatchCompute(1, 1, 1);
             pipeline.SynchronizeCompute();

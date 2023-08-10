@@ -9,6 +9,7 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 uniform uint numDrawCalls;
 uniform mat4 cascadeViewProj[4];
+uniform uint numCascades;
 
 layout (std430, binding = 2) readonly buffer inputBlock3 {
     mat4 modelTransforms[];
@@ -56,7 +57,7 @@ void main() {
 
     // Extract world-space frustum planes
 #define INITIALIZE_CASCADE_PLANES(index, planes)            \
-    if (gl_LocalInvocationIndex == index) {                 \
+    if (gl_LocalInvocationIndex == index && index < numCascades) { \
         mat4 vpt = transpose(cascadeViewProj[index]);       \
         planes[0] = vpt[3] + vpt[0];                        \
         planes[1] = vpt[3] - vpt[0];                        \
@@ -85,13 +86,21 @@ void main() {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
 
         // Cascades 0, 1
-        DrawElementsIndirectCommand draw = cascade01DrawCalls[i];
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
+        if (numCascades > 0) {
+            DrawElementsIndirectCommand draw = cascade01DrawCalls[i];
+            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
+            if (numCascades > 1) {
+                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
+            }
+        }
 
         // Cascades 2, 3
-        draw = cascade23DrawCalls[i];
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
+        if (numCascades > 2) {
+            DrawElementsIndirectCommand draw = cascade23DrawCalls[i];
+            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
+            if (numCascades > 3) {
+                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
+            }
+        }
     }
 }
