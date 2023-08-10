@@ -24,6 +24,26 @@
 #include "FrameRateController.h"
 #include "StratusWindow.h"
 
+static void InitCube(stratus::EntityPtr& cube, const glm::vec3& position, const glm::vec3& color) {
+    // cube->GetRenderNode()->SetMaterial(INSTANCE(MaterialManager)->CreateDefault());
+    // cube->GetRenderNode()->EnableLightInteraction(false);
+    // cube->SetLocalScale(glm::vec3(1.0f));
+    // cube->SetLocalPosition(p.position);
+    // cube->GetRenderNode()->GetMeshContainer(0)->material->SetDiffuseColor(light->getColor());
+    auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+    auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+    //cube->Components().DisableComponent<stratus::LightInteractionComponent>();
+    local->SetLocalScale(glm::vec3(30.0f, 25.0f, 5.0f));
+    local->SetLocalPosition(position);
+    const std::string name = "CornellCube_" + std::to_string(color.r) + "_" + std::to_string(color.g) + "_" + std::to_string(color.b);
+    auto material = INSTANCE(MaterialManager)->GetOrCreateMaterial(name);
+    //material->SetEmissiveColor(color);
+    material->SetEmissiveMap(INSTANCE(ResourceManager)->LoadTexture("../Resources/Pastel.jpg", stratus::ColorSpace::SRGB));
+    rc->SetMaterialAt(material, 0);
+    rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(color, 1.0f));
+}
+
+
 class Sponza : public stratus::Application {
 public:
     virtual ~Sponza() = default;
@@ -55,6 +75,10 @@ public:
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
+        auto cube = INSTANCE(ResourceManager)->CreateCube();
+        InitCube(cube, glm::vec3(0.0f, 25.0f, 135.0f), glm::vec3(1.0));
+        INSTANCE(EntityManager)->AddEntity(cube);
+
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
         //worldLight->setIntensity(0.5f);
@@ -62,11 +86,11 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         requested.push_back(e);
-        requested.push_back(e2);
+        //requested.push_back(e2);
         
         auto callback = [this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
@@ -82,13 +106,14 @@ public:
         };
 
         e.AddCallback(callback);
-        e2.AddCallback(callback);
+        //e2.AddCallback(callback);
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
+        settings.SetEmissionStrength(1.0f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
@@ -173,9 +198,9 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 60; x > -30; x -= 10) {
-              for (int y = 0; y < 240; y += 20) {
-                  for (int z = -140; z < 180; z += 20) {
+           for (int x = 20; x >= -30; x -= 5) {
+              for (int y = 0; y <= 50; y += 5) {
+                  for (int z = 45; z <= 140; z += 5) {
                           ++spawned;
                           LightCreator::CreateVirtualPointLight(
                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
