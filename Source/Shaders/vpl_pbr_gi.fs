@@ -181,7 +181,7 @@ void trace(
             continue;                                                                                                                   
         }                                             
 
-        const float minBias = 0.05;                                                                                                                                    
+        const float minBias = 0.00;                                                                                                                                    
         float shadowFactor = calculateShadowValue1Sample(probeTextures[entry.index].occlusion,                                                       
                                                         entry.layer,                                                                       
                                                         lightData[lightIndex].radius,                                                    
@@ -220,7 +220,7 @@ void trace(
 
         if (newDiffuse.a > 0.0) {
             validSamples += 1.0;
-            lightColor = 5000.0 * newDiffuse.rgb;
+            lightColor = 7500.0 * newDiffuse.rgb;
             attenuation = quadraticAttenuation(currFragPos - newPosition);
             currFragPos = newPosition;
             lightMask = vec3(1.0);
@@ -571,18 +571,21 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 viewDir = normalize(viewPosition - fragPos);
     float distToCamera = length(viewPosition - fragPos);
 
-    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
+    vec4 albedo = textureLod(gAlbedo, texCoords, 0).rgba;
+    vec3 baseColor = albedo.rgb;
     baseColor = vec3(max(baseColor.r, 0.01), max(baseColor.g, 0.01), max(baseColor.b, 0.01));
+
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
-    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
-    //roughness = max(0.5, roughness);
-    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
+    vec3 roughnessMetallicEmissive = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rgb;
+    float roughness = roughnessMetallicEmissive.r;
+    float metallic = roughnessMetallicEmissive.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
     float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
-    vec3 baseReflectivity = vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
+    vec2 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rg;
+    vec3 emissive = vec3(albedo.a, baseReflectivity.g, roughnessMetallicEmissive.b);
 
     float roughnessWeight = 1.0 - roughness;
 
@@ -617,8 +620,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int numTraceSamples = 1;
     vec3 startDirection = normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
-    trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), baseReflectivity, startDirection, resamples, validSamples, traceReservoir);
+        trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), vec3(baseReflectivity.r), startDirection, resamples, validSamples, traceReservoir);
     }
+
+    baseColor = length(emissive) > 0.0 ? vec3(0.0) : baseColor;
 
     color = float(numTraceSamples) * baseColor;
     reservoir = traceReservoir;// / float(numTraceSamples);
