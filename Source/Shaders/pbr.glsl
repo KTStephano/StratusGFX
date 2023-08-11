@@ -256,6 +256,11 @@ float geometry(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness) {
     return geometrySchlickGGX(NdotV, k) * geometrySchlickGGX(NdotL, k);
 }
 
+float linearAttenuation(vec3 lightDir) {
+    float lightDist = length(lightDir);
+    return 1.0 / (1.0 + lightDist);
+}
+
 float quadraticAttenuation(vec3 lightDir) {
     float lightDist = length(lightDir);
     return 1.0 / (1.0 + lightDist * lightDist);

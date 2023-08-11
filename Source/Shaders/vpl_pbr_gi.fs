@@ -199,7 +199,7 @@ void trace(
         }
 
         vec3 unit = randomUnitVector(seed);
-        vec3 scatteredVec = normalize(currNormal + unit);
+        vec3 scatteredVec = normalize(currNormal + currRoughnessMetallic.r * unit);
         //vec3 scatteredVec = normalize(currNormal + randomUnitVector(seed));
         vec3 reflectedVec = normalize(computeReflection(-currDirection, currNormal) + currRoughnessMetallic.r * unit);
         target = mix(scatteredVec, reflectedVec, currRoughnessMetallic.g);
@@ -220,8 +220,8 @@ void trace(
 
         if (newDiffuse.a > 0.0) {
             validSamples += 1.0;
-            lightColor = 7500.0 * newDiffuse.rgb;
-            attenuation = quadraticAttenuation(currFragPos - newPosition);
+            lightColor = 1000.0 * newDiffuse.rgb;
+            attenuation = linearAttenuation(currFragPos - newPosition);
             currFragPos = newPosition;
             lightMask = vec3(1.0);
             if (i == 0) {
@@ -318,9 +318,10 @@ void trace(
         //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
 
     float shadowFactor = length(lightMask) > 0 ? 1.0 : 0.0;
-    tempColor = calculateLighting_Lambert(
+    tempColor = calculateLighting_Lambert_SeparateDiffuseSpecular(
         lightColor, 
         currDirection, 
+        currDirection,
         viewDir, 
         normal, 
         tempColor, 
@@ -331,7 +332,8 @@ void trace(
         1.0, 
         shadowFactor, 
         baseReflectivity, 
-        attenuation, 
+        attenuation, // specular attenuation
+        attenuation, // diffuse attenuation 
         0.0, 
         baseColor, 
         1.0 / (baseColor + PREVENT_DIV_BY_ZERO)
