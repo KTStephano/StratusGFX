@@ -24,75 +24,75 @@
 
 static void setupDayTime() {
     int spawned = 0;
-    for (int x = -150; x < 200; x += 50) {
-        for (int y = 0; y < 150; y += 20) {
-            for (int z = -400; z < -50; z += 50) {
-                    ++spawned;
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
-                    );
-            } 
-        }
-    }
+    // for (int x = -150; x < 200; x += 50) {
+    //     for (int y = 0; y < 150; y += 20) {
+    //         for (int z = -400; z < -50; z += 50) {
+    //                 ++spawned;
+    //                 LightCreator::CreateVirtualPointLight(
+    //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                     false
+    //                 );
+    //         } 
+    //     }
+    // }
 
-    for (int x = -200; x < 95; x += 30) {
-        for (int y = 0; y < 150; y += 15) {
-            for (int z = -50; z < 200; z += 30) {
-                    ++spawned;
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
-                    );
-            }
-        }
-    }
+    // for (int x = -200; x < 95; x += 30) {
+    //     for (int y = 0; y < 150; y += 15) {
+    //         for (int z = -50; z < 200; z += 30) {
+    //                 ++spawned;
+    //                 LightCreator::CreateVirtualPointLight(
+    //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                     false
+    //                 );
+    //         }
+    //     }
+    // }
 
-    for (int x = 300; x < 555; x += 30) {
-        for (int y = 0; y < 50; y += 10) {
-            for (int z = 150; z < 400; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 300; x < 555; x += 30) {
+    //     for (int y = 0; y < 50; y += 10) {
+    //         for (int z = 150; z < 400; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = 180; x < 310; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            for (int z = 100; z < 265; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 180; x < 310; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         for (int z = 100; z < 265; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = 240; x < 340; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            for (int z = 130; z < 180; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 240; x < 340; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         for (int z = 130; z < 180; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = -270; x < -160; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            ++spawned;
-            LightCreator::CreateVirtualPointLight(
-                LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
-                false
-            );
-        }
-    }
+    // for (int x = -270; x < -160; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         ++spawned;
+    //         LightCreator::CreateVirtualPointLight(
+    //             LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
+    //             false
+    //         );
+    //     }
+    // }
 
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
@@ -489,6 +489,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

@@ -63,6 +63,10 @@ public:
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
+        auto settings = INSTANCE(RendererFrontend)->GetSettings();
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
+        INSTANCE(RendererFrontend)->SetSettings(settings);
+
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.3f, 0.8f);
 
         // For textures see https://3dtextures.me/

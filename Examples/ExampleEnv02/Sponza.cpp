@@ -89,6 +89,7 @@ public:
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
@@ -173,17 +174,17 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 60; x > -30; x -= 10) {
-              for (int y = 0; y < 240; y += 20) {
-                  for (int z = -140; z < 180; z += 20) {
-                          ++spawned;
-                          LightCreator::CreateVirtualPointLight(
-                              LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                              false
-                          );
-                  }
-              }
-           }
+        //    for (int x = 60; x > -30; x -= 10) {
+        //       for (int y = 0; y < 240; y += 20) {
+        //           for (int z = -140; z < 180; z += 20) {
+        //                   ++spawned;
+        //                   LightCreator::CreateVirtualPointLight(
+        //                       LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+        //                       false
+        //                   );
+        //           }
+        //       }
+        //    }
 
         //    for (int x = -160; x < 150; x += 20) {
         //        for (int y = 15; y < 150; y += 20) {
