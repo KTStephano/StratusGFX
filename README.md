@@ -12,15 +12,15 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 
 (3D Model: Intel Sponza)
 
+![bistro](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
+
+(3D Model: Bistro)
+
 ![sanmiguel1](https://ktstephano.github.io/assets/v0.10/FinalAfterPostProcessing.png)
 
 ![sanmiguel2](https://ktstephano.github.io/assets/v0.10/SanMiguel_Balcony2.png)
 
 (3D Model: San Miguel)
-
-![bistro](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
-
-(3D Model: Bistro)
 
 ![cornell_front](https://ktstephano.github.io/assets/v0.10/Cornell_Front.png)
 
