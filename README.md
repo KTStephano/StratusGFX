@@ -6,7 +6,9 @@ Engine Version: 0.10
 
 Realtime 3D rendering engine. Expect bugs and instability as it is still under development. The engine is free and open source (licensed under MPL-2.0). Please feel free to contact me about any questions or issues you have!
 
-![sponza](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
+![sponza1](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
+
+![sponza2](https://ktstephano.github.io/assets/v0.10/SponzaGI.png)
 
 (3D Model: Intel Sponza)
 
@@ -15,6 +17,10 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 ![sanmiguel2](https://ktstephano.github.io/assets/v0.10/SanMiguel_Balcony2.png)
 
 (3D Model: San Miguel)
+
+![bistro](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
+
+(3D Model: Bistro)
 
 ![cornell_front](https://ktstephano.github.io/assets/v0.10/Cornell_Front.png)
 
