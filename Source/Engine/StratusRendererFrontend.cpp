@@ -634,8 +634,8 @@ namespace stratus {
         //     cascadeEnds[i] = d;
         //     //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
         // }
-        f32 sizePerCasacde = f32(ratio) / f64(numCascades);
-        //f32 sizePerCasacde = 250.0f;
+        //f32 sizePerCasacde = f32(ratio) / f64(numCascades);
+        f32 sizePerCasacde = 300.0f;
         for (usize i = 0; i < numCascades; ++i) {
             // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
             // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively

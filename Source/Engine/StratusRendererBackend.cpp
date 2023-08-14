@@ -1089,12 +1089,12 @@ void RendererBackend::RenderCSMDepth_() {
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
     // See https://blogs.igalia.com/itoral/2017/10/02/working-with-lights-and-shadows-part-iii-rendering-the-shadows/
     // See https://community.khronos.org/t/can-anyone-explain-glpolygonoffset/35382
-    glEnable(GL_POLYGON_OFFSET_FILL);
+    //glEnable(GL_POLYGON_OFFSET_FILL);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
     glEnable(GL_DEPTH_CLAMP);
     // First value is conditional on slope
     // Second value is a constant unconditional offset
-    glPolygonOffset(2.0f, 0.0f);
+    //glPolygonOffset(2.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
