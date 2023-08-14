@@ -429,5 +429,5 @@ void main() {
     combinedColor = screenColor + gi * illumAvg; 
     giColor = illumAvg;
     reservoirValue = vec4(shadowFactor, 1.0);
-    newHistoryDepth = historyAccum;
+    newHistoryDepth = 0; //historyAccum;
 }

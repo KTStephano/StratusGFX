@@ -63,7 +63,7 @@ layout (std430, binding = 64) readonly buffer probeDataInputBlock {
     ProbeTextureData probeTextures[];
 };
 
-layout (r16f) coherent uniform image3D probeRayLookupTable;
+layout (r16i) coherent uniform iimage3D probeRayLookupTable;
 
 ivec3 computeProbeIndexFromPositionWithClamping(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos) {
     ivec3 dimensions = probeRayLookupDimensions;
@@ -151,7 +151,7 @@ void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 vie
     }
 
     //imageAtomicExchange(probeRayLookupTable, integerTableIndex, probeIndex);
-    imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
+    imageStore(probeRayLookupTable, integerTableIndex, ivec4(probeIndex));
 
     //imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
     //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 0, 1), vec4(float(probeIndex)));

@@ -102,7 +102,7 @@ namespace stratus {
                     config.width, 
                     config.height,
                     0,
-                    _convertFormat(config.format), // format (e.g. RGBA)
+                    _convertFormat(config.format, config.dataType), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
                     CastTexDataToPtr(data, 0)
                 );
@@ -143,7 +143,7 @@ namespace stratus {
                     config.height,  
                     depth,
                     0,
-                    _convertFormat(config.format), // format (e.g. RGBA)
+                    _convertFormat(config.format, config.dataType), // format (e.g. RGBA)
                     _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
                     CastTexDataToPtr(data, 0)
                 );
@@ -161,7 +161,7 @@ namespace stratus {
                         config.width, 
                         config.height,
                         0, 
-                        _convertFormat(config.format),
+                        _convertFormat(config.format, config.dataType),
                         _convertType(config.dataType, config.storage), 
                         CastTexDataToPtr(data, (const size_t)face)
                     );
@@ -237,7 +237,7 @@ namespace stratus {
             glClearTexImage(
                 texture_, 
                 mipLevel,
-                _convertFormat(config_.format), // format (e.g. RGBA)
+                _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
                 _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                 clearValue
             ); 
@@ -266,7 +266,7 @@ namespace stratus {
                     width(), 
                     height(), 
                     depth,
-                    _convertFormat(config_.format), // format (e.g. RGBA)
+                    _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
                     _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                     clearValue
                 );
@@ -358,8 +358,10 @@ namespace stratus {
             }
         }
 
-        static GLenum _convertFormat(TextureComponentFormat format) {
-            switch (format) {
+        // For more information about pixel formats, see https://www.khronos.org/opengl/wiki/Pixel_Transfer#Pixel_format
+        static GLenum _convertFormat(TextureComponentFormat format, TextureComponentType type) {
+            if (type == TextureComponentType::FLOAT) {
+                switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
                 case TextureComponentFormat::RG: return GL_RG;
                 case TextureComponentFormat::RGB: return GL_RGB;
@@ -369,6 +371,16 @@ namespace stratus {
                 case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT;
                 case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
                 default: throw std::runtime_error("Unknown format");
+                }
+            }
+            else {
+                switch (format) {
+                case TextureComponentFormat::RED: return GL_RED_INTEGER;
+                case TextureComponentFormat::RG: return GL_RG_INTEGER;
+                case TextureComponentFormat::RGB: return GL_RGB_INTEGER;
+                case TextureComponentFormat::RGBA: return GL_RGBA_INTEGER;
+                default: throw std::runtime_error("Unknown format");
+                }
             }
         }
 
@@ -376,9 +388,7 @@ namespace stratus {
         static GLint _convertInternalFormat(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
             // If the bits are default we just mirror the format for the internal format option
             if (format == TextureComponentFormat::DEPTH_STENCIL || 
-                size == TextureComponentSize::BITS_DEFAULT ||
-                type == TextureComponentType::INT ||
-                type == TextureComponentType::UINT) {
+                size == TextureComponentSize::BITS_DEFAULT) {
                     
                 switch (format) {
                     case TextureComponentFormat::RED: return GL_RED;
@@ -399,24 +409,24 @@ namespace stratus {
             }
 
             if (size == TextureComponentSize::BITS_8) {
-                // if (type == TextureComponentType::INT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R8I;
-                //         case TextureComponentFormat::RG: return GL_RG8I;
-                //         case TextureComponentFormat::RGB: return GL_RGB8I;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA8I;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
-                // if (type == TextureComponentType::UINT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R8UI;
-                //         case TextureComponentFormat::RG: return GL_RG8UI;
-                //         case TextureComponentFormat::RGB: return GL_RGB8UI;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA8UI;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8I;
+                        case TextureComponentFormat::RG: return GL_RG8I;
+                        case TextureComponentFormat::RGB: return GL_RGB8I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8UI;
+                        case TextureComponentFormat::RG: return GL_RG8UI;
+                        case TextureComponentFormat::RGB: return GL_RGB8UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R8;
@@ -429,24 +439,24 @@ namespace stratus {
             }
 
             if (size == TextureComponentSize::BITS_16) {
-                // if (type == TextureComponentType::INT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R16I;
-                //         case TextureComponentFormat::RG: return GL_RG16I;
-                //         case TextureComponentFormat::RGB: return GL_RGB16I;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA16I;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
-                // if (type == TextureComponentType::UINT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R16UI;
-                //         case TextureComponentFormat::RG: return GL_RG16UI;
-                //         case TextureComponentFormat::RGB: return GL_RGB16UI;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA16UI;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16I;
+                        case TextureComponentFormat::RG: return GL_RG16I;
+                        case TextureComponentFormat::RGB: return GL_RGB16I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16UI;
+                        case TextureComponentFormat::RG: return GL_RG16UI;
+                        case TextureComponentFormat::RGB: return GL_RGB16UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R16F;
@@ -460,24 +470,24 @@ namespace stratus {
             }
 
             if (size == TextureComponentSize::BITS_32) {
-                // if (type == TextureComponentType::INT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R32I;
-                //         case TextureComponentFormat::RG: return GL_RG32I;
-                //         case TextureComponentFormat::RGB: return GL_RGB32I;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA32I;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
-                // if (type == TextureComponentType::UINT) {
-                //     switch (format) {
-                //         case TextureComponentFormat::RED: return GL_R32UI;
-                //         case TextureComponentFormat::RG: return GL_RG32UI;
-                //         case TextureComponentFormat::RGB: return GL_RGB32UI;
-                //         case TextureComponentFormat::RGBA: return GL_RGBA32UI;
-                //         default: throw std::runtime_error("Unknown combination");
-                //     }
-                // }
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32I;
+                        case TextureComponentFormat::RG: return GL_RG32I;
+                        case TextureComponentFormat::RGB: return GL_RGB32I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32UI;
+                        case TextureComponentFormat::RG: return GL_RG32UI;
+                        case TextureComponentFormat::RGB: return GL_RGB32UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
                 if (type == TextureComponentType::FLOAT) {
                     switch (format) {
                         case TextureComponentFormat::RED: return GL_R32F;

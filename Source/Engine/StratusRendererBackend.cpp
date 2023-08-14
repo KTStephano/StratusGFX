@@ -336,7 +336,7 @@ void RendererBackend::InitializeVplData_() {
             TextureType::TEXTURE_3D,
             TextureComponentFormat::RED,
             TextureComponentSize::BITS_16,
-            TextureComponentType::FLOAT,
+            TextureComponentType::INT,
             256,
             256,
             256,
@@ -846,7 +846,7 @@ void RendererBackend::ClearRemovedLightData_() {
 }
 
 void RendererBackend::ClearLightingData_() {
-    f32 clearValue = -1.0f;
+    i32 clearValue = -1;
     state_.vpls.probeRayLookup.Clear(0, (const void*)&clearValue);
 }
 
@@ -1957,7 +1957,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 4;
+    const i32 maxIterations = 1;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't
