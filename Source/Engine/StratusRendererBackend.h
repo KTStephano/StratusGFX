@@ -321,6 +321,7 @@ namespace stratus {
         RendererSettings settings;
         UnsafePtr<StackAllocator> perFrameScratchMemory;
         bool viewportDirty;
+        bool probesDirty;
     };
 
     class RendererBackend {

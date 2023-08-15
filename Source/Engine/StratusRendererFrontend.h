@@ -138,5 +138,6 @@ namespace stratus {
         // Used for temporal anti-aliasing
         usize currentHaltonIndex_ = 0;
         mutable std::shared_mutex mutex_;
+        glm::vec3 prevCameraPos_ = glm::vec3(0.0f);
     };
 }

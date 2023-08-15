@@ -91,6 +91,27 @@ void main() {
         for (int j = 0; j < 3; ++j) {
             int oj = offsets[j] * probeGridStepSize;
 
+            // if (oi == 0 && oj == 0) {
+            //     continue;
+            // }
+
+            // ivec3 probeIndex = baseProbeIndex + ivec3(oi, oj, 0);
+            // int newReadLightIndex = int(imageLoad(probeRayLookupTableReadonly, probeIndex));
+
+            // if (newReadLightIndex < 0) {
+            //     continue;
+            // }
+
+            // //vec3 pos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, probeIndex);
+
+            // vec3 lightPos = lightData[newReadLightIndex].position.xyz;
+            // float newDistance = length(baseWorldPos - lightPos);
+
+            // if (newDistance < bestDistance) {
+            //     readLightIndex = newReadLightIndex;
+            //     bestDistance = newDistance;
+            // }
+
             for (int k = 0; k < 3; ++k) {
                 int ok = offsets[k] * probeGridStepSize;
 

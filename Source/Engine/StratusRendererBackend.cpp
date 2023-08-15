@@ -358,6 +358,8 @@ void RendererBackend::InitializeVplData_() {
 
     state_.vpls.probeRayLookup = lookups[0];
     state_.vpls.probeRayLookupPingPong = lookups[1];
+
+    ClearLightingData_();
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -887,7 +889,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     ClearRemovedLightData_();
 
     // Clear out information related to GI
-    ClearLightingData_();
+    if (frame_->probesDirty) {
+        ClearLightingData_();
+    }
 
     // Checks to see if any framebuffers need to be generated or re-generated
     RecalculateCascadeData_();
@@ -1673,34 +1677,36 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->Unbind();
 
-    state_.vplJumpFlood->Bind();
+    if (frame_->probesDirty) {
+        state_.vplJumpFlood->Bind();
 
-    state_.vplJumpFlood->SetVec3("viewPosition", frame_->camera->GetPosition());
+        state_.vplJumpFlood->SetVec3("viewPosition", frame_->camera->GetPosition());
 
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+        state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+        state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    u32 sizeXyz = state_.vpls.probeRayLookup.Width();
-    i32 probeGridStepSize = i32(sizeXyz) / 2;
+        u32 sizeXyz = state_.vpls.probeRayLookup.Width();
+        i32 probeGridStepSize = i32(sizeXyz) / 2;
 
-    while (probeGridStepSize >= 1) {
-        // Swap ping pong buffers
-        auto tmp = state_.vpls.probeRayLookup;
-        state_.vpls.probeRayLookup = state_.vpls.probeRayLookupPingPong;
-        state_.vpls.probeRayLookupPingPong = tmp;
+        while (probeGridStepSize >= 1) {
+            // Swap ping pong buffers
+            auto tmp = state_.vpls.probeRayLookup;
+            state_.vpls.probeRayLookup = state_.vpls.probeRayLookupPingPong;
+            state_.vpls.probeRayLookupPingPong = tmp;
 
-        state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTableReadonly", state_.vpls.probeRayLookupPingPong, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
-        state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+            state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTableReadonly", state_.vpls.probeRayLookupPingPong, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+            state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
 
-        state_.vplJumpFlood->SetInt("probeGridStepSize", probeGridStepSize);
+            state_.vplJumpFlood->SetInt("probeGridStepSize", probeGridStepSize);
 
-        state_.vplJumpFlood->DispatchCompute(sizeXyz / 32, sizeXyz / 32, sizeXyz);
-        state_.vplJumpFlood->SynchronizeCompute();
+            state_.vplJumpFlood->DispatchCompute(sizeXyz / 32, sizeXyz / 32, sizeXyz);
+            state_.vplJumpFlood->SynchronizeCompute();
 
-        probeGridStepSize /= 2;
+            probeGridStepSize /= 2;
+        }
+
+        state_.vplJumpFlood->Unbind();
     }
-
-    state_.vplJumpFlood->Unbind();
 
     // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();

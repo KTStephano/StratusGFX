@@ -265,7 +265,10 @@ namespace stratus {
         lights_.insert(light);
         frame_->lights.insert(light);
 
-        if ( light->IsVirtualLight() ) virtualPointLights_.insert(light);
+        if ( light->IsVirtualLight() ) {
+            virtualPointLights_.insert(light);
+            frame_->probesDirty = true;
+        }
 
         if ( light->IsVirtualLight() || light->IsStaticLight() ) {
             staticLights_.insert(light);
@@ -284,6 +287,11 @@ namespace stratus {
     void RendererFrontend::RemoveLight(const LightPtr& light) {
         auto ul = LockWrite_();
         if (lights_.find(light) == lights_.end()) return;
+
+        if (light->IsVirtualLight()) {
+            frame_->probesDirty = true;
+        }
+
         lights_.erase(light);
         dynamicLights_.erase(light);
         staticLights_.erase(light);
@@ -297,11 +305,14 @@ namespace stratus {
         for (auto& light : lights_) {
             lightsToRemove_.insert(light);
         }
+
         lights_.clear();
         dynamicLights_.clear();
         staticLights_.clear();
         virtualPointLights_.clear();
         frame_->lightsToUpdate.Clear();
+
+        frame_->probesDirty = true;
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {
@@ -388,6 +399,9 @@ namespace stratus {
         frame_->camera = camera_->Copy();
         frame_->view = camera_->GetViewTransform();
 
+        frame_->probesDirty = frame_->probesDirty || glm::length(camera_->GetPosition() - prevCameraPos_) > 0.0f;
+        prevCameraPos_ = camera_->GetPosition();
+
         UpdateViewport_();
         UpdateCascadeData_();
         CheckForEntityChanges_();
@@ -445,6 +459,8 @@ namespace stratus {
 
         // Reset the per frame scratch memory
         frame_->perFrameScratchMemory->Deallocate();
+
+        frame_->probesDirty = false;
 
         return SystemStatus::SYSTEM_CONTINUE;
     }

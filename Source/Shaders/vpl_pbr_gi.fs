@@ -100,7 +100,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 50;
+    const int maxResamples = 10;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -119,7 +119,7 @@ void trace(
     float attenuation = 1.0;
     vec3 lightColor = vec3(1.0);
 
-    const int maxBounces = 50;
+    const int maxBounces = 15;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         //vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
