@@ -50,6 +50,7 @@ class Pipeline {
 
     // List of bound textures since the last call to bind()
     std::unordered_map<std::string, Texture> boundTextures_;
+    std::unordered_map<std::string, i32> activeTextureIndices_;
 
     // Lets us keep track of the next texture index to use
     i32 activeTextureIndex_ = 0;
@@ -154,6 +155,7 @@ public:
 
 private:
     void Compile_();
+    i32 NextTextureIndex_(const std::string& uniform, const Texture & tex);
 };
 }
 

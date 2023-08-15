@@ -335,21 +335,29 @@ void RendererBackend::InitializeVplData_() {
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
     //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(i32), flags);
-    state_.vpls.probeRayLookup = Texture(
-        TextureConfig{
-            TextureType::TEXTURE_3D,
-            TextureComponentFormat::RED,
-            TextureComponentSize::BITS_32,
-            TextureComponentType::INT,
-            128,
-            128,
-            128,
-            false },
+    std::vector<Texture> lookups;
+    for (usize i = 0; i < 2; ++i) {
+        Texture texture = Texture(
+            TextureConfig{
+                TextureType::TEXTURE_3D,
+                TextureComponentFormat::RED,
+                TextureComponentSize::BITS_32,
+                TextureComponentType::INT,
+                128,
+                128,
+                128,
+                false },
 
-            NoTextureData
-    );
-    state_.vpls.probeRayLookup.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-    state_.vpls.probeRayLookup.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+                NoTextureData
+        );
+        texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        texture.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+
+        lookups.push_back(texture);
+    }
+
+    state_.vpls.probeRayLookup = lookups[0];
+    state_.vpls.probeRayLookupPingPong = lookups[1];
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -852,6 +860,7 @@ void RendererBackend::ClearRemovedLightData_() {
 void RendererBackend::ClearLightingData_() {
     i32 clearValue = -1;
     state_.vpls.probeRayLookup.Clear(0, (const void*)&clearValue);
+    state_.vpls.probeRayLookupPingPong.Clear(0, (const void*)&clearValue);
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -1667,7 +1676,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     state_.vplJumpFlood->Bind();
 
     state_.vplJumpFlood->SetVec3("viewPosition", frame_->camera->GetPosition());
-    state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
 
     state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
@@ -1676,6 +1684,14 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     i32 probeGridStepSize = i32(sizeXyz) / 2;
 
     while (probeGridStepSize >= 1) {
+        // Swap ping pong buffers
+        auto tmp = state_.vpls.probeRayLookup;
+        state_.vpls.probeRayLookup = state_.vpls.probeRayLookupPingPong;
+        state_.vpls.probeRayLookupPingPong = tmp;
+
+        state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTableReadonly", state_.vpls.probeRayLookupPingPong, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+        state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+
         state_.vplJumpFlood->SetInt("probeGridStepSize", probeGridStepSize);
 
         state_.vplJumpFlood->DispatchCompute(sizeXyz / 32, sizeXyz / 32, sizeXyz);

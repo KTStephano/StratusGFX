@@ -142,9 +142,9 @@ void computeProbeIndexFromPosition(in ivec3 probeRayLookupDimensions, in vec3 vi
 //}
 
 void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in ivec3 tableIndex, in int probeIndex) {
-    imageAtomicExchange(probeRayLookupTable, tableIndex, probeIndex);
+    //imageAtomicExchange(probeRayLookupTable, tableIndex, probeIndex);
     //imageAtomicOr(probeRayLookupTable, integerTableIndex, 1);
-    //imageStore(probeRayLookupTable, tableIndex, ivec4(probeIndex));
+    imageStore(probeRayLookupTable, tableIndex, ivec4(probeIndex));
 }
 
 void writeProbeIndexToLookupTableWithBoundsCheck(in ivec3 probeRayLookupDimensions, in ivec3 tableIndex, in int probeIndex) {

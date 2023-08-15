@@ -10,11 +10,14 @@ STRATUS_GLSL_VERSION
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #include "pbr.glsl"
+#include "common.glsl"
 #include "vpl_common.glsl"
 
 uniform vec3 viewPosition;
 
 uniform int probeGridStepSize;
+
+layout (r32i) readonly uniform iimage3D probeRayLookupTableReadonly;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -70,9 +73,15 @@ void main() {
     // computeProbeIndexFromPosition(probeRayLookupDimensions, viewPosition, worldPos, success, integerTableIndex);
 
     ivec3 baseProbeIndex = ivec3(xindex, yindex, zindex);
+    vec3 baseWorldPos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, baseProbeIndex);
 
-    int readLightIndex = int(imageLoad(probeRayLookupTable, baseProbeIndex).r);
-    int origReadLightIndex = readLightIndex;
+    int readLightIndex = int(imageLoad(probeRayLookupTableReadonly, baseProbeIndex).r);
+
+    float bestDistance = FLOAT_MAX;
+    if (readLightIndex >= 0) {
+        vec3 lightPos = lightData[readLightIndex].position.xyz;
+        bestDistance = length(baseWorldPos - lightPos);
+    }
 
     // vec3 lightPos = lightData[readLightIndex].position.xyz;
 
@@ -90,18 +99,26 @@ void main() {
                 }
 
                 ivec3 probeIndex = baseProbeIndex + ivec3(oi, oj, ok);
-                int newReadLightIndex = int(imageLoad(probeRayLookupTable, probeIndex));
+                int newReadLightIndex = int(imageLoad(probeRayLookupTableReadonly, probeIndex));
 
                 if (newReadLightIndex < 0) {
                     continue;
                 }
 
-                
+                //vec3 pos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, probeIndex);
+
+                vec3 lightPos = lightData[newReadLightIndex].position.xyz;
+                float newDistance = length(baseWorldPos - lightPos);
+
+                if (newDistance < bestDistance) {
+                    readLightIndex = newReadLightIndex;
+                    bestDistance = newDistance;
+                }
             }
         }
     }
 
-    if (readLightIndex != origReadLightIndex) {
+    if (readLightIndex >= 0) {
         writeProbeIndexToLookupTableWithBoundsCheck(probeLookupTableDimensions, baseProbeIndex, readLightIndex);
     }
 }

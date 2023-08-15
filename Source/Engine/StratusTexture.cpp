@@ -76,7 +76,6 @@ namespace stratus {
 
         GLuint texture_;
         TextureConfig config_;
-        mutable i32 activeTexture_ = -1;
         TextureHandle handle_;
         i32 memRefcount_ = 0;
 
@@ -90,7 +89,7 @@ namespace stratus {
 
             config_ = config;
 
-            bind();
+            bind(0);
             // Use tightly packed data
             // See https://stackoverflow.com/questions/19023397/use-glteximage2d-draw-6363-image
             // See https://registry.khronos.org/OpenGL-Refpages/es1.1/xhtml/glPixelStorei.xml
@@ -171,7 +170,7 @@ namespace stratus {
                 throw std::runtime_error("Unknown texture type specified");
             }
 
-            unbind();
+            unbind(0);
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(texture_);
@@ -201,7 +200,7 @@ namespace stratus {
                 throw std::runtime_error("Invalid Texture_Rectangle coordinate wrapping");
             }
 
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
@@ -212,21 +211,21 @@ namespace stratus {
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
             }
 
-            unbind();
+            unbind(0);
         }
 
         void setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) {
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
-            unbind();
+            unbind(0);
         }
 
         void setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) {
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
             glTexParameterf(_convertTexture(config_.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
-            unbind();
+            unbind(0);
         }
 
         void setHandle(const TextureHandle handle) {
@@ -303,11 +302,10 @@ namespace stratus {
         void * Underlying() const              { return (void *)&texture_; }
 
     public:
-        void bind(i32 activeTexture = 0) const {
-            unbind();
+        void bind(i32 activeTexture) const {
+            //unbind(activeTexture);
             glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(config_.type), texture_);
-            activeTexture_ = activeTexture;
         }
 
         void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
@@ -321,11 +319,10 @@ namespace stratus {
                                _convertInternalFormatPrecise(config_.format, config_.storage, config_.dataType));
         }
 
-        void unbind() const {
-            if (activeTexture_ == -1) return;
-            glActiveTexture(GL_TEXTURE0 + activeTexture_);
+        void unbind(i32 activeTexture) const {
+            if (activeTexture == -1) return;
+            glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(config_.type), 0);
-            activeTexture_ = -1;
         }
 
         std::shared_ptr<TextureImpl> copy(const TextureImpl & other) {
@@ -759,7 +756,7 @@ namespace stratus {
     void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
         EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access);
     }
-    void Texture::Unbind() const { EnsureValid_(); impl_->unbind(); }
+    void Texture::Unbind(i32 activeTexture) const { EnsureValid_(); impl_->unbind(activeTexture); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
     void Texture::Clear(const i32 mipLevel, const void * clearValue) const { EnsureValid_(); impl_->Clear(mipLevel, clearValue); }

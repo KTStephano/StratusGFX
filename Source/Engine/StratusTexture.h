@@ -149,8 +149,8 @@ namespace stratus {
         u32 Height() const;
         u32 Depth() const;
 
-        void Bind(i32 activeTexture = 0) const;
-        void Unbind() const;
+        void Bind(i32 activeTexture) const;
+        void Unbind(i32 activeTexture) const;
 
         void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
 

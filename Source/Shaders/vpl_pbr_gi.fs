@@ -100,7 +100,7 @@ void trace(
     const float seedZMultiplier = 10000.0;
     const float seedZOffset = 10000.0;
 
-    const int maxResamples = 100;
+    const int maxResamples = 50;
 
     int maxRandomIndex = numVisible[0] - 1;
 
@@ -119,7 +119,7 @@ void trace(
     float attenuation = 1.0;
     vec3 lightColor = vec3(1.0);
 
-    const int maxBounces = 30;
+    const int maxBounces = 50;
     // Each successful iteration = 1 bounce of light
     for (int i = 0; i < maxBounces && resamples < maxResamples; i += 1) {
         //vec3 scatteredVec = normalize(currNormal + randomVector(seed, -1.0, 1.0));
@@ -130,34 +130,32 @@ void trace(
         vec3 target = normalize(currNormal + randomUnitVector(seed));
 
         float offsetTarget = random(seed, 1.0, 5.0);
-        vec3 targetPos = currFragPos + offsetTarget * currNormal;
+        vec3 targetPos = currFragPos + offsetTarget * target;
 
         ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
         //probeIndex = ivec3(140, 154, 117);
         int lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
 
         // if (lightIndex < 0) {
+        //     break;
+        // }
+
+        // bool found = lightIndex >= 0;
+        // for (int step = 0; step < maxStepsPerSample && !found; ++step) {
+        //     offsetTarget += 1.0;
+        //     targetPos = currFragPos + offsetTarget * target;
+
+        //     probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
+        //     lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
+
+        //     found = lightIndex >= 0;
+        // }
+
+        // if (!found) {
         //     ++resamples;
         //     --i;
         //     continue;
         // }
-
-        bool found = lightIndex >= 0;
-        for (int step = 0; step < maxStepsPerSample && !found; ++step) {
-            offsetTarget += 1.0;
-            targetPos = currFragPos + offsetTarget * target;
-
-            probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupDimensions, viewPosition, targetPos);
-            lightIndex = int(imageLoad(probeRayLookupTable, probeIndex).r);
-
-            found = lightIndex >= 0;
-        }
-
-        if (!found) {
-            ++resamples;
-            --i;
-            continue;
-        }
                                                                                     
         AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
                                                                                                                                                                                                                                                                                 \
@@ -221,7 +219,7 @@ void trace(
         if (newDiffuse.a > 0.0) {
             validSamples += 1.0;
             lightColor = 1000.0 * newDiffuse.rgb;
-            attenuation = linearAttenuation(currFragPos - newPosition);
+            attenuation = quadraticAttenuation(currFragPos - newPosition);
             currFragPos = newPosition;
             lightMask = vec3(1.0);
             if (i == 0) {
