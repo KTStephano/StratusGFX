@@ -63,7 +63,7 @@ layout (std430, binding = 64) readonly buffer probeDataInputBlock {
     ProbeTextureData probeTextures[];
 };
 
-layout (r16i) coherent uniform iimage3D probeRayLookupTable;
+layout (r32i) coherent uniform iimage3D probeRayLookupTable;
 
 ivec3 computeProbeIndexFromPositionWithClamping(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos) {
     ivec3 dimensions = probeRayLookupDimensions;
@@ -141,6 +141,24 @@ void computeProbeIndexFromPosition(in ivec3 probeRayLookupDimensions, in vec3 vi
 //    index = coords;
 //}
 
+void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in ivec3 tableIndex, in int probeIndex) {
+    imageAtomicExchange(probeRayLookupTable, tableIndex, probeIndex);
+    //imageAtomicOr(probeRayLookupTable, integerTableIndex, 1);
+    //imageStore(probeRayLookupTable, tableIndex, ivec4(probeIndex));
+}
+
+void writeProbeIndexToLookupTableWithBoundsCheck(in ivec3 probeRayLookupDimensions, in ivec3 tableIndex, in int probeIndex) {
+    ivec3 maxIndices = probeRayLookupDimensions - 1;
+    if (tableIndex.x < 0 || tableIndex.x > maxIndices.x ||
+        tableIndex.y < 0 || tableIndex.y > maxIndices.y ||
+        tableIndex.z < 0 || tableIndex.z > maxIndices.z) {
+        
+        return;
+    }
+
+    writeProbeIndexToLookupTable(probeRayLookupDimensions, tableIndex, probeIndex);
+}
+
 void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in vec3 worldPos, in int probeIndex) {
     bool success;
     ivec3 integerTableIndex;
@@ -150,14 +168,5 @@ void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 vie
         return;
     }
 
-    //imageAtomicExchange(probeRayLookupTable, integerTableIndex, probeIndex);
-    imageStore(probeRayLookupTable, integerTableIndex, ivec4(probeIndex));
-
-    //imageStore(probeRayLookupTable, integerTableIndex, vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 0, 1), vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 1, 0), vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(1, 0, 0), vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, 0, -1), vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(0, -1, 0), vec4(float(probeIndex)));
-    //imageStore(probeRayLookupTable, integerTableIndex + ivec3(-1, 0, 0), vec4(float(probeIndex)));
+    writeProbeIndexToLookupTable(probeRayLookupDimensions, integerTableIndex, probeIndex);
 }

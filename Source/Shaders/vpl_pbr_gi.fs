@@ -584,14 +584,14 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float metallic = roughnessMetallicEmissive.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
-    float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
-    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
+    //float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
+    //float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
     vec2 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rg;
     vec3 emissive = vec3(albedo.a, baseReflectivity.g, roughnessMetallicEmissive.b);
 
     float roughnessWeight = 1.0 - roughness;
 
-    float history = textureLod(historyDepth, texCoords, 0).r;
+    //float history = textureLod(historyDepth, texCoords, 0).r;
 
     //int maxSamples = numVisible < MAX_SAMPLES_PER_PIXEL ? numVisible : MAX_SAMPLES_PER_PIXEL;
     //int maxShadowLights = numVisible < MAX_SHADOW_SAMPLES_PER_PIXEL ? numVisible : MAX_SHADOW_SAMPLES_PER_PIXEL;
@@ -599,19 +599,19 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     // Used to seed the pseudo-random number generator
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
 
-    float seedZ = time;
+    //float seedZ = time;
     //vec3 seed = vec3(gl_FragCoord.xy, time);
     vec3 seed = vec3(fragPos.xy, fragPos.z + time);
     float validSamples = 0.0;
 
-    vec3 colorNoShadow = vec3(0.0);
+    // vec3 colorNoShadow = vec3(0.0);
 
-    float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
-    int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
-    //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
-    int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
-    samplesMax = max(1, int(samplesMax * distRatioToCamera));
-    int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
+    // float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
+    // int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
+    // //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
+    // int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    // samplesMax = max(1, int(samplesMax * distRatioToCamera));
+    // int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
 
     int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
 

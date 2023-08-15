@@ -7,7 +7,7 @@ STRATUS_GLSL_VERSION
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #include "pbr.glsl"
 #include "vpl_common.glsl"
@@ -47,7 +47,7 @@ shared ivec3 probeLookupTableDimensions;
 // shared int localNumVisible;
 
 void main() {
-    int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+    int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_NumWorkGroups.y * gl_WorkGroupSize.y);
 
     if (gl_LocalInvocationIndex == 0) {
         probeLookupTableDimensions = imageSize(probeRayLookupTable);
@@ -117,8 +117,4 @@ void main() {
         vec3 lightPos = lightData[index].position.xyz;
         writeProbeIndexToLookupTable(probeLookupTableDimensions, viewPosition, lightPos, index);
     }
-
-    // if (gl_LocalInvocationIndex == 0) {
-    //     vplVisibleIndex[0] = lightVisibleIndex;
-    // }
 }

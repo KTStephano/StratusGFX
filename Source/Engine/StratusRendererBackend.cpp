@@ -188,6 +188,10 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"viscull_vpls.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplCulling.get());
 
+    state_.vplJumpFlood = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vpl_jumpflood.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vplJumpFlood.get());
+
     //state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
     //    Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
     //state_.shaders.push_back(state_.vplColoring.get());
@@ -335,11 +339,11 @@ void RendererBackend::InitializeVplData_() {
         TextureConfig{
             TextureType::TEXTURE_3D,
             TextureComponentFormat::RED,
-            TextureComponentSize::BITS_16,
+            TextureComponentSize::BITS_32,
             TextureComponentType::INT,
-            256,
-            256,
-            256,
+            128,
+            128,
+            128,
             false },
 
             NoTextureData
@@ -1434,8 +1438,9 @@ void RendererBackend::UpdatePointLights_(
     // Remove vpls exceeding absolute maximum
     if (giEnabled) {
         for (auto& entry : perVPLDistToViewerSet) {
+            const bool last = (perVPLDistToViewerVec.size() + 1) >= perVPLDistToViewerVec.capacity();
             perVPLDistToViewerVec.push_back(entry);
-            if (perVPLDistToViewerVec.size() >= perVPLDistToViewerVec.capacity()) break;
+            if (last) break;
         }
 
         InitVplFrameData_(perVPLDistToViewerVec);
@@ -1659,6 +1664,28 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->Unbind();
 
+    state_.vplJumpFlood->Bind();
+
+    state_.vplJumpFlood->SetVec3("viewPosition", frame_->camera->GetPosition());
+    state_.vplJumpFlood->BindTextureAsImage("probeRayLookupTable", state_.vpls.probeRayLookup, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+
+    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+
+    u32 sizeXyz = state_.vpls.probeRayLookup.Width();
+    i32 probeGridStepSize = i32(sizeXyz) / 2;
+
+    while (probeGridStepSize >= 1) {
+        state_.vplJumpFlood->SetInt("probeGridStepSize", probeGridStepSize);
+
+        state_.vplJumpFlood->DispatchCompute(sizeXyz / 32, sizeXyz / 32, sizeXyz);
+        state_.vplJumpFlood->SynchronizeCompute();
+
+        probeGridStepSize /= 2;
+    }
+
+    state_.vplJumpFlood->Unbind();
+
     // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
 
@@ -1720,13 +1747,15 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     //if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
     if (perVPLDistToViewer.size() == 0) return;
 
-    i32* visibleVplIndices = (i32*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
+    //i32* visibleVplIndices = (i32*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ);
     // First index is reserved for the size of the array
-    const i32 totalVisible = visibleVplIndices[0];
-    visibleVplIndices += 1;
+    //const i32 totalVisible = visibleVplIndices[0];
+    //visibleVplIndices += 1;
+
+    const i32 totalVisible = perVPLDistToViewer.size();
     
     if (totalVisible == 0) {
-        state_.vpls.vplVisibleIndices.UnmapMemory();
+        //state_.vpls.vplVisibleIndices.UnmapMemory();
         return;
     }
 
@@ -1734,14 +1763,14 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
     for (usize i = 0; i < totalVisible; ++i) {
-        const i32 index = visibleVplIndices[i];
+        const usize index = i;// visibleVplIndices[i];
         //const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
         auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].key);
         shadowDiffuseIndices.push_back(smap);
     }
 
-    state_.vpls.vplVisibleIndices.UnmapMemory();
-    visibleVplIndices = nullptr;
+    //state_.vpls.vplVisibleIndices.UnmapMemory();
+    //visibleVplIndices = nullptr;
 
     // Move data to GPU memory
     state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
