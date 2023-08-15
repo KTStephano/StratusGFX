@@ -617,7 +617,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     vec3 traceColor = vec3(0.0); //screenColor;
     vec4 traceReservoir = vec4(0.0);
 
-    int numTraceSamples = 1;
+    int numTraceSamples = 0;
     vec3 startDirection = normalize(viewPosition - fragPos);
     for (int i = 0; i < numTraceSamples; ++i) {
         trace(seed, vec3(1.0), normal, fragPos, vec2(roughness, metallic), vec3(baseReflectivity.r), startDirection, resamples, validSamples, traceReservoir);
