@@ -72,29 +72,36 @@ void main() {
     ivec3 baseProbeIndex = ivec3(xindex, yindex, zindex);
 
     int readLightIndex = int(imageLoad(probeRayLookupTable, baseProbeIndex).r);
-    if (readLightIndex < 0) {
-        return;
-    }
+    int origReadLightIndex = readLightIndex;
 
     // vec3 lightPos = lightData[readLightIndex].position.xyz;
 
-    if (readLightIndex >= 0) {
-        for (int i = 0; i < 3; ++i) {
-            int oi = offsets[i] * probeGridStepSize;
+    for (int i = 0; i < 3; ++i) {
+        int oi = offsets[i] * probeGridStepSize;
 
-            for (int j = 0; j < 3; ++j) {
-                int oj = offsets[j] * probeGridStepSize;
+        for (int j = 0; j < 3; ++j) {
+            int oj = offsets[j] * probeGridStepSize;
 
-                for (int k = 0; k < 3; ++k) {
-                    int ok = offsets[k] * probeGridStepSize;
+            for (int k = 0; k < 3; ++k) {
+                int ok = offsets[k] * probeGridStepSize;
 
-                    ivec3 probeIndex = baseProbeIndex + ivec3(oi, oj, ok);
-                    writeProbeIndexToLookupTableWithBoundsCheck(probeLookupTableDimensions, probeIndex, readLightIndex);
+                if (oi == 0 && oj == 0 && ok == 0) {
+                    continue;
                 }
 
-                //ivec3 probeIndex = baseProbeIndex + ivec3(oi, oj, 0);
-                // writeProbeIndexToLookupTableWithBoundsCheck(probeLookupTableDimensions, probeIndex, readLightIndex);
+                ivec3 probeIndex = baseProbeIndex + ivec3(oi, oj, ok);
+                int newReadLightIndex = int(imageLoad(probeRayLookupTable, probeIndex));
+
+                if (newReadLightIndex < 0) {
+                    continue;
+                }
+
+                
             }
         }
+    }
+
+    if (readLightIndex != origReadLightIndex) {
+        writeProbeIndexToLookupTableWithBoundsCheck(probeLookupTableDimensions, baseProbeIndex, readLightIndex);
     }
 }

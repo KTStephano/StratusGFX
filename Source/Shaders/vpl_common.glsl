@@ -170,3 +170,14 @@ void writeProbeIndexToLookupTable(in ivec3 probeRayLookupDimensions, in vec3 vie
 
     writeProbeIndexToLookupTable(probeRayLookupDimensions, integerTableIndex, probeIndex);
 }
+
+vec3 probeIndexToWorldPos(in ivec3 probeRayLookupDimensions, in vec3 viewPosition, in ivec3 probeIndex) {
+    vec3 dimensions = vec3(probeRayLookupDimensions);
+    vec3 maxIndex = dimensions - vec3(1.0);
+
+    // Convert to the range of [-1, 1]
+    vec3 normalized = 2.0 * vec3(probeIndex) / maxIndex - 1.0;
+
+    // Convert to world space and account for view position
+    return normalized * dimensions + viewPosition;
+}
