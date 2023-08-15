@@ -57,6 +57,8 @@ namespace stratus {
         }
 
         switch (config.dataType) {
+        case TextureComponentType::INT_NORM: result += "INT_NORM, "; break;
+        case TextureComponentType::UINT_NORM: result += "UINT_NORM, "; break;
         case TextureComponentType::INT: result += "INT, "; break;
         case TextureComponentType::UINT: result += "UINT, "; break;
         case TextureComponentType::FLOAT: result += "FLOAT, "; break;
@@ -357,7 +359,7 @@ namespace stratus {
 
         // For more information about pixel formats, see https://www.khronos.org/opengl/wiki/Pixel_Transfer#Pixel_format
         static GLenum _convertFormat(TextureComponentFormat format, TextureComponentType type) {
-            if (type == TextureComponentType::FLOAT) {
+            if (type != TextureComponentType::INT && type != TextureComponentType::UINT) {
                 switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
                 case TextureComponentFormat::RG: return GL_RG;
@@ -648,8 +650,8 @@ namespace stratus {
 
         static GLenum _convertType(TextureComponentType type, TextureComponentSize size) {
             if (size == TextureComponentSize::BITS_DEFAULT || size == TextureComponentSize::BITS_8) {
-                if (type == TextureComponentType::INT) return GL_BYTE;
-                if (type == TextureComponentType::UINT) return GL_UNSIGNED_BYTE;
+                if (type == TextureComponentType::INT || type == TextureComponentType::INT_NORM) return GL_BYTE;
+                if (type == TextureComponentType::UINT || type == TextureComponentType::UINT_NORM) return GL_UNSIGNED_BYTE;
                 if (type == TextureComponentType::FLOAT) return GL_FLOAT;
             }
 

@@ -269,6 +269,9 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
     // Virtual point lights
     InitializeVplData_();
 
+    // Voxel data
+    InitializeVoxelData_();
+
     // Initialize Halton sequence
     if (haltonSequence.size() * sizeof(std::pair<f32, f32>) != haltonSequence.size() * sizeof(GpuHaltonEntry)) {
         throw std::runtime_error("Halton sequence size check failed");
@@ -360,6 +363,33 @@ void RendererBackend::InitializeVplData_() {
     state_.vpls.probeRayLookupPingPong = lookups[1];
 
     ClearLightingData_();
+}
+
+void RendererBackend::InitializeVoxelData_() {
+    Texture texture = Texture(
+        TextureConfig{
+            TextureType::TEXTURE_3D,
+            TextureComponentFormat::RED,
+            TextureComponentSize::BITS_32,
+            TextureComponentType::UINT,
+            512,
+            512,
+            512,
+            false },
+
+            NoTextureData
+    );
+    texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    texture.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+
+    state_.voxelScene = texture;
+    
+    ClearVoxelData_();
+}
+
+void RendererBackend::ClearVoxelData_() {
+    u32 clearValue = 0;
+    state_.voxelScene.Clear(0, (const void*)&clearValue);
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -892,6 +922,8 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     if (frame_->probesDirty) {
         ClearLightingData_();
     }
+
+    ClearVoxelData_();
 
     // Checks to see if any framebuffers need to be generated or re-generated
     RecalculateCascadeData_();

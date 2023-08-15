@@ -41,6 +41,9 @@ namespace stratus {
     };
 
     enum class TextureComponentType : i32 {
+        // NORM types should only be used with BITS_DEFAULT or BITS_8
+        INT_NORM,
+        UINT_NORM,
         INT,
         UINT,
         FLOAT
