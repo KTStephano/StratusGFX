@@ -217,10 +217,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth, float centerId
         if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
             continue;                                                                                       \
         }                                                                                                   \
-        /*float currId = textureOffset(ids, fsTexCoords, ivec2(dx_, dy_)).r;                                  \
+        float currId = textureOffset(ids, fsTexCoords, ivec2(dx_, dy_)).r;                                  \
         if (currId != centerId) {                                                                           \
             continue;                                                                                       \
-        } */                                                                                                  \
+        }                                                                                                  \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
         vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
         float randUpdate = random(seed);                                                                    \
@@ -429,5 +429,5 @@ void main() {
     combinedColor = screenColor + gi * illumAvg; 
     giColor = illumAvg;
     reservoirValue = vec4(shadowFactor, 1.0);
-    newHistoryDepth = 0; //historyAccum;
+    newHistoryDepth = historyAccum;
 }

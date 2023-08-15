@@ -73,14 +73,15 @@ void main() {
     // computeProbeIndexFromPosition(probeRayLookupDimensions, viewPosition, worldPos, success, integerTableIndex);
 
     ivec3 baseProbeIndex = ivec3(xindex, yindex, zindex);
-    vec3 baseWorldPos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, baseProbeIndex);
+    //vec3 baseWorldPos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, baseProbeIndex);
 
     int readLightIndex = int(imageLoad(probeRayLookupTableReadonly, baseProbeIndex).r);
 
     float bestDistance = FLOAT_MAX;
     if (readLightIndex >= 0) {
         vec3 lightPos = lightData[readLightIndex].position.xyz;
-        bestDistance = length(baseWorldPos - lightPos);
+        ivec3 probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupTableDimensions, viewPosition, lightPos);
+        bestDistance = length(vec3(baseProbeIndex) - vec3(probeIndex));
     }
 
     // vec3 lightPos = lightData[readLightIndex].position.xyz;
@@ -129,7 +130,8 @@ void main() {
                 //vec3 pos = probeIndexToWorldPos(probeLookupTableDimensions, viewPosition, probeIndex);
 
                 vec3 lightPos = lightData[newReadLightIndex].position.xyz;
-                float newDistance = length(baseWorldPos - lightPos);
+                probeIndex = computeProbeIndexFromPositionWithClamping(probeLookupTableDimensions, viewPosition, lightPos);
+                float newDistance = length(vec3(baseProbeIndex) - vec3(probeIndex));
 
                 if (newDistance < bestDistance) {
                     readLightIndex = newReadLightIndex;
