@@ -369,7 +369,7 @@ void RendererBackend::RecalculateCascadeData_() {
                 TextureType::TEXTURE_2D,
                 TextureComponentFormat::RED,
                 TextureComponentSize::BITS_32,
-                TextureComponentType::INT,
+                TextureComponentType::UINT,
                 numPages,
                 numPages,
                 0,
@@ -383,12 +383,15 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->csc.prevFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         frame_->csc.prevFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
+        int clearValue = 0;
+        frame_->csc.prevFramePageResidencyTable.Clear(0, (const void *)&clearValue);
+
         frame_->csc.currFramePageResidencyTable = Texture(
             TextureConfig{
                 TextureType::TEXTURE_2D,
                 TextureComponentFormat::RED,
                 TextureComponentSize::BITS_32,
-                TextureComponentType::INT,
+                TextureComponentType::UINT,
                 numPages,
                 numPages,
                 0,
@@ -402,11 +405,16 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->csc.currFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         frame_->csc.currFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
+        frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
+
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
 
         int value = 0;
         frame_->csc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(int), flags);
         frame_->csc.pagesToCommitList = GpuBuffer(nullptr, 2 * sizeof(int) * numPages * numPages, flags);
+
+        frame_->csc.minViewportXY = GpuBuffer(nullptr, 2 * sizeof(int), flags);
+        frame_->csc.maxViewportXY = GpuBuffer(nullptr, 2 * sizeof(int), flags);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1140,8 +1148,10 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     frame_->csc.currFramePageResidencyTable = frame_->csc.prevFramePageResidencyTable;
     frame_->csc.prevFramePageResidencyTable = tmp;
 
-    int clearValue = 0;
-    frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
+    u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
+
+    //int clearValue = 0;
+    //frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
 
     state_.vsmAnalyzeDepth->Bind();
     
@@ -1150,6 +1160,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+
+    state_.vsmAnalyzeDepth->SetUint("frameCount", frameCount);
 
     state_.vsmAnalyzeDepth->BindTexture("depthTexture", state_.currentFrame.depth);
 
@@ -1191,13 +1203,22 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     value = 0;
     frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
+    int minValues[2] = {vsm->Width(), vsm->Height()};
+    int maxValues[2] = {0, 0};
+    frame_->csc.minViewportXY.CopyDataToBuffer(0, 2 * sizeof(int), (const void *)&minValues[0]);
+    frame_->csc.maxViewportXY.CopyDataToBuffer(0, 2 * sizeof(int), (const void *)&maxValues[0]);
+
     state_.vsmMarkUnused->Bind();
 
-    state_.vsmMarkUnused->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
-    state_.vsmMarkUnused->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    state_.vsmMarkUnused->SetUint("frameCount", frameCount);
+
+    state_.vsmMarkUnused->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    state_.vsmMarkUnused->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
 
     frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    frame_->csc.minViewportXY.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    frame_->csc.maxViewportXY.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
     sizeX = numPagesAvailable / 32;
@@ -1214,7 +1235,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ);
 
     if (numPagesToFree > 0) {
-        //STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
+        STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
     }
 
     for (i32 i = 0; i < numPagesToFree; ++i) {
@@ -1258,7 +1279,18 @@ void RendererBackend::RenderCSMDepth_() {
     if (!depth) {
         throw std::runtime_error("Critical error: depth attachment not present");
     }
+
+    //const int * minXY = (const int *)frame_->csc.minViewportXY.MapMemory(GPU_MAP_READ);
+    //const int * maxXY = (const int *)frame_->csc.maxViewportXY.MapMemory(GPU_MAP_READ);
+
+    //STRATUS_LOG << "Min XY: " << minXY[0] << " " << minXY[1] << std::endl;
+    //STRATUS_LOG << "Max XY: " << maxXY[0] << " " << maxXY[1] << std::endl;
+
     glViewport(0, 0, depth->Width(), depth->Height());
+    //glViewport(minXY[0], minXY[1], maxXY[0], maxXY[1]);
+
+    //frame_->csc.minViewportXY.UnmapMemory();
+    //frame_->csc.maxViewportXY.UnmapMemory();
 
     for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
         Pipeline * shader = frame_->csc.worldLight->GetAlphaTest() && cascade < 2 ?

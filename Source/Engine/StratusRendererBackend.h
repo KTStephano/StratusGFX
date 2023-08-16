@@ -103,6 +103,8 @@ namespace stratus {
         Texture currFramePageResidencyTable;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
+        GpuBuffer minViewportXY;
+        GpuBuffer maxViewportXY;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         u32 cascadeResolutionXY;

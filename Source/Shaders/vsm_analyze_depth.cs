@@ -9,10 +9,12 @@ layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 uniform mat4 cascadeProjectionView;
 uniform mat4 invProjectionView;
 
-layout (r32i) readonly uniform iimage2D prevFramePageResidencyTable;
-layout (r32i) coherent uniform iimage2D currFramePageResidencyTable;
+layout (r32ui) readonly uniform uimage2D prevFramePageResidencyTable;
+layout (r32ui) coherent uniform uimage2D currFramePageResidencyTable;
 
 uniform sampler2D depthTexture;
+
+uniform uint frameCount;
 
 layout (std430, binding = 0) buffer block1 {
     int numPagesToMakeResident;
@@ -46,6 +48,9 @@ void main() {
 
     // Get current depth and convert to world space
     float depth = textureLod(depthTexture, depthTexCoords, 0).r;
+
+    if (depth >= 1.0) return;
+
     vec3 worldPosition = worldPositionFromDepth(depthTexCoords, depth, invProjectionView);
 
     // Convert world position to a coordinate from the light's perspective
@@ -69,8 +74,8 @@ void main() {
                     continue;
                 }
 
-                int prev = int(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
-                int current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, 1);
+                uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
+                uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
 
                 if (prev == 0 && current == 0) {
                     int original = atomicAdd(numPagesToMakeResident, 1);
