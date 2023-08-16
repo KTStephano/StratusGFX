@@ -774,7 +774,7 @@ namespace stratus {
                 config.type = type;
                 config.storage = TextureComponentSize::BITS_DEFAULT;
                 config.generateMipMaps = true;
-                config.dataType = TextureComponentType::UINT;
+                config.dataType = TextureComponentType::UINT_NORM;
                 config.width = (u32)width;
                 config.height = (u32)height;
                 config.depth = 0;

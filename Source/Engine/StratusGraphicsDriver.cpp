@@ -58,8 +58,8 @@ namespace stratus {
 
         log << std::boolalpha;
         log << std::endl << "\t==> Virtual/Sparse Texture Information" << std::endl;
-        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-        const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
+        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL};
+        const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F", "GL_DEPTH_COMPONENT", "GL_DEPTH_STENCIL"};
         for (i32 i = 0; i < internalFormats.size(); ++i) {
             log << "\t" << strInternalFormats[i] << std::endl;
             log << "\t\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D[i] << std::endl;
@@ -150,7 +150,7 @@ namespace stratus {
             return false;
         }
 
-        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
+        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL};
         for (i32 i = 0; i < internalFormats.size(); ++i) {
             const GLenum internalFormat = internalFormats[i];
             // Query OpenGL about sparse textures (2D)

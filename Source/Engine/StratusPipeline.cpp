@@ -421,28 +421,49 @@ void Pipeline::SynchronizeCompute() {
 }
 
 void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {
-    if (!tex.Valid()) {
-        STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
-        return;
-    }
-    // See if the uniform is already bound to a texture
-    auto it = boundTextures_.find(uniform);
-    if (it != boundTextures_.end()) {
-        it->second.Unbind();
-    }
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
 
-    const i32 activeTexture = activeTextureIndex_++;
     tex.Bind(activeTexture);
     SetInt(uniform, activeTexture);
-    boundTextures_.insert(std::make_pair(uniform, tex));
+}
+
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access) {
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
+
+    tex.BindAsImageTexture(activeTexture, layered, layer, access);
+    SetInt(uniform, activeTexture);
 }
 
 void Pipeline::UnbindAllTextures() {
-    for (auto & binding : boundTextures_) {
-        binding.second.Unbind();
-        SetInt(binding.first, 0);
-    }
+    //for (auto & binding : boundTextures_) {
+    //   binding.second.Unbind();
+    //   SetInt(binding.first, 0);
+    //}
     boundTextures_.clear();
+    activeTextureIndices_.clear();
     activeTextureIndex_ = 0;
+}
+
+i32 Pipeline::NextTextureIndex_(const std::string& uniform, const Texture & tex) {
+    if (!tex.Valid()) {
+        STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
+        return -1;
+    }
+
+    // See if the uniform is already bound to a texture
+    auto it = activeTextureIndices_.find(uniform);
+    if (it != activeTextureIndices_.end()) {
+        //it->second.Unbind();
+        //boundTextures_.find(uniform)->second.Unbind();
+        boundTextures_.insert(std::make_pair(uniform, tex));
+        return it->second;
+    }
+
+    auto next = activeTextureIndex_++;
+    boundTextures_.insert(std::make_pair(uniform, tex));
+    activeTextureIndices_.insert(std::make_pair(uniform, next));
+    return next;
 }
 }

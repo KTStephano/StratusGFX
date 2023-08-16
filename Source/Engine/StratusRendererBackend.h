@@ -99,6 +99,10 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
+        Texture prevFramePageResidencyTable;
+        Texture currFramePageResidencyTable;
+        GpuBuffer numPagesToCommit;
+        GpuBuffer pagesToCommitList;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         u32 cascadeResolutionXY;
@@ -486,6 +490,8 @@ namespace stratus {
             std::vector<GpuCommandReceiveManagerPtr> dynamicPerPointLightDrawCalls;
             std::vector<GpuCommandReceiveManagerPtr> staticPerPointLightDrawCalls;
             std::unique_ptr<Pipeline> viscullPointLights;
+            std::unique_ptr<Pipeline> vsmAnalyzeDepth;
+            std::unique_ptr<Pipeline> vsmMarkUnused;
         };
 
         struct TextureCache {
@@ -649,6 +655,7 @@ namespace stratus {
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
+        void ProcessCSMVirtualTexture_();
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);
         void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&);
