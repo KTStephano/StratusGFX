@@ -75,9 +75,9 @@ public:
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
 
-        auto cube = INSTANCE(ResourceManager)->CreateCube();
-        InitCube(cube, glm::vec3(0.0f, 25.0f, 135.0f), glm::vec3(1.0));
-        INSTANCE(EntityManager)->AddEntity(cube);
+        // auto cube = INSTANCE(ResourceManager)->CreateCube();
+        // InitCube(cube, glm::vec3(0.0f, 25.0f, 135.0f), glm::vec3(1.0));
+        // INSTANCE(EntityManager)->AddEntity(cube);
 
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
@@ -86,7 +86,7 @@ public:
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.2f, 0.3f);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         requested.push_back(e);
@@ -198,17 +198,17 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 20; x >= -30; x -= 5) {
-              for (int y = 0; y <= 50; y += 5) {
-                  for (int z = 45; z <= 140; z += 5) {
-                          ++spawned;
-                          LightCreator::CreateVirtualPointLight(
-                              LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                              false
-                          );
-                  }
-              }
-           }
+           //for (int x = 20; x >= -30; x -= 5) {
+           //   for (int y = 0; y <= 50; y += 5) {
+           //       for (int z = 45; z <= 140; z += 5) {
+           //               ++spawned;
+           //               LightCreator::CreateVirtualPointLight(
+           //                   LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+           //                   false
+           //               );
+           //       }
+           //   }
+           //}
 
         //    for (int x = -160; x < 150; x += 20) {
         //        for (int y = 15; y < 150; y += 20) {

@@ -192,34 +192,21 @@ public:
             CornellBox = nullptr;
             int spawned = 0;
 
-            //for (int x = -16; x < 16; x += 5) {
-            //   for (int y = 1; y < 18; y += 5) {
-            //       for (int z = -15; z < 15; z += 5) {
-            //           ++spawned;
-            //           LightCreator::CreateVirtualPointLight(
-            //               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-            //               false
-            //           );
-            //       }
-            //   }
-            //}
-            // const std::vector<float> ys = { -30.0f, 10.0f };
-            // const float offset = 60.0f;
             const float vplIntensity = 1.0f / 50.0f; //0.05f / 1.0f;
             const bool showVpls = false;
 
-            for (float x = -14; x <= 14; x += 2.0f) {
-                for (float y = 2; y <= 30; y += 3.0f) {
-                    for (float z = -40.0f; z <= 15.0f; z += 4.0f) {
-                        ++spawned;
-                        const glm::vec3 location(x, y, z);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    }
-                }
-            }
+            // for (float x = -14; x <= 14; x += 2.0f) {
+            //     for (float y = 2; y <= 30; y += 3.0f) {
+            //         for (float z = -40.0f; z <= 15.0f; z += 4.0f) {
+            //             ++spawned;
+            //             const glm::vec3 location(x, y, z);
+            //             LightCreator::CreateVirtualPointLight(
+            //                 LightParams(location, glm::vec3(1.0f), vplIntensity),
+            //                 showVpls
+            //             );
+            //         }
+            //     }
+            // }
 
             // for (float y : ys) {
             //    for (float x = -10.0f; x < 60.0f; x += offset) {
