@@ -27,9 +27,32 @@ layout (std430, binding = 1) buffer block2 {
 shared vec2 depthTextureSize;
 shared ivec2 residencyTableSize;
 
+// const int pixelOffsets[] = int[](
+//     -2, -1, 0, 1, 2
+// );
 const int pixelOffsets[] = int[](
     -1, 0, 1
 );
+// const int pixelOffsets[] = int[](
+//     0
+// );
+
+void updateResidencyStatus(in ivec2 pixelCoords) {
+    if (pixelCoords.x < 0 || pixelCoords.x >= residencyTableSize.x ||
+        pixelCoords.y < 0 || pixelCoords.y >= residencyTableSize.y) {
+        
+        return;
+    }
+
+    uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
+    uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
+
+    if (prev == 0 && current == 0) {
+        int original = atomicAdd(numPagesToMakeResident, 1);
+        pageIndices[2 * original] = pixelCoords.x;
+        pageIndices[2 * original + 1] = pixelCoords.y;
+    }
+}
 
 void main() {
     if (gl_LocalInvocationID == 0) {
@@ -59,6 +82,18 @@ void main() {
     // Convert from range [-1, 1] to [0, 1]
     cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
+    vec2 basePixelCoords = cascadeTexCoords * vec2(residencyTableSize - ivec2(1));
+
+    ivec2 basePixelCoordsLower = ivec2(
+        floor(basePixelCoords.x),
+        floor(basePixelCoords.y)
+    );
+
+    ivec2 basePixelCoordsUpper = ivec2(
+        ceil(basePixelCoords.x),
+        ceil(basePixelCoords.y)
+    );
+
     if (cascadeTexCoords.x >= 0 && cascadeTexCoords.x <= 1 &&
         cascadeTexCoords.y >= 0 && cascadeTexCoords.y <= 1) {
 
@@ -66,22 +101,11 @@ void main() {
             int xoffset = pixelOffsets[x];
             for (int y = 0; y < 3; ++y) {
                 int yoffset = pixelOffsets[y];
-                ivec2 pixelCoords = ivec2(cascadeTexCoords * vec2(residencyTableSize - ivec2(1))) + ivec2(xoffset, yoffset);
+                ivec2 pixelCoords1 = basePixelCoordsLower + ivec2(xoffset, yoffset);
+                ivec2 pixelCoords2 = basePixelCoordsUpper + ivec2(xoffset, yoffset);
 
-                if (pixelCoords.x < 0 || pixelCoords.x >= residencyTableSize.x ||
-                    pixelCoords.y < 0 || pixelCoords.y >= residencyTableSize.y) {
-                    
-                    continue;
-                }
-
-                uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
-                uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
-
-                if (prev == 0 && current == 0) {
-                    int original = atomicAdd(numPagesToMakeResident, 1);
-                    pageIndices[2 * original] = pixelCoords.x;
-                    pageIndices[2 * original + 1] = pixelCoords.y;
-                }
+                updateResidencyStatus(pixelCoords1);
+                updateResidencyStatus(pixelCoords2);
             }
         }
     }

@@ -240,6 +240,12 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         }));
     state_.shaders.push_back(state_.fullscreen.get());
 
+    state_.fullscreenDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fullscreen.vs", ShaderType::VERTEX},
+        Shader{"fullscreen_depth.fs", ShaderType::FRAGMENT}
+        }));
+    state_.shaders.push_back(state_.fullscreenDepth.get());
+
     state_.viscullPointLights = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"viscull_point_lights.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.viscullPointLights.get());
@@ -355,7 +361,7 @@ void RendererBackend::RecalculateCascadeData_() {
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
         Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY, numCascades, false, true }, NoTextureData);
         tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        tex.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        tex.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
         // We need to set this when using sampler2DShadow in the GLSL shader
         tex.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
@@ -381,7 +387,7 @@ void RendererBackend::RecalculateCascadeData_() {
         );
 
         frame_->csc.prevFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-        frame_->csc.prevFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        frame_->csc.prevFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
 
         int clearValue = 0;
         frame_->csc.prevFramePageResidencyTable.Clear(0, (const void *)&clearValue);
@@ -403,7 +409,7 @@ void RendererBackend::RecalculateCascadeData_() {
         );
 
         frame_->csc.currFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-        frame_->csc.currFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        frame_->csc.currFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
 
         frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
 
@@ -2559,10 +2565,20 @@ void RendererBackend::FinalizeFrame_() {
     glDisable(GL_CULL_FACE);
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
     //glEnable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
 
     // Now render the screen
     BindShader_(state_.fullscreen.get());
     state_.fullscreen->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
+    RenderQuad_();
+    UnbindShader_();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, 350, 350);
+    BindShader_(state_.fullscreenDepth.get());
+    state_.fullscreenDepth->SetFloat("znear", frame_->csc.znear);
+    state_.fullscreenDepth->SetFloat("zfar", frame_->csc.zfar);
+    state_.fullscreenDepth->BindTexture("depth", *frame_->csc.fbo.GetDepthStencilAttachment());
     RenderQuad_();
     UnbindShader_();
 }

@@ -481,6 +481,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> taa;
             // Performs full screen pass through
             std::unique_ptr<Pipeline> fullscreen;
+            std::unique_ptr<Pipeline> fullscreenDepth;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;

@@ -48,7 +48,7 @@ void main() {
         imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
     }
 
-    if (current > 0 && (frameCount - current) > 30) {
+    if (current > 0 && (frameCount - current) > 60) {
         int original = atomicAdd(numPagesToFree, 1);
         pageIndices[2 * original] = tileCoords.x;
         pageIndices[2 * original + 1] = tileCoords.y;
