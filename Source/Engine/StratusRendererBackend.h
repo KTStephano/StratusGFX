@@ -82,7 +82,8 @@ namespace stratus {
     typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
 
     struct RendererCascadeData {
-        GpuCommandReceiveManagerPtr drawCommands;
+        GpuCommandReceiveManagerPtr drawCommandsFrustumCulled;
+        GpuCommandReceiveManagerPtr drawCommandsFinal;
         // Use during shadow map rendering
         glm::mat4 projectionViewRender;
         // Use during shadow map sampling
@@ -101,10 +102,10 @@ namespace stratus {
         FrameBuffer fbo;
         Texture prevFramePageResidencyTable;
         Texture currFramePageResidencyTable;
+        GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
-        GpuBuffer minViewportXY;
-        GpuBuffer maxViewportXY;
+        GpuBuffer pagesToRender;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         u32 cascadeResolutionXY;
@@ -495,6 +496,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> viscullPointLights;
             std::unique_ptr<Pipeline> vsmAnalyzeDepth;
             std::unique_ptr<Pipeline> vsmMarkUnused;
+            std::unique_ptr<Pipeline> vsmCull;
         };
 
         struct TextureCache {
@@ -700,6 +702,12 @@ namespace stratus {
         ShadowMapCache& GetSmapCacheForLight_(LightPtr);
         void RecalculateCascadeData_();
         void ValidateAllShaders_();
+        void PerformVSMCulling(
+            Pipeline& pipeline,
+            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectInput,
+            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
+            std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+        );
     };
 }
 

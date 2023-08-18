@@ -46,6 +46,23 @@ layout (std430, binding = 8) buffer outputBlock4 {
     DrawElementsIndirectCommand outDrawCallsCascade3[];
 };
 
+// For these we are only responsible for zeroing out the memory
+layout (std430, binding = 9) buffer outputBlock5 {
+    DrawElementsIndirectCommand outDrawCalls2Cascade0[];
+};
+
+layout (std430, binding = 10) buffer outputBlock6 {
+    DrawElementsIndirectCommand outDrawCalls2Cascade1[];
+};
+
+layout (std430, binding = 11) buffer outputBlock7 {
+    DrawElementsIndirectCommand outDrawCalls2Cascade2[];
+};
+
+layout (std430, binding = 12) buffer outputBlock8 {
+    DrawElementsIndirectCommand outDrawCalls2Cascade3[];
+};
+
 shared vec4 cascadeFrustumPlanes0[6];
 shared vec4 cascadeFrustumPlanes1[6];
 shared vec4 cascadeFrustumPlanes2[6];
@@ -74,13 +91,15 @@ void main() {
 
     barrier();
 
-#define PERFORM_VISCULL_FOR_CASCADE(index, planes, aabb, draw, out) \
+#define PERFORM_VISCULL_FOR_CASCADE(index, planes, aabb, draw, out1, out2) \
     if (!isAabbVisible(planes, aabb)) {                             \
         draw.instanceCount = 0;                                     \
     } else {                                                        \
         draw.instanceCount = 1;                                     \
     }                                                               \
-    out[index] = draw;
+    out1[index] = draw;                                             \
+    draw.instanceCount = 0;                                         \
+    out2[index] = draw;
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
@@ -88,18 +107,18 @@ void main() {
         // Cascades 0, 1
         if (numCascades > 0) {
             DrawElementsIndirectCommand draw = cascade01DrawCalls[i];
-            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
+            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0, outDrawCalls2Cascade0);
             if (numCascades > 1) {
-                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
+                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1, outDrawCalls2Cascade1);
             }
         }
 
         // Cascades 2, 3
         if (numCascades > 2) {
             DrawElementsIndirectCommand draw = cascade23DrawCalls[i];
-            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
+            PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2, outDrawCalls2Cascade2);
             if (numCascades > 3) {
-                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
+                PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3, outDrawCalls2Cascade3);
             }
         }
     }

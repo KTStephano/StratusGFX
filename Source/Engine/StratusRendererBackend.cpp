@@ -188,6 +188,10 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"viscull_vpls.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplCulling.get());
 
+    state_.vsmCull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"viscull_vsm.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vsmCull.get());
+
     state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplColoring.get());
@@ -416,11 +420,12 @@ void RendererBackend::RecalculateCascadeData_() {
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
 
         int value = 0;
+        frame_->csc.numDrawCalls = GpuBuffer((const void *)&value, sizeof(int), flags);
         frame_->csc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(int), flags);
         frame_->csc.pagesToCommitList = GpuBuffer(nullptr, 2 * sizeof(int) * numPages * numPages, flags);
 
-        frame_->csc.minViewportXY = GpuBuffer(nullptr, 2 * sizeof(int), flags);
-        frame_->csc.maxViewportXY = GpuBuffer(nullptr, 2 * sizeof(int), flags);
+        std::vector<u8> pagesToRender(numPages * numPages, 0);
+        frame_->csc.pagesToRender = GpuBuffer((const void *)pagesToRender.data(), sizeof(u8) * numPages * numPages, flags);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1146,6 +1151,39 @@ void RendererBackend::RenderSkybox_() {
     UnbindShader_();
 }
 
+void RendererBackend::PerformVSMCulling(
+    Pipeline& pipeline,
+    const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectInput,
+    const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
+    std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+) {
+    for (auto& [cull, buffer] : commands) {
+        if (buffer->NumDrawCommands() == 0) continue;
+
+        pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
+
+        buffer->BindModelTransformBuffer(2);
+        buffer->BindAabbBuffer(3);
+
+        selectInput(cull)->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+
+        auto receivePtr = selectOutput(cull);
+        receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+
+        i32 value = 0;
+        frame_->csc.numDrawCalls.CopyDataToBuffer(0, sizeof(i32), (const void *)&value);
+
+        const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+
+        pipeline.DispatchCompute(numPagesAvailable, numPagesAvailable, 1);
+        pipeline.SynchronizeCompute();
+
+        // const i32 * result = (const i32 *)frame_->csc.numDrawCalls.MapMemory(GPU_MAP_READ);
+        // STRATUS_LOG << "Before, After: " << buffer->NumDrawCommands() << ", " << *result << std::endl;
+        // frame_->csc.numDrawCalls.UnmapMemory();
+    }
+}
+
 void RendererBackend::ProcessCSMVirtualTexture_() {
     int value = 0;
     frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
@@ -1158,6 +1196,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     //int clearValue = 0;
     //frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
+
+    frame_->csc.pagesToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
 
     state_.vsmAnalyzeDepth->Bind();
     
@@ -1185,34 +1225,29 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     const i32 numPagesToCommit = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
     frame_->csc.numPagesToCommit.UnmapMemory();
 
-    const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ);
-
     auto vsm = frame_->csc.fbo.GetDepthStencilAttachment();
 
     if (numPagesToCommit > 0) {
         //STRATUS_LOG << numPagesToCommit << std::endl;
+
+        const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToCommit * sizeof(int));
+
+        for (i32 i = 0; i < numPagesToCommit; ++i) {
+            //STRATUS_LOG << i << std::endl;
+
+            const i32 x = pageIndices[2 * i];
+            const i32 y = pageIndices[2 * i + 1];
+
+            //STRATUS_LOG << x << " " << y << std::endl;
+
+            vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, true);
+        }
+
+        frame_->csc.pagesToCommitList.UnmapMemory();
     }
-
-    for (i32 i = 0; i < numPagesToCommit; ++i) {
-        //STRATUS_LOG << i << std::endl;
-
-        const i32 x = pageIndices[2 * i];
-        const i32 y = pageIndices[2 * i + 1];
-
-        //STRATUS_LOG << x << " " << y << std::endl;
-
-        vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, true);
-    }
-
-    frame_->csc.pagesToCommitList.UnmapMemory();
 
     value = 0;
     frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
-
-    int minValues[2] = {vsm->Width(), vsm->Height()};
-    int maxValues[2] = {0, 0};
-    frame_->csc.minViewportXY.CopyDataToBuffer(0, 2 * sizeof(int), (const void *)&minValues[0]);
-    frame_->csc.maxViewportXY.CopyDataToBuffer(0, 2 * sizeof(int), (const void *)&maxValues[0]);
 
     state_.vsmMarkUnused->Bind();
 
@@ -1223,8 +1258,6 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    frame_->csc.minViewportXY.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    frame_->csc.maxViewportXY.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
 
     const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
     sizeX = numPagesAvailable / 32;
@@ -1238,24 +1271,54 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     const i32 numPagesToFree = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
     frame_->csc.numPagesToCommit.UnmapMemory();
 
-    pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ);
-
     if (numPagesToFree > 0) {
-        STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
+        //STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
+
+        const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToFree * sizeof(int));
+
+        for (i32 i = 0; i < numPagesToFree; ++i) {
+            //STRATUS_LOG << i << std::endl;
+
+            const i32 x = pageIndices[2 * i];
+            const i32 y = pageIndices[2 * i + 1];
+
+            //STRATUS_LOG << x << " " << y << std::endl;
+
+            vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, false);
+        }
+
+        frame_->csc.pagesToCommitList.UnmapMemory();
     }
 
-    for (i32 i = 0; i < numPagesToFree; ++i) {
-        //STRATUS_LOG << i << std::endl;
+    state_.vsmCull->Bind();
 
-        const i32 x = pageIndices[2 * i];
-        const i32 y = pageIndices[2 * i + 1];
+    state_.vsmCull->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
+    state_.vsmCull->SetUint("frameCount", frameCount);
+    state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
 
-        //STRATUS_LOG << x << " " << y << std::endl;
+    PerformVSMCulling(
+        *state_.vsmCull,
+        [this](const RenderFaceCulling& cull) {
+            return frame_->csc.cascades[0].drawCommandsFrustumCulled->dynamicPbrMeshes.find(cull)->second;
+        },
+        [this](const RenderFaceCulling& cull) {
+            return frame_->csc.cascades[0].drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
+        },
+        frame_->drawCommands->dynamicPbrMeshes
+    );
 
-        vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, false);
-    }
+    PerformVSMCulling(
+        *state_.vsmCull,
+        [this](const RenderFaceCulling& cull) {
+            return frame_->csc.cascades[0].drawCommandsFrustumCulled->staticPbrMeshes.find(cull)->second;
+        },
+        [this](const RenderFaceCulling& cull) {
+            return frame_->csc.cascades[0].drawCommandsFinal->staticPbrMeshes.find(cull)->second;
+        },
+        frame_->drawCommands->staticPbrMeshes
+    );
 
-    frame_->csc.pagesToCommitList.UnmapMemory();
+    state_.vsmCull->Unbind();
 }
 
 void RendererBackend::RenderCSMDepth_() {
@@ -1327,14 +1390,22 @@ void RendererBackend::RenderCSMDepth_() {
 
         CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
             const auto cull = b->GetFaceCulling();
-            return frame_->csc.cascades[cascade].drawCommands->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+            return frame_->csc.cascades[cascade].drawCommandsFinal->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
         };
 
         CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
             const auto cull = b->GetFaceCulling();
-            return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+            return frame_->csc.cascades[cascade].drawCommandsFinal->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
         };
 
+        // for (usize x = 0; x < 128; ++x) {
+        //     for (usize y = 0; y < 128; ++y) {
+        //         glViewport(x * 128, y * 128, x * 128 + 128, y * 128 + 128);
+        //         RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
+        //         RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
+        //     }
+        // }
+        //glViewport(30 * 128, 30 * 128, 70 * 128, 70 * 128);
         RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
         RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
 

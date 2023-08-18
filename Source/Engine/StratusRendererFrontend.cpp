@@ -462,7 +462,8 @@ namespace stratus {
         frame_->csc.regenerateFbo = true;
 
         for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
-            frame_->csc.cascades[i].drawCommands = GpuCommandReceiveManager::Create();
+            frame_->csc.cascades[i].drawCommandsFrustumCulled = GpuCommandReceiveManager::Create();
+            frame_->csc.cascades[i].drawCommandsFinal = GpuCommandReceiveManager::Create();
         }
 
         // Set materials per frame and initialize material buffer
@@ -635,7 +636,7 @@ namespace stratus {
         //     //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
         // }
         //f32 sizePerCasacde = f32(ratio) / f64(numCascades);
-        f32 sizePerCasacde = 250.0f;
+        f32 sizePerCasacde = 350.0f;
         for (usize i = 0; i < numCascades; ++i) {
             // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
             // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
@@ -753,7 +754,7 @@ namespace stratus {
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
-            // STRATUS_LOG << "sk " << sk << std::endl;
+            //STRATUS_LOG << "sk " << sk << std::endl;
             sks.push_back(sk);
             frame_->csc.cascades[i].cascadePositionLightSpace = sk;
             frame_->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
@@ -987,7 +988,8 @@ namespace stratus {
         // Ensure cascade draw command buffers have enough space
         for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             auto& csm = frame_->csc.cascades[i];
-            csm.drawCommands->EnsureCapacity(frame_->drawCommands);
+            csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands);
+            csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands);
             
             viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.projectionViewRender);
         }
@@ -996,7 +998,10 @@ namespace stratus {
         UpdateCascadeVisibility_(
             *viscullCsms_.get(),
             [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
-                return csm.drawCommands->dynamicPbrMeshes.find(cull)->second;
+                return csm.drawCommandsFrustumCulled->dynamicPbrMeshes.find(cull)->second;
+            },
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
             },
             frame_->drawCommands->dynamicPbrMeshes
         );
@@ -1004,7 +1009,10 @@ namespace stratus {
         UpdateCascadeVisibility_(
             *viscullCsms_.get(),
             [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
-                return csm.drawCommands->staticPbrMeshes.find(cull)->second;
+                return csm.drawCommandsFrustumCulled->staticPbrMeshes.find(cull)->second;
+            },
+            [](const RendererCascadeData& csm, const RenderFaceCulling& cull) {
+                return csm.drawCommandsFinal->staticPbrMeshes.find(cull)->second;
             },
             frame_->drawCommands->staticPbrMeshes
         );
@@ -1014,7 +1022,8 @@ namespace stratus {
 
     void RendererFrontend::UpdateCascadeVisibility_(
         Pipeline& pipeline,
-        const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+        const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& selectPrimary,
+        const std::function<GpuCommandReceiveBufferPtr(const RendererCascadeData&, const RenderFaceCulling&)>& selectSecondary,
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
     ) {
 
@@ -1034,8 +1043,11 @@ namespace stratus {
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
             for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
-                auto receivePtr = select(frame_->csc.cascades[cascade], cull);
+                auto receivePtr = selectPrimary(frame_->csc.cascades[cascade], cull);
                 receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5 + cascade);
+
+                receivePtr = selectSecondary(frame_->csc.cascades[cascade], cull);
+                receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9 + cascade);
             }
 
             pipeline.DispatchCompute(1, 1, 1);

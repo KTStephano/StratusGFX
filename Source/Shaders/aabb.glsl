@@ -31,6 +31,20 @@ vec4[24] convertCornersToLineVertices(in vec4 corners[8]) {
     return vertices;
 }
 
+void computeCorners(in AABB aabb, out vec4 corners[8]) {
+    vec4 vmin = aabb.vmin;
+    vec4 vmax = aabb.vmax;
+
+    corners[0] = vec4(vmin.x, vmin.y, vmin.z, 1.0);
+    corners[1] = vec4(vmin.x, vmax.y, vmin.z, 1.0);
+    corners[2] = vec4(vmin.x, vmin.y, vmax.z, 1.0);
+    corners[3] = vec4(vmin.x, vmax.y, vmax.z, 1.0);
+    corners[4] = vec4(vmax.x, vmin.y, vmin.z, 1.0);
+    corners[5] = vec4(vmax.x, vmax.y, vmin.z, 1.0);
+    corners[6] = vec4(vmax.x, vmin.y, vmax.z, 1.0);
+    corners[7] = vec4(vmax.x, vmax.y, vmax.z, 1.0);
+}
+
 vec4[8] computeCornersWithTransform(in AABB aabb, in mat4 transform) {
     vec4 vmin = aabb.vmin;
     vec4 vmax = aabb.vmax;

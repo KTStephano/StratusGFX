@@ -265,9 +265,9 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     float samples = 0.0;
     p1.xy = shadowCoord1;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    float bound = 0.0; // 1.5 = 16 sample; 1.0 = 4 sample
-    for (float y = -bound; y <= bound; y += 1.0) {
-        for (float x = -bound; x <= bound; x += 1.0) {
+    float bound = 0.5; // 1.5 = 16 sample; 1.0 = 4 sample
+    for (float y = -bound; y <= bound; y += 0.25) {
+        for (float x = -bound; x <= bound; x += 0.25) {
             light1 += sampleShadowTexture(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
             ++samples;
         }

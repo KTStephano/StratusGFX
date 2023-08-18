@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -17,14 +18,8 @@ layout (std430, binding = 1) buffer block2 {
     int pageIndices[];
 };
 
-layout (std430, binding = 2) buffer block3 {
-    int minX;
-    int minY;
-};
-
-layout (std430, binding = 3) buffer block4 {
-    int maxX;
-    int maxY;
+layout (std430, binding = 2) buffer block4 {
+    int renderPageIndices[];
 };
 
 shared ivec2 residencyTableSize;
@@ -46,6 +41,10 @@ void main() {
 
     if (prev > 0 && current == 0) {
         imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
+        //imageAtomicOr(currFramePageResidencyTable, tileCoords, prev);
+
+        // Don't want to render tiles from last frame that aren't visible
+        //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }
 
     if (current > 0 && (frameCount - current) > 60) {
@@ -55,13 +54,7 @@ void main() {
 
         imageAtomicExchange(prevFramePageResidencyTable, tileCoords, 0);
         imageAtomicExchange(currFramePageResidencyTable, tileCoords, 0);
+
+        //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }
-
-    // if (current == 1) {
-    //     atomicMin(minX, tileCoords.x * 128);
-    //     atomicMin(minY, tileCoords.y * 128);
-
-    //     atomicMax(maxX, tileCoords.x * 128 + 128);
-    //     atomicMax(maxY, tileCoords.y * 128 + 128);
-    // }
 }

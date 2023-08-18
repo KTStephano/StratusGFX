@@ -145,8 +145,12 @@ namespace stratus {
     }
 
     void * MapMemory(const Bitfield access) const {
+        return MapMemory(access, 0, _sizeBytes);
+    }
+
+    void * MapMemory(const Bitfield access, isize offset, usize length) const {
         _isMemoryMapped = true;
-        void * ptr = glMapNamedBufferRange(_buffer, 0, _sizeBytes, _ConvertUsageType(access));
+        void * ptr = glMapNamedBufferRange(_buffer, offset, length, _ConvertUsageType(access));
         return ptr;
     }
     
@@ -228,6 +232,10 @@ namespace stratus {
 
     void * GpuBuffer::MapMemory(const Bitfield access) const {
         return impl_->MapMemory(access);
+    }
+
+    void * GpuBuffer::MapMemory(const Bitfield access, isize offset, usize length) const {
+        return impl_->MapMemory(access, offset, length);
     }
 
     void GpuBuffer::UnmapMemory() const {
