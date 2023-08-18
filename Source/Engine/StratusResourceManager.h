@@ -99,8 +99,8 @@ namespace stratus {
         EntityPtr quad_;
         std::unordered_map<std::string, Async<Entity>> loadedModels_;
         std::unordered_map<std::string, Async<Entity>> pendingFinalize_;
-        std::unordered_set<MeshPtr> meshFinalizeQueue_;
-        std::unordered_set<MeshPtr> generateMeshGpuDataQueue_;
+        std::unordered_set<MeshletPtr> meshFinalizeQueue_;
+        std::unordered_set<MeshletPtr> generateMeshGpuDataQueue_;
         //std::vector<MeshPtr> _meshFinalizeQueue;
         std::unordered_map<TextureHandle, Async<RawTextureData>> asyncLoadedTextureData_;
         std::unordered_set<TextureHandle> texturesStillLoading_;

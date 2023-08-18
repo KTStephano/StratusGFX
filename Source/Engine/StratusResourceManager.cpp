@@ -16,6 +16,7 @@
 #include <algorithm>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "meshoptimizer.h"
 
 namespace stratus {
     ResourceManager::ResourceManager() {}
@@ -98,11 +99,11 @@ namespace stratus {
         static constexpr usize maxModelBytesPerFrame = 1024 * 1024 * 2;
         // First generate GPU data for some of the meshes
         usize totalBytes = 0;
-        std::vector<MeshPtr> removeFromGpuDataQueue;
-        for (auto mesh : generateMeshGpuDataQueue_) {
-            mesh->FinalizeData();
-            totalBytes += mesh->GetGpuSizeBytes();
-            removeFromGpuDataQueue.push_back(mesh);
+        std::vector<MeshletPtr> removeFromGpuDataQueue;
+        for (auto meshlet : generateMeshGpuDataQueue_) {
+            meshlet->FinalizeData();
+            totalBytes += meshlet->GetGpuSizeBytes();
+            removeFromGpuDataQueue.push_back(meshlet);
             if (removeFromGpuDataQueue.size() > 5 || totalBytes >= maxModelBytesPerFrame) break;
             //if (totalBytes >= maxModelBytesPerFrame) break;
         }
@@ -132,10 +133,10 @@ namespace stratus {
         if (meshFinalizeQueue_.size() == 0) return;
 
         //usize totalBytes = 0;
-        std::vector<MeshPtr> meshesToDelete(meshFinalizeQueue_.size());
+        std::vector<MeshletPtr> meshesToDelete(meshFinalizeQueue_.size());
         usize idx = 0;
-        for (auto& mesh : meshFinalizeQueue_) {
-            meshesToDelete[idx] = mesh;
+        for (auto& meshlet : meshFinalizeQueue_) {
+            meshesToDelete[idx] = meshlet;
             ++idx;
         }
 
@@ -156,7 +157,7 @@ namespace stratus {
             const auto process = [this, threadIndex, numThreads, meshesToDelete]() {
                 STRATUS_LOG << "Processing " << meshesToDelete.size() << " as a task group" << std::endl;
                 for (usize i = threadIndex; i < meshesToDelete.size(); i += numThreads) {
-                    MeshPtr mesh = meshesToDelete[i];
+                    MeshletPtr mesh = meshesToDelete[i];
                     mesh->PackCpuData();
                     mesh->CalculateAabbs(glm::mat4(1.0f));
                     mesh->GenerateLODs();
@@ -201,7 +202,10 @@ namespace stratus {
         if (rnode == nullptr) return;
 
         for (i32 i = 0; i < rnode->meshes->meshes.size(); ++i) {
-            meshFinalizeQueue_.insert(rnode->meshes->meshes[i]);
+            auto mesh = rnode->meshes->meshes[i];
+            for (i32 j = 0; j < mesh->NumMeshlets(); ++j) {
+                meshFinalizeQueue_.insert(mesh->GetMeshlet(j));
+            }
         }
     }
 
@@ -379,28 +383,56 @@ namespace stratus {
         //MeshPtr rmesh = Mesh::Create();
         aiMesh * mesh = processMesh.aim;
         MeshPtr rmesh = processMesh.mesh;
+        auto meshlet = rmesh->NewMeshlet();
+
+        //std::vector<glm::vec3> vertices;
+        //std::vector<glm::vec3> normals;
+        //std::vector<glm::vec2> uvs;
+
+        const size_t maxVertices = 65536;
+        const size_t maxTriangles = 512;
+        const float coneWeight = 0.0f;
+
+        std::vector<u32> indices;
+        indices.reserve(1024);
+        for (u32 i = 0; i < mesh->mNumFaces; i++) {
+            aiFace face = mesh->mFaces[i];
+            for (u32 j = 0; j < face.mNumIndices; j++) {
+                indices.push_back(face.mIndices[j]);
+            }
+        }
+
+        const size_t maxMeshlets = meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles);
+        std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
+        std::vector<u32> meshletVertices(maxMeshlets * maxVertices);
+        std::vector<u8> meshletTriangles(maxVertices * maxTriangles * 3);
+
+        size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshletVertices.data(), meshletTriangles.data(), indices.data(),
+            indices.size(), &mesh->mVertices[0].x, mesh->mNumVertices, sizeof(aiVector3D), maxVertices, maxTriangles, coneWeight);
+
+        STRATUS_LOG << "MESHLETS: " << meshlet_count << std::endl;
 
         // Process core primitive data
         for (u32 i = 0; i < mesh->mNumVertices; i++) {
-            rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
-            rmesh->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
+            meshlet->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
+            meshlet->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
 
             if (mesh->mNumUVComponents[0] != 0) {
-                rmesh->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
+                meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
             }
             else {
-                rmesh->AddUV(glm::vec2(1.0f, 1.0f));
+                meshlet->AddUV(glm::vec2(1.0f, 1.0f));
             }
 
-            if (mesh->mTangents != nullptr)   rmesh->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
-            if (mesh->mBitangents != nullptr) rmesh->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
+            if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
+            if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
         }
 
         // Process indices
         for(u32 i = 0; i < mesh->mNumFaces; i++) {
             aiFace face = mesh->mFaces[i];
             for(u32 j = 0; j < face.mNumIndices; j++) {
-                rmesh->AddIndex(face.mIndices[j]);
+                meshlet->AddIndex(face.mIndices[j]);
             }
         }
 
@@ -648,7 +680,7 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 2048);
+        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 512);
 
         u32 pflags = aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |
@@ -661,7 +693,7 @@ namespace stratus {
             aiProcess_FlipUVs |
             aiProcess_GenUVCoords |
             aiProcess_CalcTangentSpace |
-            aiProcess_SplitLargeMeshes |
+            //aiProcess_SplitLargeMeshes |
             aiProcess_ImproveCacheLocality |
             aiProcess_OptimizeMeshes |
             //aiProcess_OptimizeGraph |
@@ -682,6 +714,8 @@ namespace stratus {
             STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
             return nullptr;
         }
+
+        STRATUS_LOG << "IMPORTED: " << scene->mNumMeshes << std::endl;
 
         // Create all scene materials
         for (u32 i = 0; i < scene->mNumMaterials; ++i) {
@@ -920,6 +954,7 @@ namespace stratus {
         cube_ = CreateRenderEntity();
         RenderComponent * rc = cube_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
+        auto meshlet = mesh->NewMeshlet();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
@@ -929,14 +964,14 @@ namespace stratus {
         const usize cubeNumVertices = cubeData.size() / cubeStride;
 
         for (usize i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
-            mesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
-            mesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
-            mesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
+            meshlet->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
+            meshlet->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
+            meshlet->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
             // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
             // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
         }
 
-        mesh->CalculateAabbs(glm::mat4(1.0f));
+        meshlet->CalculateAabbs(glm::mat4(1.0f));
         pendingFinalize_.insert(std::make_pair("DefaultCube", Async<Entity>(cube_)));
 
         // rmesh->GenerateCpuData();
@@ -950,6 +985,7 @@ namespace stratus {
         quad_ = CreateRenderEntity();
         RenderComponent * rc = quad_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
+        auto meshlet = mesh->NewMeshlet();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
@@ -959,15 +995,15 @@ namespace stratus {
         const usize quadNumVertices = quadData.size() / quadStride;
 
         for (usize i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
-            mesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
-            mesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
-            mesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
+            meshlet->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
+            meshlet->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
+            meshlet->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
             // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
             // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
         }
 
         mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        mesh->CalculateAabbs(glm::mat4(1.0f));
+        meshlet->CalculateAabbs(glm::mat4(1.0f));
         pendingFinalize_.insert(std::make_pair("DefaultQuad", Async<Entity>(quad_)));
 
         // rmesh->GenerateCpuData();

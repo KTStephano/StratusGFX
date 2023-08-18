@@ -1132,7 +1132,7 @@ void RendererBackend::RenderSkybox_(Pipeline * s, const glm::mat4& projectionVie
         s->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
         s->BindTexture("skybox", sky);
 
-        GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
+        GetMesh(state_.skyboxCube, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
@@ -2291,6 +2291,7 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     lighting->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
     lighting->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    lighting->BindTexture("ids", state_.currentFrame.id);
     lighting->SetFloat("windowWidth", frame_->viewportWidth);
     lighting->SetFloat("windowHeight", frame_->viewportHeight);
     lighting->SetVec3("fogColor", frame_->settings.GetFogColor());
@@ -2663,7 +2664,7 @@ void RendererBackend::End() {
 }
 
 void RendererBackend::RenderQuad_() {
-    GetMesh(state_.screenQuad, 0)->Render(1, GpuArrayBuffer());
+    GetMesh(state_.screenQuad, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 

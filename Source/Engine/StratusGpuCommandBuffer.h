@@ -65,7 +65,7 @@ namespace stratus {
         }
 
     private:
-        bool InsertMeshPending_(RenderComponent*, MeshPtr);
+        bool InsertMeshPending_(RenderComponent*, MeshletPtr);
 
     private:
         std::vector<GpuTypedBufferPtr<GpuDrawElementsIndirectCommand>> drawCommands_;
@@ -75,8 +75,8 @@ namespace stratus {
         GpuTypedBufferPtr<glm::mat4> modelTransforms_;
         GpuTypedBufferPtr<GpuAABB> aabbs_;
         GpuTypedBufferPtr<u32> materialIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_map<MeshPtr, u32>> drawCommandIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_set<MeshPtr>> pendingMeshUpdates_;
+        std::unordered_map<RenderComponent *, std::unordered_map<MeshletPtr, u32>> drawCommandIndices_;
+        std::unordered_map<RenderComponent *, std::unordered_set<MeshletPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
         bool performedUpdate_ = false;
