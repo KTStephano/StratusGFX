@@ -3,6 +3,10 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 #extension GL_ARB_sparse_texture2 : require
 
+precision highp float;
+precision highp int;
+precision highp uimage2D;
+
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 uniform uint frameCount;

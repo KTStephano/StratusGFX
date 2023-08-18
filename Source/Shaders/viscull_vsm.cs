@@ -2,6 +2,10 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
+precision highp float;
+precision highp int;
+precision highp uimage2D;
+
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 #include "common.glsl"
