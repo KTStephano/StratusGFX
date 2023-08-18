@@ -144,6 +144,6 @@ void main() {
 
     fsColor = boundHDR(color + emissive * emissionStrength);
 
-    float currId = texture(ids, fsTexCoords).r;
-    fsColor = vec3(random(currId), random(currId + 1), random(currId + 2));
+    //float currId = texture(ids, fsTexCoords).r;
+    //fsColor = vec3(random(currId), random(currId + 1), random(currId + 2));
 }

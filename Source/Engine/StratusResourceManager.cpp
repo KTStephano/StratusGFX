@@ -104,7 +104,7 @@ namespace stratus {
             meshlet->FinalizeData();
             totalBytes += meshlet->GetGpuSizeBytes();
             removeFromGpuDataQueue.push_back(meshlet);
-            if (removeFromGpuDataQueue.size() > 5 || totalBytes >= maxModelBytesPerFrame) break;
+            if (removeFromGpuDataQueue.size() > 30 || totalBytes >= maxModelBytesPerFrame) break;
             //if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
@@ -386,107 +386,127 @@ namespace stratus {
         //auto meshlet = rmesh->NewMeshlet();
 
         // Split mesh into meshlets
-        const size_t maxVertices = 1024;
-        const size_t maxTriangles = 512;
-        const float coneWeight = 0.0f;
+        const size_t maxVertices = 64;
+        const size_t maxTriangles = 124;
+        const float coneWeight = 1.0f;
 
-        std::vector<u32> indices;
-        indices.reserve(1024);
+        std::vector<u32> indices(mesh->mNumFaces * 3);
         for (u32 i = 0; i < mesh->mNumFaces; i++) {
-            aiFace face = mesh->mFaces[i];
-            for (u32 j = 0; j < face.mNumIndices; j++) {
-                indices.push_back(face.mIndices[j]);
+            for (u32 index = 0; index < 3; ++index) {
+                indices[3 * i + index] = mesh->mFaces[i].mIndices[index];
             }
+            //aiFace face = mesh->mFaces[i];
+            //for (u32 j = 0; j < face.mNumIndices; j++) {
+            //    indices.push_back(face.mIndices[j]);
+            //}
         }
 
-        const size_t maxMeshlets = meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles);
-        std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
-        std::vector<u32> meshletVertices(maxMeshlets * maxVertices);
-        std::vector<u8> meshletTriangles(maxVertices * maxTriangles * 3);
+        //std::vector<float> vertexData(3 * mesh->mNumVertices);
+        //for (usize i = 0; i < mesh->mNumVertices; ++i) {
+        //    vertexData[3 * i] = mesh->mVertices[i].x;
+        //    vertexData[3 * i + 1] = mesh->mVertices[i].y;
+        //    vertexData[3 * i + 2] = mesh->mVertices[i].z;
+        //}
 
-        size_t meshletCount = meshopt_buildMeshlets(
-            meshlets.data(), 
-            meshletVertices.data(), 
-            meshletTriangles.data(), 
-            indices.data(),
-            indices.size(), 
-            &mesh->mVertices[0].x, 
-            mesh->mNumVertices, 
-            sizeof(aiVector3D), 
-            maxVertices, 
-            maxTriangles, 
-            coneWeight
-        );
+        // const size_t maxMeshlets = meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles);
+        // std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
+        // std::vector<u32> meshletVertices(maxMeshlets * maxVertices);
+        // std::vector<u8> meshletTriangles(maxMeshlets * maxTriangles * 3);
+
+        // size_t meshletCount = meshopt_buildMeshlets(
+        //     meshlets.data(), 
+        //     meshletVertices.data(), 
+        //     meshletTriangles.data(), 
+        //     indices.data(),
+        //     indices.size(),
+        //     reinterpret_cast<float *>(mesh->mVertices),
+        //     mesh->mNumVertices,
+        //     3,
+        //     maxVertices, 
+        //     maxTriangles, 
+        //     coneWeight
+        // );
 
         // Trim data
-        const meshopt_Meshlet& last = meshlets[meshletCount - 1];
+        //const meshopt_Meshlet& last = meshlets[meshletCount - 1];
 
-        meshletVertices.resize(last.vertex_offset + last.vertex_count);
-        meshletTriangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
-        meshlets.resize(meshletCount);
+        //meshletVertices.resize(last.vertex_offset + last.vertex_count);
+        //meshletTriangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+        //meshlets.resize(meshletCount);
 
-        STRATUS_LOG << "MESHLETS: " << meshletCount << std::endl;
+        //STRATUS_LOG << "MESHLETS: " << meshletCount << std::endl;
 
+        for (usize i = 0; i < 1; ++i) {
         auto meshlet = rmesh->NewMeshlet();
 
         meshlet->ReserveVertices(mesh->mNumVertices);
         meshlet->ReserveIndices(indices.size());
-        //meshlet->ReserveVertices(mesh->mNumVertices);
-        //meshlet->ReserveIndices(indices.size());
 
         // Process core primitive data
         // TODO: Remove duplicate data from meshlets!
-        // for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
-        //     const auto index = mi; //meshletVertices[meshoptMeshlet.vertex_offset + mi];
-        //     meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
-        //     meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
+        for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
+            const auto index = mi; //meshletVertices[meshoptMeshlet.vertex_offset + mi];
+            meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+            meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
 
-        //     if (mesh->mNumUVComponents[0] != 0) {
-        //         meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
-        //     }
-        //     else {
-        //         meshlet->AddUV(glm::vec2(1.0f, 1.0f));
-        //     }
-
-        //     if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
-        //     if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
-        // }
-
-        // // Process indices
-        // for (u32 i = 0; i < mesh->mNumFaces; i++) {
-        //    aiFace face = mesh->mFaces[i];
-        //    for (u32 j = 0; j < face.mNumIndices; j++) {
-        //        meshlet->AddIndex(face.mIndices[j]);
-        //    }
-        // }
-
-        for (const auto& meshoptMeshlet : meshlets) {
-            auto meshlet = rmesh->NewMeshlet();
-
-            meshlet->ReserveVertices(meshoptMeshlet.vertex_count);
-            meshlet->ReserveIndices(meshoptMeshlet.vertex_count);
-            //meshlet->ReserveVertices(mesh->mNumVertices);
-            //meshlet->ReserveIndices(indices.size());
-
-            // Process core primitive data
-            // TODO: Remove duplicate data from meshlets!
-            for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
-                const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
-                meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
-                meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
-                meshlet->AddIndex(mi);
-
-                if (mesh->mNumUVComponents[0] != 0) {
-                    meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
-                }
-                else {
-                    meshlet->AddUV(glm::vec2(1.0f, 1.0f));
-                }
-
-                if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
-                if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
+            if (mesh->mNumUVComponents[0] != 0) {
+                meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
             }
+            else {
+                meshlet->AddUV(glm::vec2(1.0f, 1.0f));
+            }
+
+            if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+            if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
         }
+
+        // Process indices
+        for (u32 i = 0; i < mesh->mNumFaces; i++) {
+           aiFace face = mesh->mFaces[i];
+           for (u32 j = 0; j < face.mNumIndices; j++) {
+               meshlet->AddIndex(face.mIndices[j]);
+           }
+        }
+        }
+
+        //for (usize meshIndex = 0; meshIndex < meshletCount; ++meshIndex) {
+        //    const meshopt_Meshlet& meshoptMeshlet = meshlets[meshIndex];
+        //    if (meshoptMeshlet.vertex_count == 0) {
+        //        continue;
+        //    }
+
+        //    auto meshlet = rmesh->NewMeshlet();
+
+        //    meshlet->ReserveVertices(meshoptMeshlet.vertex_count);
+        //    meshlet->ReserveIndices(meshoptMeshlet.vertex_count);
+        //    //meshlet->ReserveVertices(mesh->mNumVertices);
+        //    //meshlet->ReserveIndices(indices.size());
+
+        //    // Process core primitive data
+        //    // TODO: Remove duplicate data from meshlets!
+        //    for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
+        //    //for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
+        //        const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
+        //        meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+        //        meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
+        //        meshlet->AddIndex(mi);
+
+        //        if (mesh->mNumUVComponents[0] != 0) {
+        //            meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
+        //        }
+        //        else {
+        //            meshlet->AddUV(glm::vec2(1.0f, 1.0f));
+        //        }
+
+        //        if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+        //        if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
+        //    }
+
+        //     //for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
+        //     //    const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
+        //     //    meshlet->AddIndex(index);
+        //     //}
+        //}
 
         // Process material
         //MaterialPtr m = rootMat->CreateSubMaterial();
@@ -732,30 +752,32 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 512);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 512);
+
+        //u32 pflags = aiProcess_JoinIdenticalVertices | aiProcess_FindInvalidData;
 
         u32 pflags = aiProcess_Triangulate |
-            aiProcess_JoinIdenticalVertices |
-            aiProcess_SortByPType |
-            aiProcess_GenNormals |
-            //aiProcess_ValidateDataStructure |
-            aiProcess_RemoveRedundantMaterials |
-            aiProcess_SortByPType |
-            //aiProcess_GenSmoothNormals | 
-            aiProcess_FlipUVs |
-            aiProcess_GenUVCoords |
-            aiProcess_CalcTangentSpace |
-            //aiProcess_SplitLargeMeshes |
-            aiProcess_ImproveCacheLocality |
-            aiProcess_OptimizeMeshes |
-            //aiProcess_OptimizeGraph |
-            //aiProcess_FixInfacingNormals |
-            aiProcess_FindDegenerates |
-            aiProcess_FindInvalidData |
-            aiProcess_FindInstances;
+           aiProcess_JoinIdenticalVertices |
+           aiProcess_SortByPType |
+           aiProcess_GenNormals |
+           //aiProcess_ValidateDataStructure |
+           aiProcess_RemoveRedundantMaterials |
+           aiProcess_SortByPType |
+           //aiProcess_GenSmoothNormals | 
+           aiProcess_FlipUVs |
+           aiProcess_GenUVCoords |
+           aiProcess_CalcTangentSpace |
+           aiProcess_SplitLargeMeshes |
+           aiProcess_ImproveCacheLocality |
+           aiProcess_OptimizeMeshes |
+           //aiProcess_OptimizeGraph |
+           //aiProcess_FixInfacingNormals |
+           aiProcess_FindDegenerates |
+           aiProcess_FindInvalidData |
+           aiProcess_FindInstances;
 
         if (optimizeGraph) {
-            pflags |= aiProcess_OptimizeGraph;
+           pflags |= aiProcess_OptimizeGraph;
         }
 
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
