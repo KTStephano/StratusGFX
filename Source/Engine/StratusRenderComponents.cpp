@@ -154,6 +154,22 @@ namespace stratus {
         numIndices_ = cpuData_->indices.size();
     }
 
+    void Meshlet::ReserveVertices(usize count) {
+        if (count == 0) return;
+
+        cpuData_->vertices.reserve(count);
+        cpuData_->normals.reserve(count);
+        cpuData_->uvs.reserve(count);
+        cpuData_->tangents.reserve(count);
+        cpuData_->bitangents.reserve(count);
+    }
+
+    void Meshlet::ReserveIndices(usize count) {
+        if (count == 0) return;
+
+        cpuData_->indices.reserve(count);
+    }
+
     void Meshlet::CalculateTangentsBitangents_() {
         EnsureNotFinalized_();
         cpuData_->needsRepacking = true;
@@ -307,34 +323,35 @@ namespace stratus {
             0.05f, 0.05f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f
         };
 
-        for (i32 i = 0; i < errors.size(); ++i) {
-            auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
-            const usize targetIndices = usize(prevIndices.size() * 0.5);
-            std::vector<u32> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
-            //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
-            // If we didn't see at least a 10% reduction, try the more aggressive algorithm
-            //if ((prevIndices.size() * 0.9) < double(size)) {
-            //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, 0.01f);
-            //   error *= 2.0f;
-            //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, error);
-            //}
-            simplified.resize(size);
-            meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
-            cpuData_->indicesPerLod.push_back(std::move(simplified));
-            numIndicesPerLod_.push_back(size);
-            if (size < 1024) break;
-        }
+        //for (i32 i = 0; i < errors.size(); ++i) {
+        //    auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
+        //    STRATUS_LOG << i << " " << prevIndices.size() << std::endl;
+        //    const usize targetIndices = usize(prevIndices.size() * 0.5);
+        //    std::vector<u32> simplified(prevIndices.size());
+        //    auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
+        //    //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
+        //    // If we didn't see at least a 10% reduction, try the more aggressive algorithm
+        //    //if ((prevIndices.size() * 0.9) < double(size)) {
+        //    //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, 0.01f);
+        //    //   error *= 2.0f;
+        //    //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, error);
+        //    //}
+        //    simplified.resize(size);
+        //    meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
+        //    cpuData_->indicesPerLod.push_back(std::move(simplified));
+        //    numIndicesPerLod_.push_back(size);
+        //    if (size < 1024) break;
+        //}
 
         // One last lod computed more aggressively than the previous ones
-        auto& prevIndices = cpuData_->indicesPerLod[0];
-        std::vector<u32> simplified(prevIndices.size());
-        const usize targetIndices = std::min<usize>(prevIndices.size(), 1024);
-        auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.8f);
-        simplified.resize(size);
-        meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
-        cpuData_->indicesPerLod.push_back(std::move(simplified));
-        numIndicesPerLod_.push_back(size);
+        //auto& prevIndices = cpuData_->indicesPerLod[0];
+        //std::vector<u32> simplified(prevIndices.size());
+        //const usize targetIndices = std::min<usize>(prevIndices.size(), 1024);
+        //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.8f);
+        //simplified.resize(size);
+        //meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
+        //cpuData_->indicesPerLod.push_back(std::move(simplified));
+        //numIndicesPerLod_.push_back(size);
 
         meshopt_optimizeVertexCache(cpuData_->indices.data(), cpuData_->indices.data(), cpuData_->indices.size(), cpuData_->vertices.size());
         cpuData_->indicesPerLod[0] = cpuData_->indices;

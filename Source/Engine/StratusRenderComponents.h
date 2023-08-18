@@ -50,6 +50,9 @@ namespace stratus {
         void AddBitangent(const glm::vec3&);
         void AddIndex(u32);
 
+        void ReserveVertices(usize);
+        void ReserveIndices(usize);
+
         bool IsFinalized() const;
         void FinalizeData();
 

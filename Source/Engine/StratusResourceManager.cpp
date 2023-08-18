@@ -383,13 +383,10 @@ namespace stratus {
         //MeshPtr rmesh = Mesh::Create();
         aiMesh * mesh = processMesh.aim;
         MeshPtr rmesh = processMesh.mesh;
-        auto meshlet = rmesh->NewMeshlet();
+        //auto meshlet = rmesh->NewMeshlet();
 
-        //std::vector<glm::vec3> vertices;
-        //std::vector<glm::vec3> normals;
-        //std::vector<glm::vec2> uvs;
-
-        const size_t maxVertices = 65536;
+        // Split mesh into meshlets
+        const size_t maxVertices = 1024;
         const size_t maxTriangles = 512;
         const float coneWeight = 0.0f;
 
@@ -407,32 +404,87 @@ namespace stratus {
         std::vector<u32> meshletVertices(maxMeshlets * maxVertices);
         std::vector<u8> meshletTriangles(maxVertices * maxTriangles * 3);
 
-        size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshletVertices.data(), meshletTriangles.data(), indices.data(),
-            indices.size(), &mesh->mVertices[0].x, mesh->mNumVertices, sizeof(aiVector3D), maxVertices, maxTriangles, coneWeight);
+        size_t meshletCount = meshopt_buildMeshlets(
+            meshlets.data(), 
+            meshletVertices.data(), 
+            meshletTriangles.data(), 
+            indices.data(),
+            indices.size(), 
+            &mesh->mVertices[0].x, 
+            mesh->mNumVertices, 
+            sizeof(aiVector3D), 
+            maxVertices, 
+            maxTriangles, 
+            coneWeight
+        );
 
-        STRATUS_LOG << "MESHLETS: " << meshlet_count << std::endl;
+        // Trim data
+        const meshopt_Meshlet& last = meshlets[meshletCount - 1];
+
+        meshletVertices.resize(last.vertex_offset + last.vertex_count);
+        meshletTriangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+        meshlets.resize(meshletCount);
+
+        STRATUS_LOG << "MESHLETS: " << meshletCount << std::endl;
+
+        auto meshlet = rmesh->NewMeshlet();
+
+        meshlet->ReserveVertices(mesh->mNumVertices);
+        meshlet->ReserveIndices(indices.size());
+        //meshlet->ReserveVertices(mesh->mNumVertices);
+        //meshlet->ReserveIndices(indices.size());
 
         // Process core primitive data
-        for (u32 i = 0; i < mesh->mNumVertices; i++) {
-            meshlet->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
-            meshlet->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
+        // TODO: Remove duplicate data from meshlets!
+        // for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
+        //     const auto index = mi; //meshletVertices[meshoptMeshlet.vertex_offset + mi];
+        //     meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+        //     meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
 
-            if (mesh->mNumUVComponents[0] != 0) {
-                meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
-            }
-            else {
-                meshlet->AddUV(glm::vec2(1.0f, 1.0f));
-            }
+        //     if (mesh->mNumUVComponents[0] != 0) {
+        //         meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
+        //     }
+        //     else {
+        //         meshlet->AddUV(glm::vec2(1.0f, 1.0f));
+        //     }
 
-            if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
-            if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
-        }
+        //     if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+        //     if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
+        // }
 
-        // Process indices
-        for(u32 i = 0; i < mesh->mNumFaces; i++) {
-            aiFace face = mesh->mFaces[i];
-            for(u32 j = 0; j < face.mNumIndices; j++) {
-                meshlet->AddIndex(face.mIndices[j]);
+        // // Process indices
+        // for (u32 i = 0; i < mesh->mNumFaces; i++) {
+        //    aiFace face = mesh->mFaces[i];
+        //    for (u32 j = 0; j < face.mNumIndices; j++) {
+        //        meshlet->AddIndex(face.mIndices[j]);
+        //    }
+        // }
+
+        for (const auto& meshoptMeshlet : meshlets) {
+            auto meshlet = rmesh->NewMeshlet();
+
+            meshlet->ReserveVertices(meshoptMeshlet.vertex_count);
+            meshlet->ReserveIndices(meshoptMeshlet.vertex_count);
+            //meshlet->ReserveVertices(mesh->mNumVertices);
+            //meshlet->ReserveIndices(indices.size());
+
+            // Process core primitive data
+            // TODO: Remove duplicate data from meshlets!
+            for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
+                const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
+                meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+                meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
+                meshlet->AddIndex(mi);
+
+                if (mesh->mNumUVComponents[0] != 0) {
+                    meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
+                }
+                else {
+                    meshlet->AddUV(glm::vec2(1.0f, 1.0f));
+                }
+
+                if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+                if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
             }
         }
 
