@@ -458,7 +458,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        WorldLightController * wc = new WorldLightController(warmMorningColor, warmMorningColor, 10);
+        WorldLightController * wc = new WorldLightController(defaultSunColor, warmMorningColor, 10);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(29.9668f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
@@ -467,7 +467,7 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene 
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
@@ -490,6 +490,7 @@ public:
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
         settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
+        settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
