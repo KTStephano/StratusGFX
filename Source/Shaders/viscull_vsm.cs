@@ -37,7 +37,13 @@ layout (std430, binding = 5) buffer outputBlock2 {
 
 shared ivec2 residencyTableSize;
 shared ivec2 maxResidencyTableIndex;
+shared vec2 pageCorners[4];
 shared bool validPage;
+
+bool isPageWithinBounds(in vec2 pageCorner, in vec2 texCornerMin, in vec2 texCornerMax) {
+    return pageCorner.x >= texCornerMin.x && pageCorner.x <= texCornerMax.x &&
+           pageCorner.y >= texCornerMin.y && pageCorner.y <= texCornerMax.y;
+}
 
 void main() {
     ivec2 baseTileCoords = ivec2(gl_WorkGroupID.xy);
@@ -45,6 +51,11 @@ void main() {
     if (gl_LocalInvocationID == 0) {
         residencyTableSize = imageSize(currFramePageResidencyTable).xy;
         maxResidencyTableIndex = residencyTableSize - ivec2(1.0);
+
+        pageCorners[0] = vec2(baseTileCoords) / vec2(maxResidencyTableIndex);
+        pageCorners[1] = vec2(baseTileCoords + ivec2(0, 1)) / vec2(maxResidencyTableIndex);
+        pageCorners[2] = vec2(baseTileCoords + ivec2(1, 0)) / vec2(maxResidencyTableIndex);
+        pageCorners[3] = vec2(baseTileCoords + ivec2(1, 1)) / vec2(maxResidencyTableIndex);
 
         uint pageStatus = uint(imageLoad(currFramePageResidencyTable, baseTileCoords).r);
         validPage = (pageStatus == frameCount);
@@ -62,7 +73,11 @@ void main() {
 
     vec4 corners[8];
     vec2 texCoords;
-    ivec2 currentTileCoords;
+    vec2 currentTileCoords;
+    ivec2 currentTileCoordsLower;
+    ivec2 currentTileCoordsUpper;
+
+    vec2 texCorners[4];
 
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         DrawElementsIndirectCommand draw = inDrawCalls[i];
@@ -71,16 +86,46 @@ void main() {
         }
 
         AABB aabb = transformAabb(aabbs[i], cascadeProjectionView * modelTransforms[i]);
-        computeCorners(aabb, corners);
+        computeCornersAsTexCoords(aabb, corners);
 
-        // TODO: Need to check if this tile is inside the bounding box!
-        for (int j = 0; j < 8; ++j) {
-            // Maps from [-1, 1] to [0, 1]
-            texCoords = corners[j].xy * 0.5 + 0.5;
-            currentTileCoords = ivec2(texCoords * vec2(maxResidencyTableIndex));
+        vec2 vmin = corners[0].xy;
+        vec2 vmax = corners[0].xy;
+
+        for (int i = 1; i < 8; ++i) {
+            vmin = min(vmin, corners[i].xy);
+            vmax = max(vmax, corners[i].xy);
+        }
+
+        // Check if any part of the page is within the bounding box
+        if (isPageWithinBounds(pageCorners[0], vmin, vmax) ||
+            isPageWithinBounds(pageCorners[1], vmin, vmax) ||
+            isPageWithinBounds(pageCorners[2], vmin, vmax) ||
+            isPageWithinBounds(pageCorners[3], vmin, vmax)) {
+
+            atomicExchange(outDrawCalls[i].instanceCount, 1);
+            continue;
+        }
+
+        texCorners[0] = vec2(vmin.x, vmin.y);
+        texCorners[1] = vec2(vmin.x, vmax.y);
+        texCorners[2] = vec2(vmax.x, vmin.y);
+        texCorners[3] = vec2(vmax.x, vmax.y);
+
+        // Check if any part of the bounding box is within the page
+        for (int j = 0; j < 4; ++j) {
+            texCoords = texCorners[j].xy;
+            currentTileCoords = texCoords * vec2(maxResidencyTableIndex);
+
+            currentTileCoordsLower = ivec2(
+                floor(currentTileCoords.x), floor(currentTileCoords.y)
+            );
+
+            currentTileCoordsUpper = ivec2(
+                ceil(currentTileCoords.x), ceil(currentTileCoords.y)
+            );
 
             // Check if the corner lies within this tile
-            if (currentTileCoords == baseTileCoords) {
+            if (currentTileCoordsLower == baseTileCoords || currentTileCoordsUpper == baseTileCoords) {
                 uint prev = atomicExchange(outDrawCalls[i].instanceCount, 1);
 
                 // if (prev == 0) {
