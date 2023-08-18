@@ -30,6 +30,7 @@ uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
 uniform sampler2DRect ssao;
+uniform sampler2D ids;
 
 uniform mat4 invProjectionView;
 
@@ -141,5 +142,8 @@ void main() {
     color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif
 
-    fsColor = boundHDR(color + emissive * emissionStrength);
+    //fsColor = boundHDR(color + emissive * emissionStrength);
+
+    float currId = texture(ids, fsTexCoords).r;
+    fsColor = vec3(random(currId), random(currId + 1), random(currId + 2));
 }
