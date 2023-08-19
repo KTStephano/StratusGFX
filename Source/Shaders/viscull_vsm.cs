@@ -43,6 +43,10 @@ layout (std430, binding = 5) buffer outputBlock2 {
     int outputDrawCalls;
 };
 
+layout (std430, binding = 6) buffer outputBlock3 {
+    uint pageGroupsToRender[];
+};
+
 shared ivec2 residencyTableSize;
 shared ivec2 maxResidencyTableIndex;
 shared int minLocalPageX;
@@ -94,6 +98,11 @@ void main() {
         minLocalPageY = residencyTableSize.y + 1;
         maxLocalPageX = -1;
         maxLocalPageY = -1;
+
+        // Conditionally mark this as invalid if a previous pass hasn't yet
+        if (pageGroupsToRender[basePageGroupIndex] != frameCount) {
+            pageGroupsToRender[basePageGroupIndex] = 0;
+        }
     }
 
     barrier();
@@ -161,11 +170,14 @@ void main() {
         vec2 pageMin = vec2(pageGroupCorners[0]);
         vec2 pageMax = vec2(pageGroupCorners[3]);
 
-        vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
-        vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
+        vec2 aabbMin = clamp(corners[0].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
+        vec2 aabbMax = clamp(corners[7].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
 
         if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
             outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
+
+            // Mark this page group as valid for this frame
+            atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
         }
 
         // vec2 vmin = corners[0].xy;

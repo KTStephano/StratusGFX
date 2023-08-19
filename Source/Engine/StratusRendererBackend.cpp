@@ -424,8 +424,9 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->csc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(int), flags);
         frame_->csc.pagesToCommitList = GpuBuffer(nullptr, 2 * sizeof(int) * numPages * numPages, flags);
 
-        std::vector<u8> pagesToRender(numPages * numPages, 0);
-        frame_->csc.pagesToRender = GpuBuffer((const void *)pagesToRender.data(), sizeof(u8) * numPages * numPages, flags);
+        const auto numPageGroups = frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY;
+        std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
+        frame_->csc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * numPageGroups, flags);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1211,7 +1212,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     //int clearValue = 0;
     //frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
 
-    frame_->csc.pagesToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    //frame_->csc.pagesToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
 
     state_.vsmAnalyzeDepth->Bind();
     
@@ -1311,6 +1312,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->csc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->csc.numPageGroupsY);
     state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
 
     PerformVSMCulling(
         *state_.vsmCull,
@@ -1426,19 +1428,35 @@ void RendererBackend::RenderCSMDepth_() {
         const auto pageGroupWindowWidth = depth->Width() / frame_->csc.numPageGroupsX;
         const auto pageGroupWindowHeight = depth->Height() / frame_->csc.numPageGroupsY;
 
+        usize numPageGroupsToRender = 0;
+        const u32 * pageGroupsToRender = (const u32 *)frame_->csc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
+
         for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
             for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+
+                const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
+                if (pageGroupsToRender[pageGroupIndex] > 0) {
+                    ++numPageGroupsToRender;
+                }
+                else {
+                    continue;
+                }
+
                 u32 startX = x * pageGroupWindowWidth;
                 u32 startY = y * pageGroupWindowHeight;
                 glViewport(startX, startY, pageGroupWindowWidth, pageGroupWindowHeight);
                 //glViewport(0, 0, depth->Width(), depth->Height());
 
-                const usize i = x + y * frame_->csc.numPageGroupsX;
-                shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[i]);
-                RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, i, true);
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, i, true);
+                shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[pageGroupIndex]);
+
+                RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, pageGroupIndex, true);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, pageGroupIndex, true);
             }
         }
+
+        //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
+
+        frame_->csc.pageGroupsToRender.UnmapMemory();
 
         // glViewport(0, 0, halfWidth, halfHeight);
         // usize i = 3;

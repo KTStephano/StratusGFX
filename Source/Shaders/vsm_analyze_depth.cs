@@ -29,10 +29,6 @@ layout (std430, binding = 1) buffer block2 {
     int pageIndices[];
 };
 
-layout (std430, binding = 2) buffer block4 {
-    int renderPageIndices[];
-};
-
 shared vec2 depthTextureSize;
 shared ivec2 residencyTableSize;
 
@@ -70,8 +66,6 @@ void updateResidencyStatus(in ivec2 coords) {
         pageIndices[2 * original] = pixelCoords.x;
         pageIndices[2 * original + 1] = pixelCoords.y;
     }
-
-    //renderPageIndices[pixelCoords.x + pixelCoords.y * residencyTableSize.x] = current > 0 ? 1 : 0;
 }
 
 void main() {
@@ -106,10 +100,10 @@ void main() {
     vec2 basePixelCoords = cascadeTexCoords * vec2(residencyTableSize - ivec2(1));
 
     updateResidencyStatus(ivec2(basePixelCoords));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  0));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0, -1));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  0));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0, -1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0,  1));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  1));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  1));
