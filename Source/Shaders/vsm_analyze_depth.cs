@@ -110,10 +110,10 @@ void main() {
     updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));
     updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0, -1));
     updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0,  1));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  1));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  1));
-    updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1, -1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1, -1));
 
     // if (basePixelCoords.x == floor(basePixelCoords.x)) {
     //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));

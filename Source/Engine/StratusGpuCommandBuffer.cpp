@@ -312,12 +312,14 @@ namespace stratus {
         return false;
     }
 
-    void GpuCommandReceiveBuffer::EnsureCapacity(const GpuCommandBufferPtr& buffer) {
+    void GpuCommandReceiveBuffer::EnsureCapacity(const GpuCommandBufferPtr& buffer, usize copies) {
+        if (copies == 0) return;
+
         const usize capacity = capacityBytes_ / sizeof(GpuDrawElementsIndirectCommand);
-        const bool resize = capacity < buffer->CommandCapacity();
+        const bool resize = capacity < (copies * buffer->CommandCapacity());
 
         if (resize) {
-            capacityBytes_ = buffer->CommandCapacity() * sizeof(GpuDrawElementsIndirectCommand);
+            capacityBytes_ = copies * buffer->CommandCapacity() * sizeof(GpuDrawElementsIndirectCommand);
             const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
             receivedCommands_ = GpuBuffer(nullptr, capacityBytes_, flags);
         }
@@ -588,10 +590,10 @@ namespace stratus {
         }
     }
 
-    void GpuCommandReceiveManager::EnsureCapacity(const GpuCommandManagerPtr& manager) {
-    #define ENSURE_CAPACITY(readonly, writeonly)                  \
-        for (const auto& [cull, buffer] : readonly) {             \
-            writeonly.find(cull)->second->EnsureCapacity(buffer); \
+    void GpuCommandReceiveManager::EnsureCapacity(const GpuCommandManagerPtr& manager, usize copies) {
+    #define ENSURE_CAPACITY(readonly, writeonly)                          \
+        for (const auto& [cull, buffer] : readonly) {                     \
+            writeonly.find(cull)->second->EnsureCapacity(buffer, copies); \
         }
 
         ENSURE_CAPACITY(manager->flatMeshes, flatMeshes);

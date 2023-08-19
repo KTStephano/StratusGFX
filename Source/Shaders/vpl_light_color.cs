@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information

@@ -146,6 +146,14 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
     // return closestDepth;
 }
 
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
+    coords.w = depth - bias;
+    coords.xy += offset;
+    float result;
+    int status = sparseTextureARB(shadow, coords, result);
+    return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
+}
+
 // For more information, see:
 //      "Foundations of Game Development, Volume 2: Rendering", pp. 189
 //      https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping

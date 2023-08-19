@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
@@ -8,8 +9,10 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 #include "aabb.glsl"
 
 uniform uint numDrawCalls;
+uniform uint maxDrawCommands;
 uniform mat4 cascadeViewProj[4];
 uniform uint numCascades;
+uniform uint numPageGroups;
 
 layout (std430, binding = 2) readonly buffer inputBlock3 {
     mat4 modelTransforms[];
@@ -99,7 +102,9 @@ void main() {
     }                                                               \
     out1[index] = draw;                                             \
     draw.instanceCount = 0;                                         \
-    out2[index] = draw;
+    for (uint group = 0; group < numPageGroups; ++group) {          \
+        out2[group * maxDrawCommands + index] = draw;               \
+    }
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);

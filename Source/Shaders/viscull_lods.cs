@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 

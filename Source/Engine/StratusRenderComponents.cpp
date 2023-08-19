@@ -325,7 +325,7 @@ namespace stratus {
 
         for (i32 i = 0; i < errors.size(); ++i) {
            auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
-           STRATUS_LOG << i << " " << prevIndices.size() << std::endl;
+           //STRATUS_LOG << i << " " << prevIndices.size() << std::endl;
            const usize targetIndices = usize(prevIndices.size() * 0.5);
            std::vector<u32> simplified(prevIndices.size());
            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);

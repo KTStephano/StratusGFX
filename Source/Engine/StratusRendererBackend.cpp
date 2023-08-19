@@ -1022,7 +1022,7 @@ void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling,
     }
 }
 
-void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select) {
+void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, usize offset) {
     if (buffer->NumDrawCommands() == 0) return;
 
     frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
@@ -1033,12 +1033,16 @@ void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandB
 
     SetCullState(cull);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)0, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
+    const void * offsetBytes = (const void *)(sizeof(GpuDrawElementsIndirectCommand) * offset * buffer->CommandCapacity());
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, offsetBytes, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
 
     select(buffer).Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 }
 
-void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(
+    Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, usize offset, 
+    bool isLightInteracting, bool removeViewTranslation) {
+
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
@@ -1087,19 +1091,24 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
-    RenderImmediate_(cull, buffer, select);
+    RenderImmediate_(cull, buffer, select, offset);
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(
+    Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, usize offset,
+    bool isLightInteracting, bool removeViewTranslation) {
+
     for (auto& entry : map) {
-        Render_(s, entry.first, entry.second, select, isLightInteracting, removeViewTranslation);
+        Render_(s, entry.first, entry.second, select, offset, isLightInteracting, removeViewTranslation);
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(
+    std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, usize offset, const bool reverseCullFace) {
+
     for (auto& entry : map) {
         auto cull = entry.first;
         if (reverseCullFace) {
@@ -1110,7 +1119,7 @@ void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, Gpu
                 cull = RenderFaceCulling::CULLING_CCW;
             }
         }
-        RenderImmediate_(cull, entry.second, select);
+        RenderImmediate_(cull, entry.second, select, offset);
     }
 }
 
@@ -1160,7 +1169,10 @@ void RendererBackend::PerformVSMCulling(
     for (auto& [cull, buffer] : commands) {
         if (buffer->NumDrawCommands() == 0) continue;
 
+        //STRATUS_LOG << buffer->NumDrawCommands() << " " << buffer->CommandCapacity() << std::endl;
+
         pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
+        pipeline.SetUint("maxDrawCommands", (u32)buffer->CommandCapacity());
 
         buffer->BindModelTransformBuffer(2);
         buffer->BindAabbBuffer(3);
@@ -1173,9 +1185,11 @@ void RendererBackend::PerformVSMCulling(
         i32 value = 0;
         frame_->csc.numDrawCalls.CopyDataToBuffer(0, sizeof(i32), (const void *)&value);
 
-        const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        //const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        const auto numPageGroupsX = frame_->csc.numPageGroupsX;
+        const auto numPageGroupsY = frame_->csc.numPageGroupsY;
 
-        pipeline.DispatchCompute(numPagesAvailable, numPagesAvailable, 1);
+        pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
         pipeline.SynchronizeCompute();
 
         // const i32 * result = (const i32 *)frame_->csc.numDrawCalls.MapMemory(GPU_MAP_READ);
@@ -1294,6 +1308,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmCull->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
     state_.vsmCull->SetUint("frameCount", frameCount);
+    state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->csc.numPageGroupsX);
+    state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->csc.numPageGroupsY);
     state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
 
     PerformVSMCulling(
@@ -1406,8 +1422,47 @@ void RendererBackend::RenderCSMDepth_() {
         //     }
         // }
         //glViewport(30 * 128, 30 * 128, 70 * 128, 70 * 128);
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
+        const auto numPageGroups = frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY;
+        const auto halfWidth = depth->Width() / 2;
+        const auto halfHeight = depth->Height() / 2;
+
+        for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
+            for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+                u32 startX = x * halfWidth;
+                u32 startY = y * halfHeight;
+                glViewport(startX, startY, halfWidth, halfHeight);
+                //glViewport(0, 0, depth->Width(), depth->Height());
+
+                const usize i = x + y * frame_->csc.numPageGroupsX;
+                shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[i]);
+                //RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, i, true);
+                //RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, i, true);
+            }
+        }
+
+        // glViewport(0, 0, halfWidth, halfHeight);
+        // usize i = 3;
+        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[0]);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+
+        // glViewport(0, halfHeight, halfWidth, halfHeight);
+        // i = 3;
+        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[2]);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+
+        // glViewport(halfWidth, halfHeight, halfWidth, halfHeight);
+        // i = 3;
+        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[3]);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+
+        // glViewport(halfWidth, 0, halfWidth, halfHeight);
+        // i = 3;
+        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[1]);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
         // RenderImmediate_(csm.visibleStaticPbrMeshes);
@@ -1791,7 +1846,7 @@ void RendererBackend::UpdatePointLights_(
                     const auto cull = b->GetFaceCulling();
                     return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                 };
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, 0, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1827,8 +1882,8 @@ void RendererBackend::UpdatePointLights_(
                     //return b->GetIndirectDrawCommandsBuffer(0);
                 };
 
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, false);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, false);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, false);
             }
 
             UnbindShader_();
@@ -2366,8 +2421,8 @@ void RendererBackend::RenderForwardPassPbr_() {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
-    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
-    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, true);
+    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, 0, true);
+    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, 0, true);
 
     state_.currentFrame.fbo.Unbind();
 
@@ -2389,7 +2444,7 @@ void RendererBackend::RenderForwardPassFlat_() {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
-    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, false);
+    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, 0, false);
 
     UnbindShader_();
 }

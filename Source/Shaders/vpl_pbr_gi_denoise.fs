@@ -12,6 +12,7 @@ STRATUS_GLSL_VERSION
 //      -> ReSTIR Theory Breakdown: https://agraphicsguynotes.com/posts/understanding_the_math_behind_restir_di/ 
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 #include "pbr.glsl"
 #include "pbr2.glsl"

@@ -102,6 +102,11 @@ namespace stratus {
         FrameBuffer fbo;
         Texture prevFramePageResidencyTable;
         Texture currFramePageResidencyTable;
+        // Texture is split into pages which are combined
+        // into page groups for geometry culling purposes
+        u32 numPageGroupsX = 2;
+        u32 numPageGroupsY = 2;
+        std::vector<glm::mat4> tiledProjectionMatrices;
         GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
@@ -663,11 +668,11 @@ namespace stratus {
         void ProcessCSMVirtualTexture_();
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);
         void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&);
-        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, usize offset);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, usize offset, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, usize offset, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const VplDistVector_& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, usize offset, const bool reverseCullFace);
         void UpdatePointLights_(
             VplDistMultiSet_&, 
             VplDistVector_&,

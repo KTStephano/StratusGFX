@@ -87,7 +87,9 @@ namespace stratus {
     struct GpuCommandReceiveBuffer {
         // Looks at the given command buffer and makes sure we have enough space to receive
         // elements from it
-        void EnsureCapacity(const GpuCommandBufferPtr& buffer);
+        //
+        // copies = number consecutive buffers to generate in the same array
+        void EnsureCapacity(const GpuCommandBufferPtr& buffer, usize copies = 1);
 
         GpuBuffer GetCommandBuffer() const;
 
@@ -139,7 +141,7 @@ namespace stratus {
 
         GpuCommandReceiveManager();
 
-        void EnsureCapacity(const GpuCommandManagerPtr& manager);
+        void EnsureCapacity(const GpuCommandManagerPtr& manager, usize copies = 1);
 
         static inline GpuCommandReceiveManagerPtr Create() {
             return GpuCommandReceiveManagerPtr(new GpuCommandReceiveManager());

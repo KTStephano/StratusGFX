@@ -460,6 +460,7 @@ namespace stratus {
         frame_->csc.cascades.resize(1);
         frame_->csc.cascadeResolutionXY = 1024;
         frame_->csc.regenerateFbo = true;
+        frame_->csc.tiledProjectionMatrices.resize(frame_->csc.numPageGroupsY * frame_->csc.numPageGroupsY);
 
         for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             frame_->csc.cascades[i].drawCommandsFrustumCulled = GpuCommandReceiveManager::Create();
@@ -563,7 +564,9 @@ namespace stratus {
 
         frame_->csc.cascadeResolutionXY = requestedCascadeResolutionXY;
 
-        const f32 cascadeResReciprocal = 1.0f / frame_->csc.cascadeResolutionXY;
+        //requestedCascadeResolutionXY /= 2;
+
+        const f32 cascadeResReciprocal = 1.0f / requestedCascadeResolutionXY;
         const f32 cascadeDelta = cascadeResReciprocal;
         const usize numCascades = frame_->csc.cascades.size();
 
@@ -717,7 +720,7 @@ namespace stratus {
             const f32 dk = ceilf(maxLength);
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            const f32 T = dk / frame_->csc.cascadeResolutionXY;
+            const f32 T = dk / requestedCascadeResolutionXY;
             frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
@@ -755,6 +758,7 @@ namespace stratus {
                          minZ);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             //STRATUS_LOG << "sk " << sk << std::endl;
+            //sk = frame_->camera->GetPosition();
             sks.push_back(sk);
             frame_->csc.cascades[i].cascadePositionLightSpace = sk;
             frame_->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
@@ -795,6 +799,45 @@ namespace stratus {
             // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
             frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
             frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
+
+            const auto scaleX = f32(frame_->csc.numPageGroupsX);
+            const auto scaleY = f32(frame_->csc.numPageGroupsY);
+            const auto dkX = 2.0f / (dk / 1.0f);
+            const auto dkY = 2.0f / (dk / 1.0f);
+
+            //tx= - (-1 + 2/(2*m) + (2/m) * x)
+            //ty= - (-1 + 2/(2*n) + (2/n) * y)
+
+            const f32 invX = 1.0f / f32(frame_->csc.numPageGroupsX);
+            const f32 invY = 1.0f / f32(frame_->csc.numPageGroupsY);
+
+            // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
+            for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
+                for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+
+                    const usize tile = x + y * frame_->csc.numPageGroupsX;
+
+                    const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(x));
+                    const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(y));
+                    //const f32 tx = (-1.0f + invX + 2.0f * invX * f32(x));
+                    //const f32 ty = (-1.0f + invY + 2.0f * invY * f32(y));
+
+                    glm::mat4 scale(1.0f);
+                    matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
+
+                    glm::mat4 translate(1.0f);
+                    matTranslate(translate, glm::vec3(tx, ty, 0.0f));
+
+                    // const glm::mat4 tileOrthoProjection(glm::vec4(dkX, 0.0f, 0.0f, 0.0f), 
+                    //                                     glm::vec4(0.0f, dkY, 0.0f, 0.0f),
+                    //                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+                    //                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+                    const glm::mat4 tileOrthoProjection = scale * translate * cascadeOrthoProjection;
+
+                    frame_->csc.tiledProjectionMatrices[tile] = tileOrthoProjection * cascadeViewTransform;
+                }
+            }
             //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
@@ -988,8 +1031,8 @@ namespace stratus {
         // Ensure cascade draw command buffers have enough space
         for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             auto& csm = frame_->csc.cascades[i];
-            csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands);
-            csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands);
+            csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, 1);
+            csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
             
             viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.projectionViewRender);
         }
@@ -1033,6 +1076,8 @@ namespace stratus {
             if (buffer->NumDrawCommands() == 0) continue;
 
             pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
+            pipeline.SetUint("maxDrawCommands", (u32)buffer->CommandCapacity());
+            pipeline.SetUint("numPageGroups", (u32)frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
 
             const usize maxLod = 0;//buffer->NumLods() - 2;
 
