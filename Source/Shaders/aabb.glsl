@@ -36,14 +36,14 @@ void computeCornersAsTexCoords(in AABB aabb, out vec4 corners[8]) {
     vec4 vmin = aabb.vmin;
     vec4 vmax = aabb.vmax;
 
-    corners[0] = vec4(vmin.x, vmin.y, vmin.z, 1.0) * 0.5 + 0.5;
-    corners[1] = vec4(vmin.x, vmax.y, vmin.z, 1.0) * 0.5 + 0.5;
-    corners[2] = vec4(vmin.x, vmin.y, vmax.z, 1.0) * 0.5 + 0.5;
-    corners[3] = vec4(vmin.x, vmax.y, vmax.z, 1.0) * 0.5 + 0.5;
-    corners[4] = vec4(vmax.x, vmin.y, vmin.z, 1.0) * 0.5 + 0.5;
-    corners[5] = vec4(vmax.x, vmax.y, vmin.z, 1.0) * 0.5 + 0.5;
-    corners[6] = vec4(vmax.x, vmin.y, vmax.z, 1.0) * 0.5 + 0.5;
-    corners[7] = vec4(vmax.x, vmax.y, vmax.z, 1.0) * 0.5 + 0.5;
+    corners[0] = vec4(vec3(vmin.x, vmin.y, vmin.z) * 0.5 + 0.5, 1.0);
+    corners[1] = vec4(vec3(vmin.x, vmax.y, vmin.z) * 0.5 + 0.5, 1.0);
+    corners[2] = vec4(vec3(vmin.x, vmin.y, vmax.z) * 0.5 + 0.5, 1.0);
+    corners[3] = vec4(vec3(vmin.x, vmax.y, vmax.z) * 0.5 + 0.5, 1.0);
+    corners[4] = vec4(vec3(vmax.x, vmin.y, vmin.z) * 0.5 + 0.5, 1.0);
+    corners[5] = vec4(vec3(vmax.x, vmax.y, vmin.z) * 0.5 + 0.5, 1.0);
+    corners[6] = vec4(vec3(vmax.x, vmin.y, vmax.z) * 0.5 + 0.5, 1.0);
+    corners[7] = vec4(vec3(vmax.x, vmax.y, vmax.z) * 0.5 + 0.5, 1.0);
 }
 
 void computeCorners(in AABB aabb, out vec4 corners[8]) {
@@ -88,6 +88,26 @@ AABB transformAabb(in AABB aabb, in mat4 transform) {
     for (int i = 1; i < 8; ++i) {
         vmin3 = min(vmin3, corners[i].xyz);
         vmax3 = max(vmax3, corners[i].xyz);
+    }
+
+    AABB result;
+    result.vmin = vec4(vmin3, 1.0);
+    result.vmax = vec4(vmax3, 1.0); 
+
+    return result;
+}
+
+// Range of [-1, 1]
+AABB transformAabbAsNDCCoords(in AABB aabb, in mat4 transform) {
+    vec4 corners[8] = computeCornersWithTransform(aabb, transform);
+
+    // Perspective divide
+    vec3 vmin3 = corners[0].xyz / corners[0].w;
+    vec3 vmax3 = corners[0].xyz / corners[0].w;
+
+    for (int i = 1; i < 8; ++i) {
+        vmin3 = min(vmin3, corners[i].xyz / corners[i].w);
+        vmax3 = max(vmax3, corners[i].xyz / corners[i].w);
     }
 
     AABB result;

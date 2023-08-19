@@ -1423,20 +1423,20 @@ void RendererBackend::RenderCSMDepth_() {
         // }
         //glViewport(30 * 128, 30 * 128, 70 * 128, 70 * 128);
         const auto numPageGroups = frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY;
-        const auto halfWidth = depth->Width() / 2;
-        const auto halfHeight = depth->Height() / 2;
+        const auto pageGroupWindowWidth = depth->Width() / frame_->csc.numPageGroupsX;
+        const auto pageGroupWindowHeight = depth->Height() / frame_->csc.numPageGroupsY;
 
         for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
             for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
-                u32 startX = x * halfWidth;
-                u32 startY = y * halfHeight;
-                glViewport(startX, startY, halfWidth, halfHeight);
+                u32 startX = x * pageGroupWindowWidth;
+                u32 startY = y * pageGroupWindowHeight;
+                glViewport(startX, startY, pageGroupWindowWidth, pageGroupWindowHeight);
                 //glViewport(0, 0, depth->Width(), depth->Height());
 
                 const usize i = x + y * frame_->csc.numPageGroupsX;
                 shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[i]);
-                //RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, i, true);
-                //RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, i, true);
+                RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, i, true);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, i, true);
             }
         }
 
