@@ -96,6 +96,7 @@ namespace stratus {
         f32 cascadeRadius;
         f32 cascadeBegins;
         f32 cascadeEnds;
+        f32 cascadeZDifference;
     };
 
     struct RendererCascadeContainer {

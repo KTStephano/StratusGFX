@@ -53,7 +53,8 @@ void updateResidencyStatus(in ivec2 coords) {
     if (pixelCoords.x < 0 || pixelCoords.x >= residencyTableSize.x ||
         pixelCoords.y < 0 || pixelCoords.y >= residencyTableSize.y) {
         
-        pixelCoords = wrapIndex(coords, residencyTableSize);
+        //pixelCoords = wrapIndex(coords, residencyTableSize);
+        return;
     }
 
     uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);

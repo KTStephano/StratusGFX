@@ -770,10 +770,13 @@ namespace stratus {
                                                             transposeLightWorldTransform[2],
                                                             glm::vec4(-sk, 1.0f));
 
+            frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
+
             // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
             const f32 shadowDepthOffset = 0.0f;//2e-19;
             // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
             // so it enables us to use the simplified Orthographic Projection matrix below
+            // 
             //
             // This results in values between [-1, 1]
             const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
