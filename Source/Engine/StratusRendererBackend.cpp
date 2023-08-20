@@ -1474,32 +1474,34 @@ void RendererBackend::RenderCSMDepth_() {
             u32 sizeY = maxPageGroupY - minPageGroupY;
 
             // New page grouping not evenly divisible - adjust
-            if (frame_->csc.numPageGroupsX % sizeX != 0) {
-                // Adjust the bounds
-                if (maxPageGroupX < frame_->csc.numPageGroupsX) {
-                    ++maxPageGroupX;
-                }
-                else {
-                    --minPageGroupX;
-                }
+            // if (frame_->csc.numPageGroupsX % sizeX != 0) {
+            //     // Adjust the bounds
+            //     if (maxPageGroupX < frame_->csc.numPageGroupsX) {
+            //         ++maxPageGroupX;
+            //     }
+            //     else {
+            //         --minPageGroupX;
+            //     }
 
-                ++sizeX;
-            }
+            //     ++sizeX;
+            // }
 
-            if (frame_->csc.numPageGroupsY % sizeY != 0) {
-                if (maxPageGroupY < frame_->csc.numPageGroupsY) {
-                    ++maxPageGroupY;
-                }
-                else {
-                    --minPageGroupY;
-                }
+            // if (frame_->csc.numPageGroupsY % sizeY != 0) {
+            //     if (maxPageGroupY < frame_->csc.numPageGroupsY) {
+            //         ++maxPageGroupY;
+            //     }
+            //     else {
+            //         --minPageGroupY;
+            //     }
 
-                ++sizeY;
-            }
+            //     ++sizeY;
+            // }
 
             // Repartition pages into new set of groups
-            const u32 newNumPageGroupsX = frame_->csc.numPageGroupsX / sizeX;
-            const u32 newNumPageGroupsY = frame_->csc.numPageGroupsY / sizeY;
+            //const u32 newNumPageGroupsX = frame_->csc.numPageGroupsX / sizeX;
+            //const u32 newNumPageGroupsY = frame_->csc.numPageGroupsY / sizeY;
+            const f32 newNumPageGroupsX = f32(frame_->csc.numPageGroupsX) / f32(sizeX);
+            const f32 newNumPageGroupsY = f32(frame_->csc.numPageGroupsY) / f32(sizeY);
 
             // Normalize the min/max page groups
             const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->csc.numPageGroupsX);
@@ -1509,10 +1511,10 @@ void RendererBackend::RenderCSMDepth_() {
 
             // Translate the normalized min/max page groups into fractional locations within
             // the new repartitioned page groups
-            const f32 newMinPageGroupX = normMinPageGroupX * f32(newNumPageGroupsX);
-            const f32 newMinPageGroupY = normMinPageGroupY * f32(newNumPageGroupsY);
-            const f32 newMaxPageGroupX = normMaxPageGroupX * f32(newNumPageGroupsX);
-            const f32 newMaxPageGroupY = normMaxPageGroupY * f32(newNumPageGroupsY);
+            const f32 newMinPageGroupX = normMinPageGroupX * newNumPageGroupsX;
+            const f32 newMinPageGroupY = normMinPageGroupY * newNumPageGroupsY;
+            const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
+            const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
             //const auto scaleX = f32(frame_->csc.numPageGroupsX - sizeX + 1.0f);
             //const auto scaleY = f32(frame_->csc.numPageGroupsY - sizeY + 1.0f);
@@ -1520,11 +1522,11 @@ void RendererBackend::RenderCSMDepth_() {
             // Perform scaling equal to the new number of page groups (prevents entire
             // scene from being written into subset of texture - only relevant part
             // of the scene should go into the texture subset)
-            const auto scaleX = f32(newNumPageGroupsX);
-            const auto scaleY = f32(newNumPageGroupsY);
+            const auto scaleX = newNumPageGroupsX;
+            const auto scaleY = newNumPageGroupsY;
 
-            const f32 invX = 1.0f / f32(newNumPageGroupsX);
-            const f32 invY = 1.0f / f32(newNumPageGroupsY);
+            const f32 invX = 1.0f / newNumPageGroupsX;
+            const f32 invY = 1.0f / newNumPageGroupsY;
             //const f32 invX = 1.0f / scaleX;
             //const f32 invY = 1.0f / scaleY;
 
@@ -1548,8 +1550,11 @@ void RendererBackend::RenderCSMDepth_() {
 
             u32 startX = minPageGroupX * pageGroupWindowWidth;
             u32 startY = minPageGroupY * pageGroupWindowHeight;
-            //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << maxPageGroupX << " " << maxPageGroupY << std::endl;
+            
+            // We need to use the old page partitioning scheme to calculate the viewport
+            // info
             glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
+
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
             RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         }
