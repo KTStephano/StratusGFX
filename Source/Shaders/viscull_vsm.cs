@@ -174,7 +174,8 @@ void main() {
         vec2 aabbMax = clamp(corners[7].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
 
         if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
-            outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
+            //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
+            atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
 
             // Mark this page group as valid for this frame
             atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);

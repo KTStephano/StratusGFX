@@ -80,8 +80,8 @@ void main() {
     int yindex = int(gl_GlobalInvocationID.y);
 
     // Depth tex coords
-    //vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(0.5)) / depthTextureSize;
-    vec2 depthTexCoords = (vec2(xindex, yindex)) / depthTextureSize;
+    vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(0.5)) / depthTextureSize;
+    //vec2 depthTexCoords = (vec2(xindex, yindex)) / (depthTextureSize - vec2(1.0));
 
     // Get current depth and convert to world space
     //float depth = textureLod(depthTexture, depthTexCoords, 0).r;
@@ -99,7 +99,31 @@ void main() {
 
     vec2 basePixelCoords = cascadeTexCoords * vec2(residencyTableSize - ivec2(1));
 
+    float fx = fract(basePixelCoords.x);
+    float fy = fract(basePixelCoords.y);
+
     updateResidencyStatus(ivec2(basePixelCoords));
+
+    // If we are approaching a page boundary then allocate a bit of the region around us
+    if (fx <= 0.02) {
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-2, 0));
+
+    }
+    else if (fx >= 0.98) {
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(2, 0));
+    }
+
+    if (fy <= 0.02) {
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -2));
+    }
+    else if (fy >= 0.98) {
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
+        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 2));
+    }
+
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  0));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0, -1));

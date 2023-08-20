@@ -1032,7 +1032,8 @@ namespace stratus {
         for (usize i = 0; i < frame_->csc.cascades.size(); ++i) {
             auto& csm = frame_->csc.cascades[i];
             csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, 1);
-            csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
+            csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, 1);
+            //csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
             
             viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.projectionViewRender);
         }

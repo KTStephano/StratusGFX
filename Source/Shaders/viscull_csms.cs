@@ -102,9 +102,11 @@ void main() {
     }                                                               \
     out1[index] = draw;                                             \
     draw.instanceCount = 0;                                         \
-    for (uint group = 0; group < numPageGroups; ++group) {          \
-        out2[group * maxDrawCommands + index] = draw;               \
-    }
+    out2[index] = draw;
+
+    // for (uint group = 0; group < numPageGroups; ++group) {          \
+    //     out2[group * maxDrawCommands + index] = draw;               \
+    // }
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);

@@ -1449,8 +1449,8 @@ void RendererBackend::RenderCSMDepth_() {
 
                 shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[pageGroupIndex]);
 
-                RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, pageGroupIndex, true);
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, pageGroupIndex, true);
+                //RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, pageGroupIndex, true);
+                //RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, pageGroupIndex, true);
             }
         }
 
