@@ -244,11 +244,17 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         }));
     state_.shaders.push_back(state_.fullscreen.get());
 
-    state_.fullscreenDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    state_.fullscreenPages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"fullscreen.vs", ShaderType::VERTEX},
-        Shader{"fullscreen_depth.fs", ShaderType::FRAGMENT}
+        Shader{"fullscreen_pages.fs", ShaderType::FRAGMENT}
         }));
-    state_.shaders.push_back(state_.fullscreenDepth.get());
+    state_.shaders.push_back(state_.fullscreenPages.get());
+
+    state_.fullscreenPageGroups = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fullscreen.vs", ShaderType::VERTEX},
+        Shader{"fullscreen_page_groups.fs", ShaderType::FRAGMENT}
+        }));
+    state_.shaders.push_back(state_.fullscreenPageGroups.get());
 
     state_.viscullPointLights = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"viscull_point_lights.cs", ShaderType::COMPUTE} }));
@@ -2824,10 +2830,19 @@ void RendererBackend::FinalizeFrame_() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, 350, 350);
-    BindShader_(state_.fullscreenDepth.get());
-    state_.fullscreenDepth->SetFloat("znear", frame_->csc.znear);
-    state_.fullscreenDepth->SetFloat("zfar", frame_->csc.zfar);
-    state_.fullscreenDepth->BindTexture("depth", *frame_->csc.fbo.GetDepthStencilAttachment());
+    BindShader_(state_.fullscreenPages.get());
+    state_.fullscreenPages->SetFloat("znear", frame_->csc.znear);
+    state_.fullscreenPages->SetFloat("zfar", frame_->csc.zfar);
+    state_.fullscreenPages->BindTexture("depth", *frame_->csc.fbo.GetDepthStencilAttachment());
+    RenderQuad_();
+    UnbindShader_();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    BindShader_(state_.fullscreenPageGroups.get());
+    state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->csc.numPageGroupsX);
+    state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->csc.numPageGroupsY);
+    frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     RenderQuad_();
     UnbindShader_();
 }

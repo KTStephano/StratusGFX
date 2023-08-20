@@ -105,8 +105,8 @@ namespace stratus {
         Texture currFramePageResidencyTable;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
-        u32 numPageGroupsX = 8;
-        u32 numPageGroupsY = 8;
+        u32 numPageGroupsX = 16;
+        u32 numPageGroupsY = 16;
         std::vector<glm::mat4> tiledProjectionMatrices;
         GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
@@ -488,7 +488,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> taa;
             // Performs full screen pass through
             std::unique_ptr<Pipeline> fullscreen;
-            std::unique_ptr<Pipeline> fullscreenDepth;
+            std::unique_ptr<Pipeline> fullscreenPages;
+            std::unique_ptr<Pipeline> fullscreenPageGroups;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;
