@@ -303,6 +303,34 @@ namespace stratus {
             }
         }
 
+        void ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const {
+
+            // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
+            const i32 multiplier = type() == TextureType::TEXTURE_CUBE_MAP_ARRAY ? 6 : 1;
+            const i32 zoffset = layer * multiplier;
+            const i32 depth = multiplier; // number of layers to clear which for a cubemap is 6
+            glClearTexSubImage(
+                texture_, 
+                mipLevel, 
+                xoffset, 
+                yoffset, 
+                zoffset, 
+                width,
+                height, 
+                depth,
+                _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
+                _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
+                clearValue
+            );
+        }
+
         TextureType type() const               { return config_.type; }
         TextureComponentFormat format() const  { return config_.format; }
         TextureHandle handle() const           { return handle_; }
@@ -806,6 +834,18 @@ namespace stratus {
 
     void Texture::Clear(const i32 mipLevel, const void * clearValue) const { EnsureValid_(); impl_->Clear(mipLevel, clearValue); }
     void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { EnsureValid_(); impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const {
+
+        EnsureValid_();
+        impl_->ClearLayerRegion(mipLevel, layer, xoffset, yoffset, width, height, clearValue);
+    }
 
     const void * Texture::Underlying() const { EnsureValid_(); return impl_->Underlying(); }
 

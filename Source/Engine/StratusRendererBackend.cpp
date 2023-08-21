@@ -397,13 +397,19 @@ void RendererBackend::RecalculateCascadeData_() {
         const auto numPagesSquared = numPages * numPages;
 
         std::vector<GpuPageResidencyEntry, StackBasedPoolAllocator<GpuPageResidencyEntry>> pageResidencyData(
-            numPages, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
+            numPagesSquared, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
         );
 
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
 
         frame_->csc.prevFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
         frame_->csc.currFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+
+        //std::vector<u8, StackBasedPoolAllocator<u8>> pageStatusData(
+        //    numPagesSquared, u8(0), StackBasedPoolAllocator<u8>(frame_->perFrameScratchMemory)
+        //);
+
+        //frame_->csc.pageStatusTable = GpuBuffer((const void *)pageStatusData.data(), sizeof(u8) * numPagesSquared, flags);
 
         int value = 0;
         frame_->csc.numDrawCalls = GpuBuffer((const void *)&value, sizeof(int), flags);
@@ -798,11 +804,9 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         state_.vpls.vplGIDenoisedFbo2.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Depending on when this happens we may not have generated cascadeFbo yet
-        if (frame_->csc.fbo.Valid()) {
-            frame_->csc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-            //const i32 index = Engine::Instance()->FrameCount() % 4;
-            //_frame->csc.fbo.ClearDepthStencilLayer(index);
-        }
+        // if (frame_->csc.fbo.Valid()) {
+        //     frame_->csc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        // }
 
         for (auto& gaussian : state_.gaussianBuffers) {
             gaussian.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -1246,6 +1250,17 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
             //STRATUS_LOG << x << " " << y << std::endl;
 
             vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, true);
+            
+            // const float clearValue = 1.0f;
+            // vsm->ClearLayerRegion(
+            //     0, 
+            //     0, 
+            //     x * Texture::VirtualPageSizeXY(), 
+            //     y * Texture::VirtualPageSizeXY(),
+            //     Texture::VirtualPageSizeXY(), 
+            //     Texture::VirtualPageSizeXY(), 
+            //     (const void *)&clearValue
+            // );
         }
 
         frame_->csc.pagesToCommitList.UnmapMemory();
@@ -1550,6 +1565,16 @@ void RendererBackend::RenderCSMDepth_() {
             
             // We need to use the old page partitioning scheme to calculate the viewport
             // info
+            const float clearValue = 1.0f;
+            depth->ClearLayerRegion(
+                0, 
+                0, 
+                startX, 
+                startY, 
+                sizeX * pageGroupWindowWidth, 
+                sizeY * pageGroupWindowHeight, 
+                (const void *)&clearValue
+            );
             glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
@@ -2828,12 +2853,16 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
+    const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(frame_->viewportWidth - 350, 0, 350, 350);
     BindShader_(state_.fullscreenPageGroups.get());
     state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->csc.numPageGroupsX);
     state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->csc.numPageGroupsY);
+    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
     frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     RenderQuad_();
     UnbindShader_();
 }

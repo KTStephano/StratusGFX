@@ -60,17 +60,38 @@ void updateResidencyStatus(in ivec2 coords) {
     }
 
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY));
+    uint pageId = computePageId(pixelCoords);
 
     //uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
     //uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
     uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
     uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
 
+    // If true, page is not resident
     if (prev == 0 && current == 0) {
         int original = atomicAdd(numPagesToMakeResident, 1);
+        atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, 1));
         pageIndices[2 * original] = pixelCoords.x;
         pageIndices[2 * original + 1] = pixelCoords.y;
+
+        return;
     }
+
+    uint prevPageId;
+    uint unused;
+
+    unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, unused);
+
+    uint dirtyBit = 0;
+
+    // If true the page is resident but allocated to a different part of the shadow map - need to
+    // mark dirty since we are re-marking it
+    if (prevPageId != pageId) {
+        dirtyBit = 1;
+    }
+
+    // Re-mark page
+    atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, dirtyBit));
 }
 
 void main() {

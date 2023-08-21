@@ -26,7 +26,7 @@ layout (std430, binding = 2) buffer block4 {
     int renderPageIndices[];
 };
 
-layout (std430, binding = 3) readonly buffer block3 {
+layout (std430, binding = 3) buffer block3 {
     PageResidencyEntry prevFramePageResidencyTable[];
 };
 
@@ -52,19 +52,20 @@ void main() {
     //uint prev = uint(imageLoad(prevFramePageResidencyTable, tileCoords).r);
     //uint current = uint(imageLoad(currFramePageResidencyTable, tileCoords).r);
 
-    uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
-    uint current = currFramePageResidencyTable[tileIndex].frameMarker;
+    PageResidencyEntry prev = prevFramePageResidencyTable[tileIndex];
+    PageResidencyEntry current = currFramePageResidencyTable[tileIndex];
 
-    if (prev > 0 && current == 0) {
+    if (prev.frameMarker > 0 && current.frameMarker == 0) {
         //imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
         //imageAtomicOr(currFramePageResidencyTable, tileCoords, prev);
-        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, prev);
+        prev.info = prev.info & VSM_PAGE_ID_MASK; // Get rid of the dirty bit
+        currFramePageResidencyTable[tileIndex] = prev;
 
         // Don't want to render tiles from last frame that aren't visible
         //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }
 
-    if (current > 0 && (frameCount - current) > 60) {
+    if (current.frameMarker > 0 && (frameCount - current.frameMarker) > 60) {
         int original = atomicAdd(numPagesToFree, 1);
         pageIndices[2 * original] = tileCoords.x;
         pageIndices[2 * original + 1] = tileCoords.y;
@@ -72,8 +73,12 @@ void main() {
         //imageAtomicExchange(prevFramePageResidencyTable, tileCoords, 0);
         //imageAtomicExchange(currFramePageResidencyTable, tileCoords, 0);
 
-        atomicExchange(prevFramePageResidencyTable[tileIndex].frameMarker, 0);
-        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, 0);
+        PageResidencyEntry markedNonResident;
+        markedNonResident.frameMarker = 0;
+        markedNonResident.info = 0;
+
+        prevFramePageResidencyTable[tileIndex] = markedNonResident;
+        currFramePageResidencyTable[tileIndex] = markedNonResident;
 
         //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }

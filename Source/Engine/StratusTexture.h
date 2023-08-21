@@ -168,6 +168,14 @@ namespace stratus {
         // clearValue is between one and four components worth of data (or nullptr - in which case the texture is filled with 0s)
         void Clear(const i32 mipLevel, const void * clearValue) const;
         void ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const;
+        void ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * Underlying() const;

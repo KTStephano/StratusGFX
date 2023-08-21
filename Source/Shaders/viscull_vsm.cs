@@ -59,6 +59,7 @@ shared int maxLocalPageX;
 shared int maxLocalPageY;
 shared ivec2 pageGroupCorners[4];
 shared vec2 pageGroupCornersTexCoords[4];
+shared uint pageGroupIsValid;
 
 // #define IS_PAGE_WITHIN_BOUNDS(type)                                                                 \
 //     bool isPageGroupWithinBounds(in type pageCorner, in type texCornerMin, in type texCornerMax) {  \
@@ -108,6 +109,8 @@ void main() {
         if (pageGroupsToRender[basePageGroupIndex] != frameCount) {
             pageGroupsToRender[basePageGroupIndex] = 0;
         }
+
+        pageGroupIsValid = 0;
     }
 
     barrier();
@@ -117,17 +120,25 @@ void main() {
     ivec2 startPage = basePageGroup * pagesPerPageGroup;
     ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
+    uint pageId;
+    uint pageDirtyBit;
 
     for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x; x += int(gl_WorkGroupSize.x)) {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y; y += int(gl_WorkGroupSize.y)) {
 
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
             uint pageStatus = currFramePageResidencyTable[x + y * residencyTableSize.x].frameMarker;
+            unpackPageIdAndDirtyBit(currFramePageResidencyTable[x + y * residencyTableSize.x].info, pageId, pageDirtyBit);
             if (pageStatus == frameCount) {
+            //if (pageDirtyBit > 0) {
                 atomicMin(minLocalPageX, x);
                 atomicMin(minLocalPageY, y);
                 atomicMax(maxLocalPageX, x + 1);
                 atomicMax(maxLocalPageY, y + 1);
+            }
+
+            if (pageDirtyBit > 0) {
+                atomicExchange(pageGroupIsValid, frameCount);
             }
         }
     }
@@ -179,12 +190,16 @@ void main() {
         vec2 aabbMin = clamp(corners[0].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
         vec2 aabbMax = clamp(corners[7].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
 
+        // Even if our page group is inactive we still need to record commands just in case
+        // our inactivity is due to being fully cached (the CPU may clear some/all of our region
+        // due to its conservative algorithm)
         if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
             //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
             atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
 
             // Mark this page group as valid for this frame
-            atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
+            //atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
+            atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
         }
 
         // vec2 vmin = corners[0].xy;

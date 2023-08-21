@@ -105,8 +105,8 @@ namespace stratus {
         GpuBuffer currFramePageResidencyTable;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
-        u32 numPageGroupsX = 16;
-        u32 numPageGroupsY = 16;
+        u32 numPageGroupsX = 32;
+        u32 numPageGroupsY = 32;
         std::vector<glm::mat4> tiledProjectionMatrices;
         GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;

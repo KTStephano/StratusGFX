@@ -592,10 +592,10 @@ namespace stratus {
         const Camera & light = *worldLightCamera;
         const Camera & c = *camera_;
 
-        const glm::mat4& lightWorldTransform = light.GetWorldTransform();
-        const glm::mat4& lightViewTransform = light.GetViewTransform();
-        const glm::mat4& cameraWorldTransform = c.GetWorldTransform();
-        const glm::mat4& cameraViewTransform = c.GetViewTransform();
+        const glm::mat4 lightWorldTransform = light.GetWorldTransform();
+        const glm::mat4 lightViewTransform = light.GetViewTransform();
+        const glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+        const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
         // See page 152, eq. 8.21
