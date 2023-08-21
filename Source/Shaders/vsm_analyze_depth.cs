@@ -55,8 +55,8 @@ void updateResidencyStatus(in ivec2 coords) {
     if (pixelCoords.x < 0 || pixelCoords.x >= residencyTableSize.x ||
         pixelCoords.y < 0 || pixelCoords.y >= residencyTableSize.y) {
         
-        //pixelCoords = wrapIndex(coords, residencyTableSize);
-        return;
+        pixelCoords = wrapIndex(coords, residencyTableSize);
+        //return;
     }
 
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY));

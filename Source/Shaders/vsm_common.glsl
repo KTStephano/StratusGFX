@@ -20,6 +20,10 @@ ivec2 wrapIndex(in ivec2 value, in ivec2 maxValue) {
     return ivec2(mod(mod(value, maxValue) + maxValue, maxValue));
 }
 
+vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
+    return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
+}
+
 uint computePageId(in ivec2 page) {
     return uint(page.x + page.y * VSM_MAX_NUM_VIRTUAL_PAGES_XY);
 }

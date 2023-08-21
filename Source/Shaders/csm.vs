@@ -13,12 +13,16 @@ STRATUS_GLSL_VERSION
 
 #include "mesh_data.glsl"
 #include "common.glsl"
+#include "vsm_common.glsl"
 
 layout (std430, binding = 13) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 
 uniform mat4 shadowMatrix;
+
+uniform uint numPagesXY;
+uniform uint virtualShadowMapSizeXY;;
 
 uniform vec3 lightDir;
 uniform int depthLayer;
@@ -37,5 +41,6 @@ void main () {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
 	//fsTanTheta = 3.0 * tan(acos(dot(normalize(lightDir), getNormal(gl_VertexID))));
 	vec3 position = getPosition(gl_VertexID);
-	gl_Position = shadowMatrix * modelMatrices[gl_DrawID] * vec4(position, 1.0);
+	vec4 clipPos = shadowMatrix * modelMatrices[gl_DrawID] * vec4(position, 1.0);
+	gl_Position = clipPos;
 }

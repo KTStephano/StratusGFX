@@ -70,16 +70,11 @@ void main() {
         pageIndices[2 * original] = tileCoords.x;
         pageIndices[2 * original + 1] = tileCoords.y;
 
-        //imageAtomicExchange(prevFramePageResidencyTable, tileCoords, 0);
-        //imageAtomicExchange(currFramePageResidencyTable, tileCoords, 0);
-
         PageResidencyEntry markedNonResident;
         markedNonResident.frameMarker = 0;
         markedNonResident.info = 0;
 
         prevFramePageResidencyTable[tileIndex] = markedNonResident;
         currFramePageResidencyTable[tileIndex] = markedNonResident;
-
-        //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }
 }

@@ -1417,6 +1417,8 @@ void RendererBackend::RenderCSMDepth_() {
         // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->csc.cascades[cascade];
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
+        shader->SetUint("numPagesXY", (u32)(frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
+        shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
 
         CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
             const auto cull = b->GetFaceCulling();
