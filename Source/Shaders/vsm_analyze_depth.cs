@@ -8,18 +8,17 @@ precision highp int;
 precision highp uimage2D;
 
 #include "common.glsl"
+#include "vsm_common.glsl"
 
 layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 
 uniform mat4 cascadeProjectionView;
 uniform mat4 invProjectionView;
 
-layout (r32ui) readonly uniform uimage2D prevFramePageResidencyTable;
-layout (r32ui) coherent uniform uimage2D currFramePageResidencyTable;
-
 uniform sampler2D depthTexture;
 
 uniform uint frameCount;
+uniform uint numPagesXY;
 
 layout (std430, binding = 0) buffer block1 {
     int numPagesToMakeResident;
@@ -27,6 +26,14 @@ layout (std430, binding = 0) buffer block1 {
 
 layout (std430, binding = 1) buffer block2 {
     int pageIndices[];
+};
+
+layout (std430, binding = 3) readonly buffer block3 {
+    PageResidencyEntry prevFramePageResidencyTable[];
+};
+
+layout (std430, binding = 4) buffer block4 {
+    PageResidencyEntry currFramePageResidencyTable[];
 };
 
 shared vec2 depthTextureSize;
@@ -42,11 +49,6 @@ const int pixelOffsets[] = int[](
     0
 );
 
-// See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
-ivec2 wrapIndex(ivec2 value, ivec2 maxValue) {
-    return ivec2(mod(mod(value, maxValue) + maxValue, maxValue));
-}
-
 void updateResidencyStatus(in ivec2 coords) {
     ivec2 pixelCoords = coords;
 
@@ -57,10 +59,12 @@ void updateResidencyStatus(in ivec2 coords) {
         return;
     }
 
-    uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
-    uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
-    //uint current = imageAtomicOr(currFramePageResidencyTable, pixelCoords, 1);
-    //imageStore(currFramePageResidencyTable, pixelCoords, uvec4(frameCount));
+    uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY));
+
+    //uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
+    //uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
+    uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
+    uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
 
     if (prev == 0 && current == 0) {
         int original = atomicAdd(numPagesToMakeResident, 1);
@@ -72,7 +76,8 @@ void updateResidencyStatus(in ivec2 coords) {
 void main() {
     if (gl_LocalInvocationID == 0) {
         depthTextureSize = textureSize(depthTexture, 0).xy;
-        residencyTableSize = imageSize(currFramePageResidencyTable).xy;
+        //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
+        residencyTableSize = ivec2(numPagesXY);
     }
 
     barrier();

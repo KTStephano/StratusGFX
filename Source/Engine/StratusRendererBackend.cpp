@@ -369,7 +369,22 @@ void RendererBackend::RecalculateCascadeData_() {
     if (frame_->csc.regenerateFbo || !frame_->csc.fbo.Valid()) {
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-        Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY, numCascades, false, true }, NoTextureData);
+        Texture tex(
+            TextureConfig{ 
+                TextureType::TEXTURE_2D_ARRAY, 
+                TextureComponentFormat::DEPTH, 
+                TextureComponentSize::BITS_32, 
+                TextureComponentType::FLOAT, 
+                frame_->csc.cascadeResolutionXY, 
+                frame_->csc.cascadeResolutionXY, 
+                numCascades, 
+                false, 
+                true 
+            }, 
+                
+            NoTextureData
+        );
+
         tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         tex.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
         // We need to set this when using sampler2DShadow in the GLSL shader
@@ -379,56 +394,21 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->csc.fbo = FrameBuffer({ tex });
 
         const auto numPages = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        const auto numPagesSquared = numPages * numPages;
 
-        frame_->csc.prevFramePageResidencyTable = Texture(
-            TextureConfig{
-                TextureType::TEXTURE_2D,
-                TextureComponentFormat::RED,
-                TextureComponentSize::BITS_32,
-                TextureComponentType::UINT,
-                numPages,
-                numPages,
-                0,
-                false,
-                false
-            },
-
-            NoTextureData
+        std::vector<GpuPageResidencyEntry, StackBasedPoolAllocator<GpuPageResidencyEntry>> pageResidencyData(
+            numPages, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
         );
-
-        frame_->csc.prevFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-        frame_->csc.prevFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
-
-        int clearValue = 0;
-        frame_->csc.prevFramePageResidencyTable.Clear(0, (const void *)&clearValue);
-
-        frame_->csc.currFramePageResidencyTable = Texture(
-            TextureConfig{
-                TextureType::TEXTURE_2D,
-                TextureComponentFormat::RED,
-                TextureComponentSize::BITS_32,
-                TextureComponentType::UINT,
-                numPages,
-                numPages,
-                0,
-                false,
-                false
-            },
-
-            NoTextureData
-        );
-
-        frame_->csc.currFramePageResidencyTable.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-        frame_->csc.currFramePageResidencyTable.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
-
-        frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
 
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+
+        frame_->csc.prevFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+        frame_->csc.currFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
 
         int value = 0;
         frame_->csc.numDrawCalls = GpuBuffer((const void *)&value, sizeof(int), flags);
         frame_->csc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(int), flags);
-        frame_->csc.pagesToCommitList = GpuBuffer(nullptr, 2 * sizeof(int) * numPages * numPages, flags);
+        frame_->csc.pagesToCommitList = GpuBuffer(nullptr, 2 * sizeof(int) * numPagesSquared, flags);
 
         const auto numPageGroups = frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY;
         std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
@@ -1214,6 +1194,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     frame_->csc.prevFramePageResidencyTable = tmp;
 
     u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
+    const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
     //int clearValue = 0;
     //frame_->csc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
@@ -1225,8 +1206,11 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
 
-    state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
-    state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vsmAnalyzeDepth->SetUint("numPagesXY", numPagesAvailable);
 
     state_.vsmAnalyzeDepth->SetUint("frameCount", frameCount);
 
@@ -1274,13 +1258,15 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmMarkUnused->SetUint("frameCount", frameCount);
 
-    state_.vsmMarkUnused->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    state_.vsmMarkUnused->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //state_.vsmMarkUnused->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //state_.vsmMarkUnused->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    //frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vsmMarkUnused->SetUint("numPagesXY", numPagesAvailable);
 
     frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
-    const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
     sizeX = numPagesAvailable / 32;
     sizeY = numPagesAvailable / 32;
 
@@ -1317,7 +1303,9 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmCull->SetUint("frameCount", frameCount);
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->csc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->csc.numPageGroupsY);
-    state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
+    state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
     frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
 
     PerformVSMCulling(
@@ -1392,6 +1380,9 @@ void RendererBackend::RenderCSMDepth_() {
 
         BindShader_(shader);
 
+        //shader->BindTextureAsImage("vsm", *depth, false, cascade, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+        //shader->SetUint("vsmSizeX", (u32)depth->Width());
+        //shader->SetUint("vsmSizeY", (u32)depth->Height());
         shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->GetDirection()[0]);
         shader->SetFloat("nearClipPlane", frame_->znear);
         shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());

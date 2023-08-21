@@ -64,7 +64,7 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         //INSTANCE(RendererFrontend)->SetAtmosphericShadowing(0.3f, 0.8f);

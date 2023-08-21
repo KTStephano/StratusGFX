@@ -294,6 +294,18 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+    // This is synchronized with the version inside of vsm_common.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuPageResidencyEntry {
+        u32 frameMarker = 0;
+        u32 info = 0;
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 96);
@@ -305,5 +317,6 @@ namespace stratus {
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);
     static_assert(sizeof(GpuHaltonEntry) == 8);
+    static_assert(sizeof(GpuPageResidencyEntry) == 8);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

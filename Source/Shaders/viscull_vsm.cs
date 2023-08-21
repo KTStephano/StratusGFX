@@ -11,6 +11,7 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 #include "common.glsl"
 #include "aabb.glsl"
+#include "vsm_common.glsl"
 
 uniform mat4 cascadeProjectionView;
 
@@ -20,8 +21,7 @@ uniform uint maxDrawCommands;
 
 uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
-
-layout (r32ui) readonly uniform uimage2D currFramePageResidencyTable;
+uniform uint numPagesXY;
 
 layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
@@ -45,6 +45,10 @@ layout (std430, binding = 5) buffer outputBlock2 {
 
 layout (std430, binding = 6) buffer outputBlock3 {
     uint pageGroupsToRender[];
+};
+
+layout (std430, binding = 7) readonly buffer inputBlock3 {
+    PageResidencyEntry currFramePageResidencyTable[];
 };
 
 shared ivec2 residencyTableSize;
@@ -91,7 +95,8 @@ void main() {
 
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
-        residencyTableSize = imageSize(currFramePageResidencyTable).xy;
+        //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
+        residencyTableSize = ivec2(numPagesXY, numPagesXY);
         maxResidencyTableIndex = residencyTableSize - ivec2(1);
 
         minLocalPageX = residencyTableSize.x + 1;
@@ -116,7 +121,8 @@ void main() {
     for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x; x += int(gl_WorkGroupSize.x)) {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y; y += int(gl_WorkGroupSize.y)) {
 
-            uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
+            //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
+            uint pageStatus = currFramePageResidencyTable[x + y * residencyTableSize.x].frameMarker;
             if (pageStatus == frameCount) {
                 atomicMin(minLocalPageX, x);
                 atomicMin(minLocalPageY, y);

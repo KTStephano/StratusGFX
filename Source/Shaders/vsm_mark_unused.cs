@@ -7,12 +7,12 @@ precision highp float;
 precision highp int;
 precision highp uimage2D;
 
+#include "vsm_common.glsl"
+
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 uniform uint frameCount;
-
-layout (r32ui) coherent uniform uimage2D prevFramePageResidencyTable;
-layout (r32ui) coherent uniform uimage2D currFramePageResidencyTable;
+uniform uint numPagesXY;
 
 layout (std430, binding = 0) buffer block1 {
     int numPagesToFree;
@@ -24,6 +24,14 @@ layout (std430, binding = 1) buffer block2 {
 
 layout (std430, binding = 2) buffer block4 {
     int renderPageIndices[];
+};
+
+layout (std430, binding = 3) readonly buffer block3 {
+    PageResidencyEntry prevFramePageResidencyTable[];
+};
+
+layout (std430, binding = 4) buffer block5 {
+    PageResidencyEntry currFramePageResidencyTable[];
 };
 
 shared ivec2 residencyTableSize;
@@ -39,13 +47,18 @@ void main() {
     int tileYIndex = int(gl_GlobalInvocationID.y);
 
     ivec2 tileCoords = ivec2(tileXIndex, tileYIndex);
+    uint tileIndex = uint(tileCoords.x + tileCoords.y * int(numPagesXY));
 
-    uint prev = uint(imageLoad(prevFramePageResidencyTable, tileCoords).r);
-    uint current = uint(imageLoad(currFramePageResidencyTable, tileCoords).r);
+    //uint prev = uint(imageLoad(prevFramePageResidencyTable, tileCoords).r);
+    //uint current = uint(imageLoad(currFramePageResidencyTable, tileCoords).r);
+
+    uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
+    uint current = currFramePageResidencyTable[tileIndex].frameMarker;
 
     if (prev > 0 && current == 0) {
-        imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
+        //imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
         //imageAtomicOr(currFramePageResidencyTable, tileCoords, prev);
+        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, prev);
 
         // Don't want to render tiles from last frame that aren't visible
         //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
@@ -56,8 +69,11 @@ void main() {
         pageIndices[2 * original] = tileCoords.x;
         pageIndices[2 * original + 1] = tileCoords.y;
 
-        imageAtomicExchange(prevFramePageResidencyTable, tileCoords, 0);
-        imageAtomicExchange(currFramePageResidencyTable, tileCoords, 0);
+        //imageAtomicExchange(prevFramePageResidencyTable, tileCoords, 0);
+        //imageAtomicExchange(currFramePageResidencyTable, tileCoords, 0);
+
+        atomicExchange(prevFramePageResidencyTable[tileIndex].frameMarker, 0);
+        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, 0);
 
         //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }

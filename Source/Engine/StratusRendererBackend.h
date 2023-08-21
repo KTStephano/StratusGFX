@@ -101,8 +101,8 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
-        Texture prevFramePageResidencyTable;
-        Texture currFramePageResidencyTable;
+        GpuBuffer prevFramePageResidencyTable;
+        GpuBuffer currFramePageResidencyTable;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
         u32 numPageGroupsX = 16;
