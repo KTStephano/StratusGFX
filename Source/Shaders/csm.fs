@@ -45,6 +45,7 @@ void main() {
 	vsmCoords.xy = wrapIndex(vsmCoords.xy, ivec2(virtualShadowMapSizeXY));
 
 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, vsmCoords, depth);
+	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(1.0)));
 
 	//imageAtomicExchange(vsm, vsmCoordsLower, floatBitsToUint(depth));
 	//imageAtomicMin(vsm, vsmCoordsLower, floatBitsToUint(depth));

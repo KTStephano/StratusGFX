@@ -116,8 +116,9 @@ public:
      */
     // Here x/y/zGroups specify work group units, so if they are defined by (local_size_x = 32)
     // then passing 2 for xGroups would result in 2 * 32 = 64 invokations
-    void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups);
-    void SynchronizeCompute();
+    void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) const;
+    void SynchronizeCompute() const;
+    void SynchronizeMemory() const;
 
     /**
      * Various setters to make it easy to set various uniforms
@@ -130,6 +131,9 @@ public:
      void SetUVec2(const std::string & uniform, const u32 * vec, i32 num = 1) const;
      void SetUVec3(const std::string & uniform, const u32 * vec, i32 num = 1) const;
      void SetUVec4(const std::string & uniform, const u32 * vec, i32 num = 1) const;
+     void SetIVec2(const std::string& uniform, const i32* vec, i32 num = 1) const;
+     void SetIVec3(const std::string& uniform, const i32* vec, i32 num = 1) const;
+     void SetIVec4(const std::string& uniform, const i32* vec, i32 num = 1) const;
      void SetVec2(const std::string & uniform, const f32 * vec, i32 num = 1) const;
      void SetVec3(const std::string & uniform, const f32 * vec, i32 num = 1) const;
      void SetVec4(const std::string & uniform, const f32 * vec, i32 num = 1) const;
@@ -140,6 +144,9 @@ public:
      void SetUVec2(const std::string & uniform, const glm::uvec2&) const;
      void SetUVec3(const std::string & uniform, const glm::uvec3&) const;
      void SetUVec4(const std::string & uniform, const glm::uvec4&) const;
+     void SetIVec2(const std::string& uniform, const glm::ivec2&) const;
+     void SetIVec3(const std::string& uniform, const glm::ivec3&) const;
+     void SetIVec4(const std::string& uniform, const glm::ivec4&) const;
      void SetVec2(const std::string & uniform, const glm::vec2&) const;
      void SetVec3(const std::string & uniform, const glm::vec3&) const;
      void SetVec4(const std::string & uniform, const glm::vec4&) const;

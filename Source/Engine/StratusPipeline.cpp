@@ -289,6 +289,7 @@ void Pipeline::Recompile() {
 }
 
 void Pipeline::Bind() {
+    Unbind();
     glUseProgram(program_);
 }
 
@@ -319,6 +320,18 @@ void Pipeline::SetUVec2(const std::string & uniform, const u32 * vec, i32 num) c
 
 void Pipeline::SetUVec3(const std::string & uniform, const u32 * vec, i32 num) const {
     glUniform3uiv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec2(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform2iv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec3(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform3iv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec4(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform4iv(GetUniformLocation(uniform), num, vec);
 }
 
 void Pipeline::SetUVec4(const std::string & uniform, const u32 * vec, i32 num) const {
@@ -359,6 +372,18 @@ void Pipeline::SetUVec3(const std::string & uniform, const glm::uvec3& v) const 
 
 void Pipeline::SetUVec4(const std::string & uniform, const glm::uvec4& v) const {
     SetUVec4(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec2(const std::string& uniform, const glm::ivec2& v) const {
+    SetIVec2(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec3(const std::string& uniform, const glm::ivec3& v) const {
+    SetIVec3(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec4(const std::string& uniform, const glm::ivec4& v) const {
+    SetIVec4(uniform, &v[0]);
 }
 
 void Pipeline::SetVec2(const std::string & uniform, const glm::vec2& v) const {
@@ -409,15 +434,19 @@ void Pipeline::Print() const {
     log << std::endl;
 }
 
-void Pipeline::DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) {
+void Pipeline::DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) const {
     glDispatchCompute(xGroups, yGroups, zGroups);
 }
 
-void Pipeline::SynchronizeCompute() {
+void Pipeline::SynchronizeCompute() const {
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferStorage.xhtml regarding GL_MAP_COHERENT_BIT
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFenceSync.xhtml
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    SynchronizeMemory();
     glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void Pipeline::SynchronizeMemory() const {
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
 }
 
 void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {

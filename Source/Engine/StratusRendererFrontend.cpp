@@ -757,7 +757,8 @@ namespace stratus {
             glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
-            sk = glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z);
+            sk = glm::vec3(frame_->camera->GetPosition().x, 0.0, frame_->camera->GetPosition().z);
+            //sk = glm::vec3(0.0f, 0.0, 0.0f);
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
             //sk = glm::vec3(sk.x, 0.0f, sk.z);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));

@@ -53,8 +53,6 @@ layout (std430, binding = 7) readonly buffer inputBlock3 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
-shared ivec2 residencyTableSize;
-shared ivec2 maxResidencyTableIndex;
 shared int minLocalPageX;
 shared int minLocalPageY;
 shared int maxLocalPageX;
@@ -62,6 +60,7 @@ shared int maxLocalPageY;
 shared ivec2 pageGroupCorners[4];
 shared vec2 pageGroupCornersTexCoords[4];
 shared uint pageGroupIsValid;
+shared uint atLeastOneResidentPage;
 
 // #define IS_PAGE_WITHIN_BOUNDS(type)                                                                 \
 //     bool isPageGroupWithinBounds(in type pageCorner, in type texCornerMin, in type texCornerMax) {  \
@@ -96,16 +95,28 @@ void main() {
     //     validPage = (pageStatus == frameCount);
     // }
 
+    ivec2 residencyTableSize = ivec2(numPagesXY, numPagesXY);
+    ivec2 maxResidencyTableIndex = residencyTableSize - ivec2(1);
+    ivec2 pagesPerPageGroup = residencyTableSize / ivec2(numPageGroupsX, numPageGroupsY);
+    ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
+
+    // ivec2(1, 1) is so we can add a one page border around this whole virtual page group
+    ivec2 startPage = basePageGroup * pagesPerPageGroup - ivec2(1, 1);
+    ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup + ivec2(1, 1);
+
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
         //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
-        residencyTableSize = ivec2(numPagesXY, numPagesXY);
-        maxResidencyTableIndex = residencyTableSize - ivec2(1);
 
-        minLocalPageX = residencyTableSize.x + 1;
-        minLocalPageY = residencyTableSize.y + 1;
-        maxLocalPageX = -1;
-        maxLocalPageY = -1;
+        // minLocalPageX = residencyTableSize.x + 1;
+        // minLocalPageY = residencyTableSize.y + 1;
+        // maxLocalPageX = -1;
+        // maxLocalPageY = -1;
+
+        minLocalPageX = (startPage + ivec2(1, 1)).x;
+        minLocalPageY = (startPage + ivec2(1, 1)).y;
+        maxLocalPageX = (endPage - ivec2(1, 1)).x;
+        maxLocalPageY = (endPage - ivec2(1, 1)).y;
 
         // Conditionally mark this as invalid if a previous pass hasn't yet
         if (pageGroupsToRender[basePageGroupIndex] != frameCount) {
@@ -113,51 +124,44 @@ void main() {
         }
 
         pageGroupIsValid = 0;
+        atLeastOneResidentPage = 0;
     }
 
     barrier();
 
     // Cooperatively run through the pages within this page group to check the min/max bounds
-    ivec2 pagesPerPageGroup = residencyTableSize / ivec2(numPageGroupsX, numPageGroupsY);
-    ivec2 startPage = basePageGroup * pagesPerPageGroup;
-    ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
-    ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
     uint pageId;
     uint pageDirtyBit;
+    bool continuePageLoop1 = true;
+    bool continuePageLoop2 = true;
 
-    for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x; x += int(gl_WorkGroupSize.x)) {
-        for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y; y += int(gl_WorkGroupSize.y)) {
+    for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x && (continuePageLoop1 || continuePageLoop2); x += int(gl_WorkGroupSize.x)) {
+        for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y && (continuePageLoop1 || continuePageLoop2); y += int(gl_WorkGroupSize.y)) {
 
-            // We need to convert our local page index to a physical page index
-            vec2 virtualTexCoords = vec2(x, y) / vec2(maxResidencyTableIndex);
-            // Set up NDC using -1, 1 tex coords and -1 for the z coord
-            vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, -1.0, 1.0);
-            // Convert to world space
-            vec4 worldPosition = invCascadeProjectionView * ndc;
-            // Perspective divide
-            worldPosition.xyz /= worldPosition.w;
-
-            vec4 physicalTexCoords = vsmProjectionView * vec4(worldPosition.xyz, 1.0);
-            // Perspective divide
-            physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
-            // Convert from range [-1, 1] to [0, 1]
-            physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
-
-            ivec2 physicalPageCoords = ivec2(wrapIndex(physicalTexCoords.xy * vec2(maxResidencyTableIndex), vec2(residencyTableSize)));
+            ivec2 physicalPageCoords = ivec2(
+                ceil(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
+            );
 
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
             uint pageStatus = currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].frameMarker;
             unpackPageIdAndDirtyBit(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].info, pageId, pageDirtyBit);
-            if (pageStatus == frameCount) {
-            //if (pageDirtyBit > 0) {
-                atomicMin(minLocalPageX, x);
-                atomicMin(minLocalPageY, y);
-                atomicMax(maxLocalPageX, x + 1);
-                atomicMax(maxLocalPageY, y + 1);
+            // if (pageStatus == frameCount) {
+            // //if (pageDirtyBit > 0) {
+            //     atomicMin(minLocalPageX, x);
+            //     atomicMin(minLocalPageY, y);
+            //     atomicMax(maxLocalPageX, x + 1);
+            //     atomicMax(maxLocalPageY, y + 1);
+            // }
+            if (pageStatus > 0) {
+                atomicOr(atLeastOneResidentPage, 1);
+                continuePageLoop1 = false;
             }
 
             if (pageDirtyBit > 0) {
+            //if (pageStatus == frameCount) {
+            //if (true) {
                 atomicExchange(pageGroupIsValid, frameCount);
+                continuePageLoop2 = false;
             }
         }
     }
@@ -179,7 +183,7 @@ void main() {
     barrier();
 
     // Invalid page group (all pages uncommitted)
-    if (minLocalPageX > maxLocalPageX) {
+    if (atLeastOneResidentPage == 0) {
         return;
     }
 

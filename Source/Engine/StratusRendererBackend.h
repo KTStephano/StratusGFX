@@ -503,9 +503,11 @@ namespace stratus {
             std::vector<GpuCommandReceiveManagerPtr> dynamicPerPointLightDrawCalls;
             std::vector<GpuCommandReceiveManagerPtr> staticPerPointLightDrawCalls;
             std::unique_ptr<Pipeline> viscullPointLights;
+            // Used for virtual shadow maps
             std::unique_ptr<Pipeline> vsmAnalyzeDepth;
             std::unique_ptr<Pipeline> vsmMarkUnused;
             std::unique_ptr<Pipeline> vsmCull;
+            std::unique_ptr<Pipeline> vsmClear;
         };
 
         struct TextureCache {
