@@ -32,7 +32,7 @@ namespace stratus {
     public:
         FrameBuffer();
         // This constructor sets the attachments
-        FrameBuffer(const std::vector<Texture> &);
+        FrameBuffer(const std::vector<Texture> &, const usize defaultWidth = 1, const usize defaultHeight = 1);
         ~FrameBuffer();
 
         FrameBuffer(const FrameBuffer &) = default;

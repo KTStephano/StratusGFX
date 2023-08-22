@@ -86,6 +86,7 @@ namespace stratus {
         GpuCommandReceiveManagerPtr drawCommandsFinal;
         // Use during shadow map rendering
         glm::mat4 projectionViewRender;
+        glm::mat4 invProjectionViewRender;
         // Use during shadow map sampling
         glm::mat4 projectionViewSample;
         // Transforms from a cascade 0 sampling coordinate to the current cascade
@@ -101,6 +102,7 @@ namespace stratus {
 
     struct RendererCascadeContainer {
         FrameBuffer fbo;
+        Texture vsm;
         GpuBuffer prevFramePageResidencyTable;
         GpuBuffer currFramePageResidencyTable;
         // Texture is split into pages which are combined

@@ -124,7 +124,7 @@ void main() {
     // Convert from range [-1, 1] to [0, 1]
     cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
-    vec2 basePixelCoords = cascadeTexCoords * vec2(residencyTableSize - ivec2(1));
+    vec2 basePixelCoords = round(cascadeTexCoords * vec2(residencyTableSize - ivec2(1)));
 
     float fx = fract(basePixelCoords.x);
     float fy = fract(basePixelCoords.y);

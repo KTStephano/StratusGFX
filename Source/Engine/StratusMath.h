@@ -421,6 +421,26 @@ namespace stratus {
         return std::sqrt(dx * dx + dy * dy + dz + dz);
     }
 
+    inline i32 FloatBitsToInt(const f32 value) {
+        union {
+            f32 v;
+            i32 i;
+        } conversion;
+
+        conversion.v = value;
+        return conversion.i;
+    }
+
+    inline u32 FloatBitsToUint(const f32 value) {
+        union {
+            f32 v;
+            u32 u;
+        } conversion;
+
+        conversion.v = value;
+        return conversion.u;
+    }
+
     // These are the first 512 values of the Halton sequence. For more information see:
     //     https://en.wikipedia.org/wiki/Halton_sequence
     //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler

@@ -436,6 +436,14 @@ void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex
     SetInt(uniform, activeTexture);
 }
 
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) {
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
+
+    tex.BindAsImageTexture(activeTexture, layered, layer, access, config);
+    SetInt(uniform, activeTexture);
+}
+
 void Pipeline::UnbindAllTextures() {
     //for (auto & binding : boundTextures_) {
     //   binding.second.Unbind();

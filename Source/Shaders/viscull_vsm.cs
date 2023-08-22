@@ -14,6 +14,8 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "vsm_common.glsl"
 
 uniform mat4 cascadeProjectionView;
+uniform mat4 invCascadeProjectionView;
+uniform mat4 vsmProjectionView;
 
 uniform uint frameCount;
 uniform uint numDrawCalls;
@@ -126,9 +128,26 @@ void main() {
     for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x; x += int(gl_WorkGroupSize.x)) {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y; y += int(gl_WorkGroupSize.y)) {
 
+            // We need to convert our local page index to a physical page index
+            vec2 virtualTexCoords = vec2(x, y) / vec2(maxResidencyTableIndex);
+            // Set up NDC using -1, 1 tex coords and -1 for the z coord
+            vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, -1.0, 1.0);
+            // Convert to world space
+            vec4 worldPosition = invCascadeProjectionView * ndc;
+            // Perspective divide
+            worldPosition.xyz /= worldPosition.w;
+
+            vec4 physicalTexCoords = vsmProjectionView * vec4(worldPosition.xyz, 1.0);
+            // Perspective divide
+            physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
+            // Convert from range [-1, 1] to [0, 1]
+            physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
+
+            ivec2 physicalPageCoords = ivec2(wrapIndex(physicalTexCoords.xy * vec2(maxResidencyTableIndex), vec2(residencyTableSize)));
+
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
-            uint pageStatus = currFramePageResidencyTable[x + y * residencyTableSize.x].frameMarker;
-            unpackPageIdAndDirtyBit(currFramePageResidencyTable[x + y * residencyTableSize.x].info, pageId, pageDirtyBit);
+            uint pageStatus = currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].frameMarker;
+            unpackPageIdAndDirtyBit(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].info, pageId, pageDirtyBit);
             if (pageStatus == frameCount) {
             //if (pageDirtyBit > 0) {
                 atomicMin(minLocalPageX, x);

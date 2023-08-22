@@ -100,6 +100,7 @@ namespace stratus {
         IMAGE_READ_WRITE
     };
 
+    // Used with bind texture as image
     struct TextureConfig {
         TextureType type;
         TextureComponentFormat format;
@@ -110,6 +111,12 @@ namespace stratus {
         u32 depth;
         bool generateMipMaps;
         bool virtualTexture = false;
+    };
+
+    struct TextureAccess {
+        TextureComponentFormat format;
+        TextureComponentSize storage;
+        TextureComponentType dataType;
     };
 
     struct TextureData {
@@ -162,6 +169,7 @@ namespace stratus {
         void CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const;
 
         void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const;
 
         bool Valid() const;
 

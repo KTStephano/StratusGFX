@@ -382,14 +382,18 @@ namespace stratus {
         }
 
         void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+            bindAsImageTexture(unit, layered, layer, access, TextureAccess{config_.format, config_.storage, config_.dataType});
+        }
+
+        void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const {
             GLenum accessMode = _convertImageAccessMode(access);
-            glBindImageTexture(unit, 
-                               texture_, 
-                               0, 
-                               layered ? GL_TRUE : GL_FALSE,
-                               layer,
-                               accessMode,
-                               _convertInternalFormatPrecise(config_.format, config_.storage, config_.dataType));
+            glBindImageTexture(unit,
+                texture_,
+                0,
+                layered ? GL_TRUE : GL_FALSE,
+                layer,
+                accessMode,
+                _convertInternalFormatPrecise(config.format, config.storage, config.dataType));
         }
 
         void unbind(i32 activeTexture) const {
@@ -829,6 +833,10 @@ namespace stratus {
     void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
         EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access);
     }
+    void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const {
+        EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access, config);
+    }
+
     void Texture::Unbind(i32 activeTexture) const { EnsureValid_(); impl_->unbind(activeTexture); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 

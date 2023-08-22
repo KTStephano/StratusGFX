@@ -757,23 +757,30 @@ namespace stratus {
             glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
-            sk = glm::vec3(0.0f);
+            sk = glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z);
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
             //sk = glm::vec3(sk.x, 0.0f, sk.z);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
             //STRATUS_LOG << "sk " << sk << std::endl;
             //STRATUS_LOG << sk.y << std::endl;
             //sk = frame_->camera->GetPosition();
-            sks.push_back(sk);
             frame_->csc.cascades[i].cascadePositionLightSpace = sk;
             frame_->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
 
+            //sk = glm::vec3(0.0f);
+            sks.push_back(sk);
+
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-            const glm::mat4 cascadeViewTransform = glm::mat4(transposeLightWorldTransform[0], 
+            const glm::mat4 cascadeRenderViewTransform = glm::mat4(transposeLightWorldTransform[0], 
                                                             transposeLightWorldTransform[1],
                                                             transposeLightWorldTransform[2],
                                                             glm::vec4(-sk, 1.0f));
+
+            const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
+                                                            transposeLightWorldTransform[1],
+                                                            transposeLightWorldTransform[2],
+                                                            glm::vec4(glm::vec3(0.0f), 1.0f));
 
             frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
 
@@ -805,8 +812,9 @@ namespace stratus {
             // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
             //
             // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
-            frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeViewTransform;
-            frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeViewTransform;
+            frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
+            frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
+            frame_->csc.cascades[i].invProjectionViewRender = glm::inverse(frame_->csc.cascades[i].projectionViewRender);
 
             const auto scaleX = f32(frame_->csc.numPageGroupsX);
             const auto scaleY = f32(frame_->csc.numPageGroupsY);
@@ -820,32 +828,32 @@ namespace stratus {
             const f32 invY = 1.0f / f32(frame_->csc.numPageGroupsY);
 
             // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
-            for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
-                for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+            // for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
+            //     for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
 
-                    const usize tile = x + y * frame_->csc.numPageGroupsX;
+            //         const usize tile = x + y * frame_->csc.numPageGroupsX;
 
-                    const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(x));
-                    const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(y));
-                    //const f32 tx = (-1.0f + invX + 2.0f * invX * f32(x));
-                    //const f32 ty = (-1.0f + invY + 2.0f * invY * f32(y));
+            //         const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(x));
+            //         const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(y));
+            //         //const f32 tx = (-1.0f + invX + 2.0f * invX * f32(x));
+            //         //const f32 ty = (-1.0f + invY + 2.0f * invY * f32(y));
 
-                    glm::mat4 scale(1.0f);
-                    matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
+            //         glm::mat4 scale(1.0f);
+            //         matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
 
-                    glm::mat4 translate(1.0f);
-                    matTranslate(translate, glm::vec3(tx, ty, 0.0f));
+            //         glm::mat4 translate(1.0f);
+            //         matTranslate(translate, glm::vec3(tx, ty, 0.0f));
 
-                    // const glm::mat4 tileOrthoProjection(glm::vec4(dkX, 0.0f, 0.0f, 0.0f), 
-                    //                                     glm::vec4(0.0f, dkY, 0.0f, 0.0f),
-                    //                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-                    //                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            //         // const glm::mat4 tileOrthoProjection(glm::vec4(dkX, 0.0f, 0.0f, 0.0f), 
+            //         //                                     glm::vec4(0.0f, dkY, 0.0f, 0.0f),
+            //         //                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+            //         //                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-                    const glm::mat4 tileOrthoProjection = scale * translate * cascadeOrthoProjection;
+            //         const glm::mat4 tileOrthoProjection = scale * translate * cascadeOrthoProjection;
 
-                    frame_->csc.tiledProjectionMatrices[tile] = tileOrthoProjection * cascadeViewTransform;
-                }
-            }
+            //         frame_->csc.tiledProjectionMatrices[tile] = tileOrthoProjection * cascadeViewTransform;
+            //     }
+            // }
             //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {

@@ -367,12 +367,14 @@ void RendererBackend::RecalculateCascadeData_() {
     const u32 cascadeResolutionXY = frame_->csc.cascadeResolutionXY;
     const u32 numCascades = frame_->csc.cascades.size();
     if (frame_->csc.regenerateFbo || !frame_->csc.fbo.Valid()) {
+        STRATUS_LOG << "Regenerating Cascade Data" << std::endl;
+
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-        Texture tex(
+        frame_->csc.vsm = Texture(
             TextureConfig{ 
                 TextureType::TEXTURE_2D_ARRAY, 
-                TextureComponentFormat::DEPTH, 
+                TextureComponentFormat::RED, 
                 TextureComponentSize::BITS_32, 
                 TextureComponentType::FLOAT, 
                 frame_->csc.cascadeResolutionXY, 
@@ -385,13 +387,14 @@ void RendererBackend::RecalculateCascadeData_() {
             NoTextureData
         );
 
-        tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        tex.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
+        frame_->csc.vsm.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        frame_->csc.vsm.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
         // We need to set this when using sampler2DShadow in the GLSL shader
-        tex.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
+        frame_->csc.vsm.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
         // Create the frame buffer
-        frame_->csc.fbo = FrameBuffer({ tex });
+        //frame_->csc.fbo = FrameBuffer({ tex }, frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY);
+        frame_->csc.fbo = FrameBuffer(std::vector<Texture>(), frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY);
 
         const auto numPages = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
         const auto numPagesSquared = numPages * numPages;
@@ -1207,7 +1210,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmAnalyzeDepth->Bind();
     
-    state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
+    state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewSample);
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
@@ -1234,7 +1237,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     const i32 numPagesToCommit = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
     frame_->csc.numPagesToCommit.UnmapMemory();
 
-    auto vsm = frame_->csc.fbo.GetDepthStencilAttachment();
+    auto vsm = &frame_->csc.vsm; //frame_->csc.fbo.GetDepthStencilAttachment();
 
     if (numPagesToCommit > 0) {
         //STRATUS_LOG << numPagesToCommit << std::endl;
@@ -1315,6 +1318,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmCull->Bind();
 
     state_.vsmCull->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
+    state_.vsmCull->SetMat4("invCascadeProjectionView", frame_->csc.cascades[0].invProjectionViewRender);
+    state_.vsmCull->SetMat4("vsmProjectionView", frame_->csc.cascades[0].projectionViewSample);
     state_.vsmCull->SetUint("frameCount", frameCount);
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->csc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->csc.numPageGroupsY);
@@ -1355,8 +1360,8 @@ void RendererBackend::RenderCSMDepth_() {
 
     ProcessCSMVirtualTexture_();
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
     // See https://blogs.igalia.com/itoral/2017/10/02/working-with-lights-and-shadows-part-iii-rendering-the-shadows/
@@ -1371,7 +1376,7 @@ void RendererBackend::RenderCSMDepth_() {
     // glDisable(GL_CULL_FACE);
 
     frame_->csc.fbo.Bind();
-    const Texture * depth = frame_->csc.fbo.GetDepthStencilAttachment();
+    const Texture * depth = &frame_->csc.vsm; //frame_->csc.fbo.GetDepthStencilAttachment();
     if (!depth) {
         throw std::runtime_error("Critical error: depth attachment not present");
     }
@@ -1419,6 +1424,13 @@ void RendererBackend::RenderCSMDepth_() {
         shader->SetMat4("shadowMatrix", csm.projectionViewRender);
         shader->SetUint("numPagesXY", (u32)(frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
         shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
+
+        TextureAccess depthBindConfig{
+            TextureComponentFormat::RED,
+            TextureComponentSize::BITS_32,
+            TextureComponentType::UINT
+        };
+        shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
 
         CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
             const auto cull = b->GetFaceCulling();
@@ -1484,6 +1496,11 @@ void RendererBackend::RenderCSMDepth_() {
         frame_->csc.pageGroupsToRender.UnmapMemory();
 
         if (numPageGroupsToRender > 0) {
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->csc.numPageGroupsX;
+            maxPageGroupY = frame_->csc.numPageGroupsY;
+
             u32 sizeX = maxPageGroupX - minPageGroupX;
             u32 sizeY = maxPageGroupY - minPageGroupY;
 
@@ -1558,16 +1575,28 @@ void RendererBackend::RenderCSMDepth_() {
             matTranslate(translate, glm::vec3(tx, ty, 0.0f));
             
             const glm::mat4 cascadeOrthoProjection = csm.projectionViewRender;
+            //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
+            //     1.0f
+            // );
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(441.529f, 19.608f, 221.228f),
+            //     1.0f
+            // );
+            //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
+            //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
             const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
 
             shader->SetMat4("shadowMatrix", projectionView);
+            shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
 
             u32 startX = minPageGroupX * pageGroupWindowWidth;
             u32 startY = minPageGroupY * pageGroupWindowHeight;
             
             // We need to use the old page partitioning scheme to calculate the viewport
             // info
-            const float clearValue = 1.0f;
+            const u32 clearValue = FloatBitsToUint(1.0f);
             depth->ClearLayerRegion(
                 0, 
                 0, 
@@ -1706,7 +1735,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
-    state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
+    state_.atmospheric->BindTexture("infiniteLightShadowMap", frame_->csc.vsm); //*frame_->csc.fbo.GetDepthStencilAttachment());
     state_.atmospheric->SetFloat("time", milliseconds);
     
     // Set up cascade data
@@ -2851,7 +2880,7 @@ void RendererBackend::FinalizeFrame_() {
     BindShader_(state_.fullscreenPages.get());
     state_.fullscreenPages->SetFloat("znear", frame_->csc.znear);
     state_.fullscreenPages->SetFloat("zfar", frame_->csc.zfar);
-    state_.fullscreenPages->BindTexture("depth", *frame_->csc.fbo.GetDepthStencilAttachment());
+    state_.fullscreenPages->BindTexture("depth", frame_->csc.vsm); //*frame_->csc.fbo.GetDepthStencilAttachment());
     RenderQuad_();
     UnbindShader_();
 
@@ -2943,7 +2972,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
     const glm::vec3 direction = lightCam.GetDirection();
 
     s->SetVec3("infiniteLightDirection", direction);    
-    s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
+    s->BindTexture("infiniteLightShadowMap", frame_->csc.vsm); //*frame_->csc.fbo.GetDepthStencilAttachment());
     for (i32 i = 0; i < frame_->csc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);

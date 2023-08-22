@@ -15,10 +15,10 @@ out vec4 color;
 // See http://glampert.com/2014/01-26/visualizing-the-depth-buffer/
 float linearizeDepth(in vec2 uv)
 {
-    vec4 value;
+    uvec4 value;
     ivec3 pixelCoords = ivec3(uv * (textureSize(depth, 0).xy - vec2(1.0)), 0.0);
     int status = sparseTexelFetchARB(depth, pixelCoords, 0, value);
-    float depth = value.r;
+    float depth = uintBitsToFloat(value.r);
     if (sparseTexelsResidentARB(status) == false) {
         return 0.0;
     }

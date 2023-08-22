@@ -49,6 +49,7 @@ STRATUS_GLSL_VERSION
  */
 
 #include "common.glsl"
+#include "vsm_common.glsl"
 
 uniform float infiniteLightZnear;
 uniform float infiniteLightZfar;
@@ -149,6 +150,7 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
     coords.w = depth - bias;
     coords.xy += offset;
+    coords.xy = wrapIndex(coords.xy, vec2(1.0));
     float result;
     int status = sparseTextureARB(shadow, coords, result);
     return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;

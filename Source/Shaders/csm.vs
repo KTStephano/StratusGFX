@@ -20,15 +20,15 @@ layout (std430, binding = 13) readonly buffer SSBO3 {
 };
 
 uniform mat4 shadowMatrix;
-
-uniform uint numPagesXY;
-uniform uint virtualShadowMapSizeXY;;
+uniform mat4 globalVsmShadowMatrix;
 
 uniform vec3 lightDir;
 uniform int depthLayer;
 //out float fsTanTheta;
 flat out int fsDrawID;
 smooth out vec2 fsTexCoords;
+smooth out vec2 vsmTexCoords;
+smooth out float vsmDepth;
 
 void main () {
 	// Select which layer of the depth texture we will write to
@@ -38,9 +38,21 @@ void main () {
 	fsDrawID = gl_DrawID;
 	fsTexCoords = getTexCoord(gl_VertexID);
 
+	vec3 position = getPosition(gl_VertexID);
+	mat4 worldMatrix = modelMatrices[gl_DrawID];
+
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
 	//fsTanTheta = 3.0 * tan(acos(dot(normalize(lightDir), getNormal(gl_VertexID))));
-	vec3 position = getPosition(gl_VertexID);
-	vec4 clipPos = shadowMatrix * modelMatrices[gl_DrawID] * vec4(position, 1.0);
+	vec4 worldPos = worldMatrix * vec4(position, 1.0);
+	vec4 clipPos = shadowMatrix * worldPos;
+
+	vec4 globalVsmClipPos = globalVsmShadowMatrix * worldPos;
+	// Perspective divide
+	globalVsmClipPos.xyz /= globalVsmClipPos.w;
+	// Transform from [-1, 1] to [0, 1]
+	globalVsmClipPos.xyz = globalVsmClipPos.xyz * 0.5 + vec3(0.5);
+	vsmTexCoords = globalVsmClipPos.xy;
+	vsmDepth = globalVsmClipPos.z;
+
 	gl_Position = clipPos;
 }

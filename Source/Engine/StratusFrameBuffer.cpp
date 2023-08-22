@@ -108,7 +108,7 @@ namespace stratus {
             );
         }
 
-        void setAttachments(const std::vector<Texture> & attachments) {
+        void setAttachments(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
             if (colorAttachments_.size() > 0 || depthStencilAttachment_.Valid()) throw std::runtime_error("setAttachments called twice");
             valid_ = true;
 
@@ -175,6 +175,12 @@ namespace stratus {
                 glDrawBuffers(drawBuffers.size(), &drawBuffers[0]);
             }
 
+            // Required to be set for empty framebuffer
+            if (drawBuffers.size() == 0 && numDepthStencilAttachments == 0) {
+                glNamedFramebufferParameteri(fbo_, GL_FRAMEBUFFER_DEFAULT_WIDTH, (i32)defaultWidth);
+                glNamedFramebufferParameteri(fbo_, GL_FRAMEBUFFER_DEFAULT_HEIGHT, (i32)defaultHeight);
+            }
+
             // Validity check
             if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
                 STRATUS_ERROR << "Generating frame buffer with attachments failed" << std::endl;
@@ -219,9 +225,9 @@ namespace stratus {
     };
 
     FrameBuffer::FrameBuffer() {}
-    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments) {
+    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
         fbo_ = std::make_shared<FrameBufferImpl>();
-        fbo_->setAttachments(attachments);
+        fbo_->setAttachments(attachments, defaultWidth, defaultHeight);
     }
     FrameBuffer::~FrameBuffer() {}
 
