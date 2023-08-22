@@ -1645,10 +1645,10 @@ void RendererBackend::RenderCSMDepth_() {
         //     sizeY * pageGroupWindowHeight, 
         //     (const void *)&clearValue
         // );
-        // glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
+        glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);

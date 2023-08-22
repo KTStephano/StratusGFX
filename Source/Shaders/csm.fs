@@ -38,13 +38,14 @@ void main() {
     //gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 	//depth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 	depth = baseColor.a < 1.0 ? vsmDepth - ALPHA_DEPTH_OFFSET : vsmDepth;
+	//depth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 #endif
 
 	//ivec3 vsmCoords = ivec3(gl_FragCoord.xy, 0);
-	ivec3 vsmCoords = ivec3(round(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0))), 0.0);
-	vsmCoords.xy = wrapIndex(vsmCoords.xy, ivec2(virtualShadowMapSizeXY));
+	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
+	vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, vsmCoords, depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(vsmCoords)), depth);
 	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(1.0)));
 
 	//imageAtomicExchange(vsm, vsmCoordsLower, floatBitsToUint(depth));
