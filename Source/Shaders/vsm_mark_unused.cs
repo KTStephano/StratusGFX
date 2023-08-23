@@ -55,14 +55,11 @@ void main() {
     PageResidencyEntry prev = prevFramePageResidencyTable[tileIndex];
     PageResidencyEntry current = currFramePageResidencyTable[tileIndex];
 
-    if (prev.frameMarker > 0 && current.frameMarker == 0) {
+    if (prev.frameMarker > 0 && current.frameMarker != frameCount) {
         //imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
         //imageAtomicOr(currFramePageResidencyTable, tileCoords, prev);
-        prev.info = prev.info & VSM_PAGE_ID_MASK; // Get rid of the dirty bit
+        prev.info = prev.info;// & VSM_PAGE_ID_MASK; // Get rid of the dirty bit
         currFramePageResidencyTable[tileIndex] = prev;
-
-        // Don't want to render tiles from last frame that aren't visible
-        //renderPageIndices[tileCoords.x + tileCoords.y * residencyTableSize.x] = 0;
     }
 
     if (current.frameMarker > 0 && (frameCount - current.frameMarker) > 60) {

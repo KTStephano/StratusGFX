@@ -1434,19 +1434,33 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
+    bool continueChecking = true;
 
-    for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
-        for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+    for (u32 x = 0; x < frame_->csc.numPageGroupsX && continueChecking; ++x) {
+        for (u32 y = 0; y < frame_->csc.numPageGroupsY && continueChecking; ++y) {
 
             const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
             if (pageGroupsToRender[pageGroupIndex] > 0) {
                 ++numPageGroupsToRender;
 
-                minPageGroupX = std::min<u32>(minPageGroupX, x);
-                minPageGroupY = std::min<u32>(minPageGroupY, y);
+                auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+                auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
 
-                maxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
-                maxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+                auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+                auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+
+                if (newMaxPageGroupX - newMinPageGroupX > 2 || 
+                    newMaxPageGroupY - newMinPageGroupY > 2) {
+
+                    continueChecking = false;
+                    break;
+                }
+
+                minPageGroupX = newMinPageGroupX;
+                minPageGroupY = newMinPageGroupY;
+
+                maxPageGroupX = newMaxPageGroupX;
+                maxPageGroupY = newMaxPageGroupY;
             }
             else {
                 continue;
@@ -1476,6 +1490,8 @@ void RendererBackend::RenderCSMDepth_() {
 
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
+
+        STRATUS_LOG << "Updating\n";
 
         // New page grouping not evenly divisible - adjust
         // if (frame_->csc.numPageGroupsX % sizeX != 0) {
@@ -1560,6 +1576,7 @@ void RendererBackend::RenderCSMDepth_() {
         //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
         //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
         const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+        const i32 numPagesXY = i32(frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
         u32 startX = minPageGroupX * pageGroupWindowWidth;
         u32 startY = minPageGroupY * pageGroupWindowHeight;
@@ -1580,7 +1597,9 @@ void RendererBackend::RenderCSMDepth_() {
         state_.vsmClear->SetMat4("vsmProjectionView", frame_->csc.cascades[cascade].projectionViewSample);
         state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
         state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
+        state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
         state_.vsmClear->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+        frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
         state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
         state_.vsmClear->SynchronizeMemory();
@@ -1647,39 +1666,9 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
-
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-
-        // glViewport(0, 0, halfWidth, halfHeight);
-        // usize i = 3;
-        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[0]);
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-
-        // glViewport(0, halfHeight, halfWidth, halfHeight);
-        // i = 3;
-        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[2]);
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-
-        // glViewport(halfWidth, halfHeight, halfWidth, halfHeight);
-        // i = 3;
-        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[3]);
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-
-        // glViewport(halfWidth, 0, halfWidth, halfHeight);
-        // i = 3;
-        // shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[1]);
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-
-        // RenderImmediate_(csm.visibleDynamicPbrMeshes);
-        // RenderImmediate_(csm.visibleStaticPbrMeshes);
 
         UnbindShader_();
     }

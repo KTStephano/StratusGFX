@@ -14,6 +14,10 @@ precision highp uimage2D;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
+layout (std430, binding = 4) buffer block1 {
+    PageResidencyEntry currFramePageResidencyTable[];
+};
+
 uniform float clearValue = 1.0;
 
 uniform mat4 invCascadeProjectionView;
@@ -22,11 +26,15 @@ uniform mat4 vsmProjectionView;
 uniform ivec2 startXY;
 uniform ivec2 endXY;
 
+uniform ivec2 numPagesXY;
+
 shared uint clearValueBits;
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
 
 void main() {
+    ivec2 virtualPixelCoords = ivec2(gl_GlobalInvocationID.xy + startXY);
+
     if (gl_LocalInvocationID == 0) {
         clearValueBits = floatBitsToUint(clearValue);
         vsmSize = imageSize(vsm).xy;
@@ -35,13 +43,17 @@ void main() {
 
     barrier();
 
-    ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy + startXY);
-
-    if (pixelCoords.x < endXY.x && pixelCoords.y < endXY.y) {
-        ivec2 physicalPageCoords = ivec2(
-            convertVirtualCoordsToPhysicalCoords(pixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView)
+    //if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
+        ivec2 physicalPixelCoords = ivec2(
+            convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView)
         );
 
-        imageStore(vsm, ivec3(physicalPageCoords, 0), uvec4(clearValueBits));
-    }
+        imageStore(vsm, ivec3(physicalPixelCoords, 0), uvec4(clearValueBits));
+
+        // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
+        vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
+        ivec2 physicalPageCoords = ivec2(round(physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0))));
+        // Clear the dirty bit
+        atomicAnd(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    //}
 }

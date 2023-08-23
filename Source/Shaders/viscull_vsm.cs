@@ -104,8 +104,10 @@ void main() {
     ivec2 baseStartPage = basePageGroup * pagesPerPageGroup;
     ivec2 baseEndPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
 
-    ivec2 startPage = baseStartPage - ivec2(1, 1);
-    ivec2 endPage = baseEndPage + ivec2(1, 1);
+    // ivec2 startPage = baseStartPage - ivec2(1, 1);
+    // ivec2 endPage = baseEndPage + ivec2(1, 1);
+    ivec2 startPage = baseStartPage;
+    ivec2 endPage = baseEndPage;
 
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
