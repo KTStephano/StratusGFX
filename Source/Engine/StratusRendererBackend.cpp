@@ -392,7 +392,7 @@ void RendererBackend::RecalculateCascadeData_() {
         );
 
         frame_->csc.vsm.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        frame_->csc.vsm.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
+        frame_->csc.vsm.SetCoordinateWrapping(TextureCoordinateWrapping::MIRRORED_REPEAT);
         // We need to set this when using sampler2DShadow in the GLSL shader
         frame_->csc.vsm.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 

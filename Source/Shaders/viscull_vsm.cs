@@ -130,7 +130,7 @@ void main() {
             pageGroupsToRender[basePageGroupIndex] = 0;
         }
 
-        pageGroupIsValid = 0;
+        pageGroupIsValid = frameCount;
         atLeastOneResidentPage = 0;
     }
 

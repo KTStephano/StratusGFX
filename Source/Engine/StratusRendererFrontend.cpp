@@ -594,7 +594,7 @@ namespace stratus {
 
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
-        const glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+        const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
@@ -761,8 +761,8 @@ namespace stratus {
             constexpr i32 moveSize = 8;
             i32 cameraX = (i32(frame_->camera->GetPosition().x) / moveSize) * moveSize;
             i32 cameraZ = (i32(frame_->camera->GetPosition().z) / moveSize) * moveSize;
-            //sk = glm::vec3(0.0f);
-            sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
+            //sk = glm::vec3(345.771, 56.2733, 208.989);
+            //sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
             //sk = glm::vec3(0.0f, 0.0, 0.0f);
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
@@ -787,7 +787,7 @@ namespace stratus {
             const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
                                                             transposeLightWorldTransform[1],
                                                             transposeLightWorldTransform[2],
-                                                            glm::vec4(glm::vec3(0.0f), 1.0f));
+                                                            glm::vec4(-sk, 1.0f));
 
             frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
 

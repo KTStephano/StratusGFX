@@ -484,6 +484,7 @@ public:
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(bistro);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(10.0f));
+            //transform->SetLocalPosition(glm::vec3(500.0f, 0.0f, 0.0f));
             INSTANCE(EntityManager)->AddEntity(bistro);
         });
 
