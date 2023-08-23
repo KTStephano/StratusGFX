@@ -78,17 +78,11 @@ void updateResidencyStatus(in ivec2 coords) {
     }
 
     uint prevPageId;
-    uint unused;
+    uint prevDirtyBit;
 
-    unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, unused);
+    unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
 
-    uint dirtyBit = 0;
-
-    // If true the page is resident but allocated to a different part of the shadow map - need to
-    // mark dirty since we are re-marking it
-    if (prevPageId != pageId) {
-        dirtyBit = 1;
-    }
+    uint dirtyBit = prevPageId != pageId ? 1 : 0;
 
     // Re-mark page
     atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, dirtyBit));

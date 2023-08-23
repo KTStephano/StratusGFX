@@ -101,10 +101,11 @@ void main() {
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
 
     // ivec2(1, 1) is so we can add a one page border around this whole virtual page group
-    // ivec2 startPage = basePageGroup * pagesPerPageGroup - ivec2(1, 1);
-    // ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup + ivec2(1, 1);
-    ivec2 startPage = basePageGroup * pagesPerPageGroup;
-    ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
+    ivec2 baseStartPage = basePageGroup * pagesPerPageGroup;
+    ivec2 baseEndPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
+
+    ivec2 startPage = baseStartPage - ivec2(1, 1);
+    ivec2 endPage = baseEndPage + ivec2(1, 1);
 
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
@@ -120,17 +121,17 @@ void main() {
         // maxLocalPageX = (endPage - ivec2(1, 1)).x;
         // maxLocalPageY = (endPage - ivec2(1, 1)).y;
 
-        minLocalPageX = (startPage).x;
-        minLocalPageY = (startPage).y;
-        maxLocalPageX = (endPage).x;
-        maxLocalPageY = (endPage).y;
+        minLocalPageX = (baseStartPage).x;
+        minLocalPageY = (baseStartPage).y;
+        maxLocalPageX = (baseEndPage).x;
+        maxLocalPageY = (baseEndPage).y;
 
         // Conditionally mark this as invalid if a previous pass hasn't yet
         if (pageGroupsToRender[basePageGroupIndex] != frameCount) {
             pageGroupsToRender[basePageGroupIndex] = 0;
         }
 
-        pageGroupIsValid = frameCount;
+        pageGroupIsValid = 0;
         atLeastOneResidentPage = 0;
     }
 
@@ -217,8 +218,8 @@ void main() {
         vec2 pageMin = vec2(pageGroupCorners[0]);
         vec2 pageMax = vec2(pageGroupCorners[3]);
 
-        vec2 aabbMin = clamp(corners[0].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
-        vec2 aabbMax = clamp(corners[7].xy, 0.0, 1.0) * vec2(maxResidencyTableIndex);
+        vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
+        vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
 
         // Even if our page group is inactive we still need to record commands just in case
         // our inactivity is due to being fully cached (the CPU may clear some/all of our region

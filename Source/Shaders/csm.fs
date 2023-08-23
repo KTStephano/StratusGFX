@@ -43,9 +43,13 @@ void main() {
 
 	//ivec3 vsmCoords = ivec3(gl_FragCoord.xy, 0);
 	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
-	vsmCoords.xy = wrapIndex(ceil(vsmCoords.xy), vec2(virtualShadowMapSizeXY));
+	vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3((vsmCoords)), clamp(depth, 0.0, 1.0));
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, 1, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, -1, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(1, 0, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(-1, 0, 0), depth);
 	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(1.0)));
 
 	//imageAtomicExchange(vsm, vsmCoordsLower, floatBitsToUint(depth));
