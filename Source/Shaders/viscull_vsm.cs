@@ -101,8 +101,10 @@ void main() {
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
 
     // ivec2(1, 1) is so we can add a one page border around this whole virtual page group
-    ivec2 startPage = basePageGroup * pagesPerPageGroup - ivec2(1, 1);
-    ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup + ivec2(1, 1);
+    // ivec2 startPage = basePageGroup * pagesPerPageGroup - ivec2(1, 1);
+    // ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup + ivec2(1, 1);
+    ivec2 startPage = basePageGroup * pagesPerPageGroup;
+    ivec2 endPage = (basePageGroup + ivec2(1, 1)) * pagesPerPageGroup;
 
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
@@ -113,10 +115,15 @@ void main() {
         // maxLocalPageX = -1;
         // maxLocalPageY = -1;
 
-        minLocalPageX = (startPage + ivec2(1, 1)).x;
-        minLocalPageY = (startPage + ivec2(1, 1)).y;
-        maxLocalPageX = (endPage - ivec2(1, 1)).x;
-        maxLocalPageY = (endPage - ivec2(1, 1)).y;
+        // minLocalPageX = (startPage + ivec2(1, 1)).x;
+        // minLocalPageY = (startPage + ivec2(1, 1)).y;
+        // maxLocalPageX = (endPage - ivec2(1, 1)).x;
+        // maxLocalPageY = (endPage - ivec2(1, 1)).y;
+
+        minLocalPageX = (startPage).x;
+        minLocalPageY = (startPage).y;
+        maxLocalPageX = (endPage).x;
+        maxLocalPageY = (endPage).y;
 
         // Conditionally mark this as invalid if a previous pass hasn't yet
         if (pageGroupsToRender[basePageGroupIndex] != frameCount) {

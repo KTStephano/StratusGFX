@@ -267,7 +267,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     // Convert from range [-1, 1] to [0, 1]
     // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
     // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
-    float depth1 = cascadeCoords.z;//clamp(cascadeCoords.z, 0.0, 1.0);
+    float depth1 = clamp(cascadeCoords.z, 0.0, 1.0);
 
     vec2 wh = computeTexelSize(infiniteLightShadowMap, 0);
                          

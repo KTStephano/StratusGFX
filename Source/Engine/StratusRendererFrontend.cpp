@@ -758,11 +758,11 @@ namespace stratus {
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
 
-            constexpr i32 moveSize = 16;
+            constexpr i32 moveSize = 8;
             i32 cameraX = (i32(frame_->camera->GetPosition().x) / moveSize) * moveSize;
             i32 cameraZ = (i32(frame_->camera->GetPosition().z) / moveSize) * moveSize;
-            sk = glm::vec3(0.0f);
-            //sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
+            //sk = glm::vec3(0.0f);
+            sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
             //sk = glm::vec3(0.0f, 0.0, 0.0f);
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
