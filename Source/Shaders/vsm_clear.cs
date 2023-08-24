@@ -32,6 +32,23 @@ shared uint clearValueBits;
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
 
+void clearPixel(in vec2 physicalPixelCoords) {
+    float fx = fract(physicalPixelCoords.x);
+    float fy = fract(physicalPixelCoords.y);
+    //vec2 physicalPixelCoords = vec2(virtualPixelCoords);
+
+    imageStore(vsm, ivec3(floor(physicalPixelCoords), 0), uvec4(clearValueBits));
+    // imageStore(vsm, ivec3(ceil(physicalPixelCoords), 0), uvec4(clearValueBits));
+
+    // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
+    vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
+    vec2 physicalPageCoords = physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0));
+    ivec2 physicalPageCoordsLower = ivec2(floor(physicalPageCoords));
+    // ivec2 physicalPageCoordsUpper = ivec2(ceil(physicalPageCoords));
+    atomicAnd(currFramePageResidencyTable[physicalPageCoordsLower.x + physicalPageCoordsLower.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+}
+
 void main() {
     ivec2 virtualPixelCoords = ivec2(gl_GlobalInvocationID.xy + startXY);
 
@@ -46,19 +63,6 @@ void main() {
     if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
         vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView);
 
-        imageStore(vsm, ivec3(round(physicalPixelCoords), 0), uvec4(clearValueBits));
-        //imageStore(vsm, ivec3(floor(physicalPixelCoords), 0), uvec4(clearValueBits));
-        // imageStore(vsm, ivec3(floor(physicalPixelCoords), 0), uvec4(clearValueBits));
-        // imageStore(vsm, ivec3(ceil(physicalPixelCoords), 0), uvec4(clearValueBits));
-
-	    // imageStore(vsm, ivec3(round(physicalPixelCoords), 0) + ivec3(0, 1, 0), uvec4(clearValueBits));
-	    // imageStore(vsm, ivec3(round(physicalPixelCoords), 0) + ivec3(0, -1, 0), uvec4(clearValueBits));
-	    // imageStore(vsm, ivec3(round(physicalPixelCoords), 0) + ivec3(1, 0, 0), uvec4(clearValueBits));
-	    // imageStore(vsm, ivec3(round(physicalPixelCoords), 0) + ivec3(-1, 0, 0), uvec4(clearValueBits));
-
-        // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
-        vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
-        ivec2 physicalPageCoords = ivec2(round(physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0))));
-        atomicAnd(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+        clearPixel(physicalPixelCoords);
     }
 }

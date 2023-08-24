@@ -595,12 +595,15 @@ namespace stratus {
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
         glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
-        cameraWorldTransform[3] = glm::vec4(
-            glm::vec3(std::round(c.GetPosition().x), 0.0f, std::round(c.GetPosition().y)), 
-            1.0f
-        );
-        // cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
-        //const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
+        // Attempt to stabilize the shadow view by only moving after every jumpRadius
+        // world units
+        constexpr float jumpRadius = 32.0f;
+        // cameraWorldTransform[3] = glm::vec4(
+        //     glm::vec3(std::floor(c.GetPosition().x / jumpRadius) * jumpRadius, 0.0f, std::floor(c.GetPosition().y / jumpRadius) * jumpRadius), 
+        //     1.0f
+        // );
+        cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
+        // const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
@@ -766,9 +769,14 @@ namespace stratus {
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
 
-            const f32 moveSize = 1.0f;
+            // sk = glm::vec3(floorf((maxX + minX) / (2.0f * T)) * T, 
+            //                0.0f,
+            //                minZ);
+
+            const f32 moveSize = 128.0f;
             f32 cameraX = (floorf(frame_->camera->GetPosition().x) / moveSize) * moveSize;
             f32 cameraZ = (floorf(frame_->camera->GetPosition().z) / moveSize) * moveSize;
+            //sk = glm::vec3(0.0f);
             //sk = glm::vec3(345.771, 56.2733, 208.989);
             //sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));

@@ -100,11 +100,63 @@ namespace stratus {
         f32 cascadeZDifference;
     };
 
+    struct VirtualIndex2DUpdateQueue {
+        VirtualIndex2DUpdateQueue(const u32 maxX = 1, const u32 maxY = 1)
+            : maxX_(maxX), maxY_(maxY) {}
+
+        void PushFront(const u32 x, const u32 y) {
+            const u32 index = x + y * maxX_;
+            if (existing_.find(index) != existing_.end()) return;
+
+            indexQueue_.push_front(std::make_pair(x, y));
+            existing_.insert(index);
+        }
+
+        void PushBack(const u32 x, const u32 y) {
+            const u32 index = x + y * maxX_;
+            if (existing_.find(index) != existing_.end()) return;
+
+            indexQueue_.push_back(std::make_pair(x, y));
+            existing_.insert(index);
+        }
+
+        std::pair<u32, u32> PopFront() {
+            if (Size() == 0) return std::make_pair(u32(0), u32(0));
+
+            auto front = Front();
+            indexQueue_.pop_front();
+            existing_.erase(front.first + front.second * maxX_);
+
+            return front;
+        }
+
+        std::pair<u32, u32> Front() const {
+            if (Size() == 0) return std::make_pair(u32(0), u32(0));
+            return indexQueue_.front();
+        }
+
+        void Clear() {
+            indexQueue_.clear();
+            existing_.clear();
+        }
+
+        usize Size() const {
+            return indexQueue_.size();
+        }
+
+    private:
+        std::list<std::pair<u32, u32>> indexQueue_;
+        std::unordered_set<u32> existing_;
+        u32 maxX_;
+        u32 maxY_;
+    };
+
     struct RendererCascadeContainer {
         FrameBuffer fbo;
         Texture vsm;
         GpuBuffer prevFramePageResidencyTable;
         GpuBuffer currFramePageResidencyTable;
+        VirtualIndex2DUpdateQueue pageGroupUpdateQueue;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
         u32 numPageGroupsX = 32;

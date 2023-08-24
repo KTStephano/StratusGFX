@@ -426,6 +426,8 @@ void RendererBackend::RecalculateCascadeData_() {
         const auto numPageGroups = frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY;
         std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
         frame_->csc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * numPageGroups, flags);
+
+        frame_->csc.pageGroupUpdateQueue = VirtualIndex2DUpdateQueue(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1243,6 +1245,14 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     auto vsm = &frame_->csc.vsm; //frame_->csc.fbo.GetDepthStencilAttachment();
 
+    // const auto prevFrame = INSTANCE(Engine)->FrameCount() % 2 == 0 ? 12 : 32;
+    // const auto currFrame = INSTANCE(Engine)->FrameCount() % 2 == 0 ? 32 : 12;
+    // vsm->CommitOrUncommitVirtualPage(prevFrame, prevFrame, 0, 10, 10, false);
+    // vsm->CommitOrUncommitVirtualPage(currFrame, currFrame, 0, 10, 10, true);
+
+    // vsm->CommitOrUncommitVirtualPage(32, 32, 0, 1, 1, true);
+    // vsm->CommitOrUncommitVirtualPage(32, 32, 0, 1, 1, false);
+
     if (numPagesToCommit > 0) {
         //STRATUS_LOG << numPagesToCommit << std::endl;
 
@@ -1436,47 +1446,41 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    bool continueChecking = true;
     constexpr u32 maxPageGroupsToUpdate = 4 * 4;
 
-    for (u32 x = 0; x < frame_->csc.numPageGroupsX && continueChecking; ++x) {
-        for (u32 y = 0; y < frame_->csc.numPageGroupsY && continueChecking; ++y) {
+    for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
+        for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
 
             const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
             if (pageGroupsToRender[pageGroupIndex] > 0) {
-                ++numPageGroupsToRender;
-
-                auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
-                auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
-
-                auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
-                auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
-
-                if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
-                    continueChecking = false;
-                    break;
-                }
-
-                minPageGroupX = newMinPageGroupX;
-                minPageGroupY = newMinPageGroupY;
-
-                maxPageGroupX = newMaxPageGroupX;
-                maxPageGroupY = newMaxPageGroupY;
+                frame_->csc.pageGroupUpdateQueue.PushBack(x, y);
             }
-            else {
-                continue;
-            }
-
-            // u32 startX = x * pageGroupWindowWidth;
-            // u32 startY = y * pageGroupWindowHeight;
-            // glViewport(startX, startY, pageGroupWindowWidth, pageGroupWindowHeight);
-            //glViewport(0, 0, depth->Width(), depth->Height());
-
-            //shader->SetMat4("shadowMatrix", frame_->csc.tiledProjectionMatrices[pageGroupIndex]);
-
-            //RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, pageGroupIndex, true);
-            //RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, pageGroupIndex, true);
         }
+    }
+
+    while (frame_->csc.pageGroupUpdateQueue.Size() > 0) {
+        const auto xy = frame_->csc.pageGroupUpdateQueue.PopFront();
+        const auto x = xy.first;
+        const auto y = xy.second;
+
+        ++numPageGroupsToRender;
+
+        auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+        auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+
+        auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+        auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+
+        if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
+            frame_->csc.pageGroupUpdateQueue.PushFront(x, y);
+            break;
+        }
+
+        minPageGroupX = newMinPageGroupX;
+        minPageGroupY = newMinPageGroupY;
+
+        maxPageGroupX = newMaxPageGroupX;
+        maxPageGroupY = newMaxPageGroupY;
     }
 
     //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
@@ -1528,6 +1532,13 @@ void RendererBackend::RenderCSMDepth_() {
         const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
         const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
+        glm::ivec2 virtualPixelCoords(128, 128);
+        const glm::ivec2 maxVirtualIndex(frame_->csc.cascadeResolutionXY - 1);
+        const glm::mat4 invProjectionView = frame_->csc.cascades[cascade].invProjectionViewRender;
+        const glm::mat4 vsmProjectionView = frame_->csc.cascades[cascade].projectionViewSample;
+
+        //STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(virtualPixelCoords, maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
+
         //const auto scaleX = f32(frame_->csc.numPageGroupsX - sizeX + 1.0f);
         //const auto scaleY = f32(frame_->csc.numPageGroupsY - sizeY + 1.0f);
 
@@ -1572,10 +1583,12 @@ void RendererBackend::RenderCSMDepth_() {
 
         u32 startX = minPageGroupX * pageGroupWindowWidth;
         u32 startY = minPageGroupY * pageGroupWindowHeight;
-        u32 endX = maxPageGroupX * pageGroupWindowWidth;
-        u32 endY = maxPageGroupY * pageGroupWindowHeight;
-        u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth) / 8.0f));
-        u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight) / 8.0f));
+        // Adds 1 pixel padding
+        u32 endX = maxPageGroupX * pageGroupWindowWidth + 1;
+        u32 endY = maxPageGroupY * pageGroupWindowHeight + 1;
+        // Adds 1 pixel padding
+        u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth + 1) / 8.0f));
+        u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight + 1) / 8.0f));
 
         TextureAccess depthBindConfig{
             TextureComponentFormat::RED,
@@ -1658,8 +1671,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();

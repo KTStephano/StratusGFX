@@ -478,6 +478,7 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/Bistro.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             bistro = e.GetPtr(); 
@@ -486,6 +487,17 @@ public:
             transform->SetLocalScale(glm::vec3(10.0f));
             //transform->SetLocalPosition(glm::vec3(500.0f, 0.0f, 0.0f));
             INSTANCE(EntityManager)->AddEntity(bistro);
+        });
+
+        e2.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+            if (e.Failed()) return;
+            auto sponza = e.GetPtr(); 
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            transform->SetLocalPosition(glm::vec3(611.401f, 0.0f, -29.8356f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            //transform->SetLocalPosition(glm::vec3(500.0f, 0.0f, 0.0f));
+            INSTANCE(EntityManager)->AddEntity(sponza);
         });
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();

@@ -18,8 +18,18 @@
 #include <random>
 #include "StratusGpuCommon.h"
 #include "StratusTypes.h"
+#include <functional>
 
 #define STRATUS_PI 3.14159265358979323846
+
+namespace std {
+    template<>
+    struct modulus<float> {
+        float operator()(const float& lhs, const float& rhs) const {
+            return std::fmod(lhs, rhs);
+        }
+    };
+}
 
 namespace stratus {
 	class Degrees;
@@ -439,6 +449,73 @@ namespace stratus {
 
         conversion.v = value;
         return conversion.u;
+    }
+
+    template<typename T>
+    T Mod(const T& value, const T& maxValue) {
+        return std::modulus<T>()(value, maxValue);
+    }
+
+    template<typename T>
+    T Mod2(const T& value, const T& maxValue) {
+        return T(
+            Mod(value[0], maxValue[0]),
+            Mod(value[1], maxValue[1])
+        );
+    }
+
+    template<typename T>
+    T Mod3(const T& value, const T& maxValue) {
+        return T(
+            Mod(value[0], maxValue[0]),
+            Mod(value[1], maxValue[1]),
+            Mod(value[2], maxValue[3])
+        );
+    }
+
+    template<typename T>
+    T WrapIndex2(const T& value, const T& maxValue) {
+        return T(Mod2(Mod2(value, maxValue) + maxValue, maxValue));
+    }
+
+    // See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
+    inline glm::ivec2 WrapIndex(const glm::ivec2& value, const glm::ivec2& maxValue) {
+        return WrapIndex2<glm::ivec2>(value, maxValue);
+    }
+
+    inline glm::vec2 WrapIndex(const glm::vec2& value, const glm::vec2& maxValue) {
+        return WrapIndex2<glm::vec2>(value, maxValue);
+    }
+
+    inline glm::vec2 ConvertVirtualCoordsToPhysicalCoords(
+        const glm::ivec2& virtualPixelCoords, 
+        const glm::ivec2& maxVirtualIndex, 
+        const glm::mat4& invProjectionView, 
+        const glm::mat4& vsmProjectionView
+    ) {
+        
+        using namespace glm;
+
+        // We need to convert our virtual texel to a physical texel
+        vec2 virtualTexCoords = vec2(virtualPixelCoords) / vec2(maxVirtualIndex);
+        // Set up NDC using -1, 1 tex coords and -1 for the z coord
+        vec4 ndc = vec4(virtualTexCoords * 2.0f - 1.0f, 0.0f, 1.0f);
+        // Convert to world space
+        vec4 worldPosition = invProjectionView * ndc;
+        // Perspective divide
+        worldPosition.x /= worldPosition.w;
+        worldPosition.y /= worldPosition.w;
+        worldPosition.z /= worldPosition.w;
+
+        vec4 physicalTexCoords = vsmProjectionView * vec4(vec3(worldPosition), 1.0);
+        // Perspective divide
+        physicalTexCoords.x = physicalTexCoords.x / physicalTexCoords.w;
+        physicalTexCoords.y = physicalTexCoords.y / physicalTexCoords.w;
+        // Convert from range [-1, 1] to [0, 1]
+        physicalTexCoords.x = physicalTexCoords.x * 0.5f + 0.5f;
+        physicalTexCoords.y = physicalTexCoords.y * 0.5f + 0.5f;
+
+        return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:
