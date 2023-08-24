@@ -595,6 +595,7 @@ namespace stratus {
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
         glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+        // cameraWorldTransform[3] = glm::vec4(glm::vec3(c.GetPosition().x, 0.0f, c.GetPosition().y), 1.0f);
         cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
         //const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();

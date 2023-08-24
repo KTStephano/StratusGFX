@@ -96,7 +96,7 @@ void main() {
 
 #define PERFORM_VISCULL_FOR_CASCADE(index, planes, aabb, draw, out1, out2) \
     if (!isAabbVisible(planes, aabb)) {                             \
-        draw.instanceCount = 0;                                     \
+        draw.instanceCount = 1;                                     \
     } else {                                                        \
         draw.instanceCount = 1;                                     \
     }                                                               \

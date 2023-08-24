@@ -50,25 +50,27 @@ void main() {
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);
 
+	//vsmCoords = ceil(vsmCoords);
+
 	// If we are approaching a texel boundary then allocate a bit of the region around us
-    if (fx <= 0.25) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(-1, 0, 0), depth);
-    }
-    else if (fx >= 0.75) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(1, 0, 0), depth);
-    }
+    // if (fx <= 0.25) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(-1, 0, 0), depth);
+    // }
+    // else if (fx >= 0.75) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(1, 0, 0), depth);
+    // }
 
-    if (fy <= 0.25) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, -1, 0), depth);
-    }
-    else if (fy >= 0.75) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, 1, 0), depth);
-    }
+    // if (fy <= 0.25) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, -1, 0), depth);
+    // }
+    // else if (fy >= 0.75) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, 1, 0), depth);
+    // }
 
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, 1, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, -1, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(1, 0, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(-1, 0, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, 1, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(0, -1, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(1, 0, 0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(vsmCoords) + ivec3(-1, 0, 0), depth);
 	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(1.0)));
 
 	//imageAtomicExchange(vsm, vsmCoordsLower, floatBitsToUint(depth));

@@ -1297,6 +1297,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     //frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     //frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
     state_.vsmMarkUnused->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmMarkUnused->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
 
     frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
@@ -1435,6 +1436,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
     bool continueChecking = true;
+    constexpr u32 maxPageGroupsToUpdate = 4 * 4;
 
     for (u32 x = 0; x < frame_->csc.numPageGroupsX && continueChecking; ++x) {
         for (u32 y = 0; y < frame_->csc.numPageGroupsY && continueChecking; ++y) {
@@ -1449,9 +1451,7 @@ void RendererBackend::RenderCSMDepth_() {
                 auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
                 auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
 
-                if (newMaxPageGroupX - newMinPageGroupX > 2 || 
-                    newMaxPageGroupY - newMinPageGroupY > 2) {
-
+                if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
                     continueChecking = false;
                     break;
                 }
@@ -1488,34 +1488,25 @@ void RendererBackend::RenderCSMDepth_() {
         // maxPageGroupX = frame_->csc.numPageGroupsX;
         // maxPageGroupY = frame_->csc.numPageGroupsY;
 
+        // We are going to add some padding since the current shadow
+        // map gen may partially overlap pages in other tiles
+        // if (minPageGroupX > 0) {
+        //     --minPageGroupX;
+        // }
+        // if (minPageGroupY > 0) {
+        //     --minPageGroupY;
+        // }
+        // if (maxPageGroupX < frame_->csc.numPageGroupsX) {
+        //     ++maxPageGroupX;
+        // }
+        // if (maxPageGroupY < frame_->csc.numPageGroupsY) {
+        //     ++maxPageGroupY;
+        // }
+
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
 
-        STRATUS_LOG << "Updating\n";
-
-        // New page grouping not evenly divisible - adjust
-        // if (frame_->csc.numPageGroupsX % sizeX != 0) {
-        //     // Adjust the bounds
-        //     if (maxPageGroupX < frame_->csc.numPageGroupsX) {
-        //         ++maxPageGroupX;
-        //     }
-        //     else {
-        //         --minPageGroupX;
-        //     }
-
-        //     ++sizeX;
-        // }
-
-        // if (frame_->csc.numPageGroupsY % sizeY != 0) {
-        //     if (maxPageGroupY < frame_->csc.numPageGroupsY) {
-        //         ++maxPageGroupY;
-        //     }
-        //     else {
-        //         --minPageGroupY;
-        //     }
-
-        //     ++sizeY;
-        // }
+        //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
 
         // Repartition pages into new set of groups
         //const u32 newNumPageGroupsX = frame_->csc.numPageGroupsX / sizeX;
@@ -1666,8 +1657,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();

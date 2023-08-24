@@ -149,7 +149,7 @@ void main() {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y && (continuePageLoop1 || continuePageLoop2); y += int(gl_WorkGroupSize.y)) {
 
             ivec2 physicalPageCoords = ivec2(
-                ceil(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
+                round(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
             );
 
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
@@ -226,14 +226,14 @@ void main() {
         // Even if our page group is inactive we still need to record commands just in case
         // our inactivity is due to being fully cached (the CPU may clear some/all of our region
         // due to its conservative algorithm)
-        if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
+        //if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
             //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
             atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
 
             // Mark this page group as valid for this frame
             //atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
             atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
-        }
+        //}
 
         // vec2 vmin = corners[0].xy;
         // vec2 vmax = corners[0].xy;

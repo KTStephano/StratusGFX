@@ -43,17 +43,22 @@ void main() {
 
     barrier();
 
-    //if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
-        ivec2 physicalPixelCoords = ivec2(
+    if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
+        vec2 physicalPixelCoords = vec2(
             convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView)
         );
 
-        imageStore(vsm, ivec3(physicalPixelCoords, 0), uvec4(clearValueBits));
+        //imageStore(vsm, ivec3(floor(physicalPixelCoords), 0), uvec4(clearValueBits));
+        imageStore(vsm, ivec3(round(physicalPixelCoords), 0), uvec4(clearValueBits));
 
         // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
         vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
         ivec2 physicalPageCoords = ivec2(round(physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0))));
-        // Clear the dirty bit
         atomicAnd(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
-    //}
+
+        // vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(numPagesXY);
+        // ivec2 physicalPageCoords = ivec2(physicalPageTexCoords);
+        // physicalPageCoords.y = numPagesXY.y - 1 - physicalPageCoords.y;
+        // atomicAnd(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    }
 }
