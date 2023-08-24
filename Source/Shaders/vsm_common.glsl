@@ -47,7 +47,7 @@ vec2 convertVirtualCoordsToPhysicalCoords(
     // We need to convert our virtual texel to a physical texel
     vec2 virtualTexCoords = vec2(virtualPixelCoords) / vec2(maxVirtualIndex);
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-    vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, -1.0, 1.0);
+    vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
     // Convert to world space
     vec4 worldPosition = invProjectionView * ndc;
     // Perspective divide

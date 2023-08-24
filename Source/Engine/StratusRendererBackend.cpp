@@ -1343,6 +1343,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
     state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->csc.cascadeResolutionXY);
     frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
 
     PerformVSMCulling(
@@ -1657,8 +1658,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();

@@ -138,21 +138,21 @@ void main() {
     updateResidencyStatus(ivec2(basePixelCoords));
 
     // If we are approaching a page boundary then allocate a bit of the region around us
-    if (fx <= 0.02) {
+    if (fx <= 0.1) {
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-2, 0));
 
     }
-    else if (fx >= 0.98) {
+    else if (fx >= 0.9) {
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(2, 0));
     }
 
-    if (fy <= 0.02) {
+    if (fy <= 0.1) {
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -2));
     }
-    else if (fy >= 0.98) {
+    else if (fy >= 0.9) {
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
         updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 2));
     }

@@ -24,7 +24,6 @@ uniform uint maxDrawCommands;
 uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
 uniform uint numPagesXY;
-uniform uint numPixelsXY;
 
 layout (std430, binding = 2) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
@@ -97,7 +96,6 @@ void main() {
     // }
 
     ivec2 residencyTableSize = ivec2(numPagesXY, numPagesXY);
-    ivec2 pixelsPerPage = ivec2(numPixelsXY) / residencyTableSize;
     ivec2 maxResidencyTableIndex = residencyTableSize - ivec2(1);
     ivec2 pagesPerPageGroup = residencyTableSize / ivec2(numPageGroupsX, numPageGroupsY);
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
@@ -108,24 +106,8 @@ void main() {
 
     // ivec2 startPage = baseStartPage - ivec2(1, 1);
     // ivec2 endPage = baseEndPage + ivec2(1, 1);
-    // ivec2 startPage = baseStartPage;
-    // ivec2 endPage = baseEndPage;
-
-    vec2 startPixel = vec2(baseStartPage * pixelsPerPage);
-    vec2 endPixel = vec2(baseEndPage * pixelsPerPage);
-
-    // Converts virtual pixels to physical pixels
-    startPixel = convertVirtualCoordsToPhysicalCoords(ivec2(startPixel), ivec2(numPixelsXY - 1), invCascadeProjectionView, vsmProjectionView);
-    endPixel = convertVirtualCoordsToPhysicalCoords(ivec2(endPixel), ivec2(numPixelsXY - 1), invCascadeProjectionView, vsmProjectionView);
-
-    vec2 startPixelTexCoords = vec2(startPixel) / vec2(numPixelsXY - 1);
-    vec2 endPixelTexCoords = vec2(endPixel) / vec2(numPixelsXY - 1);
-
-    ivec2 startPage = ivec2(round(startPixelTexCoords * vec2(maxResidencyTableIndex)));
-    ivec2 endPage = ivec2(round(endPixelTexCoords * vec2(maxResidencyTableIndex)));
-
-    // Calculate the actual start/end page since we may partially overlap
-    // pages rather than be perfectly aligned
+    ivec2 startPage = baseStartPage;
+    ivec2 endPage = baseEndPage;
 
     // Compute residency table dimensions
     if (gl_LocalInvocationID == 0) {
@@ -166,10 +148,9 @@ void main() {
     for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x && (continuePageLoop1 || continuePageLoop2); x += int(gl_WorkGroupSize.x)) {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y && (continuePageLoop1 || continuePageLoop2); y += int(gl_WorkGroupSize.y)) {
 
-            // ivec2 physicalPageCoords = ivec2(
-            //     round(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
-            // );
-            ivec2 physicalPageCoords = ivec2(x, y);
+            ivec2 physicalPageCoords = ivec2(
+                round(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
+            );
 
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
             uint pageStatus = currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].frameMarker;
