@@ -25,7 +25,7 @@ vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
 }
 
 uint computePageId(in ivec2 page) {
-    return uint(page.x + page.y * VSM_MAX_NUM_VIRTUAL_PAGES_XY);
+    return uint(VSM_MAX_NUM_VIRTUAL_PAGES_XY + page.x + page.y * VSM_MAX_NUM_PHYSICAL_PAGES_XY);
 }
 
 uint packPageIdWithDirtyBit(in uint pageId, in uint bit) {

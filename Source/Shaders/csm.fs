@@ -22,9 +22,46 @@ smooth in float vsmDepth;
 
 uniform float nearClipPlane;
 
+void writeDepth4(in vec2 virtualPixelCoords, in float depth) {
+	vec3 physicalPixelCoords = vec3(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0);
+
+	ivec3 coords1 = ivec3(
+		int(floor(physicalPixelCoords.x)),
+		int(floor(physicalPixelCoords.y)),
+		0
+	);
+
+	ivec3 coords2 = ivec3(
+		int(floor(physicalPixelCoords.x)),
+		int(ceil(physicalPixelCoords.y)),
+		0
+	);
+
+	ivec3 coords3 = ivec3(
+		int(ceil(physicalPixelCoords.x)),
+		int(floor(physicalPixelCoords.y)),
+		0
+	);
+
+	ivec3 coords4 = ivec3(
+		int(ceil(physicalPixelCoords.x)),
+		int(ceil(physicalPixelCoords.y)),
+		0
+	);
+
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords1, depth);
+	if (coords2 != coords1) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords2, depth);
+	if (coords3 != coords2) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords3, depth);
+	if (coords4 != coords3) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords4, depth);
+
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(physicalPixelCoords)), depth);
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(physicalPixelCoords)), depth);
+}
+
 void writeDepth(in vec2 virtualPixelCoords, in float depth) {
-	ivec3 physicalPixelCoords = ivec3(round(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0))), 0);
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoords, depth);
+	vec3 physicalPixelCoords = vec3(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0);
+
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(physicalPixelCoords)), depth);
 }
 
 void main() {
@@ -50,7 +87,7 @@ void main() {
 	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	writeDepth(vsmCoords.xy, depth);
+	writeDepth4(vsmCoords.xy, depth);
 
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);
@@ -59,17 +96,17 @@ void main() {
 
 	// If we are approaching a texel boundary then allocate a bit of the region around us
     // if (fx <= 0.25) {
-	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(-1, 0, 0), depth);
+	// 	writeDepth(vsmCoords.xy + vec2(-1, 0), depth);
     // }
     // else if (fx >= 0.75) {
-	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(1, 0, 0), depth);
+	// 	writeDepth(vsmCoords.xy + vec2(1, 0), depth);
     // }
 
     // if (fy <= 0.25) {
-	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, -1, 0), depth);
+	// 	writeDepth(vsmCoords.xy + vec2(0, -1), depth);
     // }
     // else if (fy >= 0.75) {
-	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, 1, 0), depth);
+	// 	writeDepth(vsmCoords.xy + vec2(0, 1), depth);
     // }
 
 	writeDepth(vsmCoords.xy + vec2(0, 1), depth);

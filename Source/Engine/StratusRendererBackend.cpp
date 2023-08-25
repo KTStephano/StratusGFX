@@ -1446,7 +1446,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    constexpr u32 maxPageGroupsToUpdate = 4 * 4;
+    constexpr u32 maxPageGroupsToUpdate = 3 * 3;
 
     for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
         for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
