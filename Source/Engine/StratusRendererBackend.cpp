@@ -318,13 +318,13 @@ void RendererBackend::InitPointShadowMaps_() {
     state_.shadowIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * state_.maxShadowCastingLightsPerFrame, flags);
     state_.shadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * state_.maxShadowCastingLightsPerFrame, flags);
 
-    STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
+    //STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
 
     // Create the virtual point light shadow map cache
-    vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
-    state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+    //vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
+    //state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
-    STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
+    // STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
 
 void RendererBackend::InitializeVplData_() {
@@ -1448,9 +1448,8 @@ void RendererBackend::RenderCSMDepth_() {
     u32 maxPageGroupY = 0;
     constexpr u32 maxPageGroupsToUpdate = 4 * 4;
 
-    for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
-        for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
-
+    for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+        for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
             const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
             if (pageGroupsToRender[pageGroupIndex] > 0) {
                 frame_->csc.pageGroupUpdateQueue.PushBack(x, y);

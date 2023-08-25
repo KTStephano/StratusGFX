@@ -476,10 +476,13 @@ public:
         //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
+        // (-231.613, 37.1122, -698.775)
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/Bistro.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+        stratus::Async<stratus::Entity> e3 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e4 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) {
             if (e.Failed()) return;
             bistro = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(bistro);
@@ -500,9 +503,35 @@ public:
             INSTANCE(EntityManager)->AddEntity(sponza);
         });
 
+        e3.AddCallback([this](stratus::Async<stratus::Entity> e) {
+            if (e.Failed()) return;
+            //STRATUS_LOG << "Adding\n";
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            //transform->SetLocalScale(glm::vec3(15.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalPosition(glm::vec3(-231.613f, 0.0f, -698.775f));
+            INSTANCE(EntityManager)->AddEntity(e.GetPtr());
+            //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
+        });
+
+        e4.AddCallback([this](stratus::Async<stratus::Entity> e) {
+            if (e.Failed()) return;
+            //STRATUS_LOG << "Adding\n";
+            auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
+            //transform->SetLocalPosition(glm::vec3(0.0f));
+            //transform->SetLocalScale(glm::vec3(15.0f));
+            transform->SetLocalScale(glm::vec3(15.0f));
+            transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+            transform->SetLocalPosition(glm::vec3(-231.613f, 0.0f, -698.775f));
+            INSTANCE(EntityManager)->AddEntity(e.GetPtr());
+            //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
+        });
+
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
         settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 

@@ -22,6 +22,11 @@ smooth in float vsmDepth;
 
 uniform float nearClipPlane;
 
+void writeDepth(in vec2 virtualPixelCoords, in float depth) {
+	ivec3 physicalPixelCoords = ivec3(round(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0))), 0);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoords, depth);
+}
+
 void main() {
 	float depth = vsmDepth;//gl_FragCoord.z;
 
@@ -43,9 +48,9 @@ void main() {
 
 	//ivec3 vsmCoords = ivec3(gl_FragCoord.xy, 0);
 	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
-	vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
+	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)), depth);
+	writeDepth(vsmCoords.xy, depth);
 
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);
@@ -53,28 +58,27 @@ void main() {
 	//vsmCoords = ceil(vsmCoords);
 
 	// If we are approaching a texel boundary then allocate a bit of the region around us
-    if (fx <= 0.25) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(-1, 0, 0), depth);
-    }
-    else if (fx >= 0.75) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(1, 0, 0), depth);
-    }
+    // if (fx <= 0.25) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(-1, 0, 0), depth);
+    // }
+    // else if (fx >= 0.75) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(1, 0, 0), depth);
+    // }
 
-    if (fy <= 0.25) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, -1, 0), depth);
-    }
-    else if (fy >= 0.75) {
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, 1, 0), depth);
-    }
+    // if (fy <= 0.25) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, -1, 0), depth);
+    // }
+    // else if (fy >= 0.75) {
+	// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, 1, 0), depth);
+    // }
 
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, 1, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(0, -1, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(1, 0, 0), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(vsmCoords)) + ivec3(-1, 0, 0), depth);
-	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(1.0)));
+	writeDepth(vsmCoords.xy + vec2(0, 1), depth);
+	writeDepth(vsmCoords.xy + vec2(0, -1), depth);
+	writeDepth(vsmCoords.xy + vec2(1, 0), depth);
+	writeDepth(vsmCoords.xy + vec2(-1, 0), depth);
 
-	//imageAtomicExchange(vsm, vsmCoordsLower, floatBitsToUint(depth));
-	//imageAtomicMin(vsm, vsmCoordsLower, floatBitsToUint(depth));
-	//imageAtomicMin(vsm, vsmCoordsUpper, floatBitsToUint(depth));
-	//imageStore(vsm, vsmCoords, uvec4(floatBitsToUint(0.0)));
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(0, 1, 0), depth);
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(0, -1, 0), depth);
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(1, 0, 0), depth);
+	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(-1, 0, 0), depth);
 }

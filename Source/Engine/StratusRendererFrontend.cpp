@@ -594,16 +594,16 @@ namespace stratus {
 
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
-        glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
-        // Attempt to stabilize the shadow view by only moving after every jumpRadius
-        // world units
-        constexpr float jumpRadius = 32.0f;
-        // cameraWorldTransform[3] = glm::vec4(
-        //     glm::vec3(std::floor(c.GetPosition().x / jumpRadius) * jumpRadius, 0.0f, std::floor(c.GetPosition().y / jumpRadius) * jumpRadius), 
-        //     1.0f
-        // );
-        cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
-        // const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
+        // glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+        // // Attempt to stabilize the shadow view by only moving after every jumpRadius
+        // // world units
+        // constexpr float jumpRadius = 32.0f;
+        // // cameraWorldTransform[3] = glm::vec4(
+        // //     glm::vec3(std::floor(c.GetPosition().x / jumpRadius) * jumpRadius, 0.0f, std::floor(c.GetPosition().y / jumpRadius) * jumpRadius), 
+        // //     1.0f
+        // // );
+        // cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
+        const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
