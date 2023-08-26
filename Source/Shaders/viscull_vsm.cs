@@ -97,7 +97,7 @@ void main() {
     // }
 
     ivec2 residencyTableSize = ivec2(numPagesXY, numPagesXY);
-    ivec2 pixelsPerPage = ivec2(numPixelsXY) / residencyTableSize;
+    ivec2 texelsPerPage = ivec2(numPixelsXY) / residencyTableSize;
     ivec2 maxResidencyTableIndex = residencyTableSize - ivec2(1);
     ivec2 pagesPerPageGroup = residencyTableSize / ivec2(numPageGroupsX, numPageGroupsY);
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
@@ -105,15 +105,16 @@ void main() {
     // ivec2(2, 2) is so we can add a one page border to account for times when this
     // virtual page group does not align perfectly with the physical page group
     ivec2 baseStartPage = basePageGroup * pagesPerPageGroup;
-    ivec2 baseEndPage = (basePageGroup + ivec2(2, 2)) * pagesPerPageGroup;
+    //ivec2 baseEndPage = (basePageGroup + ivec2(2, 2)) * pagesPerPageGroup;
+    ivec2 baseEndPage = (basePageGroup + ivec2(1)) * pagesPerPageGroup;
 
     // ivec2 startPage = baseStartPage - ivec2(1, 1);
     // ivec2 endPage = baseEndPage + ivec2(1, 1);
-    ivec2 startPage = baseStartPage;
-    ivec2 endPage = baseEndPage;
-
-    // vec2 startPixel = vec2(baseStartPage * pixelsPerPage);
-    // vec2 endPixel = vec2(baseEndPage * pixelsPerPage);
+    ivec2 startPage = baseStartPage - ivec2(1);
+    ivec2 endPage = baseEndPage + ivec2(1);
+     
+    // vec2 startPixel = vec2(baseStartPage * texelsPerPage);
+    // vec2 endPixel = vec2(baseEndPage * texelsPerPage);
 
     // // Converts virtual pixels to physical pixels
     // startPixel = convertVirtualCoordsToPhysicalCoords(ivec2(startPixel), ivec2(numPixelsXY - 1), invCascadeProjectionView, vsmProjectionView);
@@ -167,10 +168,17 @@ void main() {
     for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x && (continuePageLoop1 || continuePageLoop2); x += int(gl_WorkGroupSize.x)) {
         for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y && (continuePageLoop1 || continuePageLoop2); y += int(gl_WorkGroupSize.y)) {
 
-            ivec2 physicalPageCoords = ivec2(
-                floor(convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView))
+            ivec2 texelsXY = ivec2(x, y) * texelsPerPage;
+
+            // ivec2 physicalPageCoords = ivec2(
+            //     convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex, invCascadeProjectionView, vsmProjectionView)
+            // );
+
+            vec2 physicalPixelCoords = vec2(
+                convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1), invCascadeProjectionView, vsmProjectionView)
             );
-            //ivec2 physicalPageCoords = ivec2(x, y);
+            
+            ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
             //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
             uint pageStatus = currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].frameMarker;
@@ -187,7 +195,7 @@ void main() {
                 continuePageLoop1 = false;
             }
 
-            if (pageDirtyBit > 0) {
+            if (pageDirtyBit > 0 && pageStatus == frameCount) {
             //if (pageStatus == frameCount) {
             //if (true) {
                 atomicExchange(pageGroupIsValid, frameCount);

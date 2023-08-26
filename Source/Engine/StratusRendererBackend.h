@@ -100,24 +100,31 @@ namespace stratus {
         f32 cascadeZDifference;
     };
 
+    static inline u32 ComputeFlatVirtualIndex(const u32 x, const u32 y, const u32 maxX) {
+        return x + y * maxX;
+    }
+
     struct VirtualIndex2DUpdateQueue {
         VirtualIndex2DUpdateQueue(const u32 maxX = 1, const u32 maxY = 1)
             : maxX_(maxX), maxY_(maxY) {}
 
         void PushFront(const u32 x, const u32 y) {
-            const u32 index = x + y * maxX_;
+            const u32 index = ComputeFlatVirtualIndex(x, y, maxX_);
             if (existing_.find(index) != existing_.end()) return;
 
             indexQueue_.push_front(std::make_pair(x, y));
-            existing_.insert(index);
+            auto it = indexQueue_.begin();
+            existing_.insert(std::make_pair(index, it));
         }
 
         void PushBack(const u32 x, const u32 y) {
-            const u32 index = x + y * maxX_;
+            const u32 index = ComputeFlatVirtualIndex(x, y, maxX_);
             if (existing_.find(index) != existing_.end()) return;
 
             indexQueue_.push_back(std::make_pair(x, y));
-            existing_.insert(index);
+            auto it = indexQueue_.end();
+            --it;
+            existing_.insert(std::make_pair(index, it));
         }
 
         std::pair<u32, u32> PopFront() {
@@ -125,7 +132,7 @@ namespace stratus {
 
             auto front = Front();
             indexQueue_.pop_front();
-            existing_.erase(front.first + front.second * maxX_);
+            existing_.erase(ComputeFlatVirtualIndex(front.first, front.second, maxX_));
 
             return front;
         }
@@ -133,6 +140,29 @@ namespace stratus {
         std::pair<u32, u32> Front() const {
             if (Size() == 0) return std::make_pair(u32(0), u32(0));
             return indexQueue_.front();
+        }
+
+        void Erase(const u32 x, const u32 y) {
+            const u32 index = x + y * maxX_;
+            auto existing = existing_.find(index);
+            if (existing == existing_.end()) return;
+
+            auto it = existing->second;
+            indexQueue_.erase(it);
+            existing_.erase(index);
+        }
+
+        // Removes any element not contained in both this set and the other
+        template<typename Set>
+        void SetDifference(const Set& other) {
+            for (auto it = indexQueue_.begin(); it != indexQueue_.end();) {
+                const auto index = ComputeFlatVirtualIndex(it->first, it->second, maxX_);
+                auto old = it;
+                ++it;
+                if (other.find(index) == other.end()) {
+                    Erase(old->first, old->second);
+                }
+            }
         }
 
         void Clear() {
@@ -146,7 +176,7 @@ namespace stratus {
 
     private:
         std::list<std::pair<u32, u32>> indexQueue_;
-        std::unordered_set<u32> existing_;
+        std::unordered_map<u32, std::list<std::pair<u32, u32>>::iterator> existing_;
         u32 maxX_;
         u32 maxY_;
     };
@@ -225,15 +255,18 @@ namespace stratus {
 
         // In case a light needs to be removed without being updated
         void Erase(const LightPtr& ptr) {
-            if (existing_.find(ptr) == existing_.end()) return;
+            auto existing = existing_.find(ptr);
+            if (existing == existing_.end()) return;
+            auto it = existing->second;
+            queue_.erase(it);
             existing_.erase(ptr);
-            for (auto it = queue_.begin(); it != queue_.end(); ++it) {
-                const LightPtr& light = *it;
-                if (ptr == light) {
-                    queue_.erase(it);
-                    return;
-                }
-            }
+            //for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+            //    const LightPtr& light = *it;
+            //    if (ptr == light) {
+            //        queue_.erase(it);
+            //        return;
+            //    }
+            //}
         }
 
         // In case all lights need to be removed without being updated

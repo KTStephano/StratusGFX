@@ -59,9 +59,10 @@ void writeDepth4(in vec2 virtualPixelCoords, in float depth) {
 }
 
 void writeDepth(in vec2 virtualPixelCoords, in float depth) {
-	vec3 physicalPixelCoords = vec3(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0);
+	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(round(physicalPixelCoords)), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(physicalPixelCoords.xy), 0.0), depth);
+	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(physicalPixelCoords.xy), 0.0), depth);
 }
 
 void main() {
@@ -87,7 +88,7 @@ void main() {
 	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	writeDepth4(vsmCoords.xy, depth);
+	writeDepth(vsmCoords.xy, depth);
 
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);
@@ -109,10 +110,10 @@ void main() {
 	// 	writeDepth(vsmCoords.xy + vec2(0, 1), depth);
     // }
 
-	writeDepth(vsmCoords.xy + vec2(0, 1), depth);
-	writeDepth(vsmCoords.xy + vec2(0, -1), depth);
-	writeDepth(vsmCoords.xy + vec2(1, 0), depth);
-	writeDepth(vsmCoords.xy + vec2(-1, 0), depth);
+	// writeDepth(vsmCoords.xy + vec2(0, 1), depth);
+	// writeDepth(vsmCoords.xy + vec2(0, -1), depth);
+	// writeDepth(vsmCoords.xy + vec2(1, 0), depth);
+	// writeDepth(vsmCoords.xy + vec2(-1, 0), depth);
 
 	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(0, 1, 0), depth);
 	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(vsmCoords)) + ivec3(0, -1, 0), depth);

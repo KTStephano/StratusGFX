@@ -65,11 +65,11 @@ void updateResidencyStatus(in ivec2 coords) {
     //uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
     //uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
     uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
-    //uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+    uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
 
     // If true, page is not resident
     if (prev == 0) {
-        uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+        //uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
 
         if (current == 0) {
             int original = atomicAdd(numPagesToMakeResident, 1);
@@ -88,13 +88,15 @@ void updateResidencyStatus(in ivec2 coords) {
 
     uint dirtyBit = prevPageId != pageId ? 1 : prevDirtyBit; 
 
-    if (frameCount - prev < 3 && prevDirtyBit > 0) {
-        dirtyBit = 1;
-        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, prev);
-    }
-    else {
-        atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
-    }
+    // if (frameCount - prev < 3 && prevDirtyBit > 0) {
+    //     dirtyBit = 1;
+    //     atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, prev);
+    // }
+    // else {
+    //     atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+    // }
+
+    //atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
 
     // Re-mark page
     atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, dirtyBit));

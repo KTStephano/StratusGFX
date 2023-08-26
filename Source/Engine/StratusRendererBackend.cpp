@@ -1425,7 +1425,6 @@ void RendererBackend::RenderCSMDepth_() {
 
     const auto& csm = frame_->csc.cascades[cascade];
 
-
     //for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
     // for (usize x = 0; x < 128; ++x) {
     //     for (usize y = 0; y < 128; ++y) {
@@ -1446,17 +1445,30 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    constexpr u32 maxPageGroupsToUpdate = 3 * 3;
+    constexpr u32 maxPageGroupsToUpdate = 2;
+
+    using VirtualIndexSet = std::unordered_set<
+        u32,
+        std::hash<u32>,
+        std::equal_to<u32>,
+        StackBasedPoolAllocator<u32>>;
+
+    VirtualIndexSet changeSet(frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY, StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory));
 
     for (u32 y = 0; y < frame_->csc.numPageGroupsY; ++y) {
         for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
             const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
             if (pageGroupsToRender[pageGroupIndex] > 0) {
                 frame_->csc.pageGroupUpdateQueue.PushBack(x, y);
+                changeSet.insert(ComputeFlatVirtualIndex(x, y, frame_->csc.numPageGroupsX));
             }
         }
     }
 
+    // Update the page group update queue with only what is visible on screen
+    frame_->csc.pageGroupUpdateQueue.SetDifference(changeSet);
+
+    // Now compute a page group x/y for glViewport
     while (frame_->csc.pageGroupUpdateQueue.Size() > 0) {
         const auto xy = frame_->csc.pageGroupUpdateQueue.PopFront();
         const auto x = xy.first;
@@ -1470,7 +1482,15 @@ void RendererBackend::RenderCSMDepth_() {
         auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
         auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
 
-        if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
+        // if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
+        //     frame_->csc.pageGroupUpdateQueue.PushFront(x, y);
+        //     break;
+        // }
+
+        const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
+        const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
+
+        if (failedCheckX || failedCheckY) {
             frame_->csc.pageGroupUpdateQueue.PushFront(x, y);
             break;
         }
@@ -1510,6 +1530,29 @@ void RendererBackend::RenderCSMDepth_() {
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
 
+        // Constrain the update window to be a power of 2
+        if (sizeX % 2 != 0) {
+            if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+                ++maxPageGroupX;
+            }
+            else if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+
+            sizeX = maxPageGroupX - minPageGroupX;
+        }
+
+        if (sizeY % 2 != 0) {
+            if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+                ++maxPageGroupY;
+            }
+            else if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
+
+            sizeY = maxPageGroupY - minPageGroupY;
+        }
+
         //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
 
         // Repartition pages into new set of groups
@@ -1531,12 +1574,13 @@ void RendererBackend::RenderCSMDepth_() {
         const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
         const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
-        glm::ivec2 virtualPixelCoords(128, 128);
         const glm::ivec2 maxVirtualIndex(frame_->csc.cascadeResolutionXY - 1);
         const glm::mat4 invProjectionView = frame_->csc.cascades[cascade].invProjectionViewRender;
         const glm::mat4 vsmProjectionView = frame_->csc.cascades[cascade].projectionViewSample;
 
-        //STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(virtualPixelCoords, maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
+        // for (int i = 0; i < 128; ++i) {
+        // STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(glm::ivec2(i, i), maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
+        // }
 
         //const auto scaleX = f32(frame_->csc.numPageGroupsX - sizeX + 1.0f);
         //const auto scaleY = f32(frame_->csc.numPageGroupsY - sizeY + 1.0f);
@@ -1551,6 +1595,8 @@ void RendererBackend::RenderCSMDepth_() {
         const f32 invY = 1.0f / newNumPageGroupsY;
         //const f32 invX = 1.0f / scaleX;
         //const f32 invY = 1.0f / scaleY;
+
+        //STRATUS_LOG << newNumPageGroupsX << " " << newNumPageGroupsY << std::endl;
 
         // Perform translation to orient our vertex outputs to only the ones relevant
         // to the subset of the texture we are interested in
@@ -1582,12 +1628,12 @@ void RendererBackend::RenderCSMDepth_() {
 
         u32 startX = minPageGroupX * pageGroupWindowWidth;
         u32 startY = minPageGroupY * pageGroupWindowHeight;
-        // Adds 1 pixel padding
-        u32 endX = maxPageGroupX * pageGroupWindowWidth + 1;
-        u32 endY = maxPageGroupY * pageGroupWindowHeight + 1;
-        // Adds 1 pixel padding
-        u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth + 1) / 8.0f));
-        u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight + 1) / 8.0f));
+
+        u32 endX = maxPageGroupX * pageGroupWindowWidth;
+        u32 endY = maxPageGroupY * pageGroupWindowHeight;
+
+        u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth) / 8.0f));
+        u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight) / 8.0f));
 
         TextureAccess depthBindConfig{
             TextureComponentFormat::RED,

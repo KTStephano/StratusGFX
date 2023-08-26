@@ -497,15 +497,15 @@ namespace stratus {
         using namespace glm;
 
         // We need to convert our virtual texel to a physical texel
-        vec2 virtualTexCoords = vec2(virtualPixelCoords) / vec2(maxVirtualIndex);
+        vec2 virtualTexCoords = vec2(virtualPixelCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
         // Set up NDC using -1, 1 tex coords and -1 for the z coord
         vec4 ndc = vec4(virtualTexCoords * 2.0f - 1.0f, 0.0f, 1.0f);
         // Convert to world space
         vec4 worldPosition = invProjectionView * ndc;
         // Perspective divide
-        worldPosition.x /= worldPosition.w;
-        worldPosition.y /= worldPosition.w;
-        worldPosition.z /= worldPosition.w;
+        // worldPosition.x /= worldPosition.w;
+        // worldPosition.y /= worldPosition.w;
+        // worldPosition.z /= worldPosition.w;
 
         vec4 physicalTexCoords = vsmProjectionView * vec4(vec3(worldPosition), 1.0);
         // Perspective divide
@@ -515,7 +515,19 @@ namespace stratus {
         physicalTexCoords.x = physicalTexCoords.x * 0.5f + 0.5f;
         physicalTexCoords.y = physicalTexCoords.y * 0.5f + 0.5f;
 
-        return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+        vec2 wrapped = WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+
+        return vec2(
+            std::ceil(wrapped.x) - 1.0f,
+            std::ceil(wrapped.y) - 1.0f
+        );
+
+        //return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+        //return vec2(physicalTexCoords) * vec2(maxVirtualIndex);
+
+        //vec2 wrapped = WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex + ivec2(1)), vec2(maxVirtualIndex + ivec2(1)));
+
+        //return (wrapped / vec2(maxVirtualIndex + ivec2(1))) * vec2(maxVirtualIndex);
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:

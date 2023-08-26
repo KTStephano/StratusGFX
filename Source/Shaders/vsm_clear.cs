@@ -32,20 +32,29 @@ shared uint clearValueBits;
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
 
+// void clearPixel(in vec2 physicalPixelCoords) {
+//     // float fx = fract(physicalPixelCoords.x);
+//     // float fy = fract(physicalPixelCoords.y);
+//     //vec2 physicalPixelCoords = vec2(virtualPixelCoords);
+
+//     imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
+//     // imageStore(vsm, ivec3(ceil(physicalPixelCoords), 0), uvec4(clearValueBits));
+
+//     // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
+//     vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
+//     vec2 physicalPageCoords = physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0));
+//     //ivec2 physicalPageCoordsRounded = ivec2(roundCoords(physicalPageCoords, vec2(numPagesXY) - vec2(1.0)));
+//     ivec2 physicalPageCoordsRounded = ivec2(ceil(physicalPageCoords));
+//     atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+//     // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+// }
+
 void clearPixel(in vec2 physicalPixelCoords) {
-    float fx = fract(physicalPixelCoords.x);
-    float fy = fract(physicalPixelCoords.y);
-    //vec2 physicalPixelCoords = vec2(virtualPixelCoords);
+    imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
 
-    imageStore(vsm, ivec3(floor(physicalPixelCoords), 0), uvec4(clearValueBits));
-    // imageStore(vsm, ivec3(ceil(physicalPixelCoords), 0), uvec4(clearValueBits));
+    ivec2 physicalPageCoordsRounded = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
-    // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
-    vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
-    vec2 physicalPageCoords = physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0));
-    ivec2 physicalPageCoordsLower = ivec2(floor(physicalPageCoords));
-    // ivec2 physicalPageCoordsUpper = ivec2(ceil(physicalPageCoords));
-    atomicAnd(currFramePageResidencyTable[physicalPageCoordsLower.x + physicalPageCoordsLower.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
     // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
 }
 

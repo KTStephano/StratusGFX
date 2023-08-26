@@ -594,7 +594,7 @@ namespace stratus {
 
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
-        // glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+        glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
         // // Attempt to stabilize the shadow view by only moving after every jumpRadius
         // // world units
         // constexpr float jumpRadius = 32.0f;
@@ -603,7 +603,7 @@ namespace stratus {
         // //     1.0f
         // // );
         // cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
-        const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
+        //const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
 
@@ -616,10 +616,12 @@ namespace stratus {
 
         // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
         // @see https://ogldev.org/www/tutorial49/tutorial49.html
-        const f32 ar = f32(Window::Instance()->GetWindowDims().first) / f32(Window::Instance()->GetWindowDims().second);
+        //const f32 ar = f32(Window::Instance()->GetWindowDims().first) / f32(Window::Instance()->GetWindowDims().second);
+        const f32 ar = 1.0f;
         //const f32 tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
         //const f32 tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
-        const f32 projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
+        //const f32 projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
+        const f32 projPlaneDist = 1.0f;
         const f32 znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
         // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
         // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
@@ -716,22 +718,28 @@ namespace stratus {
             for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
             const glm::vec3 frustumCenter = frustumSum / f32(frustumCorners.size());
 
-            // Calculate max diameter across frustum
-            f32 maxLength = std::numeric_limits<f32>::min();
-            for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
-                for (i32 j = 1; j < frustumCorners.size(); ++j) {
-                    maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
-                }
-            }
+            // // // Calculate max diameter across frustum
+            // f32 maxLength = std::numeric_limits<f32>::min();
+            // for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
+            //     for (i32 j = 1; j < frustumCorners.size(); ++j) {
+            //         maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+            //     }
+            // }
+            // //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
+
+            // //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
+
+            // //STRATUS_LOG << "2: " << maxLength << std::endl;
             
-            // This tells us the maximum diameter for the cascade bounding box
-            //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
-            //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            const f32 dk = ceilf(maxLength);
-            dks.push_back(dk);
-            // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            const f32 T = dk / requestedCascadeResolutionXY;
-            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
+            // // This tells us the maximum diameter for the cascade bounding box
+            // //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            // //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
+            // const f32 dk = ceilf(maxLength);
+            // STRATUS_LOG << dk << std::endl;
+            // dks.push_back(dk);
+            // // T is essentially the physical width/height of area corresponding to each texel in the shadow map
+            // const f32 T = dk / requestedCascadeResolutionXY;
+            // frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;
@@ -750,6 +758,29 @@ namespace stratus {
                 }
             }
 
+            // // Calculate max diameter across frustum
+            f32 maxLength = std::numeric_limits<f32>::min();
+            for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
+                for (i32 j = 1; j < frustumCorners.size(); ++j) {
+                    maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+                }
+            }
+            //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
+
+            //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
+
+            //STRATUS_LOG << "2: " << maxLength << std::endl;
+            
+            // This tells us the maximum diameter for the cascade bounding box
+            //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
+            const f32 dk = 1024.0f;//ceilf(maxLength);
+            dks.push_back(dk);
+            // T is essentially the physical width/height of area corresponding to each texel in the shadow map
+            const f32 T = dk / requestedCascadeResolutionXY;
+            //STRATUS_LOG << dk << " " << T << std::endl;
+            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
+
             const f32 minX = minVec.x;
             const f32 maxX = maxVec.x;
 
@@ -764,21 +795,24 @@ namespace stratus {
             zmins.push_back(minZ);
             zmaxs.push_back(maxZ);
 
+            // STRATUS_LOG << dk << " " << maxX << " " << minX << " " << maxY << " " << minY << std::endl;
+
             // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
             glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
                          floorf((maxY + minY) / (2.0f * T)) * T, 
                          minZ);
 
-            // sk = glm::vec3(floorf((maxX + minX) / (2.0f * T)) * T, 
-            //                0.0f,
-            //                minZ);
+            //sk = c.GetPosition();
 
-            const f32 moveSize = 128.0f;
-            f32 cameraX = (floorf(frame_->camera->GetPosition().x) / moveSize) * moveSize;
-            f32 cameraZ = (floorf(frame_->camera->GetPosition().z) / moveSize) * moveSize;
+            // T = world distance covered per texel and 128 = number of texels in a page along one axis
+            const f32 moveSize = T * 128.0f;
+            f32 cameraX = floorf(frame_->camera->GetPosition().x / (moveSize)) * moveSize;
+            f32 cameraY = floorf(frame_->camera->GetPosition().y / (moveSize)) * moveSize;
+            f32 cameraZ = floorf(frame_->camera->GetPosition().z / (moveSize)) * moveSize;
             //sk = glm::vec3(0.0f);
             //sk = glm::vec3(345.771, 56.2733, 208.989);
-            //sk = glm::vec3(f32(cameraX), 0.0f, f32(cameraZ));
+            sk = glm::vec3(cameraX, cameraY, cameraZ);
+            //STRATUS_LOG << moveSize << std::endl;
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
             //sk = glm::vec3(0.0f);
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
@@ -792,6 +826,8 @@ namespace stratus {
 
             //sk = glm::vec3(0.0f);
             sks.push_back(sk);
+
+            //STRATUS_LOG << sk << std::endl;
 
             // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
             // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
@@ -814,9 +850,11 @@ namespace stratus {
             // 
             //
             // This results in values between [-1, 1]
-            const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                                   glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
-                                                   glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+            const float xycomponent = 2.0f / dk;
+            const float zcomponent = 1.0f / 1024.0f; // 1.0f / (maxZ - minZ);
+            const glm::mat4 cascadeOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
+                                                   glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
+                                                   glm::vec4(0.0f, 0.0f, zcomponent, shadowDepthOffset),
                                                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
             //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
@@ -824,10 +862,10 @@ namespace stratus {
             //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
             // // // Gives us x, y values between [0, 1]
-            const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(2.0f / dk, 0.0f, 0.0f, 0.0f), 
-                                                       glm::vec4(0.0f, 2.0f / dk, 0.0f, 0.0f),
-                                                       glm::vec4(0.0f, 0.0f, 1.0f / 1024.0f, 0.0f),
-                                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
+                                                        glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
+                                                        glm::vec4(0.0f, 0.0f, zcomponent, 0.0f),
+                                                        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             //const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
             // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
@@ -838,46 +876,6 @@ namespace stratus {
             frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
             frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
             frame_->csc.cascades[i].invProjectionViewRender = glm::inverse(frame_->csc.cascades[i].projectionViewRender);
-
-            const auto scaleX = f32(frame_->csc.numPageGroupsX);
-            const auto scaleY = f32(frame_->csc.numPageGroupsY);
-            const auto dkX = 2.0f / (dk / 1.0f);
-            const auto dkY = 2.0f / (dk / 1.0f);
-
-            //tx= - (-1 + 2/(2*m) + (2/m) * x)
-            //ty= - (-1 + 2/(2*n) + (2/n) * y)
-
-            const f32 invX = 1.0f / f32(frame_->csc.numPageGroupsX);
-            const f32 invY = 1.0f / f32(frame_->csc.numPageGroupsY);
-
-            // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
-            // for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
-            //     for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
-
-            //         const usize tile = x + y * frame_->csc.numPageGroupsX;
-
-            //         const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(x));
-            //         const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(y));
-            //         //const f32 tx = (-1.0f + invX + 2.0f * invX * f32(x));
-            //         //const f32 ty = (-1.0f + invY + 2.0f * invY * f32(y));
-
-            //         glm::mat4 scale(1.0f);
-            //         matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
-
-            //         glm::mat4 translate(1.0f);
-            //         matTranslate(translate, glm::vec3(tx, ty, 0.0f));
-
-            //         // const glm::mat4 tileOrthoProjection(glm::vec4(dkX, 0.0f, 0.0f, 0.0f), 
-            //         //                                     glm::vec4(0.0f, dkY, 0.0f, 0.0f),
-            //         //                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
-            //         //                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-            //         const glm::mat4 tileOrthoProjection = scale * translate * cascadeOrthoProjection;
-
-            //         frame_->csc.tiledProjectionMatrices[tile] = tileOrthoProjection * cascadeViewTransform;
-            //     }
-            // }
-            //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
 
             if (i > 0) {
                 // See page 187, eq. 8.82
@@ -898,6 +896,357 @@ namespace stratus {
             }
         }
     }
+
+    // void RendererFrontend::UpdateCascadeData_() {
+    //     auto requestedCascadeResolutionXY = static_cast<u32>(frame_->settings.cascadeResolution);
+
+    //     frame_->csc.regenerateFbo = frame_->csc.cascadeResolutionXY != requestedCascadeResolutionXY;
+
+    //     frame_->csc.cascadeResolutionXY = requestedCascadeResolutionXY;
+
+    //     //requestedCascadeResolutionXY /= 2;
+
+    //     const f32 cascadeResReciprocal = 1.0f / requestedCascadeResolutionXY;
+    //     const f32 cascadeDelta = cascadeResReciprocal;
+    //     const usize numCascades = frame_->csc.cascades.size();
+
+    //     frame_->csc.worldLightCamera = CameraPtr(new Camera(false, false));
+    //     auto worldLightCamera = frame_->csc.worldLightCamera;
+    //     worldLightCamera->SetAngle(worldLight_->GetRotation());
+
+    //     // See "Foundations of Game Engine Development, Volume 2: Rendering (pp. 178)
+    //     //
+    //     // FOV_x = 2tan^-1(s/g), FOV_y = 2tan^-1(1/g)
+    //     // ==> tan(FOV_y/2)=1/g ==> g=1/tan(FOV_y/2)
+    //     // where s is the aspect ratio (width / height)
+
+    //     // Set up the shadow texture offsets
+    //     frame_->csc.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    //     frame_->csc.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+    //     // _state.cascadeShadowOffsets[0] = glm::vec4(-cascadeDelta, -cascadeDelta, cascadeDelta, -cascadeDelta);
+    //     // _state.cascadeShadowOffsets[1] = glm::vec4(cascadeDelta, cascadeDelta, -cascadeDelta, cascadeDelta);
+
+    //     // Assume directional light translation is none
+    //     // Camera light(false);
+    //     // light.setAngle(_state.worldLight.getRotation());
+    //     const Camera & light = *worldLightCamera;
+    //     const Camera & c = *camera_;
+
+    //     const glm::mat4 lightWorldTransform = light.GetWorldTransform();
+    //     const glm::mat4 lightViewTransform = light.GetViewTransform();
+    //     glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
+    //     // // Attempt to stabilize the shadow view by only moving after every jumpRadius
+    //     // // world units
+    //     // constexpr float jumpRadius = 32.0f;
+    //     // // cameraWorldTransform[3] = glm::vec4(
+    //     // //     glm::vec3(std::floor(c.GetPosition().x / jumpRadius) * jumpRadius, 0.0f, std::floor(c.GetPosition().y / jumpRadius) * jumpRadius), 
+    //     // //     1.0f
+    //     // // );
+    //     // cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
+    //     //const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
+    //     const glm::mat4 cameraViewTransform = c.GetViewTransform();
+    //     const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
+
+    //     // See page 152, eq. 8.21
+    //     const glm::vec3 worldLightDirWorldSpace = -lightWorldTransform[2];
+    //     const glm::vec3 worldLightDirCamSpace = glm::normalize(glm::mat3(cameraViewTransform) * worldLightDirWorldSpace);
+    //     frame_->csc.worldLightDirectionCameraSpace = worldLightDirCamSpace;
+
+    //     const glm::mat4 L = lightViewTransform * cameraWorldTransform;
+
+    //     // @see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
+    //     // @see https://ogldev.org/www/tutorial49/tutorial49.html
+    //     const f32 ar = f32(Window::Instance()->GetWindowDims().first) / f32(Window::Instance()->GetWindowDims().second);
+    //     //const f32 tanHalfHFov = glm::tan(Radians(_params.fovy).value() / 2.0f) * ar;
+    //     //const f32 tanHalfVFov = glm::tan(Radians(_params.fovy).value() / 2.0f);
+    //     const f32 projPlaneDist = glm::tan(Radians(params_.fovy).value() / 2.0f);
+    //     const f32 znear = 1.0f;//params_.znear; //0.001f; //_params.znear;
+    //     // We don't want zfar to be unbounded, so we constrain it to at most 800 which also has the nice bonus
+    //     // of increasing our shadow map resolution (same shadow texture resolution over a smaller total area)
+    //     const f32 zfar  = params_.zfar; //std::min(800.0f, _params.zfar);
+    //     frame_->csc.znear = znear;
+    //     frame_->csc.zfar = zfar;
+
+    //     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    //     // @see https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+    //     // @see https://developer.download.nvidia.com/SDK/10.5/opengl/src/cascaded_shadow_maps/doc/cascaded_shadow_maps.pdf
+    //     const f32 lambda = 0.5f;
+    //     const f32 clipRange = zfar - znear;
+    //     const f32 ratio = zfar / znear;
+    //     std::vector<f32> cascadeEnds(numCascades);
+    //     // for (usize i = 0; i < numCascades; ++i) {
+    //     //     // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
+    //     //     // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
+    //     //     // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
+    //     //     // distances.
+    //     //     const f32 p = (i + 1) / f32(numCascades);
+    //     //     const f32 log = znear * std::pow(ratio, p);
+    //     //     const f32 uniform = znear + clipRange * p;
+    //     //     //const f32 d = floorf(lambda * (log - uniform) + uniform);
+    //     //     const f32 d = floorf(lambda * log + (1.0f - lambda) * uniform);
+    //     //     cascadeEnds[i] = d;
+    //     //     //STRATUS_LOG << "Cascade " << i << " ends " << d << std::endl;
+    //     // }
+    //     //f32 sizePerCasacde = f32(ratio) / f64(numCascades);
+    //     f32 sizePerCasacde = frame_->csc.cascadeResolutionXY > 8192 ? 350.0f : 250.0f;
+    //     //f32 sizePerCasacde = 300.0f;
+    //     for (usize i = 0; i < numCascades; ++i) {
+    //         // We are going to select the cascade split points by computing the logarithmic split, then the uniform split,
+    //         // and then combining them by lambda * log + (1 - lambda) * uniform - the benefit is that it will produce relatively
+    //         // consistent sampling depths over the whole frustum. This is in contrast to under or oversampling inconsistently at different
+    //         // distances.
+    //         cascadeEnds[i] = (i + 1) * sizePerCasacde;
+    //         //STRATUS_LOG << "Cascade " << i << " ends " << cascadeEnds[i] << std::endl;
+    //     }
+
+    //     // std::vector<f32> cascadeEnds = {
+    //     //     5.0f,
+    //     //     20.0f,
+    //     //     100.0f,
+    //     //     200.0f
+    //     // };
+
+    //     // see https://gamedev.stackexchange.com/questions/183499/how-do-i-calculate-the-bounding-box-for-an-ortho-matrix-for-cascaded-shadow-mapp
+    //     // see https://ogldev.org/www/tutorial49/tutorial49.html
+    //     // We offset each cascade begin from 1 onwards so that there is some overlap between the start of cascade k and the end of cascade k-1
+    //     //const std::vector<f32> cascadeBegins = { 0.0f, cascadeEnds[0] - 10.0f,  cascadeEnds[1] - 10.0f, cascadeEnds[2] - 10.0f }; // 4 cascades max
+    //     const std::vector<f32> cascadeBegins = { 0.0f, cascadeEnds[0] - 4.0f,  cascadeEnds[1] - 4.0f, cascadeEnds[2] - 4.0f }; // 4 cascades max
+    //     //const std::vector<f32> cascadeEnds   = {  30.0f, 100.0f, 240.0f, 640.0f };
+    //     std::vector<f32> aks;
+    //     std::vector<f32> bks;
+    //     std::vector<f32> dks;
+    //     std::vector<glm::vec3> sks;
+    //     std::vector<f32> zmins;
+    //     std::vector<f32> zmaxs;
+
+    //     for (usize i = 0; i < numCascades; ++i) {
+    //         const f32 ak = cascadeBegins[i];
+    //         const f32 bk = cascadeEnds[i];
+    //         frame_->csc.cascades[i].cascadeBegins = ak;
+    //         frame_->csc.cascades[i].cascadeEnds   = bk;
+    //         aks.push_back(ak);
+    //         bks.push_back(bk);
+
+    //         // These base values are in camera space and define our frustum corners
+    //         const f32 xn = ak * ar * projPlaneDist;
+    //         const f32 xf = bk * ar * projPlaneDist;
+    //         const f32 yn = ak * projPlaneDist;
+    //         const f32 yf = bk * projPlaneDist;
+    //         // Keep all of these in camera space for now
+    //         std::vector<glm::vec4, Vec4Allocator> frustumCorners({
+    //             // Near corners
+    //             glm::vec4(xn, yn, -ak, 1.0f),
+    //             glm::vec4(-xn, yn, -ak, 1.0f),
+    //             glm::vec4(xn, -yn, -ak, 1.0f),
+    //             glm::vec4(-xn, -yn, -ak, 1.0f),
+
+    //             // Far corners
+    //             glm::vec4(xf, yf, -bk, 1.0f),
+    //             glm::vec4(-xf, yf, -bk, 1.0f),
+    //             glm::vec4(xf, -yf, -bk, 1.0f),
+    //             glm::vec4(-xf, -yf, -bk, 1.0f),
+    //             },
+
+    //             Vec4Allocator(frame_->perFrameScratchMemory)
+    //         );
+
+    //         // Calculate frustum center
+    //         // @see https://ahbejarano.gitbook.io/lwjglgamedev/chapter26
+    //         glm::vec3 frustumSum(0.0f);
+    //         for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
+    //         const glm::vec3 frustumCenter = frustumSum / f32(frustumCorners.size());
+
+    //         // // Calculate max diameter across frustum
+    //         f32 maxLength = std::numeric_limits<f32>::min();
+    //         for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
+    //             for (i32 j = 1; j < frustumCorners.size(); ++j) {
+    //                 maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+    //             }
+    //         }
+    //         //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
+
+    //         //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
+
+    //         //STRATUS_LOG << "2: " << maxLength << std::endl;
+            
+    //         // This tells us the maximum diameter for the cascade bounding box
+    //         //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+    //         //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
+    //         const f32 dk = ceilf(maxLength);
+    //         dks.push_back(dk);
+    //         // T is essentially the physical width/height of area corresponding to each texel in the shadow map
+    //         const f32 T = dk / requestedCascadeResolutionXY;
+    //         frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
+
+    //         // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
+    //         glm::vec3 minVec;
+    //         glm::vec3 maxVec;
+    //         for (i32 j = 0; j < frustumCorners.size(); ++j) {
+    //             // First make sure to transform frustumCorners[j] from camera space to light space
+    //             frustumCorners[j] = L * frustumCorners[j];
+    //             const glm::vec3 frustumVec = frustumCorners[j];
+    //             if (j == 0) {
+    //                 minVec = frustumVec;
+    //                 maxVec = frustumVec;
+    //             }
+    //             else {
+    //                 minVec = glm::min(minVec, frustumVec);
+    //                 maxVec = glm::max(maxVec, frustumVec);
+    //             }
+    //         }
+
+    //         const f32 minX = minVec.x;
+    //         const f32 maxX = maxVec.x;
+
+    //         const f32 minY = minVec.y;
+    //         const f32 maxY = maxVec.y;
+
+    //         const f32 minZ = minVec.z;
+    //         const f32 maxZ = maxVec.z;
+
+    //         //STRATUS_LOG << dk << " " << (maxZ - minZ) << std::endl;
+
+    //         zmins.push_back(minZ);
+    //         zmaxs.push_back(maxZ);
+
+    //         // STRATUS_LOG << dk << " " << maxX << " " << minX << " " << maxY << " " << minY << std::endl;
+
+    //         // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
+    //         glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
+    //                      floorf((maxY + minY) / (2.0f * T)) * T, 
+    //                      minZ);
+
+    //         //sk = c.GetPosition();
+
+    //         // T = world distance covered per texel and 128 = number of texels in a page along one axis
+    //         const f32 moveSize = T * 128.0f;
+    //         f32 cameraX = floorf(frame_->camera->GetPosition().x / (2.0 * moveSize)) * moveSize;
+    //         f32 cameraY = floorf(frame_->camera->GetPosition().y / (2.0 * moveSize)) * moveSize;
+    //         f32 cameraZ = floorf(frame_->camera->GetPosition().z / (2.0 * moveSize)) * moveSize;
+    //         //sk = glm::vec3(0.0f);
+    //         //sk = glm::vec3(345.771, 56.2733, 208.989);
+    //         sk = glm::vec3(cameraX, cameraY, cameraZ);
+    //         //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
+    //         //sk = glm::vec3(0.0f);
+    //         //sk = glm::vec3(500.0f, 0.0f, 200.0f);
+    //         //sk = glm::vec3(sk.x, 0.0f, sk.z);
+    //         //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
+    //         //STRATUS_LOG << "sk " << sk << std::endl;
+    //         //STRATUS_LOG << sk.y << std::endl;
+    //         //sk = frame_->camera->GetPosition();
+    //         frame_->csc.cascades[i].cascadePositionLightSpace = sk;
+    //         frame_->csc.cascades[i].cascadePositionCameraSpace = glm::vec3(cameraViewTransform * lightWorldTransform * glm::vec4(sk, 1.0f));
+
+    //         //sk = glm::vec3(0.0f);
+    //         sks.push_back(sk);
+
+    //         // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
+    //         // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
+    //         const glm::mat4 cascadeRenderViewTransform = glm::mat4(transposeLightWorldTransform[0], 
+    //                                                         transposeLightWorldTransform[1],
+    //                                                         transposeLightWorldTransform[2],
+    //                                                         glm::vec4(-sk, 1.0f));
+
+    //         const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
+    //                                                         transposeLightWorldTransform[1],
+    //                                                         transposeLightWorldTransform[2],
+    //                                                         glm::vec4(-glm::vec3(0.0f), 1.0f));
+
+    //         frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
+
+    //         // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
+    //         const f32 shadowDepthOffset = 0.0f;//2e-19;
+    //         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
+    //         // so it enables us to use the simplified Orthographic Projection matrix below
+    //         // 
+    //         //
+    //         // This results in values between [-1, 1]
+    //         const float xycomponent = 2.0f / dk;
+    //         const float zcomponent = 1.0f / 1024.0f; // 1.0f / (maxZ - minZ);
+    //         const glm::mat4 cascadeOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
+    //                                                glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
+    //                                                glm::vec4(0.0f, 0.0f, zcomponent, shadowDepthOffset),
+    //                                                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    //         //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
+    //         //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
+    //         //                                       glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+    //         //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+    //         // // // Gives us x, y values between [0, 1]
+    //         const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
+    //                                                     glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
+    //                                                     glm::vec4(0.0f, 0.0f, zcomponent, 0.0f),
+    //                                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    //         //const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
+
+    //         // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
+    //         // to be cascadeTexelOrthoProjection * cascadeViewTransform. This has the added benefit of automatically translating
+    //         // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
+    //         //
+    //         // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
+    //         frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
+    //         frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
+    //         frame_->csc.cascades[i].invProjectionViewRender = glm::inverse(frame_->csc.cascades[i].projectionViewRender);
+
+    //         const auto scaleX = f32(frame_->csc.numPageGroupsX);
+    //         const auto scaleY = f32(frame_->csc.numPageGroupsY);
+    //         const auto dkX = 2.0f / (dk / 1.0f);
+    //         const auto dkY = 2.0f / (dk / 1.0f);
+
+    //         //tx= - (-1 + 2/(2*m) + (2/m) * x)
+    //         //ty= - (-1 + 2/(2*n) + (2/n) * y)
+
+    //         const f32 invX = 1.0f / f32(frame_->csc.numPageGroupsX);
+    //         const f32 invY = 1.0f / f32(frame_->csc.numPageGroupsY);
+
+    //         // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
+    //         // for (usize x = 0; x < frame_->csc.numPageGroupsX; ++x) {
+    //         //     for (usize y = 0; y < frame_->csc.numPageGroupsY; ++y) {
+
+    //         //         const usize tile = x + y * frame_->csc.numPageGroupsX;
+
+    //         //         const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(x));
+    //         //         const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(y));
+    //         //         //const f32 tx = (-1.0f + invX + 2.0f * invX * f32(x));
+    //         //         //const f32 ty = (-1.0f + invY + 2.0f * invY * f32(y));
+
+    //         //         glm::mat4 scale(1.0f);
+    //         //         matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
+
+    //         //         glm::mat4 translate(1.0f);
+    //         //         matTranslate(translate, glm::vec3(tx, ty, 0.0f));
+
+    //         //         // const glm::mat4 tileOrthoProjection(glm::vec4(dkX, 0.0f, 0.0f, 0.0f), 
+    //         //         //                                     glm::vec4(0.0f, dkY, 0.0f, 0.0f),
+    //         //         //                                     glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
+    //         //         //                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+    //         //         const glm::mat4 tileOrthoProjection = scale * translate * cascadeOrthoProjection;
+
+    //         //         frame_->csc.tiledProjectionMatrices[tile] = tileOrthoProjection * cascadeViewTransform;
+    //         //     }
+    //         // }
+    //         //STRATUS_LOG << _frame->csc.cascades[i].projectionViewSample << std::endl;
+
+    //         if (i > 0) {
+    //             // See page 187, eq. 8.82
+    //             // Ck = Mk_shadow * (M0_shadow) ^ -1
+    //             glm::mat4 Ck = frame_->csc.cascades[i].projectionViewSample * glm::inverse(frame_->csc.cascades[0].projectionViewSample);
+    //             frame_->csc.cascades[i].sampleCascade0ToCurrent = Ck;
+
+    //             // This will allow us to calculate the cascade blending weights in the vertex shader and then
+    //             // the cascade indices in the pixel shader
+    //             const glm::vec3 n = -glm::vec3(cameraWorldTransform[2]);
+    //             const glm::vec3 c = glm::vec3(cameraWorldTransform[3]);
+    //             // fk now represents a plane along the direction of the view frustum. Its normal is equal to the camera's forward
+    //             // direction in world space and it contains the point c + ak*n.
+    //             const glm::vec4 fk = glm::vec4(n.x, n.y, n.z, glm::dot(-n, c) - ak) * (1.0f / (bks[i - 1] - ak));
+    //             frame_->csc.cascades[i].cascadePlane = fk;
+    //             //STRATUS_LOG << fk << std::endl;
+    //             //_frame->csc.cascades[i].cascadePlane = glm::vec4(10.0f);
+    //         }
+    //     }
+    // }
 
     bool RendererFrontend::EntityChanged_(const EntityPtr& p) {
         auto tc = p->Components().GetComponent<GlobalTransformComponent>().component;
