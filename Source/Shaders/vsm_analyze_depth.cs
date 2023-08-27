@@ -141,27 +141,34 @@ void main() {
 
     //basePixelCoords = round(basePixelCoords);
 
-    updateResidencyStatus(ivec2(basePixelCoords));
+    ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
+    ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
+
+    updateResidencyStatus(pixelCoordsLower);
+
+    if (pixelCoordsLower != pixelCoordsUpper) {
+        updateResidencyStatus(pixelCoordsUpper);
+    }
 
     // If we are approaching a page boundary then allocate a bit of the region around us
-    if (fx <= 0.02) {
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-2, 0));
+    // if (fx <= 0.02) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-2, 0));
 
-    }
-    else if (fx >= 0.98) {
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(2, 0));
-    }
+    // }
+    // else if (fx >= 0.98) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(2, 0));
+    // }
 
-    if (fy <= 0.02) {
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -2));
-    }
-    else if (fy >= 0.98) {
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
-        updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 2));
-    }
+    // if (fy <= 0.02) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -2));
+    // }
+    // else if (fy >= 0.98) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 2));
+    // }
 
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  0));
     // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));

@@ -76,7 +76,7 @@ void clearPixel(in vec2 physicalPixelCoords) {
             dirtyBit
         );
 
-        if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE - 1) {
+        if (dirtyBit >= 1024 || dirtyBit == 0) {
             atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
         }
     }
@@ -96,6 +96,12 @@ void main() {
     if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
         vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView);
 
-        clearPixel(vec2(physicalPixelCoords));
+        vec2 physicalPixelCoordsLower = floor(physicalPixelCoords);
+        vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);
+
+        clearPixel(physicalPixelCoordsUpper);
+        // if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
+        //     clearPixel(physicalPixelCoordsUpper);
+        // }
     }
 }

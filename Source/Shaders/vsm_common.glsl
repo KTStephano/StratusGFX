@@ -14,10 +14,12 @@ STRATUS_GLSL_VERSION
 #define VSM_MAX_NUM_PHYSICAL_PAGES_XY 128
 
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
+#define VSM_DOUBLE_NUM_TEXELS_PER_PAGE_XY 256
 
 // 128 * 128
 #define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
 #define VSM_HALF_NUM_TEXELS_PER_PAGE 8192
+#define VSM_FOURTH_NUM_TEXELS_PER_PAGE 4096
 
 // #define ATOMIC_REDUCE_TEXEL_COUNT(info) {                         \
 //     uint pageId;                                                  \
@@ -61,7 +63,8 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
 }
 
 vec2 roundIndex(in vec2 index) {
-    return ceil(index) - vec2(1.0);
+    return index - vec2(1.0);
+    //return ceil(index) - vec2(1.0);
     //return round(index) - vec2(1.0);
     //return floor(index);
 }

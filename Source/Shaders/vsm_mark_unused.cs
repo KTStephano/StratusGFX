@@ -67,7 +67,7 @@ void main() {
     }
 
     if (current.frameMarker > 0) {
-        if ((frameCount - current.frameMarker) > 30) {
+        if ((frameCount - current.frameMarker) > 200) {
             int original = atomicAdd(numPagesToFree, 1);
             pageIndices[2 * original] = tileCoords.x;
             pageIndices[2 * original + 1] = tileCoords.y;

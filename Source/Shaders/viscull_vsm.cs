@@ -177,7 +177,7 @@ void main() {
             // );
 
             vec2 physicalPixelCoords = vec2(
-                convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1), invCascadeProjectionView, vsmProjectionView)
+                ceil(convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1), invCascadeProjectionView, vsmProjectionView))
             );
             
             ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
