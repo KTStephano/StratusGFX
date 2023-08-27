@@ -17,6 +17,7 @@ STRATUS_GLSL_VERSION
 
 // 128 * 128
 #define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
+#define VSM_HALF_NUM_TEXELS_PER_PAGE 8192
 
 // #define ATOMIC_REDUCE_TEXEL_COUNT(info) {                         \
 //     uint pageId;                                                  \
@@ -61,7 +62,8 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
 
 vec2 roundIndex(in vec2 index) {
     return ceil(index) - vec2(1.0);
-    //return ceil(index);
+    //return round(index) - vec2(1.0);
+    //return floor(index);
 }
 
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
@@ -88,6 +90,31 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
 
     return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
 }
+
+// vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
+//     in ivec2 virtualPixelCoords, 
+//     in ivec2 maxVirtualIndex, 
+//     in mat4 invProjectionView, 
+//     in mat4 vsmProjectionView
+// ) {
+    
+//     // We need to convert our virtual texel to a physical texel
+//     vec2 virtualTexCoords = vec2(virtualPixelCoords) / vec2(maxVirtualIndex);
+//     // Set up NDC using -1, 1 tex coords and -1 for the z coord
+//     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
+//     // Convert to world space
+//     vec4 worldPosition = invProjectionView * ndc;
+//     // Perspective divide
+//     worldPosition.xyz /= worldPosition.w;
+
+//     vec4 physicalTexCoords = vsmProjectionView * vec4(worldPosition.xyz, 1.0);
+//     // Perspective divide
+//     physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
+//     // Convert from range [-1, 1] to [0, 1]
+//     physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
+
+//     return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+// }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
     in ivec2 virtualPixelCoords, 

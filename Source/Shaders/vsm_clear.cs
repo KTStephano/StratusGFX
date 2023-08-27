@@ -69,7 +69,14 @@ void clearPixel(in vec2 physicalPixelCoords) {
 
     if (dirtyBit > 0) {
         uint prev = atomicAdd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, 1);
-        if (prev >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+
+        unpackPageIdAndDirtyBit(
+            prev,
+            pageId,
+            dirtyBit
+        );
+
+        if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE - 1) {
             atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
         }
     }
