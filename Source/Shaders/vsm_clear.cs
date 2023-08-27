@@ -8,6 +8,8 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 precision highp float;
 precision highp int;
 precision highp uimage2D;
+precision highp sampler2D;
+precision highp sampler2DArrayShadow;
 
 #include "common.glsl"
 #include "vsm_common.glsl"
@@ -50,12 +52,27 @@ shared ivec2 vsmMaxIndex;
 // }
 
 void clearPixel(in vec2 physicalPixelCoords) {
-    imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
-
     ivec2 physicalPageCoordsRounded = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
-    atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
-    // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    //atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+    //ATOMIC_REDUCE_TEXEL_COUNT(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info);
+
+    imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
+
+    uint pageId;
+    uint dirtyBit;
+    unpackPageIdAndDirtyBit(
+        currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, 
+        pageId,
+        dirtyBit
+    );
+
+    if (dirtyBit > 0) {
+        uint prev = atomicAdd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, 1);
+        if (prev >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+            atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+        }
+    }
 }
 
 void main() {
@@ -72,6 +89,6 @@ void main() {
     if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
         vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView);
 
-        clearPixel(physicalPixelCoords);
+        clearPixel(vec2(physicalPixelCoords));
     }
 }

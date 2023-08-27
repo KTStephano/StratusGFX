@@ -6,6 +6,8 @@ STRATUS_GLSL_VERSION
 precision highp float;
 precision highp int;
 precision highp uimage2D;
+precision highp sampler2D;
+precision highp sampler2DArrayShadow;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 

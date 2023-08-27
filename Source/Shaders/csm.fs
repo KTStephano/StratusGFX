@@ -3,6 +3,12 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 #extension GL_ARB_sparse_texture2 : require
 
+precision highp float;
+precision highp int;
+precision highp uimage2D;
+precision highp sampler2D;
+precision highp sampler2DArrayShadow;
+
 #include "common.glsl"
 #include "alpha_test.glsl"
 #include "atomic.glsl"

@@ -6,6 +6,8 @@ STRATUS_GLSL_VERSION
 precision highp float;
 precision highp int;
 precision highp uimage2D;
+precision highp sampler2D;
+precision highp sampler2DArrayShadow;
 
 #include "common.glsl"
 #include "vsm_common.glsl"

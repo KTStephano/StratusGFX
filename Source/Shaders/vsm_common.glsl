@@ -1,8 +1,11 @@
 STRATUS_GLSL_VERSION
 
+#define VSM_LOWER_MASK 0x0000FFFF
+#define VSM_UPPER_MASK 0xFFFF0000
+
 #define VSM_PAGE_DIRTY_BIT 1
-#define VSM_PAGE_DIRTY_MASK 0x00000001
-#define VSM_PAGE_ID_MASK 0xFFFFFFFE
+#define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
+#define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
 // Total is this number squared
 #define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32768
@@ -11,6 +14,23 @@ STRATUS_GLSL_VERSION
 #define VSM_MAX_NUM_PHYSICAL_PAGES_XY 128
 
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
+
+// 128 * 128
+#define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
+
+// #define ATOMIC_REDUCE_TEXEL_COUNT(info) {                         \
+//     uint pageId;                                                  \
+//     uint count;                                                   \
+//     unpackPageIdAndDirtyBit(info, pageId, count);                 \
+//     uint original = packPageIdWithDirtyBit(pageId, count);        \
+//     while (count > 0) {                                           \
+//         --count;                                                  \
+//         uint updated = packPageIdWithDirtyBit(pageId, count);     \
+//         uint prev = atomicCompSwap(info, original, updated);      \
+//         if (prev == original) break;                              \
+//         unpackPageIdAndDirtyBit(prev, pageId, count);             \
+//     }                                                             \
+// }
 
 struct PageResidencyEntry {
     uint frameMarker;
@@ -31,19 +51,20 @@ uint computePageId(in ivec2 page) {
 }
 
 uint packPageIdWithDirtyBit(in uint pageId, in uint bit) {
-    return (pageId << 1) | (bit & VSM_PAGE_DIRTY_MASK);
+    return (pageId << 16) | (bit & VSM_PAGE_DIRTY_MASK);
 }
 
 void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
-    pageId = data >> 1;
+    pageId = (data >> 16) & VSM_LOWER_MASK;
     bit = data & VSM_PAGE_DIRTY_MASK;
 }
 
 vec2 roundIndex(in vec2 index) {
     return ceil(index) - vec2(1.0);
+    //return ceil(index);
 }
 
-vec2 convertVirtualCoordsToPhysicalCoords(
+vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in ivec2 virtualPixelCoords, 
     in ivec2 maxVirtualIndex, 
     in mat4 invProjectionView, 
@@ -65,6 +86,22 @@ vec2 convertVirtualCoordsToPhysicalCoords(
     // Convert from range [-1, 1] to [0, 1]
     physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
 
-    vec2 wrapped = wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+    return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+}
+
+vec2 convertVirtualCoordsToPhysicalCoords(
+    in ivec2 virtualPixelCoords, 
+    in ivec2 maxVirtualIndex, 
+    in mat4 invProjectionView, 
+    in mat4 vsmProjectionView
+) {
+    
+    vec2 wrapped = convertVirtualCoordsToPhysicalCoordsNoRound(
+        virtualPixelCoords,
+        maxVirtualIndex,
+        invProjectionView,
+        vsmProjectionView
+    );
+
     return roundIndex(wrapped);
 }

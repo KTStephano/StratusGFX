@@ -592,17 +592,22 @@ namespace stratus {
         const Camera & light = *worldLightCamera;
         const Camera & c = *camera_;
 
+        const f32 dk = 1024.0f;
+        // T is essentially the physical width/height of area corresponding to each texel in the shadow map
+        const f32 T = dk / f32(frame_->csc.cascadeResolutionXY);
+
+        // T = world distance covered per texel and 128 = number of texels in a page along one axis
+        const f32 moveSize = T * 128.0f;
+
+        f32 cameraX = floorf(frame_->camera->GetPosition().x / (2.0f * moveSize)) * moveSize;
+        f32 cameraY = floorf(frame_->camera->GetPosition().y / (2.0f * moveSize)) * moveSize;
+        f32 cameraZ = floorf(frame_->camera->GetPosition().z / (2.0f * moveSize)) * moveSize;
+
         const glm::mat4 lightWorldTransform = light.GetWorldTransform();
         const glm::mat4 lightViewTransform = light.GetViewTransform();
-        glm::mat4 cameraWorldTransform = glm::mat4(1.0f);//c.GetWorldTransform();
-        // // Attempt to stabilize the shadow view by only moving after every jumpRadius
-        // // world units
-        // constexpr float jumpRadius = 32.0f;
-        // // cameraWorldTransform[3] = glm::vec4(
-        // //     glm::vec3(std::floor(c.GetPosition().x / jumpRadius) * jumpRadius, 0.0f, std::floor(c.GetPosition().y / jumpRadius) * jumpRadius), 
-        // //     1.0f
-        // // );
-        // cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
+        glm::mat4 cameraWorldTransform = c.GetWorldTransform();
+        cameraWorldTransform[3] = glm::vec4(cameraX, cameraY, cameraZ, 1.0f);
+        //cameraWorldTransform[3] = glm::vec4(c.GetPosition(), 1.0f);
         //const glm::mat4 cameraWorldTransform = c.GetWorldTransform();
         const glm::mat4 cameraViewTransform = c.GetViewTransform();
         const glm::mat4 transposeLightWorldTransform = glm::transpose(lightWorldTransform);
@@ -718,28 +723,28 @@ namespace stratus {
             for (auto& v : frustumCorners) frustumSum += glm::vec3(v);
             const glm::vec3 frustumCenter = frustumSum / f32(frustumCorners.size());
 
-            // // // Calculate max diameter across frustum
-            // f32 maxLength = std::numeric_limits<f32>::min();
-            // for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
-            //     for (i32 j = 1; j < frustumCorners.size(); ++j) {
-            //         maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
-            //     }
-            // }
-            // //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
+            // // Calculate max diameter across frustum
+            f32 maxLength = std::numeric_limits<f32>::min();
+            for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
+                for (i32 j = 1; j < frustumCorners.size(); ++j) {
+                    maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
+                }
+            }
+            //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
 
-            // //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
+            //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
 
-            // //STRATUS_LOG << "2: " << maxLength << std::endl;
+            //STRATUS_LOG << "2: " << maxLength << std::endl;
             
-            // // This tells us the maximum diameter for the cascade bounding box
-            // //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
-            // //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            // const f32 dk = ceilf(maxLength);
-            // STRATUS_LOG << dk << std::endl;
-            // dks.push_back(dk);
-            // // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            // const f32 T = dk / requestedCascadeResolutionXY;
-            // frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
+            // This tells us the maximum diameter for the cascade bounding box
+            //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
+            //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
+            //const f32 dk = ceilf(maxLength);
+            //STRATUS_LOG << dk << std::endl;
+            dks.push_back(dk);
+            // T is essentially the physical width/height of area corresponding to each texel in the shadow map
+            //const f32 T = dk / requestedCascadeResolutionXY;
+            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;
@@ -758,29 +763,6 @@ namespace stratus {
                 }
             }
 
-            // // Calculate max diameter across frustum
-            f32 maxLength = std::numeric_limits<f32>::min();
-            for (i32 i = 0; i < frustumCorners.size() - 1; ++i) {
-                for (i32 j = 1; j < frustumCorners.size(); ++j) {
-                    maxLength = std::max<f32>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
-                }
-            }
-            //STRATUS_LOG << "1: " << std::ceil(maxLength) << std::endl;
-
-            //maxLength = std::ceil(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), glm::length(frustumCorners[4] - frustumCorners[6])));
-
-            //STRATUS_LOG << "2: " << maxLength << std::endl;
-            
-            // This tells us the maximum diameter for the cascade bounding box
-            //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
-            //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            const f32 dk = 1024.0f;//ceilf(maxLength);
-            dks.push_back(dk);
-            // T is essentially the physical width/height of area corresponding to each texel in the shadow map
-            const f32 T = dk / requestedCascadeResolutionXY;
-            //STRATUS_LOG << dk << " " << T << std::endl;
-            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
-
             const f32 minX = minVec.x;
             const f32 maxX = maxVec.x;
 
@@ -798,20 +780,25 @@ namespace stratus {
             // STRATUS_LOG << dk << " " << maxX << " " << minX << " " << maxY << " " << minY << std::endl;
 
             // Now we calculate cascade camera position sk using the min, max, dk and T for a stable location
-            glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
-                         floorf((maxY + minY) / (2.0f * T)) * T, 
+            // glm::vec3 sk(floorf((maxX + minX) / (2.0f * T)) * T, 
+            //              floorf((maxY + minY) / (2.0f * T)) * T, 
+            //              minZ);
+
+            glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 
+                         floorf((maxY + minY) / (2.0f * moveSize)) * moveSize, 
                          minZ);
 
             //sk = c.GetPosition();
 
             // T = world distance covered per texel and 128 = number of texels in a page along one axis
-            const f32 moveSize = T * 128.0f;
-            f32 cameraX = floorf(frame_->camera->GetPosition().x / (moveSize)) * moveSize;
-            f32 cameraY = floorf(frame_->camera->GetPosition().y / (moveSize)) * moveSize;
-            f32 cameraZ = floorf(frame_->camera->GetPosition().z / (moveSize)) * moveSize;
-            //sk = glm::vec3(0.0f);
-            //sk = glm::vec3(345.771, 56.2733, 208.989);
-            sk = glm::vec3(cameraX, cameraY, cameraZ);
+            //const f32 moveSize = T * 128.0f;
+            // f32 cameraX = floorf(frame_->camera->GetPosition().x / (moveSize)) * moveSize;
+            // f32 cameraY = floorf(frame_->camera->GetPosition().y / (moveSize)) * moveSize;
+            // f32 cameraZ = floorf(frame_->camera->GetPosition().z / (moveSize)) * moveSize;
+            // sk = glm::vec3(0.0f);
+            // sk = glm::vec3(345.771, 56.2733, 208.989);
+            //sk = glm::vec3(cameraX, cameraY, minZ);
+            //STRATUS_LOG << sk << std::endl;
             //STRATUS_LOG << moveSize << std::endl;
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
             //sk = glm::vec3(0.0f);
@@ -851,7 +838,7 @@ namespace stratus {
             //
             // This results in values between [-1, 1]
             const float xycomponent = 2.0f / dk;
-            const float zcomponent = 1.0f / 1024.0f; // 1.0f / (maxZ - minZ);
+            const float zcomponent = 1.0f / (maxZ - minZ);
             const glm::mat4 cascadeOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
                                                    glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
                                                    glm::vec4(0.0f, 0.0f, zcomponent, shadowDepthOffset),
@@ -864,7 +851,7 @@ namespace stratus {
             // // // Gives us x, y values between [0, 1]
             const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f), 
                                                         glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
-                                                        glm::vec4(0.0f, 0.0f, zcomponent, 0.0f),
+                                                        glm::vec4(0.0f, 0.0f, 1.0f / 1024.0f, 0.0f),
                                                         glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             //const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
