@@ -1536,32 +1536,47 @@ void RendererBackend::RenderCSMDepth_() {
         //     ++maxPageGroupY;
         // }
 
+        // Add a 1 page group border around the whole update region
+        if (minPageGroupX > 0) {
+            --minPageGroupX;
+        }
+        if (minPageGroupY > 0) {
+            --minPageGroupY;
+        }
+
+        if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+            ++maxPageGroupX;
+        }
+        if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+            ++maxPageGroupY;
+        }
+
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
         const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
         // Constrain the update window to be a power of 2
-        if (sizeX % 2 != 0) {
-            if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
-                ++maxPageGroupX;
-            }
-            else if (minPageGroupX > 0) {
-                --minPageGroupX;
-            }
+        // if (sizeX % 2 != 0) {
+        //     if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+        //         ++maxPageGroupX;
+        //     }
+        //     else if (minPageGroupX > 0) {
+        //         --minPageGroupX;
+        //     }
 
-            sizeX = maxPageGroupX - minPageGroupX;
-        }
+        //     sizeX = maxPageGroupX - minPageGroupX;
+        // }
 
-        if (sizeY % 2 != 0) {
-            if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
-                ++maxPageGroupY;
-            }
-            else if (minPageGroupY > 0) {
-                --minPageGroupY;
-            }
+        // if (sizeY % 2 != 0) {
+        //     if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+        //         ++maxPageGroupY;
+        //     }
+        //     else if (minPageGroupY > 0) {
+        //         --minPageGroupY;
+        //     }
 
-            sizeY = maxPageGroupY - minPageGroupY;
-        }
+        //     sizeY = maxPageGroupY - minPageGroupY;
+        // }
 
         //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
 

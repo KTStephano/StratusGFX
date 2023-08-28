@@ -89,7 +89,7 @@ public:
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
