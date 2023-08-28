@@ -69,6 +69,12 @@ layout (std430, binding = 2) readonly buffer input3 {
     PointLight shadowCasters[];
 };
 
+layout (std430, binding = 3) readonly buffer inputBlock3 {
+    PageResidencyEntry currFramePageResidencyTable[];
+};
+
+uniform uint numPagesXY;
+
 /**
  * Information about the directional infinite light (if there is one)
  */
@@ -140,7 +146,37 @@ void main() {
                               dot(cascadePlanes[2], vec4(fragPos, 1.0)));
     float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal, true);
 
-    color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
+    vec3 cacheColor = vec3(0.0);
+
+    // //shadowFactor = 1.0;
+    // vec2 pageCoords = vec2(0.0);
+    // vec4 cascadeTexCoords = cascadeProjViews[0] * vec4(fragPos, 1.0);
+    // pageCoords = cascadeTexCoords.xy / cascadeTexCoords.w; // Perspective divide
+    // pageCoords.xy = pageCoords.xy * 0.5 + vec2(0.5);
+    // pageCoords = pageCoords * vec2(numPagesXY - 1);
+
+    // ivec2 pageCoordsLower = ivec2(floor(pageCoords));
+    // ivec2 pageCoordsUpper = ivec2(ceil(pageCoords));
+
+    // uint pageId;
+    // uint dirtyBit;
+
+    // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
+
+    // cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 15.0 / 255.0) / 64.0;
+    // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+
+    // if (fract(pageCoords.x) <= 0.02 || fract(pageCoords.x) >= 0.98 ||
+    //     fract(pageCoords.y) <= 0.02 || fract(pageCoords.y) >= 0.98) {
+
+    //     //cacheColor = (vec3(1.0, 198.0 / 255.0, 0.0)) * 2.0;
+    //     //cacheColor = vec3(1.0, 161.0 / 255.0, 0) * 2.0;
+    //     //cacheColor = vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+    //     //cacheColor = vec3(0, 218.0 / 255.0, 23.0 / 255.0);
+    //     cacheColor = vec3(0.0, 1.0, 0.0);
+    // }
+
+    color = color + cacheColor + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif
 
     fsColor = boundHDR(color + emissive * emissionStrength);

@@ -21,6 +21,7 @@ layout (std430, binding = 4) buffer block1 {
 };
 
 uniform float clearValue = 1.0;
+uniform uint frameCount;
 
 uniform mat4 invCascadeProjectionView;
 uniform mat4 vsmProjectionView;
@@ -54,30 +55,38 @@ shared ivec2 vsmMaxIndex;
 void clearPixel(in vec2 physicalPixelCoords) {
     ivec2 physicalPageCoordsRounded = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
+    uint physicalPageIndex = physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x;
+
     //atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
     //ATOMIC_REDUCE_TEXEL_COUNT(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info);
 
-    imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
+    //imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
 
-    uint pageId;
-    uint dirtyBit;
-    unpackPageIdAndDirtyBit(
-        currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, 
-        pageId,
-        dirtyBit
-    );
+    if (currFramePageResidencyTable[physicalPageIndex].frameMarker == frameCount) {
+        //imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
 
-    if (dirtyBit > 0) {
-        uint prev = atomicAdd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, 1);
-
+        uint pageId;
+        uint dirtyBit;
         unpackPageIdAndDirtyBit(
-            prev,
+            currFramePageResidencyTable[physicalPageIndex].info, 
             pageId,
             dirtyBit
         );
 
-        if (dirtyBit >= 1024 || dirtyBit == 0) {
-            atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+        if (dirtyBit > 0) {
+            imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
+
+            uint prev = atomicAdd(currFramePageResidencyTable[physicalPageIndex].info, 1);
+
+            unpackPageIdAndDirtyBit(
+                prev,
+                pageId,
+                dirtyBit
+            );
+
+            // if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE || dirtyBit == 0) {
+            //     atomicAnd(currFramePageResidencyTable[physicalPageIndex].info, VSM_PAGE_ID_MASK);
+            // }
         }
     }
 }

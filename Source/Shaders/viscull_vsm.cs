@@ -223,7 +223,7 @@ void main() {
     barrier();
 
     // Invalid page group (all pages uncommitted)
-    if (atLeastOneResidentPage == 0) {
+    if (atLeastOneResidentPage == 0 || atLeastOneResidentPage == 0) {
         return;
     }
 

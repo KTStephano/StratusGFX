@@ -66,8 +66,12 @@ void main() {
         currFramePageResidencyTable[tileIndex] = prev;
     }
 
+    uint pageId;
+    uint dirtyBit;
+    unpackPageIdAndDirtyBit(currFramePageResidencyTable[tileIndex].info, pageId, dirtyBit);
+
     if (current.frameMarker > 0) {
-        if ((frameCount - current.frameMarker) > 200) {
+        if ((frameCount - current.frameMarker) > 30) {
             int original = atomicAdd(numPagesToFree, 1);
             pageIndices[2 * original] = tileCoords.x;
             pageIndices[2 * original + 1] = tileCoords.y;
@@ -79,8 +83,14 @@ void main() {
             prevFramePageResidencyTable[tileIndex] = markedNonResident;
             currFramePageResidencyTable[tileIndex] = markedNonResident;
         }
-        else if (sunChanged > 0) {
-            current.info = current.info | 1;
+        else {
+            if (sunChanged > 0) {
+                current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
+            }
+            else if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                current.info = current.info & VSM_PAGE_ID_MASK;
+            }
+
             prevFramePageResidencyTable[tileIndex] = current;
             currFramePageResidencyTable[tileIndex] = current;
         }

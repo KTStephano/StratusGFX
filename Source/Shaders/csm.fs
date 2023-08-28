@@ -16,8 +16,13 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
+layout (std430, binding = 4) readonly buffer block1 {
+    PageResidencyEntry currFramePageResidencyTable[];
+};
+
 uniform uint numPagesXY;
 uniform uint virtualShadowMapSizeXY;
+uniform uint frameCount;
 
 // Cascaded Shadow Maps
 //in float fsTanTheta;
@@ -28,47 +33,21 @@ smooth in float vsmDepth;
 
 uniform float nearClipPlane;
 
-void writeDepth4(in vec2 virtualPixelCoords, in float depth) {
-	vec3 physicalPixelCoords = vec3(wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0);
-
-	ivec3 coords1 = ivec3(
-		int(floor(physicalPixelCoords.x)),
-		int(floor(physicalPixelCoords.y)),
-		0
-	);
-
-	ivec3 coords2 = ivec3(
-		int(floor(physicalPixelCoords.x)),
-		int(ceil(physicalPixelCoords.y)),
-		0
-	);
-
-	ivec3 coords3 = ivec3(
-		int(ceil(physicalPixelCoords.x)),
-		int(floor(physicalPixelCoords.y)),
-		0
-	);
-
-	ivec3 coords4 = ivec3(
-		int(ceil(physicalPixelCoords.x)),
-		int(ceil(physicalPixelCoords.y)),
-		0
-	);
-
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords1, depth);
-	if (coords2 != coords1) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords2, depth);
-	if (coords3 != coords2) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords3, depth);
-	if (coords4 != coords3) IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, coords4, depth);
-
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(physicalPixelCoords)), depth);
-	// IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(physicalPixelCoords)), depth);
-}
-
 void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
+	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY;
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(physicalPixelCoords.xy), 0.0), depth);
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(physicalPixelCoords.xy), 0.0), depth);
+	PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
+
+	uint pageId;
+	uint dirtyBit;
+	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
+
+	if (dirtyBit > 0 && entry.frameMarker == frameCount) {
+		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(floor(physicalPixelCoords.xy), 0.0), depth);
+		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, ivec3(ceil(physicalPixelCoords.xy), 0.0), depth);
+	}
 }
 
 void main() {

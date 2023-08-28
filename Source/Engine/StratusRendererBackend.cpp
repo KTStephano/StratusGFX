@@ -427,7 +427,8 @@ void RendererBackend::RecalculateCascadeData_() {
         std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
         frame_->csc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * numPageGroups, flags);
 
-        frame_->csc.pageGroupUpdateQueue = VirtualIndex2DUpdateQueue(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
+        frame_->csc.pageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
+        frame_->csc.backPageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1445,7 +1446,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    constexpr u32 maxPageGroupsToUpdate = 2;
+    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 4;
 
     using VirtualIndexSet = std::unordered_set<
         u32,
@@ -1459,18 +1460,21 @@ void RendererBackend::RenderCSMDepth_() {
         for (u32 x = 0; x < frame_->csc.numPageGroupsX; ++x) {
             const usize pageGroupIndex = x + y * frame_->csc.numPageGroupsX;
             if (pageGroupsToRender[pageGroupIndex] > 0) {
-                frame_->csc.pageGroupUpdateQueue.PushBack(x, y);
+                frame_->csc.pageGroupUpdateQueue->PushBack(x, y);
                 changeSet.insert(ComputeFlatVirtualIndex(x, y, frame_->csc.numPageGroupsX));
             }
         }
     }
 
     // Update the page group update queue with only what is visible on screen
-    frame_->csc.pageGroupUpdateQueue.SetDifference(changeSet);
+    frame_->csc.pageGroupUpdateQueue->SetDifference(changeSet);
+
+    // Clear the back buffer
+    frame_->csc.backPageGroupUpdateQueue->Clear();
 
     // Now compute a page group x/y for glViewport
-    while (frame_->csc.pageGroupUpdateQueue.Size() > 0) {
-        const auto xy = frame_->csc.pageGroupUpdateQueue.PopFront();
+    while (frame_->csc.pageGroupUpdateQueue->Size() > 0) {
+        const auto xy = frame_->csc.pageGroupUpdateQueue->PopFront();
         const auto x = xy.first;
         const auto y = xy.second;
 
@@ -1491,8 +1495,8 @@ void RendererBackend::RenderCSMDepth_() {
         const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
         if (failedCheckX || failedCheckY) {
-            frame_->csc.pageGroupUpdateQueue.PushFront(x, y);
-            break;
+            frame_->csc.backPageGroupUpdateQueue->PushFront(x, y);
+            continue;
         }
 
         minPageGroupX = newMinPageGroupX;
@@ -1501,6 +1505,11 @@ void RendererBackend::RenderCSMDepth_() {
         maxPageGroupX = newMaxPageGroupX;
         maxPageGroupY = newMaxPageGroupY;
     }
+
+    // Swap front and back buffers
+    auto tmp = frame_->csc.pageGroupUpdateQueue;
+    frame_->csc.pageGroupUpdateQueue = frame_->csc.backPageGroupUpdateQueue;
+    frame_->csc.backPageGroupUpdateQueue = tmp;
 
     //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
 
@@ -1529,6 +1538,7 @@ void RendererBackend::RenderCSMDepth_() {
 
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
+        const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
         // Constrain the update window to be a power of 2
         if (sizeX % 2 != 0) {
@@ -1648,6 +1658,7 @@ void RendererBackend::RenderCSMDepth_() {
         state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
         state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
         state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
+        state_.vsmClear->SetUint("frameCount", frameCount);
         state_.vsmClear->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
         frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
@@ -1666,6 +1677,7 @@ void RendererBackend::RenderCSMDepth_() {
         shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->GetDirection()[0]);
         shader->SetFloat("nearClipPlane", frame_->znear);
         shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
+        shader->SetUint("frameCount", frameCount);
 
         // Set up each individual view-projection matrix
         // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
@@ -3152,6 +3164,8 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     state_.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
     state_.shadowIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     state_.shadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    s->SetUint("numPagesXY", frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
     s->SetFloat("ambientIntensity", 0.0001f);
     /*
