@@ -14,55 +14,55 @@ uniform mat4 cascadeViewProj[4];
 uniform uint numCascades;
 uniform uint numPageGroups;
 
-layout (std430, binding = 2) readonly buffer inputBlock3 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer inputBlock3 {
     mat4 modelTransforms[];
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock4 {
+layout (std430, binding = AABB_BINDING_POINT) readonly buffer inputBlock4 {
     AABB aabbs[];
 };
 
 // Cascades 0 and 1
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VISCULL_CSM_IN_DRAW_CALLS_01_BINDING_POINT) readonly buffer inputBlock1 {
     DrawElementsIndirectCommand cascade01DrawCalls[];
 };
 
 // Cascades 2 and 3
-layout (std430, binding = 4) readonly buffer inputBlock2 {
+layout (std430, binding = VISCULL_CSM_IN_DRAW_CALLS_23_BINDING_POINT) readonly buffer inputBlock2 {
     DrawElementsIndirectCommand cascade23DrawCalls[];
 };
 
 // Outputs for all 4 cascades
-layout (std430, binding = 5) buffer outputBlock1 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_0_BINDING_POINT) buffer outputBlock1 {
     DrawElementsIndirectCommand outDrawCallsCascade0[];
 };
 
-layout (std430, binding = 6) buffer outputBlock2 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_1_BINDING_POINT) buffer outputBlock2 {
     DrawElementsIndirectCommand outDrawCallsCascade1[];
 };
 
-layout (std430, binding = 7) buffer outputBlock3 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_2_BINDING_POINT) buffer outputBlock3 {
     DrawElementsIndirectCommand outDrawCallsCascade2[];
 };
 
-layout (std430, binding = 8) buffer outputBlock4 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_3_BINDING_POINT) buffer outputBlock4 {
     DrawElementsIndirectCommand outDrawCallsCascade3[];
 };
 
 // For these we are only responsible for zeroing out the memory
-layout (std430, binding = 9) buffer outputBlock5 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_2_0_BINDING_POINT) buffer outputBlock5 {
     DrawElementsIndirectCommand outDrawCalls2Cascade0[];
 };
 
-layout (std430, binding = 10) buffer outputBlock6 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_2_1_BINDING_POINT) buffer outputBlock6 {
     DrawElementsIndirectCommand outDrawCalls2Cascade1[];
 };
 
-layout (std430, binding = 11) buffer outputBlock7 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_2_2_BINDING_POINT) buffer outputBlock7 {
     DrawElementsIndirectCommand outDrawCalls2Cascade2[];
 };
 
-layout (std430, binding = 12) buffer outputBlock8 {
+layout (std430, binding = VISCULL_CSM_OUT_DRAW_CALLS_2_3_BINDING_POINT) buffer outputBlock8 {
     DrawElementsIndirectCommand outDrawCalls2Cascade3[];
 };
 

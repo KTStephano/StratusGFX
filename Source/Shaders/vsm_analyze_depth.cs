@@ -22,19 +22,19 @@ uniform sampler2D depthTexture;
 uniform uint frameCount;
 uniform uint numPagesXY;
 
-layout (std430, binding = 0) buffer block1 {
+layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
     int numPagesToMakeResident;
 };
 
-layout (std430, binding = 1) buffer block2 {
+layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
     int pageIndices[];
 };
 
-layout (std430, binding = 3) readonly buffer block3 {
+layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer block3 {
     PageResidencyEntry prevFramePageResidencyTable[];
 };
 
-layout (std430, binding = 4) buffer block4 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block4 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 

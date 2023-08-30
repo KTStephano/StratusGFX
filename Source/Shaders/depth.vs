@@ -4,7 +4,7 @@ STRATUS_GLSL_VERSION
 
 #include "mesh_data.glsl"
 
-layout (std430, binding = 13) readonly buffer SSBO3 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 

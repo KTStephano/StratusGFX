@@ -28,31 +28,31 @@ uniform uint numPageGroupsY;
 uniform uint numPagesXY;
 uniform uint numPixelsXY;
 
-layout (std430, binding = 2) readonly buffer inputBlock2 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock4 {
+layout (std430, binding = AABB_BINDING_POINT) readonly buffer inputBlock4 {
     AABB aabbs[];
 };
 
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VISCULL_VSM_IN_DRAW_CALLS_BINDING_POINT) readonly buffer inputBlock1 {
     DrawElementsIndirectCommand inDrawCalls[];
 };
 
-layout (std430, binding = 4) buffer outputBlock1 {
+layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) buffer outputBlock1 {
     DrawElementsIndirectCommand outDrawCalls[];
 };
 
-layout (std430, binding = 5) buffer outputBlock2 {
-    int outputDrawCalls;
-};
+// layout (std430, binding = 5) buffer outputBlock2 {
+//     int outputDrawCalls;
+// };
 
-layout (std430, binding = 6) buffer outputBlock3 {
+layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer outputBlock3 {
     uint pageGroupsToRender[];
 };
 
-layout (std430, binding = 7) readonly buffer inputBlock3 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock3 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 

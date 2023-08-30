@@ -18,6 +18,7 @@
 #include "StratusEngine.h"
 #include "StratusWindow.h"
 #include "StratusGraphicsDriver.h"
+#include "StratusGpuBindings.h"
 
 namespace stratus {
 bool IsRenderable(const EntityPtr& p) {
@@ -1000,8 +1001,8 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
 
     SetCullState(RenderFaceCulling::CULLING_NONE);
 
-    buffer->BindModelTransformBuffer(13);
-    buffer->BindAabbBuffer(14);
+    buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+    buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
     BindShader_(state_.aabbDraw.get());
 
@@ -1026,10 +1027,11 @@ void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling,
 void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, usize offset) {
     if (buffer->NumDrawCommands() == 0) return;
 
-    frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
-    buffer->BindMaterialIndicesBuffer(31);
-    buffer->BindModelTransformBuffer(13);
-    buffer->BindPrevFrameModelTransformBuffer(14);
+    frame_->materialInfo->GetMaterialBuffer().BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MATERIAL_BINDING_POINT);
+    buffer->BindMaterialIndicesBuffer(MATERIAL_INDICES_BINDING_POINT);
+    buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+    buffer->BindPrevFrameModelTransformBuffer(PREV_FRAME_MODEL_MATRICES_BINDING_POINT);
     select(buffer).Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 
     SetCullState(cull);
@@ -1175,13 +1177,15 @@ void RendererBackend::PerformVSMCulling(
         pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
         pipeline.SetUint("maxDrawCommands", (u32)buffer->CommandCapacity());
 
-        buffer->BindModelTransformBuffer(2);
-        buffer->BindAabbBuffer(3);
+        buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+        buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
-        selectInput(cull)->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+        selectInput(cull)->GetCommandBuffer().BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_VSM_IN_DRAW_CALLS_BINDING_POINT);
 
         auto receivePtr = selectOutput(cull);
-        receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+        receivePtr->GetCommandBuffer().BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT);
 
         i32 value = 0;
         frame_->csc.numDrawCalls.CopyDataToBuffer(0, sizeof(i32), (const void *)&value);
@@ -1222,16 +1226,20 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    frame_->csc.prevFramePageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING);
+    frame_->csc.currFramePageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     state_.vsmAnalyzeDepth->SetUint("numPagesXY", numPagesAvailable);
 
     state_.vsmAnalyzeDepth->SetUint("frameCount", frameCount);
 
     state_.vsmAnalyzeDepth->BindTexture("depthTexture", state_.currentFrame.depth);
 
-    frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    frame_->csc.numPagesToCommit.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
+    frame_->csc.pagesToCommitList.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_INDICES_BINDING_POINT);
 
     u32 sizeX = frame_->viewportWidth / 16;
     u32 sizeY = frame_->viewportHeight / 9;
@@ -1310,8 +1318,10 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmMarkUnused->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmMarkUnused->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
 
-    frame_->csc.numPagesToCommit.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    frame_->csc.pagesToCommitList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    frame_->csc.numPagesToCommit.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
+    frame_->csc.pagesToCommitList.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_INDICES_BINDING_POINT);
 
     sizeX = numPagesAvailable / 32;
     sizeY = numPagesAvailable / 32;
@@ -1352,10 +1362,12 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->csc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->csc.numPageGroupsY);
     //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
-    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
+    frame_->csc.currFramePageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->csc.cascadeResolutionXY);
-    frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
+    frame_->csc.pageGroupsToRender.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
 
     PerformVSMCulling(
         *state_.vsmCull,
@@ -1674,8 +1686,10 @@ void RendererBackend::RenderCSMDepth_() {
         state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
         state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
         state_.vsmClear->SetUint("frameCount", frameCount);
-        state_.vsmClear->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
-        frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+        state_.vsmClear->BindTextureAsImage(
+            "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+        frame_->csc.currFramePageResidencyTable.BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
         state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
         state_.vsmClear->SynchronizeMemory();
@@ -1907,16 +1921,23 @@ static inline void PerformPointLightGeometryCulling(
 
         pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
         
-        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-        buffer->BindModelTransformBuffer(2);
-        buffer->BindAabbBuffer(3);
+        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_IN_DRAW_CALLS_BINDING_POINT);
+        buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+        buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
-        select(receivers[0], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-        select(receivers[1], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
-        select(receivers[2], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
-        select(receivers[3], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
-        select(receivers[4], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
-        select(receivers[5], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
+        select(receivers[0], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE0_BINDING_POINT);
+        select(receivers[1], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE1_BINDING_POINT);
+        select(receivers[2], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE2_BINDING_POINT);
+        select(receivers[3], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE3_BINDING_POINT);
+        select(receivers[4], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE4_BINDING_POINT);
+        select(receivers[5], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE5_BINDING_POINT);
 
         pipeline.DispatchCompute(1, 1, 1);
         pipeline.SynchronizeCompute();
@@ -2195,9 +2216,12 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     //state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    state_.vpls.vplData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_UNEDITED_BINDING_POINT);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
@@ -2309,14 +2333,17 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
         state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
 
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.shadowDiffuseIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplColoring.get());
 
     // Bind outputs
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
 
     // Dispatch and synchronize
     state_.vplColoring->DispatchCompute(1, 1, 1);
@@ -2431,11 +2458,15 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.shadowDiffuseIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
+    haltonSequence_.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_HALTON_SEQUENCE_BINDING_POINT);
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
@@ -2551,7 +2582,7 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     const Camera& c = *frame_->camera;
 
     // Bind buffers
-    GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
+    GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MESH_DATA_BINDING_POINT);
     GpuMeshAllocator::BindElementArrayBuffer();
 
     glBlendFunc(state_.blendSFactor, state_.blendDFactor);
@@ -2997,8 +3028,10 @@ void RendererBackend::FinalizeFrame_() {
     state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->csc.numPageGroupsX);
     state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->csc.numPageGroupsY);
     state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
-    frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    frame_->csc.pageGroupsToRender.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    frame_->csc.currFramePageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     RenderQuad_();
     UnbindShader_();
 }
@@ -3176,10 +3209,14 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     state_.shadowIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * gpuShadowCubeMaps.size(), (const void*)gpuShadowCubeMaps.data());
     state_.shadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuShadowLights.size(), (const void*)gpuShadowLights.data());
 
-    state_.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.shadowIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    state_.shadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    state_.nonShadowCastingPointLights.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_NON_SHADOW_CASTER_BINDING_POINT);
+    state_.shadowIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_ATLAS_INDICES_BINDING_POINT);
+    state_.shadowCastingPointLights.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_CASTER_BINDING_POINT);
+    frame_->csc.currFramePageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     s->SetUint("numPagesXY", frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
     s->SetFloat("ambientIntensity", 0.0001f);

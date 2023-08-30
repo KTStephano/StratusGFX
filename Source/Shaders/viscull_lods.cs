@@ -11,51 +11,51 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 uniform vec4 frustumPlanes[6];
 uniform float zfar;
 
-layout (std430, binding = 2) readonly buffer inputBlock2 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer inputBlock2 {
     mat4 modelTransforms[];
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock4 {
+layout (std430, binding = AABB_BINDING_POINT) readonly buffer inputBlock4 {
     AABB aabbs[];
 };
 
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_BINDING_POINT) readonly buffer inputBlock1 {
     DrawElementsIndirectCommand inDrawCalls[];
 };
 
-layout (std430, binding = 14) buffer outputBlock1 {
+layout (std430, binding = VISCULL_LOD_OUT_DRAW_CALLS_BINDING_POINT) buffer outputBlock1 {
     DrawElementsIndirectCommand outDrawCalls[];
 };
 
-layout (std430, binding = 13) buffer outputBlock2 {
+layout (std430, binding = VISCULL_LOD_SELECTED_LOD_DRAW_CALLS_BINDING_POINT) buffer outputBlock2 {
     DrawElementsIndirectCommand selectedLods[];
 };
 
 #ifdef SELECT_LOD
-    layout (std430, binding = 5) readonly buffer lod0 {
-        DrawElementsIndirectCommand drawCallsLod0[];
-    };
-    layout (std430, binding = 6) readonly buffer lod1 {
-        DrawElementsIndirectCommand drawCallsLod1[];
-    };
-    layout (std430, binding = 7) readonly buffer lod2 {
-        DrawElementsIndirectCommand drawCallsLod2[];
-    };
-    layout (std430, binding = 8) readonly buffer lod3 {
-        DrawElementsIndirectCommand drawCallsLod3[];
-    };
-    layout (std430, binding = 9) readonly buffer lod4 {
-        DrawElementsIndirectCommand drawCallsLod4[];
-    };
-    layout (std430, binding = 10) readonly buffer lod5 {
-        DrawElementsIndirectCommand drawCallsLod5[];
-    };
-    layout (std430, binding = 11) readonly buffer lod6 {
-        DrawElementsIndirectCommand drawCallsLod6[];
-    };
-    layout (std430, binding = 12) readonly buffer lod7 {
-        DrawElementsIndirectCommand drawCallsLod7[];
-    };
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD0_BINDING_POINT) readonly buffer lod0 {
+    DrawElementsIndirectCommand drawCallsLod0[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD1_BINDING_POINT) readonly buffer lod1 {
+    DrawElementsIndirectCommand drawCallsLod1[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD2_BINDING_POINT) readonly buffer lod2 {
+    DrawElementsIndirectCommand drawCallsLod2[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD3_BINDING_POINT) readonly buffer lod3 {
+    DrawElementsIndirectCommand drawCallsLod3[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD4_BINDING_POINT) readonly buffer lod4 {
+    DrawElementsIndirectCommand drawCallsLod4[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD5_BINDING_POINT) readonly buffer lod5 {
+    DrawElementsIndirectCommand drawCallsLod5[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD6_BINDING_POINT) readonly buffer lod6 {
+    DrawElementsIndirectCommand drawCallsLod6[];
+};
+layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD7_BINDING_POINT) readonly buffer lod7 {
+    DrawElementsIndirectCommand drawCallsLod7[];
+};
 #endif
 
 uniform uint numDrawCalls;

@@ -4,6 +4,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_sparse_texture2 : require
 
 #include "vsm_common.glsl"
+#include "bindings.glsl"
 
 in vec2 fsTexCoords;
 
@@ -11,11 +12,11 @@ uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
 uniform uint numPagesXY;
 
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) readonly buffer inputBlock1 {
     uint pageGroupsToRender[];
 };
 
-layout (std430, binding = 2) readonly buffer inputBlock2 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock2 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 

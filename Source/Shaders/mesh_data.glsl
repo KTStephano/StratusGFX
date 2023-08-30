@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#include "bindings.glsl"
+
 // Matches the definition in StratusGpuCommon.h
 // We use float arrays to get around padding requirements
 // which pad vec3 to vec4 (see Graphics Rendering Cookbook, programmable vertex pulling)
@@ -11,7 +13,7 @@ struct MeshData {
     float bitangent[3];
 };
 
-layout (std430, binding = 32) readonly buffer MeshDataSSBO {
+layout (std430, binding = MESH_DATA_BINDING_POINT) readonly buffer MeshDataSSBO {
     MeshData meshData[];
 };
 

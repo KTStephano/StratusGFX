@@ -1,5 +1,7 @@
 STRATUS_GLSL_VERSION
 
+#include "bindings.glsl"
+
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 // See https://stackoverflow.com/questions/16069959/glsl-how-to-ensure-largest-possible-float-value-without-overflow
@@ -66,11 +68,11 @@ struct HaltonEntry {
     float base3;
 };
 
-layout (std430, binding = 30) readonly buffer SSBO_Global1 {
+layout (std430, binding = MATERIAL_BINDING_POINT) readonly buffer SSBO_Global1 {
     Material materials[];
 };
 
-layout (std430, binding = 31) readonly buffer SSBO_Global2 {
+layout (std430, binding = MATERIAL_INDICES_BINDING_POINT) readonly buffer SSBO_Global2 {
     uint materialIndices[];
 };
 

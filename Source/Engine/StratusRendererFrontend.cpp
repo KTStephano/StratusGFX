@@ -11,6 +11,7 @@
 #include "StratusEntityManager.h"
 #include "StratusGraphicsDriver.h"
 #include "StratusGpuMaterialBuffer.h"
+#include "StratusGpuBindings.h"
 
 #include <algorithm>
 
@@ -739,7 +740,7 @@ namespace stratus {
             // This tells us the maximum diameter for the cascade bounding box
             //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
             //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            const f32 dk = 1024.0f;//ceilf(maxLength);
+            const f32 dk = 8192.0f;//ceilf(maxLength);
             //STRATUS_LOG << dk << std::endl;
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
@@ -792,22 +793,23 @@ namespace stratus {
 
             //STRATUS_LOG << sk << " " << dk << std::endl;
 
-            //sk = c.GetPosition();
+            sk = c.GetPosition();
 
             // T = world distance covered per texel and 128 = number of texels in a page along one axis
             //const f32 moveSize = T * 128.0f;
-            // const auto directionOffset = 256.0f * frame_->camera->GetDirection();
-            // const auto position = directionOffset + frame_->camera->GetPosition();
-            // f32 cameraX = floorf(position.x / (2.0f * moveSize)) * moveSize;
-            // f32 cameraY = floorf(position.y / (2.0f * moveSize)) * moveSize;
-            // f32 cameraZ = floorf(position.z / (2.0f * moveSize)) * moveSize;
+            const auto directionOffset = glm::vec3(0.0f); // 256.0f * frame_->camera->GetDirection();
+            const auto position = directionOffset + frame_->camera->GetPosition();
+            f32 cameraX = floorf(position.x / (2.0f * moveSize)) * moveSize;
+            f32 cameraY = floorf(position.y / (2.0f * moveSize)) * moveSize;
+            f32 cameraZ = floorf(position.z / (2.0f * moveSize)) * moveSize;
             // sk = glm::vec3(0.0f);
             // sk = glm::vec3(345.771, 56.2733, 208.989);
-            //sk = glm::vec3(cameraX, cameraY, minZ);
+            sk = glm::vec3(cameraX, cameraY, minZ);
             //STRATUS_LOG << sk << std::endl;
             //STRATUS_LOG << moveSize << std::endl;
             //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
-            //sk = glm::vec3(0.0f);
+            //sk = glm::vec3(0.0f);0
+            // 
             //sk = glm::vec3(500.0f, 0.0f, 200.0f);
             //sk = glm::vec3(sk.x, 0.0f, sk.z);
             //sk = glm::vec3(L * glm::vec4(sk, 1.0f));
@@ -1463,18 +1465,22 @@ namespace stratus {
 
             const usize maxLod = 0;//buffer->NumLods() - 2;
 
-            buffer->BindModelTransformBuffer(2);
-            buffer->BindAabbBuffer(3);
+            buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+            buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
-            buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-            buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+            buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_CSM_IN_DRAW_CALLS_01_BINDING_POINT);
+            buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_CSM_IN_DRAW_CALLS_23_BINDING_POINT);
 
             for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
                 auto receivePtr = selectPrimary(frame_->csc.cascades[cascade], cull);
-                receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5 + cascade);
+                receivePtr->GetCommandBuffer().BindBase(
+                    GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
+                    VISCULL_CSM_OUT_DRAW_CALLS_0_BINDING_POINT + cascade);
 
                 receivePtr = selectSecondary(frame_->csc.cascades[cascade], cull);
-                receivePtr->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9 + cascade);
+                receivePtr->GetCommandBuffer().BindBase(
+                    GpuBaseBindingPoint::SHADER_STORAGE_BUFFER,
+                    VISCULL_CSM_OUT_DRAW_CALLS_2_0_BINDING_POINT + cascade);
             }
 
             pipeline.DispatchCompute(1, 1, 1);
@@ -1548,17 +1554,25 @@ namespace stratus {
             auto it = inOutDrawCommands.find(cull);
             if (it->second->NumDrawCommands() == 0) continue;
 
-            it->second->GetIndirectDrawCommandsBuffer(0).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-            it->second->GetVisibleDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 14);
-            it->second->BindModelTransformBuffer(2);
-            it->second->BindAabbBuffer(3);
+            it->second->GetIndirectDrawCommandsBuffer(0).BindBase(
+                GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
+                VISCULL_LOD_IN_DRAW_CALLS_BINDING_POINT);
+            it->second->GetVisibleDrawCommandsBuffer().BindBase(
+                GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
+                VISCULL_LOD_OUT_DRAW_CALLS_BINDING_POINT);
+            it->second->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+            it->second->BindAabbBuffer(AABB_BINDING_POINT);
 
             if (selectLods) {
-                it->second->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 13);
+                it->second->GetSelectedLodDrawCommandsBuffer().BindBase(
+                    GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
+                    VISCULL_LOD_SELECTED_LOD_DRAW_CALLS_BINDING_POINT);
                 // The render component has code to deal with indexing past the last lod (returns the highest lod it has)
                 const usize numLods = 8;
                 for (usize k = 0; k < numLods; ++k) {
-                    it->second->GetIndirectDrawCommandsBuffer(k).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, k + 5);
+                    it->second->GetIndirectDrawCommandsBuffer(k).BindBase(
+                        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
+                        k + VISCULL_LOD_IN_DRAW_CALLS_LOD0_BINDING_POINT);
                 }
             }
 
@@ -1617,20 +1631,20 @@ namespace stratus {
             auto cnone = entry->find(RenderFaceCulling::CULLING_NONE);
 
             if (ccw->second->NumDrawCommands() > 0) {
-                ccw->second->BindPrevFrameModelTransformBuffer(0);
-                ccw->second->BindModelTransformBuffer(1);
+                ccw->second->BindPrevFrameModelTransformBuffer(CULL0_PREV_FRAME_MODEL_MATRICES_BINDING_POINT);
+                ccw->second->BindModelTransformBuffer(CULL0_CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
             }
             updateTransforms_->SetInt("cull0NumMatrices", ccw->second->NumDrawCommands());
 
             if (cw->second->NumDrawCommands() > 0) {
-                cw->second->BindPrevFrameModelTransformBuffer(2);
-                cw->second->BindModelTransformBuffer(3);
+                cw->second->BindPrevFrameModelTransformBuffer(CULL1_PREV_FRAME_MODEL_MATRICES_BINDING_POINT);
+                cw->second->BindModelTransformBuffer(CULL1_CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
             }
             updateTransforms_->SetInt("cull1NumMatrices", cw->second->NumDrawCommands());
 
             if (cnone->second->NumDrawCommands() > 0) {
-                cnone->second->BindPrevFrameModelTransformBuffer(4);
-                cnone->second->BindModelTransformBuffer(5);
+                cnone->second->BindPrevFrameModelTransformBuffer(CULL2_PREV_FRAME_MODEL_MATRICES_BINDING_POINT);
+                cnone->second->BindModelTransformBuffer(CULL2_CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
             }
             updateTransforms_->SetInt("cull2NumMatrices", cnone->second->NumDrawCommands());
 

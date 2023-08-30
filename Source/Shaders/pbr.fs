@@ -55,21 +55,21 @@ uniform float emissionStrength = 0.0;
 uniform int numLights = 0;
 uniform int numShadowLights = 0;
 
-layout (std430, binding = 0) readonly buffer input1 {
+layout (std430, binding = POINT_LIGHT_NON_SHADOW_CASTER_BINDING_POINT) readonly buffer input1 {
     PointLight nonShadowCasters[];
 };
 
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
-layout (std430, binding = 1) readonly buffer input2 {
+layout (std430, binding = POINT_LIGHT_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer input2 {
     AtlasEntry shadowIndices[];
 };
 
-layout (std430, binding = 2) readonly buffer input3 {
+layout (std430, binding = POINT_LIGHT_SHADOW_CASTER_BINDING_POINT) readonly buffer input3 {
     PointLight shadowCasters[];
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock3 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock3 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 

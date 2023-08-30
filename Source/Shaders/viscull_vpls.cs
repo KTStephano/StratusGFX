@@ -25,11 +25,11 @@ uniform int totalNumLights;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer inoutBlock1 {
+layout (std430, binding = VPL_LIGHT_DATA_UNEDITED_BINDING_POINT) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 4) buffer inoutBlock2 {
+layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
     VplData updatedLightData[];
 };
 
@@ -37,7 +37,7 @@ layout (std430, binding = 4) buffer inoutBlock2 {
 //     int numVisible;
 // };
 
-layout (std430, binding = 3) buffer outputBlock2 {
+layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) buffer outputBlock2 {
     int vplVisibleIndex[];
 };
 

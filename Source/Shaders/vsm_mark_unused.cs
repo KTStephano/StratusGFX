@@ -10,6 +10,7 @@ precision highp sampler2D;
 precision highp sampler2DArrayShadow;
 
 #include "vsm_common.glsl"
+#include "bindings.glsl"
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -17,23 +18,23 @@ uniform uint frameCount;
 uniform uint numPagesXY;
 uniform uint sunChanged; // Either 1 or 0
 
-layout (std430, binding = 0) buffer block1 {
+layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
     int numPagesToFree;
 };
 
-layout (std430, binding = 1) buffer block2 {
+layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
     int pageIndices[];
 };
 
-layout (std430, binding = 2) buffer block4 {
-    int renderPageIndices[];
-};
+// layout (std430, binding = 2) buffer block4 {
+//     int renderPageIndices[];
+// };
 
-layout (std430, binding = 3) buffer block3 {
+layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) buffer block3 {
     PageResidencyEntry prevFramePageResidencyTable[];
 };
 
-layout (std430, binding = 4) buffer block5 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block5 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
