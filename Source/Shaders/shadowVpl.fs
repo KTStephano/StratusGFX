@@ -17,7 +17,7 @@ out vec3 color;
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
-    vec4 baseColor = bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, fsTexCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
+    vec4 baseColor = bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED) ? texture(material.diffuseMap, fsTexCoords) : decodeMaterialData(material.diffuseColor);
 
     runAlphaTest(baseColor.a);
 

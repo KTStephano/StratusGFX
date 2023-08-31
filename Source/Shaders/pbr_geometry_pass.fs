@@ -103,13 +103,15 @@ void main() {
     //vec2 texCoords = bitwiseAndBool(flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
     vec2 texCoords = fsTexCoords;
 
-    vec4 baseColor = bool(fsDiffuseMapped) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
+    vec4 baseColor = bool(fsDiffuseMapped) ? texture(material.diffuseMap, texCoords) : decodeMaterialData(material.diffuseColor);
     runAlphaTest(baseColor.a);
 
     vec3 normal = bool(fsNormalMapped) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
-    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
+    vec4 reflectanceMetallicRoughness = decodeMaterialData(material.reflectanceMetallicRoughness);
+
+    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.g;
+    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.b;
     //float roughness = material.metallicRoughness[1];
     //float metallic = material.metallicRoughness[0];
     // float roughness = material.metallicRoughness[1];
@@ -120,14 +122,14 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : decodeMaterialData(material.emissiveColor).rgb;
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
     gAlbedo = vec4(baseColor.rgb, emissive.r);
-    float reflectance = material.reflectance;
+    float reflectance = reflectanceMetallicRoughness.r;
     //vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
     reflectance = mix(reflectance, maxReflectivity, (1.0 - roughness) * 0.5);
     gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);

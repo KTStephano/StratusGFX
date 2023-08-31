@@ -131,19 +131,17 @@ namespace stratus {
         GpuTextureHandle metallicMap;
         // total bytes next 3 entries = GpuVec
         GpuTextureHandle metallicRoughnessMap;
-        f32 diffuseColor[4];
-        f32 emissiveColor[3];
+        // 4x8 bits fixed point
+        u32 diffuseColor;
+        // 3x8 bits fixed point, 1x8 bits unused
+        u32 emissiveColor;
         // Base and max are interpolated between based on metallic
         // metallic of 0 = base reflectivity
         // metallic of 1 = max reflectivity
-        f32 reflectance;
-        //f32 baseReflectivity[3];
-        //f32 maxReflectivity[3];
-        // First two values = metallic, roughness
-        // last two values = padding
-        f32 metallicRoughness[2];
-        u32 flags = 0;
-        u32 placeholder1_ = 0;
+        //
+        // 1x8 bits reflectance, 1x8 bits metallic, 1x8 bits roughness
+        u32 reflectanceMetallicRoughness;
+        u32 flags;
 
         GpuMaterial() {}
         GpuMaterial(const GpuMaterial&) = default;
@@ -308,7 +306,7 @@ namespace stratus {
 
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
-    static_assert(sizeof(GpuMaterial) == 96);
+    static_assert(sizeof(GpuMaterial) == 64);
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);

@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #include "bindings.glsl"
+#include "material.glsl"
 
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
@@ -27,33 +28,6 @@ STRATUS_GLSL_VERSION
 #define FLOAT3_TO_VEC4(f3) vec4(FLOAT3_TO_VEC3(f3), 1.0)
 #define FLOAT4_TO_VEC4(f4) vec4(f4[0], f4[1], f4[2], f4[3])
 
-// Matches the definition in StratusGpuCommon.h
-struct Material {
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D diffuseMap;
-    sampler2D emissiveMap;
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D normalMap;
-    //sampler2D depthMap;
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D roughnessMap;
-    sampler2D metallicMap;
-    // total bytes next 3 entries = vec4 (for std430)
-    sampler2D metallicRoughnessMap;
-    float diffuseColor[4];
-    float emissiveColor[3];
-    // Base and max are interpolated between based on metallic
-    // metallic of 0 = base reflectivity
-    // metallic of 1 = max reflectivity
-    float reflectance;
-    //float baseReflectivity[3];
-    //float maxReflectivity[3];
-    // First two values = metallic, roughness
-    float metallicRoughness[2];
-    uint flags;
-    uint placeholder1_;
-};
-
 struct DrawElementsIndirectCommand {
     uint vertexCount;
     uint instanceCount;
@@ -66,14 +40,6 @@ struct DrawElementsIndirectCommand {
 struct HaltonEntry {
     float base2;
     float base3;
-};
-
-layout (std430, binding = MATERIAL_BINDING_POINT) readonly buffer SSBO_Global1 {
-    Material materials[];
-};
-
-layout (std430, binding = MATERIAL_INDICES_BINDING_POINT) readonly buffer SSBO_Global2 {
-    uint materialIndices[];
 };
 
 // Checks if flag & mask is greater than 0

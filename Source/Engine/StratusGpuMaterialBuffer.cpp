@@ -24,10 +24,20 @@ namespace stratus {
 
         gpuMaterial->flags = 0;
 
-        SET_FLOAT4(gpuMaterial->diffuseColor, material->GetDiffuseColor());
-        SET_FLOAT3(gpuMaterial->emissiveColor, material->GetEmissiveColor());
-        gpuMaterial->reflectance = material->GetReflectance();
-        SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
+        //SET_FLOAT4(gpuMaterial->diffuseColor, material->GetDiffuseColor());
+        //SET_FLOAT3(gpuMaterial->emissiveColor, material->GetEmissiveColor());
+        //gpuMaterial->reflectance = material->GetReflectance();
+        //SET_FLOAT2(gpuMaterial->metallicRoughness, glm::vec2(material->GetMetallic(), material->GetRoughness()));
+
+        PackNormalized8BitFloatData(gpuMaterial->diffuseColor, material->GetDiffuseColor());
+        PackNormalized8BitFloatData(gpuMaterial->emissiveColor, glm::vec4(material->GetEmissiveColor(), 0.0f));
+        const glm::vec4 reflectanceMetallicRoughness = glm::vec4(
+            material->GetReflectance(),
+            material->GetMetallic(),
+            material->GetRoughness(),
+            0.0f
+        );
+        PackNormalized8BitFloatData(gpuMaterial->reflectanceMetallicRoughness, reflectanceMetallicRoughness);
 
         auto diffuseHandle = material->GetDiffuseMap();
         auto emissiveHandle = material->GetEmissiveMap();

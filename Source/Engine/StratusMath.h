@@ -451,6 +451,15 @@ namespace stratus {
         return conversion.u;
     }
 
+    inline void PackNormalized8BitFloatData(u32& out, const glm::vec4& data) {
+        const u8 r = static_cast<u8>(data.r * 255.0f);
+        const u8 g = static_cast<u8>(data.g * 255.0f);
+        const u8 b = static_cast<u8>(data.b * 255.0f);
+        const u8 a = static_cast<u8>(data.a * 255.0f);
+
+        out = (u32(r) << 24) | (u32(g) << 16) | (u32(b) << 8) | u32(a);
+    }
+
     template<typename T>
     T Mod(const T& value, const T& maxValue) {
         return std::modulus<T>()(value, maxValue);
