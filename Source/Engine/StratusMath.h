@@ -451,13 +451,33 @@ namespace stratus {
         return conversion.u;
     }
 
-    inline void PackNormalized8BitFloatData(u32& out, const glm::vec4& data) {
+    inline glm::vec4 UnpackNormalized4ChannelFloatData(const u32 data) {
+        constexpr float invMax = 1.0f / 255.0f;
+
+        glm::vec4 result = glm::vec4(0.0);
+
+        result.r = float((data & 0xFF000000) >> 24) * invMax;
+        result.g = float((data & 0x00FF0000) >> 16) * invMax;
+        result.b = float((data & 0x0000FF00) >>  8) * invMax;
+        result.a = float((data & 0x000000FF)      ) * invMax;
+
+        return result;
+    }
+
+    inline void PackNormalized4ChannelFloatData(u32& out, const glm::vec4& data) {
         const u8 r = static_cast<u8>(data.r * 255.0f);
         const u8 g = static_cast<u8>(data.g * 255.0f);
         const u8 b = static_cast<u8>(data.b * 255.0f);
         const u8 a = static_cast<u8>(data.a * 255.0f);
 
         out = (u32(r) << 24) | (u32(g) << 16) | (u32(b) << 8) | u32(a);
+
+        // std::cout << "1: " << data.r << " " << data.g << " " << data.b << " " << data.a << std::endl;
+        // std::cout << "2: " << u32(r) << " " << u32(g) << " " << u32(b) << " " << u32(a) << std::endl;
+
+        // auto result = UnpackNormalized4ChannelFloatData(out);
+
+        // std::cout << "3: " << result.r << " " << result.g << " " << result.b << " " << result.a << std::endl;
     }
 
     template<typename T>

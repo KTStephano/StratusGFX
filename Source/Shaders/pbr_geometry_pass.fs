@@ -110,8 +110,8 @@ void main() {
 
     vec4 reflectanceMetallicRoughness = decodeMaterialData(material.reflectanceMetallicRoughness);
 
-    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.g;
-    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.b;
+    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.b;
+    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.g;
     //float roughness = material.metallicRoughness[1];
     //float metallic = material.metallicRoughness[0];
     // float roughness = material.metallicRoughness[1];
