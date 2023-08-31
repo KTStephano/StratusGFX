@@ -26,6 +26,11 @@ namespace stratus {
         LOADING_DONE
     };
 
+    struct BinaryDataWrapper {
+        u8 * data;
+        usize sizeBytes;
+    };
+
     SYSTEM_MODULE_CLASS(ResourceManager)
     private:
         struct RawTextureData {
@@ -48,6 +53,7 @@ namespace stratus {
 
         Async<Entity> LoadModel(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling defaultCullMode = RenderFaceCulling::CULLING_CCW);
         TextureHandle LoadTexture(const std::string&, const ColorSpace&);
+        TextureHandle LoadTexture(const std::string&, BinaryDataWrapper data, const ColorSpace&);
         // prefix is used to select all faces with one string. It ends up expanding to:
         //      prefix + "right." + fileExt
         //      prefix + "left." + fileExt
@@ -77,12 +83,14 @@ namespace stratus {
         EntityPtr LoadModel_(const std::string&, const ColorSpace&, const bool optimizeGraph, RenderFaceCulling);
         // Despite accepting multiple files, it assumes they all have the same format (e.g. for cube texture)
         TextureHandle LoadTextureImpl_(const std::vector<std::string>&, 
+                                       const std::vector<BinaryDataWrapper>&,
                                        const ColorSpace&,
                                        const TextureType type = TextureType::TEXTURE_2D,
                                        const TextureCoordinateWrapping wrap = TextureCoordinateWrapping::REPEAT,
                                        const TextureMinificationFilter min = TextureMinificationFilter::LINEAR_MIPMAP_LINEAR,
                                        const TextureMagnificationFilter mag = TextureMagnificationFilter::LINEAR);
         std::shared_ptr<RawTextureData> LoadTexture_(const std::vector<std::string>&, 
+                                                     const std::vector<BinaryDataWrapper>&,
                                                      const TextureHandle, 
                                                      const ColorSpace&,
                                                      const TextureType type = TextureType::TEXTURE_2D,

@@ -230,7 +230,11 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const ColorSpace& cspace) {
-        return LoadTextureImpl_({name}, cspace);
+        return LoadTextureImpl_({ name }, {}, cspace);
+    }
+
+    TextureHandle ResourceManager::LoadTexture(const std::string& name, BinaryDataWrapper data, const ColorSpace& cspace) {
+        return LoadTextureImpl_({ name }, { data }, cspace);
     }
 
     TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const ColorSpace& cspace, const std::string& fileExt) {
@@ -240,6 +244,7 @@ namespace stratus {
                                  prefix + "bottom." + fileExt,
                                  prefix + "front." + fileExt,
                                  prefix + "back." + fileExt}, 
+                                {},
                                 cspace,
                                 TextureType::TEXTURE_CUBE_MAP,
                                 TextureCoordinateWrapping::CLAMP_TO_EDGE,
@@ -248,6 +253,7 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTextureImpl_(const std::vector<std::string>& files, 
+                                                    const std::vector<BinaryDataWrapper>& data,
                                                     const ColorSpace& cspace,
                                                     const TextureType type,
                                                     const TextureCoordinateWrapping wrap,
@@ -272,8 +278,8 @@ namespace stratus {
         auto handle = TextureHandle::NextHandle();
         TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
-            auto result = LoadTexture_(files, handle, cspace, type, wrap, min, mag);
+        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, data, handle, cspace, type, wrap, min, mag]() {
+            auto result = LoadTexture_(files, data, handle, cspace, type, wrap, min, mag);
             //auto ul = this->LockWrite_();
             //this->texturesStillLoading_.erase(handle);
             return result;
@@ -304,13 +310,38 @@ namespace stratus {
         return loadedTextures_.find(handle)->second.Get();
     }
 
-    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
+    static TextureHandle LoadMaterialTexture(const aiScene * scene, aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {
             aiString str; 
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, cspace);
+
+            const auto last = file.find_last_of('*');
+            if (last != file.npos) {
+                const auto embeddedIndex = std::stoi(file.substr(last + 1));
+                const auto embeddedTexture = scene->mTextures[embeddedIndex];
+
+                if (embeddedTexture->mHeight != 0) {
+                    STRATUS_ERROR << "Non-compressed embedded texture found - skipping" << std::endl;
+                    return TextureHandle::Null();
+                }
+
+                const usize sizeBytes = embeddedTexture->mWidth;
+                u8 * writeData = new u8[sizeBytes];
+                const u8 * readData = reinterpret_cast<const u8 *>(embeddedTexture->pcData);
+
+                std::memcpy(writeData, readData, sizeBytes);
+
+                BinaryDataWrapper binaryData;
+                binaryData.data = writeData;
+                binaryData.sizeBytes = 4 * sizeBytes;
+
+                texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, binaryData, cspace);
+            }
+            else {
+                texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, cspace);
+            }
         }
 
         return texture;
@@ -624,9 +655,9 @@ namespace stratus {
             //     STRATUS_LOG << "Transparency: " << transparency.r << ", " << transparency.g << ", " << transparency.b << ", " << transparency.a << std::endl;
             // }
 
-            material->SetDiffuseMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
+            material->SetDiffuseMap(LoadMaterialTexture(scene, aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
-            auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::NONE);
+            auto normalMap = LoadMaterialTexture(scene, aimat, aiTextureType_NORMALS, directory, ColorSpace::NONE);
             if (normalMap != TextureHandle::Null()) {
                 material->SetNormalMap(normalMap);
             }
@@ -634,13 +665,13 @@ namespace stratus {
                 //m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
-            material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::NONE));
-            material->SetEmissiveMap(LoadMaterialTexture(aimat, aiTextureType_EMISSIVE, directory, ColorSpace::NONE));
-            material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::NONE));
+            material->SetRoughnessMap(LoadMaterialTexture(scene, aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::NONE));
+            material->SetEmissiveMap(LoadMaterialTexture(scene, aimat, aiTextureType_EMISSIVE, directory, ColorSpace::NONE));
+            material->SetMetallicMap(LoadMaterialTexture(scene, aimat, aiTextureType_METALNESS, directory, ColorSpace::NONE));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
             if (extension == "gltf" || extension == "GLTF") {
-                material->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::NONE));
+                material->SetMetallicRoughnessMap(LoadMaterialTexture(scene, aimat, aiTextureType_UNKNOWN, directory, ColorSpace::NONE));
             }
 
             // STRATUS_LOG << "m " 
@@ -771,7 +802,7 @@ namespace stratus {
            aiProcess_ImproveCacheLocality |
            aiProcess_OptimizeMeshes |
            //aiProcess_OptimizeGraph |
-           //aiProcess_FixInfacingNormals |
+           aiProcess_FixInfacingNormals |
            aiProcess_FindDegenerates |
            aiProcess_FindInvalidData |
            aiProcess_FindInstances;
@@ -848,12 +879,19 @@ namespace stratus {
     }
 
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::LoadTexture_(const std::vector<std::string>& files, 
+                                                                                   const std::vector<BinaryDataWrapper>& binaryData,
                                                                                    const TextureHandle handle, 
                                                                                    const ColorSpace& cspace,
                                                                                    const TextureType type,
                                                                                    const TextureCoordinateWrapping wrap,
                                                                                    const TextureMinificationFilter min,
                                                                                    const TextureMagnificationFilter mag) {
+
+        if (binaryData.size() > 0 && files.size() != binaryData.size()) {
+            STRATUS_ERROR << "Invalid file/data length combination" << std::endl;
+            return nullptr;
+        }
+
         std::shared_ptr<RawTextureData> texdata = std::make_shared<RawTextureData>();
         texdata->wrap = wrap;
         texdata->min = min;
@@ -861,14 +899,24 @@ namespace stratus {
 
         #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
-        for (const std::string& fileOrig : files) {
+        for (usize index = 0; index < files.size(); ++index) {
+            const auto& fileOrig = files[index];
             std::string file = fileOrig;
             std::replace(file.begin(), file.end(), '\\', '/');
             STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
 
             i32 width, height, numChannels;
             // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
-            uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+            u8 * data = nullptr;
+
+            if (binaryData.size() > 0) {
+                data = stbi_load_from_memory(binaryData[index].data, (i32)binaryData[index].sizeBytes, &width, &height, &numChannels, 0);
+                delete[] binaryData[index].data;
+            }
+            else {
+                data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+            }
+
             if (data) {
                 // Make sure the width/height match what is already there
                 if (texdata->data.size() > 0 &&
