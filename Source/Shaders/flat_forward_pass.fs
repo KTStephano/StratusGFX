@@ -16,7 +16,7 @@ flat in int fsDrawID;
 
 //uniform float gamma = 2.2;
 
-layout (location = 0) out vec3 color;
+layout (location = 0) out vec4 color;
 layout (location = 1) out vec2 velocity;
 
 // Unjittered
@@ -34,7 +34,7 @@ void main() {
 
     // Apply gamma correction
     //texColor = pow(texColor, vec3(1.0 / gamma));
-    color = diffuse.rgb;
+    color = vec4(diffuse.rgb, 0.0);
     velocity = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
 
     // Small offset to help prevent z fighting in certain cases

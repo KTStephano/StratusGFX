@@ -470,12 +470,12 @@ void RendererBackend::InitGBuffer_() {
         buffer.albedo.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Base reflectivity buffer
-        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Roughness-Metallic-Ambient buffer
-        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.roughnessMetallicAmbient.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -491,7 +491,7 @@ void RendererBackend::InitGBuffer_() {
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Holds mesh ids
-        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::UINT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 

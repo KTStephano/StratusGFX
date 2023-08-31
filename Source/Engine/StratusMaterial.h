@@ -98,7 +98,7 @@ namespace stratus {
         bool registerSelf_;
         u64 lastFrameChanged_ = 0;
         glm::vec4 diffuseColor_ = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-        glm::vec3 emissiveColor = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 emissiveColor = glm::vec3(0.0f);
         f32 reflectance_ = 0.05f;
         f32 roughness_ = 0.5f; // (0.0 = smoothest possible, 1.0 = roughest possible)
         f32 metallic_ = 0.04f; // 0.04 is good for many non-metallic surfaces

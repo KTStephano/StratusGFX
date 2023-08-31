@@ -102,14 +102,14 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-    vec3 roughnessMetallicEmissive = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rgb;
-    float roughness = roughnessMetallicEmissive.r;
-    float metallic = roughnessMetallicEmissive.g;
+    vec2 roughnessMetallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rg;
+    float roughness = roughnessMetallic.r;
+    float metallic = roughnessMetallic.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambient = texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r; //textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
-    vec2 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rg;
-    vec3 emissive = vec3(albedo.a, baseReflectivity.g, roughnessMetallicEmissive.b);
+    float baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).r;
+    vec3 emissive = albedo.a > 0.0 ? albedo.rgb : vec3(0.0);
 
     vec3 color = vec3(0.0);
     for (int i = 0; i < numLights; ++i) {
