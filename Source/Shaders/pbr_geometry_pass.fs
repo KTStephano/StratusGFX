@@ -141,7 +141,6 @@ void main() {
     gReflectivity = mix(reflectance, maxReflectivity, metallic);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
     gRoughnessMetallic = vec2(roughness, metallic);
-    //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
     gId = uint(fsDrawID);

@@ -591,7 +591,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> viscullPointLights;
             // Used for virtual shadow maps
             std::unique_ptr<Pipeline> vsmAnalyzeDepth;
-            std::unique_ptr<Pipeline> vsmMarkUnused;
+            std::unique_ptr<Pipeline> vsmMarkPages;
             std::unique_ptr<Pipeline> vsmCull;
             std::unique_ptr<Pipeline> vsmClear;
         };

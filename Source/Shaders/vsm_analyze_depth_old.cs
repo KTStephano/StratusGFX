@@ -22,13 +22,13 @@ uniform sampler2D depthTexture;
 uniform uint frameCount;
 uniform uint numPagesXY;
 
-// layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
-//     int numPagesToMakeResident;
-// };
+layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
+    int numPagesToMakeResident;
+};
 
-// layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
-//     int pageIndices[];
-// };
+layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
+    int pageIndices[];
+};
 
 layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer block3 {
     PageResidencyEntry prevFramePageResidencyTable[];
@@ -54,17 +54,54 @@ const int pixelOffsets[] = int[](
 void updateResidencyStatus(in ivec2 coords) {
     ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
 
+    // if (pixelCoords.x < 0 || pixelCoords.x >= residencyTableSize.x ||
+    //     pixelCoords.y < 0 || pixelCoords.y >= residencyTableSize.y) {
+        
+    //     pixelCoords = wrapIndex(coords, residencyTableSize);
+    //     return;
+    // }
+
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY));
     uint pageId = computePageId(coords);
 
-    currFramePageResidencyTable[tileIndex].frameMarker = frameCount;
+    //uint prev = uint(imageLoad(prevFramePageResidencyTable, pixelCoords).r);
+    //uint current = imageAtomicExchange(currFramePageResidencyTable, pixelCoords, frameCount);
+    uint prev = prevFramePageResidencyTable[tileIndex].frameMarker;
+    uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+
+    // If true, page is not resident
+    if (prev == 0) {
+        //uint current = atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+
+        if (current == 0) {
+            int original = atomicAdd(numPagesToMakeResident, 1);
+            atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, 1));
+            pageIndices[2 * original] = pixelCoords.x;
+            pageIndices[2 * original + 1] = pixelCoords.y;
+        }
+
+        return;
+    }
 
     uint prevPageId;
     uint prevDirtyBit;
+
     unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
 
     uint dirtyBit = prevPageId != pageId ? 1 : prevDirtyBit; 
-    currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
+
+    // if (frameCount - prev < 3 && prevDirtyBit > 0) {
+    //     dirtyBit = 1;
+    //     atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, prev);
+    // }
+    // else {
+    //     atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+    // }
+
+    //atomicExchange(currFramePageResidencyTable[tileIndex].frameMarker, frameCount);
+
+    // Re-mark page
+    atomicExchange(currFramePageResidencyTable[tileIndex].info, packPageIdWithDirtyBit(pageId, dirtyBit));
 }
 
 void main() {

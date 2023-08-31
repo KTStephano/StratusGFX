@@ -19,7 +19,7 @@ uniform uint numPagesXY;
 uniform uint sunChanged; // Either 1 or 0
 
 layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
-    int numPagesToFree;
+    int numPagesToUpdate;
 };
 
 layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
@@ -39,6 +39,18 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block5 
 };
 
 shared ivec2 residencyTableSize;
+
+void requestPageAlloc(in ivec2 tileCoords) {
+    int original = atomicAdd(numPagesToUpdate, 1);
+    pageIndices[2 * original] = tileCoords.x + 1;
+    pageIndices[2 * original + 1] = tileCoords.y + 1;
+}
+
+void requestPageDealloc(in ivec2 tileCoords) {
+    int original = atomicAdd(numPagesToUpdate, 1);
+    pageIndices[2 * original] = -(tileCoords.x + 1);
+    pageIndices[2 * original + 1] = -(tileCoords.y + 1);
+}
 
 void main() {
     // if (gl_LocalInvocationID == 0) {
@@ -72,10 +84,9 @@ void main() {
     unpackPageIdAndDirtyBit(currFramePageResidencyTable[tileIndex].info, pageId, dirtyBit);
 
     if (current.frameMarker > 0) {
+        // Frame has not been needed for more than 30 frames and needs to be freed
         if ((frameCount - current.frameMarker) > 30) {
-            int original = atomicAdd(numPagesToFree, 1);
-            pageIndices[2 * original] = tileCoords.x;
-            pageIndices[2 * original + 1] = tileCoords.y;
+            requestPageDealloc(tileCoords);
 
             PageResidencyEntry markedNonResident;
             markedNonResident.frameMarker = 0;
@@ -85,7 +96,12 @@ void main() {
             currFramePageResidencyTable[tileIndex] = markedNonResident;
         }
         else {
-            if (sunChanged > 0) {
+            // Page was requested this frame but is not currently resident
+            if (prev.frameMarker == 0) {
+                current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
+                requestPageAlloc(tileCoords); 
+            }
+            else if (sunChanged > 0) {
                 current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
             }
             else if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {

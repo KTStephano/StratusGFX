@@ -740,7 +740,7 @@ namespace stratus {
             // This tells us the maximum diameter for the cascade bounding box
             //const f32 dk = std::ceilf(std::max<f32>(glm::length(frustumCorners[0] - frustumCorners[6]), 
             //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
-            const f32 dk = 8192.0f;//ceilf(maxLength);
+            const f32 dk = 1024.0f;//ceilf(maxLength);
             //STRATUS_LOG << dk << std::endl;
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map

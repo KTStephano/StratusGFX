@@ -269,9 +269,9 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"vsm_analyze_depth.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.vsmAnalyzeDepth.get());
 
-    state_.vsmMarkUnused = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vsm_mark_unused.cs", ShaderType::COMPUTE} }));
-    state_.shaders.push_back(state_.vsmMarkUnused.get());
+    state_.vsmMarkPages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_mark_pages.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.vsmMarkPages.get());
 
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
@@ -1204,8 +1204,8 @@ void RendererBackend::PerformVSMCulling(
 }
 
 void RendererBackend::ProcessCSMVirtualTexture_() {
-    int value = 0;
-    frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
+    // int value = 0;
+    // frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
     auto tmp = frame_->csc.currFramePageResidencyTable;
     frame_->csc.currFramePageResidencyTable = frame_->csc.prevFramePageResidencyTable;
@@ -1249,74 +1249,21 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmAnalyzeDepth->Unbind();
 
-    const i32 numPagesToCommit = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
-    frame_->csc.numPagesToCommit.UnmapMemory();
-
     auto vsm = &frame_->csc.vsm; //frame_->csc.fbo.GetDepthStencilAttachment();
 
-    // const auto prevFrame = INSTANCE(Engine)->FrameCount() % 2 == 0 ? 12 : 32;
-    // const auto currFrame = INSTANCE(Engine)->FrameCount() % 2 == 0 ? 32 : 12;
-    // vsm->CommitOrUncommitVirtualPage(prevFrame, prevFrame, 0, 10, 10, false);
-    // vsm->CommitOrUncommitVirtualPage(currFrame, currFrame, 0, 10, 10, true);
-
-    // vsm->CommitOrUncommitVirtualPage(32, 32, 0, 1, 1, true);
-    // vsm->CommitOrUncommitVirtualPage(32, 32, 0, 1, 1, false);
-
-    if (numPagesToCommit > 0) {
-        //STRATUS_LOG << numPagesToCommit << std::endl;
-
-                // vsm->CommitOrUncommitVirtualPage(0, 0, 0, numPagesAvailable, numPagesAvailable, true);
-                // const float clearValue = 1.0f;
-                // vsm->ClearLayerRegion(
-                //     0, 
-                //     0, 
-                //     0,
-                //     0,
-                //     numPagesAvailable * Texture::VirtualPageSizeXY(), 
-                //     numPagesAvailable * Texture::VirtualPageSizeXY(), 
-                //     (const void *)&clearValue
-                // );
-
-        const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToCommit * sizeof(int));
-
-        for (i32 i = 0; i < numPagesToCommit; ++i) {
-            //STRATUS_LOG << i << std::endl;
-
-            const i32 x = pageIndices[2 * i];
-            const i32 y = pageIndices[2 * i + 1];
-
-            //STRATUS_LOG << x << " " << y << std::endl;
-
-            vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, true);
-            
-            // const float clearValue = 1.0f;
-            // vsm->ClearLayerRegion(
-            //     0, 
-            //     0, 
-            //     x * Texture::VirtualPageSizeXY(), 
-            //     y * Texture::VirtualPageSizeXY(),
-            //     Texture::VirtualPageSizeXY(), 
-            //     Texture::VirtualPageSizeXY(), 
-            //     (const void *)&clearValue
-            // );
-        }
-
-        frame_->csc.pagesToCommitList.UnmapMemory();
-    }
-
-    value = 0;
+    i32 value = 0;
     frame_->csc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
-    state_.vsmMarkUnused->Bind();
+    state_.vsmMarkPages->Bind();
 
-    state_.vsmMarkUnused->SetUint("frameCount", frameCount);
+    state_.vsmMarkPages->SetUint("frameCount", frameCount);
 
-    //state_.vsmMarkUnused->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    //state_.vsmMarkUnused->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //state_.vsmMarkPages->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    //state_.vsmMarkPages->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
     //frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     //frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-    state_.vsmMarkUnused->SetUint("numPagesXY", numPagesAvailable);
-    state_.vsmMarkUnused->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
+    state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmMarkPages->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
 
     frame_->csc.numPagesToCommit.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
@@ -1326,20 +1273,20 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     sizeX = numPagesAvailable / 32;
     sizeY = numPagesAvailable / 32;
 
-    state_.vsmMarkUnused->DispatchCompute(sizeX, sizeY, 1);
-    state_.vsmMarkUnused->SynchronizeCompute();
+    state_.vsmMarkPages->DispatchCompute(sizeX, sizeY, 1);
+    state_.vsmMarkPages->SynchronizeCompute();
 
-    state_.vsmMarkUnused->Unbind();
+    state_.vsmMarkPages->Unbind();
 
-    const i32 numPagesToFree = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
+    const i32 numPagesToUpdate = *(const i32 *)frame_->csc.numPagesToCommit.MapMemory(GPU_MAP_READ);
     frame_->csc.numPagesToCommit.UnmapMemory();
 
-    if (numPagesToFree > 0) {
+    if (numPagesToUpdate > 0) {
         //STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
 
-        const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToFree * sizeof(int));
+        const i32 * pageIndices = (const i32 *)frame_->csc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
 
-        for (i32 i = 0; i < numPagesToFree; ++i) {
+        for (i32 i = 0; i < numPagesToUpdate; ++i) {
             //STRATUS_LOG << i << std::endl;
 
             const i32 x = pageIndices[2 * i];
@@ -1347,7 +1294,12 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            vsm->CommitOrUncommitVirtualPage(x, y, 0, 1, 1, false);
+            vsm->CommitOrUncommitVirtualPage(
+                std::abs(x) - 1, 
+                std::abs(y) - 1, 
+                0, 1, 1, 
+                (x < 0 || y < 0) ? false : true
+            );
         }
 
         frame_->csc.pagesToCommitList.UnmapMemory();
@@ -1533,35 +1485,20 @@ void RendererBackend::RenderCSMDepth_() {
         // maxPageGroupX = frame_->csc.numPageGroupsX;
         // maxPageGroupY = frame_->csc.numPageGroupsY;
 
-        // We are going to add some padding since the current shadow
-        // map gen may partially overlap pages in other tiles
+        // Add a 1 page group border around the whole update region
         // if (minPageGroupX > 0) {
         //     --minPageGroupX;
         // }
         // if (minPageGroupY > 0) {
         //     --minPageGroupY;
         // }
-        // if (maxPageGroupX < frame_->csc.numPageGroupsX) {
+
+        // if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
         //     ++maxPageGroupX;
         // }
-        // if (maxPageGroupY < frame_->csc.numPageGroupsY) {
+        // if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
         //     ++maxPageGroupY;
         // }
-
-        // Add a 1 page group border around the whole update region
-        if (minPageGroupX > 0) {
-            --minPageGroupX;
-        }
-        if (minPageGroupY > 0) {
-            --minPageGroupY;
-        }
-
-        if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
-            ++maxPageGroupX;
-        }
-        if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
-            ++maxPageGroupY;
-        }
 
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
@@ -1757,8 +1694,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();
