@@ -802,7 +802,7 @@ namespace stratus {
            aiProcess_ImproveCacheLocality |
            aiProcess_OptimizeMeshes |
            //aiProcess_OptimizeGraph |
-           aiProcess_FixInfacingNormals |
+           //aiProcess_FixInfacingNormals |
            aiProcess_FindDegenerates |
            aiProcess_FindInvalidData |
            aiProcess_FindInstances;
