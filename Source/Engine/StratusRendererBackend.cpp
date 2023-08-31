@@ -2585,18 +2585,6 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MESH_DATA_BINDING_POINT);
     GpuMeshAllocator::BindElementArrayBuffer();
 
-    glBlendFunc(state_.blendSFactor, state_.blendDFactor);
-    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
-
-    // Generate the GBuffer
-    RenderForwardPassPbr_();
-
-    // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
-    // do this first
-    if (frame_->csc.worldLight->GetEnabled()) {
-        RenderCSMDepth_();
-    }
-
     VplDistMultiSet_ perLightDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
     VplDistVector_ perLightDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
@@ -2616,6 +2604,18 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
         perVPLDistToViewerSet, perVPLDistToViewerVec, 
         visibleVplIndices
     );
+
+    glBlendFunc(state_.blendSFactor, state_.blendDFactor);
+    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
+
+    // Generate the GBuffer
+    RenderForwardPassPbr_();
+
+    // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
+    // do this first
+    if (frame_->csc.worldLight->GetEnabled()) {
+        RenderCSMDepth_();
+    }
 
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
