@@ -748,7 +748,7 @@ namespace stratus {
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
             const f32 T = dk / requestedCascadeResolutionXY;
-            frame_->csc.cascades[i].cascadeDiameter = dk;
+            frame_->csc.cascades[i].cascadeDiameter = dk * 0.5f;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;

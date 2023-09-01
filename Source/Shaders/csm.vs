@@ -20,7 +20,7 @@ layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buff
 };
 
 uniform mat4 shadowMatrix;
-uniform mat4 globalVsmShadowMatrix;
+//uniform mat4 globalVsmShadowMatrix;
 
 uniform vec3 lightDir;
 uniform int depthLayer;
@@ -45,8 +45,10 @@ void main () {
 	//fsTanTheta = 3.0 * tan(acos(dot(normalize(lightDir), getNormal(gl_VertexID))));
 	vec4 worldPos = worldMatrix * vec4(position, 1.0);
 	vec4 clipPos = shadowMatrix * worldPos;
+	//vec4 clipPos = vec4(vsmCalculateRelativeClipValueFromWorldPos(worldPos.xyz, 0), 1.0);
 
-	vec4 globalVsmClipPos = globalVsmShadowMatrix * worldPos;
+	//vec4 globalVsmClipPos = globalVsmShadowMatrix * worldPos;
+	vec4 globalVsmClipPos = vec4(vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, 0), 1.0);
 	// Perspective divide
 	globalVsmClipPos.xyz /= globalVsmClipPos.w;
 	// Transform from [-1, 1] to [0, 1]
