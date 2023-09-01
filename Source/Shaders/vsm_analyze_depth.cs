@@ -14,11 +14,13 @@ precision highp sampler2DArrayShadow;
 
 layout (local_size_x = 16, local_size_y = 9, local_size_z = 1) in;
 
+uniform mat4 cascadeProjectionView;
 uniform mat4 invProjectionView;
 
 uniform sampler2D depthTexture;
 
 uniform uint frameCount;
+uniform uint numPagesXY;
 
 // layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
 //     int numPagesToMakeResident;
@@ -38,6 +40,16 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block4 
 
 shared vec2 depthTextureSize;
 shared ivec2 residencyTableSize;
+
+// const int pixelOffsets[] = int[](
+//     -2, -1, 0, 1, 2
+// );
+// const int pixelOffsets[] = int[](
+//     -1, 0, 1
+// );
+const int pixelOffsets[] = int[](
+    0
+);
 
 void updateResidencyStatus(in ivec2 coords) {
     ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
@@ -80,9 +92,10 @@ void main() {
     vec3 worldPosition = worldPositionFromDepth(depthTexCoords, depth, invProjectionView);
 
     // Convert world position to a coordinate from the light's perspective
-    vec3 coords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, 0);
+    vec4 coords = cascadeProjectionView * vec4(worldPosition, 1.0);
+    vec2 cascadeTexCoords = coords.xy / coords.w; // Perspective divide
     // Convert from range [-1, 1] to [0, 1]
-    vec2 cascadeTexCoords = coords.xy * 0.5 + vec2(0.5);
+    cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
     vec2 basePixelCoords = cascadeTexCoords * vec2(residencyTableSize - ivec2(1));
 
@@ -99,4 +112,105 @@ void main() {
     if (pixelCoordsLower != pixelCoordsUpper) {
         updateResidencyStatus(pixelCoordsUpper);
     }
+
+    // If we are approaching a page boundary then allocate a bit of the region around us
+    // if (fx <= 0.02) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-2, 0));
+
+    // }
+    // else if (fx >= 0.98) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(2, 0));
+    // }
+
+    // if (fy <= 0.02) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -2));
+    // }
+    // else if (fy >= 0.98) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 2));
+    // }
+
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  0));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  0));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0, -1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 0,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1,  1));
+    // updateResidencyStatus(ivec2(basePixelCoords) + ivec2( 1, -1));
+
+    // if (basePixelCoords.x == floor(basePixelCoords.x)) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 1));
+    // }
+
+    // if (basePixelCoords.x == ceil(basePixelCoords.x)) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 0));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 1));
+    // }
+
+    // if (basePixelCoords.y == floor(basePixelCoords.y)) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, -1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, -1));
+    // }
+
+    // if (basePixelCoords.y == ceil(basePixelCoords.y)) {
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(0, 1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(-1, 1));
+    //     updateResidencyStatus(ivec2(basePixelCoords) + ivec2(1, 1));
+    // }
+
+    // ivec2 basePixelCoordsLower = ivec2(
+    //     floor(basePixelCoords.x),
+    //     floor(basePixelCoords.y)
+    // );
+
+    // ivec2 basePixelCoordsUpper = ivec2(
+    //     ceil(basePixelCoords.x),
+    //     ceil(basePixelCoords.y)
+    // );
+
+    // if (cascadeTexCoords.x >= 0 && cascadeTexCoords.x <= 1 &&
+    //     cascadeTexCoords.y >= 0 && cascadeTexCoords.y <= 1) {
+
+    //     for (int x = 0; x < 1; ++x) {
+    //         int xoffset = pixelOffsets[x];
+    //         for (int y = 0; y < 1; ++y) {
+    //             int yoffset = pixelOffsets[y];
+    //             ivec2 pixelCoords1 = basePixelCoordsLower + ivec2(xoffset, yoffset);
+    //             //ivec2 pixelCoords2 = basePixelCoordsUpper + ivec2(xoffset, yoffset);
+
+    //             updateResidencyStatus(pixelCoords1);
+    //             // if (pixelCoords1 != pixelCoords2) {
+    //             //     updateResidencyStatus(pixelCoords2);
+    //             // }
+
+    //             // ivec2 pixelCoords = pixelCoords1 + ivec2(xoffset, yoffset - 1);
+    //             // updateResidencyStatus(pixelCoords);
+
+    //             // pixelCoords = pixelCoords1 + ivec2(xoffset, yoffset + 1);
+    //             // updateResidencyStatus(pixelCoords);
+
+    //             // ivec2 pixelCoords1 = basePixelCoordsLower + ivec2(xoffset, yoffset);
+    //             // ivec2 pixelCoords2 = basePixelCoordsUpper + ivec2(xoffset, yoffset);
+    //             // ivec2 pixelCoords3 = basePixelCoordsLower + ivec2(xoffset - 1, yoffset);
+    //             // ivec2 pixelCoords4 = basePixelCoordsUpper + ivec2(xoffset + 1, yoffset);
+    //             // ivec2 pixelCoords5 = basePixelCoordsLower + ivec2(xoffset, yoffset - 1);
+    //             // ivec2 pixelCoords6 = basePixelCoordsUpper + ivec2(xoffset, yoffset + 1);
+
+    //             // updateResidencyStatus(pixelCoords1);
+    //             // updateResidencyStatus(pixelCoords2);
+    //             // updateResidencyStatus(pixelCoords3);
+    //             // updateResidencyStatus(pixelCoords4);
+    //             // updateResidencyStatus(pixelCoords5);
+    //             // updateResidencyStatus(pixelCoords6);
+    //         }
+    //     }
+    // }
 }

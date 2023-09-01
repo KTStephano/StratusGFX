@@ -10,6 +10,7 @@ in vec2 fsTexCoords;
 
 uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
+uniform uint numPagesXY;
 
 layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) readonly buffer inputBlock1 {
     uint pageGroupsToRender[];

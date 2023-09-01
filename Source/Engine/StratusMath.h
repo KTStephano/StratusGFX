@@ -480,6 +480,35 @@ namespace stratus {
         // std::cout << "3: " << result.r << " " << result.g << " " << result.b << " " << result.a << std::endl;
     }
 
+    inline glm::vec4 VsmCalculateClipValueFromWorldPos(const glm::mat4& viewProj, const glm::vec3& worldPos, i32 clipMapIndex) {
+        using namespace glm;
+
+        vec4 result = viewProj * vec4(worldPos, 1.0);
+
+        // Accounts for the fact that each clip map covers double the range of the
+        // previous
+        result.x = result.x * (1.0 / float(BITMASK_POW2(clipMapIndex)));
+        result.y = result.y * (1.0 / float(BITMASK_POW2(clipMapIndex)));
+
+        return result;
+    }
+
+    // Returns 3 values on the range [-1, 1]
+    inline glm::vec4 VsmCalculateOriginClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
+        using namespace glm;
+
+        mat4 viewProj = vsmProjectionView;
+        viewProj[3] = vec4(0.0, 0.0, 0.0, 1.0);
+
+        return VsmCalculateClipValueFromWorldPos(viewProj, worldPos, clipMapIndex);
+    }
+
+    // The difference between this and Origin function is that this will return a value
+    // relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
+    inline glm::vec4 VsmCalculateRelativeClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
+        return VsmCalculateClipValueFromWorldPos(vsmProjectionView, worldPos, clipMapIndex);
+    }
+
     template<typename T>
     T Mod(const T& value, const T& maxValue) {
         return std::modulus<T>()(value, maxValue);
@@ -536,7 +565,10 @@ namespace stratus {
         // worldPosition.y /= worldPosition.w;
         // worldPosition.z /= worldPosition.w;
 
-        vec4 physicalTexCoords = vsmProjectionView * vec4(vec3(worldPosition), 1.0);
+        mat4 projView = vsmProjectionView;
+        projView[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+        vec4 physicalTexCoords = projView * vec4(vec3(worldPosition), 1.0);
         // Perspective divide
         physicalTexCoords.x = physicalTexCoords.x / physicalTexCoords.w;
         physicalTexCoords.y = physicalTexCoords.y / physicalTexCoords.w;

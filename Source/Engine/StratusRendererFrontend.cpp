@@ -834,11 +834,12 @@ namespace stratus {
                                                             transposeLightWorldTransform[2],
                                                             glm::vec4(-sk, 1.0f));
 
-            //const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
-            //                                                transposeLightWorldTransform[1],
-            //                                                transposeLightWorldTransform[2],
-            //                                                glm::vec4(-glm::vec3(0.0f), 1.0f));
-            const glm::mat4 cascadeSampleViewTransform = cascadeRenderViewTransform;
+            const glm::mat4 cascadeSampleViewTransform2 = glm::mat4(transposeLightWorldTransform[0],
+                                                            transposeLightWorldTransform[1],
+                                                            transposeLightWorldTransform[2],
+                                                            glm::vec4(-glm::vec3(0.0f), 1.0f));
+
+            const glm::mat4 cascadeSampleViewTransform = cascadeSampleViewTransform2;
 
             frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
 
@@ -875,6 +876,10 @@ namespace stratus {
             frame_->csc.cascades[i].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
             frame_->csc.cascades[i].projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
             frame_->csc.cascades[i].invProjectionViewRender = glm::inverse(frame_->csc.cascades[i].projectionViewRender);
+
+            // glm::mat4 test = cascadeOrthoProjection * cascadeSampleViewTransform2;
+            // STRATUS_LOG << "1: " << (test * glm::vec4(125.0f, 33.0f, 227.0f, 1.0f)) << std::endl;
+            // STRATUS_LOG << "2: " << VsmCalculateOriginClipValueFromWorldPos(frame_->csc.cascades[i].projectionViewRender, glm::vec3(125.0f, 33.0f, 227.0f), 0) << std::endl;
 
             if (i > 0) {
                 // See page 187, eq. 8.82

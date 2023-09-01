@@ -15,6 +15,7 @@ precision highp sampler2DArrayShadow;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 uniform uint frameCount;
+uniform uint numPagesXY;
 uniform uint sunChanged; // Either 1 or 0
 
 layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
