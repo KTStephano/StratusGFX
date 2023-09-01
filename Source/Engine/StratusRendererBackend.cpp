@@ -339,10 +339,7 @@ void RendererBackend::InitializeVplData_() {
 }
 
 void RendererBackend::ValidateAllShaders_() {
-    isValid_ = true;
-    for (Pipeline * p : state_.shaders) {
-        isValid_ = isValid_ && p->IsValid();
-    }
+    isValid_ = ValidateAllPipelines(state_.shaders);
 }
 
 RendererBackend::~RendererBackend() {
@@ -1221,7 +1218,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmAnalyzeDepth->Bind();
     
-    state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewSample);
+    state_.vsmAnalyzeDepth->SetMat4("vsmProjectionView", frame_->csc.cascades[0].projectionViewSample);
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
@@ -1230,7 +1227,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING);
     frame_->csc.currFramePageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    state_.vsmAnalyzeDepth->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmAnalyzeDepth->SetInt("numPagesXY", (i32)numPagesAvailable);
 
     state_.vsmAnalyzeDepth->SetUint("frameCount", frameCount);
 
@@ -1262,7 +1259,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     //state_.vsmMarkPages->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
     //frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     //frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-    state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmMarkPages->SetInt("numPagesXY", (i32)numPagesAvailable);
     state_.vsmMarkPages->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
 
     frame_->csc.numPagesToCommit.BindBase(
@@ -1307,7 +1304,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmCull->Bind();
 
-    state_.vsmCull->SetMat4("cascadeProjectionView", frame_->csc.cascades[0].projectionViewRender);
+    state_.vsmCull->SetMat4("vsmProjectionView", frame_->csc.cascades[0].projectionViewRender);
     state_.vsmCull->SetMat4("invCascadeProjectionView", frame_->csc.cascades[0].invProjectionViewRender);
     state_.vsmCull->SetMat4("vsmProjectionView", frame_->csc.cascades[0].projectionViewSample);
     state_.vsmCull->SetUint("frameCount", frameCount);
@@ -1316,7 +1313,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     frame_->csc.currFramePageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmCull->SetInt("numPagesXY", (i32)numPagesAvailable);
     state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->csc.cascadeResolutionXY);
     frame_->csc.pageGroupsToRender.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
@@ -1621,7 +1618,7 @@ void RendererBackend::RenderCSMDepth_() {
         state_.vsmClear->SetMat4("vsmProjectionView", frame_->csc.cascades[cascade].projectionViewSample);
         state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
         state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
-        state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
+        state_.vsmClear->SetInt("numPagesXY", (i32)numPagesXY);
         state_.vsmClear->SetUint("frameCount", frameCount);
         state_.vsmClear->BindTextureAsImage(
             "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
@@ -1659,8 +1656,8 @@ void RendererBackend::RenderCSMDepth_() {
         // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
         // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->csc.cascades[cascade];
-        shader->SetMat4("shadowMatrix", csm.projectionViewRender);
-        shader->SetUint("numPagesXY", (u32)(frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
+        shader->SetMat4("vsmProjectionView", csm.projectionViewRender);
+        shader->SetInt("numPagesXY", (i32)numPagesXY);
         shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
 
         shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
@@ -1675,8 +1672,8 @@ void RendererBackend::RenderCSMDepth_() {
             return frame_->csc.cascades[cascade].drawCommandsFinal->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
         };
 
-        shader->SetMat4("shadowMatrix", projectionView);
-        shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
+        // shader->SetMat4("shadowMatrix", projectionView);
+        // shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
 
         //STRATUS_LOG << glm::vec2(frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f)) << std::endl;
         
@@ -1694,8 +1691,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();
@@ -2964,7 +2961,7 @@ void RendererBackend::FinalizeFrame_() {
     BindShader_(state_.fullscreenPageGroups.get());
     state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->csc.numPageGroupsX);
     state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->csc.numPageGroupsY);
-    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
+    state_.fullscreenPageGroups->SetInt("numPagesXY", (i32)numPagesAvailable);
     frame_->csc.pageGroupsToRender.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
     frame_->csc.currFramePageResidencyTable.BindBase(
@@ -3154,7 +3151,7 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_CASTER_BINDING_POINT);
     frame_->csc.currFramePageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    s->SetUint("numPagesXY", frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
+    s->SetInt("numPagesXY", frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
     s->SetFloat("ambientIntensity", 0.0001f);
     /*

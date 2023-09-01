@@ -13,16 +13,6 @@ STRATUS_GLSL_VERSION
 #define DOUBLE_MIN 2.2250738585072014e-308
 #define BITMASK_POW2(offset) (1 << offset)
 
-// Matches the definitions in StratusGpuCommon.h
-#define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
-#define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
-#define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
-#define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
-#define GPU_METALLIC_MAPPED           (BITMASK_POW2(6))
-// It's possible to have metallic + roughness combined into a single map
-#define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
-
 #define FLOAT2_TO_VEC2(f2) vec2(f2[0], f2[1])
 #define FLOAT3_TO_VEC3(f3) vec3(f3[0], f3[1], f3[2])
 #define FLOAT3_TO_VEC4(f3) vec4(FLOAT3_TO_VEC3(f3), 1.0)

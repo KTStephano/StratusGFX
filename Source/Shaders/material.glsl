@@ -2,6 +2,16 @@ STRATUS_GLSL_VERSION
 
 #include "bindings.glsl"
 
+// Matches the definitions in StratusGpuCommon.h
+#define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
+#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
+#define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
+#define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
+#define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
+#define GPU_METALLIC_MAPPED           (BITMASK_POW2(6))
+// It's possible to have metallic + roughness combined into a single map
+#define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
+
 // Matches the definition in StratusGpuCommon.h
 struct Material {
     // total bytes next 2 entries = vec4 (for std430)

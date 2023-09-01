@@ -4,8 +4,21 @@
 #include "StratusLog.h"
 #include <unordered_set>
 #include "StratusUtils.h"
+#include <sstream>
 
 namespace stratus {
+bool ValidatePipeline(const Pipeline * p) {
+    if (!p->IsValid()) {
+        STRATUS_ERROR << p->GetError() << std::endl;
+    }
+
+    return p->IsValid();
+}
+
+bool ValidatePipeline(const Pipeline& p) {
+    return ValidatePipeline(&p);
+}
+
 Pipeline::Pipeline(const std::filesystem::path& rootPath, 
                    const ShaderApiVersion& version, 
                    const std::vector<Shader> & shaders, 
@@ -19,18 +32,25 @@ Pipeline::~Pipeline() {
     glDeleteProgram(program_);
 }
 
-static void PrintSourceWithLineNums(const std::string& source) {
-    std::cout << "==Begin Shader Source==" << std::endl;
-    std::cout << "1. ";
+static std::string BuildSourceWithLineNums(const std::string& source) {
+    std::stringstream result;
+    result << "==Begin Shader Source==" << std::endl;
+    result << "1. ";
     usize lineNum = 2;
     for (usize i = 0; i < source.size(); ++i) {
-        std::cout << source[i];
+        result << source[i];
         if (source[i] == '\n') {
-            std::cout << lineNum << ". ";
+            result << lineNum << ". ";
             ++lineNum;
         }
     }
-    std::cout << std::endl << "==End Shader Source==" << std::endl;
+    result << std::endl << "==End Shader Source==";
+
+    return result.str();
+}
+
+static void PrintSourceWithLineNums(const std::string& source) {
+    std::cout << BuildSourceWithLineNums(source) << std::endl;
 }
 
 /**
@@ -41,13 +61,13 @@ static void PrintSourceWithLineNums(const std::string& source) {
  * @return true if no errors occurred and false if anything
  *      went wrong
  */
-static bool checkShaderError(GLuint shader, const std::string & filename, const std::string & source) {
+static bool checkShaderError(GLuint shader, const std::string & filename, const std::string & source, std::string& errorMessage) {
+    errorMessage = "";
     GLint result;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if (!result) {
-        PrintSourceWithLineNums(source);
-
-        STRATUS_ERROR << "[error] Unable to compile shader: " << filename << std::endl;
+        errorMessage += BuildSourceWithLineNums(source) + "\n";
+        errorMessage += "[error] Unable to compile shader: " + filename + "\n";
 
         // Now we're going to get the error log and print it out
         GLint logLength;
@@ -57,7 +77,7 @@ static bool checkShaderError(GLuint shader, const std::string & filename, const 
             errorLog.resize(static_cast<u32>(logLength));
 
             glGetShaderInfoLog(shader, logLength, nullptr, &errorLog[0]);
-            std::cout << errorLog << std::endl;
+            errorMessage += errorLog + "\n";
         }
         return false;
     }
@@ -70,13 +90,14 @@ static bool checkShaderError(GLuint shader, const std::string & filename, const 
  * @return true if nothing went wrong and false if anything
  *      bad happened
  */
-static bool checkProgramError(GLuint program, const std::vector<Shader> & shaders) {
+static bool checkProgramError(GLuint program, const std::vector<Shader> & shaders, std::string& errorMessage) {
+    errorMessage = "";
     GLint linkStatus;
     glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
     if (!linkStatus) {
         std::string files;
         for (auto& s : shaders) files += s.filename + " ";
-        STRATUS_ERROR << "[error] Program failed during linking ( files were: " << files << ")" << std::endl;
+        errorMessage = "[error] Program failed during linking ( files were: " + files + ")" + "\n";
 
         GLint logLength;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
@@ -85,7 +106,7 @@ static bool checkProgramError(GLuint program, const std::vector<Shader> & shader
             std::string errorLog;
             errorLog.resize(static_cast<u32>(logLength));
             glGetProgramInfoLog(program, logLength, nullptr, &errorLog[0]);
-            std::cout << errorLog << std::endl;
+            errorMessage += errorLog + "\n";
         }
         return false;
     }
@@ -257,7 +278,7 @@ void Pipeline::Compile_() {
         glShaderSource(bin, 1, &bufferPtr, nullptr);
         glCompileShader(bin);
 
-        if (!checkShaderError(bin, s.filename, buffer)) {
+        if (!checkShaderError(bin, s.filename, buffer, error_)) {
             isValid_ = false;
             return;
         }
@@ -278,7 +299,7 @@ void Pipeline::Compile_() {
     }
 
     // Make sure no errors during linking came up
-    if (!checkProgramError(program_, this->shaders_)) {
+    if (!checkProgramError(program_, this->shaders_, error_)) {
         isValid_ = false;
         return;
     }

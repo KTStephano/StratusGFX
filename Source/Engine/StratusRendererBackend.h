@@ -94,7 +94,7 @@ namespace stratus {
         glm::vec4 cascadePlane;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
-        f32 cascadeRadius;
+        f32 cascadeDiameter;
         f32 cascadeBegins;
         f32 cascadeEnds;
         f32 cascadeZDifference;

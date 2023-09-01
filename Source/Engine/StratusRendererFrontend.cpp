@@ -420,10 +420,10 @@ namespace stratus {
         // Check for shader recompile request
         if (recompileShaders_) {
             renderer_->RecompileShaders();
-            viscullLodSelect_->Recompile();
-            viscull_->Recompile();
-            viscullCsms_->Recompile();
-            updateTransforms_->Recompile();
+            for (auto * p : pipelines_) {
+                p->Recompile();
+            }
+            ValidateAllPipelines(pipelines_);
             recompileShaders_ = false;
         }
 
@@ -490,32 +490,35 @@ namespace stratus {
         const std::filesystem::path shaderRoot("../Source/Shaders");
         const ShaderApiVersion version{GraphicsDriver::GetConfig().majorVersion, GraphicsDriver::GetConfig().minorVersion};
 
+        pipelines_.clear();
+
         viscullLodSelect_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"viscull_lods.cs", ShaderType::COMPUTE}},
             // Defines
             { {"SELECT_LOD", "1"} }
         ));
+        pipelines_.push_back(viscullLodSelect_.get());
 
         viscull_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"viscull_lods.cs", ShaderType::COMPUTE} }
         ));
+        pipelines_.push_back(viscull_.get());
 
         viscullCsms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"viscull_csms.cs", ShaderType::COMPUTE} }
         ));
+        pipelines_.push_back(viscullCsms_.get());
 
         updateTransforms_ = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"update_model_transforms.cs", ShaderType::COMPUTE} }
         ));
+        pipelines_.push_back(updateTransforms_.get());
 
         // Copy
         //_prevFrame = std::make_shared<RendererFrame>(*_frame);
 
         return renderer_->Valid() && 
-               viscullLodSelect_->IsValid() && 
-               viscull_->IsValid() && 
-               viscullCsms_->IsValid() &&
-               updateTransforms_->IsValid();
+            ValidateAllPipelines(pipelines_);
     }
 
     void RendererFrontend::Shutdown() {
@@ -745,7 +748,7 @@ namespace stratus {
             dks.push_back(dk);
             // T is essentially the physical width/height of area corresponding to each texel in the shadow map
             const f32 T = dk / requestedCascadeResolutionXY;
-            frame_->csc.cascades[i].cascadeRadius = dk / 2.0f;
+            frame_->csc.cascades[i].cascadeDiameter = dk;
 
             // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
             glm::vec3 minVec;
@@ -831,10 +834,11 @@ namespace stratus {
                                                             transposeLightWorldTransform[2],
                                                             glm::vec4(-sk, 1.0f));
 
-            const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
-                                                            transposeLightWorldTransform[1],
-                                                            transposeLightWorldTransform[2],
-                                                            glm::vec4(-glm::vec3(0.0f), 1.0f));
+            //const glm::mat4 cascadeSampleViewTransform = glm::mat4(transposeLightWorldTransform[0],
+            //                                                transposeLightWorldTransform[1],
+            //                                                transposeLightWorldTransform[2],
+            //                                                glm::vec4(-glm::vec3(0.0f), 1.0f));
+            const glm::mat4 cascadeSampleViewTransform = cascadeRenderViewTransform;
 
             frame_->csc.cascades[i].cascadeZDifference = maxZ - minZ;
 

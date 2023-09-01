@@ -1,5 +1,8 @@
 STRATUS_GLSL_VERSION
 
+#include "bindings.glsl"
+#include "common.glsl"
+
 #define VSM_LOWER_MASK 0x0000FFFF
 #define VSM_UPPER_MASK 0xFFFF0000
 
@@ -40,6 +43,34 @@ struct PageResidencyEntry {
     uint info;
 };
 
+// For first clip map - rest are derived from this
+uniform mat4 vsmProjectionView;
+uniform int numPagesXY;
+
+vec3 vsmCalculateClipValueFromWorldPos(in mat4 viewProj, in vec3 worldPos, in int clipMapIndex) {
+    vec4 result = viewProj * vec4(worldPos, 1.0);
+
+    // Accounts for the fact that each clip map covers double the range of the
+    // previous
+    result.xy = result.xy * vec2(1.0 / float(BITMASK_POW2(clipMapIndex)));
+
+    return result.xyz;
+}
+
+// Returns 3 values on the range [-1, 1]
+vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
+    mat4 viewProj = vsmProjectionView;
+    viewProj[3] = vec4(0.0, 0.0, 0.0, 1.0);
+    
+    return vsmCalculateClipValueFromWorldPos(viewProj, worldPos, clipMapIndex);
+}
+
+// The difference between this and Origin function is that this will return a value
+// relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
+vec3 vsmCalculateRelativeClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
+    return vsmCalculateClipValueFromWorldPos(vsmProjectionView, worldPos, clipMapIndex);
+}
+
 // See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
 ivec2 wrapIndex(in ivec2 value, in ivec2 maxValue) {
     return ivec2(mod(mod(value, maxValue) + maxValue, maxValue));
@@ -72,8 +103,7 @@ vec2 roundIndex(in vec2 index) {
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in ivec2 virtualPixelCoords, 
     in ivec2 maxVirtualIndex, 
-    in mat4 invProjectionView, 
-    in mat4 vsmProjectionView
+    in mat4 invProjectionView
 ) {
     
     // We need to convert our virtual texel to a physical texel
@@ -85,7 +115,10 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     // Perspective divide
     worldPosition.xyz /= worldPosition.w;
 
-    vec4 physicalTexCoords = vsmProjectionView * vec4(worldPosition.xyz, 1.0);
+    mat4 projView = vsmProjectionView;
+    projView[3] = vec4(vec3(0.0), 1.0);
+
+    vec4 physicalTexCoords = projView * vec4(worldPosition.xyz, 1.0);
     // Perspective divide
     physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
     // Convert from range [-1, 1] to [0, 1]
@@ -94,43 +127,16 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
 }
 
-// vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
-//     in ivec2 virtualPixelCoords, 
-//     in ivec2 maxVirtualIndex, 
-//     in mat4 invProjectionView, 
-//     in mat4 vsmProjectionView
-// ) {
-    
-//     // We need to convert our virtual texel to a physical texel
-//     vec2 virtualTexCoords = vec2(virtualPixelCoords) / vec2(maxVirtualIndex);
-//     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-//     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
-//     // Convert to world space
-//     vec4 worldPosition = invProjectionView * ndc;
-//     // Perspective divide
-//     worldPosition.xyz /= worldPosition.w;
-
-//     vec4 physicalTexCoords = vsmProjectionView * vec4(worldPosition.xyz, 1.0);
-//     // Perspective divide
-//     physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
-//     // Convert from range [-1, 1] to [0, 1]
-//     physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
-
-//     return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
-// }
-
 vec2 convertVirtualCoordsToPhysicalCoords(
     in ivec2 virtualPixelCoords, 
     in ivec2 maxVirtualIndex, 
-    in mat4 invProjectionView, 
-    in mat4 vsmProjectionView
+    in mat4 invProjectionView
 ) {
     
     vec2 wrapped = convertVirtualCoordsToPhysicalCoordsNoRound(
         virtualPixelCoords,
         maxVirtualIndex,
-        invProjectionView,
-        vsmProjectionView
+        invProjectionView
     );
 
     return roundIndex(wrapped);

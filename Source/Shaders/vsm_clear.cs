@@ -24,12 +24,9 @@ uniform float clearValue = 1.0;
 uniform uint frameCount;
 
 uniform mat4 invCascadeProjectionView;
-uniform mat4 vsmProjectionView;
 
 uniform ivec2 startXY;
 uniform ivec2 endXY;
-
-uniform ivec2 numPagesXY;
 
 shared uint clearValueBits;
 shared ivec2 vsmSize;
@@ -103,7 +100,7 @@ void main() {
     barrier();
 
     if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
-        vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView, vsmProjectionView);
+        vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, invCascadeProjectionView);
 
         vec2 physicalPixelCoordsLower = floor(physicalPixelCoords);
         vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);

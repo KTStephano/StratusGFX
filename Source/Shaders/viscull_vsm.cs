@@ -15,9 +15,7 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "aabb.glsl"
 #include "vsm_common.glsl"
 
-uniform mat4 cascadeProjectionView;
 uniform mat4 invCascadeProjectionView;
-uniform mat4 vsmProjectionView;
 
 uniform uint frameCount;
 uniform uint numDrawCalls;
@@ -25,7 +23,6 @@ uniform uint maxDrawCommands;
 
 uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
-uniform uint numPagesXY;
 uniform uint numPixelsXY;
 
 layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer inputBlock2 {
@@ -177,7 +174,7 @@ void main() {
             // );
 
             vec2 physicalPixelCoords = vec2(
-                ceil(convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1), invCascadeProjectionView, vsmProjectionView))
+                ceil(convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1), invCascadeProjectionView))
             );
             
             ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
@@ -244,7 +241,7 @@ void main() {
             continue;
         }
 
-        AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
+        AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], vsmProjectionView * modelTransforms[drawIndex]);
         computeCornersAsTexCoords(aabb, corners);
 
         vec2 pageMin = vec2(pageGroupCorners[0]);

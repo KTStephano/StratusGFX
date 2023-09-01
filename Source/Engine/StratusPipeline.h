@@ -61,6 +61,11 @@ class Pipeline {
     GLuint program_;
 
     /**
+     * When a shader compiler error occurs it is placed here 
+     */
+    std::string error_;
+
+    /**
      * Used to determine whether or not this Pipeline
      * is valid. If true then it is safe to use.
      */
@@ -81,7 +86,9 @@ public:
     /**
      * @return true if the Pipeline was successfully compiled
      */
-    bool IsValid() { return isValid_; }
+    bool IsValid() const { return isValid_; }
+
+    std::string GetError() const { return error_; }
 
     /**
      * Tells the Pipeline to recompile its source files.
@@ -165,6 +172,20 @@ private:
     void Compile_();
     i32 NextTextureIndex_(const std::string& uniform, const Texture & tex);
 };
+
+bool ValidatePipeline(const Pipeline* p);
+bool ValidatePipeline(const Pipeline& p);
+
+template<typename PipelineContainer>
+bool ValidateAllPipelines(const PipelineContainer& pipelines) {
+    for (const auto& p : pipelines) {
+        if (!ValidatePipeline(p)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 }
 
 #endif //STRATUSGFX_Pipeline_H
