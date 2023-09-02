@@ -1410,7 +1410,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 4;
+    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 8;
 
     using VirtualIndexSet = std::unordered_set<
         u32,
@@ -1486,19 +1486,19 @@ void RendererBackend::RenderCSMDepth_() {
         // maxPageGroupY = frame_->csc.numPageGroupsY;
 
         // Add a 1 page group border around the whole update region
-        // if (minPageGroupX > 0) {
-        //     --minPageGroupX;
-        // }
-        // if (minPageGroupY > 0) {
-        //     --minPageGroupY;
-        // }
+        if (minPageGroupX > 0) {
+            --minPageGroupX;
+        }
+        if (minPageGroupY > 0) {
+            --minPageGroupY;
+        }
 
-        // if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
-        //     ++maxPageGroupX;
-        // }
-        // if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
-        //     ++maxPageGroupY;
-        // }
+        if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+            ++maxPageGroupX;
+        }
+        if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+            ++maxPageGroupY;
+        }
 
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;

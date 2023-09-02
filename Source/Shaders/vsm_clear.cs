@@ -108,7 +108,7 @@ void main() {
         vec2 physicalPixelCoordsLower = floor(physicalPixelCoords);
         vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);
 
-        clearPixel(physicalPixelCoordsUpper);
+        clearPixel(physicalPixelCoordsLower);
         // if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
         //     clearPixel(physicalPixelCoordsUpper);
         // }
