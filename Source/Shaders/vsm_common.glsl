@@ -126,12 +126,12 @@ vec2 roundIndex(in vec2 index) {
 // }
 
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
-    in ivec2 virtualPixelCoords, 
+    in ivec2 virtualCoords, 
     in ivec2 maxVirtualIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
-    vec2 virtualTexCoords = vec2(virtualPixelCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
+    vec2 virtualTexCoords = vec2(virtualCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
 
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
@@ -147,13 +147,46 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
-    in ivec2 virtualPixelCoords, 
+    in ivec2 virtualCoords, 
     in ivec2 maxVirtualIndex
 ) {
     
     vec2 wrapped = convertVirtualCoordsToPhysicalCoordsNoRound(
-        virtualPixelCoords,
+        virtualCoords,
         maxVirtualIndex
+    );
+
+    return roundIndex(wrapped);
+}
+
+vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
+    in ivec2 physicalCoords, 
+    in ivec2 maxPhysicalIndex
+) {
+    
+    // We need to convert our virtual texel to a physical texel
+    vec2 physicalTexCoords = vec2(physicalCoords + ivec2(1)) / vec2(maxPhysicalIndex + ivec2(1));
+
+    // Set up NDC using -1, 1 tex coords and -1 for the z coord
+    vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
+
+    // Add back the translation component to convert physical ndc to relative virtual ndc
+    vec2 ndcRelative = ndc.xy + vsmClipMap0ProjectionView[3].xy;
+    
+    // Convert from [-1, 1] to [0, 1]
+    vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
+
+    return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + ivec2(1)));
+}
+
+vec2 convertPhysicalCoordsToVirtualCoords(
+    in ivec2 physicalCoords, 
+    in ivec2 maxPhysicalIndex
+) {
+    
+    vec2 wrapped = convertPhysicalCoordsToVirtualCoordsNoRound(
+        physicalCoords,
+        maxPhysicalIndex
     );
 
     return roundIndex(wrapped);

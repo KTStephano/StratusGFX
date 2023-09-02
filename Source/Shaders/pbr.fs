@@ -73,6 +73,8 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffe
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
+uniform int numPagesXY;
+
 /**
  * Information about the directional infinite light (if there is one)
  */

@@ -12,7 +12,7 @@ precision highp sampler2DArrayShadow;
 #include "vsm_common.glsl"
 #include "bindings.glsl"
 
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 uniform uint frameCount;
 uniform uint numPagesXY;
@@ -38,7 +38,21 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block5 
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
-shared ivec2 residencyTableSize;
+layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block6 {
+    int minPageX;
+    int minPageY;
+    int maxPageX;
+    int maxPageY;
+};
+
+layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer block7 {
+    uint pageGroupsToRender[];
+};
+
+shared int localMinPageX;
+shared int localMinPageY;
+shared int localMaxPageX;
+shared int localMaxPageY;
 
 void requestPageAlloc(in ivec2 tileCoords) {
     int original = atomicAdd(numPagesToUpdate, 1);
@@ -53,11 +67,19 @@ void requestPageDealloc(in ivec2 tileCoords) {
 }
 
 void main() {
-    // if (gl_LocalInvocationID == 0) {
-    //     residencyTableSize = imageSize(currFramePageResidencyTable).xy;
-    // }
+    if (gl_LocalInvocationID == 0) {
+        localMinPageX = int(numPagesXY) + 1;
+        localMinPageY = int(numPagesXY) + 1;
+        localMaxPageX = -1;
+        localMaxPageY = -1;
 
-    // barrier();
+        // localMinPageX = 0;
+        // localMinPageY = 0;
+        // localMaxPageX = int(numPagesXY) - 1;
+        // localMaxPageY = int(numPagesXY) - 1;
+    }
+
+    barrier();
 
     int tileXIndex = int(gl_GlobalInvocationID.x);
     int tileYIndex = int(gl_GlobalInvocationID.y);
@@ -83,6 +105,14 @@ void main() {
     uint dirtyBit;
     unpackPageIdAndDirtyBit(currFramePageResidencyTable[tileIndex].info, pageId, dirtyBit);
 
+    // Take the physical coords and convert them to virtual coords for the current frame
+    ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
+        tileCoords,
+        ivec2(int(numPagesXY) - 1)
+    )));
+
+    uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY));
+
     if (current.frameMarker > 0) {
         // Frame has not been needed for more than 30 frames and needs to be freed
         if ((frameCount - current.frameMarker) > 30) {
@@ -94,6 +124,8 @@ void main() {
 
             prevFramePageResidencyTable[tileIndex] = markedNonResident;
             currFramePageResidencyTable[tileIndex] = markedNonResident;
+
+            current = markedNonResident;
         }
         else {
             // Page was requested this frame but is not currently resident
@@ -111,5 +143,33 @@ void main() {
             prevFramePageResidencyTable[tileIndex] = current;
             currFramePageResidencyTable[tileIndex] = current;
         }
+    }
+
+    // Do a final check so that we can determine if this page needs
+    // to be processed by culling and later rendering
+    unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
+
+    uint pageGroupMarker = 0;
+
+    if (dirtyBit > 0 && current.frameMarker == frameCount) {
+        pageGroupMarker = frameCount;
+
+        atomicMin(localMinPageX, virtualPageCoords.x);
+        atomicMin(localMinPageY, virtualPageCoords.y);
+
+        atomicMax(localMaxPageX, virtualPageCoords.x + 1);
+        atomicMax(localMaxPageY, virtualPageCoords.y + 1);
+    }
+
+    pageGroupsToRender[virtualPageIndex] = pageGroupMarker;
+
+    barrier();
+
+    if (gl_LocalInvocationID == 0) {
+        atomicMin(minPageX, localMinPageX);
+        atomicMin(minPageY, localMinPageY);
+
+        atomicMax(maxPageX, localMaxPageX);
+        atomicMax(maxPageY, localMaxPageY);
     }
 }

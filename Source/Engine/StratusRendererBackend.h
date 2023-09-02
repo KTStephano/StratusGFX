@@ -197,6 +197,7 @@ namespace stratus {
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
         GpuBuffer pageGroupsToRender;
+        GpuBuffer pageBoundingBox;
         std::vector<RendererCascadeData> cascades;
         glm::vec4 cascadeShadowOffsets[2];
         u32 cascadeResolutionXY;

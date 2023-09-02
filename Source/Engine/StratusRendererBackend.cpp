@@ -398,8 +398,11 @@ void RendererBackend::RecalculateCascadeData_() {
         //frame_->csc.fbo = FrameBuffer({ tex }, frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY);
         frame_->csc.fbo = FrameBuffer(std::vector<Texture>(), frame_->csc.cascadeResolutionXY, frame_->csc.cascadeResolutionXY);
 
-        const auto numPages = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
-        const auto numPagesSquared = numPages * numPages;
+        const u32 numPages = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        const u32 numPagesSquared = numPages * numPages;
+
+        frame_->csc.numPageGroupsX = numPages;
+        frame_->csc.numPageGroupsY = numPages;
 
         std::vector<GpuPageResidencyEntry, StackBasedPoolAllocator<GpuPageResidencyEntry>> pageResidencyData(
             numPagesSquared, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
@@ -427,6 +430,8 @@ void RendererBackend::RecalculateCascadeData_() {
 
         frame_->csc.pageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
         frame_->csc.backPageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->csc.numPageGroupsX, frame_->csc.numPageGroupsY);
+
+        frame_->csc.pageBoundingBox = GpuBuffer(nullptr, 4 * sizeof(i32), flags);
     }
 
     frame_->csc.regenerateFbo = false;
@@ -1191,7 +1196,8 @@ void RendererBackend::PerformVSMCulling(
         const auto numPageGroupsX = frame_->csc.numPageGroupsX;
         const auto numPageGroupsY = frame_->csc.numPageGroupsY;
 
-        pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
+        //pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
+        pipeline.DispatchCompute(1, 1, 1);
         pipeline.SynchronizeCompute();
 
         // const i32 * result = (const i32 *)frame_->csc.numDrawCalls.MapMemory(GPU_MAP_READ);
@@ -1207,6 +1213,9 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     auto tmp = frame_->csc.currFramePageResidencyTable;
     frame_->csc.currFramePageResidencyTable = frame_->csc.prevFramePageResidencyTable;
     frame_->csc.prevFramePageResidencyTable = tmp;
+
+    frame_->csc.pageBoundingBox.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_BOUNDING_BOX_BINDING_POINT);
+    frame_->csc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
 
     u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
     const auto numPagesAvailable = frame_->csc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
@@ -1269,8 +1278,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     frame_->csc.pagesToCommitList.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_INDICES_BINDING_POINT);
 
-    sizeX = numPagesAvailable / 32;
-    sizeY = numPagesAvailable / 32;
+    sizeX = numPagesAvailable / 8;
+    sizeY = numPagesAvailable / 8;
 
     state_.vsmMarkPages->DispatchCompute(sizeX, sizeY, 1);
     state_.vsmMarkPages->SynchronizeCompute();
@@ -1318,8 +1327,6 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->csc.cascadeResolutionXY);
-    frame_->csc.pageGroupsToRender.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
 
     PerformVSMCulling(
         *state_.vsmCull,
@@ -1411,6 +1418,8 @@ void RendererBackend::RenderCSMDepth_() {
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
     const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 8;
+
+    // STRATUS_LOG << frame_->csc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
     using VirtualIndexSet = std::unordered_set<
         u32,

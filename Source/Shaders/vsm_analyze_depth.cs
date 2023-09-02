@@ -38,6 +38,13 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block4 
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
+layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block5 {
+    int minPageX;
+    int minPageY;
+    int maxPageX;
+    int maxPageY;
+};
+
 shared vec2 depthTextureSize;
 shared ivec2 residencyTableSize;
 
@@ -72,6 +79,11 @@ void main() {
         depthTextureSize = textureSize(depthTexture, 0).xy;
         //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
         residencyTableSize = ivec2(numPagesXY);
+
+        minPageX = int(numPagesXY) + 1;
+        minPageY = int(numPagesXY) + 1;
+        maxPageX = -1;
+        maxPageY = -1;
     }
 
     barrier();

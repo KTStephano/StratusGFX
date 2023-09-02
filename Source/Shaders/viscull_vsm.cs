@@ -48,22 +48,25 @@ layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) buffer outpu
 //     int outputDrawCalls;
 // };
 
-layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer outputBlock3 {
-    uint pageGroupsToRender[];
-};
+// layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer outputBlock3 {
+//     uint pageGroupsToRender[];
+// };
 
 layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock3 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
-shared int minLocalPageX;
-shared int minLocalPageY;
-shared int maxLocalPageX;
-shared int maxLocalPageY;
+layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer inputBlock5 {
+    int minPageX;
+    int minPageY;
+    int maxPageX;
+    int maxPageY;
+};
+
 shared ivec2 pageGroupCorners[4];
 shared vec2 pageGroupCornersTexCoords[4];
-shared uint pageGroupIsValid;
-shared uint atLeastOneResidentPage;
+// shared uint pageGroupIsValid;
+// shared uint atLeastOneResidentPage;
 
 // #define IS_PAGE_WITHIN_BOUNDS(type)                                                                 \
 //     bool isPageGroupWithinBounds(in type pageCorner, in type texCornerMin, in type texCornerMax) {  \
@@ -84,6 +87,10 @@ IS_OVERLAPPING(ivec2)
 void main() {
     ivec2 basePageGroup = ivec2(gl_WorkGroupID.xy);
     uint basePageGroupIndex = basePageGroup.x + basePageGroup.y * numPageGroupsX;
+
+    if (minPageX > maxPageX || minPageY > maxPageY) {
+        return;
+    }
 
     // if (gl_LocalInvocationID == 0) {
     //     residencyTableSize = imageSize(currFramePageResidencyTable).xy;
@@ -114,105 +121,12 @@ void main() {
     // ivec2 endPage = baseEndPage + ivec2(1, 1);
     ivec2 startPage = baseStartPage - ivec2(1);
     ivec2 endPage = baseEndPage + ivec2(1);
-     
-    // vec2 startPixel = vec2(baseStartPage * texelsPerPage);
-    // vec2 endPixel = vec2(baseEndPage * texelsPerPage);
-
-    // // Converts virtual pixels to physical pixels
-    // startPixel = convertVirtualCoordsToPhysicalCoords(ivec2(startPixel), ivec2(numPixelsXY - 1), invCascadeProjectionView, vsmProjectionView);
-    // endPixel = convertVirtualCoordsToPhysicalCoords(ivec2(endPixel), ivec2(numPixelsXY - 1), invCascadeProjectionView, vsmProjectionView);
-
-    // vec2 startPixelTexCoords = vec2(startPixel) / vec2(numPixelsXY - 1);
-    // vec2 endPixelTexCoords = vec2(endPixel) / vec2(numPixelsXY - 1);
-
-    // ivec2 startPage = ivec2(floor(startPixelTexCoords * vec2(maxResidencyTableIndex)));
-    // ivec2 endPage = ivec2(ceil(endPixelTexCoords * vec2(maxResidencyTableIndex)));
-
-    // Calculate the actual start/end page since we may partially overlap
-    // pages rather than be perfectly aligned
-
-    // Compute residency table dimensions
-    if (gl_LocalInvocationID == 0) {
-        //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
-
-        // minLocalPageX = residencyTableSize.x + 1;
-        // minLocalPageY = residencyTableSize.y + 1;
-        // maxLocalPageX = -1;
-        // maxLocalPageY = -1;
-
-        // minLocalPageX = (startPage + ivec2(1, 1)).x;
-        // minLocalPageY = (startPage + ivec2(1, 1)).y;
-        // maxLocalPageX = (endPage - ivec2(1, 1)).x;
-        // maxLocalPageY = (endPage - ivec2(1, 1)).y;
-
-        minLocalPageX = (baseStartPage).x;
-        minLocalPageY = (baseStartPage).y;
-        maxLocalPageX = (baseEndPage).x;
-        maxLocalPageY = (baseEndPage).y;
-
-        // Conditionally mark this as invalid if a previous pass hasn't yet
-        if (pageGroupsToRender[basePageGroupIndex] != frameCount) {
-            pageGroupsToRender[basePageGroupIndex] = 0;
-        }
-
-        pageGroupIsValid = 0;
-        atLeastOneResidentPage = 0;
-    }
-
-    barrier();
-
-    // Cooperatively run through the pages within this page group to check the min/max bounds
-    uint pageId;
-    uint pageDirtyBit;
-    bool continuePageLoop1 = true;
-    bool continuePageLoop2 = true;
-
-    for (int x = startPage.x + int(gl_LocalInvocationID.x); x < endPage.x && (continuePageLoop1 || continuePageLoop2); x += int(gl_WorkGroupSize.x)) {
-        for (int y = startPage.y + int(gl_LocalInvocationID.y); y < endPage.y && (continuePageLoop1 || continuePageLoop2); y += int(gl_WorkGroupSize.y)) {
-
-            ivec2 texelsXY = ivec2(x, y) * texelsPerPage;
-
-            // ivec2 physicalPageCoords = ivec2(
-            //     convertVirtualCoordsToPhysicalCoords(ivec2(x, y), maxResidencyTableIndex)
-            // );
-
-            vec2 physicalPixelCoords = vec2(
-                ceil(convertVirtualCoordsToPhysicalCoords(texelsXY, ivec2(numPixelsXY) - ivec2(1)))
-            );
-            
-            ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
-
-            //uint pageStatus = uint(imageLoad(currFramePageResidencyTable, ivec2(x, y)).r);
-            uint pageStatus = currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].frameMarker;
-            unpackPageIdAndDirtyBit(currFramePageResidencyTable[physicalPageCoords.x + physicalPageCoords.y * residencyTableSize.x].info, pageId, pageDirtyBit);
-            // if (pageStatus == frameCount) {
-            // //if (pageDirtyBit > 0) {
-            //     atomicMin(minLocalPageX, x);
-            //     atomicMin(minLocalPageY, y);
-            //     atomicMax(maxLocalPageX, x + 1);
-            //     atomicMax(maxLocalPageY, y + 1);
-            // }
-            if (pageStatus > 0) {
-                atomicOr(atLeastOneResidentPage, 1);
-                continuePageLoop1 = false;
-            }
-
-            if (pageDirtyBit > 0 && pageStatus == frameCount) {
-            //if (pageStatus == frameCount) {
-            //if (true) {
-                atomicExchange(pageGroupIsValid, frameCount);
-                continuePageLoop2 = false;
-            }
-        }
-    }
-
-    barrier();
 
     if (gl_LocalInvocationID == 0) {
-        pageGroupCorners[0] = ivec2(minLocalPageX, minLocalPageY);
-        pageGroupCorners[1] = ivec2(minLocalPageX, maxLocalPageY);
-        pageGroupCorners[2] = ivec2(maxLocalPageX, minLocalPageY);
-        pageGroupCorners[3] = ivec2(maxLocalPageX, maxLocalPageY);
+        pageGroupCorners[0] = ivec2(minPageX, minPageY);
+        pageGroupCorners[1] = ivec2(minPageX, maxPageY);
+        pageGroupCorners[2] = ivec2(maxPageX, minPageY);
+        pageGroupCorners[3] = ivec2(maxPageX, maxPageY);
 
         pageGroupCornersTexCoords[0] = vec2(pageGroupCorners[0]) / vec2(maxResidencyTableIndex);
         pageGroupCornersTexCoords[1] = vec2(pageGroupCorners[1]) / vec2(maxResidencyTableIndex);
@@ -223,9 +137,9 @@ void main() {
     barrier();
 
     // Invalid page group (all pages uncommitted)
-    if (atLeastOneResidentPage == 0 || atLeastOneResidentPage == 0) {
-        return;
-    }
+    // if (atLeastOneResidentPage == 0 || atLeastOneResidentPage == 0) {
+    //     return;
+    // }
 
     // Defines local work group from layout local size tag above
     uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
@@ -259,78 +173,12 @@ void main() {
         // due to its conservative algorithm)
         if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
             //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
-            atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
+            //atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
+            outDrawCalls[drawIndex].instanceCount = 1;
 
             // Mark this page group as valid for this frame
             //atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
-            atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
+            // atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
         }
-
-        // vec2 vmin = corners[0].xy;
-        // vec2 vmax = corners[0].xy;
-
-        // for (int i = 1; i < 8; ++i) {
-        //     vmin = vec2(min(vmin.x, corners[i].x), min(vmin.y, corners[i].y));
-        //     vmax = vec2(max(vmax.x, corners[i].x), max(vmax.y, corners[i].y));
-        // }
-
-        // vmin = clamp(vmin, 0.0, 1.0);
-        // vmax = clamp(vmax, 0.0, 1.0);
-
-        // Represents the texel coordinate corners of the bounding box
-        // texCorners[0] = vec2(vmin.x, vmin.y);
-        // texCorners[1] = vec2(vmin.x, vmax.y);
-        // texCorners[2] = vec2(vmax.x, vmin.y);
-        // texCorners[3] = vec2(vmax.x, vmax.y);
-
-        // ivec2 vminPage = ivec2(vmin * vec2(maxResidencyTableIndex));
-        // ivec2 vmaxPage = ivec2(vmax * vec2(maxResidencyTableIndex));
-
-        // // Check if any part of the page is within the bounding box
-        // if (isPageGroupWithinBounds(pageGroupCorners[0], vminPage, vmaxPage) ||
-        //     isPageGroupWithinBounds(pageGroupCorners[1], vminPage, vmaxPage) ||
-        //     isPageGroupWithinBounds(pageGroupCorners[2], vminPage, vmaxPage) ||
-        //     isPageGroupWithinBounds(pageGroupCorners[3], vminPage, vmaxPage)) {
-
-        //     //atomicExchange(outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount, 1);
-        //     outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
-        //     continue;
-        // }
-
-        // vec2 cornerMin = vec2(minLocalPageX, minLocalPageY);
-        // vec2 cornerMax = vec2(maxLocalPageX, maxLocalPageY);
-
-        // Check if any part of the bounding box is within the page group
-        // for (int j = 0; j < 4; ++j) {
-        //     texCoords = texCorners[j].xy;
-        //     currentTileCoords = texCoords * vec2(maxPageGroupIndex);
-
-        //     currentTileCoordsLower = vec2(
-        //         floor(currentTileCoords.x), floor(currentTileCoords.y)
-        //     );
-
-        //     currentTileCoordsUpper = vec2(
-        //         ceil(currentTileCoords.x), ceil(currentTileCoords.y)
-        //     );
-
-        //     // if (isPageGroupWithinBounds(currentTileCoordsLower, cornerMin, cornerMax) ||
-        //     //     isPageGroupWithinBounds(currentTileCoordsUpper, cornerMin, cornerMax)) {
-
-        //     //     uint prev = atomicExchange(outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount, 1);
-        //     //     break;
-        //     // }
-
-        //     // Check if the corner lies within this tile
-        //     if (currentTileCoordsLower == basePageGroup || currentTileCoordsUpper == basePageGroup) {
-        //         //uint prev = atomicExchange(outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount, 1);
-        //         outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
-
-        //         // if (prev == 0) {
-        //         //     atomicAdd(outputDrawCalls, 1);
-        //         // }
-
-        //         break;
-        //     }
-        // }
     }
 }
