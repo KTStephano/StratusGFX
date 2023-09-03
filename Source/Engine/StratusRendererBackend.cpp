@@ -367,7 +367,7 @@ const Pipeline *RendererBackend::GetCurrentShader() const {
 
 void RendererBackend::RecalculateCascadeData_() {
     const u32 cascadeResolutionXY = frame_->vsmc.cascadeResolutionXY;
-    const u32 numCascades = frame_->vsmc.numCascades;
+    const u32 numCascades = frame_->vsmc.cascades.size();
     if (frame_->vsmc.regenerateFbo || !frame_->vsmc.fbo.Valid()) {
         STRATUS_LOG << "Regenerating Cascade Data" << std::endl;
 
@@ -1229,7 +1229,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     
     // state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewSample);
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.projectionViewRender);
+    state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->vsmc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
@@ -1267,7 +1267,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmMarkPages->SetUint("sunChanged", frame_->vsmc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
-    state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.projectionViewRender);
+    state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
 
     frame_->vsmc.numPagesToCommit.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
@@ -1314,7 +1314,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     // state_.vsmCull->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewRender);
     // state_.vsmCull->SetMat4("invCascadeProjectionView", frame_->vsmc.invProjectionViewRender);
     // state_.vsmCull->SetMat4("vsmProjectionView", frame_->vsmc.projectionViewSample);
-    state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.projectionViewRender);
+    state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmCull->SetUint("frameCount", frameCount);
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->vsmc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->vsmc.numPageGroupsY);
@@ -1350,7 +1350,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 }
 
 void RendererBackend::RenderCSMDepth_() {
-    if (frame_->vsmc.numCascades > state_.csmDepth.size()) {
+    if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
         throw std::runtime_error("Max cascades exceeded (> 6)");
     }
 
@@ -1649,7 +1649,7 @@ void RendererBackend::RenderCSMDepth_() {
         const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
         const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
-        const glm::mat4 invProjectionView = frame_->vsmc.invProjectionViewRender;
+        const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
         const glm::mat4 vsmProjectionView = frame_->vsmc.projectionViewSample;
 
         // for (int i = 0; i < 128; ++i) {
@@ -1685,7 +1685,7 @@ void RendererBackend::RenderCSMDepth_() {
         glm::mat4 translate(1.0f);
         matTranslate(translate, glm::vec3(tx, ty, 0.0f));
         
-        const glm::mat4 cascadeOrthoProjection = csm.projectionViewRender;
+        const glm::mat4 cascadeOrthoProjection = csm.cascades[0].projectionViewRender;
         //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
         // cascadeOrthoProjectionModified[3] = glm::vec4(
         //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
@@ -1723,7 +1723,7 @@ void RendererBackend::RenderCSMDepth_() {
         state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
         state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
         state_.vsmClear->SetUint("frameCount", frameCount);
-        state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.projectionViewRender);
+        state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
         state_.vsmClear->BindTextureAsImage(
             "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
         frame_->vsmc.currFramePageResidencyTable.BindBase(
@@ -1760,10 +1760,10 @@ void RendererBackend::RenderCSMDepth_() {
         // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
         // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
         auto& csm = frame_->vsmc;
-        shader->SetMat4("shadowMatrix", csm.projectionViewRender);
+        shader->SetMat4("shadowMatrix", csm.cascades[0].projectionViewRender);
         shader->SetUint("numPagesXY", (u32)(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
         shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
-        shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.projectionViewRender);
+        shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
         shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
 
         CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
@@ -3149,7 +3149,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
 
     s->SetVec3("infiniteLightDirection", direction);    
     s->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    for (i32 i = 0; i < frame_->vsmc.numCascades; ++i) {
+    for (i32 i = 0; i < frame_->vsmc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->vsmc.projectionViewSample);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);

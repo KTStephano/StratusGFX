@@ -195,14 +195,17 @@ namespace stratus {
         bool regenerateFbo;    
     };
 
+    struct RendererVsmCascadeData {
+        glm::mat4 projectionViewRender;
+        glm::mat4 invProjectionViewRender;
+    };
+
     struct RendererVsmContainer {
-        i32 numCascades;
         // Contains one list of commands per clip cascade in a single buffer
         GpuCommandReceiveManagerPtr drawCommandsFrustumCulled;
         GpuCommandReceiveManagerPtr drawCommandsFinal;
         // Use during shadow map rendering
-        glm::mat4 projectionViewRender;
-        glm::mat4 invProjectionViewRender;
+        std::vector<RendererVsmCascadeData> cascades;
         // Use during shadow map sampling
         glm::mat4 projectionViewSample;
         glm::vec3 cascadePositionLightSpace;

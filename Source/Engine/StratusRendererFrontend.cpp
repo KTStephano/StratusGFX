@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.numCascades = 1;
+        frame_->vsmc.cascades.resize(1);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
@@ -570,7 +570,7 @@ namespace stratus {
 
         const f32 cascadeResReciprocal = 1.0f / requestedCascadeResolutionXY;
         const f32 cascadeDelta = cascadeResReciprocal;
-        const usize numCascades = frame_->vsmc.numCascades;
+        const usize numCascades = frame_->vsmc.cascades.size();
 
         frame_->vsmc.worldLightCamera = CameraPtr(new Camera(false, false));
         auto worldLightCamera = frame_->vsmc.worldLightCamera;
@@ -686,7 +686,8 @@ namespace stratus {
             transposeLightWorldTransform[2],
             glm::vec4(-sk, 1.0f));
 
-        const glm::mat4 cascadeSampleViewTransform2 = glm::mat4(transposeLightWorldTransform[0],
+        const glm::mat4 cascadeSampleViewTransform2 = glm::mat4(
+            transposeLightWorldTransform[0],
             transposeLightWorldTransform[1],
             transposeLightWorldTransform[2],
             glm::vec4(-glm::vec3(0.0f), 1.0f));
@@ -702,17 +703,14 @@ namespace stratus {
         // This results in values between [-1, 1]
         const float xycomponent = 2.0f / dk;
         const float zcomponent = 1.0f / 1024.0f; //1.0f / (maxZ - minZ);
-        const glm::mat4 cascadeOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f),
-            glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
-            glm::vec4(0.0f, 0.0f, zcomponent, shadowDepthOffset),
-            glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
         //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
         //                                       glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
         //                                       glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // // // Gives us x, y values between [0, 1]
-        const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(xycomponent, 0.0f, 0.0f, 0.0f),
+        const glm::mat4 cascadeTexelOrthoProjection(glm::vec4(
+            xycomponent, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, xycomponent, 0.0f, 0.0f),
             glm::vec4(0.0f, 0.0f, zcomponent, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -723,9 +721,20 @@ namespace stratus {
         // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
         //
         // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
-        frame_->vsmc.projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
         frame_->vsmc.projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
-        frame_->vsmc.invProjectionViewRender = glm::inverse(frame_->vsmc.projectionViewRender);
+
+        for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+            const float cascadeXYComponent = xycomponent * (1.0f / f32(BITMASK_POW2(cascade)));
+
+            const glm::mat4 cascadeOrthoProjection(
+                glm::vec4(cascadeXYComponent, 0.0f, 0.0f, 0.0f),
+                glm::vec4(0.0f, cascadeXYComponent, 0.0f, 0.0f),
+                glm::vec4(0.0f, 0.0f, zcomponent, shadowDepthOffset),
+                glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+            frame_->vsmc.cascades[cascade].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
+            frame_->vsmc.cascades[cascade].invProjectionViewRender = glm::inverse(frame_->vsmc.cascades[cascade].projectionViewRender);
+        }
     }
 
     // void RendererFrontend::UpdateCascadeData_() {
@@ -1248,14 +1257,14 @@ namespace stratus {
         viscullCsms_->Bind();
 
         auto& csm = frame_->vsmc;
-        csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, csm.numCascades);
-        csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, csm.numCascades);
+        csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, csm.cascades.size());
+        csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, csm.cascades.size());
 
         // Ensure cascade draw command buffers have enough space
-        for (usize i = 0; i < frame_->vsmc.numCascades; ++i) {
+        for (usize i = 0; i < frame_->vsmc.cascades.size(); ++i) {
             //csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
             
-            viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.projectionViewRender);
+            viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.cascades[i].projectionViewRender);
         }
 
         // Dynamic pbr
@@ -1291,7 +1300,7 @@ namespace stratus {
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
     ) {
 
-        pipeline.SetUint("numCascades", (u32)frame_->vsmc.numCascades);
+        pipeline.SetUint("numCascades", (u32)frame_->vsmc.cascades.size());
 
         for (auto& [cull, buffer] : commands) {
             if (buffer->NumDrawCommands() == 0) continue;
@@ -1308,7 +1317,7 @@ namespace stratus {
             buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_CSM_IN_DRAW_CALLS_01_BINDING_POINT);
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_CSM_IN_DRAW_CALLS_23_BINDING_POINT);
 
-            for (usize cascade = 0; cascade < frame_->vsmc.numCascades; ++cascade) {
+            for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
                 auto receivePtr = selectPrimary(cull);
                 receivePtr->GetCommandBuffer().BindBase(
                     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 
