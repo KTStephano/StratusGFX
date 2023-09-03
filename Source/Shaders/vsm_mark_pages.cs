@@ -30,11 +30,11 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
 //     int renderPageIndices[];
 // };
 
-layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) buffer block3 {
+layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block3 {
     PageResidencyEntry prevFramePageResidencyTable[];
 };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block5 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block5 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
@@ -93,17 +93,23 @@ void main() {
     PageResidencyEntry prev = prevFramePageResidencyTable[tileIndex];
     PageResidencyEntry current = currFramePageResidencyTable[tileIndex];
 
+    uint prevPageId;
+    uint prevDirtyBit;
+    unpackPageIdAndDirtyBit(prev.info, prevPageId, prevDirtyBit);
+
     if (prev.frameMarker > 0 && current.frameMarker != frameCount) {
-        //imageAtomicExchange(currFramePageResidencyTable, tileCoords, prev);
-        //imageAtomicOr(currFramePageResidencyTable, tileCoords, prev);
-        //prev.info = prev.info | sunChanged;// & VSM_PAGE_ID_MASK; // Get rid of the dirty bit
         current = prev;
         currFramePageResidencyTable[tileIndex] = prev;
     }
 
     uint pageId;
     uint dirtyBit;
-    unpackPageIdAndDirtyBit(currFramePageResidencyTable[tileIndex].info, pageId, dirtyBit);
+    unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
+
+    if (prevPageId == pageId && prevDirtyBit == 1 && current.frameMarker == frameCount) {
+        dirtyBit = 1;
+        current.info |= dirtyBit;
+    }
 
     // Take the physical coords and convert them to virtual coords for the current frame
     ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
@@ -130,24 +136,32 @@ void main() {
         else {
             // Page was requested this frame but is not currently resident
             if (prev.frameMarker == 0) {
+                dirtyBit = 1;
                 current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
                 requestPageAlloc(tileCoords); 
             }
             else if (sunChanged > 0) {
+                dirtyBit = 1;
                 current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
             }
             else if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                dirtyBit = 0;
                 current.info = current.info & VSM_PAGE_ID_MASK;
             }
 
-            prevFramePageResidencyTable[tileIndex] = current;
+            //current.info = current.info & VSM_PAGE_ID_MASK;
+
             currFramePageResidencyTable[tileIndex] = current;
+
+            prev = current;
+            prev.info &= VSM_PAGE_ID_MASK;
+            prevFramePageResidencyTable[tileIndex] = prev;
         }
     }
 
     // Do a final check so that we can determine if this page needs
     // to be processed by culling and later rendering
-    unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
+    // unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
 
     uint pageGroupMarker = 0;
 

@@ -93,45 +93,40 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
 }
 
 vec2 roundIndex(in vec2 index) {
-    return index - vec2(1.0);
+    return index;
+    //return index - vec2(1.0);
     //return ceil(index) - vec2(1.0);
     //return round(index) - vec2(1.0);
     //return floor(index);
 }
 
 // vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
-//     in ivec2 virtualPixelCoords, 
-//     in ivec2 maxVirtualIndex, 
-//     in mat4 invProjectionView
+//     in ivec2 virtualCoords, 
+//     in ivec2 maxVirtualIndex
 // ) {
     
 //     // We need to convert our virtual texel to a physical texel
-//     vec2 virtualTexCoords = vec2(virtualPixelCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
+//     vec2 virtualTexCoords = vec2(virtualCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
+
 //     // Set up NDC using -1, 1 tex coords and -1 for the z coord
 //     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
-//     // Convert to world space
-//     vec4 worldPosition = invProjectionView * ndc;
-//     // Perspective divide
-//     worldPosition.xyz /= worldPosition.w;
 
-//     mat4 viewProj = vsmClipMap0ProjectionViewSample;
+//     // Subtract off the translation since the orientation should be
+//     // the same for all vsm clip maps - just translation changes
+//     vec2 ndcOrigin = ndc.xy - vsmClipMap0ProjectionView[3].xy;
+    
+//     // Convert from [-1, 1] to [0, 1]
+//     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
 
-//     vec4 physicalTexCoords = viewProj * vec4(worldPosition.xyz, 1.0);
-//     // Perspective divide
-//     physicalTexCoords.xy = physicalTexCoords.xy / physicalTexCoords.w;
-//     // Convert from range [-1, 1] to [0, 1]
-//     physicalTexCoords.xy = physicalTexCoords.xy * 0.5 + vec2(0.5);
-
-//     return wrapIndex(physicalTexCoords.xy * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+//     return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
 // }
-
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in ivec2 virtualCoords, 
     in ivec2 maxVirtualIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
-    vec2 virtualTexCoords = vec2(virtualCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
+    vec2 virtualTexCoords = vec2(virtualCoords) / vec2(maxVirtualIndex);
 
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
@@ -159,13 +154,32 @@ vec2 convertVirtualCoordsToPhysicalCoords(
     return roundIndex(wrapped);
 }
 
+// vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
+//     in ivec2 physicalCoords, 
+//     in ivec2 maxPhysicalIndex
+// ) {
+    
+//     // We need to convert our virtual texel to a physical texel
+//     vec2 physicalTexCoords = vec2(physicalCoords + ivec2(1)) / vec2(maxPhysicalIndex + ivec2(1));
+
+//     // Set up NDC using -1, 1 tex coords and -1 for the z coord
+//     vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
+
+//     // Add back the translation component to convert physical ndc to relative virtual ndc
+//     vec2 ndcRelative = ndc.xy + vsmClipMap0ProjectionView[3].xy;
+    
+//     // Convert from [-1, 1] to [0, 1]
+//     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
+
+//     return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + ivec2(1)));
+// }
 vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     in ivec2 physicalCoords, 
     in ivec2 maxPhysicalIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
-    vec2 physicalTexCoords = vec2(physicalCoords + ivec2(1)) / vec2(maxPhysicalIndex + ivec2(1));
+    vec2 physicalTexCoords = vec2(physicalCoords) / vec2(maxPhysicalIndex);
 
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
     vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);

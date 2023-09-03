@@ -1265,10 +1265,6 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmMarkPages->SetUint("frameCount", frameCount);
 
-    //state_.vsmMarkPages->BindTextureAsImage("prevFramePageResidencyTable", frame_->csc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    //state_.vsmMarkPages->BindTextureAsImage("currFramePageResidencyTable", frame_->csc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    //frame_->csc.prevFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    //frame_->csc.currFramePageResidencyTable.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
     state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmMarkPages->SetUint("sunChanged", frame_->csc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
     state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->csc.cascades[0].projectionViewRender);
@@ -1417,7 +1413,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 8;
+    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX;// / 8;
 
     // STRATUS_LOG << frame_->csc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1446,6 +1442,39 @@ void RendererBackend::RenderCSMDepth_() {
     frame_->csc.backPageGroupUpdateQueue->Clear();
 
     // Now compute a page group x/y for glViewport
+    // while (frame_->csc.pageGroupUpdateQueue->Size() > 0) {
+    //     const auto xy = frame_->csc.pageGroupUpdateQueue->PopFront();
+    //     const auto x = xy.first;
+    //     const auto y = xy.second;
+
+    //     ++numPageGroupsToRender;
+
+    //     auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+    //     auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+
+    //     auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+    //     auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+
+    //     bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
+    //     bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
+
+    //     if (failedCheckX || failedCheckY) {
+    //         frame_->csc.backPageGroupUpdateQueue->PushFront(x, y);
+
+    //         const auto differenceX = (newMaxPageGroupX - newMinPageGroupX) - maxPageGroupsToUpdate;
+    //         const auto differenceY = (newMaxPageGroupY - newMinPageGroupY) - maxPageGroupsToUpdate;
+
+    //         if (newMinPageGroupX < )
+
+    //         continue;
+    //     }
+
+    //     minPageGroupX = newMinPageGroupX;
+    //     minPageGroupY = newMinPageGroupY;
+
+    //     maxPageGroupX = newMaxPageGroupX;
+    //     maxPageGroupY = newMaxPageGroupY;
+    // }
     while (frame_->csc.pageGroupUpdateQueue->Size() > 0) {
         const auto xy = frame_->csc.pageGroupUpdateQueue->PopFront();
         const auto x = xy.first;
@@ -1458,11 +1487,6 @@ void RendererBackend::RenderCSMDepth_() {
 
         auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
         auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
-
-        // if ((newMaxPageGroupX - newMinPageGroupX) * (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate) {
-        //     frame_->csc.pageGroupUpdateQueue.PushFront(x, y);
-        //     break;
-        // }
 
         const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
         const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
@@ -1502,20 +1526,85 @@ void RendererBackend::RenderCSMDepth_() {
             --minPageGroupY;
         }
 
-        if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+        if (maxPageGroupX < frame_->csc.numPageGroupsX) {
             ++maxPageGroupX;
         }
-        if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+        if (maxPageGroupY < frame_->csc.numPageGroupsY) {
             ++maxPageGroupY;
         }
+
+        // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
+        //     --minPageGroupX;
+        // }
+
+        // if (minPageGroupY % 2 != 0 && minPageGroupY > 0) {
+        //     --minPageGroupY;
+        // }
+
+        // if (maxPageGroupX % 2 != 0 && maxPageGroupX < frame_->csc.numPageGroupsX) {
+        //     ++maxPageGroupX;
+        // }
+
+        // if (maxPageGroupY % 2 != 0 && maxPageGroupY < frame_->csc.numPageGroupsY) {
+        //     ++maxPageGroupY;
+        // }
 
         u32 sizeX = maxPageGroupX - minPageGroupX;
         u32 sizeY = maxPageGroupY - minPageGroupY;
         const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
-        // Constrain the update window to be a power of 2
+        // Constrain to be a perfect square
+        // for (int i = 0; sizeX < maxPageGroupsToUpdate; ++i) {
+        //     if (i % 2 == 0 && minPageGroupX > 0) {
+        //         --minPageGroupX;
+        //     }
+        //     else if (maxPageGroupX < frame_->csc.numPageGroupsX) {
+        //         ++maxPageGroupX;
+        //     }
+
+        //     sizeX = maxPageGroupX - minPageGroupX;
+        // }
+
+        // for (int i = 0; sizeY < maxPageGroupsToUpdate; ++i) {
+        //     if (i % 2 == 0 && minPageGroupY > 0) {
+        //         --minPageGroupY;
+        //     }
+        //     else if (maxPageGroupY < frame_->csc.numPageGroupsY) {
+        //         ++maxPageGroupY;
+        //     }
+
+        //     sizeY = maxPageGroupY - minPageGroupY;
+        // }
+
+        // if (sizeX < maxPageGroupsToUpdate) {
+        //     auto difference = maxPageGroupsToUpdate - sizeX;
+        //     maxPageGroupX = (maxPageGroupX + difference) < frame_->csc.numPageGroupsX ? maxPageGroupX + difference : frame_->csc.numPageGroupsX;
+
+        //     sizeX = maxPageGroupX - minPageGroupX;
+        //     if (sizeX < maxPageGroupsToUpdate) {
+        //         difference = maxPageGroupsToUpdate - sizeX;
+        //         minPageGroupX -= difference;
+
+        //         sizeX = maxPageGroupX - minPageGroupX;
+        //     }
+        // }
+
+        // if (sizeY < maxPageGroupsToUpdate) {
+        //     auto difference = maxPageGroupsToUpdate - sizeY;
+        //     maxPageGroupY = (maxPageGroupY + difference) < frame_->csc.numPageGroupsY ? maxPageGroupY + difference : frame_->csc.numPageGroupsY;
+
+        //     sizeY = maxPageGroupY - minPageGroupY;
+        //     if (sizeY < maxPageGroupsToUpdate) {
+        //         difference = maxPageGroupsToUpdate - sizeY;
+        //         minPageGroupY -= difference;
+
+        //         sizeY = maxPageGroupY - minPageGroupY;
+        //     }
+        // }
+
+        // Constrain the update window to be divisble by 2
         // if (sizeX % 2 != 0) {
-        //     if (maxPageGroupX < (frame_->csc.numPageGroupsX - 1)) {
+        //     if (maxPageGroupX < frame_->csc.numPageGroupsX) {
         //         ++maxPageGroupX;
         //     }
         //     else if (minPageGroupX > 0) {
@@ -1526,7 +1615,7 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         // if (sizeY % 2 != 0) {
-        //     if (maxPageGroupY < (frame_->csc.numPageGroupsY - 1)) {
+        //     if (maxPageGroupY < frame_->csc.numPageGroupsY) {
         //         ++maxPageGroupY;
         //     }
         //     else if (minPageGroupY > 0) {
@@ -1535,6 +1624,8 @@ void RendererBackend::RenderCSMDepth_() {
 
         //     sizeY = maxPageGroupY - minPageGroupY;
         // }
+
+        STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 
         //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
 
@@ -1704,8 +1795,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();

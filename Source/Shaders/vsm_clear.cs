@@ -16,7 +16,7 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block1 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block1 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
@@ -53,7 +53,8 @@ shared ivec2 vsmMaxIndex;
 // }
 
 void clearPixel(in vec2 physicalPixelCoords) {
-    ivec2 physicalPageCoordsRounded = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+    //ivec2 physicalPageCoordsRounded = wrapIndex(ivec2(floor(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY))), ivec2(numPagesXY - 1));
+    ivec2 physicalPageCoordsRounded = ivec2(floor(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
 
     uint physicalPageIndex = physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x;
 
@@ -78,11 +79,11 @@ void clearPixel(in vec2 physicalPixelCoords) {
 
             uint prev = atomicAdd(currFramePageResidencyTable[physicalPageIndex].info, 1);
 
-            unpackPageIdAndDirtyBit(
-                prev,
-                pageId,
-                dirtyBit
-            );
+            // unpackPageIdAndDirtyBit(
+            //     prev,
+            //     pageId,
+            //     dirtyBit
+            // );
 
             // if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE || dirtyBit == 0) {
             //     atomicAnd(currFramePageResidencyTable[physicalPageIndex].info, VSM_PAGE_ID_MASK);
@@ -109,8 +110,12 @@ void main() {
         vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);
 
         clearPixel(physicalPixelCoordsLower);
-        // if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
-        //     clearPixel(physicalPixelCoordsUpper);
-        // }
+        // clearPixel(physicalPixelCoordsLower + vec2(1, 0));
+        // clearPixel(physicalPixelCoordsLower + vec2(-1, 0));
+        // clearPixel(physicalPixelCoordsLower + vec2(0, 1));
+        // clearPixel(physicalPixelCoordsLower + vec2(0, -1));
+        if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
+            clearPixel(physicalPixelCoordsUpper);
+        }
     }
 }

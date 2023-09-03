@@ -34,7 +34,7 @@ layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) readonly buffe
     PageResidencyEntry prevFramePageResidencyTable[];
 };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block4 {
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block4 {
     PageResidencyEntry currFramePageResidencyTable[];
 };
 
@@ -70,7 +70,11 @@ void updateResidencyStatus(in ivec2 coords) {
     uint prevDirtyBit;
     unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
 
-    uint dirtyBit = prevPageId != pageId ? 1 : prevDirtyBit; 
+    // if (prevDirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+    //     prevDirtyBit = 0;
+    // }
+
+    uint dirtyBit = prevPageId != pageId ? 1 : 0; 
     currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
 }
 
