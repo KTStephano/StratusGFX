@@ -70,11 +70,11 @@ void updateResidencyStatus(in ivec2 coords) {
     uint prevDirtyBit;
     unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
 
-    // if (prevDirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
-    //     prevDirtyBit = 0;
-    // }
+    if (prevDirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+        prevDirtyBit = 0;
+    }
 
-    uint dirtyBit = prevPageId != pageId ? 1 : 0; 
+    uint dirtyBit = prevPageId != pageId ? 1 : prevDirtyBit; 
     currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
 }
 

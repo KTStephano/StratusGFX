@@ -106,10 +106,10 @@ void main() {
     uint dirtyBit;
     unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
 
-    if (prevPageId == pageId && prevDirtyBit == 1 && current.frameMarker == frameCount) {
-        dirtyBit = 1;
-        current.info |= dirtyBit;
-    }
+    // if (prevPageId == pageId && prevDirtyBit > 0 && current.frameMarker == frameCount) {
+    //     dirtyBit = 1;
+    //     current.info |= dirtyBit;
+    // }
 
     // Take the physical coords and convert them to virtual coords for the current frame
     ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
@@ -151,6 +151,7 @@ void main() {
 
             //current.info = current.info & VSM_PAGE_ID_MASK;
 
+            // prevFramePageResidencyTable[tileIndex] = current;
             currFramePageResidencyTable[tileIndex] = current;
 
             prev = current;

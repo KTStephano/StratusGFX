@@ -1413,7 +1413,7 @@ void RendererBackend::RenderCSMDepth_() {
     u32 minPageGroupY = frame_->csc.numPageGroupsY + 1;
     u32 maxPageGroupX = 0;
     u32 maxPageGroupY = 0;
-    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->csc.numPageGroupsX / 8;
 
     // STRATUS_LOG << frame_->csc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1603,29 +1603,29 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         // Constrain the update window to be divisble by 2
-        // if (sizeX % 2 != 0) {
-        //     if (maxPageGroupX < frame_->csc.numPageGroupsX) {
-        //         ++maxPageGroupX;
-        //     }
-        //     else if (minPageGroupX > 0) {
-        //         --minPageGroupX;
-        //     }
+        if (sizeX % 2 != 0) {
+            if (maxPageGroupX < frame_->csc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            else if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
 
-        //     sizeX = maxPageGroupX - minPageGroupX;
-        // }
+            sizeX = maxPageGroupX - minPageGroupX;
+        }
 
-        // if (sizeY % 2 != 0) {
-        //     if (maxPageGroupY < frame_->csc.numPageGroupsY) {
-        //         ++maxPageGroupY;
-        //     }
-        //     else if (minPageGroupY > 0) {
-        //         --minPageGroupY;
-        //     }
+        if (sizeY % 2 != 0) {
+            if (maxPageGroupY < frame_->csc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
+            else if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
 
-        //     sizeY = maxPageGroupY - minPageGroupY;
-        // }
+            sizeY = maxPageGroupY - minPageGroupY;
+        }
 
-        STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
+        //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 
         //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
 
@@ -1795,8 +1795,8 @@ void RendererBackend::RenderCSMDepth_() {
         // );
         glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-        // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
         //}
 
         UnbindShader_();
