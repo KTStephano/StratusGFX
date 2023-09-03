@@ -47,12 +47,21 @@ struct PageResidencyEntry {
 uniform mat4 vsmClipMap0ProjectionView;
 // uniform int numPagesXY;
 
+#define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                             \
+    type vsmConvertClip0ToClipN(in type original, in int clipIndex) { \
+        return original * type(1.0 / float(BITMASK_POW2(clipIndex))); \
+    }
+
+VSM_CONVERT_CLIP0_TO_CLIP_N(vec2)
+VSM_CONVERT_CLIP0_TO_CLIP_N(vec3)
+VSM_CONVERT_CLIP0_TO_CLIP_N(vec4)
+
 vec3 vsmCalculateClipValueFromWorldPos(in mat4 viewProj, in vec3 worldPos, in int clipMapIndex) {
     vec4 result = viewProj * vec4(worldPos, 1.0);
 
     // Accounts for the fact that each clip map covers double the range of the
     // previous
-    result.xy = result.xy * vec2(1.0 / float(BITMASK_POW2(clipMapIndex)));
+    result.xy = vsmConvertClip0ToClipN(result.xy, clipMapIndex);
 
     return result.xyz;
 }

@@ -4,6 +4,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_sparse_texture2 : require
 
 #include "common.glsl"
+#include "vsm_common.glsl"
 
 #define NUM_CASCADES 4
 
@@ -11,7 +12,7 @@ STRATUS_GLSL_VERSION
 uniform sampler2DRect structureBuffer;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
 uniform float maxCascadeDepth[4];
-uniform mat4 cascade0ToCascadeK[NUM_CASCADES - 1];
+//uniform mat4 cascade0ToCascadeK[NUM_CASCADES - 1];
 // This should be something like 32x32 or 64x64
 uniform sampler2D noiseTexture;
 uniform float minAtmosphereDepth;            // dmin
@@ -141,7 +142,8 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
 
             // Calculate sampling location - remember p1 and p2 are in cascade 0 space so we need to transform
             // them to cascade current space
-            vec4 shadowCoords = cascade0ToCascadeK[cascade - 1] * lerp(p1, p2, u);
+            //vec4 shadowCoords = cascade0ToCascadeK[cascade - 1] * lerp(p1, p2, u);
+            vec4 shadowCoords = vsmConvertClip0ToClipN(lerp(p1, p2, u), cascade);
             atmosphere += weight * sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
             weight += deltaW;
         }

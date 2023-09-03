@@ -20,6 +20,7 @@
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
 #include "StratusTypes.h"
+#include "StratusRendererData.h"
 
 namespace stratus {
     struct RendererParams {
@@ -93,8 +94,8 @@ namespace stratus {
             );
         void UpdateCascadeVisibility_(
             Pipeline& pipeline,
-            const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& selectPrimary,
-            const std::function<GpuCommandReceiveBufferPtr(const RendererCascadeData&, const RenderFaceCulling&)>& selectSecondary,
+            const std::function<GpuCommandReceiveBufferPtr (const RenderFaceCulling&)>& selectPrimary,
+            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectSecondary,
             std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
         );
         void UpdatePrevFrameModelTransforms_();
