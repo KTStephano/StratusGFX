@@ -215,14 +215,14 @@ namespace stratus {
         Texture vsm;
         GpuBuffer prevFramePageResidencyTable;
         GpuBuffer currFramePageResidencyTable;
-        UnsafePtr<VirtualIndex2DUpdateQueue> pageGroupUpdateQueue;
-        UnsafePtr<VirtualIndex2DUpdateQueue> backPageGroupUpdateQueue;
+        UnsafePtr<std::vector<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
+        UnsafePtr<std::vector<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
         u32 numPageGroupsX = 32;
         u32 numPageGroupsY = 32;
         std::vector<glm::mat4> tiledProjectionMatrices;
-        GpuBuffer numDrawCalls;
+        // GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
         GpuBuffer pageGroupsToRender;

@@ -107,6 +107,10 @@ void main() {
 
     vec3 worldPosition = worldPositionFromDepth(depthTexCoords, depth, invProjectionView);
 
+    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPosition);
+
+    if (cascadeIndex >= vsmNumCascades) return;
+
     // Convert world position to a coordinate from the light's perspective
     // vec4 coords = cascadeProjectionView * vec4(worldPosition, 1.0);
     // vec2 cascadeTexCoords = coords.xy / coords.w; // Perspective divide

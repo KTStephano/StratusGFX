@@ -43,9 +43,16 @@ struct PageResidencyEntry {
     uint info;
 };
 
+struct ClipMapBoundingBox {
+    int minPageX;
+    int minPageY;
+    int maxPageX;
+    int maxPageY;
+};
+
 // For first clip map - rest are derived from this
 uniform mat4 vsmClipMap0ProjectionView;
-// uniform int numPagesXY;
+uniform uint vsmNumCascades;
 
 #define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                             \
     type vsmConvertClip0ToClipN(in type original, in int clipIndex) { \
@@ -77,6 +84,20 @@ vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapInd
     vec3 result = vsmCalculateRelativeClipValueFromWorldPos(worldPos, clipMapIndex);
 
     return result - vsmClipMap0ProjectionView[3].xyz;
+}
+
+int vsmCalculateCascadeIndexFromWorldPos(in vec3 worldPos) {
+    vec2 ndc = vsmCalculateRelativeClipValueFromWorldPos(worldPos, 0).xy;
+
+    // This finds positive whole integer solutions to the equation:
+    //      ndc * (1 / 2^i) = 1
+    // where i is the cascade index
+    vec2 cascadeIndex = vec2(
+        ceil(log2(max(ceil(abs(ndc.x)), 1.0))),
+        ceil(log2(max(ceil(abs(ndc.y)), 1.0)))
+    );
+
+    return int(max(cascadeIndex.x, cascadeIndex.y));
 }
 
 // See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
