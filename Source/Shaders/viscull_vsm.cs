@@ -57,10 +57,7 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffe
 };
 
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer inputBlock5 {
-    int minPageX;
-    int minPageY;
-    int maxPageX;
-    int maxPageY;
+    ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
 shared ivec2 pageGroupCorners[4];
@@ -88,104 +85,77 @@ void main() {
     ivec2 basePageGroup = ivec2(gl_WorkGroupID.xy);
     uint basePageGroupIndex = basePageGroup.x + basePageGroup.y * numPageGroupsX;
 
-    if (minPageX > maxPageX || minPageY > maxPageY) {
-        return;
-    }
-
-    // if (gl_LocalInvocationID == 0) {
-    //     residencyTableSize = imageSize(currFramePageResidencyTable).xy;
-    //     maxResidencyTableIndex = residencyTableSize - ivec2(1.0);
-
-    //     pageCorners[0] = vec2(baseTileCoords) / vec2(maxResidencyTableIndex);
-    //     pageCorners[1] = vec2(baseTileCoords + ivec2(0, 1)) / vec2(maxResidencyTableIndex);
-    //     pageCorners[2] = vec2(baseTileCoords + ivec2(1, 0)) / vec2(maxResidencyTableIndex);
-    //     pageCorners[3] = vec2(baseTileCoords + ivec2(1, 1)) / vec2(maxResidencyTableIndex);
-
-    //     uint pageStatus = uint(imageLoad(currFramePageResidencyTable, baseTileCoords).r);
-    //     validPage = (pageStatus == frameCount);
-    // }
-
     ivec2 residencyTableSize = ivec2(numPagesXY, numPagesXY);
     ivec2 texelsPerPage = ivec2(numPixelsXY) / residencyTableSize;
     ivec2 maxResidencyTableIndex = residencyTableSize - ivec2(1);
     ivec2 pagesPerPageGroup = residencyTableSize / ivec2(numPageGroupsX, numPageGroupsY);
     ivec2 maxPageGroupIndex = ivec2(numPageGroupsX, numPageGroupsY) - ivec2(1);
 
-    // ivec2(2, 2) is so we can add a one page border to account for times when this
-    // virtual page group does not align perfectly with the physical page group
-    ivec2 baseStartPage = basePageGroup * pagesPerPageGroup;
-    //ivec2 baseEndPage = (basePageGroup + ivec2(2, 2)) * pagesPerPageGroup;
-    ivec2 baseEndPage = (basePageGroup + ivec2(1)) * pagesPerPageGroup;
-
-    // ivec2 startPage = baseStartPage - ivec2(1, 1);
-    // ivec2 endPage = baseEndPage + ivec2(1, 1);
-    ivec2 startPage = baseStartPage - ivec2(1);
-    ivec2 endPage = baseEndPage + ivec2(1);
-
-    if (gl_LocalInvocationID == 0) {
-        pageGroupCorners[0] = ivec2(minPageX, minPageY);
-        pageGroupCorners[1] = ivec2(minPageX, maxPageY);
-        pageGroupCorners[2] = ivec2(maxPageX, minPageY);
-        pageGroupCorners[3] = ivec2(maxPageX, maxPageY);
-
-        pageGroupCornersTexCoords[0] = vec2(pageGroupCorners[0]) / vec2(maxResidencyTableIndex);
-        pageGroupCornersTexCoords[1] = vec2(pageGroupCorners[1]) / vec2(maxResidencyTableIndex);
-        pageGroupCornersTexCoords[2] = vec2(pageGroupCorners[2]) / vec2(maxResidencyTableIndex);
-        pageGroupCornersTexCoords[3] = vec2(pageGroupCorners[3]) / vec2(maxResidencyTableIndex);
-    }
-
-    barrier();
-
-    // Invalid page group (all pages uncommitted)
-    // if (atLeastOneResidentPage == 0 || atLeastOneResidentPage == 0) {
-    //     return;
-    // }
-
-    // Defines local work group from layout local size tag above
-    uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-
     vec4 corners[8];
+    vec2 texCorners[4];
     vec2 texCoords;
     vec2 currentTileCoords;
     vec2 currentTileCoordsLower;
     vec2 currentTileCoordsUpper;
 
-    vec2 texCorners[4];
+    for (int cascade = 0; cascade < vsmNumCascades; ++cascade) {
+        if (clipMapBoundingBoxes[cascade].minPageX > clipMapBoundingBoxes[cascade].maxPageX || 
+            clipMapBoundingBoxes[cascade].minPageY > clipMapBoundingBoxes[cascade].maxPageY) {
+            
+            continue;
+        }
 
-    for (uint drawIndex = gl_LocalInvocationIndex; drawIndex < numDrawCalls; drawIndex += localWorkGroupSize) {
-        DrawElementsIndirectCommand draw = inDrawCalls[drawIndex];
-        // if (draw.instanceCount == 0) {
-        //     continue;
+        if (gl_LocalInvocationID == 0) {
+            pageGroupCorners[0] = ivec2(clipMapBoundingBoxes[cascade].minPageX, clipMapBoundingBoxes[cascade].minPageY);
+            pageGroupCorners[1] = ivec2(clipMapBoundingBoxes[cascade].minPageX, clipMapBoundingBoxes[cascade].maxPageY);
+            pageGroupCorners[2] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].minPageY);
+            pageGroupCorners[3] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].maxPageY);
+
+            pageGroupCornersTexCoords[0] = vec2(pageGroupCorners[0]) / vec2(maxResidencyTableIndex);
+            pageGroupCornersTexCoords[1] = vec2(pageGroupCorners[1]) / vec2(maxResidencyTableIndex);
+            pageGroupCornersTexCoords[2] = vec2(pageGroupCorners[2]) / vec2(maxResidencyTableIndex);
+            pageGroupCornersTexCoords[3] = vec2(pageGroupCorners[3]) / vec2(maxResidencyTableIndex);
+        }
+
+        barrier();
+
+        // Invalid page group (all pages uncommitted)
+        // if (atLeastOneResidentPage == 0 || atLeastOneResidentPage == 0) {
+        //     return;
         // }
 
-        //AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
-        AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], vsmClipMap0ProjectionView * modelTransforms[drawIndex]);
-        computeCornersAsTexCoords(aabb, corners);
+        // Defines local work group from layout local size tag above
+        uint localWorkGroupSize = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 
-        vec2 pageMin = vec2(pageGroupCorners[0]);
-        vec2 pageMax = vec2(pageGroupCorners[3]);
+        for (uint drawIndex = gl_LocalInvocationIndex; drawIndex < numDrawCalls; drawIndex += localWorkGroupSize) {
+            DrawElementsIndirectCommand draw = inDrawCalls[drawIndex];
+            // if (draw.instanceCount == 0) {
+            //     continue;
+            // }
 
-        vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
-        vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
+            //AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
+            AABB aabb = vsmTransformAabbAsNDCCoords(aabbs[drawIndex], vsmClipMap0ProjectionView * modelTransforms[drawIndex], corners, cascade);
+            computeCornersAsTexCoords(aabb, corners);
 
-        // Even if our page group is inactive we still need to record commands just in case
-        // our inactivity is due to being fully cached (the CPU may clear some/all of our region
-        // due to its conservative algorithm)
-        if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
-            draw.instanceCount = 1;
+            vec2 pageMin = vec2(pageGroupCorners[0]);
+            vec2 pageMax = vec2(pageGroupCorners[3]);
 
-            //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
-            //atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
-            // outDrawCalls[drawIndex].instanceCount = 1;
+            vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
+            vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
 
-            // Mark this page group as valid for this frame
-            //atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
-            // atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
+            // Even if our page group is inactive we still need to record commands just in case
+            // our inactivity is due to being fully cached (the CPU may clear some/all of our region
+            // due to its conservative algorithm)
+            if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
+                draw.instanceCount = 1;
+            }
+            else {
+                draw.instanceCount = 0;
+            }
+
+            outDrawCalls[drawIndex + cascade * maxDrawCommands] = draw;
         }
-        else {
-            draw.instanceCount = 0;
-        }
 
-        outDrawCalls[drawIndex] = draw;
+        barrier();
     }
 }

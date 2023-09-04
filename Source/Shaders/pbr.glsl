@@ -261,6 +261,10 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     cascadeCoords = coords.xyz / coords.w; // Perspective divide
     cascadeCoords.xyz = cascadeCoords.xyz * 0.5 + vec3(0.5);
 
+    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(position.xyz);
+
+    if (cascadeIndex >= vsmNumCascades) return 1.0;
+
     p1.z = 0.0;
 
     vec2 shadowCoord1 = cascadeCoords.xy;

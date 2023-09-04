@@ -3193,6 +3193,9 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
         s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->vsmc.cascadeShadowOffsets[i]);
     }
 
+    s->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    s->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
     //for (i32 i = 0; i < frame_->vsmc.cascades.size() - 1; ++i) {
     //    // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
     //    // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);

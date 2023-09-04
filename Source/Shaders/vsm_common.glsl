@@ -2,6 +2,7 @@ STRATUS_GLSL_VERSION
 
 #include "bindings.glsl"
 #include "common.glsl"
+#include "aabb.glsl"
 
 #define VSM_LOWER_MASK 0x0000FFFF
 #define VSM_UPPER_MASK 0xFFFF0000
@@ -242,4 +243,36 @@ vec2 convertPhysicalCoordsToVirtualCoords(
     );
 
     return roundIndex(wrapped);
+}
+
+void vsmComputeCornersWithTransform(in AABB aabb, in mat4 transform, inout vec4 corners[8]) {
+    vec4 vmin = aabb.vmin;
+    vec4 vmax = aabb.vmax;
+
+    corners[0] = transform * vec4(vmin.x, vmin.y, vmin.z, 1.0);
+    corners[1] = transform * vec4(vmin.x, vmax.y, vmin.z, 1.0);
+    corners[2] = transform * vec4(vmin.x, vmin.y, vmax.z, 1.0);
+    corners[3] = transform * vec4(vmin.x, vmax.y, vmax.z, 1.0);
+    corners[4] = transform * vec4(vmax.x, vmin.y, vmin.z, 1.0);
+    corners[5] = transform * vec4(vmax.x, vmax.y, vmin.z, 1.0);
+    corners[6] = transform * vec4(vmax.x, vmin.y, vmax.z, 1.0);
+    corners[7] = transform * vec4(vmax.x, vmax.y, vmax.z, 1.0);
+}
+
+AABB vsmTransformAabbAsNDCCoords(in AABB aabb, in mat4 transform, in vec4 corners[8], inout int cascadeIndex) {
+    vsmComputeCornersWithTransform(aabb, transform, corners);
+
+    vec3 vmin3 = vsmConvertClip0ToClipN(corners[0].xyz, cascadeIndex);
+    vec3 vmax3 = vsmConvertClip0ToClipN(corners[0].xyz, cascadeIndex);
+
+    for (int i = 1; i < 8; ++i) {
+        vmin3 = min(vmin3, vsmConvertClip0ToClipN(corners[i].xyz, cascadeIndex));
+        vmax3 = max(vmax3, vsmConvertClip0ToClipN(corners[i].xyz, cascadeIndex));
+    }
+
+    AABB result;
+    result.vmin = vec4(vmin3, 1.0);
+    result.vmax = vec4(vmax3, 1.0); 
+
+    return result;
 }
