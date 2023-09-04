@@ -34,7 +34,7 @@ out vec4 color;
 
 void main() {
     uvec2 pageCoords = uvec2(fsTexCoords * (vec2(numPagesXY) - vec2(1.0)));
-    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 1 * numPagesXY * numPagesXY;
+    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 0 * numPagesXY * numPagesXY;
 
     PageResidencyEntry entry = currFramePageResidencyTable[pageIndex];
 

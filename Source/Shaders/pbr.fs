@@ -149,10 +149,11 @@ void main() {
     vec3 cacheColor = vec3(0.0);
 
     // //shadowFactor = 1.0;
+    // int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(fragPos);
+
     // vec2 pageCoords = vec2(0.0);
-    // vec4 cascadeTexCoords = cascadeProjViews[0] * vec4(fragPos, 1.0);
-    // pageCoords = cascadeTexCoords.xy / cascadeTexCoords.w; // Perspective divide
-    // pageCoords.xy = pageCoords.xy * 0.5 + vec2(0.5);
+    // vec3 cascadeTexCoords = vsmCalculateOriginClipValueFromWorldPos(fragPos, cascadeIndex);
+    // pageCoords = cascadeTexCoords.xy * 0.5 + vec2(0.5);
     // pageCoords = pageCoords * vec2(numPagesXY - 1);
 
     // ivec2 pageCoordsLower = ivec2(floor(pageCoords));
@@ -161,7 +162,9 @@ void main() {
     // uint pageId;
     // uint dirtyBit;
 
-    // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
+    // int pageFlatIndex = pageCoordsLower.x + pageCoordsLower.y  * int(numPagesXY) + cascadeIndex * int(numPagesXY * numPagesXY);
+    // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageFlatIndex].info, pageId, dirtyBit);
+    // //unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
 
     // cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 15.0 / 255.0) / 64.0;
     // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
