@@ -1502,6 +1502,8 @@ void RendererBackend::RenderCSMDepth_() {
     //     maxPageGroupY = newMaxPageGroupY;
     // }
 
+    STRATUS_LOG << frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f) << std::endl;
+
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
         
         u32 minPageGroupX = frame_->vsmc.numPageGroupsX + 1;
