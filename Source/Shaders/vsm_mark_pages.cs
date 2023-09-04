@@ -125,7 +125,7 @@ void main() {
             cascade
         )));
 
-        uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY));
+        uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
 
         if (current.frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed

@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(1);
+        frame_->vsmc.cascades.resize(2);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);

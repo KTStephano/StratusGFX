@@ -251,21 +251,23 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     vec4 position = fragPos;
     position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
 
+    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(position.xyz);
+    if (cascadeIndex >= vsmNumCascades) return 1.0;
+
     vec4 p1;
-    vec3 cascadeCoords;
+    //vec3 cascadeCoords;
     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
     // cascadeProjViews[i] * position puts the coordinates into clip space which are on the range of [-1, 1].
     // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
     // and then perform * 0.5 + vec3(0.5).
-    vec4 coords = cascadeProjViews[0] * position;
-    cascadeCoords = coords.xyz / coords.w; // Perspective divide
-    cascadeCoords.xyz = cascadeCoords.xyz * 0.5 + vec3(0.5);
+    //vec4 coords = cascadeProjViews[0] * position;
+    vec3 coords = vsmCalculateOriginClipValueFromWorldPos(position.xyz, cascadeIndex);
+    //cascadeCoords = coords.xyz / coords.w; // Perspective divide
+    //cascadeCoords.xyz = cascadeCoords.xyz * 0.5 + vec3(0.5);
 
-    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(position.xyz);
+    p1.z = float(cascadeIndex);
 
-    if (cascadeIndex >= vsmNumCascades) return 1.0;
-
-    p1.z = 0.0;
+    vec3 cascadeCoords = coords * 0.5 + vec3(0.5);
 
     vec2 shadowCoord1 = cascadeCoords.xy;
     // Convert from range [-1, 1] to [0, 1]

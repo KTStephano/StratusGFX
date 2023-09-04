@@ -57,7 +57,9 @@ uniform uint vsmNumCascades;
 
 #define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                             \
     type vsmConvertClip0ToClipN(in type original, in int clipIndex) { \
-        return original * type(1.0 / float(BITMASK_POW2(clipIndex))); \
+        type result = original;                                       \
+        result.xy *= vec2(1.0 / float(BITMASK_POW2(clipIndex)));      \
+        return result;                                                \
     }
 
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec2)
@@ -84,7 +86,7 @@ vec3 vsmCalculateRelativeClipValueFromWorldPos(in vec3 worldPos, in int clipMapI
 vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
     vec3 result = vsmCalculateRelativeClipValueFromWorldPos(worldPos, clipMapIndex);
 
-    return result - vsmClipMap0ProjectionView[3].xyz;
+    return result - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xyz, clipMapIndex);
 }
 
 int vsmCalculateCascadeIndexFromWorldPos(in vec3 worldPos) {
@@ -165,8 +167,8 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
 
     // Subtract off the translation since the orientation should be
     // the same for all vsm clip maps - just translation changes
-    vec2 ndcOrigin = ndc.xy - vsmClipMap0ProjectionView[3].xy;
-    ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
+    vec2 ndcOrigin = ndc.xy - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
+    //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
@@ -221,8 +223,8 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
 
     // Add back the translation component to convert physical ndc to relative virtual ndc
-    vec2 ndcRelative = ndc.xy + vsmClipMap0ProjectionView[3].xy;
-    ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
+    vec2 ndcRelative = ndc.xy + vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
+    //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
