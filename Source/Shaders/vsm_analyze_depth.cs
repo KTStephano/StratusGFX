@@ -39,10 +39,7 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffe
 };
 
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block5 {
-    int minPageX;
-    int minPageY;
-    int maxPageX;
-    int maxPageY;
+    ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
 shared vec2 depthTextureSize;
@@ -58,10 +55,10 @@ const int pixelOffsets[] = int[](
     0
 );
 
-void updateResidencyStatus(in ivec2 coords) {
+void updateResidencyStatus(in ivec2 coords, in int cascade) {
     ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
 
-    uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY));
+    uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = computePageId(coords);
 
     currFramePageResidencyTable[tileIndex].frameMarker = frameCount;
@@ -84,10 +81,12 @@ void main() {
         //residencyTableSize = imageSize(currFramePageResidencyTable).xy;
         residencyTableSize = ivec2(numPagesXY);
 
-        minPageX = int(numPagesXY) + 1;
-        minPageY = int(numPagesXY) + 1;
-        maxPageX = -1;
-        maxPageY = -1;
+        for (int i = 0; i < vsmNumCascades; ++i) {
+            clipMapBoundingBoxes[i].minPageX = int(numPagesXY) + 1;
+            clipMapBoundingBoxes[i].minPageY = int(numPagesXY) + 1;
+            clipMapBoundingBoxes[i].maxPageX = -1;
+            clipMapBoundingBoxes[i].maxPageY = -1;
+        }
     }
 
     barrier();
@@ -117,7 +116,7 @@ void main() {
     // // Convert from range [-1, 1] to [0, 1]
     // cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
-    vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, 0);
+    vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
 
     vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize - ivec2(1));
@@ -130,9 +129,9 @@ void main() {
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
     ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
-    updateResidencyStatus(pixelCoordsLower);
+    updateResidencyStatus(pixelCoordsLower, cascadeIndex);
 
     if (pixelCoordsLower != pixelCoordsUpper) {
-        updateResidencyStatus(pixelCoordsUpper);
+        updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
     }
 }

@@ -153,7 +153,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float 
     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
     float result;
     int status = sparseTextureARB(shadow, coords, result);
-    return (sparseTexelsResidentARB(status) == false) ? 1.0 : result;
+    return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 }
 
 // For more information, see:

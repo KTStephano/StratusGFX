@@ -430,12 +430,12 @@ void RendererBackend::RecalculateCascadeData_() {
 
         //frame_->vsmc.pageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
         //frame_->vsmc.backPageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
-        frame_->vsmc.pageGroupUpdateQueue = MakeUnsafe<std::vector<VirtualIndex2DUpdateQueue>>(numCascades);
-        frame_->vsmc.backPageGroupUpdateQueue = MakeUnsafe<std::vector<VirtualIndex2DUpdateQueue>>(numCascades);
+        frame_->vsmc.pageGroupUpdateQueue = std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>>(numCascades);
+        frame_->vsmc.backPageGroupUpdateQueue = std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>>(numCascades);
 
         for (usize cascade = 0; cascade < numCascades; ++cascade) {
-            frame_->vsmc.pageGroupUpdateQueue->operator[](cascade) = VirtualIndex2DUpdateQueue(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
-            frame_->vsmc.backPageGroupUpdateQueue->operator[](cascade) = VirtualIndex2DUpdateQueue(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+            frame_->vsmc.pageGroupUpdateQueue[cascade] = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+            frame_->vsmc.backPageGroupUpdateQueue[cascade] = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
         }
 
         frame_->vsmc.pageBoundingBox = GpuBuffer(nullptr, 4 * numCascades * sizeof(i32), flags);
@@ -1174,7 +1174,7 @@ void RendererBackend::RenderSkybox_() {
 
 void RendererBackend::PerformVSMCulling(
     Pipeline& pipeline,
-    const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectInput,
+    const std::function<GpuCommandBufferPtr(const RenderFaceCulling&)>& selectInput,
     const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
     std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
 ) {
@@ -1189,7 +1189,7 @@ void RendererBackend::PerformVSMCulling(
         buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
         buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
-        selectInput(cull)->GetCommandBuffer().BindBase(
+        selectInput(cull)->GetIndirectDrawCommandsBuffer(0).BindBase(
             GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_VSM_IN_DRAW_CALLS_BINDING_POINT);
 
         auto receivePtr = selectOutput(cull);
@@ -1302,15 +1302,18 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
         for (i32 i = 0; i < numPagesToUpdate; ++i) {
             //STRATUS_LOG << i << std::endl;
 
-            const i32 x = pageIndices[2 * i];
-            const i32 y = pageIndices[2 * i + 1];
+            const i32 cascade = pageIndices[3 * i];
+            const i32 x = pageIndices[3 * i + 1];
+            const i32 y = pageIndices[3 * i + 2];
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
             vsm->CommitOrUncommitVirtualPage(
                 std::abs(x) - 1, 
                 std::abs(y) - 1, 
-                0, 1, 1, 
+                cascade,
+                1, 
+                1, 
                 (x < 0 || y < 0) ? false : true
             );
         }
@@ -1337,7 +1340,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     PerformVSMCulling(
         *state_.vsmCull,
         [this](const RenderFaceCulling& cull) {
-            return frame_->vsmc.drawCommandsFrustumCulled->dynamicPbrMeshes.find(cull)->second;
+            return frame_->drawCommands->dynamicPbrMeshes.find(cull)->second;
         },
         [this](const RenderFaceCulling& cull) {
             return frame_->vsmc.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
@@ -1348,7 +1351,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     PerformVSMCulling(
         *state_.vsmCull,
         [this](const RenderFaceCulling& cull) {
-            return frame_->vsmc.drawCommandsFrustumCulled->staticPbrMeshes.find(cull)->second;
+            return frame_->drawCommands->staticPbrMeshes.find(cull)->second;
         },
         [this](const RenderFaceCulling& cull) {
             return frame_->vsmc.drawCommandsFinal->staticPbrMeshes.find(cull)->second;
@@ -1451,7 +1454,7 @@ void RendererBackend::RenderCSMDepth_() {
             for (u32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
                 const usize pageGroupIndex = x + y * frame_->vsmc.numPageGroupsX + cascade * pageGroupStride;
                 if (pageGroupsToRender[pageGroupIndex] > 0) {
-                    frame_->vsmc.pageGroupUpdateQueue->operator[](cascade).PushBack(x, y);
+                    frame_->vsmc.pageGroupUpdateQueue[cascade]->PushBack(x, y);
                     changeSetArray[cascade].insert(ComputeFlatVirtualIndex(x, y, frame_->vsmc.numPageGroupsX));
                 }
             }
@@ -1460,10 +1463,10 @@ void RendererBackend::RenderCSMDepth_() {
 
     // Update the page group update queue with only what is visible on screen
     for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
-        frame_->vsmc.pageGroupUpdateQueue->operator[](cascade).SetDifference(changeSetArray[cascade]);
+        frame_->vsmc.pageGroupUpdateQueue[cascade]->SetDifference(changeSetArray[cascade]);
 
         // Clear the back buffer
-        frame_->vsmc.backPageGroupUpdateQueue->operator[](cascade).Clear();
+        frame_->vsmc.backPageGroupUpdateQueue[cascade]->Clear();
     }
 
     // Now compute a page group x/y for glViewport
@@ -1500,333 +1503,337 @@ void RendererBackend::RenderCSMDepth_() {
     //     maxPageGroupX = newMaxPageGroupX;
     //     maxPageGroupY = newMaxPageGroupY;
     // }
-    while (frame_->vsmc.pageGroupUpdateQueue->operator[](0).Size() > 0) {
-        const auto xy = frame_->vsmc.pageGroupUpdateQueue->operator[](0).PopFront();
-        const auto x = xy.first;
-        const auto y = xy.second;
 
-        ++numPageGroupsToRender;
+    for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+        while (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
+            const auto xy = frame_->vsmc.pageGroupUpdateQueue[cascade]->PopFront();
+            const auto x = xy.first;
+            const auto y = xy.second;
 
-        auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
-        auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+            ++numPageGroupsToRender;
 
-        auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
-        auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+            auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+            auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
 
-        const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
-        const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
+            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
 
-        if (failedCheckX || failedCheckY) {
-            frame_->vsmc.backPageGroupUpdateQueue->operator[](0).PushFront(x, y);
-            continue;
-        }
+            const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
+            const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
-        minPageGroupX = newMinPageGroupX;
-        minPageGroupY = newMinPageGroupY;
-
-        maxPageGroupX = newMaxPageGroupX;
-        maxPageGroupY = newMaxPageGroupY;
-    }
-
-    // Swap front and back buffers
-    auto tmp = frame_->vsmc.pageGroupUpdateQueue;
-    frame_->vsmc.pageGroupUpdateQueue = frame_->vsmc.backPageGroupUpdateQueue;
-    frame_->vsmc.backPageGroupUpdateQueue = tmp;
-
-    //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
-
-    frame_->vsmc.pageGroupsToRender.UnmapMemory();
-
-    if (numPageGroupsToRender > 0) {
-        // minPageGroupX = 0;
-        // minPageGroupY = 0;
-        // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-        // maxPageGroupY = frame_->vsmc.numPageGroupsY;
-
-        // Add a 1 page group border around the whole update region
-        if (minPageGroupX > 0) {
-            --minPageGroupX;
-        }
-        if (minPageGroupY > 0) {
-            --minPageGroupY;
-        }
-
-        if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            ++maxPageGroupX;
-        }
-        if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            ++maxPageGroupY;
-        }
-
-        // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
-        //     --minPageGroupX;
-        // }
-
-        // if (minPageGroupY % 2 != 0 && minPageGroupY > 0) {
-        //     --minPageGroupY;
-        // }
-
-        // if (maxPageGroupX % 2 != 0 && maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-        //     ++maxPageGroupX;
-        // }
-
-        // if (maxPageGroupY % 2 != 0 && maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-        //     ++maxPageGroupY;
-        // }
-
-        u32 sizeX = maxPageGroupX - minPageGroupX;
-        u32 sizeY = maxPageGroupY - minPageGroupY;
-        const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
-
-        // Constrain to be a perfect square
-        // for (int i = 0; sizeX < maxPageGroupsToUpdate; ++i) {
-        //     if (i % 2 == 0 && minPageGroupX > 0) {
-        //         --minPageGroupX;
-        //     }
-        //     else if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-        //         ++maxPageGroupX;
-        //     }
-
-        //     sizeX = maxPageGroupX - minPageGroupX;
-        // }
-
-        // for (int i = 0; sizeY < maxPageGroupsToUpdate; ++i) {
-        //     if (i % 2 == 0 && minPageGroupY > 0) {
-        //         --minPageGroupY;
-        //     }
-        //     else if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-        //         ++maxPageGroupY;
-        //     }
-
-        //     sizeY = maxPageGroupY - minPageGroupY;
-        // }
-
-        // if (sizeX < maxPageGroupsToUpdate) {
-        //     auto difference = maxPageGroupsToUpdate - sizeX;
-        //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
-
-        //     sizeX = maxPageGroupX - minPageGroupX;
-        //     if (sizeX < maxPageGroupsToUpdate) {
-        //         difference = maxPageGroupsToUpdate - sizeX;
-        //         minPageGroupX -= difference;
-
-        //         sizeX = maxPageGroupX - minPageGroupX;
-        //     }
-        // }
-
-        // if (sizeY < maxPageGroupsToUpdate) {
-        //     auto difference = maxPageGroupsToUpdate - sizeY;
-        //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
-
-        //     sizeY = maxPageGroupY - minPageGroupY;
-        //     if (sizeY < maxPageGroupsToUpdate) {
-        //         difference = maxPageGroupsToUpdate - sizeY;
-        //         minPageGroupY -= difference;
-
-        //         sizeY = maxPageGroupY - minPageGroupY;
-        //     }
-        // }
-
-        // Constrain the update window to be divisble by 2
-        if (sizeX % 2 != 0) {
-            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                ++maxPageGroupX;
+            if (failedCheckX || failedCheckY) {
+                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushFront(x, y);
+                continue;
             }
-            else if (minPageGroupX > 0) {
+
+            minPageGroupX = newMinPageGroupX;
+            minPageGroupY = newMinPageGroupY;
+
+            maxPageGroupX = newMaxPageGroupX;
+            maxPageGroupY = newMaxPageGroupY;
+        }
+
+        // Swap front and back buffers
+        auto tmp = frame_->vsmc.pageGroupUpdateQueue[cascade];
+        frame_->vsmc.pageGroupUpdateQueue[cascade] = frame_->vsmc.backPageGroupUpdateQueue[cascade];
+        frame_->vsmc.backPageGroupUpdateQueue[cascade] = tmp;
+
+        //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
+
+        frame_->vsmc.pageGroupsToRender.UnmapMemory();
+
+        if (numPageGroupsToRender > 0) {
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+
+            // Add a 1 page group border around the whole update region
+            if (minPageGroupX > 0) {
                 --minPageGroupX;
             }
-
-            sizeX = maxPageGroupX - minPageGroupX;
-        }
-
-        if (sizeY % 2 != 0) {
-            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                ++maxPageGroupY;
-            }
-            else if (minPageGroupY > 0) {
+            if (minPageGroupY > 0) {
                 --minPageGroupY;
             }
 
-            sizeY = maxPageGroupY - minPageGroupY;
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
+
+            // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
+            //     --minPageGroupX;
+            // }
+
+            // if (minPageGroupY % 2 != 0 && minPageGroupY > 0) {
+            //     --minPageGroupY;
+            // }
+
+            // if (maxPageGroupX % 2 != 0 && maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
+
+            // if (maxPageGroupY % 2 != 0 && maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
+
+            u32 sizeX = maxPageGroupX - minPageGroupX;
+            u32 sizeY = maxPageGroupY - minPageGroupY;
+            const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
+
+            // Constrain to be a perfect square
+            // for (int i = 0; sizeX < maxPageGroupsToUpdate; ++i) {
+            //     if (i % 2 == 0 && minPageGroupX > 0) {
+            //         --minPageGroupX;
+            //     }
+            //     else if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //         ++maxPageGroupX;
+            //     }
+
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            // }
+
+            // for (int i = 0; sizeY < maxPageGroupsToUpdate; ++i) {
+            //     if (i % 2 == 0 && minPageGroupY > 0) {
+            //         --minPageGroupY;
+            //     }
+            //     else if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //         ++maxPageGroupY;
+            //     }
+
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            // }
+
+            // if (sizeX < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeX;
+            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
+
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            //     if (sizeX < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeX;
+            //         minPageGroupX -= difference;
+
+            //         sizeX = maxPageGroupX - minPageGroupX;
+            //     }
+            // }
+
+            // if (sizeY < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeY;
+            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
+
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            //     if (sizeY < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeY;
+            //         minPageGroupY -= difference;
+
+            //         sizeY = maxPageGroupY - minPageGroupY;
+            //     }
+            // }
+
+            // Constrain the update window to be divisble by 2
+            if (sizeX % 2 != 0) {
+                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                    ++maxPageGroupX;
+                }
+                else if (minPageGroupX > 0) {
+                    --minPageGroupX;
+                }
+
+                sizeX = maxPageGroupX - minPageGroupX;
+            }
+
+            if (sizeY % 2 != 0) {
+                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                    ++maxPageGroupY;
+                }
+                else if (minPageGroupY > 0) {
+                    --minPageGroupY;
+                }
+
+                sizeY = maxPageGroupY - minPageGroupY;
+            }
+
+            //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
+
+            //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
+
+            // Repartition pages into new set of groups
+            //const u32 newNumPageGroupsX = frame_->vsmc.numPageGroupsX / sizeX;
+            //const u32 newNumPageGroupsY = frame_->vsmc.numPageGroupsY / sizeY;
+            const f32 newNumPageGroupsX = f32(frame_->vsmc.numPageGroupsX) / f32(sizeX);
+            const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
+
+            // Normalize the min/max page groups
+            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
+            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
+            const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
+            const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
+
+            // Translate the normalized min/max page groups into fractional locations within
+            // the new repartitioned page groups
+            const f32 newMinPageGroupX = normMinPageGroupX * newNumPageGroupsX;
+            const f32 newMinPageGroupY = normMinPageGroupY * newNumPageGroupsY;
+            const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
+            const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
+
+            const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
+            //const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
+            //const glm::mat4 vsmProjectionView = frame_->vsmc.projectionViewSample;
+
+            // for (int i = 0; i < 128; ++i) {
+            // STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(glm::ivec2(i, i), maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
+            // }
+
+            //const auto scaleX = f32(frame_->vsmc.numPageGroupsX - sizeX + 1.0f);
+            //const auto scaleY = f32(frame_->vsmc.numPageGroupsY - sizeY + 1.0f);
+
+            // Perform scaling equal to the new number of page groups (prevents entire
+            // scene from being written into subset of texture - only relevant part
+            // of the scene should go into the texture subset)
+            const auto scaleX = newNumPageGroupsX;
+            const auto scaleY = newNumPageGroupsY;
+
+            const f32 invX = 1.0f / newNumPageGroupsX;
+            const f32 invY = 1.0f / newNumPageGroupsY;
+            //const f32 invX = 1.0f / scaleX;
+            //const f32 invY = 1.0f / scaleY;
+
+            //STRATUS_LOG << newNumPageGroupsX << " " << newNumPageGroupsY << std::endl;
+
+            // Perform translation to orient our vertex outputs to only the ones relevant
+            // to the subset of the texture we are interested in
+            const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(newMinPageGroupX));
+            const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(newMinPageGroupY));
+            //const f32 tx = 0.0f;
+            //const f32 ty = 0.0f;
+
+            glm::mat4 scale(1.0f);
+            matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
+
+            glm::mat4 translate(1.0f);
+            matTranslate(translate, glm::vec3(tx, ty, 0.0f));
+            
+            const glm::mat4 cascadeOrthoProjection = csm.cascades[cascade].projectionViewRender;
+            //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
+            //     1.0f
+            // );
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(441.529f, 19.608f, 221.228f),
+            //     1.0f
+            // );
+            //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
+            //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
+            const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+            const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
+
+            u32 startX = minPageGroupX * pageGroupWindowWidth;
+            u32 startY = minPageGroupY * pageGroupWindowHeight;
+
+            u32 endX = maxPageGroupX * pageGroupWindowWidth;
+            u32 endY = maxPageGroupY * pageGroupWindowHeight;
+
+            u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth) / 8.0f));
+            u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight) / 8.0f));
+
+            TextureAccess depthBindConfig{
+                TextureComponentFormat::RED,
+                TextureComponentSize::BITS_32,
+                TextureComponentType::UINT
+            };
+
+            state_.vsmClear->Bind();
+
+            // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
+            // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
+            state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
+            state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
+            state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
+            state_.vsmClear->SetUint("frameCount", frameCount);
+            state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+            state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            state_.vsmClear->BindTextureAsImage(
+                "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+            frame_->vsmc.currFramePageResidencyTable.BindBase(
+                GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+
+            state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
+            state_.vsmClear->SynchronizeMemory();
+
+            Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
+                state_.csmDepthRunAlphaTest[cascade].get() :
+                state_.csmDepth[cascade].get();
+
+            BindShader_(shader);
+
+            //shader->BindTextureAsImage("vsm", *depth, false, cascade, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+            //shader->SetUint("vsmSizeX", (u32)depth->Width());
+            //shader->SetUint("vsmSizeY", (u32)depth->Height());
+            shader->SetVec3("lightDir", &frame_->vsmc.worldLightCamera->GetDirection()[0]);
+            shader->SetFloat("nearClipPlane", frame_->znear);
+            shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
+            shader->SetUint("frameCount", frameCount);
+
+            // Set up each individual view-projection matrix
+            // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
+            //     auto& csm = _frame->csc.cascades[i];
+            //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
+            // }
+
+            // Select face (one per frame)
+            //const i32 face = Engine::Instance()->FrameCount() % 4;
+            //_state.csmDepth->setInt("face", face);
+
+            // Render everything
+            // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
+            // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
+            auto& csm = frame_->vsmc;
+            shader->SetMat4("shadowMatrix", csm.cascades[cascade].projectionViewRender);
+            shader->SetUint("numPagesXY", (u32)(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
+            shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
+            shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[cascade].projectionViewRender);
+            shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+            shader->SetInt("vsmClipMapIndex", cascade);
+
+            CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
+                const auto cull = b->GetFaceCulling();
+                return frame_->vsmc.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+            };
+
+            CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
+                const auto cull = b->GetFaceCulling();
+                return frame_->vsmc.drawCommandsFinal->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+            };
+
+            shader->SetMat4("shadowMatrix", projectionView);
+            // shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
+
+            //STRATUS_LOG << glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f)) << std::endl;
+            
+            // We need to use the old page partitioning scheme to calculate the viewport
+            // info
+            // const u32 clearValue = FloatBitsToUint(1.0f);
+            // depth->ClearLayerRegion(
+            //     0, 
+            //     0, 
+            //     startX, 
+            //     startY, 
+            //     sizeX * pageGroupWindowWidth, 
+            //     sizeY * pageGroupWindowHeight, 
+            //     (const void *)&clearValue
+            // );
+            glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
+
+            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
+            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
+            //}
+
+            UnbindShader_();
         }
-
-        //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
-
-        //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << " " << pageGroupWindowWidth << std::endl;
-
-        // Repartition pages into new set of groups
-        //const u32 newNumPageGroupsX = frame_->vsmc.numPageGroupsX / sizeX;
-        //const u32 newNumPageGroupsY = frame_->vsmc.numPageGroupsY / sizeY;
-        const f32 newNumPageGroupsX = f32(frame_->vsmc.numPageGroupsX) / f32(sizeX);
-        const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
-
-        // Normalize the min/max page groups
-        const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
-        const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
-        const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
-        const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
-
-        // Translate the normalized min/max page groups into fractional locations within
-        // the new repartitioned page groups
-        const f32 newMinPageGroupX = normMinPageGroupX * newNumPageGroupsX;
-        const f32 newMinPageGroupY = normMinPageGroupY * newNumPageGroupsY;
-        const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
-        const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
-
-        const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
-        const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
-        const glm::mat4 vsmProjectionView = frame_->vsmc.projectionViewSample;
-
-        // for (int i = 0; i < 128; ++i) {
-        // STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(glm::ivec2(i, i), maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
-        // }
-
-        //const auto scaleX = f32(frame_->vsmc.numPageGroupsX - sizeX + 1.0f);
-        //const auto scaleY = f32(frame_->vsmc.numPageGroupsY - sizeY + 1.0f);
-
-        // Perform scaling equal to the new number of page groups (prevents entire
-        // scene from being written into subset of texture - only relevant part
-        // of the scene should go into the texture subset)
-        const auto scaleX = newNumPageGroupsX;
-        const auto scaleY = newNumPageGroupsY;
-
-        const f32 invX = 1.0f / newNumPageGroupsX;
-        const f32 invY = 1.0f / newNumPageGroupsY;
-        //const f32 invX = 1.0f / scaleX;
-        //const f32 invY = 1.0f / scaleY;
-
-        //STRATUS_LOG << newNumPageGroupsX << " " << newNumPageGroupsY << std::endl;
-
-        // Perform translation to orient our vertex outputs to only the ones relevant
-        // to the subset of the texture we are interested in
-        const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(newMinPageGroupX));
-        const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(newMinPageGroupY));
-        //const f32 tx = 0.0f;
-        //const f32 ty = 0.0f;
-
-        glm::mat4 scale(1.0f);
-        matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
-
-        glm::mat4 translate(1.0f);
-        matTranslate(translate, glm::vec3(tx, ty, 0.0f));
-        
-        const glm::mat4 cascadeOrthoProjection = csm.cascades[0].projectionViewRender;
-        //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
-        // cascadeOrthoProjectionModified[3] = glm::vec4(
-        //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
-        //     1.0f
-        // );
-        // cascadeOrthoProjectionModified[3] = glm::vec4(
-        //     -glm::vec3(441.529f, 19.608f, 221.228f),
-        //     1.0f
-        // );
-        //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
-        //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
-        const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
-        const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
-
-        u32 startX = minPageGroupX * pageGroupWindowWidth;
-        u32 startY = minPageGroupY * pageGroupWindowHeight;
-
-        u32 endX = maxPageGroupX * pageGroupWindowWidth;
-        u32 endY = maxPageGroupY * pageGroupWindowHeight;
-
-        u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth) / 8.0f));
-        u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight) / 8.0f));
-
-        TextureAccess depthBindConfig{
-            TextureComponentFormat::RED,
-            TextureComponentSize::BITS_32,
-            TextureComponentType::UINT
-        };
-
-        state_.vsmClear->Bind();
-
-        // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
-        // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
-        state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
-        state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
-        state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
-        state_.vsmClear->SetUint("frameCount", frameCount);
-        state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-        state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
-        state_.vsmClear->BindTextureAsImage(
-            "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
-        frame_->vsmc.currFramePageResidencyTable.BindBase(
-            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-
-        state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
-        state_.vsmClear->SynchronizeMemory();
-
-        Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
-            state_.csmDepthRunAlphaTest[cascade].get() :
-            state_.csmDepth[cascade].get();
-
-        BindShader_(shader);
-
-        //shader->BindTextureAsImage("vsm", *depth, false, cascade, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
-        //shader->SetUint("vsmSizeX", (u32)depth->Width());
-        //shader->SetUint("vsmSizeY", (u32)depth->Height());
-        shader->SetVec3("lightDir", &frame_->vsmc.worldLightCamera->GetDirection()[0]);
-        shader->SetFloat("nearClipPlane", frame_->znear);
-        shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
-        shader->SetUint("frameCount", frameCount);
-
-        // Set up each individual view-projection matrix
-        // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
-        //     auto& csm = _frame->csc.cascades[i];
-        //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
-        // }
-
-        // Select face (one per frame)
-        //const i32 face = Engine::Instance()->FrameCount() % 4;
-        //_state.csmDepth->setInt("face", face);
-
-        // Render everything
-        // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
-        // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
-        auto& csm = frame_->vsmc;
-        shader->SetMat4("shadowMatrix", csm.cascades[0].projectionViewRender);
-        shader->SetUint("numPagesXY", (u32)(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
-        shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
-        shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-        shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
-        shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
-
-        CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
-            const auto cull = b->GetFaceCulling();
-            return frame_->vsmc.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
-        };
-
-        CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
-            const auto cull = b->GetFaceCulling();
-            return frame_->vsmc.drawCommandsFinal->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
-        };
-
-        shader->SetMat4("shadowMatrix", projectionView);
-        // shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
-
-        //STRATUS_LOG << glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f)) << std::endl;
-        
-        // We need to use the old page partitioning scheme to calculate the viewport
-        // info
-        // const u32 clearValue = FloatBitsToUint(1.0f);
-        // depth->ClearLayerRegion(
-        //     0, 
-        //     0, 
-        //     startX, 
-        //     startY, 
-        //     sizeX * pageGroupWindowWidth, 
-        //     sizeY * pageGroupWindowHeight, 
-        //     (const void *)&clearValue
-        // );
-        glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
-
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, true);
-        //}
-
-        UnbindShader_();
     }
     
     frame_->vsmc.fbo.Unbind();

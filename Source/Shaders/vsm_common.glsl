@@ -152,7 +152,8 @@ vec2 roundIndex(in vec2 index) {
 // }
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in ivec2 virtualCoords, 
-    in ivec2 maxVirtualIndex
+    in ivec2 maxVirtualIndex,
+    in int cascadeIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
@@ -164,6 +165,7 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     // Subtract off the translation since the orientation should be
     // the same for all vsm clip maps - just translation changes
     vec2 ndcOrigin = ndc.xy - vsmClipMap0ProjectionView[3].xy;
+    ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
@@ -173,12 +175,14 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
 
 vec2 convertVirtualCoordsToPhysicalCoords(
     in ivec2 virtualCoords, 
-    in ivec2 maxVirtualIndex
+    in ivec2 maxVirtualIndex,
+    in int cascadeIndex
 ) {
     
     vec2 wrapped = convertVirtualCoordsToPhysicalCoordsNoRound(
         virtualCoords,
-        maxVirtualIndex
+        maxVirtualIndex,
+        cascadeIndex
     );
 
     return roundIndex(wrapped);
@@ -205,7 +209,8 @@ vec2 convertVirtualCoordsToPhysicalCoords(
 // }
 vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     in ivec2 physicalCoords, 
-    in ivec2 maxPhysicalIndex
+    in ivec2 maxPhysicalIndex,
+    in int cascadeIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
@@ -216,6 +221,7 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
 
     // Add back the translation component to convert physical ndc to relative virtual ndc
     vec2 ndcRelative = ndc.xy + vsmClipMap0ProjectionView[3].xy;
+    ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
@@ -225,12 +231,14 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
 
 vec2 convertPhysicalCoordsToVirtualCoords(
     in ivec2 physicalCoords, 
-    in ivec2 maxPhysicalIndex
+    in ivec2 maxPhysicalIndex,
+    in int cascadeIndex
 ) {
     
     vec2 wrapped = convertPhysicalCoordsToVirtualCoordsNoRound(
         physicalCoords,
-        maxPhysicalIndex
+        maxPhysicalIndex,
+        cascadeIndex
     );
 
     return roundIndex(wrapped);

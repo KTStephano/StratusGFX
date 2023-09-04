@@ -463,7 +463,7 @@ namespace stratus {
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
 
-        frame_->vsmc.drawCommandsFrustumCulled = GpuCommandReceiveManager::Create();
+        //frame_->vsmc.drawCommandsFrustumCulled = GpuCommandReceiveManager::Create();
         frame_->vsmc.drawCommandsFinal = GpuCommandReceiveManager::Create();
 
         // Set materials per frame and initialize material buffer
@@ -662,7 +662,7 @@ namespace stratus {
         f32 cameraZ = floorf(position.z / (2.0f * moveSize)) * moveSize;
         // sk = glm::vec3(0.0f);
         // sk = glm::vec3(345.771, 56.2733, 208.989);
-        glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
+        glm::vec3 sk = glm::vec3(cameraX, cameraY, 0.0f);
         //STRATUS_LOG << sk << std::endl;
         //STRATUS_LOG << moveSize << std::endl;
         //sk = glm::vec3(std::floor(frame_->camera->GetPosition().x), 0.0, std::floor(frame_->camera->GetPosition().z));
@@ -1254,43 +1254,43 @@ namespace stratus {
             );
         }
 
-        viscullCsms_->Bind();
-
         auto& csm = frame_->vsmc;
-        csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, csm.cascades.size());
+        //csm.drawCommandsFrustumCulled->EnsureCapacity(frame_->drawCommands, csm.cascades.size());
         csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, csm.cascades.size());
 
+        //viscullCsms_->Bind();s
+
         // Ensure cascade draw command buffers have enough space
-        for (usize i = 0; i < frame_->vsmc.cascades.size(); ++i) {
-            //csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
+        // for (usize i = 0; i < frame_->vsmc.cascades.size(); ++i) {
+        //     //csm.drawCommandsFinal->EnsureCapacity(frame_->drawCommands, frame_->csc.numPageGroupsX * frame_->csc.numPageGroupsY);
             
-            viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.cascades[i].projectionViewRender);
-        }
+        //     viscullCsms_->SetMat4("cascadeViewProj[" + std::to_string(i) + "]", csm.cascades[i].projectionViewRender);
+        // }
 
-        // Dynamic pbr
-        UpdateCascadeVisibility_(
-            *viscullCsms_.get(),
-            [&csm](const RenderFaceCulling& cull) {
-                return csm.drawCommandsFrustumCulled->dynamicPbrMeshes.find(cull)->second;
-            },
-            [&csm](const RenderFaceCulling& cull) {
-                return csm.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
-            },
-            frame_->drawCommands->dynamicPbrMeshes
-        );
+        // // Dynamic pbr
+        // UpdateCascadeVisibility_(
+        //     *viscullCsms_.get(),
+        //     [&csm](const RenderFaceCulling& cull) {
+        //         return csm.drawCommandsFrustumCulled->dynamicPbrMeshes.find(cull)->second;
+        //     },
+        //     [&csm](const RenderFaceCulling& cull) {
+        //         return csm.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
+        //     },
+        //     frame_->drawCommands->dynamicPbrMeshes
+        // );
 
-        UpdateCascadeVisibility_(
-            *viscullCsms_.get(),
-            [&csm](const RenderFaceCulling& cull) {
-                return csm.drawCommandsFrustumCulled->staticPbrMeshes.find(cull)->second;
-            },
-            [&csm](const RenderFaceCulling& cull) {
-                return csm.drawCommandsFinal->staticPbrMeshes.find(cull)->second;
-            },
-            frame_->drawCommands->staticPbrMeshes
-        );
+        // UpdateCascadeVisibility_(
+        //     *viscullCsms_.get(),
+        //     [&csm](const RenderFaceCulling& cull) {
+        //         return csm.drawCommandsFrustumCulled->staticPbrMeshes.find(cull)->second;
+        //     },
+        //     [&csm](const RenderFaceCulling& cull) {
+        //         return csm.drawCommandsFinal->staticPbrMeshes.find(cull)->second;
+        //     },
+        //     frame_->drawCommands->staticPbrMeshes
+        // );
 
-        viscullCsms_->Unbind();
+        // viscullCsms_->Unbind();
     }
 
     void RendererFrontend::UpdateCascadeVisibility_(

@@ -422,7 +422,7 @@ namespace stratus {
         void ValidateAllShaders_();
         void PerformVSMCulling(
             Pipeline& pipeline,
-            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectInput,
+            const std::function<GpuCommandBufferPtr(const RenderFaceCulling&)>& selectInput,
             const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
             std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
         );

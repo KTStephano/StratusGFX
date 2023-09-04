@@ -154,9 +154,9 @@ void main() {
 
     for (uint drawIndex = gl_LocalInvocationIndex; drawIndex < numDrawCalls; drawIndex += localWorkGroupSize) {
         DrawElementsIndirectCommand draw = inDrawCalls[drawIndex];
-        if (draw.instanceCount == 0) {
-            continue;
-        }
+        // if (draw.instanceCount == 0) {
+        //     continue;
+        // }
 
         //AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
         AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], vsmClipMap0ProjectionView * modelTransforms[drawIndex]);
@@ -172,13 +172,20 @@ void main() {
         // our inactivity is due to being fully cached (the CPU may clear some/all of our region
         // due to its conservative algorithm)
         if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
+            draw.instanceCount = 1;
+
             //outDrawCalls[basePageGroupIndex * maxDrawCommands + drawIndex].instanceCount = 1;
             //atomicExchange(outDrawCalls[drawIndex].instanceCount, 1);
-            outDrawCalls[drawIndex].instanceCount = 1;
+            // outDrawCalls[drawIndex].instanceCount = 1;
 
             // Mark this page group as valid for this frame
             //atomicOr(pageGroupsToRender[basePageGroupIndex], frameCount);
             // atomicOr(pageGroupsToRender[basePageGroupIndex], pageGroupIsValid);
         }
+        else {
+            draw.instanceCount = 0;
+        }
+
+        outDrawCalls[drawIndex] = draw;
     }
 }

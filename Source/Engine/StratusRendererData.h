@@ -202,7 +202,7 @@ namespace stratus {
 
     struct RendererVsmContainer {
         // Contains one list of commands per clip cascade in a single buffer
-        GpuCommandReceiveManagerPtr drawCommandsFrustumCulled;
+        //GpuCommandReceiveManagerPtr drawCommandsFrustumCulled;
         GpuCommandReceiveManagerPtr drawCommandsFinal;
         // Use during shadow map rendering
         std::vector<RendererVsmCascadeData> cascades;
@@ -215,8 +215,8 @@ namespace stratus {
         Texture vsm;
         GpuBuffer prevFramePageResidencyTable;
         GpuBuffer currFramePageResidencyTable;
-        UnsafePtr<std::vector<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
-        UnsafePtr<std::vector<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
+        std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
+        std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
         // Texture is split into pages which are combined
         // into page groups for geometry culling purposes
         u32 numPageGroupsX = 32;
