@@ -740,10 +740,11 @@ namespace stratus {
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;
         const auto directionOffset = glm::vec3(0.0f); // 256.0f * frame_->camera->GetDirection();
-        const auto position = directionOffset + frame_->camera->GetPosition();
-        f32 cameraX = floorf(position.x / (2.0f * moveSize)) * moveSize;
-        f32 cameraY = floorf(position.y / (2.0f * moveSize)) * moveSize;
-        f32 cameraZ = floorf(position.z / (2.0f * moveSize)) * moveSize;
+        // Camera position is defined in world space but we need it to be in light-space
+        const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
+        f32 cameraX = floorf(position.x / moveSize) * moveSize;
+        f32 cameraY = floorf(position.y / moveSize) * moveSize;
+        f32 cameraZ = floorf(position.z / moveSize) * moveSize;
 
         // glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 
         //              floorf((maxY + minY) / (2.0f * moveSize)) * moveSize, 
@@ -753,8 +754,8 @@ namespace stratus {
         // sk = glm::vec3(345.771, 56.2733, 208.989);
         glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
 
-        // Right now sk is defined in world space, but we need it to be in light-space
-        sk = glm::vec3(lightViewTransform * glm::vec4(sk, 1.0f));
+        
+        // sk = glm::vec3(lightViewTransform * glm::vec4(sk, 1.0f));
 
         //STRATUS_LOG << sk << std::endl;
         //STRATUS_LOG << moveSize << std::endl;
