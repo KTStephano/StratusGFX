@@ -152,7 +152,7 @@ void main() {
                     dirtyBit = 1;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
                 }
-                else if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                else if (dirtyBit == VSM_PAGE_CLEARED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
                     dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }

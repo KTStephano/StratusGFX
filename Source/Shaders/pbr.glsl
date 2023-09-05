@@ -56,6 +56,7 @@ uniform float infiniteLightZfar;
 uniform vec3 infiniteLightDirection;
 uniform float infiniteLightDepthBias = 0.0;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
+//uniform sampler2DArray infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
 uniform vec4 shadowOffset[2];
@@ -134,26 +135,6 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
     }
 
     return shadow;
-}
-
-// See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
-    coords.w = depth - bias;
-    coords.xy += offset;
-    return texture(shadow, coords);
-    // float closestDepth = texture(shadow, coords).r;
-    // // 0.0 means not in shadow, 1.0 means fully in shadow
-    // return depth > closestDepth ? 1.0 : 0.0;
-    // return closestDepth;
-}
-
-float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
-    coords.w = depth - bias;
-    coords.xy += offset;
-    //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
-    float result;
-    int status = sparseTextureARB(shadow, coords, result);
-    return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 }
 
 // For more information, see:
@@ -281,7 +262,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     float samples = 0.0;
     p1.xy = shadowCoord1;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-    float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
+    float bound = 0.0; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
             light1 += sampleShadowTextureSparse(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);

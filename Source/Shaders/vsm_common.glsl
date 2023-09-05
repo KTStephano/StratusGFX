@@ -4,15 +4,17 @@ STRATUS_GLSL_VERSION
 #include "common.glsl"
 #include "aabb.glsl"
 
-#define VSM_LOWER_MASK 0x0000FFFF
-#define VSM_UPPER_MASK 0xFFFF0000
+#define VSM_LOWER_MASK 0x00000003
+#define VSM_UPPER_MASK 0xFFFFFFFC
 
 #define VSM_PAGE_DIRTY_BIT 1
+#define VSM_PAGE_CLEARED_BIT 2
 #define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
 // Total is this number squared
-#define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32768
+#define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32760
+#define VSM_MAX_VALUE_VIRTUAL_PAGE_XY 16380
 
 // Total is this number squared
 #define VSM_MAX_NUM_PHYSICAL_PAGES_XY 128
@@ -112,16 +114,136 @@ vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
     return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
 }
 
+// See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
+    coords.w = depth - bias;
+    coords.xy += offset;
+    return texture(shadow, coords);
+}
+
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
+    coords.w = depth - bias;
+    coords.xy += offset;
+    //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+    float result;
+    int status = sparseTextureARB(shadow, coords, result);
+    return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
+}
+
+// float sampleShadowTextureSparse(in sampler2DArray shadow, in vec4 coords, in float depth, in vec2 offset, in float bias) {
+//     ivec2 size = textureSize(shadow, 0).xy;
+
+//     float offsetDepth = depth - bias;
+
+//     vec4 modifiedCoords = coords;
+//     // modifiedCoords.w = depth - bias;
+//     modifiedCoords.xy += offset;
+
+//     // See https://gamedev.stackexchange.com/questions/101953/low-quality-bilinear-sampling-in-webgl-opengl-directx
+//     float fractU = fract(modifiedCoords.x);
+//     float fractV = fract(modifiedCoords.y);
+
+//     //modifiedCoords.xy = wrapIndex(modifiedCoords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+//     modifiedCoords.xy = modifiedCoords.xy * vec2(size - ivec2(1));
+//     //modifiedCoords.xy = wrapIndex(modifiedCoords.xy * vec2(size - ivec2(1)), vec2(size));
+
+//     float numSamplesPassed = 0.0;
+//     vec4 result = vec4(0.0);
+//     int status = 0;
+
+//     status = sparseTexelFetchARB(
+//         shadow, 
+//         ivec3(wrapIndex(modifiedCoords.xy, vec2(size)), modifiedCoords.z),
+//         0, 
+//         result
+//     );
+//     float sampledDepth1 = sparseTexelsResidentARB(status) == false ? 0.0 : result.r;
+
+//     status = sparseTexelFetchARB(
+//         shadow, 
+//         ivec3(wrapIndex(modifiedCoords.xy + vec2(1, 0), vec2(size)), modifiedCoords.z),
+//         0, 
+//         result
+//     );
+//     float sampledDepth2 = sparseTexelsResidentARB(status) == false ? 0.0 : result.r;
+
+//     status = sparseTexelFetchARB(
+//         shadow, 
+//         ivec3(wrapIndex(modifiedCoords.xy + vec2(0, 1), vec2(size)), modifiedCoords.z),
+//         0, 
+//         result
+//     );
+//     float sampledDepth3 = sparseTexelsResidentARB(status) == false ? 0.0 : result.r;
+
+//     status = sparseTexelFetchARB(
+//         shadow, 
+//         ivec3(wrapIndex(modifiedCoords.xy + vec2(1, 1), vec2(size)), modifiedCoords.z),
+//         0, 
+//         result
+//     );
+//     float sampledDepth4 = sparseTexelsResidentARB(status) == false ? 0.0 : result.r;
+
+//     // status = sparseTexelFetchARB(
+//     //     shadow, 
+//     //     ivec3(wrapIndex(modifiedCoords.xy + vec2(1, -1), vec2(size)), modifiedCoords.z),
+//     //     0, 
+//     //     result
+//     // );
+//     // float sampledDepth5 = sparseTexelsResidentARB(status) == false ? 0.0 : result.r;
+
+//     numSamplesPassed += (offsetDepth <= sampledDepth1) ? 0.5 : 0.0;
+//     numSamplesPassed += (offsetDepth <= sampledDepth2) ? 1.0 : 0.0;
+//     numSamplesPassed += (offsetDepth <= sampledDepth3) ? 1.0 : 0.0;
+//     numSamplesPassed += (offsetDepth <= sampledDepth4) ? 1.0 : 0.0;
+//     // //numSamplesPassed += (offsetDepth <= sampledDepth5) ? 1.0 : 0.0;
+
+//     return numSamplesPassed / 9.0;
+// }
+
+// float sampleShadowTextureSparse(in sampler2DArray shadow, in vec4 coords, in float depth, in vec2 offset, in float bias) {
+
+//     ivec2 size = textureSize(shadow, 0).xy;
+//     float offsetDepth = depth - bias;
+
+//     vec4 modifiedCoords = coords;
+//     // modifiedCoords.w = depth - bias;
+//     modifiedCoords.xy += offset;
+
+//     //modifiedCoords.xy = wrapIndex(modifiedCoords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+//     modifiedCoords.xy = modifiedCoords.xy * vec2(size - ivec2(1));
+//     //modifiedCoords.xy = wrapIndex(modifiedCoords.xy * vec2(size - ivec2(1)), vec2(size));
+
+//     float numSamplesPassed = 0.0;
+//     vec4 result = vec4(0.0);
+//     int status = 0;
+
+//     status = sparseTexelFetchARB(
+//         shadow, 
+//         ivec3(wrapIndex(modifiedCoords.xy, vec2(size)), modifiedCoords.z),
+//         0, 
+//         result
+//     );
+    
+//     if (sparseTexelsResidentARB(status) == false) return 0.0;
+
+//     return offsetDepth <= result.r ? 1.0 : 0.0;
+// }
+
+// float sampleShadowTexture(in sampler2DArray shadow, in vec4 coords, in float depth, in vec2 offset, in float bias) {
+//     return sampleShadowTextureSparse(shadow, coords, depth, offset, bias);
+// }
+
 uint computePageId(in ivec2 page) {
-    return uint(VSM_MAX_NUM_VIRTUAL_PAGES_XY + page.x + page.y * VSM_MAX_NUM_PHYSICAL_PAGES_XY);
+    ivec2 offsetPage = page + ivec2(VSM_MAX_VALUE_VIRTUAL_PAGE_XY);
+    return uint(offsetPage.x + offsetPage.y * VSM_MAX_NUM_VIRTUAL_PAGES_XY);
 }
 
 uint packPageIdWithDirtyBit(in uint pageId, in uint bit) {
-    return (pageId << 16) | (bit & VSM_PAGE_DIRTY_MASK);
+    return (pageId << 2) | (bit & VSM_PAGE_DIRTY_MASK);
 }
 
 void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
-    pageId = (data >> 16) & VSM_LOWER_MASK;
+    pageId = data >> 2;
     bit = data & VSM_PAGE_DIRTY_MASK;
 }
 

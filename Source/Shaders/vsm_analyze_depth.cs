@@ -67,7 +67,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint prevDirtyBit;
     unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
 
-    if (prevDirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+    if (prevDirtyBit != VSM_PAGE_DIRTY_BIT) {
         prevDirtyBit = 0;
     }
 

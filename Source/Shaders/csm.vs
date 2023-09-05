@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 // Cascaded Shadow Maps
 // See Foundations of Game Engine Development Volume 2 (section on cascaded shadow maps)

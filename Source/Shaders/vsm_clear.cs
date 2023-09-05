@@ -79,7 +79,9 @@ void clearPixel(in vec2 physicalPixelCoords) {
         if (dirtyBit > 0) {
             imageStore(vsm, ivec3(ivec2(physicalPixelCoords), vsmClipMapIndex), uvec4(clearValueBits));
 
-            uint prev = atomicAdd(currFramePageResidencyTable[physicalPageIndex].info, 1);
+            //uint prev = atomicAdd(currFramePageResidencyTable[physicalPageIndex].info, 1);
+            uint newInfo = packPageIdWithDirtyBit(pageId, VSM_PAGE_CLEARED_BIT);
+            currFramePageResidencyTable[physicalPageIndex].info = newInfo;
 
             // unpackPageIdAndDirtyBit(
             //     prev,
@@ -108,7 +110,7 @@ void main() {
     if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
         vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, vsmClipMapIndex);
 
-        vec2 physicalPixelCoordsLower = floor(physicalPixelCoords);
+        vec2 physicalPixelCoordsLower = round(physicalPixelCoords);
         vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);
 
         clearPixel(physicalPixelCoordsLower);
@@ -116,8 +118,8 @@ void main() {
         // clearPixel(physicalPixelCoordsLower + vec2(-1, 0));
         // clearPixel(physicalPixelCoordsLower + vec2(0, 1));
         // clearPixel(physicalPixelCoordsLower + vec2(0, -1));
-        if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
-            clearPixel(physicalPixelCoordsUpper);
-        }
+        // if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
+        //     clearPixel(physicalPixelCoordsUpper);
+        // }
     }
 }

@@ -1504,6 +1504,11 @@ void RendererBackend::RenderCSMDepth_() {
 
     //STRATUS_LOG << frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f) << std::endl;
 
+    // auto ndc = VsmCalculateOriginClipValueFromWorldPos(frame_->vsmc.cascades[0].projectionViewRender, frame_->camera->GetPosition(), 0);
+    // auto tex = glm::vec2(ndc) * glm::vec2(0.5f) + glm::vec2(0.5f);
+    // auto resIndex = tex * glm::vec2(frame_->vsmc.numPageGroupsX - 1, frame_->vsmc.numPageGroupsY - 1);
+    // STRATUS_LOG << WrapIndex(resIndex, glm::vec2(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY)) << std::endl;
+
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
         
         u32 minPageGroupX = frame_->vsmc.numPageGroupsX + 1;
@@ -1835,8 +1840,8 @@ void RendererBackend::RenderCSMDepth_() {
             // );
             glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
-            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
+            // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
+            // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
             //}
 
             UnbindShader_();

@@ -48,8 +48,8 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
 	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), fsClipMapIndex);
 
-	//if (dirtyBit > 0 && entry.frameMarker == frameCount) {
-	if (entry.frameMarker == frameCount) {
+	if (dirtyBit > 0 && entry.frameMarker == frameCount) {
+	//if (entry.frameMarker == frameCount) {
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower + ivec3(1, 1, 0), depth);

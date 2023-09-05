@@ -799,7 +799,7 @@ namespace stratus {
         //
         // This results in values between [-1, 1]
         const float xycomponent = 2.0f / dk;
-        const float zcomponent = 1.0f / 1024.0f; //1.0f / (maxZ - minZ);
+        const float zcomponent = 1.0f / 8192.0f; //1.0f / (maxZ - minZ);
         //const glm::mat4 cascadeOrthoProjection(glm::vec4(2.0f / (maxX - minX), 0.0f, 0.0f, 0.0f), 
         //                                       glm::vec4(0.0f, 2.0f / (maxY - minY), 0.0f, 0.0f),
         //                                       glm::vec4(0.0f, 0.0f, 1.0f / (maxZ - minZ), shadowDepthOffset),
