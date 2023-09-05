@@ -22,20 +22,15 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffe
 
 uniform float clearValue = 1.0;
 uniform uint frameCount;
-
-// uniform mat4 invCascadeProjectionView;
-// uniform mat4 vsmProjectionView;
-
-uniform ivec2 startXY;
-uniform ivec2 endXY;
-
+uniform int vsmClipMapIndex;
 uniform ivec2 numPagesXY;
 
 shared uint clearValueBits;
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
-
-uniform int vsmClipMapIndex;
+shared ivec2 vsmPixelStart;
+shared ivec2 vsmPixelEnd;
+shared uint frameMarker;
 
 // void clearPixel(in vec2 physicalPixelCoords) {
 //     // float fx = fract(physicalPixelCoords.x);
@@ -54,51 +49,11 @@ uniform int vsmClipMapIndex;
 //     // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
 // }
 
-void clearPixel(in vec2 physicalPixelCoords) {
-    //ivec2 physicalPageCoordsRounded = wrapIndex(ivec2(floor(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY))), ivec2(numPagesXY - 1));
-    ivec2 physicalPageCoordsRounded = ivec2(floor(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
-
-    uint physicalPageIndex = physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y;
-
-    //atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
-    //ATOMIC_REDUCE_TEXEL_COUNT(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info);
-
-    //imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
-
-    if (currFramePageResidencyTable[physicalPageIndex].frameMarker == frameCount) {
-        //imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
-
-        uint pageId;
-        uint dirtyBit;
-        unpackPageIdAndDirtyBit(
-            currFramePageResidencyTable[physicalPageIndex].info, 
-            pageId,
-            dirtyBit
-        );
-
-        if (dirtyBit > 0) {
-            imageStore(vsm, ivec3(ivec2(physicalPixelCoords), vsmClipMapIndex), uvec4(clearValueBits));
-
-            //uint prev = atomicAdd(currFramePageResidencyTable[physicalPageIndex].info, 1);
-            uint newInfo = packPageIdWithDirtyBit(pageId, VSM_PAGE_CLEARED_BIT);
-            currFramePageResidencyTable[physicalPageIndex].info = newInfo;
-
-            // unpackPageIdAndDirtyBit(
-            //     prev,
-            //     pageId,
-            //     dirtyBit
-            // );
-
-            // if (dirtyBit >= VSM_MAX_NUM_TEXELS_PER_PAGE || dirtyBit == 0) {
-            //     atomicAnd(currFramePageResidencyTable[physicalPageIndex].info, VSM_PAGE_ID_MASK);
-            // }
-        }
-    }
+void clearPixel(in ivec2 physicalPixelCoords) {
+    imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
 }
 
 void main() {
-    ivec2 virtualPixelCoords = ivec2(gl_GlobalInvocationID.xy + startXY);
-
     if (gl_LocalInvocationID == 0) {
         clearValueBits = floatBitsToUint(clearValue);
         vsmSize = imageSize(vsm).xy;
@@ -107,19 +62,37 @@ void main() {
 
     barrier();
 
-    if (virtualPixelCoords.x < endXY.x && virtualPixelCoords.y < endXY.y) {
-        vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vsmMaxIndex, vsmClipMapIndex);
+    uvec2 physicalPageCoords = gl_WorkGroupID.xy;
+    uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
 
-        vec2 physicalPixelCoordsLower = round(physicalPixelCoords);
-        vec2 physicalPixelCoordsUpper = ceil(physicalPixelCoords);
+    if (gl_LocalInvocationID == 0) {
+        vsmPixelStart = ivec2(physicalPageCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+        vsmPixelEnd = vsmPixelStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+        frameMarker = currFramePageResidencyTable[physicalPageIndex].frameMarker;
+    }
 
-        clearPixel(physicalPixelCoordsLower);
-        // clearPixel(physicalPixelCoordsLower + vec2(1, 0));
-        // clearPixel(physicalPixelCoordsLower + vec2(-1, 0));
-        // clearPixel(physicalPixelCoordsLower + vec2(0, 1));
-        // clearPixel(physicalPixelCoordsLower + vec2(0, -1));
-        // if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
-        //     clearPixel(physicalPixelCoordsUpper);
-        // }
+    uint pageId;
+    uint dirtyBit;
+    unpackPageIdAndDirtyBit(
+        currFramePageResidencyTable[physicalPageIndex].info, 
+        pageId,
+        dirtyBit
+    );
+
+    barrier();
+
+    int pixelStepSize = int(gl_WorkGroupSize.x);
+
+    if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
+        if (gl_LocalInvocationID == 0) {
+            uint newInfo = packPageIdWithDirtyBit(pageId, VSM_PAGE_CLEARED_BIT);
+            currFramePageResidencyTable[physicalPageIndex].info = newInfo;
+        }
+
+        for (int x = vsmPixelStart.x + int(gl_LocalInvocationID.x); x < vsmPixelEnd.x; x += pixelStepSize) {
+            for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) {
+                clearPixel(ivec2(x, y));
+            }
+        }
     }
 }

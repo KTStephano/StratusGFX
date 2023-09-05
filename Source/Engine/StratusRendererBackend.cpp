@@ -1746,8 +1746,8 @@ void RendererBackend::RenderCSMDepth_() {
             u32 endX = maxPageGroupX * pageGroupWindowWidth;
             u32 endY = maxPageGroupY * pageGroupWindowHeight;
 
-            u32 numComputeGroupsX = u32(std::ceilf(f32(sizeX * pageGroupWindowWidth) / 8.0f));
-            u32 numComputeGroupsY = u32(std::ceilf(f32(sizeY * pageGroupWindowHeight) / 8.0f));
+            u32 numComputeGroupsX = frame_->vsmc.numPageGroupsX;
+            u32 numComputeGroupsY = frame_->vsmc.numPageGroupsY;
 
             TextureAccess depthBindConfig{
                 TextureComponentFormat::RED,
@@ -1759,8 +1759,8 @@ void RendererBackend::RenderCSMDepth_() {
 
             // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
             // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
-            state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
-            state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
+            // state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
+            // state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
             state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
             state_.vsmClear->SetUint("frameCount", frameCount);
             state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
