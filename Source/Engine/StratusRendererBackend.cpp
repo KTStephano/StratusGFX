@@ -1461,7 +1461,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     // Update the page group update queue with only what is visible on screen
     for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
-        frame_->vsmc.pageGroupUpdateQueue[cascade]->SetDifference(changeSetArray[cascade]);
+        frame_->vsmc.pageGroupUpdateQueue[cascade]->SetIntersection(changeSetArray[cascade]);
 
         // Clear the back buffer
         frame_->vsmc.backPageGroupUpdateQueue[cascade]->Clear();
@@ -1532,7 +1532,7 @@ void RendererBackend::RenderCSMDepth_() {
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
             if (failedCheckX || failedCheckY) {
-                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushFront(x, y);
+                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y);
                 continue;
             }
 
@@ -1544,6 +1544,9 @@ void RendererBackend::RenderCSMDepth_() {
             maxPageGroupX = newMaxPageGroupX;
             maxPageGroupY = newMaxPageGroupY;
         }
+
+        // STRATUS_LOG << "Awaiting processing: " << frame_->vsmc.backPageGroupUpdateQueue[0]->Size() << std::endl;
+        // STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << maxPageGroupX << " " << maxPageGroupY << std::endl;
 
         // Swap front and back buffers
         auto tmp = frame_->vsmc.pageGroupUpdateQueue[cascade];
@@ -1670,23 +1673,24 @@ void RendererBackend::RenderCSMDepth_() {
             //STRATUS_LOG << cascade << ": " << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 
             // Repartition pages into new set of groups
+            // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
             //const u32 newNumPageGroupsX = frame_->vsmc.numPageGroupsX / sizeX;
             //const u32 newNumPageGroupsY = frame_->vsmc.numPageGroupsY / sizeY;
             const f32 newNumPageGroupsX = f32(frame_->vsmc.numPageGroupsX) / f32(sizeX);
             const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
 
             // Normalize the min/max page groups
-            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
-            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
-            const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
-            const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
+            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX - 1);
+            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY - 1);
+            // const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
+            // const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
 
             // Translate the normalized min/max page groups into fractional locations within
             // the new repartitioned page groups
             const f32 newMinPageGroupX = normMinPageGroupX * newNumPageGroupsX;
             const f32 newMinPageGroupY = normMinPageGroupY * newNumPageGroupsY;
-            const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
-            const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
+            // const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
+            // const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
             const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
             //const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
@@ -1702,13 +1706,13 @@ void RendererBackend::RenderCSMDepth_() {
             // Perform scaling equal to the new number of page groups (prevents entire
             // scene from being written into subset of texture - only relevant part
             // of the scene should go into the texture subset)
-            const auto scaleX = newNumPageGroupsX;
-            const auto scaleY = newNumPageGroupsY;
+            const f32 scaleX = newNumPageGroupsX;
+            const f32 scaleY = newNumPageGroupsY;
 
             const f32 invX = 1.0f / newNumPageGroupsX;
             const f32 invY = 1.0f / newNumPageGroupsY;
-            //const f32 invX = 1.0f / scaleX;
-            //const f32 invY = 1.0f / scaleY;
+            // const f32 invX = 1.0f / f32(frame_->vsmc.numPageGroupsX);
+            // const f32 invY = 1.0f / f32(frame_->vsmc.numPageGroupsY);
 
             //STRATUS_LOG << newNumPageGroupsX << " " << newNumPageGroupsY << std::endl;
 
@@ -1716,8 +1720,8 @@ void RendererBackend::RenderCSMDepth_() {
             // to the subset of the texture we are interested in
             const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(newMinPageGroupX));
             const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(newMinPageGroupY));
-            //const f32 tx = 0.0f;
-            //const f32 ty = 0.0f;
+            // const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(minPageGroupX));
+            // const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(minPageGroupY));
 
             glm::mat4 scale(1.0f);
             matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
@@ -1740,11 +1744,11 @@ void RendererBackend::RenderCSMDepth_() {
             const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
             const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
-            u32 startX = minPageGroupX * pageGroupWindowWidth;
-            u32 startY = minPageGroupY * pageGroupWindowHeight;
+            u32 startX = minPageGroupX;// * pageGroupWindowWidth;
+            u32 startY = minPageGroupY;// * pageGroupWindowHeight;
 
-            u32 endX = maxPageGroupX * pageGroupWindowWidth;
-            u32 endY = maxPageGroupY * pageGroupWindowHeight;
+            u32 endX = maxPageGroupX;// * pageGroupWindowWidth;
+            u32 endY = maxPageGroupY;// * pageGroupWindowHeight;
 
             u32 numComputeGroupsX = frame_->vsmc.numPageGroupsX;
             u32 numComputeGroupsY = frame_->vsmc.numPageGroupsY;
@@ -1759,8 +1763,8 @@ void RendererBackend::RenderCSMDepth_() {
 
             // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
             // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
-            // state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
-            // state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
+            state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
+            state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
             state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
             state_.vsmClear->SetUint("frameCount", frameCount);
             state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
@@ -1840,8 +1844,8 @@ void RendererBackend::RenderCSMDepth_() {
             // );
             glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
 
-            // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
-            // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
+            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
+            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
             //}
 
             UnbindShader_();

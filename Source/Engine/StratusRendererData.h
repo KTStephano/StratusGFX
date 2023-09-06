@@ -140,7 +140,7 @@ namespace stratus {
 
         // Removes any element not contained in both this set and the other
         template<typename Set>
-        void SetDifference(const Set& other) {
+        void SetIntersection(const Set& other) {
             for (auto it = indexQueue_.begin(); it != indexQueue_.end();) {
                 const auto index = ComputeFlatVirtualIndex(it->first, it->second, maxX_);
                 auto old = it;

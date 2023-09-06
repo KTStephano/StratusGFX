@@ -144,15 +144,15 @@ void main() {
             else {
                 // Page was requested this frame but is not currently resident
                 if (prev.frameMarker == 0) {
-                    dirtyBit = 1;
-                    current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
+                    dirtyBit = VSM_PAGE_DIRTY_BIT;
+                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                     requestPageAlloc(tileCoords, cascade); 
                 }
                 else if (sunChanged > 0) {
-                    dirtyBit = 1;
-                    current.info = (current.info & VSM_PAGE_ID_MASK) | 1;
+                    dirtyBit = VSM_PAGE_DIRTY_BIT;
+                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
-                else if (dirtyBit == VSM_PAGE_CLEARED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                else if (dirtyBit == VSM_PAGE_RENDERED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
                     dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
