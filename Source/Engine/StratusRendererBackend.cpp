@@ -1597,7 +1597,7 @@ void RendererBackend::RenderCSMDepth_() {
             const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
             // Constrain to be a perfect square
-            // for (int i = 0; sizeX < maxPageGroupsToUpdate; ++i) {
+            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsX) / sizeX, 2) != 0; ++i) {
             //     if (i % 2 == 0 && minPageGroupX > 0) {
             //         --minPageGroupX;
             //     }
@@ -1608,7 +1608,7 @@ void RendererBackend::RenderCSMDepth_() {
             //     sizeX = maxPageGroupX - minPageGroupX;
             // }
 
-            // for (int i = 0; sizeY < maxPageGroupsToUpdate; ++i) {
+            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsY) / sizeY, 2) != 0; ++i) {
             //     if (i % 2 == 0 && minPageGroupY > 0) {
             //         --minPageGroupY;
             //     }
@@ -1619,31 +1619,31 @@ void RendererBackend::RenderCSMDepth_() {
             //     sizeY = maxPageGroupY - minPageGroupY;
             // }
 
-            if (sizeX < maxPageGroupsToUpdate) {
-                auto difference = maxPageGroupsToUpdate - sizeX;
-                maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
+            // if (sizeX < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeX;
+            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
 
-                sizeX = maxPageGroupX - minPageGroupX;
-                if (sizeX < maxPageGroupsToUpdate) {
-                    difference = maxPageGroupsToUpdate - sizeX;
-                    minPageGroupX -= difference;
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            //     if (sizeX < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeX;
+            //         minPageGroupX -= difference;
 
-                    sizeX = maxPageGroupX - minPageGroupX;
-                }
-            }
+            //         sizeX = maxPageGroupX - minPageGroupX;
+            //     }
+            // }
 
-            if (sizeY < maxPageGroupsToUpdate) {
-                auto difference = maxPageGroupsToUpdate - sizeY;
-                maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
+            // if (sizeY < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeY;
+            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
 
-                sizeY = maxPageGroupY - minPageGroupY;
-                if (sizeY < maxPageGroupsToUpdate) {
-                    difference = maxPageGroupsToUpdate - sizeY;
-                    minPageGroupY -= difference;
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            //     if (sizeY < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeY;
+            //         minPageGroupY -= difference;
 
-                    sizeY = maxPageGroupY - minPageGroupY;
-                }
-            }
+            //         sizeY = maxPageGroupY - minPageGroupY;
+            //     }
+            // }
 
             // Constrain the update window to be divisble by 2
             // if (sizeX % 2 != 0) {

@@ -159,12 +159,12 @@ void main() {
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                // prevFramePageResidencyTable[tileIndex] = current;
+                prevFramePageResidencyTable[tileIndex] = current;
                 currFramePageResidencyTable[tileIndex] = current;
 
-                prev = current;
-                prev.info &= VSM_PAGE_ID_MASK;
-                prevFramePageResidencyTable[tileIndex] = prev;
+                // prev = current;
+                // prev.info &= VSM_PAGE_ID_MASK;
+                // prevFramePageResidencyTable[tileIndex] = prev;
             }
         }
 
@@ -175,10 +175,11 @@ void main() {
         uint pageGroupMarker = 0;
 
         if (dirtyBit > 0 && current.frameMarker == frameCount) {
+        //if (dirtyBit > 0) {
             pageGroupMarker = frameCount;
 
-            atomicMin(localMinPageX, virtualPageCoords.x);
-            atomicMin(localMinPageY, virtualPageCoords.y);
+            atomicMin(localMinPageX, virtualPageCoords.x - 1);
+            atomicMin(localMinPageY, virtualPageCoords.y - 1);
 
             atomicMax(localMaxPageX, virtualPageCoords.x + 1);
             atomicMax(localMaxPageY, virtualPageCoords.y + 1);

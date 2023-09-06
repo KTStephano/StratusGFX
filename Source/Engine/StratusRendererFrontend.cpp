@@ -744,7 +744,7 @@ namespace stratus {
         const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
         f32 cameraX = floorf(position.x / moveSize) * moveSize;
         f32 cameraY = floorf(position.y / moveSize) * moveSize;
-        f32 cameraZ = 0.0f; //floorf(position.z / moveSize) * moveSize;
+        f32 cameraZ = floorf(position.z / moveSize) * moveSize;
 
         // glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 
         //              floorf((maxY + minY) / (2.0f * moveSize)) * moveSize, 
@@ -754,6 +754,7 @@ namespace stratus {
         // sk = glm::vec3(345.771, 56.2733, 208.989);
         glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
 
+        //STRATUS_LOG << sk << " " << frame_->camera->GetPosition() << std::endl;
         
         // sk = glm::vec3(lightViewTransform * glm::vec4(sk, 1.0f));
 
