@@ -112,10 +112,10 @@ void main() {
                 ++updateCount;
                 currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
             }
+            //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
             else {
                 updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-                uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-                currFramePageResidencyTable[physicalPageIndex].info = newInfo;
+                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
             }
         }
     }
@@ -130,7 +130,7 @@ void main() {
         }
 
         for (int x = vsmPixelStart.x + int(gl_LocalInvocationID.x); x < vsmPixelEnd.x; x += pixelStepSize) {
-            for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) {
+            for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) { 
                 clearPixel(ivec2(x, y));
             }
         }

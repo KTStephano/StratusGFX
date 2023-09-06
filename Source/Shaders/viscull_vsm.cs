@@ -150,7 +150,7 @@ void main() {
                 draw.instanceCount = 1;
             }
             else {
-                draw.instanceCount = 1;
+                draw.instanceCount = 0;
             }
 
             outDrawCalls[drawIndex + cascade * maxDrawCommands] = draw;

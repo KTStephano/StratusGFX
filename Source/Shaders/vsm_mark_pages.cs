@@ -149,6 +149,7 @@ void main() {
                 PageResidencyEntry markedNonResident;
                 markedNonResident.frameMarker = 0;
                 markedNonResident.info = 0;
+                frameMarker = 0;
 
                 prevFramePageResidencyTable[tileIndex] = markedNonResident;
                 currFramePageResidencyTable[tileIndex] = markedNonResident;
@@ -167,7 +168,7 @@ void main() {
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
                 else if (dirtyBit == VSM_PAGE_RENDERED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
-                    dirtyBit = 0;
+                    // dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
 
@@ -188,15 +189,20 @@ void main() {
 
         uint pageGroupMarker = 0;
 
-        if (dirtyBit > 0 && frameMarker == frameCount) {
+        //if (dirtyBit > 0 && frameMarker == frameCount) {
+        if (frameMarker == frameCount) {
         //if (dirtyBit > 0) {
-            pageGroupMarker = frameCount;
+            //pageGroupMarker = frameCount;
 
             atomicMin(localMinPageX, virtualPageCoords.x - 1);
             atomicMin(localMinPageY, virtualPageCoords.y - 1);
 
             atomicMax(localMaxPageX, virtualPageCoords.x + 1);
             atomicMax(localMaxPageY, virtualPageCoords.y + 1);
+        }
+
+        if (dirtyBit > 0) {
+            pageGroupMarker = frameCount;
         }
 
         pageGroupsToRender[virtualPageIndex] = pageGroupMarker;
