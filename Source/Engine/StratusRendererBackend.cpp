@@ -1680,8 +1680,8 @@ void RendererBackend::RenderCSMDepth_() {
             const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
 
             // Normalize the min/max page groups
-            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX - 1);
-            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY - 1);
+            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
+            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
             // const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
             // const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
 
