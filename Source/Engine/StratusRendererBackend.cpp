@@ -1573,12 +1573,12 @@ void RendererBackend::RenderCSMDepth_() {
             if (minPageGroupY > 0) {
                 --minPageGroupY;
             }
-            if (minPageGroupX > 0) {
-                --minPageGroupX;
-            }
-            if (minPageGroupY > 0) {
-                --minPageGroupY;
-            }
+            // if (minPageGroupX > 0) {
+            //     --minPageGroupX;
+            // }
+            // if (minPageGroupY > 0) {
+            //     --minPageGroupY;
+            // }
 
             if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
                 ++maxPageGroupX;
@@ -1586,12 +1586,12 @@ void RendererBackend::RenderCSMDepth_() {
             if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
                 ++maxPageGroupY;
             }
-            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                ++maxPageGroupX;
-            }
-            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                ++maxPageGroupY;
-            }
+            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
+            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
 
             // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
             //     --minPageGroupX;
@@ -1636,31 +1636,31 @@ void RendererBackend::RenderCSMDepth_() {
             //     sizeY = maxPageGroupY - minPageGroupY;
             // }
 
-            // if (sizeX < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeX;
-            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
+            if (sizeX < maxPageGroupsToUpdate) {
+                auto difference = maxPageGroupsToUpdate - sizeX;
+                maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
 
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            //     if (sizeX < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeX;
-            //         minPageGroupX -= difference;
+                sizeX = maxPageGroupX - minPageGroupX;
+                if (sizeX < maxPageGroupsToUpdate) {
+                    difference = maxPageGroupsToUpdate - sizeX;
+                    minPageGroupX -= difference;
 
-            //         sizeX = maxPageGroupX - minPageGroupX;
-            //     }
-            // }
+                    sizeX = maxPageGroupX - minPageGroupX;
+                }
+            }
 
-            // if (sizeY < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeY;
-            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
+            if (sizeY < maxPageGroupsToUpdate) {
+                auto difference = maxPageGroupsToUpdate - sizeY;
+                maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
 
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            //     if (sizeY < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeY;
-            //         minPageGroupY -= difference;
+                sizeY = maxPageGroupY - minPageGroupY;
+                if (sizeY < maxPageGroupsToUpdate) {
+                    difference = maxPageGroupsToUpdate - sizeY;
+                    minPageGroupY -= difference;
 
-            //         sizeY = maxPageGroupY - minPageGroupY;
-            //     }
-            // }
+                    sizeY = maxPageGroupY - minPageGroupY;
+                }
+            }
 
             // Constrain the update window to be divisble by 2
             // if (sizeX % 2 != 0) {
@@ -1747,6 +1747,11 @@ void RendererBackend::RenderCSMDepth_() {
             matTranslate(translate, glm::vec3(tx, ty, 0.0f));
             
             const glm::mat4 cascadeOrthoProjection = csm.cascades[cascade].projectionViewRender;
+
+            // STRATUS_LOG << "1: " << (
+            //     scale * translate * frame_->vsmc.cascades[cascade].projection * frame_->vsmc.viewTransform) << std::endl;
+
+            //STRATUS_LOG << "1: " << cascadeOrthoProjection << std::endl;
             //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
             // cascadeOrthoProjectionModified[3] = glm::vec4(
             //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
@@ -1759,6 +1764,7 @@ void RendererBackend::RenderCSMDepth_() {
             //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
             //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
             const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+            // STRATUS_LOG << "2: " << projectionView << std::endl;
             const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
             u32 startX = minPageGroupX;// * pageGroupWindowWidth;
@@ -1859,7 +1865,12 @@ void RendererBackend::RenderCSMDepth_() {
             //     sizeY * pageGroupWindowHeight, 
             //     (const void *)&clearValue
             // );
-            glViewport(startX, startY, sizeX * pageGroupWindowWidth, sizeY * pageGroupWindowHeight);
+            glViewport(
+                minPageGroupX * pageGroupWindowWidth, 
+                minPageGroupY * pageGroupWindowHeight, 
+                sizeX * pageGroupWindowWidth, 
+                sizeY * pageGroupWindowHeight
+            );
 
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
             RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);

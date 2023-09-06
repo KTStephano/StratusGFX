@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(4);
+        frame_->vsmc.cascades.resize(1);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
@@ -792,6 +792,8 @@ namespace stratus {
 
         const glm::mat4 cascadeSampleViewTransform = cascadeSampleViewTransform2;
 
+        frame_->vsmc.viewTransform = cascadeRenderViewTransform;
+
         // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
         const f32 shadowDepthOffset = 0.0f;//2e-19;
         // We are putting the light camera location sk on the near plane in the halfway point between left, right, top and bottom planes
@@ -846,6 +848,7 @@ namespace stratus {
 
             frame_->vsmc.cascades[cascade].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
             frame_->vsmc.cascades[cascade].invProjectionViewRender = glm::inverse(frame_->vsmc.cascades[cascade].projectionViewRender);
+            frame_->vsmc.cascades[cascade].projection = cascadeOrthoProjection;
         }
     }
 

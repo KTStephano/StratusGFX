@@ -198,6 +198,7 @@ namespace stratus {
     struct RendererVsmCascadeData {
         glm::mat4 projectionViewRender;
         glm::mat4 invProjectionViewRender;
+        glm::mat4 projection;
     };
 
     struct RendererVsmContainer {
@@ -208,6 +209,7 @@ namespace stratus {
         std::vector<RendererVsmCascadeData> cascades;
         // Use during shadow map sampling
         glm::mat4 projectionViewSample;
+        glm::mat4 viewTransform;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
         f32 baseCascadeDiameter;
