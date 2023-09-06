@@ -27,7 +27,7 @@ namespace stratus {
         std::string appName;
         Degrees fovy;
         f32 znear = 1.0f;
-        f32 zfar = 1000.0f;
+        f32 zfar = 2000.0f;
         bool vsyncEnabled;
     };
 

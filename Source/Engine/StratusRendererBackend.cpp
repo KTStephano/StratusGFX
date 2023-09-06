@@ -1504,10 +1504,10 @@ void RendererBackend::RenderCSMDepth_() {
 
     //STRATUS_LOG << frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f) << std::endl;
 
-    // auto ndc = VsmCalculateOriginClipValueFromWorldPos(frame_->vsmc.cascades[0].projectionViewRender, frame_->camera->GetPosition(), 0);
-    // auto tex = glm::vec2(ndc) * glm::vec2(0.5f) + glm::vec2(0.5f);
-    // auto resIndex = tex * glm::vec2(frame_->vsmc.numPageGroupsX - 1, frame_->vsmc.numPageGroupsY - 1);
-    // STRATUS_LOG << WrapIndex(resIndex, glm::vec2(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY)) << std::endl;
+    // auto ndc1 = VsmCalculateOriginClipValueFromWorldPos(frame_->vsmc.cascades[0].projectionViewRender, frame_->camera->GetPosition(), 0);
+    // auto ndc2 = glm::vec3(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f));
+    // STRATUS_LOG << "1: " << ndc1 << std::endl;
+    // STRATUS_LOG << "2: " << ndc2 << std::endl;
 
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
         
@@ -1619,54 +1619,54 @@ void RendererBackend::RenderCSMDepth_() {
             //     sizeY = maxPageGroupY - minPageGroupY;
             // }
 
-            // if (sizeX < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeX;
-            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
-
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            //     if (sizeX < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeX;
-            //         minPageGroupX -= difference;
-
-            //         sizeX = maxPageGroupX - minPageGroupX;
-            //     }
-            // }
-
-            // if (sizeY < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeY;
-            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
-
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            //     if (sizeY < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeY;
-            //         minPageGroupY -= difference;
-
-            //         sizeY = maxPageGroupY - minPageGroupY;
-            //     }
-            // }
-
-            // Constrain the update window to be divisble by 2
-            if (sizeX % 2 != 0) {
-                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                    ++maxPageGroupX;
-                }
-                else if (minPageGroupX > 0) {
-                    --minPageGroupX;
-                }
+            if (sizeX < maxPageGroupsToUpdate) {
+                auto difference = maxPageGroupsToUpdate - sizeX;
+                maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
 
                 sizeX = maxPageGroupX - minPageGroupX;
+                if (sizeX < maxPageGroupsToUpdate) {
+                    difference = maxPageGroupsToUpdate - sizeX;
+                    minPageGroupX -= difference;
+
+                    sizeX = maxPageGroupX - minPageGroupX;
+                }
             }
 
-            if (sizeY % 2 != 0) {
-                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                    ++maxPageGroupY;
-                }
-                else if (minPageGroupY > 0) {
-                    --minPageGroupY;
-                }
+            if (sizeY < maxPageGroupsToUpdate) {
+                auto difference = maxPageGroupsToUpdate - sizeY;
+                maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
 
                 sizeY = maxPageGroupY - minPageGroupY;
+                if (sizeY < maxPageGroupsToUpdate) {
+                    difference = maxPageGroupsToUpdate - sizeY;
+                    minPageGroupY -= difference;
+
+                    sizeY = maxPageGroupY - minPageGroupY;
+                }
             }
+
+            // Constrain the update window to be divisble by 2
+            // if (sizeX % 2 != 0) {
+            //     if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //         ++maxPageGroupX;
+            //     }
+            //     else if (minPageGroupX > 0) {
+            //         --minPageGroupX;
+            //     }
+
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            // }
+
+            // if (sizeY % 2 != 0) {
+            //     if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //         ++maxPageGroupY;
+            //     }
+            //     else if (minPageGroupY > 0) {
+            //         --minPageGroupY;
+            //     }
+
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            // }
 
             //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 

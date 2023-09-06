@@ -129,6 +129,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float 
     float result;
     int status = sparseTextureARB(shadow, coords, result);
     return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
+    //return result;
 }
 
 // float sampleShadowTextureSparse(in sampler2DArray shadow, in vec4 coords, in float depth, in vec2 offset, in float bias) {

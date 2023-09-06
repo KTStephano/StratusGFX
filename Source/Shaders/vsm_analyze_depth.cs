@@ -96,7 +96,7 @@ void main() {
 
     // Depth tex coords
     vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(0.5)) / depthTextureSize;
-    //vec2 depthTexCoords = (vec2(xindex, yindex)) / (depthTextureSize - vec2(1.0));
+    //vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(1.0)) / (depthTextureSize);
 
     // Get current depth and convert to world space
     //float depth = textureLod(depthTexture, depthTexCoords, 0).r;
@@ -120,18 +120,74 @@ void main() {
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
 
     vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize - ivec2(1));
+    vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
-    float fx = fract(basePixelCoords.x);
-    float fy = fract(basePixelCoords.y);
+    float fx = fract(basePixelCoordsWrapped.x);
+    float fy = fract(basePixelCoordsWrapped.y);
 
     //basePixelCoords = round(basePixelCoords);
 
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
     ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
-    updateResidencyStatus(pixelCoordsLower, cascadeIndex);
+    ivec2 coords1 = pixelCoordsLower;
+    ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
+    ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
+    ivec2 coords4 = pixelCoordsUpper;
 
-    if (pixelCoordsLower != pixelCoordsUpper) {
-        updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
+    updateResidencyStatus(coords1, cascadeIndex);
+
+    if (coords2 != coords1) {
+        updateResidencyStatus(coords2, cascadeIndex);
     }
+    if (coords3 != coords2) {
+        updateResidencyStatus(coords3, cascadeIndex);
+    }
+    if (coords4 != coords3) {
+        updateResidencyStatus(coords4, cascadeIndex);
+    }
+
+    // Check for approaching page boundaries
+    // if (fx <= 0.01) {
+    //     updateResidencyStatus(pixelCoordsLower + ivec2(-1, 0), cascadeIndex);
+    //     // updateResidencyStatus(pixelCoordsLower + ivec2(-2, 0), cascadeIndex);
+
+    //     if (fy <= 0.01) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(-1, -1), cascadeIndex);
+    //     }
+    //     else if (fy >= 0.98) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(-1, 1), cascadeIndex);
+    //     }
+    // }
+    // else if (fx >= 0.98) {
+    //     updateResidencyStatus(pixelCoordsLower + ivec2(1, 0), cascadeIndex);
+    //     // updateResidencyStatus(pixelCoordsLower + ivec2(2, 0), cascadeIndex);
+    //     if (fy <= 0.01) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(1, -1), cascadeIndex);
+    //     }
+    //     else if (fy >= 0.98) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(1, 1), cascadeIndex);
+    //     }
+    // }
+
+    // if (fy <= 0.01) {
+    //     updateResidencyStatus(pixelCoordsLower + ivec2(0, -1), cascadeIndex);
+    //     // updateResidencyStatus(pixelCoordsLower + ivec2(0, -2), cascadeIndex);
+    // }
+    // else if (fy >= 0.98) {
+    //     updateResidencyStatus(pixelCoordsLower + ivec2(0, 1), cascadeIndex);
+    //     // updateResidencyStatus(pixelCoordsLower + ivec2(0, 2), cascadeIndex);
+    // }
+
+    // int offset = 1;
+    // for (int x = -offset; x <= offset; ++x) {
+    //     for (int y = -offset; y <= offset; ++y) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(x, y), cascadeIndex);
+    //     }
+    // }
+
+    //updateResidencyStatus(pixelCoordsLower, cascadeIndex);
+    // if (pixelCoordsLower != pixelCoordsUpper) {
+    //     updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
+    // }
 }
