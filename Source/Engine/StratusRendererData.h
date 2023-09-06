@@ -94,37 +94,37 @@ namespace stratus {
         VirtualIndex2DUpdateQueue(const u32 maxX = 1, const u32 maxY = 1)
             : maxX_(maxX), maxY_(maxY) {}
 
-        void PushFront(const u32 x, const u32 y) {
+        void PushFront(const u32 x, const u32 y, const u32 count = 0) {
             const u32 index = ComputeFlatVirtualIndex(x, y, maxX_);
             if (existing_.find(index) != existing_.end()) return;
 
-            indexQueue_.push_front(std::make_pair(x, y));
+            indexQueue_.push_front(std::make_pair(std::make_pair(x, y), count));
             auto it = indexQueue_.begin();
             existing_.insert(std::make_pair(index, it));
         }
 
-        void PushBack(const u32 x, const u32 y) {
+        void PushBack(const u32 x, const u32 y, const u32 count = 0) {
             const u32 index = ComputeFlatVirtualIndex(x, y, maxX_);
             if (existing_.find(index) != existing_.end()) return;
 
-            indexQueue_.push_back(std::make_pair(x, y));
+            indexQueue_.push_back(std::make_pair(std::make_pair(x, y), count));
             auto it = indexQueue_.end();
             --it;
             existing_.insert(std::make_pair(index, it));
         }
 
-        std::pair<u32, u32> PopFront() {
-            if (Size() == 0) return std::make_pair(u32(0), u32(0));
+        std::pair<std::pair<u32, u32>, u32> PopFront() {
+            if (Size() == 0) return std::make_pair(std::make_pair(u32(0), u32(0)), 0);
 
             auto front = Front();
             indexQueue_.pop_front();
-            existing_.erase(ComputeFlatVirtualIndex(front.first, front.second, maxX_));
+            existing_.erase(ComputeFlatVirtualIndex(front.first.first, front.first.second, maxX_));
 
             return front;
         }
 
-        std::pair<u32, u32> Front() const {
-            if (Size() == 0) return std::make_pair(u32(0), u32(0));
+        std::pair<std::pair<u32, u32>, u32> Front() const {
+            if (Size() == 0) return std::make_pair(std::make_pair(u32(0), u32(0)), u32(0));
             return indexQueue_.front();
         }
 
@@ -142,11 +142,11 @@ namespace stratus {
         template<typename Set>
         void SetIntersection(const Set& other) {
             for (auto it = indexQueue_.begin(); it != indexQueue_.end();) {
-                const auto index = ComputeFlatVirtualIndex(it->first, it->second, maxX_);
+                const auto index = ComputeFlatVirtualIndex(it->first.first, it->first.second, maxX_);
                 auto old = it;
                 ++it;
                 if (other.find(index) == other.end()) {
-                    Erase(old->first, old->second);
+                    Erase(old->first.first, old->first.second);
                 }
             }
         }
@@ -161,8 +161,8 @@ namespace stratus {
         }
 
     private:
-        std::list<std::pair<u32, u32>> indexQueue_;
-        std::unordered_map<u32, std::list<std::pair<u32, u32>>::iterator> existing_;
+        std::list<std::pair<std::pair<u32, u32>, u32>> indexQueue_;
+        std::unordered_map<u32, std::list<std::pair<std::pair<u32, u32>, u32>>::iterator> existing_;
         u32 maxX_;
         u32 maxY_;
     };

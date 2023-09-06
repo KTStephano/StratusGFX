@@ -13,6 +13,9 @@ STRATUS_GLSL_VERSION
 #define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
+#define VSM_PAGE_FRAME_MARKER_MASK 0xFFFFFFFC
+#define VSM_PAGE_FRAME_UPDATE_MASK 0x00000003
+
 // Total is this number squared
 #define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32760
 #define VSM_MAX_VALUE_VIRTUAL_PAGE_XY 16380
@@ -247,6 +250,15 @@ uint packPageIdWithDirtyBit(in uint pageId, in uint bit) {
 void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
     pageId = data >> 2;
     bit = data & VSM_PAGE_DIRTY_MASK;
+}
+
+uint packFrameCountWithUpdateCount(in uint frameCount, in uint updateCount) {
+    return (frameCount << 2) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
+}
+
+void unpackFrameCountAndUpdateCount(in uint data, out uint frameCount, out uint updateCount) {
+    frameCount = data >> 2;
+    updateCount = data & VSM_PAGE_FRAME_UPDATE_MASK;
 }
 
 vec2 roundIndex(in vec2 index) {

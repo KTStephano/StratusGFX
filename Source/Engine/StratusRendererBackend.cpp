@@ -1519,8 +1519,9 @@ void RendererBackend::RenderCSMDepth_() {
 
         while (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
             const auto xy = frame_->vsmc.pageGroupUpdateQueue[cascade]->PopFront();
-            const auto x = xy.first;
-            const auto y = xy.second;
+            const auto x = xy.first.first;
+            const auto y = xy.first.second;
+            const auto count = xy.second;
 
             auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
             auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
@@ -1532,7 +1533,7 @@ void RendererBackend::RenderCSMDepth_() {
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
             if (failedCheckX || failedCheckY) {
-                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y);
+                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count);
                 continue;
             }
 
@@ -1543,6 +1544,10 @@ void RendererBackend::RenderCSMDepth_() {
 
             maxPageGroupX = newMaxPageGroupX;
             maxPageGroupY = newMaxPageGroupY;
+
+            //if (count < 3) {
+            //    frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count + 1);
+            //}
         }
 
         // STRATUS_LOG << "Awaiting processing: " << frame_->vsmc.backPageGroupUpdateQueue[0]->Size() << std::endl;
@@ -1561,7 +1566,13 @@ void RendererBackend::RenderCSMDepth_() {
             // maxPageGroupX = frame_->vsmc.numPageGroupsX;
             // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
-            // Add a 1 page group border around the whole update region
+            // Add a 2 page group border around the whole update region
+            if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+            if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
             if (minPageGroupX > 0) {
                 --minPageGroupX;
             }
@@ -1569,6 +1580,12 @@ void RendererBackend::RenderCSMDepth_() {
                 --minPageGroupY;
             }
 
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
             if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
                 ++maxPageGroupX;
             }

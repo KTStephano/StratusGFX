@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(1);
+        frame_->vsmc.cascades.resize(4);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
@@ -744,7 +744,7 @@ namespace stratus {
         const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
         f32 cameraX = floorf(position.x / moveSize) * moveSize;
         f32 cameraY = floorf(position.y / moveSize) * moveSize;
-        f32 cameraZ = floorf(position.z / moveSize) * moveSize;
+        f32 cameraZ = 0.0f;//floorf(position.z / moveSize) * moveSize;
 
         // glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 
         //              floorf((maxY + minY) / (2.0f * moveSize)) * moveSize, 

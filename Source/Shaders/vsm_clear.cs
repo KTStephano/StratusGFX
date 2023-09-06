@@ -33,6 +33,7 @@ shared ivec2 vsmMaxIndex;
 shared ivec2 vsmPixelStart;
 shared ivec2 vsmPixelEnd;
 shared uint frameMarker;
+shared uint updateCount;
 
 // void clearPixel(in vec2 physicalPixelCoords) {
 //     // float fx = fract(physicalPixelCoords.x);
@@ -76,7 +77,11 @@ void main() {
     if (gl_LocalInvocationID == 0) {
         vsmPixelStart = ivec2(physicalPageCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
         vsmPixelEnd = vsmPixelStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-        frameMarker = currFramePageResidencyTable[physicalPageIndex].frameMarker;
+        unpackFrameCountAndUpdateCount(
+            currFramePageResidencyTable[physicalPageIndex].frameMarker,
+            frameMarker,
+            updateCount
+        );
     }
 
     uint pageId;
@@ -103,9 +108,15 @@ void main() {
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x <= endXY.x &&
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
 
-            updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-            uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-            currFramePageResidencyTable[physicalPageIndex].info = newInfo;
+            if (updateCount < 3) {
+                ++updateCount;
+                currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+            }
+            else {
+                updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+                uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+                currFramePageResidencyTable[physicalPageIndex].info = newInfo;
+            }
         }
     }
 
@@ -114,6 +125,7 @@ void main() {
     if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
         if (gl_LocalInvocationID == 0) {
             uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            // currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
             currFramePageResidencyTable[physicalPageIndex].info = newInfo;
         }
 

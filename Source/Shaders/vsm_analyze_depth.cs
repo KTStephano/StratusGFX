@@ -61,11 +61,16 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = computePageId(coords);
 
-    currFramePageResidencyTable[tileIndex].frameMarker = frameCount;
-
     uint prevPageId;
     uint prevDirtyBit;
     unpackPageIdAndDirtyBit(prevFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
+
+    uint unused;
+    uint prevUpdateCount;
+    unpackFrameCountAndUpdateCount(prevFramePageResidencyTable[tileIndex].frameMarker, unused, prevUpdateCount);
+
+    uint newUpdateCount = prevPageId != pageId ? 0 : prevUpdateCount;
+    currFramePageResidencyTable[tileIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, newUpdateCount);
 
     // if (prevDirtyBit == VSM_PAGE_RENDERED_BIT) {
     //     prevDirtyBit = 0;

@@ -104,9 +104,22 @@ void main() {
         uint prevDirtyBit;
         unpackPageIdAndDirtyBit(prev.info, prevPageId, prevDirtyBit);
 
-        if (prev.frameMarker > 0 && current.frameMarker != frameCount) {
+        uint frameMarker;
+        uint unused;
+        unpackFrameCountAndUpdateCount(
+            current.frameMarker,
+            frameMarker,
+            unused
+        );
+
+        if (prev.frameMarker > 0 && frameMarker != frameCount) {
             current = prev;
             currFramePageResidencyTable[tileIndex] = prev;
+            unpackFrameCountAndUpdateCount(
+                current.frameMarker,
+                frameMarker,
+                unused
+            );
         }
 
         uint pageId;
@@ -127,9 +140,10 @@ void main() {
 
         uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
 
-        if (current.frameMarker > 0) {
+        if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if ((frameCount - current.frameMarker) > 30) {
+            if ((frameCount - frameMarker) > 30) {
+                dirtyBit = 0;
                 requestPageDealloc(tileCoords, cascade);
 
                 PageResidencyEntry markedNonResident;
@@ -174,7 +188,7 @@ void main() {
 
         uint pageGroupMarker = 0;
 
-        if (dirtyBit > 0 && current.frameMarker == frameCount) {
+        if (dirtyBit > 0 && frameMarker == frameCount) {
         //if (dirtyBit > 0) {
             pageGroupMarker = frameCount;
 
