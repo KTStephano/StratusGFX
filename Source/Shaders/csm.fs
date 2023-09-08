@@ -147,7 +147,7 @@ void main() {
 	vec3 vsmCoords = vec3(physicalPixelCoords, 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
-	writeDepth(vsmCoords.xy, depth);
+	// writeDepth(vsmCoords.xy, depth);
 
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);

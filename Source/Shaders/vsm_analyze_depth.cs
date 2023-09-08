@@ -55,10 +55,8 @@ const int pixelOffsets[] = int[](
     0
 );
 
-void updateResidencyStatus(in ivec2 pixelCoordsWrapped, in ivec2 baseCoords, in int cascade) {
-    //ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
-
-    uint tileIndex = uint(pixelCoordsWrapped.x + pixelCoordsWrapped.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
+void updateResidencyStatus(in ivec2 pixelCoords, in ivec2 baseCoords, in int cascade) {
+    uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = computePageId(baseCoords);
 
     uint prevPageId;
@@ -78,6 +76,15 @@ void updateResidencyStatus(in ivec2 pixelCoordsWrapped, in ivec2 baseCoords, in 
 
     uint dirtyBit = prevPageId != pageId ? 1 : prevDirtyBit; 
     currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
+}
+
+void updateResidencyStatus(in vec2 uv, in int cascade) {
+    vec2 pixelCoords = wrapUVCoords(uv) * vec2(residencyTableSize - ivec2(1));
+    vec2 baseCoords = uv * vec2(residencyTableSize - ivec2(1));
+
+    updateResidencyStatus(ivec2(floor(pixelCoords)), ivec2(floor(baseCoords)), cascade);
+    //updateResidencyStatus(ivec2(ceil(pixelCoords)), ivec2(ceil(baseCoords)), cascade);
+    updateResidencyStatus(ivec2(round(pixelCoords)), ivec2(round(baseCoords)), cascade);
 }
 
 void main() {
@@ -121,35 +128,40 @@ void main() {
     // // Convert from range [-1, 1] to [0, 1]
     // cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
+    float uvStep = 1.0 / float(numPagesXY);
+
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
-    vec2 vsmTexCoordsWrapped = wrapUVCoords(vsmTexCoords);
 
-    vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize - ivec2(1));
-    vec2 basePixelCoordsWrapped = vsmTexCoordsWrapped * vec2(residencyTableSize - ivec2(1));//wrapIndex(basePixelCoords, residencyTableSize);
+    // vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize - ivec2(1));
+    // vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
-    float fx = fract(basePixelCoordsWrapped.x);
-    float fy = fract(basePixelCoordsWrapped.y);
+    // float fx = fract(basePixelCoordsWrapped.x);
+    // float fy = fract(basePixelCoordsWrapped.y);
 
-    //basePixelCoords = round(basePixelCoords);
+    //updateResidencyStatus(vsmTexCoords, cascadeIndex);
 
-    ivec2 pixelCoordsLower = ivec2(floor(basePixelCoordsWrapped));
-    ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoordsWrapped));
+    float bound = 1.0;
+    for (float x = -bound; x <= bound; ++x) {
+        for (float y = -bound; y <= bound; ++y) {
+            updateResidencyStatus(vsmTexCoords + vec2(x, y) * uvStep, cascadeIndex);
+        }
+    }
 
-    ivec2 baseCoordsLower = ivec2(floor(basePixelCoords));
-    ivec2 baseCoordsUpper = ivec2(ceil(basePixelCoords));
+    // //basePixelCoords = round(basePixelCoords);
 
-    ivec2 coords1 = pixelCoordsLower;
-    ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
-    ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
-    ivec2 coords4 = pixelCoordsUpper;
+    // ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
+    // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
-    ivec2 baseCoords1 = baseCoordsLower;
-    ivec2 baseCoords2 = ivec2(baseCoordsLower.x, baseCoordsUpper.y);
-    ivec2 baseCoords3 = ivec2(baseCoordsUpper.x, baseCoordsLower.y);
-    ivec2 baseCoords4 = baseCoordsUpper;
+    // ivec2 coords1 = pixelCoordsLower;
+    // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
+    // ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
+    // ivec2 coords4 = pixelCoordsUpper;
 
     // updateResidencyStatus(coords1, cascadeIndex);
+    // updateResidencyStatus(coords2, cascadeIndex);
+    // updateResidencyStatus(coords3, cascadeIndex);
+    // updateResidencyStatus(coords4, cascadeIndex);
 
     // if (coords2 != coords1) {
     //     updateResidencyStatus(coords2, cascadeIndex);
@@ -193,20 +205,10 @@ void main() {
     //     // updateResidencyStatus(pixelCoordsLower + ivec2(0, 2), cascadeIndex);
     // }
 
-    //updateResidencyStatus(pixelCoordsLower, ivec2(floor(basePixelCoords)), cascadeIndex);
-    updateResidencyStatus(coords1, baseCoords1, cascadeIndex);
-    updateResidencyStatus(coords2, baseCoords2, cascadeIndex);
-    updateResidencyStatus(coords3, baseCoords3, cascadeIndex);
-    updateResidencyStatus(coords4, baseCoords4, cascadeIndex);
-    // if (pixelCoordsLower != pixelCoordsUpper) {
-    //     updateResidencyStatus(pixelCoordsUpper, ivec2(ceil(basePixelCoords)), cascadeIndex);
-    // }
-    // if (fx <= 0.02 || fx >= 0.98 || fy <= 0.02 || fy >= 0.98) {
-    //     int offset = 2;
-    //     for (int x = -offset; x <= offset; ++x) {
-    //         for (int y = -offset; y <= offset; ++y) {
-    //             updateResidencyStatus(pixelCoordsLower + ivec2(x, y), ivec2(ceil(basePixelCoords)) + ivec2(x, y), cascadeIndex);
-    //         }
+    // int offset = 1;
+    // for (int x = -offset; x <= offset; ++x) {
+    //     for (int y = -offset; y <= offset; ++y) {
+    //         updateResidencyStatus(pixelCoordsLower + ivec2(x, y), cascadeIndex);
     //     }
     // }
 

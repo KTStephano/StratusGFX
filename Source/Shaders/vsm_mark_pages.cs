@@ -174,12 +174,12 @@ void main() {
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                // prevFramePageResidencyTable[tileIndex] = current;
+                prevFramePageResidencyTable[tileIndex] = current;
                 currFramePageResidencyTable[tileIndex] = current;
 
-                prev = current;
-                prev.info &= VSM_PAGE_ID_MASK;
-                prevFramePageResidencyTable[tileIndex] = prev;
+                // prev = current;
+                // prev.info &= VSM_PAGE_ID_MASK;
+                // prevFramePageResidencyTable[tileIndex] = prev;
             }
         }
 
