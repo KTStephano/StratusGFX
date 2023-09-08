@@ -98,7 +98,7 @@ void main() {
 
     uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
-    if (gl_LocalInvocationID == 0 && dirtyBit > 0 && frameMarker == frameCount) {
+    if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
         vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
             ivec2(physicalPageCoords),
             ivec2(numPagesXY - 1),
@@ -111,20 +111,20 @@ void main() {
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
 
             clearPage = true;
-            updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-            currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            // updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+            // currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
 
-            //if (updateCount < 15 && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
-            // if (updateCount < 3) {
-            //     ++updateCount;
-            //     currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
-            //     clearPage = true;
-            // }
-            // //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
-            // else {
-            //     updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-            //     currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-            // }
+            //if (updateCount < 15) {// && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+            if (updateCount < 15) {
+                ++updateCount;
+                currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+                //clearPage = true;
+            }
+            //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
+            else {
+                updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            }
         }
     }
 
@@ -134,11 +134,11 @@ void main() {
 
     //if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
     if (clearPage) {
-        if (gl_LocalInvocationID == 0) {
-            uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-            // currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
-            currFramePageResidencyTable[physicalPageIndex].info = newInfo;
-        }
+        // if (gl_LocalInvocationID == 0) {
+        //     uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+        //     // currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+        //     currFramePageResidencyTable[physicalPageIndex].info = newInfo;
+        // }
 
         for (int x = vsmPixelStart.x + int(gl_LocalInvocationID.x); x < vsmPixelEnd.x; x += pixelStepSize) {
             for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) { 

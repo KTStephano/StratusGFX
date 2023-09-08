@@ -190,9 +190,9 @@ void main() {
         uint pageGroupMarker = 0;
 
         //if (dirtyBit > 0 && frameMarker == frameCount) {
-        if (frameMarker == frameCount) {
-        //if (dirtyBit > 0) {
-            //pageGroupMarker = frameCount;
+        //if (frameMarker == frameCount) {
+        if (dirtyBit > 0) {
+            pageGroupMarker = frameCount;
 
             atomicMin(localMinPageX, virtualPageCoords.x - 1);
             atomicMin(localMinPageY, virtualPageCoords.y - 1);
@@ -201,9 +201,9 @@ void main() {
             atomicMax(localMaxPageY, virtualPageCoords.y + 1);
         }
 
-        if (dirtyBit > 0) {
-            pageGroupMarker = frameCount;
-        }
+        // if (dirtyBit > 0) {
+        //     pageGroupMarker = frameCount;
+        // }
 
         pageGroupsToRender[virtualPageIndex] = pageGroupMarker;
 

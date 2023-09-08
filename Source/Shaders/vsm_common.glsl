@@ -122,9 +122,9 @@ vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
     return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
 }
 
-vec2 wrapUVCoords(in vec2 uv) {
-    return fract(uv);
-}
+// vec2 wrapUVCoords(in vec2 uv) {
+//     return fract(uv);
+// }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
 float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
@@ -316,10 +316,10 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 physicalTexCoords = wrapUVCoords(ndcOrigin * 0.5 + vec2(0.5));
+    vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
 
-    return physicalTexCoords * vec2(maxVirtualIndex);
-    //return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + vec2(1)));
+    //return physicalTexCoords * vec2(maxVirtualIndex);
+    return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + vec2(1)));
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
@@ -374,10 +374,10 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 virtualTexCoords = wrapUVCoords(ndcRelative * 0.5 + vec2(0.5));
+    vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
 
-    return virtualTexCoords * vec2(maxPhysicalIndex);
-    //return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + vec2(1)));
+    //return virtualTexCoords * vec2(maxPhysicalIndex);
+    return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + vec2(1)));
 }
 
 vec2 convertPhysicalCoordsToVirtualCoords(
