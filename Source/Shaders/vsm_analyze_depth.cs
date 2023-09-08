@@ -82,8 +82,8 @@ void updateResidencyStatus(in vec2 uv, in int cascade) {
     vec2 pixelCoords = wrapUVCoords(uv) * vec2(residencyTableSize - ivec2(1));
     vec2 baseCoords = uv * vec2(residencyTableSize - ivec2(1));
 
-    updateResidencyStatus(ivec2(floor(pixelCoords)), ivec2(floor(baseCoords)), cascade);
-    //updateResidencyStatus(ivec2(ceil(pixelCoords)), ivec2(ceil(baseCoords)), cascade);
+    // updateResidencyStatus(ivec2(floor(pixelCoords)), ivec2(floor(baseCoords)), cascade);
+    // updateResidencyStatus(ivec2(ceil(pixelCoords)), ivec2(ceil(baseCoords)), cascade);
     updateResidencyStatus(ivec2(round(pixelCoords)), ivec2(round(baseCoords)), cascade);
 }
 
@@ -132,20 +132,31 @@ void main() {
 
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
+    vec2 vsmTexCoordsWrapped = wrapUVCoords(vsmTexCoords);
+    vec2 pixelCoordsWrapped = vsmTexCoordsWrapped * vec2(residencyTableSize - ivec2(1));
 
     // vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize - ivec2(1));
     // vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
-    // float fx = fract(basePixelCoordsWrapped.x);
-    // float fy = fract(basePixelCoordsWrapped.y);
+    float fx = fract(pixelCoordsWrapped.x);
+    float fy = fract(pixelCoordsWrapped.y);
 
-    //updateResidencyStatus(vsmTexCoords, cascadeIndex);
+    // updateResidencyStatus(vsmTexCoords, cascadeIndex);
+    // updateResidencyStatus(vsmTexCoords + vec2(uvStep, 0), cascadeIndex);
+    // updateResidencyStatus(vsmTexCoords + vec2(0, uvStep), cascadeIndex);
+    // updateResidencyStatus(vsmTexCoords + vec2(uvStep, uvStep), cascadeIndex);
 
-    float bound = 1.0;
-    for (float x = -bound; x <= bound; ++x) {
-        for (float y = -bound; y <= bound; ++y) {
-            updateResidencyStatus(vsmTexCoords + vec2(x, y) * uvStep, cascadeIndex);
+    // Check if we are approaching a page boundary
+    if (fx <= 0.02 || fx >= 0.98 || fy <= 0.02 || fy >= 0.98) {
+        float bound = 1.0;
+        for (float x = -bound; x <= bound; ++x) {
+            for (float y = -bound; y <= bound; ++y) {
+                updateResidencyStatus(vsmTexCoords + vec2(x, y) * uvStep, cascadeIndex);
+            }
         }
+    }
+    else {
+        updateResidencyStatus(vsmTexCoords, cascadeIndex);
     }
 
     // //basePixelCoords = round(basePixelCoords);
