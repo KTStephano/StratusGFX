@@ -133,24 +133,34 @@ void main() {
     //basePixelCoords = round(basePixelCoords);
 
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
-    ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
+    // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
-    ivec2 coords1 = pixelCoordsLower;
-    ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
-    ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
-    ivec2 coords4 = pixelCoordsUpper;
+    // ivec2 coords1 = pixelCoordsLower;
+    // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
+    // ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
+    // ivec2 coords4 = pixelCoordsUpper;
 
-    updateResidencyStatus(coords1, cascadeIndex);
+    if (fx <= 0.02 || fx >= 0.98 || fy <= 0.02 || fy >= 0.98) {
+        int offset = 1;
+        for (int x = -offset; x <= offset; ++x) {
+            for (int y = -offset; y <= offset; ++y) {
+                updateResidencyStatus(pixelCoordsLower + ivec2(x, y), cascadeIndex);
+            }
+        }
+    }
+    else {
+        updateResidencyStatus(pixelCoordsLower, cascadeIndex);
+    }
 
-    if (coords2 != coords1) {
-        updateResidencyStatus(coords2, cascadeIndex);
-    }
-    if (coords3 != coords2) {
-        updateResidencyStatus(coords3, cascadeIndex);
-    }
-    if (coords4 != coords3) {
-        updateResidencyStatus(coords4, cascadeIndex);
-    }
+    // if (coords2 != coords1) {
+    //     updateResidencyStatus(coords2, cascadeIndex);
+    // }
+    // if (coords3 != coords2) {
+    //     updateResidencyStatus(coords3, cascadeIndex);
+    // }
+    // if (coords4 != coords3) {
+    //     updateResidencyStatus(coords4, cascadeIndex);
+    // }
 
     // Check for approaching page boundaries
     // if (fx <= 0.01) {

@@ -99,6 +99,7 @@ void main() {
     uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
     if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
+    //if (gl_LocalInvocationID == 0) {
         vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
             ivec2(physicalPageCoords),
             ivec2(numPagesXY - 1),

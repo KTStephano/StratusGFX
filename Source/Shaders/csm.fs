@@ -58,6 +58,7 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 
 	//if (dirtyBit > 0 && entry.frameMarker == frameCount) {
 	//if (frameMarker == frameCount) {
+	if (dirtyBit > 0) {
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
 		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
@@ -68,7 +69,7 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 		// if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
 		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
 		// }
-	//}
+	}
 }
 
 // void markPage(in vec2 physicalPixelCoords) {
