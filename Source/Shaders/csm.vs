@@ -32,7 +32,7 @@ flat out int fsDrawID;
 flat out int fsClipMapIndex;
 smooth out vec2 fsTexCoords;
 smooth out vec2 vsmTexCoords;
-smooth out float vsmDepth;
+//smooth out float vsmDepth;
 
 void main () {
 	// Select which layer of the depth texture we will write to
@@ -56,8 +56,10 @@ void main () {
 	globalVsmClipPos.xyz /= globalVsmClipPos.w;
 	// Transform from [-1, 1] to [0, 1]
 	globalVsmClipPos.xyz = globalVsmClipPos.xyz * 0.5 + vec3(0.5);
+	
 	vsmTexCoords = globalVsmClipPos.xy;
-	vsmDepth = globalVsmClipPos.z;
+	//vsmDepth = globalVsmClipPos.z;
+	//vsmDepth = clipPos.z * 0.5 + 0.5;
 
 	fsClipMapIndex = vsmClipMapIndex;
 

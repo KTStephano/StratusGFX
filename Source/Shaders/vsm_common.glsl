@@ -13,8 +13,8 @@ STRATUS_GLSL_VERSION
 #define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
-#define VSM_PAGE_FRAME_MARKER_MASK 0xFFFFFFFC
-#define VSM_PAGE_FRAME_UPDATE_MASK 0x00000003
+#define VSM_PAGE_FRAME_MARKER_MASK 0xFFFFFFF0
+#define VSM_PAGE_FRAME_UPDATE_MASK 0x0000000F
 
 // Total is this number squared
 #define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32760
@@ -72,6 +72,10 @@ VSM_CONVERT_CLIP0_TO_CLIP_N(vec2)
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec3)
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec4)
 
+float vsmConvertRelativeDepthToOriginDepth(in float depth) {
+    return ((2.0 * depth - 1.0) - vsmClipMap0ProjectionView[3].z) * 0.5 + 0.5;
+}
+
 vec3 vsmCalculateClipValueFromWorldPos(in mat4 viewProj, in vec3 worldPos, in int clipMapIndex) {
     vec4 result = viewProj * vec4(worldPos, 1.0);
 
@@ -116,6 +120,10 @@ ivec2 wrapIndex(in ivec2 value, in ivec2 maxValue) {
 
 vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
     return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
+}
+
+vec2 wrapUVCoords(in vec2 uv) {
+    return fract(uv);
 }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
@@ -253,11 +261,11 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
 }
 
 uint packFrameCountWithUpdateCount(in uint frameCount, in uint updateCount) {
-    return (frameCount << 2) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
+    return (frameCount << 4) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
 }
 
 void unpackFrameCountAndUpdateCount(in uint data, out uint frameCount, out uint updateCount) {
-    frameCount = data >> 2;
+    frameCount = data >> 4;
     updateCount = data & VSM_PAGE_FRAME_UPDATE_MASK;
 }
 
@@ -290,16 +298,17 @@ vec2 roundIndex(in vec2 index) {
 //     return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
 // }
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
-    in ivec2 virtualCoords, 
-    in ivec2 maxVirtualIndex,
+    in vec2 virtualCoords, 
+    in vec2 maxVirtualIndex,
     in int cascadeIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
-    vec2 virtualTexCoords = vec2(virtualCoords) / vec2(maxVirtualIndex);
+    //vec2 virtualTexCoords = vec2(virtualCoords) / vec2(maxVirtualIndex);
 
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-    vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
+    //vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
+    vec4 ndc = vec4(vec2(2.0 * virtualCoords) / vec2(maxVirtualIndex + 1) - 1.0, 0.0, 1.0);
 
     // Subtract off the translation since the orientation should be
     // the same for all vsm clip maps - just translation changes
@@ -307,14 +316,15 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
+    vec2 physicalTexCoords = wrapUVCoords(ndcOrigin * 0.5 + vec2(0.5));
 
-    return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+    return physicalTexCoords * vec2(maxVirtualIndex);
+    //return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + vec2(1)));
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
-    in ivec2 virtualCoords, 
-    in ivec2 maxVirtualIndex,
+    in vec2 virtualCoords, 
+    in vec2 maxVirtualIndex,
     in int cascadeIndex
 ) {
     
@@ -347,30 +357,32 @@ vec2 convertVirtualCoordsToPhysicalCoords(
 //     return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + ivec2(1)));
 // }
 vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
-    in ivec2 physicalCoords, 
-    in ivec2 maxPhysicalIndex,
+    in vec2 physicalCoords, 
+    in vec2 maxPhysicalIndex,
     in int cascadeIndex
 ) {
     
     // We need to convert our virtual texel to a physical texel
-    vec2 physicalTexCoords = vec2(physicalCoords) / vec2(maxPhysicalIndex);
+    //vec2 physicalTexCoords = vec2(physicalCoords) / vec2(maxPhysicalIndex);
 
     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-    vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
+    //vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
+    vec4 ndc = vec4(vec2(2.0 * physicalCoords) / vec2(maxPhysicalIndex + 1) - 1.0, 0.0, 1.0);
 
     // Add back the translation component to convert physical ndc to relative virtual ndc
     vec2 ndcRelative = ndc.xy + vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
     //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
+    vec2 virtualTexCoords = wrapUVCoords(ndcRelative * 0.5 + vec2(0.5));
 
-    return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + ivec2(1)));
+    return virtualTexCoords * vec2(maxPhysicalIndex);
+    //return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + vec2(1)));
 }
 
 vec2 convertPhysicalCoordsToVirtualCoords(
-    in ivec2 physicalCoords, 
-    in ivec2 maxPhysicalIndex,
+    in vec2 physicalCoords, 
+    in vec2 maxPhysicalIndex,
     in int cascadeIndex
 ) {
     

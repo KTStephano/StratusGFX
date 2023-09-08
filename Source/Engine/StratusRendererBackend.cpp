@@ -1421,7 +1421,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 4;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1454,18 +1454,18 @@ void RendererBackend::RenderCSMDepth_() {
                 }
             }
         }
-    }
 
-    frame_->vsmc.pageGroupsToRender.UnmapMemory();
-    pageGroupsToRender = nullptr;
-
-    // Update the page group update queue with only what is visible on screen
-    for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+        // Update the page group update queue with only what is visible on screen
         frame_->vsmc.pageGroupUpdateQueue[cascade]->SetIntersection(changeSetArray[cascade]);
 
         // Clear the back buffer
         frame_->vsmc.backPageGroupUpdateQueue[cascade]->Clear();
     }
+
+    //STRATUS_LOG << changeSetArray[cascade].size() << std::endl;
+
+    frame_->vsmc.pageGroupsToRender.UnmapMemory();
+    pageGroupsToRender = nullptr;
 
     // Now compute a page group x/y for glViewport
     // while (frame_->vsmc.pageGroupUpdateQueue->Size() > 0) {
@@ -1561,10 +1561,10 @@ void RendererBackend::RenderCSMDepth_() {
         //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
 
         if (numPageGroupsToRender > 0) {
-            // minPageGroupX = 0;
-            // minPageGroupY = 0;
-            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
             if (minPageGroupX > 0) {
@@ -1663,27 +1663,27 @@ void RendererBackend::RenderCSMDepth_() {
             // }
 
             // Constrain the update window to be divisble by 2
-            // if (sizeX % 2 != 0) {
-            //     if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //         ++maxPageGroupX;
-            //     }
-            //     else if (minPageGroupX > 0) {
-            //         --minPageGroupX;
-            //     }
+            if (sizeX % 2 != 0) {
+                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                    ++maxPageGroupX;
+                }
+                else if (minPageGroupX > 0) {
+                    --minPageGroupX;
+                }
 
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            // }
+                sizeX = maxPageGroupX - minPageGroupX;
+            }
 
-            // if (sizeY % 2 != 0) {
-            //     if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //         ++maxPageGroupY;
-            //     }
-            //     else if (minPageGroupY > 0) {
-            //         --minPageGroupY;
-            //     }
+            if (sizeY % 2 != 0) {
+                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                    ++maxPageGroupY;
+                }
+                else if (minPageGroupY > 0) {
+                    --minPageGroupY;
+                }
 
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            // }
+                sizeY = maxPageGroupY - minPageGroupY;
+            }
 
             //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 
@@ -1747,6 +1747,8 @@ void RendererBackend::RenderCSMDepth_() {
             matTranslate(translate, glm::vec3(tx, ty, 0.0f));
             
             const glm::mat4 cascadeOrthoProjection = csm.cascades[cascade].projectionViewRender;
+
+            //STRATUS_LOG << scaleX << " " << scaleY << " " << tx << " " << ty << std::endl;
 
             // STRATUS_LOG << "1: " << (
             //     scale * translate * frame_->vsmc.cascades[cascade].projection * frame_->vsmc.viewTransform) << std::endl;
@@ -1874,7 +1876,11 @@ void RendererBackend::RenderCSMDepth_() {
 
             RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
             RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
-            //}
+
+            STRATUS_LOG << minPageGroupX * pageGroupWindowWidth << " "
+                        << minPageGroupY * pageGroupWindowHeight << " "
+                        << sizeX * pageGroupWindowWidth << " "
+                        << sizeY * pageGroupWindowHeight << std::endl;
 
             UnbindShader_();
         }

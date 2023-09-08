@@ -34,6 +34,7 @@ shared ivec2 vsmPixelStart;
 shared ivec2 vsmPixelEnd;
 shared uint frameMarker;
 shared uint updateCount;
+shared bool clearPage;
 
 // void clearPixel(in vec2 physicalPixelCoords) {
 //     // float fx = fract(physicalPixelCoords.x);
@@ -67,6 +68,7 @@ void main() {
         clearValueBits = floatBitsToUint(clearValue);
         vsmSize = imageSize(vsm).xy;
         vsmMaxIndex = vsmSize - ivec2(1.0);
+        clearPage = false;
     }
 
     barrier();
@@ -108,21 +110,30 @@ void main() {
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x <= endXY.x &&
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
 
-            if (updateCount < 3) {
-                ++updateCount;
-                currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
-            }
-            //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
-            else {
-                updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-            }
+            clearPage = true;
+            updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+            currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+
+            //if (updateCount < 15 && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+            // if (updateCount < 3) {
+            //     ++updateCount;
+            //     currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+            //     clearPage = true;
+            // }
+            // //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
+            // else {
+            //     updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+            //     currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            // }
         }
     }
 
     int pixelStepSize = int(gl_WorkGroupSize.x);
 
-    if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
+    barrier();
+
+    //if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
+    if (clearPage) {
         if (gl_LocalInvocationID == 0) {
             uint newInfo = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
             // currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);

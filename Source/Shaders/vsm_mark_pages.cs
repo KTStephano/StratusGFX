@@ -133,8 +133,8 @@ void main() {
 
         // Take the physical coords and convert them to virtual coords for the current frame
         ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
-            tileCoords,
-            ivec2(int(numPagesXY) - 1),
+            vec2(tileCoords),
+            vec2(int(numPagesXY) - 1),
             cascade
         )));
 
@@ -168,18 +168,18 @@ void main() {
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
                 else if (dirtyBit == VSM_PAGE_RENDERED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
-                    // dirtyBit = 0;
+                    dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                prevFramePageResidencyTable[tileIndex] = current;
+                // prevFramePageResidencyTable[tileIndex] = current;
                 currFramePageResidencyTable[tileIndex] = current;
 
-                // prev = current;
-                // prev.info &= VSM_PAGE_ID_MASK;
-                // prevFramePageResidencyTable[tileIndex] = prev;
+                prev = current;
+                prev.info &= VSM_PAGE_ID_MASK;
+                prevFramePageResidencyTable[tileIndex] = prev;
             }
         }
 

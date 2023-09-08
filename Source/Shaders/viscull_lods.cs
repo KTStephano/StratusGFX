@@ -85,43 +85,43 @@ void main() {
         //float dist = length((view * vec4(center, 1.0)).xyz);//abs(center.z);
         DrawElementsIndirectCommand draw = inDrawCalls[i];
 
-    // #ifdef SELECT_LOD
-    //     DrawElementsIndirectCommand lod;
-    //     const float firstLodDist = max(zfar, 1000.0) * 0.3;
-    //     const float maxDist = max(zfar, 1000.0) - firstLodDist;
-    //     const float restLodDist = maxDist / 7;
+    #ifdef SELECT_LOD
+        DrawElementsIndirectCommand lod;
+        const float firstLodDist = max(zfar, 1000.0) * 0.3;
+        const float maxDist = max(zfar, 1000.0) - firstLodDist;
+        const float restLodDist = maxDist / 7;
 
-    //     if (dist < firstLodDist) {
-    //         draw = drawCallsLod0[i];
-    //     }
-    //     // else {
-    //     //     draw = drawCallsLod7[i];
-    //     // }
-    //     else if (dist < (firstLodDist + restLodDist * 1.0)) {
-    //         draw = drawCallsLod1[i];
-    //     }
-    //     else if (dist < (firstLodDist + restLodDist * 2.0))  {
-    //         draw = drawCallsLod2[i];
-    //     }
-    //     else if (dist < (firstLodDist + restLodDist * 3.0))  {
-    //         draw = drawCallsLod3[i];
-    //     }
-    //     else if (dist < (firstLodDist + restLodDist * 4.0))  {
-    //         draw = drawCallsLod4[i];
-    //     }
-    //     else if (dist < (firstLodDist + restLodDist * 5.0))  {
-    //         draw = drawCallsLod5[i];
-    //     }
-    //     else if (dist < (firstLodDist + restLodDist * 6.0))  {
-    //         draw = drawCallsLod6[i];
-    //     }
-    //     else {
-    //         draw = drawCallsLod7[i];
-    //     }
+        if (dist < firstLodDist) {
+            draw = drawCallsLod0[i];
+        }
+        // else {
+        //     draw = drawCallsLod7[i];
+        // }
+        else if (dist < (firstLodDist + restLodDist * 1.0)) {
+            draw = drawCallsLod1[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 2.0))  {
+            draw = drawCallsLod2[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 3.0))  {
+            draw = drawCallsLod3[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 4.0))  {
+            draw = drawCallsLod4[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 5.0))  {
+            draw = drawCallsLod5[i];
+        }
+        else if (dist < (firstLodDist + restLodDist * 6.0))  {
+            draw = drawCallsLod6[i];
+        }
+        else {
+            draw = drawCallsLod7[i];
+        }
 
-    //     //draw = drawCallsLod7[i];
-    //     lod = draw;
-    // #endif
+        //draw = drawCallsLod7[i];
+        lod = draw;
+    #endif
 
         if (!isAabbVisible(frustumPlanes, aabb)) {
             draw.instanceCount = 0;
@@ -132,8 +132,8 @@ void main() {
 
         outDrawCalls[i] = draw;
 
-    // #ifdef SELECT_LOD
-    //     selectedLods[i] = lod;
-    // #endif
+    #ifdef SELECT_LOD
+        selectedLods[i] = lod;
+    #endif
     }
 }

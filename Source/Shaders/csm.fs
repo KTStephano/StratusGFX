@@ -30,88 +30,96 @@ flat in int fsDrawID;
 flat in int fsClipMapIndex;
 smooth in vec2 fsTexCoords;
 smooth in vec2 vsmTexCoords;
-smooth in float vsmDepth;
+//smooth in float vsmDepth;
 
 uniform float nearClipPlane;
 
-// void writeDepth(in vec2 virtualPixelCoords, in float depth) {
-// 	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
-// 	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
-// 	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
-
-// 	PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
-
-// 	uint pageId;
-// 	uint dirtyBit;
-// 	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
-
-// 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
-// 	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), fsClipMapIndex);
-
-// 	uint frameMarker;
-// 	uint unused;
-// 	unpackFrameCountAndUpdateCount(
-// 		entry.frameMarker,
-// 		frameMarker,
-// 		unused
-// 	);
-
-// 	//if (dirtyBit > 0 && entry.frameMarker == frameCount) {
-// 	if (frameMarker == frameCount) {
-// 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
-// 		if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
-// 			uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
-// 			currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);
-// 		}
-// 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
-// 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower + ivec3(1, 1, 0), depth);
-// 		// if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
-// 		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
-// 		// }
-// 	}
-// }
-
-void markPage(in vec2 physicalPixelCoords) {
+void writeDepth(in vec2 virtualPixelCoords, in float depth) {
+	vec2 physicalPixelCoords = virtualPixelCoords;//wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
 	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
 
 	PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
 
-	// uint frameMarker;
-	// uint unused;
-	// unpackFrameCountAndUpdateCount(
-	// 	entry.frameMarker,
-	// 	frameMarker,
-	// 	unused
-	// );
-
 	uint pageId;
 	uint dirtyBit;
 	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
 
-	if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
-		uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
-		currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);
-	}
-}
-
-void writeDepth(in vec2 virtualPixelCoords, in float depth) {
-	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
-
-	//markPage(round(physicalPixelCoords));
-	// markPage(round(physicalPixelCoords) + vec2(1, 0));
-	// markPage(round(physicalPixelCoords) + vec2(-1, 0));
-	// markPage(round(physicalPixelCoords) + vec2(0, 1));
-	// markPage(round(physicalPixelCoords) + vec2(0, -1));
-
 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
 	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), fsClipMapIndex);
 
-	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
-	//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
+	uint frameMarker;
+	uint unused;
+	unpackFrameCountAndUpdateCount(
+		entry.frameMarker,
+		frameMarker,
+		unused
+	);
+
+	//if (dirtyBit > 0 && entry.frameMarker == frameCount) {
+	if (frameMarker == frameCount) {
+		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
+		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
+		// 	currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);
+		// }
+		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
+		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower + ivec3(1, 1, 0), depth);
+		// if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
+		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
+		// }
+	}
 }
 
+// void markPage(in vec2 physicalPixelCoords) {
+// 	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+// 	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
+
+// 	PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
+
+// 	// uint frameMarker;
+// 	// uint unused;
+// 	// unpackFrameCountAndUpdateCount(
+// 	// 	entry.frameMarker,
+// 	// 	frameMarker,
+// 	// 	unused
+// 	// );
+
+// 	uint pageId;
+// 	uint dirtyBit;
+// 	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
+
+// 	if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+// 		uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
+// 		currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);
+// 	}
+// }
+
+// void writeDepth(in vec2 virtualPixelCoords, in float depth) {
+// 	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
+
+// 	//markPage(floor(physicalPixelCoords));
+// 	// markPage(floor(physicalPixelCoords) + vec2(1, 0));
+// 	// markPage(floor(physicalPixelCoords) + vec2(-1, 0));
+// 	// markPage(floor(physicalPixelCoords) + vec2(0, 1));
+// 	// markPage(floor(physicalPixelCoords) + vec2(0, -1));
+
+// 	// int offset = 2;
+// 	// for (int x = -offset; x <= offset; ++x) {
+// 	// 	for (int y = -offset; y <= offset; ++y) {
+// 	// 		markPage(floor(physicalPixelCoords) + vec2(x, y));
+// 	// 	}
+// 	// }
+
+// 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
+// 	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), fsClipMapIndex);
+
+// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
+// 	//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
+// }
+
 void main() {
+	float vsmDepth = gl_FragCoord.z;//vsmConvertRelativeDepthToOriginDepth(gl_FragCoord.z);
 	float depth = vsmDepth;//gl_FragCoord.z;
 
 #ifdef RUN_CSM_ALPHA_TEST
@@ -130,8 +138,13 @@ void main() {
 	//depth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;
 #endif
 
+	depth = clamp(depth, 0.0, 1.0);
+
 	//ivec3 vsmCoords = ivec3(gl_FragCoord.xy, 0);
-	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
+	vec2 virtualPixelCoords = vec2(gl_FragCoord.xy);
+	vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vec2(imageSize(vsm).xy), fsClipMapIndex);
+	//vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
+	vec3 vsmCoords = vec3(physicalPixelCoords, 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 
 	writeDepth(vsmCoords.xy, depth);
