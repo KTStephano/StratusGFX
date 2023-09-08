@@ -98,8 +98,8 @@ void main() {
 
     uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
-    if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
-    //if (gl_LocalInvocationID == 0) {
+    //if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
+    if (gl_LocalInvocationID == 0) {
         vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
             ivec2(physicalPageCoords),
             ivec2(numPagesXY - 1),
@@ -112,20 +112,23 @@ void main() {
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
 
             clearPage = true;
-            // updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-            // currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
 
-            //if (updateCount < 15) {// && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
-            if (updateCount < 15) {
-                ++updateCount;
-                currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
-                //clearPage = true;
-            }
-            //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
-            else {
+            if (dirtyBit > 0) {
                 updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
                 currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
             }
+
+            //if (updateCount < 15) {// && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+            // if (updateCount < 15) {
+            //     ++updateCount;
+            //     currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+            //     //clearPage = true;
+            // }
+            // //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
+            // else {
+            //     updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+            //     currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            // }
         }
     }
 

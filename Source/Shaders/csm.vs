@@ -3,14 +3,20 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 #extension GL_ARB_sparse_texture2 : require
 
+// Enables gl_Layer and gl_ViewportIndex in the vertex shader (no geometry shader required)
+#extension GL_ARB_shader_viewport_layer_array : require
+
+precision highp float;
+precision highp int;
+precision highp uimage2D;
+precision highp sampler2D;
+precision highp sampler2DArrayShadow;
+
 // Cascaded Shadow Maps
 // See Foundations of Game Engine Development Volume 2 (section on cascaded shadow maps)
 // See https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
 // See http://hacksoflife.blogspot.com/2009/01/polygon-offset-and-shadow-mapping.html
 // See https://github.com/OGRECave/ogre-next/issues/100
-
-// Enables gl_Layer and gl_ViewportIndex in the vertex shader (no geometry shader required)
-#extension GL_ARB_shader_viewport_layer_array : require
 
 #include "mesh_data.glsl"
 #include "common.glsl"

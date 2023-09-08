@@ -739,7 +739,7 @@ namespace stratus {
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;
-        const auto directionOffset = glm::vec3(0.0f); // 256.0f * frame_->camera->GetDirection();
+        const auto directionOffset = glm::vec3(0.0f); //moveSize * frame_->camera->GetDirection();
         // Camera position is defined in world space but we need it to be in light-space
         const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
         f32 cameraX = floorf(position.x / moveSize) * moveSize;
