@@ -23,6 +23,8 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block1 
 uniform uint numPagesXY;
 uniform uint virtualShadowMapSizeXY;
 uniform uint frameCount;
+uniform ivec2 startXY;
+uniform ivec2 endXY;
 
 // Cascaded Shadow Maps
 //in float fsTanTheta;
@@ -60,6 +62,9 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	//if (dirtyBit > 0 && entry.frameMarker == frameCount) {
 	//if (frameMarker == frameCount) {
 	//if (dirtyBit > 0) {
+	//if (physicalPageCoords.x >= startXY.x && physicalPageCoords.x <= endXY.x &&
+	//	physicalPageCoords.y >= startXY.y && physicalPageCoords.y <= endXY.y) {
+
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
 		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;

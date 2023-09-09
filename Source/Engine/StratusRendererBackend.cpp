@@ -1561,10 +1561,10 @@ void RendererBackend::RenderCSMDepth_() {
         //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
 
         if (numPageGroupsToRender > 0) {
-            minPageGroupX = 0;
-            minPageGroupY = 0;
-            maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
             if (minPageGroupX > 0) {
@@ -1817,6 +1817,8 @@ void RendererBackend::RenderCSMDepth_() {
             shader->SetFloat("nearClipPlane", frame_->znear);
             shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
             shader->SetUint("frameCount", frameCount);
+            shader->SetIVec2("startXY", glm::ivec2(startX, startY));
+            shader->SetIVec2("endXY", glm::ivec2(endX, endY));
 
             // Set up each individual view-projection matrix
             // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
