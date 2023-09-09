@@ -1421,7 +1421,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1508,6 +1508,33 @@ void RendererBackend::RenderCSMDepth_() {
     // auto ndc2 = glm::vec3(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f));
     // STRATUS_LOG << "1: " << ndc1 << std::endl;
     // STRATUS_LOG << "2: " << ndc2 << std::endl;
+
+    // for (int x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+    //     const float xy = float(x) + 0.5f;
+    //     glm::vec2 virtualCoords = glm::vec2(xy, xy);
+
+    //     glm::vec2 physicalCoords = ConvertVirtualCoordsToPhysicalCoords(
+    //         virtualCoords,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX - 1),
+    //         frame_->vsmc.cascades[0].projectionViewRender
+    //     );
+
+    //     // STRATUS_LOG << xy << ": " << physicalCoords << std::endl;
+
+    //     glm::vec2 ndc = glm::vec2(2.0f * virtualCoords) / glm::vec2(frame_->vsmc.numPageGroupsX) - 1.0f;
+    //     glm::vec3 worldPos = glm::vec3(frame_->vsmc.cascades[0].invProjectionViewRender * glm::vec4(ndc, 0.0f, 1.0f));
+    //     glm::vec2 ndcOrigin = glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(worldPos, 1.0f));
+
+    //     glm::vec2 physicalTexCoords = ndcOrigin * 0.5f + glm::vec2(0.5f);
+
+    //     //glm::vec2 physicalCoords2 = physicalTexCoords * glm::vec2(frame_->vsmc.numPageGroupsX) - 0.5f;
+    //     glm::vec2 physicalCoords2 = WrapIndex(
+    //         physicalTexCoords * glm::vec2(frame_->vsmc.numPageGroupsX) - 0.5f,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX)
+    //     );
+
+    //     STRATUS_LOG << xy << ": " << physicalCoords << ", " << physicalCoords2 << std::endl;
+    // }
 
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
         
@@ -1697,8 +1724,9 @@ void RendererBackend::RenderCSMDepth_() {
             const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
 
             // Normalize the min/max page groups
-            const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX - 1);
-            const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY - 1);
+            // Converts first to [-1, 1] and then t [0, 1]
+            const f32 normMinPageGroupX = (f32(2 * minPageGroupX) / f32(frame_->vsmc.numPageGroupsX) - 1.0f) * 0.5f + 0.5f;
+            const f32 normMinPageGroupY = (f32(2 * minPageGroupY) / f32(frame_->vsmc.numPageGroupsY) - 1.0f) * 0.5f + 0.5f;
             // const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
             // const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
 

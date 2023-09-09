@@ -38,7 +38,7 @@ uniform float nearClipPlane;
 
 void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
-	ivec2 physicalPageCoords = ivec2(floor(physicalPixelCoords) / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 	//ivec2 physicalPageCoords = ivec2(round(wrapIndex(vsmTexCoords * vec2(numPagesXY - 1), vec2(numPagesXY))));
 	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
 
@@ -66,6 +66,7 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	//	physicalPageCoords.y >= startXY.y && physicalPageCoords.y <= endXY.y) {
 
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
+		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
 		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
 		// 	currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);
@@ -151,7 +152,7 @@ void main() {
 	//vec2 virtualPixelCoords = vec2(gl_FragCoord.xy);
 	//vec2 physicalPixelCoords = convertVirtualCoordsToPhysicalCoords(virtualPixelCoords, vec2(imageSize(vsm).xy) - 1, fsClipMapIndex);
 	//vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
-	vec3 vsmCoords = vec3(vsmTexCoords * (vec2(imageSize(vsm).xy) - 1.0), 0.0);
+	vec3 vsmCoords = vec3(vsmTexCoords * vec2(imageSize(vsm).xy) - vec2(0.5), 0.0);
 	//vec3 vsmCoords = vec3(physicalPixelCoords, 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 	//vec3 vsmCoords = vec3(virtualPixelCoords, 0.0);

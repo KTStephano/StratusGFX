@@ -36,8 +36,31 @@ shared uint frameMarker;
 shared uint updateCount;
 shared bool clearPage;
 
+// void clearPixel(in vec2 physicalPixelCoords) {
+//     // float fx = fract(physicalPixelCoords.x);
+//     // float fy = fract(physicalPixelCoords.y);
+//     //vec2 physicalPixelCoords = vec2(virtualPixelCoords);
+
+//     imageStore(vsm, ivec3(ivec2(physicalPixelCoords), 0), uvec4(clearValueBits));
+//     // imageStore(vsm, ivec3(ceil(physicalPixelCoords), 0), uvec4(clearValueBits));
+
+//     // TODO: Figure out why dividing physicalPixelCoords by numPagesXY gave the wrong answer
+//     vec2 physicalPageTexCoords = vec2(physicalPixelCoords) / vec2(vsmMaxIndex);
+//     vec2 physicalPageCoords = physicalPageTexCoords * (vec2(numPagesXY) - vec2(1.0));
+//     //ivec2 physicalPageCoordsRounded = ivec2(roundCoords(physicalPageCoords, vec2(numPagesXY) - vec2(1.0)));
+//     ivec2 physicalPageCoordsRounded = ivec2(ceil(physicalPageCoords));
+//     atomicAnd(currFramePageResidencyTable[physicalPageCoordsRounded.x + physicalPageCoordsRounded.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+//     // atomicAnd(currFramePageResidencyTable[physicalPageCoordsUpper.x + physicalPageCoordsUpper.y * numPagesXY.x].info, VSM_PAGE_ID_MASK);
+// }
+
 void clearPixel(in ivec2 physicalPixelCoords) {
     imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
+
+    // vec2 virtualPixelCoords = convertPhysicalCoordsToVirtualCoords(
+    //     physicalPixelCoords,
+    //     vsmMaxIndex,
+    //     vsmClipMapIndex
+    // );
 }
 
 void main() {
@@ -50,14 +73,7 @@ void main() {
 
     barrier();
 
-    vec2 virtualPageCoords = vec2(gl_WorkGroupID.xy) + vec2(0.5);
-
-    ivec2 physicalPageCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
-        vec2(virtualPageCoords),
-        vec2(numPagesXY - ivec2(1)),
-        vsmClipMapIndex
-    )));
-
+    uvec2 physicalPageCoords = gl_WorkGroupID.xy;
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
 
     if (gl_LocalInvocationID == 0) {
@@ -80,30 +96,39 @@ void main() {
 
     barrier();
 
-    //uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
+    uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
     //if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
     if (gl_LocalInvocationID == 0) {
-        // vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
-        //     ivec2(physicalPageCoords),
-        //     ivec2(numPagesXY - 1),
-        //     vsmClipMapIndex
-        // );
+        vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
+            ivec2(physicalPageCoords),
+            ivec2(numPagesXY - 1),
+            vsmClipMapIndex
+        );
 
         // If this physical page is within the virtual bounds that the CPU wants to render
         // this frame, mark it as rendered instead of cleared
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x <= endXY.x &&
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
-        //if (true) {
 
             clearPage = true;
 
             if (dirtyBit > 0) {
-                //clearPage = true;
-            //if (frameMarker > 0) {
-                //updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, VSM_PAGE_RENDERED_BIT);
+                updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
             }
+
+            //if (updateCount < 15) {// && dirtyBit != VSM_PAGE_CLEARED_BIT && dirtyBit != VSM_PAGE_RENDERED_BIT) {
+            // if (updateCount < 15) {
+            //     ++updateCount;
+            //     currFramePageResidencyTable[physicalPageIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, updateCount);
+            //     //clearPage = true;
+            // }
+            // //else if (dirtyBit == VSM_PAGE_CLEARED_BIT) {
+            // else {
+            //     updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
+            //     currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
+            // }
         }
     }
 

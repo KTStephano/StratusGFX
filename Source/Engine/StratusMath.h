@@ -546,42 +546,20 @@ namespace stratus {
     }
 
     inline glm::vec2 ConvertVirtualCoordsToPhysicalCoords(
-        const glm::ivec2& virtualPixelCoords, 
-        const glm::ivec2& maxVirtualIndex, 
-        const glm::mat4& invProjectionView, 
+        const glm::vec2& virtualPixelCoords, 
+        const glm::vec2& maxVirtualIndex, 
         const glm::mat4& vsmProjectionView
     ) {
         
         using namespace glm;
 
-        // We need to convert our virtual texel to a physical texel
-        vec2 virtualTexCoords = vec2(virtualPixelCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
-        // Set up NDC using -1, 1 tex coords and -1 for the z coord
-        vec4 ndc = vec4(virtualTexCoords * 2.0f - 1.0f, 0.0f, 1.0f);
-        // Convert to world space
-        vec4 worldPosition = invProjectionView * ndc;
-        // Perspective divide
-        // worldPosition.x /= worldPosition.w;
-        // worldPosition.y /= worldPosition.w;
-        // worldPosition.z /= worldPosition.w;
+        vec2 ndc = (2.0f * virtualPixelCoords) / (maxVirtualIndex + vec2(1.0f)) - vec2(1.0f);
 
-        mat4 projView = vsmProjectionView;
-        projView[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        vec2 ndcOrigin = vec2(ndc) - vec2(vsmProjectionView[3]);
 
-        vec4 physicalTexCoords = projView * vec4(vec3(worldPosition), 1.0);
-        // Perspective divide
-        physicalTexCoords.x = physicalTexCoords.x / physicalTexCoords.w;
-        physicalTexCoords.y = physicalTexCoords.y / physicalTexCoords.w;
-        // Convert from range [-1, 1] to [0, 1]
-        physicalTexCoords.x = physicalTexCoords.x * 0.5f + 0.5f;
-        physicalTexCoords.y = physicalTexCoords.y * 0.5f + 0.5f;
+        vec2 physicalTexCoords = ndcOrigin * 0.5f + vec2(0.5f);
 
-        vec2 wrapped = WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
-
-        return vec2(
-            std::ceil(wrapped.x) - 1.0f,
-            std::ceil(wrapped.y) - 1.0f
-        );
+        return WrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1.0f)) - 0.5f, maxVirtualIndex + vec2(1.0f));
 
         //return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
         //return vec2(physicalTexCoords) * vec2(maxVirtualIndex);

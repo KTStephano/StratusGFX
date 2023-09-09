@@ -735,13 +735,14 @@ namespace stratus {
         //const f32 T = dk / requestedCascadeResolutionXY;
         frame_->vsmc.baseCascadeDiameter = dk;
 
-        const f32 moveSize = T * 128.0f;
+        const f32 moveSize = 1.0f * T * 128.0f;
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;
         const auto directionOffset = glm::vec3(0.0f); //moveSize * frame_->camera->GetDirection();
         // Camera position is defined in world space but we need it to be in light-space
         const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
+        //const auto position = glm::vec3(moveSize);
         f32 cameraX = floorf(position.x / moveSize) * moveSize;
         f32 cameraY = floorf(position.y / moveSize) * moveSize;
         f32 cameraZ = 0.0f;//floorf(position.z / moveSize) * moveSize;
