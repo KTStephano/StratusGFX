@@ -385,7 +385,7 @@ void RendererBackend::RecalculateCascadeData_() {
                 TextureComponentType::FLOAT, 
                 frame_->vsmc.cascadeResolutionXY, 
                 frame_->vsmc.cascadeResolutionXY, 
-                numCascades, 
+                1,//numCascades, 
                 false, 
                 true 
             }, 
@@ -1456,7 +1456,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1629,25 +1629,25 @@ void RendererBackend::RenderCSMDepth_() {
             // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
+            if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+            if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
             // if (minPageGroupX > 0) {
             //     --minPageGroupX;
             // }
             // if (minPageGroupY > 0) {
             //     --minPageGroupY;
             // }
-            // // if (minPageGroupX > 0) {
-            // //     --minPageGroupX;
-            // // }
-            // // if (minPageGroupY > 0) {
-            // //     --minPageGroupY;
-            // // }
 
-            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //     ++maxPageGroupX;
-            // }
-            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //     ++maxPageGroupY;
-            // }
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
             // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
             //     ++maxPageGroupX;
             // }

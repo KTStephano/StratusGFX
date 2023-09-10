@@ -33,7 +33,8 @@ shared uint residencyStatus;
 shared bool clearPage;
 
 void clearPixel(in ivec2 physicalPixelCoords) {
-    imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
+    //imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
+    imageStore(vsm, ivec3(physicalPixelCoords, 0), uvec4(clearValueBits));
 }
 
 void main() {

@@ -107,10 +107,10 @@ void main() {
             pageGroupCorners[2] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].minPageY);
             pageGroupCorners[3] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].maxPageY);
 
-            pageGroupCornersTexCoords[0] = vec2(pageGroupCorners[0]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[1] = vec2(pageGroupCorners[1]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[2] = vec2(pageGroupCorners[2]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[3] = vec2(pageGroupCorners[3]) / vec2(maxResidencyTableIndex);
+            pageGroupCornersTexCoords[0] = (vec2(2 * pageGroupCorners[0]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[1] = (vec2(2 * pageGroupCorners[1]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[2] = (vec2(2 * pageGroupCorners[2]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[3] = (vec2(2 * pageGroupCorners[3]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
         }
 
         barrier();

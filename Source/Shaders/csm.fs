@@ -51,8 +51,8 @@ void writeDepth(in vec2 uv, in float depth) {
 	// uint dirtyBit;
 	// unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
 
-	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
-	//ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), fsClipMapIndex);
+	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), 0);//fsClipMapIndex);
+	//ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), 0);//fsClipMapIndex);
 
 	// uint frameMarker;
 	// uint unused;
@@ -68,7 +68,7 @@ void writeDepth(in vec2 uv, in float depth) {
 	//if (physicalPageCoords.x >= startXY.x && physicalPageCoords.x <= endXY.x &&
 	//	physicalPageCoords.y >= startXY.y && physicalPageCoords.y <= endXY.y) {
 
-		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
+		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
 		
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
