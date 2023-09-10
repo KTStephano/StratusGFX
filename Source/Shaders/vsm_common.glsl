@@ -174,18 +174,13 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 //     //return result;
 // }
 
-float sampleShadowTextureSparse(sampler2DArray shadow, vec4 coords, float depth, vec2 offset, float bias) {
-    float offsetDepth = depth - bias;
-
-    coords.w = depth - bias;
-    coords.xy += offset;
-    //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
-
-    uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-    vec2 virtualPixelCoords = wrapIndex(coords.xy * vec2(textureSize(shadow, 0).xy), vec2(textureSize(shadow, 0).xy));
+vec2 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex) {
+    vec2 virtualPixelCoords = wrapIndex(uv * resolution, resolution);
     vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
-    ivec2 physicalPageCoords = ivec2(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
-    uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY);
+
+    vec2 physicalPageUv = ((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
+    ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
+    uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
     uint unused1;
     uint physicalOffsetX;
@@ -199,7 +194,24 @@ float sampleShadowTextureSparse(sampler2DArray shadow, vec4 coords, float depth,
         unused2
     );
 
-    ivec2 physicalCoords = ivec2((vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage);
+    return (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage;
+}
+
+float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float depth, vec2 offset, float bias) {
+    float offsetDepth = depth - bias;
+
+    vec4 modified = coords;
+    modified.w = depth - bias;
+    modified.xy += offset;
+    //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+
+    uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+    ivec2 physicalCoords = ivec2(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
+        modified.xy, 
+        vec2(textureSize(shadow, 0).xy),
+        vsmNumPagesXY,
+        int(coords.z)
+    )));
 
     vec4 texel;
     int status = sparseTexelFetchARB(shadow, ivec3(physicalCoords, 0), 0, texel);

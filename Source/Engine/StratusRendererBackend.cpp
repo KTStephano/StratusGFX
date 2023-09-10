@@ -1337,14 +1337,16 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            vsm->CommitOrUncommitVirtualPage(
-                std::abs(x) - 1, 
-                std::abs(y) - 1, 
-                cascade,
-                1, 
-                1, 
-                (x < 0 || y < 0) ? false : true
-            );
+            if (x > 0 && y > 0) {
+                vsm->CommitOrUncommitVirtualPage(
+                    std::abs(x) - 1, 
+                    std::abs(y) - 1, 
+                    cascade,
+                    1, 
+                    1, 
+                    (x < 0 || y < 0) ? false : true
+                );
+            }
         }
 
         frame_->vsmc.pagesToCommitList.UnmapMemory();

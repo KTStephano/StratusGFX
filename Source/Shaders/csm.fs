@@ -32,20 +32,27 @@ smooth in vec2 vsmTexCoords;
 
 uniform float nearClipPlane;
 
-void writeDepth(in vec2 virtualPixelCoords, in float depth) {
-	vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
-	ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
-	//ivec2 physicalPageCoords = ivec2(round(wrapIndex(vsmTexCoords * vec2(numPagesXY - 1), vec2(numPagesXY))));
-	uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
+void writeDepth(in vec2 uv, in float depth) {
+	//vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
+	vec2 physicalPixelCoords = vec2(vsmConvertVirtualUVToPhysicalPixelCoords(
+		uv,
+		vec2(virtualShadowMapSizeXY),
+		numPagesXY,
+		fsClipMapIndex
+	));
 
-	PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
+	// ivec2 physicalPageCoords = ivec2(physicalPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+	// //ivec2 physicalPageCoords = ivec2(round(wrapIndex(vsmTexCoords * vec2(numPagesXY - 1), vec2(numPagesXY))));
+	// uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY;
 
-	uint pageId;
-	uint dirtyBit;
-	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
+	// PageResidencyEntry entry = currFramePageResidencyTable[physicalPageIndex];
+
+	// uint pageId;
+	// uint dirtyBit;
+	// unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
 
 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
-	ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), fsClipMapIndex);
+	//ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), fsClipMapIndex);
 
 	// uint frameMarker;
 	// uint unused;
@@ -157,7 +164,7 @@ void main() {
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
 	//vec3 vsmCoords = vec3(virtualPixelCoords, 0.0);
 
-	writeDepth(vsmCoords.xy, depth);
+	writeDepth(vsmTexCoords, depth);
 
     float fx = fract(vsmCoords.x);
     float fy = fract(vsmCoords.y);
