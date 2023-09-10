@@ -91,14 +91,21 @@ void main() {
         int tileXIndex = int(gl_GlobalInvocationID.x);
         int tileYIndex = int(gl_GlobalInvocationID.y);
 
-        ivec2 tileCoords = ivec2(tileXIndex, tileYIndex);
-        uint tileIndex = uint(tileCoords.x + tileCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
+        ivec2 virtualPageCoords = ivec2(tileXIndex, tileYIndex);
 
-        //uint prev = uint(imageLoad(prevFramePageResidencyTable, tileCoords).r);
-        //uint current = uint(imageLoad(currFramePageResidencyTable, tileCoords).r);
+        ivec2 physicalPageCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
+            vec2(virtualPageCoords) + vec2(0.5),
+            vec2(int(numPagesXY) - 1),
+            cascade
+        )));
 
-        PageResidencyEntry prev = prevFramePageResidencyTable[tileIndex];
-        PageResidencyEntry current = currFramePageResidencyTable[tileIndex];
+        uint pageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
+
+        //uint prev = uint(imageLoad(prevFramePageResidencyTable, virtualPageCoords).r);
+        //uint current = uint(imageLoad(currFramePageResidencyTable, virtualPageCoords).r);
+
+        PageResidencyEntry prev = prevFramePageResidencyTable[pageIndex];
+        PageResidencyEntry current = currFramePageResidencyTable[pageIndex];
 
         uint prevPageId;
         uint prevDirtyBit;
@@ -114,7 +121,7 @@ void main() {
 
         if (prev.frameMarker > 0 && frameMarker != frameCount) {
             current = prev;
-            currFramePageResidencyTable[tileIndex] = prev;
+            currFramePageResidencyTable[pageIndex] = prev;
             unpackFrameCountAndUpdateCount(
                 current.frameMarker,
                 frameMarker,
@@ -132,27 +139,27 @@ void main() {
         // }
 
         // Take the physical coords and convert them to virtual coords for the current frame
-        ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
-            vec2(tileCoords) + vec2(0.5),
-            vec2(int(numPagesXY) - 1),
-            cascade
-        )));
+        // ivec2 physicalPageCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
+        //     vec2(virtualPageCoords) + vec2(0.5),
+        //     vec2(int(numPagesXY) - 1),
+        //     cascade
+        // )));
 
-        uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
+        //uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
 
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
             if ((frameCount - frameMarker) > 30) {
                 dirtyBit = 0;
-                requestPageDealloc(tileCoords, cascade);
+                requestPageDealloc(physicalPageCoords, cascade);
 
                 PageResidencyEntry markedNonResident;
                 markedNonResident.frameMarker = 0;
                 markedNonResident.info = 0;
                 frameMarker = 0;
 
-                prevFramePageResidencyTable[tileIndex] = markedNonResident;
-                currFramePageResidencyTable[tileIndex] = markedNonResident;
+                prevFramePageResidencyTable[pageIndex] = markedNonResident;
+                currFramePageResidencyTable[pageIndex] = markedNonResident;
 
                 current = markedNonResident;
             }
@@ -161,7 +168,7 @@ void main() {
                 if (prev.frameMarker == 0) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
-                    requestPageAlloc(tileCoords, cascade); 
+                    requestPageAlloc(physicalPageCoords, cascade); 
                 }
                 else if (sunChanged > 0) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
@@ -174,12 +181,12 @@ void main() {
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                prevFramePageResidencyTable[tileIndex] = current;
-                currFramePageResidencyTable[tileIndex] = current;
+                prevFramePageResidencyTable[pageIndex] = current;
+                currFramePageResidencyTable[pageIndex] = current;
 
                 // prev = current;
                 // prev.info &= VSM_PAGE_ID_MASK;
-                // prevFramePageResidencyTable[tileIndex] = prev;
+                // prevFramePageResidencyTable[pageIndex] = prev;
             }
         }
 
@@ -206,6 +213,7 @@ void main() {
             pageGroupMarker = frameCount;
         }
 
+        uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
         pageGroupsToRender[virtualPageIndex] = pageGroupMarker;
 
         barrier();
