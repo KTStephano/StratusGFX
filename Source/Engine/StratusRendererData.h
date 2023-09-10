@@ -167,33 +167,33 @@ namespace stratus {
         u32 maxY_;
     };
 
-    struct RendererCascadeContainer {
-        FrameBuffer fbo;
-        Texture vsm;
-        GpuBuffer prevFramePageResidencyTable;
-        GpuBuffer currFramePageResidencyTable;
-        UnsafePtr<VirtualIndex2DUpdateQueue> pageGroupUpdateQueue;
-        UnsafePtr<VirtualIndex2DUpdateQueue> backPageGroupUpdateQueue;
-        // Texture is split into pages which are combined
-        // into page groups for geometry culling purposes
-        u32 numPageGroupsX = 32;
-        u32 numPageGroupsY = 32;
-        std::vector<glm::mat4> tiledProjectionMatrices;
-        GpuBuffer numDrawCalls;
-        GpuBuffer numPagesToCommit;
-        GpuBuffer pagesToCommitList;
-        GpuBuffer pageGroupsToRender;
-        GpuBuffer pageBoundingBox;
-        std::vector<RendererCascadeData> cascades;
-        glm::vec4 cascadeShadowOffsets[2];
-        u32 cascadeResolutionXY;
-        InfiniteLightPtr worldLight;
-        CameraPtr worldLightCamera;
-        glm::vec3 worldLightDirectionCameraSpace;
-        f32 znear;
-        f32 zfar;
-        bool regenerateFbo;    
-    };
+    //struct RendererCascadeContainer {
+    //    FrameBuffer fbo;
+    //    Texture vsm;
+    //    GpuBuffer prevFramePageResidencyTable;
+    //    GpuBuffer currFramePageResidencyTable;
+    //    UnsafePtr<VirtualIndex2DUpdateQueue> pageGroupUpdateQueue;
+    //    UnsafePtr<VirtualIndex2DUpdateQueue> backPageGroupUpdateQueue;
+    //    // Texture is split into pages which are combined
+    //    // into page groups for geometry culling purposes
+    //    u32 numPageGroupsX = 32;
+    //    u32 numPageGroupsY = 32;
+    //    std::vector<glm::mat4> tiledProjectionMatrices;
+    //    GpuBuffer numDrawCalls;
+    //    GpuBuffer numPagesToCommit;
+    //    GpuBuffer pagesToCommitList;
+    //    GpuBuffer pageGroupsToRender;
+    //    GpuBuffer pageBoundingBox;
+    //    std::vector<RendererCascadeData> cascades;
+    //    glm::vec4 cascadeShadowOffsets[2];
+    //    u32 cascadeResolutionXY;
+    //    InfiniteLightPtr worldLight;
+    //    CameraPtr worldLightCamera;
+    //    glm::vec3 worldLightDirectionCameraSpace;
+    //    f32 znear;
+    //    f32 zfar;
+    //    bool regenerateFbo;    
+    //};
 
     struct RendererVsmCascadeData {
         glm::mat4 projectionViewRender;
@@ -227,6 +227,8 @@ namespace stratus {
         // GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;
+        GpuBuffer numPagesFree;
+        GpuBuffer pagesFreeList;
         GpuBuffer pageGroupsToRender;
         GpuBuffer pageBoundingBox;
         glm::vec4 cascadeShadowOffsets[2];

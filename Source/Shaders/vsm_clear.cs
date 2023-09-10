@@ -16,10 +16,6 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block1 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 uniform float clearValue = 1.0;
 uniform uint frameCount;
 uniform int vsmClipMapIndex;
@@ -52,20 +48,35 @@ void main() {
 
     vec2 virtualPageCoords = vec2(gl_WorkGroupID.xy) + vec2(0.5);
 
-    ivec2 physicalPageCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
+    ivec2 physicalPageTableCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
         vec2(virtualPageCoords),
         vec2(numPagesXY - ivec2(1)),
         vsmClipMapIndex
     )));
 
-    uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
+    uint physicalPageTableIndex = uint(physicalPageTableCoords.x + physicalPageTableCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
+    uint physicalPageX;
+    uint physicalPageY;
+    uint unused;
 
     if (gl_LocalInvocationID == 0) {
-        vsmPixelStart = ivec2(physicalPageCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+        unpackPageMarkerData(
+            currFramePageResidencyTable[physicalPageTableIndex].frameMarker,
+            frameMarker,
+            physicalPageX,
+            physicalPageY,
+            unused
+        );
+
+        //vsmPixelStart = ivec2(physicalPageTableCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageTableCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+        vsmPixelStart = ivec2(
+            int(physicalPageX) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY,
+            int(physicalPageY) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY
+        );
         vsmPixelEnd = vsmPixelStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-        
+
         // unpackFrameCountAndUpdateCount(
-        //     currFramePageResidencyTable[physicalPageIndex].frameMarker,
+        //     currFramePageResidencyTable[physicalPageTableIndex].frameMarker,
         //     frameMarker,
         //     updateCount
         // );
@@ -74,7 +85,7 @@ void main() {
     uint pageId;
     uint dirtyBit;
     unpackPageIdAndDirtyBit(
-        currFramePageResidencyTable[physicalPageIndex].info, 
+        currFramePageResidencyTable[physicalPageTableIndex].info, 
         pageId,
         dirtyBit
     );
@@ -86,7 +97,7 @@ void main() {
     //if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
     if (gl_LocalInvocationID == 0) {
         // vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
-        //     ivec2(physicalPageCoords),
+        //     ivec2(physicalPageTableCoords),
         //     ivec2(numPagesXY - 1),
         //     vsmClipMapIndex
         // );
@@ -103,7 +114,7 @@ void main() {
                 //clearPage = true;
             //if (frameMarker > 0) {
                 //updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-                currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, VSM_PAGE_RENDERED_BIT);
+                currFramePageResidencyTable[physicalPageTableIndex].info = packPageIdWithDirtyBit(pageId, VSM_PAGE_RENDERED_BIT);
             }
         }
     }

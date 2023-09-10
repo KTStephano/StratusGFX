@@ -69,10 +69,6 @@ layout (std430, binding = POINT_LIGHT_SHADOW_CASTER_BINDING_POINT) readonly buff
     PointLight shadowCasters[];
 };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock3 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 uniform int numPagesXY;
 
 /**

@@ -34,10 +34,6 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
 //     PageResidencyEntry prevFramePageResidencyTable[];
 // };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block5 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block6 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
@@ -46,24 +42,57 @@ layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer block7
     uint pageGroupsToRender[];
 };
 
+layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) buffer block8 {
+    int numPagesFree;
+};
+
+layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) buffer block9 {
+    uint pagesFreeList[];
+};
+
 shared int localMinPageX;
 shared int localMinPageY;
 shared int localMaxPageX;
 shared int localMaxPageY;
 shared int cascadeStepSize;
 
-void requestPageAlloc(in ivec2 tileCoords, in int cascade) {
+bool requestPageAlloc(out uint physicalPageX, out uint physicalPageY) {
+    int maxPage = int(numPagesXY * numPagesXY);
+    int nextPage = atomicAdd(numPagesFree, 1);
+    if (nextPage >= maxPage) {
+        physicalPageX = 0;
+        physicalPageY = 0;
+        return false;
+    }
+
+    uint px = pagesFreeList[2 * nextPage];
+    uint py = pagesFreeList[2 * nextPage + 1];
+    physicalPageX = px;
+    physicalPageY = py;
+
     int original = atomicAdd(numPagesToUpdate, 1);
-    pageIndices[3 * original] = cascade;
-    pageIndices[3 * original + 1] = tileCoords.x + 1;
-    pageIndices[3 * original + 2] = tileCoords.y + 1;
+    pageIndices[3 * original] = 0;
+    pageIndices[3 * original + 1] = int(px) + 1;
+    pageIndices[3 * original + 2] = int(py) + 1;
+
+    return true;
 }
 
-void requestPageDealloc(in ivec2 tileCoords, in int cascade) {
-    int original = atomicAdd(numPagesToUpdate, 1);
-    pageIndices[3 * original] = cascade;
-    pageIndices[3 * original + 1] = -(tileCoords.x + 1);
-    pageIndices[3 * original + 2] = -(tileCoords.y + 1);
+void requestPageDealloc(in ivec2 pageCoords) {
+    int maxPage = int(numPagesXY * numPagesXY);
+    int nextPage = atomicAdd(numPagesFree, -1);
+    while (nextPage > maxPage) {
+        nextPage = atomicAdd(numPagesFree, -1);
+    }
+
+    nextPage = nextPage - 1;
+    pagesFreeList[2 * nextPage] = uint(pageCoords.x);
+    pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
+
+    // int original = atomicAdd(numPagesToUpdate, 1);
+    // pageIndices[3 * original] = 0;
+    // pageIndices[3 * original + 1] = -(pageCoords.x + 1);
+    // pageIndices[3 * original + 2] = -(pageCoords.y + 1);
 }
 
 void main() {
@@ -142,7 +171,7 @@ void main() {
             // Frame has not been needed for more than 30 frames and needs to be freed
             if (frameMarker > 5) {
                 dirtyBit = 0;
-                requestPageDealloc(physicalPageCoords, cascade);
+                requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)));
 
                 PageResidencyEntry markedNonResident;
                 markedNonResident.frameMarker = 0;
@@ -157,10 +186,11 @@ void main() {
                 uint newPageResidencyStatus = 2; // 2 means nothing needs to be done
                 // Page was requested this frame but is not currently resident
                 if (pageResident == 0) {
+                    if (requestPageAlloc(physicalPageX, physicalPageY)) {
+                        newPageResidencyStatus = 1;
+                    }
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
-                    newPageResidencyStatus = 1;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
-                    requestPageAlloc(physicalPageCoords, cascade); 
                 }
                 else if (sunChanged > 0) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;

@@ -60,6 +60,10 @@ struct ClipMapBoundingBox {
     int maxPageY;
 };
 
+layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer vsmPageTableBuffer {
+    PageResidencyEntry currFramePageResidencyTable[];
+};
+
 // For first clip map - rest are derived from this
 uniform mat4 vsmClipMap0ProjectionView;
 uniform uint vsmNumCascades;
@@ -136,10 +140,21 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
     return texture(shadow, coords);
 }
 
+// float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
+//     coords.w = depth - bias;
+//     coords.xy += offset;
+//     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+//     float result;
+//     int status = sparseTextureARB(shadow, coords, result);
+//     return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
+//     //return result;
+// }
+
 float sampleShadowTextureSparse(sampler2DArrayShadow shadow, vec4 coords, float depth, vec2 offset, float bias) {
     coords.w = depth - bias;
     coords.xy += offset;
     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+    //vec2 virtualCoords = wrapIndex(coords.xy )
     float result;
     int status = sparseTextureARB(shadow, coords, result);
     return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
@@ -271,9 +286,9 @@ uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uin
 }
 
 void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint residencyStatus) {
-    frameCount = data >> 24;
-    pageX = (data >> 16) & VSM_PAGE_X_OFFSET_MASK;
-    pageY = (data >> 8) & VSM_PAGE_Y_OFFSET_MASK;
+    frameCount = (data & VSM_PAGE_FRAME_MARKER_MASK) >> 24;
+    pageX = (data & VSM_PAGE_X_OFFSET_MASK) >> 16;
+    pageY = (data & VSM_PAGE_Y_OFFSET_MASK) >> 8;
     residencyStatus = data & VSM_PAGE_RESIDENCY_STATUS_MASK;
 }
 

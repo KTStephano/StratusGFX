@@ -16,10 +16,6 @@ layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) readonly buff
     uint pageGroupsToRender[];
 };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock2 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 out vec4 color;
 
 // void main() {

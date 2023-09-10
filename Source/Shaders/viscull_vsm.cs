@@ -52,10 +52,6 @@ layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) buffer outpu
 //     uint pageGroupsToRender[];
 // };
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer inputBlock3 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer inputBlock5 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };

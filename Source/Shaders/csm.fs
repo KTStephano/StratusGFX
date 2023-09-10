@@ -16,10 +16,6 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
-layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) buffer block1 {
-    PageResidencyEntry currFramePageResidencyTable[];
-};
-
 uniform uint numPagesXY;
 uniform uint virtualShadowMapSizeXY;
 uniform uint frameCount;

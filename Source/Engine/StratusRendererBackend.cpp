@@ -421,8 +421,26 @@ void RendererBackend::RecalculateCascadeData_() {
 
         i32 value = 0;
         // frame_->vsmc.numDrawCalls = GpuBuffer((const void *)&value, sizeof(int), flags);
-        frame_->vsmc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(int), flags);
-        frame_->vsmc.pagesToCommitList = GpuBuffer(nullptr, 3 * sizeof(int) * numPagesSquared, flags);
+        frame_->vsmc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(i32), flags);
+        frame_->vsmc.pagesToCommitList = GpuBuffer(nullptr, 3 * sizeof(i32) * numPagesSquared, flags);
+
+        frame_->vsmc.numPagesFree = GpuBuffer((const void *)&value, sizeof(i32), flags);
+
+        std::vector<u32, StackBasedPoolAllocator<u32>> pageFreeList(
+            2 * numPages * numPages, u32(0), StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
+        );
+
+        u32 pageFreeIndex = 0;
+        for (u32 y = 0; y < numPages; ++y) {
+            for (u32 x = 0; x < numPages; ++x) {
+                pageFreeList[pageFreeIndex] = x;
+                pageFreeList[pageFreeIndex + 1] = y;
+
+                pageFreeIndex += 2;
+            }
+        }
+
+        frame_->vsmc.pagesFreeList = GpuBuffer((const void* )pageFreeList.data(), 2 * sizeof(u32) * pageFreeList.size(), flags);
 
         const auto numPageGroups = numCascades * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
         std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
@@ -1219,6 +1237,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     frame_->vsmc.pageBoundingBox.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_BOUNDING_BOX_BINDING_POINT);
     frame_->vsmc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    frame_->vsmc.numPagesFree.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_FREE_BINDING_POINT);
+    frame_->vsmc.pagesFreeList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGES_FREE_LIST_BINDING_POINT);
 
     u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
     const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
@@ -1362,6 +1382,10 @@ void RendererBackend::RenderCSMDepth_() {
     }
 
     ProcessCSMVirtualTexture_();
+
+    const i32 * n = (const i32 *)frame_->vsmc.numPagesFree.MapMemory(GPU_MAP_READ);
+    STRATUS_LOG << *n << std::endl;
+    frame_->vsmc.numPagesFree.UnmapMemory();
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
