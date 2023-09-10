@@ -49,12 +49,9 @@ void main() {
         int y = pageIndices[3 * i + 2];
 
         if (x < 0 || y < 0) {
-            x = abs(x) - 1;
-            y = abs(y) - 1;
-
             int nextPage = atomicAdd(numPagesFree, -1) - 1;
-            pagesFreeList[2 * nextPage] = uint(x);
-            pagesFreeList[2 * nextPage + 1] = uint(y);
+            pagesFreeList[2 * nextPage] = uint(abs(x) - 1);
+            pagesFreeList[2 * nextPage + 1] = uint(abs(y) - 1);
         }
     }
 }

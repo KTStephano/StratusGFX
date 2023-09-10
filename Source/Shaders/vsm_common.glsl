@@ -180,6 +180,7 @@ vec2 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
 
     vec2 physicalPageUv = ((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
     ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
+    // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
     uint unused1;

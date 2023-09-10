@@ -230,11 +230,11 @@ void main() {
         //if (frameMarker > 0) {
             //pageGroupMarker = frameCount;
 
-            atomicMin(localMinPageX, virtualPageCoords.x);
-            atomicMin(localMinPageY, virtualPageCoords.y);
+            atomicMin(localMinPageX, int(virtualPageCoords.x));
+            atomicMin(localMinPageY, int(virtualPageCoords.y));
 
-            atomicMax(localMaxPageX, virtualPageCoords.x + 1);
-            atomicMax(localMaxPageY, virtualPageCoords.y + 1);
+            atomicMax(localMaxPageX, int(virtualPageCoords.x) + 1);
+            atomicMax(localMaxPageY, int(virtualPageCoords.y) + 1);
         }
 
         if (dirtyBit > 0) {
