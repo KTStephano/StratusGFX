@@ -49,7 +49,7 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 	unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
 
 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), fsClipMapIndex);
-	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), fsClipMapIndex);
+	ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), fsClipMapIndex);
 
 	uint frameMarker;
 	uint unused;
@@ -67,6 +67,7 @@ void writeDepth(in vec2 virtualPixelCoords, in float depth) {
 
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
+
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
 		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;
 		// 	currFramePageResidencyTable[physicalPageIndex].info = packPageIdWithDirtyBit(pageId, newDirtyBit);

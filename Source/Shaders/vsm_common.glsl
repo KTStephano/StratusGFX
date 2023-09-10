@@ -57,9 +57,20 @@ struct ClipMapBoundingBox {
     int maxPageY;
 };
 
-// For first clip map - rest are derived from this
-uniform mat4 vsmClipMap0ProjectionView;
-uniform uint vsmNumCascades;
+// This needs to be kept synchronized with Source/StratusGpuCommon.h
+layout (std430, binding = VSM_BASE_CLIP_MAP_DATA_BINDING_POINT) readonly buffer vsmData {
+    // For origin (0, 0, 0) clip map - rest are derived from this
+    mat4 vsmClipMap0ProjectionView;
+    int vsmResolutionXY;
+    // This is set to Dk / Resolution
+    float vsmLightDistancePerTexel;
+    // This is Dk for the first cascade
+    float vsmClipMap0Extent;
+    // This references the main player camera position, converted to light space
+    float vsmCameraLightSpacePosition[3];
+    uint vsmNumCascades;
+    int padding_[9];
+};
 
 #define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                             \
     type vsmConvertClip0ToClipN(in type original, in int clipIndex) { \
@@ -71,6 +82,22 @@ uniform uint vsmNumCascades;
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec2)
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec3)
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec4)
+
+vec3 vsmGetBaseLightSpacePosition() {
+    return vec3(vsmCameraLightSpacePosition[0], vsmCameraLightSpacePosition[1], vsmCameraLightSpacePosition[2]);
+}
+
+vec3 vsmCalculateLightSpacePosition(in int clipMapIndex) {
+    // We want to move by the size of 1 page at a time in light space
+    float moveSize = (vsmLightDistancePerTexel * float(BITMASK_POW2(clipMapIndex))) * float(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+    return floor(vsmGetBaseLightSpacePosition() / moveSize) * moveSize;
+}
+
+vec3 vsmCalculateClipSpaceLightPosition(in int clipMapIndex) {
+    // We want to move by the size of 1 page at a time in light space
+    float moveSize = (vsmLightDistancePerTexel * float(BITMASK_POW2(clipMapIndex))) * float(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+    return 2.0 * floor(vsmGetBaseLightSpacePosition() / moveSize) * (float(VSM_MAX_NUM_TEXELS_PER_PAGE_XY) / float(vsmResolutionXY));
+}
 
 float vsmConvertRelativeDepthToOriginDepth(in float depth) {
     return ((2.0 * depth - 1.0) - vsmClipMap0ProjectionView[3].z) * 0.5 + 0.5;
@@ -86,17 +113,18 @@ vec3 vsmCalculateClipValueFromWorldPos(in mat4 viewProj, in vec3 worldPos, in in
     return result.xyz;
 }
 
-// The difference between this and Origin function is that this will return a value
-// relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
-vec3 vsmCalculateRelativeClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
+// Returns 3 values on the range [-1, 1]
+vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
     return vsmCalculateClipValueFromWorldPos(vsmClipMap0ProjectionView, worldPos, clipMapIndex);
 }
 
-// Returns 3 values on the range [-1, 1]
-vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
-    vec3 result = vsmCalculateRelativeClipValueFromWorldPos(worldPos, clipMapIndex);
+// The difference between this and Origin function is that this will return a value
+// relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
+vec3 vsmCalculateRelativeClipValueFromWorldPos(in vec3 worldPos, in int clipMapIndex) {
+    vec3 result = vsmCalculateOriginClipValueFromWorldPos(worldPos, clipMapIndex);
 
-    return result - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xyz, clipMapIndex);
+    // Add in the inverse translation component for this cascade
+    return result - vsmCalculateClipSpaceLightPosition(clipMapIndex);
 }
 
 int vsmCalculateCascadeIndexFromWorldPos(in vec3 worldPos) {
@@ -310,16 +338,19 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     //vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
     vec4 ndc = vec4(vec2(2.0 * virtualCoords) / vec2(maxVirtualIndex + 1) - 1.0, 0.0, 1.0);
 
-    // Subtract off the translation since the orientation should be
+    // Remove the translation since the orientation should be
     // the same for all vsm clip maps - just translation changes
-    vec2 ndcOrigin = ndc.xy - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
+    vec2 ndcOrigin = ndc.xy + vsmCalculateClipSpaceLightPosition(cascadeIndex).xy;
     //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
 
     //return physicalTexCoords * vec2(maxVirtualIndex);
-    return wrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1)), maxVirtualIndex + vec2(1));
+    return wrapIndex(
+        physicalTexCoords * (maxVirtualIndex + vec2(1)) - vec2(0.5), 
+        maxVirtualIndex + vec2(1)
+    );
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
@@ -369,15 +400,18 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     //vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
     vec4 ndc = vec4(vec2(2.0 * physicalCoords) / vec2(maxPhysicalIndex + 1) - 1.0, 0.0, 1.0);
 
-    // Add back the translation component to convert physical ndc to relative virtual ndc
-    vec2 ndcRelative = ndc.xy + vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
+    // Add back the inverse translation component to convert physical ndc to relative virtual ndc
+    vec2 ndcRelative = ndc.xy - vsmCalculateClipSpaceLightPosition(cascadeIndex).xy;
     //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
 
     //return virtualTexCoords * vec2(maxPhysicalIndex);
-    return wrapIndex(virtualTexCoords * (maxPhysicalIndex + vec2(1)), maxPhysicalIndex + vec2(1));
+    return wrapIndex(
+        virtualTexCoords * (maxPhysicalIndex + vec2(1)) - vec2(0.5), 
+        maxPhysicalIndex + vec2(1)
+    );
 }
 
 vec2 convertPhysicalCoordsToVirtualCoords(
@@ -395,29 +429,29 @@ vec2 convertPhysicalCoordsToVirtualCoords(
     return roundIndex(wrapped);
 }
 
-void vsmComputeCornersWithTransform(in AABB aabb, in mat4 transform, inout vec4 corners[8]) {
+void vsmComputeCornersWithTransform(in AABB aabb, in mat4 transform, inout vec4 corners[8], in int cascadeIndex) {
     vec4 vmin = aabb.vmin;
     vec4 vmax = aabb.vmax;
 
-    corners[0] = transform * vec4(vmin.x, vmin.y, vmin.z, 1.0);
-    corners[1] = transform * vec4(vmin.x, vmax.y, vmin.z, 1.0);
-    corners[2] = transform * vec4(vmin.x, vmin.y, vmax.z, 1.0);
-    corners[3] = transform * vec4(vmin.x, vmax.y, vmax.z, 1.0);
-    corners[4] = transform * vec4(vmax.x, vmin.y, vmin.z, 1.0);
-    corners[5] = transform * vec4(vmax.x, vmax.y, vmin.z, 1.0);
-    corners[6] = transform * vec4(vmax.x, vmin.y, vmax.z, 1.0);
-    corners[7] = transform * vec4(vmax.x, vmax.y, vmax.z, 1.0);
+    corners[0] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmin.x, vmin.y, vmin.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[1] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmin.x, vmax.y, vmin.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[2] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmin.x, vmin.y, vmax.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[3] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmin.x, vmax.y, vmax.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[4] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmax.x, vmin.y, vmin.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[5] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmax.x, vmax.y, vmin.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[6] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmax.x, vmin.y, vmax.z, 1.0)).xyz, cascadeIndex), 1.0);
+    corners[7] = vec4(vsmCalculateRelativeClipValueFromWorldPos((transform * vec4(vmax.x, vmax.y, vmax.z, 1.0)).xyz, cascadeIndex), 1.0);
 }
 
 AABB vsmTransformAabbAsNDCCoords(in AABB aabb, in mat4 transform, in vec4 corners[8], inout int cascadeIndex) {
-    vsmComputeCornersWithTransform(aabb, transform, corners);
+    vsmComputeCornersWithTransform(aabb, transform, corners, cascadeIndex);
 
-    vec3 vmin3 = vsmConvertClip0ToClipN(corners[0].xyz, cascadeIndex);
-    vec3 vmax3 = vsmConvertClip0ToClipN(corners[0].xyz, cascadeIndex);
+    vec3 vmin3 = corners[0].xyz;
+    vec3 vmax3 = corners[0].xyz;
 
     for (int i = 1; i < 8; ++i) {
-        vmin3 = min(vmin3, vsmConvertClip0ToClipN(corners[i].xyz, cascadeIndex));
-        vmax3 = max(vmax3, vsmConvertClip0ToClipN(corners[i].xyz, cascadeIndex));
+        vmin3 = min(vmin3, corners[i].xyz);
+        vmax3 = max(vmax3, corners[i].xyz);
     }
 
     AABB result;

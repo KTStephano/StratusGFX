@@ -304,6 +304,27 @@ namespace stratus {
     #pragma pack(pop)
 #endif
 
+    // This is synchronized with the version inside of vsm_common.glsl
+#ifndef __GNUC__
+    #pragma pack(push, 1)
+#endif
+    struct PACKED_STRUCT_ATTRIBUTE GpuVsmClipMapData {
+        // For origin (0, 0, 0) clip map - rest are derived from this
+        glm::mat4 vsmClipMap0ProjectionView;
+        i32 vsmResolutionXY;
+        // This is set to Dk / Resolution
+        f32 vsmLightDistancePerTexel;
+        // This is Dk for the first cascade
+        f32 vsmClipMap0Extent;
+        // This references the main player camera position, converted to light space
+        f32 vsmCameraLightSpacePosition[3];
+        u32 vsmNumCascades;
+        i32 padding_[9];
+    };
+#ifndef __GNUC__
+    #pragma pack(pop)
+#endif
+
     // These are here since if they fail the engine will not work
     static_assert(sizeof(GpuVec) == 16);
     static_assert(sizeof(GpuMaterial) == 64);
@@ -316,5 +337,6 @@ namespace stratus {
     static_assert(sizeof(GpuAtlasEntry) == 8);
     static_assert(sizeof(GpuHaltonEntry) == 8);
     static_assert(sizeof(GpuPageResidencyEntry) == 8);
+    static_assert(sizeof(GpuVsmClipMapData) == 2 * sizeof(glm::mat4));
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }

@@ -212,11 +212,14 @@ namespace stratus {
         glm::mat4 viewTransform;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
+        f32 lightDistancePerTexel;
         f32 baseCascadeDiameter;
         FrameBuffer fbo;
         Texture vsm;
         GpuBuffer prevFramePageResidencyTable;
         GpuBuffer currFramePageResidencyTable;
+        GpuVsmClipMapData clipMapData;
+        GpuBuffer vsmClipMapData;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
         // Texture is split into pages which are combined

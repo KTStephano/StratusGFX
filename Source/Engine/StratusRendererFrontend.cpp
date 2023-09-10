@@ -456,12 +456,15 @@ namespace stratus {
         renderer_ = std::make_unique<RendererBackend>(Window::Instance()->GetWindowDims().first, Window::Instance()->GetWindowDims().second, params_.appName);
 
         frame_ = std::make_shared<RendererFrame>();
+        
+        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(1);
+        frame_->vsmc.cascades.resize(2);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
+        frame_->vsmc.vsmClipMapData = GpuBuffer(nullptr, sizeof(GpuVsmClipMapData), flags);
 
         //frame_->vsmc.drawCommandsFrustumCulled = GpuCommandReceiveManager::Create();
         frame_->vsmc.drawCommandsFinal = GpuCommandReceiveManager::Create();
@@ -689,6 +692,7 @@ namespace stratus {
         //                                            glm::length(frustumCorners[4] - frustumCorners[6])));
         // T is essentially the physical width/height of area corresponding to each texel in the shadow map
         const f32 T = dk / requestedCascadeResolutionXY;
+        frame_->vsmc.lightDistancePerTexel = T;
 
         // Compute min/max of each so that we can combine it with dk to create a perfectly rectangular bounding box
         glm::vec3 minVec;
@@ -735,17 +739,18 @@ namespace stratus {
         //const f32 T = dk / requestedCascadeResolutionXY;
         frame_->vsmc.baseCascadeDiameter = dk;
 
-        const f32 moveSize = 1.0f * T * 128.0f;
-
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;
         const auto directionOffset = glm::vec3(0.0f); //moveSize * frame_->camera->GetDirection();
         // Camera position is defined in world space but we need it to be in light-space
-        const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
+        auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
+        position = glm::vec3(position.x, position.y, 0.0f);
+
         //const auto position = glm::vec3(moveSize);
+        f32 moveSize = T * 128.0f;
         f32 cameraX = floorf(position.x / moveSize) * moveSize;
         f32 cameraY = floorf(position.y / moveSize) * moveSize;
-        f32 cameraZ = 0.0f;//floorf(position.z / moveSize) * moveSize;
+        f32 cameraZ = floorf(position.z / moveSize) * moveSize;
 
         // glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 
         //              floorf((maxY + minY) / (2.0f * moveSize)) * moveSize, 
@@ -777,14 +782,6 @@ namespace stratus {
 
         //STRATUS_LOG << lightWorldTransform << std::endl;
 
-        // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
-        // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
-        const glm::mat4 cascadeRenderViewTransform = glm::mat4(
-            transposeLightWorldTransform[0],
-            transposeLightWorldTransform[1],
-            transposeLightWorldTransform[2],
-            glm::vec4(-sk, 1.0f));
-
         const glm::mat4 cascadeSampleViewTransform2 = glm::mat4(
             transposeLightWorldTransform[0],
             transposeLightWorldTransform[1],
@@ -793,7 +790,7 @@ namespace stratus {
 
         const glm::mat4 cascadeSampleViewTransform = cascadeSampleViewTransform2;
 
-        frame_->vsmc.viewTransform = cascadeRenderViewTransform;
+        frame_->vsmc.viewTransform = cascadeSampleViewTransform;
 
         // We add this into the cascadeOrthoProjection map to add a slight depth offset to each value which helps reduce flickering artifacts
         const f32 shadowDepthOffset = 0.0f;//2e-19;
@@ -824,8 +821,37 @@ namespace stratus {
         // However, the alternative is to just compute (coordinate * 0.5 + 0.5) in the fragment shader which does the same thing.
         frame_->vsmc.projectionViewSample = cascadeTexelOrthoProjection * cascadeSampleViewTransform;
 
+        GpuVsmClipMapData vsmData;
+
+        vsmData.vsmClipMap0ProjectionView = frame_->vsmc.projectionViewSample;
+        vsmData.vsmCameraLightSpacePosition[0] = position.x;
+        vsmData.vsmCameraLightSpacePosition[1] = position.y;
+        vsmData.vsmCameraLightSpacePosition[2] = position.z;
+        vsmData.vsmLightDistancePerTexel = T;
+        vsmData.vsmNumCascades = (u32)frame_->vsmc.cascades.size();
+        vsmData.vsmResolutionXY = requestedCascadeResolutionXY;
+        vsmData.vsmClipMap0Extent = dk;
+
+        frame_->vsmc.clipMapData = vsmData;
+        frame_->vsmc.vsmClipMapData.CopyDataToBuffer(0, sizeof(GpuVsmClipMapData), (const void *)&vsmData);
+
         for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
             const float cascadeXYComponent = xycomponent * (1.0f / f32(BITMASK_POW2(cascade)));
+
+            moveSize = T * f32(BITMASK_POW2(cascade)) * 128.0f;
+            cameraX = floorf(position.x / moveSize) * moveSize;
+            cameraY = floorf(position.y / moveSize) * moveSize;
+            cameraZ = floorf(position.z / moveSize) * moveSize;
+
+            sk = glm::vec3(cameraX, cameraY, cameraZ);
+
+            // We use transposeLightWorldTransform because it's less precision-error-prone than just doing glm::inverse(lightWorldTransform)
+            // Note: we use -sk instead of lightWorldTransform * sk because we're assuming the translation component is 0
+            const glm::mat4 cascadeRenderViewTransform = glm::mat4(
+                transposeLightWorldTransform[0],
+                transposeLightWorldTransform[1],
+                transposeLightWorldTransform[2],
+                glm::vec4(-sk, 1.0f));
 
             const glm::mat4 cascadeOrthoProjection(
                 glm::vec4(cascadeXYComponent, 0.0f, 0.0f, 0.0f),

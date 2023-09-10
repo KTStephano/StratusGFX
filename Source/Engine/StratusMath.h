@@ -480,10 +480,30 @@ namespace stratus {
         // std::cout << "3: " << result.r << " " << result.g << " " << result.b << " " << result.a << std::endl;
     }
 
-    inline glm::vec4 VsmCalculateClipValueFromWorldPos(const glm::mat4& viewProj, const glm::vec3& worldPos, i32 clipMapIndex) {
+    inline glm::vec3 VsmGetBaseLightSpacePosition(const GpuVsmClipMapData& data) {
+        const float * vsmCameraLightSpacePosition = &data.vsmCameraLightSpacePosition[0];
+        using namespace glm;
+        return vec3(vsmCameraLightSpacePosition[0], vsmCameraLightSpacePosition[1], vsmCameraLightSpacePosition[2]);
+    }
+
+    inline glm::vec3 VsmCalculateLightSpacePosition(const GpuVsmClipMapData& data, i32 clipMapIndex) {
+        using namespace glm;
+        // We want to move by the size of 1 page at a time in light space
+        float moveSize = (data.vsmLightDistancePerTexel * float(BITMASK_POW2(clipMapIndex))) * 128.0f;
+        return glm::floor(VsmGetBaseLightSpacePosition(data) / moveSize) * moveSize;
+    }
+
+    inline glm::vec3 VsmCalculateClipSpaceLightPosition(const GpuVsmClipMapData& data, i32 clipMapIndex) {
+        using namespace glm;
+        // We want to move by the size of 1 page at a time in light space
+        float moveSize = (data.vsmLightDistancePerTexel * float(BITMASK_POW2(clipMapIndex))) * 128.0f;
+        return 2.0f * glm::floor(VsmGetBaseLightSpacePosition(data) / moveSize) * (128.0f / float(data.vsmResolutionXY));
+    }
+
+    inline glm::vec4 VsmCalculateClipValueFromWorldPos(const GpuVsmClipMapData& data, const glm::vec3& worldPos, i32 clipMapIndex) {
         using namespace glm;
 
-        vec4 result = viewProj * vec4(worldPos, 1.0);
+        vec4 result = data.vsmClipMap0ProjectionView * vec4(worldPos, 1.0);
 
         // Accounts for the fact that each clip map covers double the range of the
         // previous
@@ -494,19 +514,20 @@ namespace stratus {
     }
 
     // Returns 3 values on the range [-1, 1]
-    inline glm::vec4 VsmCalculateOriginClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
+    inline glm::vec4 VsmCalculateOriginClipValueFromWorldPos(const GpuVsmClipMapData& data, const glm::vec3& worldPos, i32 clipMapIndex) {
         using namespace glm;
 
-        mat4 viewProj = vsmProjectionView;
-        viewProj[3] = vec4(0.0, 0.0, 0.0, 1.0);
-
-        return VsmCalculateClipValueFromWorldPos(viewProj, worldPos, clipMapIndex);
+        return VsmCalculateClipValueFromWorldPos(data, worldPos, clipMapIndex);
     }
 
     // The difference between this and Origin function is that this will return a value
     // relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
-    inline glm::vec4 VsmCalculateRelativeClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
-        return VsmCalculateClipValueFromWorldPos(vsmProjectionView, worldPos, clipMapIndex);
+    inline glm::vec4 VsmCalculateRelativeClipValueFromWorldPos(const GpuVsmClipMapData& data, const glm::vec3& worldPos, i32 clipMapIndex) {
+        using namespace glm;
+        
+        vec4 result = VsmCalculateClipValueFromWorldPos(data, worldPos, clipMapIndex);
+
+        return result - vec4(VsmCalculateClipSpaceLightPosition(data, clipMapIndex), 0.0f);
     }
 
     template<typename T>
@@ -546,20 +567,24 @@ namespace stratus {
     }
 
     inline glm::vec2 ConvertVirtualCoordsToPhysicalCoords(
+        const GpuVsmClipMapData& data,
         const glm::vec2& virtualPixelCoords, 
         const glm::vec2& maxVirtualIndex, 
-        const glm::mat4& vsmProjectionView
+        const i32 cascadeIndex
     ) {
         
         using namespace glm;
 
         vec2 ndc = (2.0f * virtualPixelCoords) / (maxVirtualIndex + vec2(1.0f)) - vec2(1.0f);
 
-        vec2 ndcOrigin = vec2(ndc) - vec2(vsmProjectionView[3]);
+        vec2 ndcOrigin = vec2(ndc) + vec2(VsmCalculateClipSpaceLightPosition(data, cascadeIndex));
 
         vec2 physicalTexCoords = ndcOrigin * 0.5f + vec2(0.5f);
 
-        return WrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1.0f)) - 0.5f, maxVirtualIndex + vec2(1.0f));
+        return WrapIndex(
+            physicalTexCoords * (maxVirtualIndex + vec2(1.0f)) - 0.5f, 
+            maxVirtualIndex + vec2(1.0f)
+        );
 
         //return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
         //return vec2(physicalTexCoords) * vec2(maxVirtualIndex);
@@ -567,6 +592,27 @@ namespace stratus {
         //vec2 wrapped = WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex + ivec2(1)), vec2(maxVirtualIndex + ivec2(1)));
 
         //return (wrapped / vec2(maxVirtualIndex + ivec2(1))) * vec2(maxVirtualIndex);
+    }
+
+    inline glm::vec2 ConvertPhysicalCoordsToVirtualCoords(
+        const GpuVsmClipMapData& data,
+        const glm::vec2& physicalCoords,
+        const glm::vec2& maxPhysicalIndex,
+        const i32 cascadeIndex
+    ) {
+
+        using namespace glm;
+
+        vec2 ndc = vec2(2.0f * physicalCoords) / (maxPhysicalIndex + vec2(1.0f)) - vec2(1.0f);
+
+        vec2 ndcRelative = ndc - glm::vec2(VsmCalculateClipSpaceLightPosition(data, cascadeIndex));
+
+        vec2 virtualTexCoords = ndcRelative * 0.5f + vec2(0.5f);
+
+        return WrapIndex(
+            virtualTexCoords * (maxPhysicalIndex + vec2(1.0f)) - vec2(0.5f),
+            maxPhysicalIndex + vec2(1.0f)
+        );
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:

@@ -195,8 +195,8 @@ void main() {
         //if (frameMarker > 0) {
             //pageGroupMarker = frameCount;
 
-            atomicMin(localMinPageX, virtualPageCoords.x);
-            atomicMin(localMinPageY, virtualPageCoords.y);
+            atomicMin(localMinPageX, virtualPageCoords.x - 1);
+            atomicMin(localMinPageY, virtualPageCoords.y - 1);
 
             atomicMax(localMaxPageX, virtualPageCoords.x + 1);
             atomicMax(localMaxPageY, virtualPageCoords.y + 1);

@@ -111,10 +111,10 @@ void main() {
             pageGroupCorners[2] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].minPageY);
             pageGroupCorners[3] = ivec2(clipMapBoundingBoxes[cascade].maxPageX, clipMapBoundingBoxes[cascade].maxPageY);
 
-            pageGroupCornersTexCoords[0] = vec2(pageGroupCorners[0]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[1] = vec2(pageGroupCorners[1]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[2] = vec2(pageGroupCorners[2]) / vec2(maxResidencyTableIndex);
-            pageGroupCornersTexCoords[3] = vec2(pageGroupCorners[3]) / vec2(maxResidencyTableIndex);
+            pageGroupCornersTexCoords[0] = (vec2(2.0 * pageGroupCorners[0]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[1] = (vec2(2.0 * pageGroupCorners[1]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[2] = (vec2(2.0 * pageGroupCorners[2]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
+            pageGroupCornersTexCoords[3] = (vec2(2.0 * pageGroupCorners[3]) / vec2(maxResidencyTableIndex) - 1.0) * 0.5 + 0.5;
         }
 
         barrier();
@@ -134,14 +134,14 @@ void main() {
             // }
 
             //AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
-            AABB aabb = vsmTransformAabbAsNDCCoords(aabbs[drawIndex], vsmClipMap0ProjectionView * modelTransforms[drawIndex], corners, cascade);
+            AABB aabb = vsmTransformAabbAsNDCCoords(aabbs[drawIndex], modelTransforms[drawIndex], corners, cascade);
             computeCornersAsTexCoords(aabb, corners);
 
             vec2 pageMin = vec2(pageGroupCorners[0]);
             vec2 pageMax = vec2(pageGroupCorners[3]);
 
-            vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
-            vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
+            vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex) - 0.5;
+            vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex) - 0.5;
 
             // Even if our page group is inactive we still need to record commands just in case
             // our inactivity is due to being fully cached (the CPU may clear some/all of our region

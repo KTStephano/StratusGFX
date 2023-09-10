@@ -1236,8 +1236,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     
     // state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewSample);
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-    state_.vsmAnalyzeDepth->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    // state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    // state_.vsmAnalyzeDepth->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->vsmc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
@@ -1275,8 +1275,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmMarkPages->SetUint("sunChanged", frame_->vsmc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
-    state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-    state_.vsmMarkPages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    // state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    // state_.vsmMarkPages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
 
     frame_->vsmc.numPagesToCommit.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
@@ -1326,8 +1326,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     // state_.vsmCull->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewRender);
     // state_.vsmCull->SetMat4("invCascadeProjectionView", frame_->vsmc.invProjectionViewRender);
     // state_.vsmCull->SetMat4("vsmProjectionView", frame_->vsmc.projectionViewSample);
-    state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-    state_.vsmCull->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    // state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    // state_.vsmCull->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
     state_.vsmCull->SetUint("frameCount", frameCount);
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->vsmc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->vsmc.numPageGroupsY);
@@ -1514,9 +1514,10 @@ void RendererBackend::RenderCSMDepth_() {
     //     glm::vec2 virtualCoords = glm::vec2(xy, xy);
 
     //     glm::vec2 physicalCoords = ConvertVirtualCoordsToPhysicalCoords(
+    //         frame_->vsmc.clipMapData,
     //         virtualCoords,
     //         glm::vec2(frame_->vsmc.numPageGroupsX - 1),
-    //         frame_->vsmc.cascades[0].projectionViewRender
+    //         0
     //     );
 
     //     // STRATUS_LOG << xy << ": " << physicalCoords << std::endl;
@@ -1524,6 +1525,8 @@ void RendererBackend::RenderCSMDepth_() {
     //     glm::vec2 ndc = glm::vec2(2.0f * virtualCoords) / glm::vec2(frame_->vsmc.numPageGroupsX) - 1.0f;
     //     glm::vec3 worldPos = glm::vec3(frame_->vsmc.cascades[0].invProjectionViewRender * glm::vec4(ndc, 0.0f, 1.0f));
     //     glm::vec2 ndcOrigin = glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(worldPos, 1.0f));
+
+    //     glm::vec2 ndcTest = VsmCalculateRelativeClipValueFromWorldPos(frame_->vsmc.clipMapData, worldPos, 0);
 
     //     glm::vec2 physicalTexCoords = ndcOrigin * 0.5f + glm::vec2(0.5f);
 
@@ -1533,7 +1536,34 @@ void RendererBackend::RenderCSMDepth_() {
     //         glm::vec2(frame_->vsmc.numPageGroupsX)
     //     );
 
-    //     STRATUS_LOG << xy << ": " << physicalCoords << ", " << physicalCoords2 << std::endl;
+    //     //STRATUS_LOG << xy << ": " << physicalCoords << ", " << physicalCoords2 << std::endl;
+    //     STRATUS_LOG << xy << ": " << ndc << ", " << ndcTest << std::endl;
+    // }
+
+    // for (i32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+    //     const float xy = float(x) + 0.5f;
+    //     glm::vec2 physicalCoords = glm::vec2(xy, xy);
+
+    //     glm::vec2 virtualCoords = ConvertPhysicalCoordsToVirtualCoords(
+    //         frame_->vsmc.clipMapData,
+    //         physicalCoords,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX - 1),
+    //         0
+    //     );
+
+    //     glm::vec2 ndc = glm::vec2(2.0f * physicalCoords) / glm::vec2(frame_->vsmc.numPageGroupsX) - 1.0f;
+    //     const glm::mat4 inv = glm::inverse(frame_->vsmc.projectionViewSample);
+    //     glm::vec3 worldPos = glm::vec3(inv * glm::vec4(ndc, 0.0f, 1.0f));
+        
+    //     glm::vec2 ndcTest = glm::vec2(frame_->vsmc.cascades[0].projectionViewRender * glm::vec4(worldPos, 1.0f));
+    //     glm::vec2 virtualTexCoords = ndcTest * 0.5f + glm::vec2(0.5f);
+
+    //     glm::vec2 virtualCoords2 = WrapIndex(
+    //         virtualTexCoords * glm::vec2(frame_->vsmc.numPageGroupsX) - 0.5f,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX)
+    //     );
+
+    //     STRATUS_LOG << xy << ": " << virtualCoords << ", " << virtualCoords2 << std::endl;
     // }
 
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
@@ -1724,9 +1754,11 @@ void RendererBackend::RenderCSMDepth_() {
             const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
 
             // Normalize the min/max page groups
-            // Converts first to [-1, 1] and then t [0, 1]
+            // Converts first to [-1, 1] and then to [0, 1]
             const f32 normMinPageGroupX = (f32(2 * minPageGroupX) / f32(frame_->vsmc.numPageGroupsX) - 1.0f) * 0.5f + 0.5f;
             const f32 normMinPageGroupY = (f32(2 * minPageGroupY) / f32(frame_->vsmc.numPageGroupsY) - 1.0f) * 0.5f + 0.5f;
+            // const f32 normMinPageGroupX = f32(minPageGroupX) / f32(frame_->vsmc.numPageGroupsX - 1);
+            // const f32 normMinPageGroupY = f32(minPageGroupY) / f32(frame_->vsmc.numPageGroupsY - 1);
             // const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
             // const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
 
@@ -1820,8 +1852,8 @@ void RendererBackend::RenderCSMDepth_() {
             state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
             state_.vsmClear->SetIVec2("numPagesXY", glm::ivec2(numPagesXY, numPagesXY));
             state_.vsmClear->SetUint("frameCount", frameCount);
-            state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-            state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            // state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+            // state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
             state_.vsmClear->SetInt("vsmClipMapIndex", cascade);
             state_.vsmClear->BindTextureAsImage(
                 "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
@@ -1865,8 +1897,8 @@ void RendererBackend::RenderCSMDepth_() {
             shader->SetMat4("shadowMatrix", csm.cascades[cascade].projectionViewRender);
             shader->SetUint("numPagesXY", (u32)(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
             shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
-            shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-            shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            // shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+            // shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
             shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
             shader->SetInt("vsmClipMapIndex", cascade);
 
@@ -2737,6 +2769,9 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MESH_DATA_BINDING_POINT);
     GpuMeshAllocator::BindElementArrayBuffer();
 
+    // This doesn't change at all once RenderScene() is called
+    frame_->vsmc.vsmClipMapData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_BASE_CLIP_MAP_DATA_BINDING_POINT);
+
     VplDistMultiSet_ perLightDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
     VplDistVector_ perLightDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
@@ -3273,8 +3308,8 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
         s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->vsmc.cascadeShadowOffsets[i]);
     }
 
-    s->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
-    s->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    // s->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    // s->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
 
     //for (i32 i = 0; i < frame_->vsmc.cascades.size() - 1; ++i) {
     //    // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);

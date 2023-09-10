@@ -16,7 +16,7 @@ out vec4 color;
 float linearizeDepth(in vec2 uv)
 {
     uvec4 value;
-    ivec3 pixelCoords = ivec3(uv * (textureSize(depth, 0).xy - vec2(1.0)), 0.0);
+    ivec3 pixelCoords = ivec3(uv * (textureSize(depth, 0).xy - vec2(1.0)), 1.0);
     int status = sparseTexelFetchARB(depth, pixelCoords, 0, value);
     float depth = uintBitsToFloat(value.r);
     if (sparseTexelsResidentARB(status) == false) {
