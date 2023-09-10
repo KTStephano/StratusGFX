@@ -124,7 +124,7 @@ void main() {
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
 
-    vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize) - vec2(0.5);
+    vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize);// - vec2(0.5);
     vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
     float fx = fract(basePixelCoordsWrapped.x);

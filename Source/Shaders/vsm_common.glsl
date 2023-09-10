@@ -319,7 +319,10 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
 
     //return physicalTexCoords * vec2(maxVirtualIndex);
-    return wrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1)), maxVirtualIndex + vec2(1));
+    return wrapIndex(
+        physicalTexCoords * (maxVirtualIndex + vec2(1)), 
+        maxVirtualIndex + vec2(1)
+    );
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
@@ -377,7 +380,10 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
 
     //return virtualTexCoords * vec2(maxPhysicalIndex);
-    return wrapIndex(virtualTexCoords * (maxPhysicalIndex + vec2(1)), maxPhysicalIndex + vec2(1));
+    return wrapIndex(
+        virtualTexCoords * (maxPhysicalIndex + vec2(1)), 
+        maxPhysicalIndex + vec2(1)
+    );
 }
 
 vec2 convertPhysicalCoordsToVirtualCoords(

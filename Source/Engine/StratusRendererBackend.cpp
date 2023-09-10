@@ -1421,7 +1421,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 

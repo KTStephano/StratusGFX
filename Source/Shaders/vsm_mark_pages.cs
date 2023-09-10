@@ -132,7 +132,7 @@ void main() {
         // }
 
         // Take the physical coords and convert them to virtual coords for the current frame
-        ivec2 virtualPageCoords = ivec2(round(convertPhysicalCoordsToVirtualCoords(
+        ivec2 virtualPageCoords = ivec2(floor(convertPhysicalCoordsToVirtualCoords(
             vec2(tileCoords) + vec2(0.5),
             vec2(int(numPagesXY) - 1),
             cascade
