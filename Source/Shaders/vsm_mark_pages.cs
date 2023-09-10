@@ -133,8 +133,10 @@ void main() {
         //uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
 
         if (frameMarker > 0) {
+            frameMarker += 1;
+
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if ((frameCount - frameMarker) > 5) {
+            if (frameMarker > 5) {
                 dirtyBit = 0;
                 requestPageDealloc(physicalPageCoords, cascade);
 
@@ -183,7 +185,7 @@ void main() {
         uint pageGroupMarker = 0;
 
         //if (dirtyBit > 0 && frameMarker == frameCount) {
-        if (frameMarker == frameCount) {
+        if (frameMarker == 2) {
         //if (dirtyBit > 0) {
         //if (frameMarker > 0) {
             //pageGroupMarker = frameCount;
@@ -196,7 +198,7 @@ void main() {
         }
 
         if (dirtyBit > 0) {
-            pageGroupMarker = frameCount;
+            pageGroupMarker = 1;
         }
 
         uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);

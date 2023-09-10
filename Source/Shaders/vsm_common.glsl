@@ -13,7 +13,7 @@ STRATUS_GLSL_VERSION
 #define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
-#define VSM_PAGE_FRAME_MARKER_MASK 0xFFFFFFF0
+#define VSM_PAGE_FRAME_MARKER_MASK 0xFF000000
 #define VSM_PAGE_FRAME_UPDATE_MASK 0x0000000F
 
 // Total is this number squared
@@ -261,11 +261,11 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
 }
 
 uint packFrameCountWithUpdateCount(in uint frameCount, in uint updateCount) {
-    return (frameCount << 4) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
+    return (frameCount << 24) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
 }
 
 void unpackFrameCountAndUpdateCount(in uint data, out uint frameCount, out uint updateCount) {
-    frameCount = data >> 4;
+    frameCount = data >> 24;
     updateCount = data & VSM_PAGE_FRAME_UPDATE_MASK;
 }
 

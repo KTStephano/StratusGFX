@@ -70,7 +70,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     unpackFrameCountAndUpdateCount(currFramePageResidencyTable[tileIndex].frameMarker, unused, prevUpdateCount);
 
     uint newUpdateCount = prevUpdateCount;
-    currFramePageResidencyTable[tileIndex].frameMarker = packFrameCountWithUpdateCount(frameCount, newUpdateCount);
+    currFramePageResidencyTable[tileIndex].frameMarker = packFrameCountWithUpdateCount(1, newUpdateCount);
 
     // if (prevDirtyBit == VSM_PAGE_RENDERED_BIT) {
     //     prevDirtyBit = 0;
