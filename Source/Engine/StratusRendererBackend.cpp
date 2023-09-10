@@ -1337,7 +1337,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            if (x > 0 && y > 0) {
+            //if (x > 0 && y > 0) {
+            {
                 vsm->CommitOrUncommitVirtualPage(
                     std::abs(x) - 1, 
                     std::abs(y) - 1, 

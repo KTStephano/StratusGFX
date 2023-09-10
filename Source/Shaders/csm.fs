@@ -68,7 +68,7 @@ void writeDepth(in vec2 uv, in float depth) {
 	//if (physicalPageCoords.x >= startXY.x && physicalPageCoords.x <= endXY.x &&
 	//	physicalPageCoords.y >= startXY.y && physicalPageCoords.y <= endXY.y) {
 
-		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
+		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth);
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth);
 		
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {

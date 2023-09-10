@@ -29,7 +29,7 @@ shared ivec2 vsmMaxIndex;
 shared ivec2 vsmPixelStart;
 shared ivec2 vsmPixelEnd;
 shared uint frameMarker;
-shared uint updateCount;
+shared uint residencyStatus;
 shared bool clearPage;
 
 void clearPixel(in ivec2 physicalPixelCoords) {
@@ -46,10 +46,10 @@ void main() {
 
     barrier();
 
-    vec2 virtualPageCoords = vec2(gl_WorkGroupID.xy) + vec2(0.5);
+    vec2 virtualPageCoords = vec2(gl_WorkGroupID.xy);// + vec2(0.5);
 
     ivec2 physicalPageTableCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
-        vec2(virtualPageCoords),
+        vec2(virtualPageCoords) + vec2(0.5),
         vec2(numPagesXY - ivec2(1)),
         vsmClipMapIndex
     )));
@@ -57,7 +57,7 @@ void main() {
     uint physicalPageTableIndex = uint(physicalPageTableCoords.x + physicalPageTableCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
     uint physicalPageX;
     uint physicalPageY;
-    uint unused;
+    //uint unused;
 
     if (gl_LocalInvocationID == 0) {
         unpackPageMarkerData(
@@ -65,7 +65,7 @@ void main() {
             frameMarker,
             physicalPageX,
             physicalPageY,
-            unused
+            residencyStatus
         );
 
         //vsmPixelStart = ivec2(physicalPageTableCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageTableCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
@@ -95,7 +95,7 @@ void main() {
     //uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
     //if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
-    if (gl_LocalInvocationID == 0) {
+    if (gl_LocalInvocationID == 0 && residencyStatus > 0) {
         // vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
         //     ivec2(physicalPageTableCoords),
         //     ivec2(numPagesXY - 1),
@@ -104,8 +104,8 @@ void main() {
 
         // If this physical page is within the virtual bounds that the CPU wants to render
         // this frame, mark it as rendered instead of cleared
-        if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x <= endXY.x &&
-            virtualPageCoords.y >= startXY.y && virtualPageCoords.y <= endXY.y) {
+        if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x < endXY.x &&
+            virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y) {
         //if (true) {
 
             clearPage = true;

@@ -40,6 +40,9 @@ void main() {
         if (numPagesFree > maxNumPages) {
             numPagesFree = maxNumPages;
         }
+        else if (numPagesFree < 0) {
+            numPagesFree = 0;
+        }
     }
 
     barrier();
@@ -50,8 +53,10 @@ void main() {
 
         if (x < 0 || y < 0) {
             int nextPage = atomicAdd(numPagesFree, -1) - 1;
-            pagesFreeList[2 * nextPage] = uint(abs(x) - 1);
-            pagesFreeList[2 * nextPage + 1] = uint(abs(y) - 1);
+            if (nextPage >= 0) {
+                pagesFreeList[2 * nextPage] = uint(abs(x) - 1);
+                pagesFreeList[2 * nextPage + 1] = uint(abs(y) - 1);
+            }
         }
     }
 }
