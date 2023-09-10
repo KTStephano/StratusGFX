@@ -63,20 +63,37 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
 
     uint prevPageId;
     uint prevDirtyBit;
-    unpackPageIdAndDirtyBit(currFramePageResidencyTable[tileIndex].info, prevPageId, prevDirtyBit);
+    unpackPageIdAndDirtyBit(
+        currFramePageResidencyTable[tileIndex].info, 
+        prevPageId, 
+        prevDirtyBit
+    );
 
     uint unused;
-    uint prevUpdateCount;
-    unpackFrameCountAndUpdateCount(currFramePageResidencyTable[tileIndex].frameMarker, unused, prevUpdateCount);
+    uint physicalPageX;
+    uint physicalPageY;
+    uint prevResidencyStatus;
+    unpackPageMarkerData(
+        currFramePageResidencyTable[tileIndex].frameMarker, 
+        unused, 
+        physicalPageX,
+        physicalPageY,
+        prevResidencyStatus
+    );
 
-    uint newUpdateCount = prevUpdateCount;
-    currFramePageResidencyTable[tileIndex].frameMarker = packFrameCountWithUpdateCount(1, newUpdateCount);
+    uint newResidencyStatus = prevResidencyStatus;
+    currFramePageResidencyTable[tileIndex].frameMarker = packPageMarkerData(
+        1, 
+        physicalPageX,
+        physicalPageY,
+        newResidencyStatus
+    );
 
     // if (prevDirtyBit == VSM_PAGE_RENDERED_BIT) {
     //     prevDirtyBit = 0;
     // }
 
-    uint dirtyBit = (prevPageId != pageId || prevUpdateCount < 2) ? 1 : prevDirtyBit; 
+    uint dirtyBit = (prevPageId != pageId || prevResidencyStatus < 2) ? 1 : prevDirtyBit; 
     currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
 }
 

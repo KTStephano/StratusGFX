@@ -107,10 +107,14 @@ void main() {
         PageResidencyEntry current = currFramePageResidencyTable[pageIndex];
 
         uint frameMarker;
+        uint physicalPageX;
+        uint physicalPageY;
         uint pageResident;
-        unpackFrameCountAndUpdateCount(
+        unpackPageMarkerData(
             current.frameMarker,
             frameMarker,
+            physicalPageX,
+            physicalPageY,
             pageResident
         );
 
@@ -169,7 +173,13 @@ void main() {
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                current.frameMarker = packFrameCountWithUpdateCount(frameMarker, newPageResidencyStatus);
+                current.frameMarker = packPageMarkerData(
+                    frameMarker, 
+                    physicalPageX,
+                    physicalPageY,
+                    newPageResidencyStatus
+                );
+
                 currFramePageResidencyTable[pageIndex] = current;
 
                 // prev = current;

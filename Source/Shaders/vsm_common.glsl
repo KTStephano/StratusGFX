@@ -14,7 +14,10 @@ STRATUS_GLSL_VERSION
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
 #define VSM_PAGE_FRAME_MARKER_MASK 0xFF000000
-#define VSM_PAGE_FRAME_UPDATE_MASK 0x0000000F
+#define VSM_PAGE_RESIDENCY_STATUS_MASK 0x0000000F
+
+#define VSM_PAGE_X_OFFSET_MASK 0x00FF0000
+#define VSM_PAGE_Y_OFFSET_MASK 0x0000FF00
 
 // Total is this number squared
 #define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32760
@@ -260,13 +263,18 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
     bit = data & VSM_PAGE_DIRTY_MASK;
 }
 
-uint packFrameCountWithUpdateCount(in uint frameCount, in uint updateCount) {
-    return (frameCount << 24) | (updateCount & VSM_PAGE_FRAME_UPDATE_MASK);
+uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uint residencyStatus) {
+    return (frameCount << 24) | 
+           ((pageX << 16) & VSM_PAGE_X_OFFSET_MASK) | 
+           ((pageY << 8) & VSM_PAGE_Y_OFFSET_MASK) | 
+           (residencyStatus & VSM_PAGE_RESIDENCY_STATUS_MASK);
 }
 
-void unpackFrameCountAndUpdateCount(in uint data, out uint frameCount, out uint updateCount) {
+void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint residencyStatus) {
     frameCount = data >> 24;
-    updateCount = data & VSM_PAGE_FRAME_UPDATE_MASK;
+    pageX = (data >> 16) & VSM_PAGE_X_OFFSET_MASK;
+    pageY = (data >> 8) & VSM_PAGE_Y_OFFSET_MASK;
+    residencyStatus = data & VSM_PAGE_RESIDENCY_STATUS_MASK;
 }
 
 vec2 roundIndex(in vec2 index) {

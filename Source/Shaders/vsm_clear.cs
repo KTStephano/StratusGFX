@@ -63,11 +63,12 @@ void main() {
     if (gl_LocalInvocationID == 0) {
         vsmPixelStart = ivec2(physicalPageCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
         vsmPixelEnd = vsmPixelStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-        unpackFrameCountAndUpdateCount(
-            currFramePageResidencyTable[physicalPageIndex].frameMarker,
-            frameMarker,
-            updateCount
-        );
+        
+        // unpackFrameCountAndUpdateCount(
+        //     currFramePageResidencyTable[physicalPageIndex].frameMarker,
+        //     frameMarker,
+        //     updateCount
+        // );
     }
 
     uint pageId;
