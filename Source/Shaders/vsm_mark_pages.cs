@@ -79,20 +79,20 @@ bool requestPageAlloc(out uint physicalPageX, out uint physicalPageY) {
 }
 
 void requestPageDealloc(in ivec2 pageCoords) {
-    int maxPage = int(numPagesXY * numPagesXY);
-    int nextPage = atomicAdd(numPagesFree, -1);
-    while (nextPage > maxPage) {
-        nextPage = atomicAdd(numPagesFree, -1);
-    }
+    // int maxPage = int(numPagesXY * numPagesXY);
+    // int nextPage = atomicAdd(numPagesFree, -1);
+    // while (nextPage > maxPage) {
+    //     nextPage = atomicAdd(numPagesFree, -1);
+    // }
 
-    nextPage = nextPage - 1;
-    pagesFreeList[2 * nextPage] = uint(pageCoords.x);
-    pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
+    // nextPage = nextPage - 1;
+    // pagesFreeList[2 * nextPage] = uint(pageCoords.x);
+    // pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
 
-    // int original = atomicAdd(numPagesToUpdate, 1);
-    // pageIndices[3 * original] = 0;
-    // pageIndices[3 * original + 1] = -(pageCoords.x + 1);
-    // pageIndices[3 * original + 2] = -(pageCoords.y + 1);
+    int original = atomicAdd(numPagesToUpdate, 1);
+    pageIndices[3 * original] = 0;
+    pageIndices[3 * original + 1] = -(pageCoords.x + 1);
+    pageIndices[3 * original + 2] = -(pageCoords.y + 1);
 }
 
 void main() {
@@ -169,7 +169,7 @@ void main() {
             frameMarker += 1;
 
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if (frameMarker > 5) {
+            if (frameMarker > 30) {
                 dirtyBit = 0;
                 requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)));
 

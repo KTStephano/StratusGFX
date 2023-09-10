@@ -273,6 +273,10 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"vsm_mark_pages.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.vsmMarkPages.get());
 
+    state_.vsmFreePages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_free_pages.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.vsmFreePages.get());
+
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -1305,6 +1309,17 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmMarkPages->Unbind();
 
+    state_.vsmFreePages->Bind();
+
+    state_.vsmFreePages->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmFreePages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmFreePages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
+    state_.vsmFreePages->DispatchCompute(1, 1, 1);
+    state_.vsmFreePages->SynchronizeCompute();
+
+    state_.vsmFreePages->Unbind();
+
     const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
     frame_->vsmc.numPagesToCommit.UnmapMemory();
 
@@ -1383,8 +1398,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     ProcessCSMVirtualTexture_();
 
-    const i32 * n = (const i32 *)frame_->vsmc.numPagesFree.MapMemory(GPU_MAP_READ);
-    STRATUS_LOG << *n << std::endl;
+    const auto n = *(const i32*)frame_->vsmc.numPagesFree.MapMemory(GPU_MAP_READ);
     frame_->vsmc.numPagesFree.UnmapMemory();
 
     glDisable(GL_DEPTH_TEST);
