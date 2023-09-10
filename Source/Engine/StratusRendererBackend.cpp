@@ -410,8 +410,8 @@ void RendererBackend::RecalculateCascadeData_() {
 
         const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
 
-        frame_->vsmc.prevFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
-        frame_->vsmc.currFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+        //frame_->vsmc.prevFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+        frame_->vsmc.pageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
 
         //std::vector<u8, StackBasedPoolAllocator<u8>> pageStatusData(
         //    numPagesSquared, u8(0), StackBasedPoolAllocator<u8>(frame_->perFrameScratchMemory)
@@ -1217,10 +1217,6 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     // int value = 0;
     // frame_->vsmc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
-    auto tmp = frame_->vsmc.currFramePageResidencyTable;
-    frame_->vsmc.currFramePageResidencyTable = frame_->vsmc.prevFramePageResidencyTable;
-    frame_->vsmc.prevFramePageResidencyTable = tmp;
-
     frame_->vsmc.pageBoundingBox.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_BOUNDING_BOX_BINDING_POINT);
     frame_->vsmc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
 
@@ -1241,9 +1237,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->vsmc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
-    frame_->vsmc.prevFramePageResidencyTable.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING);
-    frame_->vsmc.currFramePageResidencyTable.BindBase(
+    frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     state_.vsmAnalyzeDepth->SetUint("numPagesXY", numPagesAvailable);
 
@@ -1332,7 +1326,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->vsmc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->vsmc.numPageGroupsY);
     //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
-    frame_->vsmc.currFramePageResidencyTable.BindBase(
+    frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->vsmc.cascadeResolutionXY);
@@ -1825,7 +1819,7 @@ void RendererBackend::RenderCSMDepth_() {
             state_.vsmClear->SetInt("vsmClipMapIndex", cascade);
             state_.vsmClear->BindTextureAsImage(
                 "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
-            frame_->vsmc.currFramePageResidencyTable.BindBase(
+            frame_->vsmc.pageResidencyTable.BindBase(
                 GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
             state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
@@ -3182,7 +3176,7 @@ void RendererBackend::FinalizeFrame_() {
     state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
     frame_->vsmc.pageGroupsToRender.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
-    frame_->vsmc.currFramePageResidencyTable.BindBase(
+    frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     RenderQuad_();
     UnbindShader_();
@@ -3370,7 +3364,7 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_ATLAS_INDICES_BINDING_POINT);
     state_.shadowCastingPointLights.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_CASTER_BINDING_POINT);
-    frame_->vsmc.currFramePageResidencyTable.BindBase(
+    frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     s->SetInt("numPagesXY", frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 

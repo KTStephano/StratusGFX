@@ -30,9 +30,9 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
 //     int renderPageIndices[];
 // };
 
-layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block3 {
-    PageResidencyEntry prevFramePageResidencyTable[];
-};
+// layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block3 {
+//     PageResidencyEntry prevFramePageResidencyTable[];
+// };
 
 layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block5 {
     PageResidencyEntry currFramePageResidencyTable[];
@@ -104,30 +104,15 @@ void main() {
         //uint prev = uint(imageLoad(prevFramePageResidencyTable, virtualPageCoords).r);
         //uint current = uint(imageLoad(currFramePageResidencyTable, virtualPageCoords).r);
 
-        PageResidencyEntry prev = prevFramePageResidencyTable[pageIndex];
         PageResidencyEntry current = currFramePageResidencyTable[pageIndex];
 
-        uint prevPageId;
-        uint prevDirtyBit;
-        unpackPageIdAndDirtyBit(prev.info, prevPageId, prevDirtyBit);
-
         uint frameMarker;
-        uint unused;
+        uint pageResident;
         unpackFrameCountAndUpdateCount(
             current.frameMarker,
             frameMarker,
-            unused
+            pageResident
         );
-
-        if (prev.frameMarker > 0 && frameMarker != frameCount) {
-            current = prev;
-            currFramePageResidencyTable[pageIndex] = prev;
-            unpackFrameCountAndUpdateCount(
-                current.frameMarker,
-                frameMarker,
-                unused
-            );
-        }
 
         uint pageId;
         uint dirtyBit;
@@ -149,7 +134,7 @@ void main() {
 
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if ((frameCount - frameMarker) > 30) {
+            if ((frameCount - frameMarker) > 5) {
                 dirtyBit = 0;
                 requestPageDealloc(physicalPageCoords, cascade);
 
@@ -158,15 +143,16 @@ void main() {
                 markedNonResident.info = 0;
                 frameMarker = 0;
 
-                prevFramePageResidencyTable[pageIndex] = markedNonResident;
                 currFramePageResidencyTable[pageIndex] = markedNonResident;
 
                 current = markedNonResident;
             }
             else {
+                uint newPageResidencyStatus = 2; // 2 means nothing needs to be done
                 // Page was requested this frame but is not currently resident
-                if (prev.frameMarker == 0) {
+                if (pageResident == 0) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
+                    newPageResidencyStatus = 1;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                     requestPageAlloc(physicalPageCoords, cascade); 
                 }
@@ -174,14 +160,14 @@ void main() {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
-                else if (dirtyBit == VSM_PAGE_RENDERED_BIT) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                else if (dirtyBit == VSM_PAGE_RENDERED_BIT && pageResident == 2) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
                     dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                prevFramePageResidencyTable[pageIndex] = current;
+                current.frameMarker = packFrameCountWithUpdateCount(frameMarker, newPageResidencyStatus);
                 currFramePageResidencyTable[pageIndex] = current;
 
                 // prev = current;

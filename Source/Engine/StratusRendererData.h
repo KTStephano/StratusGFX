@@ -215,8 +215,8 @@ namespace stratus {
         f32 baseCascadeDiameter;
         FrameBuffer fbo;
         Texture vsm;
-        GpuBuffer prevFramePageResidencyTable;
-        GpuBuffer currFramePageResidencyTable;
+        // GpuBuffer prevFramePageResidencyTable;
+        GpuBuffer pageResidencyTable;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
         // Texture is split into pages which are combined
