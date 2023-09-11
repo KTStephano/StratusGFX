@@ -56,29 +56,31 @@ shared int localMaxPageX;
 shared int localMaxPageY;
 shared int cascadeStepSize;
 
-bool requestPageAlloc(out uint physicalPageX, out uint physicalPageY) {
-    int maxPage = int(numPagesXY * numPagesXY);
-    int nextPage = atomicAdd(numPagesFree, 1);
-    if (nextPage >= maxPage) {
-        physicalPageX = 0;
-        physicalPageY = 0;
-        return false;
-    }
+bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint physicalPageY, in uint memPool) {
+    // int maxPage = int(numPagesXY * numPagesXY);
+    // int nextPage = atomicAdd(numPagesFree, 1);
+    // if (nextPage >= maxPage) {
+    //     physicalPageX = 0;
+    //     physicalPageY = 0;
+    //     return false;
+    // }
 
-    uint px = pagesFreeList[2 * nextPage];
-    uint py = pagesFreeList[2 * nextPage + 1];
+    // uint px = pagesFreeList[2 * nextPage];
+    // uint py = pagesFreeList[2 * nextPage + 1];
+    uint px = uint(physicalPage.x);
+    uint py = uint(physicalPage.y);
     physicalPageX = px;
     physicalPageY = py;
 
     int original = atomicAdd(numPagesToUpdate, 1);
-    pageIndices[3 * original] = 0;
+    pageIndices[3 * original] = int(memPool);
     pageIndices[3 * original + 1] = int(px) + 1;
     pageIndices[3 * original + 2] = int(py) + 1;
 
     return true;
 }
 
-void requestPageDealloc(in ivec2 pageCoords) {
+void requestPageDealloc(in ivec2 pageCoords, in uint memPool) {
     // int maxPage = int(numPagesXY * numPagesXY);
     // int nextPage = atomicAdd(numPagesFree, -1);
     // while (nextPage > maxPage) {
@@ -90,7 +92,7 @@ void requestPageDealloc(in ivec2 pageCoords) {
     // pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
 
     int original = atomicAdd(numPagesToUpdate, 1);
-    pageIndices[3 * original] = 0;
+    pageIndices[3 * original] = int(memPool);
     pageIndices[3 * original + 1] = -(pageCoords.x + 1);
     pageIndices[3 * original + 2] = -(pageCoords.y + 1);
 }
@@ -138,12 +140,14 @@ void main() {
         uint frameMarker;
         uint physicalPageX;
         uint physicalPageY;
+        uint memPool;
         uint pageResident;
         unpackPageMarkerData(
             current.frameMarker,
             frameMarker,
             physicalPageX,
             physicalPageY,
+            memPool,
             pageResident
         );
 
@@ -168,24 +172,27 @@ void main() {
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
             if (frameMarker > 1) {
-                dirtyBit = 0;
-                requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)));
+                if (pageResident > 0) {
+                    dirtyBit = 0;
+                    requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)), memPool);
 
-                PageResidencyEntry markedNonResident;
-                markedNonResident.frameMarker = 0;
-                markedNonResident.info = 0;
-                frameMarker = 0;
+                    PageResidencyEntry markedNonResident;
+                    markedNonResident.frameMarker = 0;
+                    markedNonResident.info = 0;
+                    frameMarker = 0;
 
-                currFramePageResidencyTable[pageIndex] = markedNonResident;
+                    currFramePageResidencyTable[pageIndex] = markedNonResident;
 
-                current = markedNonResident;
+                    current = markedNonResident;
+                }
             }
             else {
                 //uint newPageResidencyStatus = 2; // 2 means nothing needs to be done
                 uint pageResidencyIncrement = pageResident > 2 ? 0 : 1;
                 // Page was requested this frame but is not currently resident
                 if (pageResident == 0) {
-                    if (requestPageAlloc(physicalPageX, physicalPageY) == false) {
+                    memPool = uint(cascade);
+                    if (requestPageAlloc(physicalPageCoords, physicalPageX, physicalPageY, memPool) == false) {
                         // Failed to allocate
                         pageResidencyIncrement = 0;
                     }
@@ -197,7 +204,7 @@ void main() {
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
                 else if (dirtyBit == VSM_PAGE_RENDERED_BIT && pageResident > 2) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
-                    //dirtyBit = 0;
+                    dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
 
@@ -207,6 +214,7 @@ void main() {
                     frameMarker + 1, 
                     physicalPageX,
                     physicalPageY,
+                    memPool,
                     pageResident + pageResidencyIncrement
                 );
 

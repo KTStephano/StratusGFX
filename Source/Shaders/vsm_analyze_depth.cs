@@ -68,12 +68,14 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint unused;
     uint physicalPageX;
     uint physicalPageY;
+    uint memPool;
     uint prevResidencyStatus;
     unpackPageMarkerData(
         currFramePageResidencyTable[tileIndex].frameMarker, 
         unused, 
         physicalPageX,
         physicalPageY,
+        memPool,
         prevResidencyStatus
     );
 
@@ -82,6 +84,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
         1, 
         physicalPageX,
         physicalPageY,
+        memPool,
         newResidencyStatus
     );
 

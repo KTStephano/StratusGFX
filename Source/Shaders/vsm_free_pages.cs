@@ -35,28 +35,28 @@ layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) coherent buffer blo
 void main() {
     uint stepSize = gl_WorkGroupSize.x;
 
-    if (gl_LocalInvocationID == 0) {
-        int maxNumPages = int(numPagesXY * numPagesXY);
-        if (numPagesFree > maxNumPages) {
-            numPagesFree = maxNumPages;
-        }
-        else if (numPagesFree < 0) {
-            numPagesFree = 0;
-        }
-    }
+    // if (gl_LocalInvocationID == 0) {
+    //     int maxNumPages = int(numPagesXY * numPagesXY);
+    //     if (numPagesFree > maxNumPages) {
+    //         numPagesFree = maxNumPages;
+    //     }
+    //     else if (numPagesFree < 0) {
+    //         numPagesFree = 0;
+    //     }
+    // }
 
-    barrier();
+    // barrier();
 
-    for (uint i = gl_LocalInvocationIndex; i < numPagesToUpdate; i += stepSize) {
-        int x = pageIndices[3 * i + 1];
-        int y = pageIndices[3 * i + 2];
+    // for (uint i = gl_LocalInvocationIndex; i < numPagesToUpdate; i += stepSize) {
+    //     int x = pageIndices[3 * i + 1];
+    //     int y = pageIndices[3 * i + 2];
 
-        if (x < 0 || y < 0) {
-            int nextPage = atomicAdd(numPagesFree, -1) - 1;
-            if (nextPage >= 0) {
-                pagesFreeList[2 * nextPage] = uint(abs(x) - 1);
-                pagesFreeList[2 * nextPage + 1] = uint(abs(y) - 1);
-            }
-        }
-    }
+    //     if (x < 0 || y < 0) {
+    //         int nextPage = atomicAdd(numPagesFree, -1) - 1;
+    //         if (nextPage >= 0) {
+    //             pagesFreeList[2 * nextPage] = uint(abs(x) - 1);
+    //             pagesFreeList[2 * nextPage + 1] = uint(abs(y) - 1);
+    //         }
+    //     }
+    // }
 }

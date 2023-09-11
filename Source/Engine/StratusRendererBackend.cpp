@@ -385,7 +385,7 @@ void RendererBackend::RecalculateCascadeData_() {
                 TextureComponentType::FLOAT, 
                 frame_->vsmc.cascadeResolutionXY, 
                 frame_->vsmc.cascadeResolutionXY, 
-                1,//numCascades, 
+                numCascades, 
                 false, 
                 true 
             }, 
@@ -431,16 +431,19 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->vsmc.numPagesFree = GpuBuffer((const void *)&value, sizeof(i32), flags);
 
         std::vector<u32, StackBasedPoolAllocator<u32>> pageFreeList(
-            2 * numPages * numPages, u32(0), StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
+            frame_->vsmc.cascades.size() * 2 * numPages * numPages, u32(0), StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
         );
 
         u32 pageFreeIndex = 0;
-        for (u32 y = 0; y < numPages; ++y) {
-            for (u32 x = 0; x < numPages; ++x) {
-                pageFreeList[pageFreeIndex] = x;
-                pageFreeList[pageFreeIndex + 1] = y;
+        for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+            for (u32 y = 0; y < numPages; ++y) {
+                for (u32 x = 0; x < numPages; ++x) {
+                    pageFreeList[pageFreeIndex] = cascade;
+                    pageFreeList[pageFreeIndex + 1] = x;
+                    pageFreeList[pageFreeIndex + 2] = y;
 
-                pageFreeIndex += 2;
+                    pageFreeIndex += 3;
+                }
             }
         }
 
@@ -1337,8 +1340,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            if (x > 0 && y > 0) {
-            //{
+            //if (x > 0 && y > 0) {
+            {
                 vsm->CommitOrUncommitVirtualPage(
                     std::abs(x) - 1, 
                     std::abs(y) - 1, 
@@ -1456,7 +1459,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1742,27 +1745,27 @@ void RendererBackend::RenderCSMDepth_() {
             // }
 
             // Constrain the update window to be divisble by 2
-            if (sizeX % 2 != 0) {
-                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                    ++maxPageGroupX;
-                }
-                else if (minPageGroupX > 0) {
-                    --minPageGroupX;
-                }
+            // if (sizeX % 2 != 0) {
+            //     if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //         ++maxPageGroupX;
+            //     }
+            //     else if (minPageGroupX > 0) {
+            //         --minPageGroupX;
+            //     }
 
-                sizeX = maxPageGroupX - minPageGroupX;
-            }
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            // }
 
-            if (sizeY % 2 != 0) {
-                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                    ++maxPageGroupY;
-                }
-                else if (minPageGroupY > 0) {
-                    --minPageGroupY;
-                }
+            // if (sizeY % 2 != 0) {
+            //     if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //         ++maxPageGroupY;
+            //     }
+            //     else if (minPageGroupY > 0) {
+            //         --minPageGroupY;
+            //     }
 
-                sizeY = maxPageGroupY - minPageGroupY;
-            }
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            // }
 
             //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 

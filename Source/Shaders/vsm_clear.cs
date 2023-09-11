@@ -30,11 +30,12 @@ shared ivec2 vsmPixelStart;
 shared ivec2 vsmPixelEnd;
 shared uint frameMarker;
 shared uint residencyStatus;
+shared uint memPool;
 shared bool clearPage;
 
-void clearPixel(in ivec2 physicalPixelCoords) {
+void clearPixel(in ivec2 physicalPixelCoords, in uint memPool) {
     //imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
-    imageStore(vsm, ivec3(physicalPixelCoords, 0), uvec4(clearValueBits));
+    imageStore(vsm, ivec3(physicalPixelCoords, int(memPool)), uvec4(clearValueBits));
 }
 
 void main() {
@@ -58,7 +59,6 @@ void main() {
     uint physicalPageTableIndex = uint(physicalPageTableCoords.x + physicalPageTableCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
     uint physicalPageX;
     uint physicalPageY;
-    //uint unused;
 
     if (gl_LocalInvocationID == 0) {
         unpackPageMarkerData(
@@ -66,6 +66,7 @@ void main() {
             frameMarker,
             physicalPageX,
             physicalPageY,
+            memPool,
             residencyStatus
         );
 
@@ -128,7 +129,7 @@ void main() {
     if (clearPage) {
         for (int x = vsmPixelStart.x + int(gl_LocalInvocationID.x); x < vsmPixelEnd.x; x += pixelStepSize) {
             for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) { 
-                clearPixel(ivec2(x, y));
+                clearPixel(ivec2(x, y), memPool);
             }
         }
     }

@@ -34,7 +34,7 @@ uniform float nearClipPlane;
 
 void writeDepth(in vec2 uv, in float depth) {
 	//vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
-	vec2 physicalPixelCoords = vec2(vsmConvertVirtualUVToPhysicalPixelCoords(
+	vec3 physicalPixelCoords = vec3(vsmConvertVirtualUVToPhysicalPixelCoords(
 		uv,
 		vec2(virtualShadowMapSizeXY),
 		numPagesXY,
@@ -52,8 +52,8 @@ void writeDepth(in vec2 uv, in float depth) {
 	// unpackPageIdAndDirtyBit(entry.info, pageId, dirtyBit);
 
 	bool resident = false;
-	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), 0);//fsClipMapIndex);
-	ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), 0);//fsClipMapIndex);
+	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), physicalPixelCoords.z);//fsClipMapIndex);
+	ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), physicalPixelCoords.z);//fsClipMapIndex);
 
 	// uint frameMarker;
 	// uint unused;

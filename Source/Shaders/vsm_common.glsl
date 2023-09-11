@@ -13,11 +13,12 @@ STRATUS_GLSL_VERSION
 #define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
 #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
-#define VSM_PAGE_FRAME_MARKER_MASK 0xFF000000
+#define VSM_PAGE_FRAME_MARKER_MASK 0xF0000000
 #define VSM_PAGE_RESIDENCY_STATUS_MASK 0x0000000F
 
-#define VSM_PAGE_X_OFFSET_MASK 0x00FF0000
-#define VSM_PAGE_Y_OFFSET_MASK 0x0000FF00
+#define VSM_PAGE_X_OFFSET_MASK 0x0FF00000
+#define VSM_PAGE_Y_OFFSET_MASK 0x000FF000
+#define VSM_PAGE_MEM_POOL_OFFSET_MASK 0x00000FF0
 
 // Total is this number squared
 #define VSM_MAX_NUM_VIRTUAL_PAGES_XY 32760
@@ -27,12 +28,12 @@ STRATUS_GLSL_VERSION
 #define VSM_MAX_NUM_PHYSICAL_PAGES_XY 128
 
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
-#define VSM_DOUBLE_NUM_TEXELS_PER_PAGE_XY 256
+//#define VSM_DOUBLE_NUM_TEXELS_PER_PAGE_XY 256
 
 // 128 * 128
-#define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
-#define VSM_HALF_NUM_TEXELS_PER_PAGE 8192
-#define VSM_FOURTH_NUM_TEXELS_PER_PAGE 4096
+//#define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
+// #define VSM_HALF_NUM_TEXELS_PER_PAGE 8192
+// #define VSM_FOURTH_NUM_TEXELS_PER_PAGE 4096
 
 // #define ATOMIC_REDUCE_TEXEL_COUNT(info) {                         \
 //     uint pageId;                                                  \
@@ -147,17 +148,19 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
     bit = data & VSM_PAGE_DIRTY_MASK;
 }
 
-uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uint residencyStatus) {
-    return (frameCount << 24) | 
-           ((pageX << 16) & VSM_PAGE_X_OFFSET_MASK) | 
-           ((pageY << 8) & VSM_PAGE_Y_OFFSET_MASK) | 
+uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uint memPool, in uint residencyStatus) {
+    return (frameCount << 28) | 
+           ((pageX << 20) & VSM_PAGE_X_OFFSET_MASK) | 
+           ((pageY << 12) & VSM_PAGE_Y_OFFSET_MASK) | 
+           ((memPool << 4) & VSM_PAGE_MEM_POOL_OFFSET_MASK) |
            (residencyStatus & VSM_PAGE_RESIDENCY_STATUS_MASK);
 }
 
-void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint residencyStatus) {
-    frameCount = (data & VSM_PAGE_FRAME_MARKER_MASK) >> 24;
-    pageX = (data & VSM_PAGE_X_OFFSET_MASK) >> 16;
-    pageY = (data & VSM_PAGE_Y_OFFSET_MASK) >> 8;
+void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint memPool, out uint residencyStatus) {
+    frameCount = (data & VSM_PAGE_FRAME_MARKER_MASK) >> 28;
+    pageX = (data & VSM_PAGE_X_OFFSET_MASK) >> 20;
+    pageY = (data & VSM_PAGE_Y_OFFSET_MASK) >> 12;
+    memPool = (data & VSM_PAGE_MEM_POOL_OFFSET_MASK) >> 4;
     residencyStatus = data & VSM_PAGE_RESIDENCY_STATUS_MASK;
 }
 
@@ -178,7 +181,7 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 //     //return result;
 // }
 
-vec2 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex) {
+vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex) {
     vec2 wrappedUvs = wrapUVCoords(uv);
     vec2 virtualPixelCoords = wrappedUvs * resolution;
 
@@ -194,16 +197,21 @@ vec2 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     uint unused1;
     uint physicalOffsetX;
     uint physicalOffsetY;
-    uint unused2;
+    uint memPool;
+    uint unused3;
     unpackPageMarkerData(
         currFramePageResidencyTable[physicalPageIndex].frameMarker,
         unused1,
         physicalOffsetX,
         physicalOffsetY,
-        unused2
+        memPool,
+        unused3
     );
 
-    return (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage;
+    return vec3(
+        (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
+        float(memPool)
+    );
 }
 
 float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float depth, vec2 offset, float bias) {
@@ -215,7 +223,7 @@ float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float dep
     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
 
     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-    ivec2 physicalCoords = ivec2(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
+    ivec3 physicalCoords = ivec3(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
         modified.xy, 
         vec2(textureSize(shadow, 0).xy),
         vsmNumPagesXY,
@@ -223,7 +231,7 @@ float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float dep
     )));
 
     vec4 texel;
-    int status = sparseTexelFetchARB(shadow, ivec3(physicalCoords, 0), 0, texel);
+    int status = sparseTexelFetchARB(shadow, physicalCoords, 0, texel);
 
     if (sparseTexelsResidentARB(status) == false) return 0.0;
 
@@ -238,26 +246,6 @@ vec2 roundIndex(in vec2 index) {
     //return floor(index);
 }
 
-// vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
-//     in ivec2 virtualCoords, 
-//     in ivec2 maxVirtualIndex
-// ) {
-    
-//     // We need to convert our virtual texel to a physical texel
-//     vec2 virtualTexCoords = vec2(virtualCoords + ivec2(1)) / vec2(maxVirtualIndex + ivec2(1));
-
-//     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-//     vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
-
-//     // Subtract off the translation since the orientation should be
-//     // the same for all vsm clip maps - just translation changes
-//     vec2 ndcOrigin = ndc.xy - vsmClipMap0ProjectionView[3].xy;
-    
-//     // Convert from [-1, 1] to [0, 1]
-//     vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
-
-//     return wrapIndex(physicalTexCoords * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
-// }
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in vec2 virtualCoords, 
     in vec2 maxVirtualIndex,
@@ -301,25 +289,6 @@ vec2 convertVirtualCoordsToPhysicalCoords(
     return roundIndex(wrapped);
 }
 
-// vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
-//     in ivec2 physicalCoords, 
-//     in ivec2 maxPhysicalIndex
-// ) {
-    
-//     // We need to convert our virtual texel to a physical texel
-//     vec2 physicalTexCoords = vec2(physicalCoords + ivec2(1)) / vec2(maxPhysicalIndex + ivec2(1));
-
-//     // Set up NDC using -1, 1 tex coords and -1 for the z coord
-//     vec4 ndc = vec4(physicalTexCoords * 2.0 - 1.0, 0.0, 1.0);
-
-//     // Add back the translation component to convert physical ndc to relative virtual ndc
-//     vec2 ndcRelative = ndc.xy + vsmClipMap0ProjectionView[3].xy;
-    
-//     // Convert from [-1, 1] to [0, 1]
-//     vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
-
-//     return wrapIndex(virtualTexCoords * vec2(maxPhysicalIndex), vec2(maxPhysicalIndex + ivec2(1)));
-// }
 vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     in vec2 physicalCoords, 
     in vec2 maxPhysicalIndex,
