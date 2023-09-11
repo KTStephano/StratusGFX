@@ -129,6 +129,10 @@ vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
     return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
 }
 
+vec2 wrapUVCoords(in vec2 uvs) {
+    return fract(uvs);
+}
+
 uint computePageId(in ivec2 page) {
     ivec2 offsetPage = page + ivec2(VSM_MAX_VALUE_VIRTUAL_PAGE_XY);
     return uint(offsetPage.x + offsetPage.y * VSM_MAX_NUM_VIRTUAL_PAGES_XY);
@@ -175,11 +179,15 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 // }
 
 vec2 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex) {
-    vec2 virtualPixelCoords = wrapIndex(uv * resolution, resolution);
-    vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+    vec2 wrappedUvs = wrapUVCoords(uv);
+    vec2 virtualPixelCoords = wrappedUvs * resolution;
 
-    vec2 physicalPageUv = ((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
-    ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
+    //vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+    vec2 offsetWithinPage = mod(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+
+    //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
+    //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
+    ivec2 physicalPageCoords = ivec2(floor(wrappedUvs * vec2(vsmNumPagesXY)));
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
@@ -269,13 +277,13 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 physicalTexCoords = ndcOrigin * 0.5 + vec2(0.5);
+    vec2 physicalTexCoords = wrapUVCoords(ndcOrigin * 0.5 + vec2(0.5));
 
-    //return physicalTexCoords * vec2(maxVirtualIndex);
-    return wrapIndex(
-        physicalTexCoords * (maxVirtualIndex + vec2(1)), 
-        maxVirtualIndex + vec2(1)
-    );
+    return physicalTexCoords * vec2(maxVirtualIndex + vec2(1));
+    // return wrapIndex(
+    //     physicalTexCoords * (maxVirtualIndex + vec2(1)), 
+    //     maxVirtualIndex + vec2(1)
+    // );
 }
 
 vec2 convertVirtualCoordsToPhysicalCoords(
@@ -330,13 +338,13 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
+    vec2 virtualTexCoords = wrapUVCoords(ndcRelative * 0.5 + vec2(0.5));
 
-    //return virtualTexCoords * vec2(maxPhysicalIndex);
-    return wrapIndex(
-        virtualTexCoords * (maxPhysicalIndex + vec2(1)), 
-        maxPhysicalIndex + vec2(1)
-    );
+    return virtualTexCoords * vec2(maxPhysicalIndex + vec2(1));
+    // return wrapIndex(
+    //     virtualTexCoords * (maxPhysicalIndex + vec2(1)), 
+    //     maxPhysicalIndex + vec2(1)
+    // );
 }
 
 vec2 convertPhysicalCoordsToVirtualCoords(

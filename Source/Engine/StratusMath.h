@@ -19,6 +19,7 @@
 #include "StratusGpuCommon.h"
 #include "StratusTypes.h"
 #include <functional>
+#include <sstream>
 
 #define STRATUS_PI 3.14159265358979323846
 
@@ -451,6 +452,11 @@ namespace stratus {
         return conversion.u;
     }
 
+    //inline std::string UintBitsToString(const u32 value) {
+    //    std::stringstream result;
+
+    //}
+
     inline glm::vec4 UnpackNormalized4ChannelFloatData(const u32 data) {
         constexpr float invMax = 1.0f / 255.0f;
 
@@ -509,6 +515,17 @@ namespace stratus {
         return VsmCalculateClipValueFromWorldPos(vsmProjectionView, worldPos, clipMapIndex);
     }
 
+    inline float Fract(const float f) {
+        return f - std::floorf(f);
+    }
+
+    inline glm::vec2 Fract(const glm::vec2& v) {
+        return glm::vec2(
+            Fract(v.x),
+            Fract(v.y)
+        );
+    }
+
     template<typename T>
     T Mod(const T& value, const T& maxValue) {
         return std::modulus<T>()(value, maxValue);
@@ -559,7 +576,7 @@ namespace stratus {
 
         vec2 physicalTexCoords = ndcOrigin * 0.5f + vec2(0.5f);
 
-        return WrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1.0f)) - 0.5f, maxVirtualIndex + vec2(1.0f));
+        return WrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1.0f)), maxVirtualIndex + vec2(1.0f));
 
         //return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
         //return vec2(physicalTexCoords) * vec2(maxVirtualIndex);

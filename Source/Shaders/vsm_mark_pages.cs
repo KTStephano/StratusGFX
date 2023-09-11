@@ -18,11 +18,11 @@ uniform uint frameCount;
 uniform uint numPagesXY;
 uniform uint sunChanged; // Either 1 or 0
 
-layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
+layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) coherent buffer block1 {
     int numPagesToUpdate;
 };
 
-layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
+layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) coherent buffer block2 {
     int pageIndices[];
 };
 
@@ -34,19 +34,19 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
 //     PageResidencyEntry prevFramePageResidencyTable[];
 // };
 
-layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block6 {
+layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer block6 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
-layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer block7 {
+layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buffer block7 {
     uint pageGroupsToRender[];
 };
 
-layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) buffer block8 {
+layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) coherent buffer block8 {
     int numPagesFree;
 };
 
-layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) buffer block9 {
+layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) readonly buffer block9 {
     uint pagesFreeList[];
 };
 
@@ -167,7 +167,7 @@ void main() {
 
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if (frameMarker > 5) {
+            if (frameMarker > 1) {
                 dirtyBit = 0;
                 requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)));
 
@@ -181,11 +181,13 @@ void main() {
                 current = markedNonResident;
             }
             else {
-                uint newPageResidencyStatus = 2; // 2 means nothing needs to be done
+                //uint newPageResidencyStatus = 2; // 2 means nothing needs to be done
+                uint pageResidencyIncrement = pageResident > 2 ? 0 : 1;
                 // Page was requested this frame but is not currently resident
                 if (pageResident == 0) {
-                    if (requestPageAlloc(physicalPageX, physicalPageY)) {
-                        newPageResidencyStatus = 1;
+                    if (requestPageAlloc(physicalPageX, physicalPageY) == false) {
+                        // Failed to allocate
+                        pageResidencyIncrement = 0;
                     }
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
@@ -194,8 +196,8 @@ void main() {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
                     current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
-                else if (dirtyBit == VSM_PAGE_RENDERED_BIT && pageResident == 2) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
-                    dirtyBit = 0;
+                else if (dirtyBit == VSM_PAGE_RENDERED_BIT && pageResident > 2) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
+                    //dirtyBit = 0;
                     current.info = current.info & VSM_PAGE_ID_MASK;
                 }
 
@@ -205,7 +207,7 @@ void main() {
                     frameMarker + 1, 
                     physicalPageX,
                     physicalPageY,
-                    newPageResidencyStatus
+                    pageResident + pageResidencyIncrement
                 );
 
                 currFramePageResidencyTable[pageIndex] = current;

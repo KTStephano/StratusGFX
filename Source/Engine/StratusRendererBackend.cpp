@@ -1571,6 +1571,23 @@ void RendererBackend::RenderCSMDepth_() {
     //     STRATUS_LOG << xy << ": " << physicalCoords << ", " << physicalCoords2 << std::endl;
     // }
 
+    // for (i32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+    //     const float xy = float(x) + 0.5f;
+
+    //     glm::vec2 virtualNdc = (2.0f * glm::vec2(xy, xy)) / float(frame_->vsmc.cascadeResolutionXY) - 1.0f;
+
+    //     glm::vec3 worldPos = glm::vec3(frame_->vsmc.cascades[0].invProjectionViewRender * glm::vec4(virtualNdc, 0.0f, 1.0f));
+    //     glm::vec2 physicalNdc = glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(worldPos, 1.0f));
+
+    //     glm::vec2 physicalUvCoords = physicalNdc * 0.5f + glm::vec2(0.5f);
+
+    //     glm::vec2 wrappedUvCoords = Fract(physicalUvCoords);
+
+    //     STRATUS_LOG << xy << ": "
+    //         << WrapIndex(physicalUvCoords * glm::vec2(frame_->vsmc.numPageGroupsX), glm::vec2(frame_->vsmc.numPageGroupsX))
+    //         << wrappedUvCoords * glm::vec2(frame_->vsmc.numPageGroupsX) << std::endl;
+    // }
+
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
         
         u32 minPageGroupX = frame_->vsmc.numPageGroupsX + 1;
@@ -1725,27 +1742,27 @@ void RendererBackend::RenderCSMDepth_() {
             // }
 
             // Constrain the update window to be divisble by 2
-            // if (sizeX % 2 != 0) {
-            //     if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //         ++maxPageGroupX;
-            //     }
-            //     else if (minPageGroupX > 0) {
-            //         --minPageGroupX;
-            //     }
+            if (sizeX % 2 != 0) {
+                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                    ++maxPageGroupX;
+                }
+                else if (minPageGroupX > 0) {
+                    --minPageGroupX;
+                }
 
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            // }
+                sizeX = maxPageGroupX - minPageGroupX;
+            }
 
-            // if (sizeY % 2 != 0) {
-            //     if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //         ++maxPageGroupY;
-            //     }
-            //     else if (minPageGroupY > 0) {
-            //         --minPageGroupY;
-            //     }
+            if (sizeY % 2 != 0) {
+                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                    ++maxPageGroupY;
+                }
+                else if (minPageGroupY > 0) {
+                    --minPageGroupY;
+                }
 
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            // }
+                sizeY = maxPageGroupY - minPageGroupY;
+            }
 
             //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 

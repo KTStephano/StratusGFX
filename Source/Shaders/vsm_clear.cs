@@ -114,8 +114,8 @@ void main() {
             if (dirtyBit > 0) {
                 //clearPage = true;
             //if (frameMarker > 0) {
-                //updatedDirtyBit = VSM_PAGE_RENDERED_BIT;
-                currFramePageResidencyTable[physicalPageTableIndex].info = packPageIdWithDirtyBit(pageId, VSM_PAGE_RENDERED_BIT);
+                uint updatedDirtyBit = dirtyBit == VSM_PAGE_DIRTY_BIT ? VSM_PAGE_CLEARED_BIT : VSM_PAGE_RENDERED_BIT;
+                currFramePageResidencyTable[physicalPageTableIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
             }
         }
     }

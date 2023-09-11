@@ -24,11 +24,11 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) readonly buffer block2
     int pageIndices[];
 };
 
-layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) buffer block8 {
+layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) coherent buffer block8 {
     int numPagesFree;
 };
 
-layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) buffer block9 {
+layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) coherent buffer block9 {
     uint pagesFreeList[];
 };
 

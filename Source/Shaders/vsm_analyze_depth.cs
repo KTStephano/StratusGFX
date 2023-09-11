@@ -34,7 +34,7 @@ uniform uint numPagesXY;
 //     PageResidencyEntry prevFramePageResidencyTable[];
 // };
 
-layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) buffer block5 {
+layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) coherent buffer block5 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
