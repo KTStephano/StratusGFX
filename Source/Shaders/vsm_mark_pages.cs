@@ -166,8 +166,6 @@ void main() {
         //uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * int(numPagesXY) + cascade * cascadeStepSize);
 
         if (frameMarker > 0) {
-            frameMarker += 1;
-
             // Frame has not been needed for more than 30 frames and needs to be freed
             if (frameMarker > 5) {
                 dirtyBit = 0;
@@ -204,7 +202,7 @@ void main() {
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
                 current.frameMarker = packPageMarkerData(
-                    frameMarker, 
+                    frameMarker + 1, 
                     physicalPageX,
                     physicalPageY,
                     newPageResidencyStatus
@@ -225,7 +223,7 @@ void main() {
         uint pageGroupMarker = 0;
 
         //if (dirtyBit > 0 && frameMarker == frameCount) {
-        if (frameMarker == 2) {
+        if (frameMarker > 0) {
         //if (dirtyBit > 0) {
         //if (frameMarker > 0) {
             //pageGroupMarker = frameCount;

@@ -1337,8 +1337,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            //if (x > 0 && y > 0) {
-            {
+            if (x > 0 && y > 0) {
+            //{
                 vsm->CommitOrUncommitVirtualPage(
                     std::abs(x) - 1, 
                     std::abs(y) - 1, 
@@ -1629,25 +1629,25 @@ void RendererBackend::RenderCSMDepth_() {
             // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
-            if (minPageGroupX > 0) {
-                --minPageGroupX;
-            }
-            if (minPageGroupY > 0) {
-                --minPageGroupY;
-            }
             // if (minPageGroupX > 0) {
             //     --minPageGroupX;
             // }
             // if (minPageGroupY > 0) {
             //     --minPageGroupY;
             // }
+            // // if (minPageGroupX > 0) {
+            // //     --minPageGroupX;
+            // // }
+            // // if (minPageGroupY > 0) {
+            // //     --minPageGroupY;
+            // // }
 
-            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                ++maxPageGroupX;
-            }
-            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                ++maxPageGroupY;
-            }
+            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
+            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
             // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
             //     ++maxPageGroupX;
             // }
