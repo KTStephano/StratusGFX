@@ -214,7 +214,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     );
 }
 
-float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float depth, vec2 offset, float bias) {
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, in vec4 coords, float depth, vec2 offset, float bias) {
     float offsetDepth = depth - bias;
 
     vec4 modified = coords;
@@ -223,19 +223,28 @@ float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, float dep
     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
 
     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-    ivec3 physicalCoords = ivec3(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
+    vec3 physicalCoords = vsmConvertVirtualUVToPhysicalPixelCoords(
         modified.xy, 
         vec2(textureSize(shadow, 0).xy),
         vsmNumPagesXY,
         int(coords.z)
-    )));
+    );
 
-    vec4 texel;
-    int status = sparseTexelFetchARB(shadow, physicalCoords, 0, texel);
+    vec3 physicalUvs = vec3(
+        physicalCoords.xy / vec2(textureSize(shadow, 0).xy),
+        physicalCoords.z
+    );
 
-    if (sparseTexelsResidentARB(status) == false) return 0.0;
+    // vec4 texel;
+    // int status = sparseTexelFetchARB(shadow, physicalCoords, 0, texel);
 
-    return offsetDepth < texel.r ? 1.0 : 0.0;
+    // if (sparseTexelsResidentARB(status) == false) return 0.0;
+
+    // return offsetDepth < texel.r ? 1.0 : 0.0;
+
+    float result;
+    int status = sparseTextureARB(shadow, vec4(physicalUvs, modified.w), result);
+    return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 }
 
 vec2 roundIndex(in vec2 index) {

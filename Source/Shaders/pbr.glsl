@@ -55,8 +55,8 @@ uniform float infiniteLightZnear;
 uniform float infiniteLightZfar;
 uniform vec3 infiniteLightDirection;
 uniform float infiniteLightDepthBias = 0.0;
-//uniform sampler2DArrayShadow infiniteLightShadowMap;
-uniform sampler2DArray infiniteLightShadowMap;
+uniform sampler2DArrayShadow infiniteLightShadowMap;
+//uniform sampler2DArray infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
 uniform vec4 shadowOffset[2];

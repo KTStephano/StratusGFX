@@ -85,6 +85,7 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float cascad
     coords.z = cascadeSwitch;
 
     return texture(shadow, coords);
+    //return sampleShadowTextureSparse(shadow, coords, coords.z, vec2(0.0), bias);
 }
 
 // Calculates the final brightness of this pixel which is Brightness * Normalized Anisotropic Scattering Intensity,
