@@ -34,6 +34,13 @@ void main() {
 
     PageResidencyEntry entry = currFramePageResidencyTable[pageIndex];
 
+    // uint unused1;
+    // uint unused2;
+    // uint unused3;
+    // uint memPool;
+    // uint unused4;
+    // unpackPageMarkerData(entry.frameMarker, unused1, unused2, unused3, memPool, unused4);
+
     bool pageValid = entry.frameMarker > 0;
     bool pageDirty = (entry.info & VSM_PAGE_DIRTY_MASK) > 0;
 
@@ -41,6 +48,9 @@ void main() {
     if (pageDirty) {
         pageColor = vec3(1.0, 97.0 / 255.0, 97.0 / 255.0);
     }
+
+    // bool pageValid = memPool == 0;
+    // vec3 pageColor = pageValid ? vec3(129.0 / 255.0, 1.0, 104.0 / 255.0) : vec3(1.0, 0.0, 0.0);
 
     color = vec4(pageColor, 1.0);
 }
