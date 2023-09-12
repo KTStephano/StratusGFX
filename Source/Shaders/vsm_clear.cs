@@ -73,7 +73,7 @@ void main() {
 
             uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
             clearPage = pageGroupsToRender[virtualPageIndex] > 0;
-            //pageGroupsToRender[virtualPageIndex] = 0;
+            pageGroupsToRender[virtualPageIndex] = 0;
         }
     }
 

@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(1);
+        frame_->vsmc.cascades.resize(4);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
@@ -735,8 +735,8 @@ namespace stratus {
         //const f32 T = dk / requestedCascadeResolutionXY;
         frame_->vsmc.baseCascadeDiameter = dk;
 
-        //const f32 moveSize = 1.0f * T * 128.0f;
-        const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
+        const f32 moveSize = T * 128.0f;
+        //const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;
@@ -755,6 +755,10 @@ namespace stratus {
         // sk = glm::vec3(0.0f);
         // sk = glm::vec3(345.771, 56.2733, 208.989);
         glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
+
+        const auto difference = -glm::vec2(sk - frame_->vsmc.lightSpacePrevPosition);
+        // STRATUS_LOG << "Curr, Prev, Diff: " << sk << ", " << frame_->vsmc.lightSpacePrevPosition << ", " << difference << std::endl;
+        frame_->vsmc.lightSpacePrevPosition = sk;
 
         //STRATUS_LOG << sk << " " << frame_->camera->GetPosition() << std::endl;
         
@@ -818,6 +822,9 @@ namespace stratus {
             glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         //const glm::mat4 cascadeTexelOrthoProjection = cascadeOrthoProjection;
 
+        frame_->vsmc.ndcClipOriginDifference = glm::vec2((cascadeTexelOrthoProjection * glm::vec4(difference, 0.0f, 1.0f)));
+        // STRATUS_LOG << "uv: " << frame_->vsmc.ndcClipOriginDifference << std::endl;
+
         // Note: if we want we can set texelProjection to be cascadeTexelOrthoProjection and then set projectionView
         // to be cascadeTexelOrthoProjection * cascadeViewTransform. This has the added benefit of automatically translating
         // x, y positions to texel coordinates on the range [0, 1] rather than [-1, 1].
@@ -848,6 +855,11 @@ namespace stratus {
             //STRATUS_LOG << test * glm::vec4(frame_->camera->GetPosition(), 1.0f) << std::endl;
             //STRATUS_LOG << frame_->camera->GetPosition() - sk << std::endl;
 
+            // const auto projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
+            // if (cascade == 0) {
+            //     auto diff = glm::vec2(projectionViewRender[3] - frame_->vsmc.cascades[0].projectionViewRender[3]);
+            //     STRATUS_LOG << diff << ", " << frame_->vsmc.ndcClipOriginDifference << std::endl;
+            // }
             frame_->vsmc.cascades[cascade].projectionViewRender = cascadeOrthoProjection * cascadeRenderViewTransform;
             frame_->vsmc.cascades[cascade].invProjectionViewRender = glm::inverse(frame_->vsmc.cascades[cascade].projectionViewRender);
             frame_->vsmc.cascades[cascade].projection = cascadeOrthoProjection;

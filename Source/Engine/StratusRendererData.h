@@ -224,6 +224,8 @@ namespace stratus {
         u32 numPageGroupsX = 32;
         u32 numPageGroupsY = 32;
         std::vector<glm::mat4> tiledProjectionMatrices;
+        glm::vec3 lightSpacePrevPosition = glm::vec3(0.0f);
+        glm::vec2 ndcClipOriginDifference = glm::vec2(0.0f);
         // GpuBuffer numDrawCalls;
         GpuBuffer numPagesToCommit;
         GpuBuffer pagesToCommitList;

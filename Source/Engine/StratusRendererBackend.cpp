@@ -1373,6 +1373,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmMarkScreen->SetUint("numPagesXY", frame_->vsmc.numPageGroupsX);
     state_.vsmMarkScreen->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmMarkScreen->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
     state_.vsmMarkScreen->BindTextureAsImage(
         "vsm", frame_->vsmc.vsm, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
     frame_->vsmc.pageResidencyTable.BindBase(
@@ -1487,7 +1488,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1670,6 +1671,11 @@ void RendererBackend::RenderCSMDepth_() {
 
         //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
 
+        // auto test = frame_->vsmc.ndcClipOriginDifference * 32.0f;
+        // if (test.x > 0 || test.y > 0) {
+        //     STRATUS_LOG << test << std::endl;
+        // }
+
         if (numPageGroupsToRender > 0) {
             // minPageGroupX = 0;
             // minPageGroupY = 0;
@@ -1677,25 +1683,25 @@ void RendererBackend::RenderCSMDepth_() {
             // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
+            if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+            if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
             // if (minPageGroupX > 0) {
             //     --minPageGroupX;
             // }
             // if (minPageGroupY > 0) {
             //     --minPageGroupY;
             // }
-            // // if (minPageGroupX > 0) {
-            // //     --minPageGroupX;
-            // // }
-            // // if (minPageGroupY > 0) {
-            // //     --minPageGroupY;
-            // // }
 
-            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //     ++maxPageGroupX;
-            // }
-            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //     ++maxPageGroupY;
-            // }
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
             // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
             //     ++maxPageGroupX;
             // }

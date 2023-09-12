@@ -41,11 +41,11 @@ void main() {
     // uint unused4;
     // unpackPageMarkerData(entry.frameMarker, unused1, unused2, unused3, memPool, unused4);
 
-    // bool pageValid = entry.frameMarker > 0;
-    // bool pageDirty = (entry.info & VSM_PAGE_DIRTY_MASK) > 0;
+    bool pageValid = entry.frameMarker > 0;
+    bool pageDirty = (entry.info & VSM_PAGE_DIRTY_MASK) > 0;
 
-    bool pageValid = pageGroupsToRender[pageIndex] > 0;
-    bool pageDirty = pageValid;
+    // bool pageValid = pageGroupsToRender[pageIndex] > 0;
+    // bool pageDirty = pageValid;
 
     vec3 pageColor = pageValid ? vec3(129.0 / 255.0, 1.0, 104.0 / 255.0) : vec3(0.0);
     if (pageDirty) {

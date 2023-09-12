@@ -69,11 +69,11 @@ layout (std430, binding = VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING) coherent buffe
 uniform mat4 vsmClipMap0ProjectionView;
 uniform uint vsmNumCascades;
 
-#define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                             \
-    type vsmConvertClip0ToClipN(in type original, in int clipIndex) { \
-        type result = original;                                       \
-        result.xy *= vec2(1.0 / float(BITMASK_POW2(clipIndex)));      \
-        return result;                                                \
+#define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                                \
+    type vsmConvertClip0ToClipN(in type original, in int clipIndex) {    \
+        type result = original;                                          \
+        result.xy *= vec2(1.0 / float(BITMASK_POW2(clipIndex)));         \
+        return result;                                                   \
     }
 
 VSM_CONVERT_CLIP0_TO_CLIP_N(vec2)

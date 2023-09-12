@@ -34,10 +34,18 @@ layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) readonly buffer blo
 
 uniform float clearValue = 1.0;
 uniform uint numPagesXY;
+// Measures change (in NDC units) of the clip origin since last frame
+uniform vec2 ndcClipOriginChange;
 
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
 shared uint cascadeStepSize;
+shared vec2 cascadeNdc;
+shared vec2 virtualPixelChange;
+shared vec2 virtualPixelXYLowerBound;
+shared vec2 virtualPixelXYUpperBound;
+shared vec2 cascadeNdcClipOriginChange;
+// shared bool dirtyDueToClipOriginShift;
 
 // shared ivec2 vsmSize;
 // shared ivec2 vsmMaxIndex;
@@ -66,8 +74,52 @@ void main() {
     for (int cascade = 0; cascade < int(vsmNumCascades); ++cascade) {
         bool performBoundsUpdate = false;
         bool pageDirty = false;
-
         ivec2 localPageCoords = ivec2(gl_GlobalInvocationID.xy);// + vec2(0.5);
+
+        if (gl_LocalInvocationID == 0) {
+            cascadeNdcClipOriginChange = vsmConvertClip0ToClipN(ndcClipOriginChange, cascade);
+        //     cascadeNdc = vsmConvertClip0ToClipN(ndcClipOriginChange, cascade);
+        //     virtualPixelChange = cascadeNdc * (float(vsmSize));
+
+        //     // Determine virtual page bounds indicating which virtual pages have
+        //     // changed since the last frame due to the clip origin being shifted
+        //     if (virtualPixelChange.x < 0) {
+        //         virtualPixelXYUpperBound.x = float(numPagesXY) + 1.0;
+        //         virtualPixelXYLowerBound.x = floor(float(numPagesXY) + virtualPixelChange.x) - 5.0;
+        //     }
+        //     else {
+        //         virtualPixelXYLowerBound.x = 0.0;
+        //         virtualPixelXYUpperBound.x = ceil(virtualPixelChange.x) + 5.0;
+        //     }
+
+        //     if (virtualPixelChange.y < 0) {
+        //         virtualPixelXYUpperBound.y = float(numPagesXY) + 1.0;
+        //         virtualPixelXYLowerBound.y = floor(float(numPagesXY) + virtualPixelChange.y) - 5.0;
+        //     }
+        //     else {
+        //         virtualPixelXYLowerBound.y = 0.0;
+        //         virtualPixelXYUpperBound.y = ceil(virtualPixelChange.y) + 5.0;
+        //     }
+
+        //     // if (pageChange.x != 0.0) {
+        //     //     virtualPixelXYLowerBound.x = 0.0;
+        //     //     virtualPixelXYUpperBound.x = float(numPagesXY);
+        //     // }
+
+        //     // if (pageChange.y != 0.0) {
+        //     //     virtualPixelXYLowerBound.y = 0.0;
+        //     //     virtualPixelXYUpperBound.y = float(numPagesXY);
+        //     // }
+
+        //     // dirtyDueToClipOriginShift = 
+        //     //     float(localPageCoords.x) >= virtualPixelXYLowerBound.x &&
+        //     //     float(localPageCoords.x) <  virtualPixelXYUpperBound.x &&
+        //     //     float(localPageCoords.y) >= virtualPixelXYLowerBound.y &&
+        //     //     float(localPageCoords.y) <  virtualPixelXYUpperBound.y;
+        }
+
+        barrier();
+
         ivec2 localPixelCoordsStart = localPageCoords * ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
         ivec2 localPixelCoordsEnd = localPixelCoordsStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 1);
 
@@ -87,11 +139,26 @@ void main() {
         for (int i = 0; i < 4 && !(performBoundsUpdate && pageDirty); ++i) {
             ivec2 localPixelCoords = ivec2(corners[i].x, corners[i].y);
 
+            vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
+            vec2 ndcChange = ndc - cascadeNdcClipOriginChange;
+
             vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
                 vec2(localPixelCoords),
                 vec2(vsmSize),
                 cascade
             );
+
+            // vec2 ndc = 2.0 * virtualUvCoords - 1.0;
+            // vec2 prevNdc = ndc + cascadeNdcClipOriginChange;
+            // vec2 prevVirtualUvCoords = wrapUVCoords(
+            //     prevNdc * 0.5 + 0.5
+            // );
+
+            virtualUvCoords = wrapUVCoords(
+                virtualUvCoords
+            );
+
+            vec2 virtualPixelCoords = virtualUvCoords * vec2(vsmSize);
 
             // ivec3 physicalPixelCoords = ivec3(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
             //     virtualUvCoords,
@@ -100,7 +167,8 @@ void main() {
             //     cascade
             // )));
 
-            ivec2 physicalPageCoords = ivec2(floor(wrapUVCoords(virtualUvCoords) * vec2(numPagesXY)));
+            ivec2 physicalPageCoords = ivec2(floor(virtualUvCoords * vec2(numPagesXY)));
+            // ivec2 prevPhysicalPageCoords = ivec2(floor(prevVirtualUvCoords * vec2(numPagesXY)));
             uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY + cascade * cascadeStepSize);
             uint unused;
             uint frameMarker;
@@ -129,7 +197,9 @@ void main() {
                 // atomicMax(localMaxPageX, localPageCoords.x + 1);
                 // atomicMax(localMaxPageY, localPageCoords.y + 1);
 
-                if (dirtyBit > 0) {
+                // If moving this pixel to previous NDC goes out of the [-1, 1] range, we migrated
+                // to a different page and need to be regenerated
+                if (dirtyBit > 0 || ndcChange.x < -1 || ndcChange.x > 1 || ndcChange.y < -1 || ndcChange.y > 1) {
                     pageDirty = true;
                 }
             }

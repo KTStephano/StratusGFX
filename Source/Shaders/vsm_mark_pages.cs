@@ -195,8 +195,8 @@ void main() {
                     else {
                         newPageResidencyStatus = 1;
                     }
-                    // dirtyBit = VSM_PAGE_DIRTY_BIT;
-                    // current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
+                    dirtyBit = VSM_PAGE_DIRTY_BIT;
+                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
                 }
                 else if (pageResident == 1) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
