@@ -213,6 +213,7 @@ namespace stratus {
             // Used for virtual shadow maps
             std::unique_ptr<Pipeline> vsmAnalyzeDepth;
             std::unique_ptr<Pipeline> vsmMarkPages;
+            std::unique_ptr<Pipeline> vsmMarkScreen;
             std::unique_ptr<Pipeline> vsmFreePages;
             std::unique_ptr<Pipeline> vsmCull;
             std::unique_ptr<Pipeline> vsmClear;

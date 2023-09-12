@@ -255,26 +255,26 @@ vec2 roundIndex(in vec2 index) {
     //return floor(index);
 }
 
+vec2 convertLocalCoordsToVirtualUvCoords(
+    in vec2 localCoords,
+    in vec2 size,
+    in int cascadeIndex
+) {
+    vec2 ndc = (2.0 * localCoords) / size - 1.0;
+    vec2 ndcOrigin = ndc.xy - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
+    return ndcOrigin * 0.5 + vec2(0.5);
+}
+
 vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in vec2 virtualCoords, 
     in vec2 maxVirtualIndex,
     in int cascadeIndex
 ) {
-    
-    // We need to convert our virtual texel to a physical texel
-    //vec2 virtualTexCoords = vec2(virtualCoords) / vec2(maxVirtualIndex);
-
-    // Set up NDC using -1, 1 tex coords and -1 for the z coord
-    //vec4 ndc = vec4(virtualTexCoords * 2.0 - 1.0, 0.0, 1.0);
-    vec4 ndc = vec4(vec2(2.0 * virtualCoords) / vec2(maxVirtualIndex + 1) - 1.0, 0.0, 1.0);
-
-    // Subtract off the translation since the orientation should be
-    // the same for all vsm clip maps - just translation changes
-    vec2 ndcOrigin = ndc.xy - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xy, cascadeIndex);
-    //ndcOrigin = vsmConvertClip0ToClipN(ndcOrigin, cascadeIndex);
-    
-    // Convert from [-1, 1] to [0, 1]
-    vec2 physicalTexCoords = wrapUVCoords(ndcOrigin * 0.5 + vec2(0.5));
+    vec2 physicalTexCoords = wrapUVCoords(convertLocalCoordsToVirtualUvCoords(
+        virtualCoords,
+        maxVirtualIndex + vec2(1.0),
+        cascadeIndex
+    ));
 
     return physicalTexCoords * vec2(maxVirtualIndex + vec2(1));
     // return wrapIndex(

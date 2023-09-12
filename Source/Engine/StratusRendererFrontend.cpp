@@ -458,7 +458,7 @@ namespace stratus {
         frame_ = std::make_shared<RendererFrame>();
 
         // 4 cascades total
-        frame_->vsmc.cascades.resize(3);
+        frame_->vsmc.cascades.resize(1);
         frame_->vsmc.cascadeResolutionXY = 1024;
         frame_->vsmc.regenerateFbo = true;
         frame_->vsmc.tiledProjectionMatrices.resize(frame_->vsmc.numPageGroupsY * frame_->vsmc.numPageGroupsY);
@@ -736,7 +736,7 @@ namespace stratus {
         frame_->vsmc.baseCascadeDiameter = dk;
 
         //const f32 moveSize = 1.0f * T * 128.0f;
-        const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1)) * 128.0f;
+        const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;

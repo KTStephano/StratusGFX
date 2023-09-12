@@ -71,9 +71,9 @@ void writeDepth(in vec2 uv, in float depth) {
 
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth, resident);
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
-		if (!resident) {
-			IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
-		}
+		// if (!resident) {
+		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
+		// }
 		
 		// if (dirtyBit > 0 && dirtyBit != VSM_PAGE_RENDERED_BIT) {
 		// 	uint newDirtyBit = VSM_PAGE_CLEARED_BIT;

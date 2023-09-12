@@ -55,7 +55,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
 
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
-    uint pageId = computePageId(coords);
+    uint pageId = 1;//computePageId(coords);
 
     uint prevPageId;
     uint prevDirtyBit;
@@ -92,8 +92,10 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     //     prevDirtyBit = 0;
     // }
 
-    uint dirtyBit = (prevPageId != pageId || prevResidencyStatus < 2) ? 1 : prevDirtyBit; 
-    currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
+    //uint dirtyBit = (prevPageId != pageId || prevResidencyStatus < 2) ? 1 : prevDirtyBit; 
+    uint dirtyBit = prevResidencyStatus < 2 ? 1 : prevDirtyBit; 
+    //currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
+    currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(1, dirtyBit);
 }
 
 void main() {
@@ -116,8 +118,8 @@ void main() {
     int yindex = int(gl_GlobalInvocationID.y);
 
     // Depth tex coords
-    vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(0.5)) / depthTextureSize;
-    //vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(1.0)) / (depthTextureSize);
+    vec2 depthTexCoords = (vec2(xindex, yindex)) / depthTextureSize;
+    //vec2 depthTexCoords = (vec2(xindex, yindex) + vec2(0.5)) / depthTextureSize;
 
     // Get current depth and convert to world space
     //float depth = textureLod(depthTexture, depthTexCoords, 0).r;
@@ -152,7 +154,7 @@ void main() {
     ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
-    updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
+    //updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
 
     // ivec2 coords1 = pixelCoordsLower;
     // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);

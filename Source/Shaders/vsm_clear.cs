@@ -16,14 +16,16 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
+layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buffer block7 {
+    uint pageGroupsToRender[];
+};
+
 uniform float clearValue = 1.0;
-uniform uint frameCount;
 uniform int vsmClipMapIndex;
-uniform ivec2 numPagesXY;
+uniform uint numPagesXY;
 uniform ivec2 startXY;
 uniform ivec2 endXY;
 
-shared uint clearValueBits;
 shared ivec2 vsmSize;
 shared ivec2 vsmMaxIndex;
 shared ivec2 vsmPixelStart;
@@ -32,92 +34,46 @@ shared uint frameMarker;
 shared uint residencyStatus;
 shared uint memPool;
 shared bool clearPage;
+shared uint cascadeStepSize;
 
 void clearPixel(in ivec2 physicalPixelCoords, in uint memPool) {
-    //imageStore(vsm, ivec3(physicalPixelCoords, vsmClipMapIndex), uvec4(clearValueBits));
-    imageStore(vsm, ivec3(physicalPixelCoords, int(memPool)), uvec4(clearValueBits));
+    imageStore(vsm, ivec3(physicalPixelCoords, int(memPool)), uvec4(floatBitsToUint(clearValue)));
 }
 
 void main() {
     if (gl_LocalInvocationID == 0) {
-        clearValueBits = floatBitsToUint(clearValue);
         vsmSize = imageSize(vsm).xy;
         vsmMaxIndex = vsmSize - ivec2(1.0);
         clearPage = false;
+        cascadeStepSize = uint(vsmClipMapIndex * numPagesXY * numPagesXY);
     }
 
     barrier();
 
-    vec2 virtualPageCoords = vec2(gl_WorkGroupID.xy);// + vec2(0.5);
-
-    ivec2 physicalPageTableCoords = ivec2(floor(convertVirtualCoordsToPhysicalCoords(
-        vec2(virtualPageCoords) + vec2(0.5),
-        vec2(numPagesXY - ivec2(1)),
-        vsmClipMapIndex
-    )));
-
-    uint physicalPageTableIndex = uint(physicalPageTableCoords.x + physicalPageTableCoords.y * numPagesXY.x + vsmClipMapIndex * numPagesXY.x * numPagesXY.y);
-    uint physicalPageX;
-    uint physicalPageY;
+    ivec2 virtualPageCoords = ivec2(gl_WorkGroupID.xy);// + vec2(0.5);
 
     if (gl_LocalInvocationID == 0) {
-        unpackPageMarkerData(
-            currFramePageResidencyTable[physicalPageTableIndex].frameMarker,
-            frameMarker,
-            physicalPageX,
-            physicalPageY,
-            memPool,
-            residencyStatus
-        );
-
-        //vsmPixelStart = ivec2(physicalPageTableCoords.x * VSM_MAX_NUM_TEXELS_PER_PAGE_XY, physicalPageTableCoords.y * VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
         vsmPixelStart = ivec2(
-            int(physicalPageX) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY,
-            int(physicalPageY) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY
+            int(virtualPageCoords.x) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY,
+            int(virtualPageCoords.y) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY
         );
+
         vsmPixelEnd = vsmPixelStart + ivec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-
-        // unpackFrameCountAndUpdateCount(
-        //     currFramePageResidencyTable[physicalPageTableIndex].frameMarker,
-        //     frameMarker,
-        //     updateCount
-        // );
     }
-
-    uint pageId;
-    uint dirtyBit;
-    unpackPageIdAndDirtyBit(
-        currFramePageResidencyTable[physicalPageTableIndex].info, 
-        pageId,
-        dirtyBit
-    );
 
     barrier();
 
     //uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
-    //if (gl_LocalInvocationID == 0 && dirtyBit > 0) {// && frameMarker == frameCount) {
-    if (gl_LocalInvocationID == 0 && residencyStatus > 0) {
-        // vec2 virtualPageCoords = convertPhysicalCoordsToVirtualCoords(
-        //     ivec2(physicalPageTableCoords),
-        //     ivec2(numPagesXY - 1),
-        //     vsmClipMapIndex
-        // );
-
+    if (gl_LocalInvocationID == 0) {
         // If this physical page is within the virtual bounds that the CPU wants to render
         // this frame, mark it as rendered instead of cleared
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x < endXY.x &&
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y) {
-        //if (true) {
 
-            clearPage = true;
-
-            if (dirtyBit > 0) {
-                //clearPage = true;
-            //if (frameMarker > 0) {
-                uint updatedDirtyBit = dirtyBit == VSM_PAGE_DIRTY_BIT ? VSM_PAGE_CLEARED_BIT : VSM_PAGE_RENDERED_BIT;
-                currFramePageResidencyTable[physicalPageTableIndex].info = packPageIdWithDirtyBit(pageId, updatedDirtyBit);
-            }
+            uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
+            clearPage = pageGroupsToRender[virtualPageIndex] > 0;
+            //pageGroupsToRender[virtualPageIndex] = 0;
         }
     }
 
@@ -125,11 +81,25 @@ void main() {
 
     barrier();
 
-    //if (dirtyBit == VSM_PAGE_DIRTY_BIT && frameMarker == frameCount) {
     if (clearPage) {
         for (int x = vsmPixelStart.x + int(gl_LocalInvocationID.x); x < vsmPixelEnd.x; x += pixelStepSize) {
-            for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) { 
-                clearPixel(ivec2(x, y), memPool);
+            for (int y = vsmPixelStart.y + int(gl_LocalInvocationID.y); y < vsmPixelEnd.y; y += pixelStepSize) {
+                ivec2 localPixelCoords = ivec2(x, y);
+
+                vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
+                    vec2(localPixelCoords),
+                    vec2(vsmSize),
+                    vsmClipMapIndex
+                );
+
+                ivec3 physicalPixelCoords = ivec3(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
+                    virtualUvCoords,
+                    vec2(vsmSize),
+                    numPagesXY,
+                    vsmClipMapIndex
+                )));
+
+                clearPixel(physicalPixelCoords.xy, uint(physicalPixelCoords.z));
             }
         }
     }
