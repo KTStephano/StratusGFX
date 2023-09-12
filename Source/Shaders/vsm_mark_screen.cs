@@ -20,10 +20,6 @@ layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer b
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
-layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buffer block7 {
-    uint pageGroupsToRender[];
-};
-
 layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) coherent buffer block8 {
     int numPagesFree;
 };

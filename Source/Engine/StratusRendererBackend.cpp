@@ -1643,7 +1643,8 @@ void RendererBackend::RenderCSMDepth_() {
             const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
-            if (failedCheckX || failedCheckY) {
+            // We want to always fully render the final cascade since it will be minimum mip level
+            if ((failedCheckX || failedCheckY) && cascade != (frame_->vsmc.cascades.size() - 1)) {
                 frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count);
                 continue;
             }

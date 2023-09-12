@@ -217,6 +217,64 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
 //     return mix(light2, light1, weight) * (1.0 / samples); //* 0.25;
 // }
 
+// float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
+// 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
+//     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+// 	//float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
+//     //float bias = 0.005 * tanTheta;
+//     //bias = -clamp(bias, 0.0, 0.01);
+//     //float bias = 2e-19;
+//     float bias = infiniteLightDepthBias / (infiniteLightZfar - infiniteLightZnear);
+//     if (!useDepthBias) {
+//         bias = 0.0;
+//     }
+
+//     vec4 position = fragPos;
+//     position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
+
+//     int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(position.xyz);
+//     if (cascadeIndex >= vsmNumCascades) return 1.0;
+
+//     vec4 p1;
+//     //vec3 cascadeCoords;
+//     // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
+//     // cascadeProjViews[i] * position puts the coordinates into clip space which are on the range of [-1, 1].
+//     // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
+//     // and then perform * 0.5 + vec3(0.5).
+//     //vec4 coords = cascadeProjViews[0] * position;
+//     vec3 coords = vsmCalculateOriginClipValueFromWorldPos(position.xyz, cascadeIndex);
+//     vec3 coordsLowestMip = vsmCalculateOriginClipValueFromWorldPos(position.xyz, int(vsmNumCascades) - 1);
+//     //cascadeCoords = coords.xyz / coords.w; // Perspective divide
+//     //cascadeCoords.xyz = cascadeCoords.xyz * 0.5 + vec3(0.5);
+
+//     p1.z = float(cascadeIndex);
+
+//     vec3 cascadeCoords = coords * 0.5 + vec3(0.5);
+
+//     vec2 shadowCoord1 = cascadeCoords.xy;
+//     // Convert from range [-1, 1] to [0, 1]
+//     // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
+//     // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
+//     float depth1 = cascadeCoords.z;//clamp(cascadeCoords.z, 0.0, 1.0);
+
+//     vec2 wh = computeTexelSize(infiniteLightShadowMap, 0);
+                         
+//     float light1 = 0.0;
+//     float samples = 0.0;
+//     p1.xy = shadowCoord1;
+//     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+//     float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
+//     for (float y = -bound; y <= bound; y += 1.0) {
+//         for (float x = -bound; x <= bound; x += 1.0) {
+//             light1 += sampleShadowTextureSparse(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
+//             ++samples;
+//         }
+//     }
+
+//     // blend and return
+//     return light1 * (1.0 / samples); //* 0.25;
+// }
+
 float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
@@ -232,40 +290,15 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     vec4 position = fragPos;
     position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
 
-    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(position.xyz);
-    if (cascadeIndex >= vsmNumCascades) return 1.0;
-
-    vec4 p1;
-    //vec3 cascadeCoords;
-    // cascadeCoords[0] = cascadeCoord0 * 0.5 + 0.5;
-    // cascadeProjViews[i] * position puts the coordinates into clip space which are on the range of [-1, 1].
-    // Since we are looking for texture coordinates on the range [0, 1], we first perform the perspective divide
-    // and then perform * 0.5 + vec3(0.5).
-    //vec4 coords = cascadeProjViews[0] * position;
-    vec3 coords = vsmCalculateOriginClipValueFromWorldPos(position.xyz, cascadeIndex);
-    //cascadeCoords = coords.xyz / coords.w; // Perspective divide
-    //cascadeCoords.xyz = cascadeCoords.xyz * 0.5 + vec3(0.5);
-
-    p1.z = float(cascadeIndex);
-
-    vec3 cascadeCoords = coords * 0.5 + vec3(0.5);
-
-    vec2 shadowCoord1 = cascadeCoords.xy;
-    // Convert from range [-1, 1] to [0, 1]
-    // shadowCoord1 = shadowCoord1 * 0.5 + 0.5;
-    // shadowCoord2 = shadowCoord2 * 0.5 + 0.5;
-    float depth1 = cascadeCoords.z;//clamp(cascadeCoords.z, 0.0, 1.0);
-
     vec2 wh = computeTexelSize(infiniteLightShadowMap, 0);
                          
     float light1 = 0.0;
     float samples = 0.0;
-    p1.xy = shadowCoord1;
     // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
     float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
-            light1 += sampleShadowTextureSparse(infiniteLightShadowMap, p1, depth1, vec2(x, y) * wh, bias);
+            light1 += sampleShadowTextureSparse(infiniteLightShadowMap, position.xyz, vec2(x, y) * wh, bias);
             ++samples;
         }
     }

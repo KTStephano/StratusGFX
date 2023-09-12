@@ -140,21 +140,26 @@ void main() {
     // cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
+    // vec3 clipCoordsLowest = vsmCalculateOriginClipValueFromWorldPos(worldPosition, int(vsmNumCascades) - 1);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
+    // vec2 vsmTexCoordsLowest = clipCoordsLowest.xy * 0.5 + vec2(0.5);
 
     vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize);// - vec2(0.5);
-    vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
+    // vec2 basePixelCoordsLowest = vsmTexCoordsLowest * vec2(residencyTableSize);
+    // vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
-    float fx = fract(basePixelCoordsWrapped.x);
-    float fy = fract(basePixelCoordsWrapped.y);
+    // float fx = fract(basePixelCoordsWrapped.x);
+    // float fy = fract(basePixelCoordsWrapped.y);
 
     //basePixelCoords = round(basePixelCoords);
 
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
+    // ivec2 pixelCoordsLowest = ivec2(floor(basePixelCoordsLowest));
     ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
-    //updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
+    // updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
+    updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
 
     // ivec2 coords1 = pixelCoordsLower;
     // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);

@@ -16,10 +16,6 @@ precision highp sampler2DArrayShadow;
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
 
-layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buffer block7 {
-    uint pageGroupsToRender[];
-};
-
 uniform float clearValue = 1.0;
 uniform int vsmClipMapIndex;
 uniform uint numPagesXY;

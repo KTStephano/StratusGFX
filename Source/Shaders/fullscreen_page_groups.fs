@@ -12,10 +12,6 @@ uniform uint numPageGroupsX;
 uniform uint numPageGroupsY;
 uniform uint numPagesXY;
 
-layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) readonly buffer inputBlock1 {
-    uint pageGroupsToRender[];
-};
-
 out vec4 color;
 
 // void main() {
@@ -30,7 +26,7 @@ out vec4 color;
 
 void main() {
     uvec2 pageCoords = uvec2(fsTexCoords * (vec2(numPagesXY) - vec2(1.0)));
-    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 0 * numPagesXY * numPagesXY;
+    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 4 * numPagesXY * numPagesXY;
 
     PageResidencyEntry entry = currFramePageResidencyTable[pageIndex];
 

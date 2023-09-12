@@ -637,7 +637,7 @@ namespace stratus {
         const f32 clipRange = zfar - znear;
         const f32 ratio = zfar / znear;
 
-        const f32 dk = 512.0f;
+        const f32 dk = 1024.0f;
 
         const f32 ak = znear;
         const f32 bk = zfar;
