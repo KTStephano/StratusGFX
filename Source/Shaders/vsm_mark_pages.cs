@@ -152,18 +152,16 @@ void main() {
         uint physicalPageY;
         uint memPool;
         uint pageResident;
+        uint dirtyBit;
         unpackPageMarkerData(
-            current.frameMarker,
+            current.info,
             frameMarker,
             physicalPageX,
             physicalPageY,
             memPool,
-            pageResident
+            pageResident,
+            dirtyBit
         );
-
-        uint pageId;
-        uint dirtyBit;
-        unpackPageIdAndDirtyBit(current.info, pageId, dirtyBit);
 
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
@@ -173,7 +171,6 @@ void main() {
                     requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)), memPool);
 
                     PageResidencyEntry markedNonResident;
-                    markedNonResident.frameMarker = 0;
                     markedNonResident.info = 0;
                     frameMarker = 0;
 
@@ -196,19 +193,19 @@ void main() {
                         newPageResidencyStatus = 1;
                     }
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
-                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
+                    // current.info = setDirtyBit(current.info, dirtyBit);
                 }
                 else if (pageResident == 1) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
-                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
+                    // current.info = setDirtyBit(current.info, dirtyBit);
                 }
                 else if (sunChanged > 0) {
                     dirtyBit = VSM_PAGE_DIRTY_BIT;
-                    current.info = (current.info & VSM_PAGE_ID_MASK) | VSM_PAGE_DIRTY_BIT;
+                    // current.info = setDirtyBit(current.info, dirtyBit);
                 }
                 else if (pageResident == 2) {
                     dirtyBit = 0;
-                    current.info = current.info & VSM_PAGE_ID_MASK;
+                    // current.info = setDirtyBit(current.info, dirtyBit);
                 }
                 // else if (dirtyBit == VSM_PAGE_RENDERED_BIT && pageResident >= 2) { //>= VSM_MAX_NUM_TEXELS_PER_PAGE) {
                 //     // dirtyBit = 0;
@@ -217,12 +214,13 @@ void main() {
 
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
-                current.frameMarker = packPageMarkerData(
+                current.info = packPageMarkerData(
                     2,//frameMarker + 1, 
                     physicalPageX,
                     physicalPageY,
                     memPool,
-                    newPageResidencyStatus
+                    newPageResidencyStatus,
+                    dirtyBit
                 );
 
                 currFramePageResidencyTable[pageIndex] = current;

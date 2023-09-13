@@ -4,17 +4,17 @@ STRATUS_GLSL_VERSION
 #include "common.glsl"
 #include "aabb.glsl"
 
-#define VSM_LOWER_MASK 0x00000003
-#define VSM_UPPER_MASK 0xFFFFFFFC
+// #define VSM_LOWER_MASK 0x00000003
+// #define VSM_UPPER_MASK 0xFFFFFFFC
 
 #define VSM_PAGE_DIRTY_BIT 1
 #define VSM_PAGE_CLEARED_BIT 2
 #define VSM_PAGE_RENDERED_BIT 3
-#define VSM_PAGE_DIRTY_MASK VSM_LOWER_MASK
-#define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 
+#define VSM_PAGE_DIRTY_MASK 0x00000003
+// #define VSM_PAGE_ID_MASK VSM_UPPER_MASK
 #define VSM_PAGE_FRAME_MARKER_MASK 0xF0000000
-#define VSM_PAGE_RESIDENCY_STATUS_MASK 0x0000000F
+#define VSM_PAGE_RESIDENCY_STATUS_MASK 0x0000000C
 
 #define VSM_PAGE_X_OFFSET_MASK 0x0FF00000
 #define VSM_PAGE_Y_OFFSET_MASK 0x000FF000
@@ -50,7 +50,7 @@ STRATUS_GLSL_VERSION
 // }
 
 struct PageResidencyEntry {
-    uint frameMarker;
+    // uint frameMarker;
     uint info;
 };
 
@@ -111,6 +111,10 @@ vec3 vsmCalculateOriginClipValueFromWorldPos(in vec3 worldPos, in int clipMapInd
     return result - vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xyz, clipMapIndex);
 }
 
+vec3 vsmConvertOriginClipValueToRelativeClipValue(in vec3 ndc, in int clipMapIndex) {
+    return ndc + vsmConvertClip0ToClipN(vsmClipMap0ProjectionView[3].xyz, clipMapIndex);
+}
+
 int vsmCalculateCascadeIndexFromWorldPos(in vec3 worldPos) {
     vec2 ndc = vsmCalculateRelativeClipValueFromWorldPos(worldPos, 0).xy;
 
@@ -159,20 +163,50 @@ void unpackPageIdAndDirtyBit(in uint data, out uint pageId, out uint bit) {
     bit = data & VSM_PAGE_DIRTY_MASK;
 }
 
-uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uint memPool, in uint residencyStatus) {
+uint setDirtyBit(in uint data, in uint dirtyBit) {
+    return (data & (~VSM_PAGE_DIRTY_MASK)) | (dirtyBit & VSM_PAGE_DIRTY_MASK);
+}
+
+uint packPageMarkerData(in uint frameCount, in uint pageX, in uint pageY, in uint memPool, in uint residencyStatus, in uint dirtyBit) {
     return (frameCount << 28) | 
            ((pageX << 20) & VSM_PAGE_X_OFFSET_MASK) | 
            ((pageY << 12) & VSM_PAGE_Y_OFFSET_MASK) | 
            ((memPool << 4) & VSM_PAGE_MEM_POOL_OFFSET_MASK) |
-           (residencyStatus & VSM_PAGE_RESIDENCY_STATUS_MASK);
+           ((residencyStatus << 2) & VSM_PAGE_RESIDENCY_STATUS_MASK) |
+           (dirtyBit & VSM_PAGE_DIRTY_MASK);
 }
 
-void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint memPool, out uint residencyStatus) {
-    frameCount = (data & VSM_PAGE_FRAME_MARKER_MASK) >> 28;
-    pageX = (data & VSM_PAGE_X_OFFSET_MASK) >> 20;
-    pageY = (data & VSM_PAGE_Y_OFFSET_MASK) >> 12;
-    memPool = (data & VSM_PAGE_MEM_POOL_OFFSET_MASK) >> 4;
-    residencyStatus = data & VSM_PAGE_RESIDENCY_STATUS_MASK;
+uint unpackFrameMarker(in uint data) {
+    return (data & VSM_PAGE_FRAME_MARKER_MASK) >> 28;
+}
+
+uint unpackPageOffsetX(in uint data) {
+    return (data & VSM_PAGE_X_OFFSET_MASK) >> 20;
+}
+
+uint unpackPageOffsetY(in uint data) {
+    return (data & VSM_PAGE_Y_OFFSET_MASK) >> 12;
+}
+
+uint unpackMemoryPool(in uint data) {
+    return (data & VSM_PAGE_MEM_POOL_OFFSET_MASK) >> 4;
+}
+
+uint unpackResidencyStatus(in uint data) {
+    return (data & VSM_PAGE_RESIDENCY_STATUS_MASK) >> 2;
+}
+
+uint unpackDirtyBit(in uint data) {
+    return data & VSM_PAGE_DIRTY_MASK;
+}
+
+void unpackPageMarkerData(in uint data, out uint frameCount, out uint pageX, out uint pageY, out uint memPool, out uint residencyStatus, out uint dirtyBit) {
+    frameCount = unpackFrameMarker(data);
+    pageX = unpackPageOffsetX(data);
+    pageY = unpackPageOffsetY(data);
+    memPool = unpackMemoryPool(data);
+    residencyStatus = unpackResidencyStatus(data);
+    dirtyBit = unpackDirtyBit(data);
 }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
@@ -204,18 +238,19 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
-    uint unused1;
+    uint unused;
     uint physicalOffsetX;
     uint physicalOffsetY;
     uint memPool;
     uint residencyStatus;
     unpackPageMarkerData(
-        currFramePageResidencyTable[physicalPageIndex].frameMarker,
-        unused1,
+        currFramePageResidencyTable[physicalPageIndex].info,
+        unused,
         physicalOffsetX,
         physicalOffsetY,
         memPool,
-        residencyStatus
+        residencyStatus,
+        unused
     );
 
     return residencyStatus == 0 ? vec3(-1)
@@ -251,18 +286,18 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
-    uint unused1;
+    uint unused;
     uint physicalOffsetX;
     uint physicalOffsetY;
     uint memPool;
-    uint unused3;
     unpackPageMarkerData(
-        currFramePageResidencyTable[physicalPageIndex].frameMarker,
-        unused1,
+        currFramePageResidencyTable[physicalPageIndex].info,
+        unused,
         physicalOffsetX,
         physicalOffsetY,
         memPool,
-        unused3
+        unused,
+        unused
     );
 
     return vec3(
@@ -313,19 +348,23 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
     
     vec3 coords = vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, cascadeIndex);
+    vec3 relativeCoords = vsmConvertOriginClipValueToRelativeClipValue(coords, cascadeIndex);
     coords = coords * 0.5 + vec3(0.5);
     coords.xy += offset;
+    relativeCoords = relativeCoords * 0.5 + vec3(0.5);
+    relativeCoords.xy += offset;
 
     // vec2 virtualCoords = wrapUVCoords(coords.xy);
-    // ivec2 physicalPageCoords = ivec2(floor(virtualCoords * vsmNumPagesXY));
-    // uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
+    ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
+    uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    // if (pageGroupsToRender[physicalPageIndex] > 0) {
-    //     cascadeIndex = int(vsmNumCascades) - 1;
-    //     coords = vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, cascadeIndex);
-    //     coords = coords * 0.5 + vec3(0.5);
-    //     coords.xy += offset;
-    // }
+    if (pageGroupsToRender[physicalPageIndex] > 0) {
+        recalculatedBias = bias + 0.0005;
+        cascadeIndex = int(vsmNumCascades) - 1;
+        coords = vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, cascadeIndex);
+        coords = coords * 0.5 + vec3(0.5);
+        coords.xy += offset;
+    }
 
     float offsetDepth = coords.z - recalculatedBias;
 

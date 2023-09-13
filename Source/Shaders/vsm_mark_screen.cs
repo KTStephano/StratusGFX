@@ -162,23 +162,13 @@ void main() {
             ivec2 physicalPageCoords = ivec2(wrapIndex(virtualUvCoords, vec2(numPagesXY)));
             // ivec2 prevPhysicalPageCoords = ivec2(floor(prevVirtualUvCoords * vec2(numPagesXY)));
             uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY + cascade * cascadeStepSize);
-            uint unused;
-            uint frameMarker;
-            uint dirtyBit;
 
-            unpackPageMarkerData(
-                currFramePageResidencyTable[physicalPageIndex].frameMarker,
-                frameMarker,
-                unused,
-                unused,
-                unused,
-                unused
+            uint frameMarker = unpackFrameMarker(
+                currFramePageResidencyTable[physicalPageIndex].info
             );
 
-            unpackPageIdAndDirtyBit(
-                currFramePageResidencyTable[physicalPageIndex].info,
-                unused,
-                dirtyBit
+            uint dirtyBit = unpackDirtyBit(
+                currFramePageResidencyTable[physicalPageIndex].info
             );
 
             if (frameMarker > 0) {

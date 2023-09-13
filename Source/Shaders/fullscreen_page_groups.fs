@@ -26,7 +26,7 @@ out vec4 color;
 
 void main() {
     uvec2 pageCoords = uvec2(fsTexCoords * (vec2(numPagesXY) - vec2(1.0)));
-    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 4 * numPagesXY * numPagesXY;
+    uint pageIndex = pageCoords.x + pageCoords.y * numPagesXY + 3 * numPagesXY * numPagesXY;
 
     PageResidencyEntry entry = currFramePageResidencyTable[pageIndex];
 
@@ -37,8 +37,8 @@ void main() {
     // uint unused4;
     // unpackPageMarkerData(entry.frameMarker, unused1, unused2, unused3, memPool, unused4);
 
-    bool pageValid = entry.frameMarker > 0;
-    bool pageDirty = (entry.info & VSM_PAGE_DIRTY_MASK) > 0;
+    bool pageValid = unpackFrameMarker(entry.info) > 0;
+    bool pageDirty = unpackDirtyBit(entry.info) > 0;
 
     // bool pageValid = pageGroupsToRender[pageIndex] > 0;
     // bool pageDirty = pageValid;

@@ -57,45 +57,32 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = 1;//computePageId(coords);
 
-    uint prevPageId;
-    uint prevDirtyBit;
-    unpackPageIdAndDirtyBit(
-        currFramePageResidencyTable[tileIndex].info, 
-        prevPageId, 
-        prevDirtyBit
-    );
-
     uint unused;
     uint physicalPageX;
     uint physicalPageY;
     uint memPool;
     uint prevResidencyStatus;
+    uint prevDirtyBit;
     unpackPageMarkerData(
-        currFramePageResidencyTable[tileIndex].frameMarker, 
+        currFramePageResidencyTable[tileIndex].info, 
         unused, 
         physicalPageX,
         physicalPageY,
         memPool,
-        prevResidencyStatus
+        prevResidencyStatus,
+        prevDirtyBit
     );
 
     uint newResidencyStatus = prevResidencyStatus;
-    currFramePageResidencyTable[tileIndex].frameMarker = packPageMarkerData(
+    uint newDirtyBit = prevResidencyStatus < 2 ? 1 : prevDirtyBit; 
+    currFramePageResidencyTable[tileIndex].info = packPageMarkerData(
         1, 
         physicalPageX,
         physicalPageY,
         memPool,
-        newResidencyStatus
+        newResidencyStatus,
+        newDirtyBit
     );
-
-    // if (prevDirtyBit == VSM_PAGE_RENDERED_BIT) {
-    //     prevDirtyBit = 0;
-    // }
-
-    //uint dirtyBit = (prevPageId != pageId || prevResidencyStatus < 2) ? 1 : prevDirtyBit; 
-    uint dirtyBit = prevResidencyStatus < 2 ? 1 : prevDirtyBit; 
-    //currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(pageId, dirtyBit);
-    currFramePageResidencyTable[tileIndex].info = packPageIdWithDirtyBit(1, dirtyBit);
 }
 
 void main() {
@@ -140,12 +127,12 @@ void main() {
     // cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
-    // vec3 clipCoordsLowest = vsmCalculateOriginClipValueFromWorldPos(worldPosition, int(vsmNumCascades) - 1);
+    vec3 clipCoordsLowest = vsmCalculateOriginClipValueFromWorldPos(worldPosition, int(vsmNumCascades) - 1);
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
-    // vec2 vsmTexCoordsLowest = clipCoordsLowest.xy * 0.5 + vec2(0.5);
+    vec2 vsmTexCoordsLowest = clipCoordsLowest.xy * 0.5 + vec2(0.5);
 
     vec2 basePixelCoords = wrapIndex(vsmTexCoords, vec2(residencyTableSize));// - vec2(0.5);
-    // vec2 basePixelCoordsLowest = vsmTexCoordsLowest * vec2(residencyTableSize);
+    vec2 basePixelCoordsLowest = vsmTexCoordsLowest * vec2(residencyTableSize);
     // vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
     // float fx = fract(basePixelCoordsWrapped.x);
@@ -154,11 +141,11 @@ void main() {
     //basePixelCoords = round(basePixelCoords);
 
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
-    // ivec2 pixelCoordsLowest = ivec2(floor(basePixelCoordsLowest));
+    ivec2 pixelCoordsLowest = ivec2(floor(basePixelCoordsLowest));
     // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
-    // updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
+    updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
     // updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
 
     // ivec2 coords1 = pixelCoordsLower;

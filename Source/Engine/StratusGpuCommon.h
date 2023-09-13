@@ -297,7 +297,7 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuPageResidencyEntry {
-        u32 frameMarker = 0;
+        //u32 frameMarker = 0;
         u32 info = 0;
     };
 #ifndef __GNUC__
@@ -315,6 +315,6 @@ namespace stratus {
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);
     static_assert(sizeof(GpuHaltonEntry) == 8);
-    static_assert(sizeof(GpuPageResidencyEntry) == 8);
+    static_assert(sizeof(GpuPageResidencyEntry) == 4);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
 }
