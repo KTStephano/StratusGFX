@@ -1820,27 +1820,27 @@ void RendererBackend::RenderCSMDepth_() {
             // }
 
             // Constrain the update window to be divisble by 2
-            // if (sizeX % 2 != 0) {
-            //     if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //         ++maxPageGroupX;
-            //     }
-            //     else if (minPageGroupX > 0) {
-            //         --minPageGroupX;
-            //     }
+            if (sizeX % 2 != 0) {
+                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                    ++maxPageGroupX;
+                }
+                else if (minPageGroupX > 0) {
+                    --minPageGroupX;
+                }
 
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            // }
+                sizeX = maxPageGroupX - minPageGroupX;
+            }
 
-            // if (sizeY % 2 != 0) {
-            //     if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //         ++maxPageGroupY;
-            //     }
-            //     else if (minPageGroupY > 0) {
-            //         --minPageGroupY;
-            //     }
+            if (sizeY % 2 != 0) {
+                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                    ++maxPageGroupY;
+                }
+                else if (minPageGroupY > 0) {
+                    --minPageGroupY;
+                }
 
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            // }
+                sizeY = maxPageGroupY - minPageGroupY;
+            }
 
             //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
 
