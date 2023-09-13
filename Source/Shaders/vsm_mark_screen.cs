@@ -191,7 +191,7 @@ void main() {
 
                 // If moving this pixel to previous NDC goes out of the [-1, 1] range, we migrated
                 // to a different page and need to be regenerated
-                if (dirtyBit > 0 || ndcChange.x < -1 || ndcChange.x > 1 || ndcChange.y < -1 || ndcChange.y > 1) {
+                if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
                     pageDirty = true;
                 }
             }

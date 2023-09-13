@@ -305,6 +305,8 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
 // }
 
 float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
+    float recalculatedBias = bias;
+
     int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPos.xyz);
     if (cascadeIndex >= vsmNumCascades) return 1.0;
 
@@ -325,7 +327,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     //     coords.xy += offset;
     // }
 
-    float offsetDepth = coords.z - bias;
+    float offsetDepth = coords.z - recalculatedBias;
 
     // vec4 modified = coords;
     // modified.w = depth - bias;

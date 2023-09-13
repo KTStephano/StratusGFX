@@ -68,7 +68,7 @@ void main() {
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y) {
 
             uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
-            clearPage = pageGroupsToRender[virtualPageIndex] > 0;
+            clearPage = true;//pageGroupsToRender[virtualPageIndex] > 0;
             pageGroupsToRender[virtualPageIndex] = 0;
         }
     }
@@ -95,7 +95,9 @@ void main() {
                     vsmClipMapIndex
                 )));
 
-                clearPixel(physicalPixelCoords.xy, uint(physicalPixelCoords.z));
+                if (physicalPixelCoords.z >= 0) {
+                    clearPixel(physicalPixelCoords.xy, uint(physicalPixelCoords.z));
+                }
             }
         }
     }
