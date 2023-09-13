@@ -435,18 +435,16 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->vsmc.numPagesFree = GpuBuffer((const void *)&value, sizeof(i32), flags);
 
         std::vector<u32, StackBasedPoolAllocator<u32>> pageFreeList(
-            frame_->vsmc.cascades.size() * 3 * numPages * numPages, u32(0), StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
+            StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
         );
+        pageFreeList.reserve(frame_->vsmc.cascades.size() * 3 * numPages * numPages);
 
-        u32 pageFreeIndex = 0;
         for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
             for (u32 y = 0; y < numPages; ++y) {
                 for (u32 x = 0; x < numPages; ++x) {
-                    pageFreeList[pageFreeIndex] = cascade;
-                    pageFreeList[pageFreeIndex + 1] = x;
-                    pageFreeList[pageFreeIndex + 2] = y;
-
-                    pageFreeIndex += 3;
+                    pageFreeList.push_back(cascade);
+                    pageFreeList.push_back(x);
+                    pageFreeList.push_back(y);
                 }
             }
         }
@@ -1620,8 +1618,50 @@ void RendererBackend::RenderCSMDepth_() {
     //         << wrappedUvCoords * glm::vec2(frame_->vsmc.numPageGroupsX) << std::endl;
     // }
 
+    //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
+
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
-        
+
+        //const GpuPageResidencyEntry * currTable = pageTable + cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+
+        //std::unordered_set<usize> entries;
+
+        //const auto cascadeStepSize = cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+        //usize dx;
+        //usize dy;
+        //usize dz;
+        //bool foundDuplicate = false;
+        //usize duplicates = 0;
+
+        //for (usize x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+        //    for (usize y = 0; y < frame_->vsmc.numPageGroupsY; ++y) {
+        //        const auto data = currTable[x + y * frame_->vsmc.numPageGroupsX + cascadeStepSize].frameMarker;
+        //        const auto px = (data & 0x0FF00000) >> 20;
+        //        const auto py = (data & 0x000FF000) >> 12;
+        //        const auto mem = (data & 0x00000FF0) >> 4;
+        //        const auto res = (data & 0x0000000F);
+
+        //        if (res == 0) continue;
+
+        //        const auto index = px + py * frame_->vsmc.numPageGroupsX + mem * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+        //        if (entries.find(index) != entries.end()) {
+        //            foundDuplicate = true;
+        //            dx = px;
+        //            dy = py;
+        //            dz = mem;
+        //            ++duplicates;
+        //        }
+
+        //        entries.insert(index);
+        //    }
+        //}
+        //
+        //STRATUS_LOG << entries.size() << std::endl;
+
+        //if (foundDuplicate) {
+        //    STRATUS_LOG << "Found duplicate: " << duplicates << ", " << dx << ", " << dy << ", " << dz << std::endl;
+        //}
+
         u32 minPageGroupX = frame_->vsmc.numPageGroupsX + 1;
         u32 minPageGroupY = frame_->vsmc.numPageGroupsY + 1;
         u32 maxPageGroupX = 0;
@@ -2004,6 +2044,8 @@ void RendererBackend::RenderCSMDepth_() {
             UnbindShader_();
         }
     }
+
+    //frame_->vsmc.pageResidencyTable.UnmapMemory();
     
     frame_->vsmc.fbo.Unbind();
 

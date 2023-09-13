@@ -150,11 +150,7 @@ void main() {
             //     prevNdc * 0.5 + 0.5
             // );
 
-            virtualUvCoords = wrapUVCoords(
-                virtualUvCoords
-            );
-
-            vec2 virtualPixelCoords = virtualUvCoords * vec2(vsmSize);
+            vec2 virtualPixelCoords = wrapIndex(virtualUvCoords, vec2(vsmSize));
 
             // ivec3 physicalPixelCoords = ivec3(floor(vsmConvertVirtualUVToPhysicalPixelCoords(
             //     virtualUvCoords,
@@ -163,7 +159,7 @@ void main() {
             //     cascade
             // )));
 
-            ivec2 physicalPageCoords = ivec2(floor(virtualUvCoords * vec2(numPagesXY)));
+            ivec2 physicalPageCoords = ivec2(wrapIndex(virtualUvCoords, vec2(numPagesXY)));
             // ivec2 prevPhysicalPageCoords = ivec2(floor(prevVirtualUvCoords * vec2(numPagesXY)));
             uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * numPagesXY + cascade * cascadeStepSize);
             uint unused;

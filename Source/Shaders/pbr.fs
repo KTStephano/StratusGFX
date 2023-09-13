@@ -150,15 +150,28 @@ void main() {
     // vec2 pageCoords = vec2(0.0);
     // vec3 cascadeTexCoords = vsmCalculateOriginClipValueFromWorldPos(fragPos, cascadeIndex);
     // pageCoords = cascadeTexCoords.xy * 0.5 + vec2(0.5);
-    // pageCoords = pageCoords * vec2(numPagesXY - 1);
+    // pageCoords = wrapIndex(pageCoords, vec2(numPagesXY));
 
     // ivec2 pageCoordsLower = ivec2(floor(pageCoords));
     // ivec2 pageCoordsUpper = ivec2(ceil(pageCoords));
 
     // uint pageId;
     // uint dirtyBit;
+    // uint px;
+    // uint py;
+    // uint mem;
+    // uint unused;
 
     // int pageFlatIndex = pageCoordsLower.x + pageCoordsLower.y  * int(numPagesXY) + cascadeIndex * int(numPagesXY * numPagesXY);
+    // unpackPageMarkerData(
+    //     currFramePageResidencyTable[pageFlatIndex].frameMarker, 
+    //     unused,
+    //     px,
+    //     py,
+    //     mem,
+    //     unused
+    // );
+
     // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageFlatIndex].info, pageId, dirtyBit);
     // //unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
 
@@ -192,6 +205,8 @@ void main() {
     //     //cacheColor = vec3(0, 218.0 / 255.0, 23.0 / 255.0);
     //     cacheColor = colorMix;//vec3(0.0, 1.0, 0.0);
     // }
+
+    // cacheColor = vec3(float(px) / 128.0, float(py) / 128.0, float(mem) / float(vsmNumCascades));
 
     color = color + cacheColor + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif

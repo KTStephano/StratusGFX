@@ -52,7 +52,7 @@ const int pixelOffsets[] = int[](
 );
 
 void updateResidencyStatus(in ivec2 coords, in int cascade) {
-    ivec2 pixelCoords = wrapIndex(coords, residencyTableSize);
+    ivec2 pixelCoords = coords;//wrapIndex(coords, residencyTableSize);
 
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = 1;//computePageId(coords);
@@ -144,7 +144,7 @@ void main() {
     vec2 vsmTexCoords = clipCoords.xy * 0.5 + vec2(0.5);
     // vec2 vsmTexCoordsLowest = clipCoordsLowest.xy * 0.5 + vec2(0.5);
 
-    vec2 basePixelCoords = vsmTexCoords * vec2(residencyTableSize);// - vec2(0.5);
+    vec2 basePixelCoords = wrapIndex(vsmTexCoords, vec2(residencyTableSize));// - vec2(0.5);
     // vec2 basePixelCoordsLowest = vsmTexCoordsLowest * vec2(residencyTableSize);
     // vec2 basePixelCoordsWrapped = wrapIndex(basePixelCoords, residencyTableSize);
 
@@ -155,11 +155,11 @@ void main() {
 
     ivec2 pixelCoordsLower = ivec2(floor(basePixelCoords));
     // ivec2 pixelCoordsLowest = ivec2(floor(basePixelCoordsLowest));
-    ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
+    // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
     // updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
-    updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
+    // updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
 
     // ivec2 coords1 = pixelCoordsLower;
     // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);

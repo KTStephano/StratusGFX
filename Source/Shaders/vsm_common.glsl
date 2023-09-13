@@ -126,16 +126,23 @@ int vsmCalculateCascadeIndexFromWorldPos(in vec3 worldPos) {
 }
 
 // See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
-ivec2 wrapIndex(in ivec2 value, in ivec2 maxValue) {
-    return ivec2(mod(mod(value, maxValue) + maxValue, maxValue));
-}
+// ivec2 wrapIndex(in ivec2 value, in ivec2 maxValue) {
+//     return ivec2(mod(mod(value, maxValue) + maxValue, maxValue));
+// }
 
-vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
-    return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
-}
+// vec2 wrapIndex(in vec2 value, in vec2 maxValue) {
+//     return vec2(mod(mod(value, maxValue) + maxValue, maxValue));
+// }
 
 vec2 wrapUVCoords(in vec2 uvs) {
     return fract(uvs);
+}
+
+// See https://www.reedbeta.com/blog/texture-gathers-and-coordinate-precision/
+//     and also check the comment at the bottom
+vec2 wrapIndex(in vec2 uv, in vec2 maxValue) {
+    //const float offset = 1.0 / 512.0;
+    return (wrapUVCoords(uv) * maxValue);
 }
 
 uint computePageId(in ivec2 page) {
@@ -186,15 +193,14 @@ float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float depth,
 // }
 
 vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex) {
-    vec2 wrappedUvs = wrapUVCoords(uv);
-    vec2 virtualPixelCoords = wrappedUvs * resolution;
+    vec2 virtualPixelCoords = wrapIndex(uv, resolution);
 
     //vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
     vec2 offsetWithinPage = mod(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
     //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
     //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
-    ivec2 physicalPageCoords = ivec2(floor(wrappedUvs * vec2(vsmNumPagesXY)));
+    ivec2 physicalPageCoords = ivec2(wrapIndex(uv, vec2(vsmNumPagesXY)));
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
@@ -202,17 +208,18 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     uint physicalOffsetX;
     uint physicalOffsetY;
     uint memPool;
-    uint unused3;
+    uint residencyStatus;
     unpackPageMarkerData(
         currFramePageResidencyTable[physicalPageIndex].frameMarker,
         unused1,
         physicalOffsetX,
         physicalOffsetY,
         memPool,
-        unused3
+        residencyStatus
     );
 
-    return vec3(
+    return residencyStatus == 0 ? vec3(-1)
+        : vec3(
         (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
         float(memPool)
     );
@@ -220,13 +227,12 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
 
 // When approaching a page boundary, uv coords are contracted by 1 to support bilinear filtering without padding
 vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex, inout bool onPageBoundary) {
-    vec2 wrappedUvs = wrapUVCoords(uv);
-    vec2 virtualPixelCoords = wrappedUvs * resolution;
+    vec2 virtualPixelCoords = wrapIndex(uv, resolution);
 
     //vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
     vec2 offsetWithinPage = mod(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
-    onPageBoundary = offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) || offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2);
+    onPageBoundary = offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 1) || offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 1);
     onPageBoundary = onPageBoundary || offsetWithinPage.x <= 1 || offsetWithinPage.y <= 1;
 
     // offsetWithinPage = vec2(
@@ -241,7 +247,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
 
     //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
     //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
-    ivec2 physicalPageCoords = ivec2(floor(wrappedUvs * vec2(vsmNumPagesXY)));
+    ivec2 physicalPageCoords = ivec2(wrapIndex(uv, vec2(vsmNumPagesXY)));
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
@@ -383,13 +389,13 @@ vec2 convertVirtualCoordsToPhysicalCoordsNoRound(
     in vec2 maxVirtualIndex,
     in int cascadeIndex
 ) {
-    vec2 physicalTexCoords = wrapUVCoords(convertLocalCoordsToVirtualUvCoords(
+    vec2 physicalTexCoords = convertLocalCoordsToVirtualUvCoords(
         virtualCoords,
         maxVirtualIndex + vec2(1.0),
         cascadeIndex
-    ));
+    );
 
-    return physicalTexCoords * vec2(maxVirtualIndex + vec2(1));
+    return wrapIndex(physicalTexCoords, vec2(maxVirtualIndex + vec2(1)));
     // return wrapIndex(
     //     physicalTexCoords * (maxVirtualIndex + vec2(1)), 
     //     maxVirtualIndex + vec2(1)
@@ -429,9 +435,9 @@ vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
     //ndcRelative = vsmConvertClip0ToClipN(ndcRelative, cascadeIndex);
     
     // Convert from [-1, 1] to [0, 1]
-    vec2 virtualTexCoords = wrapUVCoords(ndcRelative * 0.5 + vec2(0.5));
+    vec2 virtualTexCoords = ndcRelative * 0.5 + vec2(0.5);
 
-    return virtualTexCoords * vec2(maxPhysicalIndex + vec2(1));
+    return wrapIndex(virtualTexCoords, vec2(maxPhysicalIndex + vec2(1)));
     // return wrapIndex(
     //     virtualTexCoords * (maxPhysicalIndex + vec2(1)), 
     //     maxPhysicalIndex + vec2(1)

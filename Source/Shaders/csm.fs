@@ -69,7 +69,9 @@ void writeDepth(in vec2 uv, in float depth) {
 	//if (physicalPageCoords.x >= startXY.x && physicalPageCoords.x <= endXY.x &&
 	//	physicalPageCoords.y >= startXY.y && physicalPageCoords.y <= endXY.y) {
 
+	if (physicalPixelCoords.z >= 0) {
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth, resident);
+	}
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
 		// if (!resident) {
 		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
@@ -162,7 +164,7 @@ void main() {
 	//vec3 vsmCoords = vec3(vsmTexCoords * (vec2(virtualShadowMapSizeXY) - vec2(1.0)), 0.0);
 
 	//vec3 vsmCoords = vec3(vsmTexCoords * vec2(imageSize(vsm).xy) - vec2(0.5), 0.0);
-	vec3 vsmCoords = vec3(vsmTexCoords * vec2(imageSize(vsm).xy), 0.0);
+	//vec3 vsmCoords = vec3(vsmTexCoords * vec2(imageSize(vsm).xy), 0.0);
 
 	//vec3 vsmCoords = vec3(physicalPixelCoords, 0.0);
 	//vsmCoords.xy = wrapIndex(vsmCoords.xy, vec2(virtualShadowMapSizeXY));
@@ -170,8 +172,8 @@ void main() {
 
 	writeDepth(vsmTexCoords, depth);
 
-    float fx = fract(vsmCoords.x);
-    float fy = fract(vsmCoords.y);
+    // float fx = fract(vsmCoords.x);
+    // float fy = fract(vsmCoords.y);
 
 	//vsmCoords = ceil(vsmCoords);
 
