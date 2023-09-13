@@ -2096,6 +2096,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.atmospheric->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    state_.atmospheric->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm);
     state_.atmospheric->SetFloat("time", milliseconds);
     
     // Set up cascade data
@@ -3352,6 +3353,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
 
     s->SetVec3("infiniteLightDirection", direction);    
     s->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    s->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
     for (i32 i = 0; i < frame_->vsmc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
         s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->vsmc.projectionViewSample);

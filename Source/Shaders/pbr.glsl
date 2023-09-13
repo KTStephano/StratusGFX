@@ -55,8 +55,9 @@ uniform float infiniteLightZnear;
 uniform float infiniteLightZfar;
 uniform vec3 infiniteLightDirection;
 uniform float infiniteLightDepthBias = 0.0;
-//uniform sampler2DArrayShadow infiniteLightShadowMap;
-uniform sampler2DArray infiniteLightShadowMap;
+uniform sampler2DArrayShadow infiniteLightShadowMap;
+uniform sampler2DArray infiniteLightShadowMapNonFiltered;
+//uniform sampler2DArray infiniteLightShadowMap;
 // Each vec4 offset has two pairs of two (x, y) texel offsets. For each cascade we sample
 // a neighborhood of 4 texels and additive blend the results.
 uniform vec4 shadowOffset[2];
@@ -298,7 +299,7 @@ float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal
     float bound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
     for (float y = -bound; y <= bound; y += 1.0) {
         for (float x = -bound; x <= bound; x += 1.0) {
-            light1 += sampleShadowTextureSparse(infiniteLightShadowMap, position.xyz, vec2(x, y) * wh, bias);
+            light1 += sampleShadowTextureSparse(infiniteLightShadowMap, infiniteLightShadowMapNonFiltered, position.xyz, vec2(x, y) * wh, bias);
             ++samples;
         }
     }

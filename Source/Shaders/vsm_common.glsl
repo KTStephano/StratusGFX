@@ -218,6 +218,53 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     );
 }
 
+// When approaching a page boundary, uv coords are contracted by 1 to support bilinear filtering without padding
+vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex, inout bool onPageBoundary) {
+    vec2 wrappedUvs = wrapUVCoords(uv);
+    vec2 virtualPixelCoords = wrappedUvs * resolution;
+
+    //vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+    vec2 offsetWithinPage = mod(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
+
+    onPageBoundary = offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) || offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2);
+    onPageBoundary = onPageBoundary || offsetWithinPage.x <= 1 || offsetWithinPage.y <= 1;
+
+    // offsetWithinPage = vec2(
+    //     offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) ? VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 3 : offsetWithinPage.x,
+    //     offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) ? VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 3 : offsetWithinPage.y
+    // );
+
+    // offsetWithinPage = vec2(
+    //     offsetWithinPage.x <= 1 ? 2 : offsetWithinPage.x,
+    //     offsetWithinPage.y <= 1 ? 2 : offsetWithinPage.y
+    // );
+
+    //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
+    //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
+    ivec2 physicalPageCoords = ivec2(floor(wrappedUvs * vec2(vsmNumPagesXY)));
+    // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
+    uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
+
+    uint unused1;
+    uint physicalOffsetX;
+    uint physicalOffsetY;
+    uint memPool;
+    uint unused3;
+    unpackPageMarkerData(
+        currFramePageResidencyTable[physicalPageIndex].frameMarker,
+        unused1,
+        physicalOffsetX,
+        physicalOffsetY,
+        memPool,
+        unused3
+    );
+
+    return vec3(
+        (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
+        float(memPool)
+    );
+}
+
 // float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, in vec4 coordsLowestMip, float depth, vec2 offset, float bias) {
 //     float offsetDepth = depth - bias;
 
@@ -251,7 +298,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
 //     // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 // }
 
-float sampleShadowTextureSparse(sampler2DArray shadow, in vec3 worldPos, vec2 offset, float bias) {
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
     int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPos.xyz);
     if (cascadeIndex >= vsmNumCascades) return 1.0;
 
@@ -278,26 +325,35 @@ float sampleShadowTextureSparse(sampler2DArray shadow, in vec3 worldPos, vec2 of
     // modified.w = depth - bias;
     // modified.xy += offset;
     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
-    vec3 physicalCoords = vsmConvertVirtualUVToPhysicalPixelCoords(
+    bool onPageBoundary = false;
+    vec3 physicalCoords = vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(
         coords.xy, 
         vec2(textureSize(shadow, 0).xy),
         vsmNumPagesXY,
-        cascadeIndex
+        cascadeIndex,
+        onPageBoundary
     );
+
+    if (onPageBoundary) {
+        vec4 texel;
+        sparseTexelFetchARB(shadowNoFilter, ivec3(floor(physicalCoords)), 0, texel);
+        return offsetDepth < texel.r ? 1.0 : 0.0;
+    }
 
     vec3 physicalUvs = vec3(
         physicalCoords.xy / vec2(textureSize(shadow, 0).xy),
         physicalCoords.z
     );
 
-    vec4 texel;
-    int status = sparseTexelFetchARB(shadow, ivec3(floor(physicalCoords)), 0, texel);
+    float result;
+    sparseTextureARB(shadow, vec4(physicalUvs, offsetDepth), result);
+    return result;
 
-    if (sparseTexelsResidentARB(status) == false) {
-        return 1.0;
-    }
+    // if (sparseTexelsResidentARB(status) == false) {
+    //     return 1.0;
+    // }
 
-    return offsetDepth < texel.r ? 1.0 : 0.0;
+    // return offsetDepth < texel.r ? 1.0 : 0.0;
 
     // float result;
     // int status = sparseTextureARB(shadow, vec4(physicalUvs, modified.w), result);
