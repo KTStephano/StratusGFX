@@ -1232,7 +1232,7 @@ void RendererBackend::PerformVSMCulling(
 
         //pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
         pipeline.DispatchCompute(1, 1, 1);
-        pipeline.SynchronizeCompute();
+        pipeline.SynchronizeMemory();
 
         // const i32 * result = (const i32 *)frame_->vsmc.numDrawCalls.MapMemory(GPU_MAP_READ);
         // STRATUS_LOG << "Before, After: " << buffer->NumDrawCommands() << ", " << *result << std::endl;
@@ -1283,7 +1283,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     u32 sizeY = frame_->viewportHeight / 9;
 
     state_.vsmAnalyzeDepth->DispatchCompute(sizeX, sizeY, 1);
-    state_.vsmAnalyzeDepth->SynchronizeCompute();
+    state_.vsmAnalyzeDepth->SynchronizeMemory();
 
     state_.vsmAnalyzeDepth->Unbind();
 
@@ -1310,7 +1310,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     sizeY = numPagesAvailable / 8;
 
     state_.vsmMarkPages->DispatchCompute(sizeX, sizeY, 1);
-    state_.vsmMarkPages->SynchronizeCompute();
+    state_.vsmMarkPages->SynchronizeMemory();
 
     state_.vsmMarkPages->Unbind();
 
@@ -1958,8 +1958,8 @@ void RendererBackend::RenderCSMDepth_() {
                 GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
             state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
-            //state_.vsmClear->SynchronizeMemory();
-            state_.vsmClear->SynchronizeCompute();
+            state_.vsmClear->SynchronizeMemory();
+            //state_.vsmClear->SynchronizeCompute();
 
             Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
                 state_.csmDepthRunAlphaTest[cascade].get() :
@@ -2228,7 +2228,8 @@ static inline void PerformPointLightGeometryCulling(
             GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE5_BINDING_POINT);
 
         pipeline.DispatchCompute(1, 1, 1);
-        pipeline.SynchronizeCompute();
+        //pipeline.SynchronizeCompute();
+        pipeline.SynchronizeMemory();
     }
 }
 
