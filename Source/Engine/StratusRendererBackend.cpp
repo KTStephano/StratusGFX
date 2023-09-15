@@ -2125,6 +2125,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const f32 projDist = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
     const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
     const glm::mat4 shadowMatrix = frame_->vsmc.projectionViewSample * frame_->camera->GetWorldTransform();
+    //const glm::mat4 shadowMatrix = frame_->vsmc.cascades[0].projectionViewRender * frame_->camera->GetWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
     const glm::vec4 shadowSpaceCameraPos = frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
     const glm::vec3 normalizedCameraLightDirection = frame_->vsmc.worldLightDirectionCameraSpace;
@@ -2133,24 +2134,27 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     const f32 milliseconds = f32(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
 
     BindShader_(state_.atmospheric.get());
+    InitCoreCSMData_(state_.atmospheric.get());
     state_.atmosphericFbo.Bind();
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
-    state_.atmospheric->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    state_.atmospheric->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm);
+    // state_.atmospheric->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    // state_.atmospheric->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm);
     state_.atmospheric->SetFloat("time", milliseconds);
+    state_.atmospheric->SetFloat("baseCascadeMaxDepth", frame_->vsmc.baseCascadeDiameter / 2.0f);
+    state_.atmospheric->SetFloat("maxCascadeDepth", frame_->vsmc.zfar);
     
     // Set up cascade data
-    for (i32 i = 0; i < 4; ++i) {
-        const auto& cascade = frame_->vsmc;
-        const std::string si = "[" + std::to_string(i) + "]";
-        state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.zfar);
-        //if (i > 0) {
-        //    const std::string sim1 = "[" + std::to_string(i - 1) + "]";
-        //    state_.atmospheric->SetMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
-        //}
-    }
+    // for (i32 i = 0; i < 4; ++i) {
+    //     const auto& cascade = frame_->vsmc;
+    //     const std::string si = "[" + std::to_string(i) + "]";
+    //     state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.zfar);
+    //     //if (i > 0) {
+    //     //    const std::string sim1 = "[" + std::to_string(i - 1) + "]";
+    //     //    state_.atmospheric->SetMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
+    //     //}
+    // }
 
     state_.atmospheric->BindTexture("noiseTexture", state_.atmosphericNoiseTexture);
     state_.atmospheric->SetFloat("minAtmosphereDepth", dmin);

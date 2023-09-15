@@ -11,7 +11,10 @@ STRATUS_GLSL_VERSION
 // Structure buffer containing dFdx, dFdy, and z (split into 2 16-bit parts)
 uniform sampler2DRect structureBuffer;
 uniform sampler2DArrayShadow infiniteLightShadowMap;
-uniform float maxCascadeDepth[4];
+uniform sampler2DArray infiniteLightShadowMapNonFiltered;
+// uniform float maxCascadeDepth[4];
+uniform float baseCascadeMaxDepth;
+uniform float maxCascadeDepth;
 //uniform mat4 cascade0ToCascadeK[NUM_CASCADES - 1];
 // This should be something like 32x32 or 64x64
 uniform sampler2D noiseTexture;
@@ -35,6 +38,11 @@ smooth in vec3 fsShadowSpaceRay;
 
 // GBuffer output
 layout (location = 0) out float gAtmosphere;
+
+int calculateCascadeFromCamSpaceDepth(in float cdepth) {
+    float ratio = max(abs(cdepth / baseCascadeMaxDepth), 1.0);
+    return int(ceil(log2(ratio)));
+}
 
 // Calculates p1, p1 from page 342, eq. 10.64
 // invLength = 1.0 / length(camSpaceRayDir)
@@ -76,17 +84,20 @@ float UofT(float t, float m) {
 }
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
-float sampleShadowTexture(sampler2DArrayShadow shadow, vec4 coords, float cascadeSwitch, float bias) {
-    coords.xyz = coords.xyz / coords.w; // Perspective divide
-    coords.xyz = coords.xyz * 0.5 + vec3(0.5); // Convert to range [0, 1]
-    
-    // Set depth to be the w coordinate
-    coords.w = coords.z - bias;
-    coords.z = cascadeSwitch;
-
-    return texture(shadow, coords);
-    //return sampleShadowTextureSparse(shadow, coords, coords.z, vec2(0.0), bias);
+float sampleShadowTexture(vec4 coords, float cascadeSwitch, float bias) {
+    return sampleShadowTextureSparse(infiniteLightShadowMap, infiniteLightShadowMapNonFiltered, coords.xyz, vec2(0.0), bias, int(cascadeSwitch));
 }
+// float sampleShadowTexture(vec4 coords, float cascadeSwitch, float bias) {
+//     coords.xyz = coords.xyz / coords.w; // Perspective divide
+//     coords.xyz = coords.xyz * 0.5 + vec3(0.5); // Convert to range [0, 1]
+    
+//     // Set depth to be the w coordinate
+//     coords.w = coords.z - bias;
+//     coords.z = cascadeSwitch;
+
+//     return texture(infiniteLightShadowMap, coords);
+//     //return sampleShadowTextureSparse(shadow, coords, coords.z, vec2(0.0), bias);
+// }
 
 // Calculates the final brightness of this pixel which is Brightness * Normalized Anisotropic Scattering Intensity,
 // which is a combination of page 345, eq. 10.74 and page 348, eq. 10.79
@@ -111,7 +122,7 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
 
     // We start walking the ray with cascade 0
     float cascadeDepthSwitch = 0.0;
-    float zmax = min(depth, maxCascadeDepth[0]);
+    float zmax = min(depth, maxCascadeDepth);
     float bias = 2e-19;
     for (; t <= tmax; t += deltaT) {
         float u = UofT(t, m);
@@ -120,35 +131,38 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
         if (z >= zmax) {
             break;
         }
+
+        int cascade = calculateCascadeFromCamSpaceDepth(z);        
                                                         
         // Calculate sampling location - remember p1 and p2 are in cascade 0 space
         vec4 shadowCoords = lerp(p1, p2, u);
-        atmosphere += weight * sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
+        cascadeDepthSwitch = float(cascade);
+        atmosphere += weight * sampleShadowTexture(shadowCoords, cascadeDepthSwitch, bias);
         weight += deltaW;
     }
 
-    const int totalCascades = NUM_CASCADES;
-    for (int cascade = 1; cascade < totalCascades; ++cascade) {
-        // This is the switch determining which texture segment of the shadow map we sample from
-        cascadeDepthSwitch = float(cascade);
-        zmax = min(depth, maxCascadeDepth[cascade]);
+    // const int totalCascades = NUM_CASCADES;
+    // for (int cascade = 1; cascade < totalCascades; ++cascade) {
+    //     // This is the switch determining which texture segment of the shadow map we sample from
+    //     cascadeDepthSwitch = float(cascade);
+    //     zmax = min(depth, maxCascadeDepth[cascade]);
 
-        for (; t <= zmax; t += deltaT) {
-            float u = UofT(t, m);
-            float z = lerp(z1, z2, u);
-            // Never exceed max depth in structure buffer
-            if (z >= zmax) {
-                break;
-            }
+    //     for (; t <= zmax; t += deltaT) {
+    //         float u = UofT(t, m);
+    //         float z = lerp(z1, z2, u);
+    //         // Never exceed max depth in structure buffer
+    //         if (z >= zmax) {
+    //             break;
+    //         }
 
-            // Calculate sampling location - remember p1 and p2 are in cascade 0 space so we need to transform
-            // them to cascade current space
-            //vec4 shadowCoords = cascade0ToCascadeK[cascade - 1] * lerp(p1, p2, u);
-            vec4 shadowCoords = vsmConvertClip0ToClipN(lerp(p1, p2, u), cascade);
-            atmosphere += weight * sampleShadowTexture(infiniteLightShadowMap, shadowCoords, cascadeDepthSwitch, bias);
-            weight += deltaW;
-        }
-    }
+    //         // Calculate sampling location - remember p1 and p2 are in cascade 0 space so we need to transform
+    //         // them to cascade current space
+    //         //vec4 shadowCoords = cascade0ToCascadeK[cascade - 1] * lerp(p1, p2, u);
+    //         vec4 shadowCoords = vsmConvertClip0ToClipN(lerp(p1, p2, u), cascade);
+    //         atmosphere += weight * sampleShadowTexture(shadowCoords, cascadeDepthSwitch, bias);
+    //         weight += deltaW;
+    //     }
+    // }
 
     return anisotropicScatteringIntensity * atmosphere;
     //return anisotropicScatteringIntensity * atmosphere;

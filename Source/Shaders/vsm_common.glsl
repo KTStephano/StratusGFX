@@ -339,15 +339,14 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
 //     // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 // }
 
-float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex) {
+    int cascadeIndex = clipMapIndex;
+    if (cascadeIndex >= vsmNumCascades) return 0.0;
+
     float recalculatedBias = bias;
-
-    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPos.xyz);
-    if (cascadeIndex >= vsmNumCascades) return 1.0;
-
     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
     
-    vec3 coords = vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, cascadeIndex);
+    vec3 coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
     vec3 relativeCoords = vsmConvertOriginClipValueToRelativeClipValue(coords, cascadeIndex);
     coords = coords * 0.5 + vec3(0.5);
     coords.xy += offset;
@@ -361,7 +360,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     if (pageGroupsToRender[physicalPageIndex] > 0) {
         recalculatedBias = bias + 0.0005;
         cascadeIndex = int(vsmNumCascades) - 1;
-        coords = vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, cascadeIndex);
+        coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
         coords = coords * 0.5 + vec3(0.5);
         coords.xy += offset;
     }
@@ -395,16 +394,20 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     float result;
     sparseTextureARB(shadow, vec4(physicalUvs, offsetDepth), result);
     return result;
+}
 
-    // if (sparseTexelsResidentARB(status) == false) {
-    //     return 1.0;
-    // }
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
+    int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPos.xyz);
+    if (cascadeIndex >= vsmNumCascades) return 1.0;
 
-    // return offsetDepth < texel.r ? 1.0 : 0.0;
-
-    // float result;
-    // int status = sparseTextureARB(shadow, vec4(physicalUvs, modified.w), result);
-    // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
+    return sampleShadowTextureSparse(
+        shadow, 
+        shadowNoFilter, 
+        vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, 0), 
+        offset, 
+        bias,
+        cascadeIndex
+    );
 }
 
 vec2 roundIndex(in vec2 index) {
