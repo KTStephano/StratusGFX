@@ -164,49 +164,51 @@ void main() {
 
     // int pageFlatIndex = pageCoordsLower.x + pageCoordsLower.y  * int(numPagesXY) + cascadeIndex * int(numPagesXY * numPagesXY);
     // unpackPageMarkerData(
-    //     currFramePageResidencyTable[pageFlatIndex].frameMarker, 
+    //     currFramePageResidencyTable[pageFlatIndex].info, 
     //     unused,
     //     px,
     //     py,
     //     mem,
+    //     unused,
     //     unused
     // );
 
-    // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageFlatIndex].info, pageId, dirtyBit);
+    // // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageFlatIndex].info, pageId, dirtyBit);
     // //unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
 
-    // vec3 color1 = vec3(0.0, 1.0, 0.0);
-    // vec3 color2 = vec3(0.0, 0.0, 1.0);
-    // vec3 color3 = vec3(1.0, 1.0, 0.0);
-    // vec3 color4 = vec3(0.0, 1.0, 1.0);
+    // // vec3 color1 = vec3(0.0, 1.0, 0.0);
+    // // vec3 color2 = vec3(0.0, 0.0, 1.0);
+    // // vec3 color3 = vec3(1.0, 1.0, 0.0);
+    // // vec3 color4 = vec3(0.0, 1.0, 1.0);
 
-    // vec3 colors[] = vec3[](
-    //     color1,
-    //     color2,
-    //     color3,
-    //     color4
-    // );
+    // // vec3 colors[] = vec3[](
+    // //     color1,
+    // //     color2,
+    // //     color3,
+    // //     color4
+    // // );
 
-    // float percentage = float(cascadeIndex) / float(vsmNumCascades - 1);
+    // // float percentage = float(cascadeIndex) / float(vsmNumCascades - 1);
 
-    // //vec3 colorMix = mix(color1, color2, percentage);
-    // vec3 colorMix = colors[cascadeIndex];
+    // // //vec3 colorMix = mix(color1, color2, percentage);
+    // // vec3 colorMix = colors[cascadeIndex];
 
-    // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 15.0 / 255.0) / 64.0;
-    // cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : colorMix / 16.0;
-    // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+    // // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 15.0 / 255.0) / 64.0;
+    // // cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : colorMix / 16.0;
+    // // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
 
-    // if (fract(pageCoords.x) <= 0.02 || fract(pageCoords.x) >= 0.98 ||
-    //     fract(pageCoords.y) <= 0.02 || fract(pageCoords.y) >= 0.98) {
+    // // if (fract(pageCoords.x) <= 0.02 || fract(pageCoords.x) >= 0.98 ||
+    // //     fract(pageCoords.y) <= 0.02 || fract(pageCoords.y) >= 0.98) {
 
-    //     //cacheColor = (vec3(1.0, 198.0 / 255.0, 0.0)) * 2.0;
-    //     //cacheColor = vec3(1.0, 161.0 / 255.0, 0) * 2.0;
-    //     //cacheColor = vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
-    //     //cacheColor = vec3(0, 218.0 / 255.0, 23.0 / 255.0);
-    //     cacheColor = colorMix;//vec3(0.0, 1.0, 0.0);
-    // }
+    // //     //cacheColor = (vec3(1.0, 198.0 / 255.0, 0.0)) * 2.0;
+    // //     //cacheColor = vec3(1.0, 161.0 / 255.0, 0) * 2.0;
+    // //     //cacheColor = vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+    // //     //cacheColor = vec3(0, 218.0 / 255.0, 23.0 / 255.0);
+    // //     cacheColor = colorMix;//vec3(0.0, 1.0, 0.0);
+    // // }
 
-    // cacheColor = vec3(float(px) / 128.0, float(py) / 128.0, float(mem) / float(vsmNumCascades));
+    // float cascadeColorScale = (float(cascadeIndex) / float(vsmNumCascades));
+    // cacheColor = vec3(float(px) / 128.0, float(py) / 128.0, cascadeColorScale);
 
     color = color + cacheColor + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif

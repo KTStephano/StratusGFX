@@ -165,7 +165,7 @@ void main() {
 
         if (frameMarker > 0) {
             // Frame has not been needed for more than 30 frames and needs to be freed
-            if (frameMarker > 1) {
+            if (frameMarker > 5) {
                 if (pageResident > 0) {
                     dirtyBit = 0;
                     requestPageDealloc(ivec2(int(physicalPageX), int(physicalPageY)), memPool);
@@ -215,7 +215,7 @@ void main() {
                 //current.info = current.info & VSM_PAGE_ID_MASK;
 
                 current.info = packPageMarkerData(
-                    2,//frameMarker + 1, 
+                    frameMarker + 1, 
                     physicalPageX,
                     physicalPageY,
                     memPool,

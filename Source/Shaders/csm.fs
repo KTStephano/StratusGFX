@@ -53,7 +53,7 @@ void writeDepth(in vec2 uv, in float depth) {
 
 	bool resident = false;
 	ivec3 physicalPixelCoordsLower = ivec3(floor(physicalPixelCoords.xy), physicalPixelCoords.z);//fsClipMapIndex);
-	ivec3 physicalPixelCoordsUpper = ivec3(ceil(physicalPixelCoords.xy), physicalPixelCoords.z);//fsClipMapIndex);
+	ivec3 physicalPixelCoordsUpper = ivec3(round(physicalPixelCoords.xy), physicalPixelCoords.z);//fsClipMapIndex);
 
 	// uint frameMarker;
 	// uint unused;
@@ -71,6 +71,10 @@ void writeDepth(in vec2 uv, in float depth) {
 
 	if (physicalPixelCoords.z >= 0) {
 		IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsLower, depth, resident);
+
+		// if (physicalPixelCoordsLower != physicalPixelCoordsUpper) {
+		// 	IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
+		// }
 	}
 		//IMAGE_ATOMIC_MIN_FLOAT_SPARSE(vsm, physicalPixelCoordsUpper, depth, resident);
 		// if (!resident) {

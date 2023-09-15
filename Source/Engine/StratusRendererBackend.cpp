@@ -327,11 +327,11 @@ void RendererBackend::InitPointShadowMaps_() {
     state_.shadowIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * state_.maxShadowCastingLightsPerFrame, flags);
     state_.shadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * state_.maxShadowCastingLightsPerFrame, flags);
 
-    //STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
+    STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
 
-    // Create the virtual point light shadow map cache
-    //vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
-    //state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+    // // Create the virtual point light shadow map cache
+    // vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
+    // state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
     // STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
@@ -1342,8 +1342,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            //if (x > 0 && y > 0) {
-            {
+            if (x > 0 && y > 0) {
+            //{
                 vsm->CommitOrUncommitVirtualPage(
                     std::abs(x) - 1, 
                     std::abs(y) - 1, 
@@ -1423,9 +1423,9 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 }
 
 void RendererBackend::RenderCSMDepth_() {
-    if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
-        throw std::runtime_error("Max cascades exceeded (> 6)");
-    }
+    //if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
+    //    throw std::runtime_error("Max cascades exceeded (> 6)");
+    //}
 
     ProcessCSMVirtualTexture_();
 
@@ -1486,7 +1486,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;// / 8;// / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -3295,29 +3295,29 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, 350, 350);
-    BindShader_(state_.fullscreenPages.get());
-    state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
-    state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
-    state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    RenderQuad_();
-    UnbindShader_();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(0, 0, 350, 350);
+    // BindShader_(state_.fullscreenPages.get());
+    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    // RenderQuad_();
+    // UnbindShader_();
 
-    const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+    // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(frame_->viewportWidth - 350, 0, 350, 350);
-    BindShader_(state_.fullscreenPageGroups.get());
-    state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
-    state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
-    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
-    frame_->vsmc.pageGroupsToRender.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
-    frame_->vsmc.pageResidencyTable.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    RenderQuad_();
-    UnbindShader_();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    // BindShader_(state_.fullscreenPageGroups.get());
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
+    // state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
+    // frame_->vsmc.pageGroupsToRender.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    // frame_->vsmc.pageResidencyTable.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    // RenderQuad_();
+    // UnbindShader_();
 }
 
 void RendererBackend::End() {
