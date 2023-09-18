@@ -352,6 +352,53 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
 //     // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 // }
 
+float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex, in bool markPageNeeded) {
+    int cascadeIndex = clipMapIndex;
+    if (cascadeIndex >= vsmNumCascades) return 1.0;
+
+    float recalculatedBias = bias;
+    uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
+    
+    vec3 coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
+    vec3 relativeCoords = vsmConvertOriginClipValueToRelativeClipValue(coords, cascadeIndex);
+    coords = coords * 0.5 + vec3(0.5);
+    coords.xy += offset;
+    relativeCoords = relativeCoords * 0.5 + vec3(0.5);
+    relativeCoords.xy += offset;
+
+    // vec2 virtualCoords = wrapUVCoords(coords.xy);
+    ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
+    uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
+
+    if (pageGroupsToRender[physicalPageIndex] > 0) {
+        recalculatedBias = bias + 0.0005;
+        cascadeIndex = int(vsmNumCascades) - 1;
+        coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
+        coords = coords * 0.5 + vec3(0.5);
+        coords.xy += offset;
+    }
+
+    float offsetDepth = coords.z - recalculatedBias;
+
+    // vec4 modified = coords;
+    // modified.w = depth - bias;
+    // modified.xy += offset;
+    //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
+    bool onPageBoundary = false;
+    vec3 physicalCoords = vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(
+        coords.xy, 
+        vec2(textureSize(shadow, 0).xy),
+        vsmNumPagesXY,
+        cascadeIndex,
+        onPageBoundary,
+        markPageNeeded
+    );
+
+    vec4 texel;
+    sparseTexelFetchARB(shadowNoFilter, ivec3(floor(physicalCoords)), 0, texel);
+    return offsetDepth < texel.r ? 1.0 : 0.0;
+}
+
 float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex, in bool markPageNeeded) {
     int cascadeIndex = clipMapIndex;
     if (cascadeIndex >= vsmNumCascades) return 1.0;
