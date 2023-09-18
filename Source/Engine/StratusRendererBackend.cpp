@@ -2916,11 +2916,11 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
 
     //glEnable(GL_BLEND);
 
-    // Begin first SSAO pass (occlusion)
-    RenderSsaoOcclude_();
+    // // Begin first SSAO pass (occlusion)
+    // RenderSsaoOcclude_();
 
-    // Begin second SSAO pass (blurring)
-    RenderSsaoBlur_();
+    // // Begin second SSAO pass (blurring)
+    // RenderSsaoBlur_();
 
     // Begin atmospheric pass
     RenderAtmosphericShadowing_();
