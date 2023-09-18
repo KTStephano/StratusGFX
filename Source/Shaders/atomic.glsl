@@ -26,19 +26,23 @@ STRATUS_GLSL_VERSION
     old = returned;                                                     \
 }
 
+// #define IMAGE_ATOMIC_MIN_FLOAT_SPARSE(image, coords, data, resident) {          \
+//     uvec4 texel;                                                                \
+//     int status = sparseImageLoadARB(image, coords, texel);                      \
+//     uint prevCompare = 0;                                                       \
+//     uint compare = texel.r;                                                     \
+//     float mem = uintBitsToFloat(compare);                                       \
+//     uint converted = floatBitsToUint(data);                                     \
+//     resident = sparseTexelsResidentARB(status);                                 \
+//     if (resident) {                                                             \
+//         while (prevCompare != compare && data < mem) {                          \
+//             prevCompare =  compare;                                             \
+//             compare = imageAtomicCompSwap(image, coords, compare, converted);   \
+//             mem = uintBitsToFloat(compare);                                     \
+//         }                                                                       \
+//     }                                                                           \
+// }
+
 #define IMAGE_ATOMIC_MIN_FLOAT_SPARSE(image, coords, data, resident) {          \
-    uvec4 texel;                                                                \
-    int status = sparseImageLoadARB(image, coords, texel);                      \
-    uint prevCompare = 0;                                                       \
-    uint compare = texel.r;                                                     \
-    float mem = uintBitsToFloat(compare);                                       \
-    uint converted = floatBitsToUint(data);                                     \
-    resident = sparseTexelsResidentARB(status);                                 \
-    if (resident) {                                                             \
-        while (prevCompare != compare && data < mem) {                          \
-            prevCompare =  compare;                                             \
-            compare = imageAtomicCompSwap(image, coords, compare, converted);   \
-            mem = uintBitsToFloat(compare);                                     \
-        }                                                                       \
-    }                                                                           \
+    imageAtomicMin(image, coords, floatBitsToUint(data));                                        \
 }
