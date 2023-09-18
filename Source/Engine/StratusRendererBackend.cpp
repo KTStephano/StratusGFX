@@ -18,6 +18,7 @@
 #include "StratusEngine.h"
 #include "StratusWindow.h"
 #include "StratusGraphicsDriver.h"
+#include "StratusGpuBindings.h"
 
 namespace stratus {
 bool IsRenderable(const EntityPtr& p) {
@@ -54,7 +55,7 @@ void OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                          GLenum severity, GLsizei length, const GLchar * message, const void * userParam) {
     //if (severity == GL_DEBUG_SEVERITY_MEDIUM || severity == GL_DEBUG_SEVERITY_HIGH) {
     if (severity == GL_DEBUG_SEVERITY_HIGH) {
-       //std::cout << "[OpenGL] " << message << std::endl;
+       std::cout << "[OpenGL] " << message << std::endl;
     }
 }
 
@@ -76,8 +77,8 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
 
     // Initialize the pipelines
     state_.depthPrepass = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"depth.vs", ShaderType::VERTEX}, 
-        Shader{"depth.fs", ShaderType::FRAGMENT}}));
+        Shader{"depth_prepass.vs", ShaderType::VERTEX}, 
+        Shader{"depth_prepass.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.depthPrepass.get());
 
     state_.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -188,6 +189,18 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"viscull_vpls.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplCulling.get());
 
+    state_.vsmCull = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"viscull_vsm.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vsmCull.get());
+
+    state_.vsmMarkScreen = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_mark_screen.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vsmMarkScreen.get());
+
+    state_.vsmClear = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_clear.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vsmClear.get());
+
     state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplColoring.get());
@@ -240,9 +253,33 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         }));
     state_.shaders.push_back(state_.fullscreen.get());
 
+    state_.fullscreenPages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fullscreen.vs", ShaderType::VERTEX},
+        Shader{"fullscreen_pages.fs", ShaderType::FRAGMENT}
+        }));
+    state_.shaders.push_back(state_.fullscreenPages.get());
+
+    state_.fullscreenPageGroups = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"fullscreen.vs", ShaderType::VERTEX},
+        Shader{"fullscreen_page_groups.fs", ShaderType::FRAGMENT}
+        }));
+    state_.shaders.push_back(state_.fullscreenPageGroups.get());
+
     state_.viscullPointLights = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"viscull_point_lights.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.viscullPointLights.get());
+
+    state_.vsmAnalyzeDepth = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_analyze_depth.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.vsmAnalyzeDepth.get());
+
+    state_.vsmMarkPages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_mark_pages.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.vsmMarkPages.get());
+
+    state_.vsmFreePages = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_free_pages.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.vsmFreePages.get());
 
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
@@ -310,10 +347,7 @@ void RendererBackend::InitializeVplData_() {
 }
 
 void RendererBackend::ValidateAllShaders_() {
-    isValid_ = true;
-    for (Pipeline * p : state_.shaders) {
-        isValid_ = isValid_ && p->IsValid();
-    }
+    isValid_ = ValidateAllPipelines(state_.shaders);
 }
 
 RendererBackend::~RendererBackend() {
@@ -340,22 +374,101 @@ const Pipeline *RendererBackend::GetCurrentShader() const {
 }
 
 void RendererBackend::RecalculateCascadeData_() {
-    const u32 cascadeResolutionXY = frame_->csc.cascadeResolutionXY;
-    const u32 numCascades = frame_->csc.cascades.size();
-    if (frame_->csc.regenerateFbo || !frame_->csc.fbo.Valid()) {
+    const u32 cascadeResolutionXY = frame_->vsmc.cascadeResolutionXY;
+    const u32 numCascades = frame_->vsmc.cascades.size();
+    if (frame_->vsmc.regenerateFbo || !frame_->vsmc.fbo.Valid()) {
+        STRATUS_LOG << "Regenerating Cascade Data" << std::endl;
+
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
-        Texture tex(TextureConfig{ TextureType::TEXTURE_2D_ARRAY, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, cascadeResolutionXY, cascadeResolutionXY, numCascades, false }, NoTextureData);
-        tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        tex.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        frame_->vsmc.vsm = Texture(
+            TextureConfig{ 
+                TextureType::TEXTURE_2D_ARRAY, 
+                TextureComponentFormat::RED, 
+                TextureComponentSize::BITS_32, 
+                TextureComponentType::FLOAT, 
+                frame_->vsmc.cascadeResolutionXY, 
+                frame_->vsmc.cascadeResolutionXY, 
+                numCascades, 
+                false, 
+                true 
+            }, 
+                
+            NoTextureData
+        );
+
+        frame_->vsmc.vsm.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        frame_->vsmc.vsm.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
         // We need to set this when using sampler2DShadow in the GLSL shader
-        tex.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
+        frame_->vsmc.vsm.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
         // Create the frame buffer
-        frame_->csc.fbo = FrameBuffer({ tex });
+        //frame_->vsmc.fbo = FrameBuffer({ tex }, frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
+        frame_->vsmc.fbo = FrameBuffer(std::vector<Texture>(), frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
+
+        const u32 numPages = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        const u32 numPagesSquared = numCascades * numPages * numPages;
+
+        frame_->vsmc.numPageGroupsX = numPages;
+        frame_->vsmc.numPageGroupsY = numPages;
+
+        std::vector<GpuPageResidencyEntry, StackBasedPoolAllocator<GpuPageResidencyEntry>> pageResidencyData(
+            numPagesSquared, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
+        );
+
+        const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
+
+        //frame_->vsmc.prevFramePageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+        frame_->vsmc.pageResidencyTable = GpuBuffer((const void *)pageResidencyData.data(), sizeof(GpuPageResidencyEntry) * numPagesSquared, flags);
+
+        //std::vector<u8, StackBasedPoolAllocator<u8>> pageStatusData(
+        //    numPagesSquared, u8(0), StackBasedPoolAllocator<u8>(frame_->perFrameScratchMemory)
+        //);
+
+        //frame_->vsmc.pageStatusTable = GpuBuffer((const void *)pageStatusData.data(), sizeof(u8) * numPagesSquared, flags);
+
+        i32 value = 0;
+        // frame_->vsmc.numDrawCalls = GpuBuffer((const void *)&value, sizeof(int), flags);
+        frame_->vsmc.numPagesToCommit = GpuBuffer((const void *)&value, sizeof(i32), flags);
+        frame_->vsmc.pagesToCommitList = GpuBuffer(nullptr, 3 * sizeof(i32) * numPagesSquared, flags);
+
+        frame_->vsmc.numPagesFree = GpuBuffer((const void *)&value, sizeof(i32), flags);
+
+        std::vector<u32, StackBasedPoolAllocator<u32>> pageFreeList(
+            StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
+        );
+        pageFreeList.reserve(frame_->vsmc.cascades.size() * 3 * numPages * numPages);
+
+        for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+            for (u32 y = 0; y < numPages; ++y) {
+                for (u32 x = 0; x < numPages; ++x) {
+                    pageFreeList.push_back(cascade);
+                    pageFreeList.push_back(x);
+                    pageFreeList.push_back(y);
+                }
+            }
+        }
+
+        frame_->vsmc.pagesFreeList = GpuBuffer((const void* )pageFreeList.data(), sizeof(u32) * pageFreeList.size(), flags);
+
+        const auto numPageGroups = numCascades * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+        std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
+        frame_->vsmc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * numPageGroups, flags);
+
+        //frame_->vsmc.pageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+        //frame_->vsmc.backPageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+        frame_->vsmc.pageGroupUpdateQueue = std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>>(numCascades);
+        frame_->vsmc.backPageGroupUpdateQueue = std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>>(numCascades);
+
+        for (usize cascade = 0; cascade < numCascades; ++cascade) {
+            frame_->vsmc.pageGroupUpdateQueue[cascade] = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+            frame_->vsmc.backPageGroupUpdateQueue[cascade] = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
+        }
+
+        frame_->vsmc.pageBoundingBox = GpuBuffer(nullptr, 4 * numCascades * sizeof(i32), flags);
     }
 
-    frame_->csc.regenerateFbo = false;
+    frame_->vsmc.regenerateFbo = false;
 }
 
 void RendererBackend::ClearGBuffer_() {
@@ -393,12 +506,12 @@ void RendererBackend::InitGBuffer_() {
         buffer.albedo.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Base reflectivity buffer
-        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Roughness-Metallic-Ambient buffer
-        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.roughnessMetallicAmbient.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -414,7 +527,7 @@ void RendererBackend::InitGBuffer_() {
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Holds mesh ids
-        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::UINT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
         buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -738,11 +851,9 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         state_.vpls.vplGIDenoisedFbo2.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Depending on when this happens we may not have generated cascadeFbo yet
-        if (frame_->csc.fbo.Valid()) {
-            frame_->csc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-            //const i32 index = Engine::Instance()->FrameCount() % 4;
-            //_frame->csc.fbo.ClearDepthStencilLayer(index);
-        }
+        // if (frame_->vsmc.fbo.Valid()) {
+        //     frame_->vsmc.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        // }
 
         for (auto& gaussian : state_.gaussianBuffers) {
             gaussian.fbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -926,8 +1037,8 @@ void RendererBackend::RenderBoundingBoxes_(GpuCommandBufferPtr& buffer) {
 
     SetCullState(RenderFaceCulling::CULLING_NONE);
 
-    buffer->BindModelTransformBuffer(13);
-    buffer->BindAabbBuffer(14);
+    buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+    buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
     BindShader_(state_.aabbDraw.get());
 
@@ -949,27 +1060,32 @@ void RendererBackend::RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling,
     }
 }
 
-void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select) {
+void RendererBackend::RenderImmediate_(const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, usize offset) {
     if (buffer->NumDrawCommands() == 0) return;
 
-    frame_->materialInfo->GetMaterialBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 30);
-    buffer->BindMaterialIndicesBuffer(31);
-    buffer->BindModelTransformBuffer(13);
-    buffer->BindPrevFrameModelTransformBuffer(14);
+    frame_->materialInfo->GetMaterialBuffer().BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MATERIAL_BINDING_POINT);
+    buffer->BindMaterialIndicesBuffer(MATERIAL_INDICES_BINDING_POINT);
+    buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+    buffer->BindPrevFrameModelTransformBuffer(PREV_FRAME_MODEL_MATRICES_BINDING_POINT);
     select(buffer).Bind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 
     SetCullState(cull);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)0, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
+    const void * offsetBytes = (const void *)(sizeof(GpuDrawElementsIndirectCommand) * offset * buffer->CommandCapacity());
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, offsetBytes, (GLsizei)buffer->NumDrawCommands(), (GLsizei)0);
 
     select(buffer).Unbind(GpuBindingPoint::DRAW_INDIRECT_BUFFER);
 }
 
-void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(
+    Pipeline& s, const RenderFaceCulling cull, GpuCommandBufferPtr& buffer, const CommandBufferSelectionFunction& select, usize offset, 
+    bool isLightInteracting, bool removeViewTranslation) {
+
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    //glDepthMask(GL_TRUE);
 
     const Camera& camera = *frame_->camera;
     const glm::mat4 & projection = frame_->projection;
@@ -1014,19 +1130,24 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     //s->setMat4("projectionView", &projection[0][0]);
     //s->setMat4("view", &view[0][0]);
 
-    RenderImmediate_(cull, buffer, select);
+    RenderImmediate_(cull, buffer, select, offset);
 
     glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
+    //glDepthMask(GL_FALSE);
 }
 
-void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, bool isLightInteracting, bool removeViewTranslation) {
+void RendererBackend::Render_(
+    Pipeline& s, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, usize offset,
+    bool isLightInteracting, bool removeViewTranslation) {
+
     for (auto& entry : map) {
-        Render_(s, entry.first, entry.second, select, isLightInteracting, removeViewTranslation);
+        Render_(s, entry.first, entry.second, select, offset, isLightInteracting, removeViewTranslation);
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(
+    std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, usize offset, const bool reverseCullFace) {
+
     for (auto& entry : map) {
         auto cull = entry.first;
         if (reverseCullFace) {
@@ -1037,7 +1158,7 @@ void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, Gpu
                 cull = RenderFaceCulling::CULLING_CCW;
             }
         }
-        RenderImmediate_(cull, entry.second, select);
+        RenderImmediate_(cull, entry.second, select, offset);
     }
 }
 
@@ -1059,7 +1180,7 @@ void RendererBackend::RenderSkybox_(Pipeline * s, const glm::mat4& projectionVie
         s->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
         s->BindTexture("skybox", sky);
 
-        GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
+        GetMesh(state_.skyboxCube, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
@@ -1078,80 +1199,855 @@ void RendererBackend::RenderSkybox_() {
     UnbindShader_();
 }
 
-void RendererBackend::RenderCSMDepth_() {
-    if (frame_->csc.cascades.size() > state_.csmDepth.size()) {
-        throw std::runtime_error("Max cascades exceeded (> 6)");
+void RendererBackend::PerformVSMCulling(
+    Pipeline& pipeline,
+    const std::function<GpuCommandBufferPtr(const RenderFaceCulling&)>& selectInput,
+    const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
+    std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+) {
+    for (auto& [cull, buffer] : commands) {
+        if (buffer->NumDrawCommands() == 0) continue;
+
+        //STRATUS_LOG << buffer->NumDrawCommands() << " " << buffer->CommandCapacity() << std::endl;
+
+        pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
+        pipeline.SetUint("maxDrawCommands", (u32)buffer->CommandCapacity());
+
+        buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+        buffer->BindAabbBuffer(AABB_BINDING_POINT);
+
+        selectInput(cull)->GetIndirectDrawCommandsBuffer(0).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_VSM_IN_DRAW_CALLS_BINDING_POINT);
+
+        auto receivePtr = selectOutput(cull);
+        receivePtr->GetCommandBuffer().BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT);
+
+        // i32 value = 0;
+        // frame_->vsmc.numDrawCalls.CopyDataToBuffer(0, sizeof(i32), (const void *)&value);
+
+        //const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+        const auto numPageGroupsX = frame_->vsmc.numPageGroupsX;
+        const auto numPageGroupsY = frame_->vsmc.numPageGroupsY;
+
+        //pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
+        pipeline.DispatchCompute(1, 1, 1);
+        pipeline.SynchronizeMemory();
+
+        // const i32 * result = (const i32 *)frame_->vsmc.numDrawCalls.MapMemory(GPU_MAP_READ);
+        // STRATUS_LOG << "Before, After: " << buffer->NumDrawCommands() << ", " << *result << std::endl;
+        // frame_->vsmc.numDrawCalls.UnmapMemory();
+    }
+}
+
+void RendererBackend::ProcessCSMVirtualTexture_() {
+    // int value = 0;
+    // frame_->vsmc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
+
+    frame_->vsmc.pageBoundingBox.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_BOUNDING_BOX_BINDING_POINT);
+    frame_->vsmc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    frame_->vsmc.numPagesFree.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_FREE_BINDING_POINT);
+    frame_->vsmc.pagesFreeList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGES_FREE_LIST_BINDING_POINT);
+
+    u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
+    const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+
+    //int clearValue = 0;
+    //frame_->vsmc.currFramePageResidencyTable.Clear(0, (const void *)&clearValue);
+
+    //frame_->vsmc.pagesToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+
+    state_.vsmAnalyzeDepth->Bind();
+    
+    // state_.vsmAnalyzeDepth->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewSample);
+    state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
+    state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmAnalyzeDepth->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
+    //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->vsmc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    state_.vsmAnalyzeDepth->SetUint("numPagesXY", numPagesAvailable);
+
+    state_.vsmAnalyzeDepth->SetUint("frameCount", frameCount);
+
+    state_.vsmAnalyzeDepth->BindTexture("depthTexture", state_.currentFrame.depth);
+
+    frame_->vsmc.numPagesToCommit.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
+    frame_->vsmc.pagesToCommitList.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_INDICES_BINDING_POINT);
+
+    u32 sizeX = frame_->viewportWidth / 16;
+    u32 sizeY = frame_->viewportHeight / 9;
+
+    state_.vsmAnalyzeDepth->DispatchCompute(sizeX, sizeY, 1);
+    state_.vsmAnalyzeDepth->SynchronizeMemory();
+
+    state_.vsmAnalyzeDepth->Unbind();
+
+    auto vsm = &frame_->vsmc.vsm; //frame_->vsmc.fbo.GetDepthStencilAttachment();
+
+    i32 value = 0;
+    frame_->vsmc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
+
+    state_.vsmMarkPages->Bind();
+
+    state_.vsmMarkPages->SetUint("frameCount", frameCount);
+
+    state_.vsmMarkPages->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmMarkPages->SetUint("sunChanged", frame_->vsmc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
+    state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmMarkPages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
+    frame_->vsmc.numPagesToCommit.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
+    frame_->vsmc.pagesToCommitList.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_INDICES_BINDING_POINT);
+
+    sizeX = numPagesAvailable / 8;
+    sizeY = numPagesAvailable / 8;
+
+    state_.vsmMarkPages->DispatchCompute(sizeX, sizeY, 1);
+    state_.vsmMarkPages->SynchronizeMemory();
+
+    state_.vsmMarkPages->Unbind();
+
+    state_.vsmFreePages->Bind();
+
+    state_.vsmFreePages->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmFreePages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmFreePages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
+    state_.vsmFreePages->DispatchCompute(1, 1, 1);
+    state_.vsmFreePages->SynchronizeCompute();
+
+    state_.vsmFreePages->Unbind();
+
+    const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
+    frame_->vsmc.numPagesToCommit.UnmapMemory();
+
+    if (numPagesToUpdate > 0) {
+        //STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
+
+        const i32 * pageIndices = (const i32 *)frame_->vsmc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
+
+        for (i32 i = 0; i < numPagesToUpdate; ++i) {
+            //STRATUS_LOG << i << std::endl;
+
+            const i32 cascade = pageIndices[3 * i];
+            const i32 x = pageIndices[3 * i + 1];
+            const i32 y = pageIndices[3 * i + 2];
+
+            //STRATUS_LOG << x << " " << y << std::endl;
+
+            //if (x > 0 && y > 0) {
+            {
+                vsm->CommitOrUncommitVirtualPage(
+                    std::abs(x) - 1, 
+                    std::abs(y) - 1, 
+                    cascade,
+                    1, 
+                    1, 
+                    (x < 0 || y < 0) ? false : true
+                );
+            }
+        }
+
+        frame_->vsmc.pagesToCommitList.UnmapMemory();
     }
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    TextureAccess depthBindConfig{
+        TextureComponentFormat::RED,
+        TextureComponentSize::BITS_32,
+        TextureComponentType::UINT
+    };
+
+    state_.vsmMarkScreen->Bind();
+
+    // state_.vsmMarkScreen->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
+    // state_.vsmMarkScreen->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
+    state_.vsmMarkScreen->SetUint("numPagesXY", frame_->vsmc.numPageGroupsX);
+    state_.vsmMarkScreen->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmMarkScreen->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
+    state_.vsmMarkScreen->BindTextureAsImage(
+        "vsm", frame_->vsmc.vsm, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+
+    state_.vsmMarkScreen->DispatchCompute(frame_->vsmc.numPageGroupsX / 8, frame_->vsmc.numPageGroupsY / 8, 1);
+    //state_.vsmMarkScreen->SynchronizeMemory();
+    state_.vsmMarkScreen->SynchronizeCompute();
+
+    state_.vsmCull->Bind();
+
+    // state_.vsmCull->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewRender);
+    // state_.vsmCull->SetMat4("invCascadeProjectionView", frame_->vsmc.invProjectionViewRender);
+    // state_.vsmCull->SetMat4("vsmProjectionView", frame_->vsmc.projectionViewSample);
+    state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    state_.vsmCull->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmCull->SetUint("frameCount", frameCount);
+    state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->vsmc.numPageGroupsX);
+    state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->vsmc.numPageGroupsY);
+    //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
+    state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->vsmc.cascadeResolutionXY);
+
+    PerformVSMCulling(
+        *state_.vsmCull,
+        [this](const RenderFaceCulling& cull) {
+            return frame_->drawCommands->dynamicPbrMeshes.find(cull)->second;
+        },
+        [this](const RenderFaceCulling& cull) {
+            return frame_->vsmc.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second;
+        },
+        frame_->drawCommands->dynamicPbrMeshes
+    );
+
+    PerformVSMCulling(
+        *state_.vsmCull,
+        [this](const RenderFaceCulling& cull) {
+            return frame_->drawCommands->staticPbrMeshes.find(cull)->second;
+        },
+        [this](const RenderFaceCulling& cull) {
+            return frame_->vsmc.drawCommandsFinal->staticPbrMeshes.find(cull)->second;
+        },
+        frame_->drawCommands->staticPbrMeshes
+    );
+
+    state_.vsmCull->Unbind();
+}
+
+void RendererBackend::RenderCSMDepth_() {
+    //if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
+    //    throw std::runtime_error("Max cascades exceeded (> 6)");
+    //}
+
+    ProcessCSMVirtualTexture_();
+
+    // const auto n = *(const i32*)frame_->vsmc.numPagesFree.MapMemory(GPU_MAP_READ);
+    // frame_->vsmc.numPagesFree.UnmapMemory();
+
+    // STRATUS_LOG << n << std::endl;
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
     // Allows GPU to perform angle-dependent depth offset to help reduce artifacts such as shadow acne
     // See https://blogs.igalia.com/itoral/2017/10/02/working-with-lights-and-shadows-part-iii-rendering-the-shadows/
     // See https://community.khronos.org/t/can-anyone-explain-glpolygonoffset/35382
-    glEnable(GL_POLYGON_OFFSET_FILL);
+    //glEnable(GL_POLYGON_OFFSET_FILL);
     // See https://paroj.github.io/gltut/Positioning/Tut05%20Depth%20Clamping.html
     glEnable(GL_DEPTH_CLAMP);
     // First value is conditional on slope
     // Second value is a constant unconditional offset
-    glPolygonOffset(2.0f, 0.0f);
+    //glPolygonOffset(2.0f, 0.0f);
     //glBlendFunc(GL_ONE, GL_ONE);
     // glDisable(GL_CULL_FACE);
 
-    frame_->csc.fbo.Bind();
-    const Texture * depth = frame_->csc.fbo.GetDepthStencilAttachment();
+    frame_->vsmc.fbo.Bind();
+    const Texture * depth = &frame_->vsmc.vsm; //frame_->vsmc.fbo.GetDepthStencilAttachment();
     if (!depth) {
         throw std::runtime_error("Critical error: depth attachment not present");
     }
+
+    //const int * minXY = (const int *)frame_->vsmc.minViewportXY.MapMemory(GPU_MAP_READ);
+    //const int * maxXY = (const int *)frame_->vsmc.maxViewportXY.MapMemory(GPU_MAP_READ);
+
+    //STRATUS_LOG << "Min XY: " << minXY[0] << " " << minXY[1] << std::endl;
+    //STRATUS_LOG << "Max XY: " << maxXY[0] << " " << maxXY[1] << std::endl;
+
     glViewport(0, 0, depth->Width(), depth->Height());
+    //glViewport(minXY[0], minXY[1], maxXY[0], maxXY[1]);
 
-    for (usize cascade = 0; cascade < frame_->csc.cascades.size(); ++cascade) {
-        Pipeline * shader = frame_->csc.worldLight->GetAlphaTest() && cascade < 2 ?
-            state_.csmDepthRunAlphaTest[cascade].get() :
-            state_.csmDepth[cascade].get();
+    //frame_->vsmc.minViewportXY.UnmapMemory();
+    //frame_->vsmc.maxViewportXY.UnmapMemory();
 
-        BindShader_(shader);
+    constexpr usize cascade = 0;
 
-        shader->SetVec3("lightDir", &frame_->csc.worldLightCamera->GetDirection()[0]);
-        shader->SetFloat("nearClipPlane", frame_->znear);
-        shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
+    const auto& csm = frame_->vsmc;
 
-        // Set up each individual view-projection matrix
-        // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
-        //     auto& csm = _frame->csc.cascades[i];
-        //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
+    //for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+    // for (usize x = 0; x < 128; ++x) {
+    //     for (usize y = 0; y < 128; ++y) {
+    //         glViewport(x * 128, y * 128, x * 128 + 128, y * 128 + 128);
+    //         RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
+    //         RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
+    //     }
+    // }
+    //glViewport(30 * 128, 30 * 128, 70 * 128, 70 * 128);
+    const auto numPageGroups = frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+    const auto pageGroupWindowWidth = depth->Width() / frame_->vsmc.numPageGroupsX;
+    const auto pageGroupWindowHeight = depth->Height() / frame_->vsmc.numPageGroupsY;
+
+    const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
+
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;// / 2;// / 8;// / 2;// / 8;
+
+    // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
+
+    using VirtualIndexSet = std::unordered_set<
+        u32,
+        std::hash<u32>,
+        std::equal_to<u32>,
+        StackBasedPoolAllocator<u32>>;
+
+    using VirtualIndexSetArray = std::vector<
+        VirtualIndexSet,
+        StackBasedPoolAllocator<VirtualIndexSet>>;
+
+    //VirtualIndexSet changeSet(frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY, StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory));
+    VirtualIndexSetArray changeSetArray(
+        frame_->vsmc.cascades.size(),
+        VirtualIndexSet(frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY, StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)),
+        StackBasedPoolAllocator<VirtualIndexSet>(frame_->perFrameScratchMemory)
+    );
+
+    const auto pageGroupStride = frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+
+    for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+        for (u32 y = 0; y < frame_->vsmc.numPageGroupsY; ++y) {
+            for (u32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+                const usize pageGroupIndex = x + y * frame_->vsmc.numPageGroupsX + cascade * pageGroupStride;
+                if (pageGroupsToRender[pageGroupIndex] > 0) {
+                    frame_->vsmc.pageGroupUpdateQueue[cascade]->PushBack(x, y);
+                    changeSetArray[cascade].insert(ComputeFlatVirtualIndex(x, y, frame_->vsmc.numPageGroupsX));
+                }
+            }
+        }
+
+        // Update the page group update queue with only what is visible on screen
+        frame_->vsmc.pageGroupUpdateQueue[cascade]->SetIntersection(changeSetArray[cascade]);
+
+        // Clear the back buffer
+        frame_->vsmc.backPageGroupUpdateQueue[cascade]->Clear();
+    }
+
+    //STRATUS_LOG << changeSetArray[cascade].size() << std::endl;
+
+    frame_->vsmc.pageGroupsToRender.UnmapMemory();
+    pageGroupsToRender = nullptr;
+
+    // Now compute a page group x/y for glViewport
+    // while (frame_->vsmc.pageGroupUpdateQueue->Size() > 0) {
+    //     const auto xy = frame_->vsmc.pageGroupUpdateQueue->PopFront();
+    //     const auto x = xy.first;
+    //     const auto y = xy.second;
+
+    //     ++numPageGroupsToRender;
+
+    //     auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+    //     auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+
+    //     auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+    //     auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+
+    //     bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
+    //     bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
+
+    //     if (failedCheckX || failedCheckY) {
+    //         frame_->vsmc.backPageGroupUpdateQueue->PushFront(x, y);
+
+    //         const auto differenceX = (newMaxPageGroupX - newMinPageGroupX) - maxPageGroupsToUpdate;
+    //         const auto differenceY = (newMaxPageGroupY - newMinPageGroupY) - maxPageGroupsToUpdate;
+
+    //         if (newMinPageGroupX < )
+
+    //         continue;
+    //     }
+
+    //     minPageGroupX = newMinPageGroupX;
+    //     minPageGroupY = newMinPageGroupY;
+
+    //     maxPageGroupX = newMaxPageGroupX;
+    //     maxPageGroupY = newMaxPageGroupY;
+    // }
+
+    //STRATUS_LOG << frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f) << std::endl;
+
+    // auto ndc1 = VsmCalculateOriginClipValueFromWorldPos(frame_->vsmc.cascades[0].projectionViewRender, frame_->camera->GetPosition(), 0);
+    // auto ndc2 = glm::vec3(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f));
+    // STRATUS_LOG << "1: " << ndc1 << std::endl;
+    // STRATUS_LOG << "2: " << ndc2 << std::endl;
+
+    // for (int x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+    //     const float xy = float(x) + 0.5f;
+    //     glm::vec2 virtualCoords = glm::vec2(xy, xy);
+
+    //     glm::vec2 physicalCoords = ConvertVirtualCoordsToPhysicalCoords(
+    //         virtualCoords,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX - 1),
+    //         frame_->vsmc.cascades[0].projectionViewRender
+    //     );
+
+    //     // STRATUS_LOG << xy << ": " << physicalCoords << std::endl;
+
+    //     glm::vec2 ndc = glm::vec2(2.0f * virtualCoords) / glm::vec2(frame_->vsmc.numPageGroupsX) - 1.0f;
+    //     glm::vec3 worldPos = glm::vec3(frame_->vsmc.cascades[0].invProjectionViewRender * glm::vec4(ndc, 0.0f, 1.0f));
+    //     glm::vec2 ndcOrigin = glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(worldPos, 1.0f));
+
+    //     glm::vec2 physicalTexCoords = ndcOrigin * 0.5f + glm::vec2(0.5f);
+
+    //     //glm::vec2 physicalCoords2 = physicalTexCoords * glm::vec2(frame_->vsmc.numPageGroupsX) - 0.5f;
+    //     glm::vec2 physicalCoords2 = WrapIndex(
+    //         physicalTexCoords * glm::vec2(frame_->vsmc.numPageGroupsX) - 0.5f,
+    //         glm::vec2(frame_->vsmc.numPageGroupsX)
+    //     );
+
+    //     STRATUS_LOG << xy << ": " << physicalCoords << ", " << physicalCoords2 << std::endl;
+    // }
+
+    // for (i32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+    //     const float xy = float(x) + 0.5f;
+
+    //     glm::vec2 virtualNdc = (2.0f * glm::vec2(xy, xy)) / float(frame_->vsmc.cascadeResolutionXY) - 1.0f;
+
+    //     glm::vec3 worldPos = glm::vec3(frame_->vsmc.cascades[0].invProjectionViewRender * glm::vec4(virtualNdc, 0.0f, 1.0f));
+    //     glm::vec2 physicalNdc = glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(worldPos, 1.0f));
+
+    //     glm::vec2 physicalUvCoords = physicalNdc * 0.5f + glm::vec2(0.5f);
+
+    //     glm::vec2 wrappedUvCoords = Fract(physicalUvCoords);
+
+    //     STRATUS_LOG << xy << ": "
+    //         << WrapIndex(physicalUvCoords * glm::vec2(frame_->vsmc.numPageGroupsX), glm::vec2(frame_->vsmc.numPageGroupsX))
+    //         << wrappedUvCoords * glm::vec2(frame_->vsmc.numPageGroupsX) << std::endl;
+    // }
+
+    //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
+
+    for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+
+        //const GpuPageResidencyEntry * currTable = pageTable + cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+
+        //std::unordered_set<usize> entries;
+
+        //const auto cascadeStepSize = cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+        //usize dx;
+        //usize dy;
+        //usize dz;
+        //bool foundDuplicate = false;
+        //usize duplicates = 0;
+
+        //for (usize x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
+        //    for (usize y = 0; y < frame_->vsmc.numPageGroupsY; ++y) {
+        //        const auto data = currTable[x + y * frame_->vsmc.numPageGroupsX + cascadeStepSize].frameMarker;
+        //        const auto px = (data & 0x0FF00000) >> 20;
+        //        const auto py = (data & 0x000FF000) >> 12;
+        //        const auto mem = (data & 0x00000FF0) >> 4;
+        //        const auto res = (data & 0x0000000F);
+
+        //        if (res == 0) continue;
+
+        //        const auto index = px + py * frame_->vsmc.numPageGroupsX + mem * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+        //        if (entries.find(index) != entries.end()) {
+        //            foundDuplicate = true;
+        //            dx = px;
+        //            dy = py;
+        //            dz = mem;
+        //            ++duplicates;
+        //        }
+
+        //        entries.insert(index);
+        //    }
+        //}
+        //
+        //STRATUS_LOG << entries.size() << std::endl;
+
+        //if (foundDuplicate) {
+        //    STRATUS_LOG << "Found duplicate: " << duplicates << ", " << dx << ", " << dy << ", " << dz << std::endl;
+        //}
+
+        u32 minPageGroupX = frame_->vsmc.numPageGroupsX + 1;
+        u32 minPageGroupY = frame_->vsmc.numPageGroupsY + 1;
+        u32 maxPageGroupX = 0;
+        u32 maxPageGroupY = 0;
+        usize numPageGroupsToRender = 0;
+
+        while (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
+            const auto xy = frame_->vsmc.pageGroupUpdateQueue[cascade]->PopFront();
+            const auto x = xy.first.first;
+            const auto y = xy.first.second;
+            const auto count = xy.second;
+
+            auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+            auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+
+            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+
+            const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
+            const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
+
+            // We want to always fully render the final cascade since it will be minimum mip level
+            if ((failedCheckX || failedCheckY) && cascade != (frame_->vsmc.cascades.size() - 1)) {
+                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count);
+                continue;
+            }
+
+            ++numPageGroupsToRender;
+
+            minPageGroupX = newMinPageGroupX;
+            minPageGroupY = newMinPageGroupY;
+
+            maxPageGroupX = newMaxPageGroupX;
+            maxPageGroupY = newMaxPageGroupY;
+
+            //if (count < 3) {
+            //    frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count + 1);
+            //}
+        }
+
+        // STRATUS_LOG << "Awaiting processing: " << frame_->vsmc.backPageGroupUpdateQueue[0]->Size() << std::endl;
+        // STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << maxPageGroupX << " " << maxPageGroupY << std::endl;
+
+        // Swap front and back buffers
+        auto tmp = frame_->vsmc.pageGroupUpdateQueue[cascade];
+        frame_->vsmc.pageGroupUpdateQueue[cascade] = frame_->vsmc.backPageGroupUpdateQueue[cascade];
+        frame_->vsmc.backPageGroupUpdateQueue[cascade] = tmp;
+
+        //STRATUS_LOG << "PAGE GROUPS TO RENDER: " << numPageGroupsToRender << std::endl;
+
+        // auto test = frame_->vsmc.ndcClipOriginDifference * 32.0f;
+        // if (test.x > 0 || test.y > 0) {
+        //     STRATUS_LOG << test << std::endl;
         // }
 
-        // Select face (one per frame)
-        //const i32 face = Engine::Instance()->FrameCount() % 4;
-        //_state.csmDepth->setInt("face", face);
+        if (numPageGroupsToRender > 0) {
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
-        // Render everything
-        // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
-        // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
-        auto& csm = frame_->csc.cascades[cascade];
-        shader->SetMat4("shadowMatrix", csm.projectionViewRender);
+            // Add a 2 page group border around the whole update region
+            if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+            if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
+            // if (minPageGroupX > 0) {
+            //     --minPageGroupX;
+            // }
+            // if (minPageGroupY > 0) {
+            //     --minPageGroupY;
+            // }
 
-        CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
-            const auto cull = b->GetFaceCulling();
-            return frame_->csc.cascades[cascade].drawCommands->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
-        };
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
+            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
+            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
 
-        CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
-            const auto cull = b->GetFaceCulling();
-            return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
-        };
+            // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
+            //     --minPageGroupX;
+            // }
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
+            // if (minPageGroupY % 2 != 0 && minPageGroupY > 0) {
+            //     --minPageGroupY;
+            // }
 
-        // RenderImmediate_(csm.visibleDynamicPbrMeshes);
-        // RenderImmediate_(csm.visibleStaticPbrMeshes);
+            // if (maxPageGroupX % 2 != 0 && maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
 
-        UnbindShader_();
+            // if (maxPageGroupY % 2 != 0 && maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
+
+            u32 sizeX = maxPageGroupX - minPageGroupX;
+            u32 sizeY = maxPageGroupY - minPageGroupY;
+            const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
+
+            // Constrain to be a perfect square
+            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsX) / sizeX, 2) != 0; ++i) {
+            //     if (i % 2 == 0 && minPageGroupX > 0) {
+            //         --minPageGroupX;
+            //     }
+            //     else if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //         ++maxPageGroupX;
+            //     }
+
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            // }
+
+            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsY) / sizeY, 2) != 0; ++i) {
+            //     if (i % 2 == 0 && minPageGroupY > 0) {
+            //         --minPageGroupY;
+            //     }
+            //     else if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //         ++maxPageGroupY;
+            //     }
+
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            // }
+
+            // if (sizeX < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeX;
+            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
+
+            //     sizeX = maxPageGroupX - minPageGroupX;
+            //     if (sizeX < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeX;
+            //         minPageGroupX -= difference;
+
+            //         sizeX = maxPageGroupX - minPageGroupX;
+            //     }
+            // }
+
+            // if (sizeY < maxPageGroupsToUpdate) {
+            //     auto difference = maxPageGroupsToUpdate - sizeY;
+            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
+
+            //     sizeY = maxPageGroupY - minPageGroupY;
+            //     if (sizeY < maxPageGroupsToUpdate) {
+            //         difference = maxPageGroupsToUpdate - sizeY;
+            //         minPageGroupY -= difference;
+
+            //         sizeY = maxPageGroupY - minPageGroupY;
+            //     }
+            // }
+
+            // Constrain the update window to be divisble by 2
+            if (sizeX % 2 != 0) {
+                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                    ++maxPageGroupX;
+                }
+                else if (minPageGroupX > 0) {
+                    --minPageGroupX;
+                }
+
+                sizeX = maxPageGroupX - minPageGroupX;
+            }
+
+            if (sizeY % 2 != 0) {
+                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                    ++maxPageGroupY;
+                }
+                else if (minPageGroupY > 0) {
+                    --minPageGroupY;
+                }
+
+                sizeY = maxPageGroupY - minPageGroupY;
+            }
+
+            //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
+
+            //STRATUS_LOG << cascade << ": " << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << std::endl;
+
+            // Repartition pages into new set of groups
+            // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
+            //const u32 newNumPageGroupsX = frame_->vsmc.numPageGroupsX / sizeX;
+            //const u32 newNumPageGroupsY = frame_->vsmc.numPageGroupsY / sizeY;
+            const f32 newNumPageGroupsX = f32(frame_->vsmc.numPageGroupsX) / f32(sizeX);
+            const f32 newNumPageGroupsY = f32(frame_->vsmc.numPageGroupsY) / f32(sizeY);
+
+            // Normalize the min/max page groups
+            // Converts first to [-1, 1] and then t [0, 1]
+            const f32 normMinPageGroupX = (f32(2 * minPageGroupX) / f32(frame_->vsmc.numPageGroupsX) - 1.0f) * 0.5f + 0.5f;
+            const f32 normMinPageGroupY = (f32(2 * minPageGroupY) / f32(frame_->vsmc.numPageGroupsY) - 1.0f) * 0.5f + 0.5f;
+            // const f32 normMaxPageGroupX = f32(maxPageGroupX) / f32(frame_->vsmc.numPageGroupsX);
+            // const f32 normMaxPageGroupY = f32(maxPageGroupY) / f32(frame_->vsmc.numPageGroupsY);
+
+            // Translate the normalized min/max page groups into fractional locations within
+            // the new repartitioned page groups
+            const f32 newMinPageGroupX = normMinPageGroupX * newNumPageGroupsX;
+            const f32 newMinPageGroupY = normMinPageGroupY * newNumPageGroupsY;
+            // const f32 newMaxPageGroupX = normMaxPageGroupX * newNumPageGroupsX;
+            // const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
+
+            const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
+            //const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
+            //const glm::mat4 vsmProjectionView = frame_->vsmc.projectionViewSample;
+
+            // for (int i = 0; i < 128; ++i) {
+            // STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(glm::ivec2(i, i), maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
+            // }
+
+            //const auto scaleX = f32(frame_->vsmc.numPageGroupsX - sizeX + 1.0f);
+            //const auto scaleY = f32(frame_->vsmc.numPageGroupsY - sizeY + 1.0f);
+
+            // Perform scaling equal to the new number of page groups (prevents entire
+            // scene from being written into subset of texture - only relevant part
+            // of the scene should go into the texture subset)
+            const f32 scaleX = newNumPageGroupsX;
+            const f32 scaleY = newNumPageGroupsY;
+
+            const f32 invX = 1.0f / newNumPageGroupsX;
+            const f32 invY = 1.0f / newNumPageGroupsY;
+            // const f32 invX = 1.0f / f32(frame_->vsmc.numPageGroupsX);
+            // const f32 invY = 1.0f / f32(frame_->vsmc.numPageGroupsY);
+
+            //STRATUS_LOG << newNumPageGroupsX << " " << newNumPageGroupsY << std::endl;
+
+            // Perform translation to orient our vertex outputs to only the ones relevant
+            // to the subset of the texture we are interested in
+            const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(newMinPageGroupX));
+            const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(newMinPageGroupY));
+            // const f32 tx = - (-1.0f + invX + 2.0f * invX * f32(minPageGroupX));
+            // const f32 ty = - (-1.0f + invY + 2.0f * invY * f32(minPageGroupY));
+
+            glm::mat4 scale(1.0f);
+            matScale(scale, glm::vec3(scaleX, scaleY, 1.0f));
+
+            glm::mat4 translate(1.0f);
+            matTranslate(translate, glm::vec3(tx, ty, 0.0f));
+            
+            const glm::mat4 cascadeOrthoProjection = csm.cascades[cascade].projectionViewRender;
+
+            //STRATUS_LOG << scaleX << " " << scaleY << " " << tx << " " << ty << std::endl;
+
+            // STRATUS_LOG << "1: " << (
+            //     scale * translate * frame_->vsmc.cascades[cascade].projection * frame_->vsmc.viewTransform) << std::endl;
+
+            //STRATUS_LOG << "1: " << cascadeOrthoProjection << std::endl;
+            //glm::mat4 cascadeOrthoProjectionModified = csm.viewTransform;
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(frame_->camera->GetPosition().x, 0.0f, frame_->camera->GetPosition().z),
+            //     1.0f
+            // );
+            // cascadeOrthoProjectionModified[3] = glm::vec4(
+            //     -glm::vec3(441.529f, 19.608f, 221.228f),
+            //     1.0f
+            // );
+            //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
+            //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
+            const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+            // STRATUS_LOG << "2: " << projectionView << std::endl;
+            const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
+
+            u32 startX = minPageGroupX;// * pageGroupWindowWidth;
+            u32 startY = minPageGroupY;// * pageGroupWindowHeight;
+
+            u32 endX = maxPageGroupX;// * pageGroupWindowWidth;
+            u32 endY = maxPageGroupY;// * pageGroupWindowHeight;
+
+            u32 numComputeGroupsX = frame_->vsmc.numPageGroupsX;
+            u32 numComputeGroupsY = frame_->vsmc.numPageGroupsY;
+
+            TextureAccess depthBindConfig{
+                TextureComponentFormat::RED,
+                TextureComponentSize::BITS_32,
+                TextureComponentType::UINT
+            };
+
+            state_.vsmClear->Bind();
+
+            // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
+            // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);
+            state_.vsmClear->SetIVec2("startXY", glm::ivec2(startX, startY));
+            state_.vsmClear->SetIVec2("endXY", glm::ivec2(endX, endY));
+            state_.vsmClear->SetUint("numPagesXY", numPagesXY);
+            state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+            state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            state_.vsmClear->SetInt("vsmClipMapIndex", cascade);
+            state_.vsmClear->BindTextureAsImage(
+                "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+            frame_->vsmc.pageResidencyTable.BindBase(
+                GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+
+            state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
+            state_.vsmClear->SynchronizeMemory();
+            //state_.vsmClear->SynchronizeCompute();
+
+            Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
+                state_.csmDepthRunAlphaTest[cascade].get() :
+                state_.csmDepth[cascade].get();
+
+            BindShader_(shader);
+
+            //shader->BindTextureAsImage("vsm", *depth, false, cascade, ImageTextureAccessMode::IMAGE_WRITE_ONLY);
+            //shader->SetUint("vsmSizeX", (u32)depth->Width());
+            //shader->SetUint("vsmSizeY", (u32)depth->Height());
+            shader->SetVec3("lightDir", &frame_->vsmc.worldLightCamera->GetDirection()[0]);
+            shader->SetFloat("nearClipPlane", frame_->znear);
+            shader->SetFloat("alphaDepthTestThreshold", frame_->settings.GetAlphaDepthTestThreshold());
+            shader->SetUint("frameCount", frameCount);
+            shader->SetIVec2("startXY", glm::ivec2(startX, startY));
+            shader->SetIVec2("endXY", glm::ivec2(endX, endY));
+
+            // Set up each individual view-projection matrix
+            // for (i32 i = 0; i < _frame->csc.cascades.size(); ++i) {
+            //     auto& csm = _frame->csc.cascades[i];
+            //     _state.csmDepth->setMat4("shadowMatrices[" + std::to_string(i) + "]", &csm.projectionViewRender[0][0]);
+            // }
+
+            // Select face (one per frame)
+            //const i32 face = Engine::Instance()->FrameCount() % 4;
+            //_state.csmDepth->setInt("face", face);
+
+            // Render everything
+            // See https://www.gamedev.net/forums/topic/695063-is-there-a-quick-way-to-fix-peter-panning-shadows-detaching-from-objects/5370603/
+            // for the tip about enabling reverse culling for directional shadow maps to reduce peter panning
+            auto& csm = frame_->vsmc;
+            shader->SetMat4("shadowMatrix", csm.cascades[cascade].projectionViewRender);
+            shader->SetUint("numPagesXY", (u32)(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY()));
+            shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
+            shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+            shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+            shader->SetInt("vsmClipMapIndex", cascade);
+
+            CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {
+                const auto cull = b->GetFaceCulling();
+                return frame_->vsmc.drawCommandsFinal->dynamicPbrMeshes.find(cull)->second->GetCommandBuffer();
+            };
+
+            CommandBufferSelectionFunction selectStatic = [this, cascade](GpuCommandBufferPtr& b) {
+                const auto cull = b->GetFaceCulling();
+                return frame_->vsmc.drawCommandsFinal->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+            };
+
+            shader->SetMat4("shadowMatrix", projectionView);
+            // shader->SetMat4("globalVsmShadowMatrix", csm.projectionViewSample);
+
+            //STRATUS_LOG << glm::vec2(frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f)) << std::endl;
+            
+            // We need to use the old page partitioning scheme to calculate the viewport
+            // info
+            // const u32 clearValue = FloatBitsToUint(1.0f);
+            // depth->ClearLayerRegion(
+            //     0, 
+            //     0, 
+            //     startX, 
+            //     startY, 
+            //     sizeX * pageGroupWindowWidth, 
+            //     sizeY * pageGroupWindowHeight, 
+            //     (const void *)&clearValue
+            // );
+            glViewport(
+                minPageGroupX * pageGroupWindowWidth, 
+                minPageGroupY * pageGroupWindowHeight, 
+                sizeX * pageGroupWindowWidth, 
+                sizeY * pageGroupWindowHeight
+            );
+
+            RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, cascade, true);
+            RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, cascade, true);
+
+            // STRATUS_LOG << minPageGroupX * pageGroupWindowWidth << " "
+            //             << minPageGroupY * pageGroupWindowHeight << " "
+            //             << sizeX * pageGroupWindowWidth << " "
+            //             << sizeY * pageGroupWindowHeight << std::endl;
+
+            UnbindShader_();
+        }
     }
+
+    //frame_->vsmc.pageResidencyTable.UnmapMemory();
     
-    frame_->csc.fbo.Unbind();
+    frame_->vsmc.fbo.Unbind();
 
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_DEPTH_CLAMP);
@@ -1205,7 +2101,7 @@ void RendererBackend::RenderSsaoBlur_() {
 }
 
 void RendererBackend::RenderAtmosphericShadowing_() {
-    if (!frame_->csc.worldLight->GetEnabled()) return;
+    if (!frame_->vsmc.worldLight->GetEnabled()) return;
 
     constexpr f32 preventDivByZero = std::numeric_limits<f32>::epsilon();
 
@@ -1213,47 +2109,52 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     glDisable(GL_DEPTH_TEST);
 
     auto re = std::default_random_engine{};
-    const f32 n = frame_->csc.worldLight->GetAtmosphericNumSamplesPerPixel();
+    const f32 n = frame_->vsmc.worldLight->GetAtmosphericNumSamplesPerPixel();
     // On the range [0.0, 1/n)
     std::uniform_real_distribution<f32> real(0.0f, 1.0f / n);
     const glm::vec2 noiseShift(real(re), real(re));
     const f32 dmin     = frame_->znear;
-    const f32 dmax     = frame_->csc.cascades[frame_->csc.cascades.size() - 1].cascadeEnds;
-    const f32 lambda   = frame_->csc.worldLight->GetAtmosphericParticleDensity();
+    const f32 dmax     = frame_->vsmc.zfar;
+    const f32 lambda   = frame_->vsmc.worldLight->GetAtmosphericParticleDensity();
     // cbrt = cube root
-    const f32 cubeR    = std::cbrt(frame_->csc.worldLight->GetAtmosphericScatterControl());
+    const f32 cubeR    = std::cbrt(frame_->vsmc.worldLight->GetAtmosphericScatterControl());
     const f32 g        = (1.0f - cubeR) / (1.0f + cubeR + preventDivByZero);
     // aspect ratio
     const f32 ar       = f32(frame_->viewportWidth) / f32(frame_->viewportHeight);
     // g in frustum parameters
     const f32 projDist = 1.0f / glm::tan(frame_->fovy.value() / 2.0f);
     const glm::vec3 frustumParams(ar / projDist, 1.0f / projDist, dmin);
-    const glm::mat4 shadowMatrix = frame_->csc.cascades[0].projectionViewSample * frame_->camera->GetWorldTransform();
+    const glm::mat4 shadowMatrix = frame_->vsmc.projectionViewSample * frame_->camera->GetWorldTransform();
+    //const glm::mat4 shadowMatrix = frame_->vsmc.cascades[0].projectionViewRender * frame_->camera->GetWorldTransform();
     const glm::vec3 anisotropyConstants(1 - g, 1 + g * g, 2 * g);
-    const glm::vec4 shadowSpaceCameraPos = frame_->csc.cascades[0].projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
-    const glm::vec3 normalizedCameraLightDirection = frame_->csc.worldLightDirectionCameraSpace;
+    const glm::vec4 shadowSpaceCameraPos = frame_->vsmc.projectionViewSample * glm::vec4(frame_->camera->GetPosition(), 1.0f);
+    const glm::vec3 normalizedCameraLightDirection = frame_->vsmc.worldLightDirectionCameraSpace;
 
     const auto timePoint = std::chrono::high_resolution_clock::now();
     const f32 milliseconds = f32(std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint).time_since_epoch().count());
 
     BindShader_(state_.atmospheric.get());
+    InitCoreCSMData_(state_.atmospheric.get());
     state_.atmosphericFbo.Bind();
     state_.atmospheric->SetVec3("frustumParams", frustumParams);
     state_.atmospheric->SetMat4("shadowMatrix", shadowMatrix);
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
-    state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
+    // state_.atmospheric->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    // state_.atmospheric->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm);
     state_.atmospheric->SetFloat("time", milliseconds);
+    state_.atmospheric->SetFloat("baseCascadeMaxDepth", frame_->vsmc.baseCascadeDiameter / 2.0f);
+    state_.atmospheric->SetFloat("maxCascadeDepth", frame_->vsmc.zfar);
     
     // Set up cascade data
-    for (i32 i = 0; i < 4; ++i) {
-        const auto& cascade = frame_->csc.cascades[i];
-        const std::string si = "[" + std::to_string(i) + "]";
-        state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.cascadeEnds);
-        if (i > 0) {
-            const std::string sim1 = "[" + std::to_string(i - 1) + "]";
-            state_.atmospheric->SetMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
-        }
-    }
+    // for (i32 i = 0; i < 4; ++i) {
+    //     const auto& cascade = frame_->vsmc;
+    //     const std::string si = "[" + std::to_string(i) + "]";
+    //     state_.atmospheric->SetFloat("maxCascadeDepth" + si, cascade.zfar);
+    //     //if (i > 0) {
+    //     //    const std::string sim1 = "[" + std::to_string(i - 1) + "]";
+    //     //    state_.atmospheric->SetMat4("cascade0ToCascadeK" + sim1, cascade.sampleCascade0ToCurrent);
+    //     //}
+    // }
 
     state_.atmospheric->BindTexture("noiseTexture", state_.atmosphericNoiseTexture);
     state_.atmospheric->SetFloat("minAtmosphereDepth", dmin);
@@ -1308,19 +2209,27 @@ static inline void PerformPointLightGeometryCulling(
 
         pipeline.SetUint("numDrawCalls", (u32)buffer->NumDrawCommands());
         
-        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-        buffer->BindModelTransformBuffer(2);
-        buffer->BindAabbBuffer(3);
+        buffer->GetIndirectDrawCommandsBuffer(lod).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_IN_DRAW_CALLS_BINDING_POINT);
+        buffer->BindModelTransformBuffer(CURR_FRAME_MODEL_MATRICES_BINDING_POINT);
+        buffer->BindAabbBuffer(AABB_BINDING_POINT);
 
-        select(receivers[0], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-        select(receivers[1], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
-        select(receivers[2], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 6);
-        select(receivers[3], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 7);
-        select(receivers[4], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
-        select(receivers[5], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
+        select(receivers[0], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE0_BINDING_POINT);
+        select(receivers[1], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE1_BINDING_POINT);
+        select(receivers[2], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE2_BINDING_POINT);
+        select(receivers[3], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE3_BINDING_POINT);
+        select(receivers[4], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE4_BINDING_POINT);
+        select(receivers[5], cull).BindBase(
+            GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE5_BINDING_POINT);
 
         pipeline.DispatchCompute(1, 1, 1);
-        pipeline.SynchronizeCompute();
+        //pipeline.SynchronizeCompute();
+        pipeline.SynchronizeMemory();
     }
 }
 
@@ -1335,7 +2244,7 @@ void RendererBackend::UpdatePointLights_(
 
     const Camera& c = *frame_->camera;
 
-    const bool worldLightEnabled = frame_->csc.worldLight->GetEnabled();
+    const bool worldLightEnabled = frame_->vsmc.worldLight->GetEnabled();
     const bool giEnabled = worldLightEnabled && frame_->settings.globalIlluminationEnabled;
 
     perLightDistToViewerSet.clear();
@@ -1360,8 +2269,8 @@ void RendererBackend::UpdatePointLights_(
         const f64 distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
-            if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
-            //if (giEnabled) {
+            //if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
         }
@@ -1527,7 +2436,7 @@ void RendererBackend::UpdatePointLights_(
                     const auto cull = b->GetFaceCulling();
                     return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                 };
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, 0, false);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1563,8 +2472,8 @@ void RendererBackend::UpdatePointLights_(
                     //return b->GetIndirectDrawCommandsBuffer(0);
                 };
 
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, false);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, false);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, 0, false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, 0, false);
             }
 
             UnbindShader_();
@@ -1583,7 +2492,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     state_.vplCulling->Bind();
 
-    const Camera & lightCam = *frame_->csc.worldLightCamera;
+    const Camera & lightCam = *frame_->vsmc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.GetDirection();
 
@@ -1596,9 +2505,12 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     //state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
 
     // Bind light data and visibility indices
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    state_.vpls.vplData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_UNEDITED_BINDING_POINT);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
@@ -1695,7 +2607,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // Move data to GPU memory
     state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
 
-    const Camera & lightCam = *frame_->csc.worldLightCamera;
+    const Camera & lightCam = *frame_->vsmc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.GetDirection();
 
@@ -1704,20 +2616,23 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // Bind inputs
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
-    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
+    state_.vplColoring->SetVec3("infiniteLightColor", frame_->vsmc.worldLight->GetLuminance());
     for (usize i = 0; i < cache.buffers.size(); ++i) {
         state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
         state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     }
 
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.shadowDiffuseIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplColoring.get());
 
     // Bind outputs
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
 
     // Dispatch and synchronize
     state_.vplColoring->DispatchCompute(1, 1, 1);
@@ -1825,18 +2740,22 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     // Set up infinite light color
     auto& cache = vplSmapCache_;
-    const glm::vec3 lightColor = frame_->csc.worldLight->GetLuminance();
+    const glm::vec3 lightColor = frame_->vsmc.worldLight->GetLuminance();
     state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
 
     state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    state_.vpls.vplUpdatedData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
+    state_.vpls.vplVisibleIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.shadowDiffuseIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
+    haltonSequence_.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_HALTON_SEQUENCE_BINDING_POINT);
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
@@ -1952,14 +2871,8 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     const Camera& c = *frame_->camera;
 
     // Bind buffers
-    GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 32);
+    GpuMeshAllocator::BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, MESH_DATA_BINDING_POINT);
     GpuMeshAllocator::BindElementArrayBuffer();
-
-    // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
-    // do this first
-    if (frame_->csc.worldLight->GetEnabled()) {
-        RenderCSMDepth_();
-    }
 
     VplDistMultiSet_ perLightDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
     VplDistVector_ perLightDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
@@ -1981,6 +2894,18 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
         visibleVplIndices
     );
 
+    glBlendFunc(state_.blendSFactor, state_.blendDFactor);
+    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
+
+    // Generate the GBuffer
+    RenderForwardPassPbr_();
+
+    // Perform world light depth pass if enabled - needed by a lot of the rest of the frame so
+    // do this first
+    if (frame_->vsmc.worldLight->GetEnabled()) {
+        RenderCSMDepth_();
+    }
+
     // TEMP: Set up the light source
     //glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
     //glm::vec3 lightColor(10.0f); 
@@ -1989,15 +2914,13 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     glBlendFunc(state_.blendSFactor, state_.blendDFactor);
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
-    RenderForwardPassPbr_();
-
     //glEnable(GL_BLEND);
 
-    // Begin first SSAO pass (occlusion)
-    RenderSsaoOcclude_();
+    // // Begin first SSAO pass (occlusion)
+    // RenderSsaoOcclude_();
 
-    // Begin second SSAO pass (blurring)
-    RenderSsaoBlur_();
+    // // Begin second SSAO pass (blurring)
+    // RenderSsaoBlur_();
 
     // Begin atmospheric pass
     RenderAtmosphericShadowing_();
@@ -2009,7 +2932,7 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
 
     //_unbindAllTextures();
     Pipeline* lighting = state_.lighting.get();
-    if (frame_->csc.worldLight->GetEnabled()) {
+    if (frame_->vsmc.worldLight->GetEnabled()) {
         lighting = state_.lightingWithInfiniteLight.get();
     }
 
@@ -2023,6 +2946,7 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     lighting->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
     lighting->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
     lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
+    lighting->BindTexture("ids", state_.currentFrame.id);
     lighting->SetFloat("windowWidth", frame_->viewportWidth);
     lighting->SetFloat("windowHeight", frame_->viewportHeight);
     lighting->SetVec3("fogColor", frame_->settings.GetFogColor());
@@ -2033,7 +2957,7 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     state_.finalScreenBuffer = state_.lightingFbo; // state_.lightingColorBuffer;
 
     // If world light is enabled perform VPL Global Illumination pass
-    if (frame_->csc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
+    if (frame_->vsmc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
         PerformVirtualPointLightCullingStage2_(perVPLDistToViewerVec);
         ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewerVec, deltaSeconds);
@@ -2078,33 +3002,48 @@ void RendererBackend::RenderForwardPassPbr_() {
     // Make sure to bind our own frame buffer for rendering
     state_.currentFrame.fbo.Bind();
 
-    // Perform depth prepass
-    BindShader_(state_.depthPrepass.get());
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glDepthMask(GL_TRUE);
-
-    // Begin geometry pass
-    BindShader_(state_.geometry.get());
-
-    auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
-    state_.geometry->SetMat4("jitterProjectionView", jitter);
-
-    //glDepthFunc(GL_LEQUAL);
-
     const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
-    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
-    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, true);
+    const auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+
+    // Perform depth prepass
+    // BindShader_(state_.depthPrepass.get());
+
+    // glEnable(GL_DEPTH_TEST);
+    // glDepthFunc(GL_LESS);
+    // glDepthMask(GL_TRUE);
+
+    // state_.depthPrepass->SetMat4("projectionView", jitter);
+
+    // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, 0, false);
+    // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, 0, false);
+
+    // UnbindShader_();
+
+    // Begin geometry pass
+    BindShader_(state_.geometry.get());
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    // glDepthFunc(GL_EQUAL);
+    // glDepthMask(GL_FALSE);
+
+    state_.geometry->SetMat4("jitterProjectionView", jitter);
+
+    //glDepthFunc(GL_LEQUAL);
+
+    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, 0, true);
+    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, 0, true);
 
     state_.currentFrame.fbo.Unbind();
 
     UnbindShader_();
 
-    //glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::RenderForwardPassFlat_() {
@@ -2120,9 +3059,12 @@ void RendererBackend::RenderForwardPassFlat_() {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
-    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, false);
+    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, 0, false);
 
     UnbindShader_();
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::PerformPostFxProcessing_() {
@@ -2249,7 +3191,7 @@ void RendererBackend::PerformBloomPostFx_() {
 glm::vec3 RendererBackend::CalculateAtmosphericLightPosition_() const {
     const glm::mat4& projection = frame_->projection;
     // See page 354, eqs. 10.81 and 10.82
-    const glm::vec3& normalizedLightDirCamSpace = frame_->csc.worldLightDirectionCameraSpace;
+    const glm::vec3& normalizedLightDirCamSpace = frame_->vsmc.worldLightDirectionCameraSpace;
     const Texture& colorTex = state_.atmosphericTexture;
     const f32 w = colorTex.Width();
     const f32 h = colorTex.Height();
@@ -2264,14 +3206,14 @@ glm::vec3 RendererBackend::CalculateAtmosphericLightPosition_() const {
 }
 
 void RendererBackend::PerformAtmosphericPostFx_() {
-    if (!frame_->csc.worldLight->GetEnabled()) return;
+    if (!frame_->vsmc.worldLight->GetEnabled()) return;
 
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
 
     const glm::vec3 lightPosition = CalculateAtmosphericLightPosition_();
     //const f32 sinX = stratus::sine(_frame->csc.worldLight->getRotation().x).value();
     //const f32 cosX = stratus::cosine(_frame->csc.worldLight->getRotation().x).value();
-    const glm::vec3 lightColor = frame_->csc.worldLight->GetAtmosphereColor();// * glm::vec3(cosX, cosX, sinX);
+    const glm::vec3 lightColor = frame_->vsmc.worldLight->GetAtmosphereColor();// * glm::vec3(cosX, cosX, sinX);
 
     BindShader_(state_.atmosphericPostFx.get());
     state_.atmosphericPostFxBuffer.fbo.Bind();
@@ -2368,12 +3310,37 @@ void RendererBackend::FinalizeFrame_() {
     glDisable(GL_CULL_FACE);
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
     //glEnable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
 
     // Now render the screen
     BindShader_(state_.fullscreen.get());
     state_.fullscreen->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
     RenderQuad_();
     UnbindShader_();
+
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(0, 0, 350, 350);
+    // BindShader_(state_.fullscreenPages.get());
+    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    // RenderQuad_();
+    // UnbindShader_();
+
+    // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    // BindShader_(state_.fullscreenPageGroups.get());
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
+    // state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
+    // frame_->vsmc.pageGroupsToRender.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    // frame_->vsmc.pageResidencyTable.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    // RenderQuad_();
+    // UnbindShader_();
 }
 
 void RendererBackend::End() {
@@ -2385,7 +3352,7 @@ void RendererBackend::End() {
 }
 
 void RendererBackend::RenderQuad_() {
-    GetMesh(state_.screenQuad, 0)->Render(1, GpuArrayBuffer());
+    GetMesh(state_.screenQuad, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 
@@ -2445,27 +3412,31 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(u32 res
 
 // This handles everything that's in pbr.glsl
 void RendererBackend::InitCoreCSMData_(Pipeline * s) {
-    const Camera & lightCam = *frame_->csc.worldLightCamera;
+    const Camera & lightCam = *frame_->vsmc.worldLightCamera;
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.GetDirection();
 
     s->SetVec3("infiniteLightDirection", direction);    
-    s->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
-    for (i32 i = 0; i < frame_->csc.cascades.size(); ++i) {
+    s->BindTexture("infiniteLightShadowMap", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    s->BindTexture("infiniteLightShadowMapNonFiltered", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    for (i32 i = 0; i < frame_->vsmc.cascades.size(); ++i) {
         //s->bindTexture("infiniteLightShadowMaps[" + std::to_string(i) + "]", *_state.csms[i].fbo.getDepthStencilAttachment());
-        s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->csc.cascades[i].projectionViewSample);
+        s->SetMat4("cascadeProjViews[" + std::to_string(i) + "]", frame_->vsmc.projectionViewSample);
         // s->setFloat("cascadeSplits[" + std::to_string(i) + "]", _state.cascadeSplits[i]);
     }
 
     for (i32 i = 0; i < 2; ++i) {
-        s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->csc.cascadeShadowOffsets[i]);
+        s->SetVec4("shadowOffset[" + std::to_string(i) + "]", frame_->vsmc.cascadeShadowOffsets[i]);
     }
 
-    for (i32 i = 0; i < frame_->csc.cascades.size() - 1; ++i) {
-        // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
-        // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
-        s->SetVec4("cascadePlanes[" + std::to_string(i) + "]", frame_->csc.cascades[i + 1].cascadePlane);
-    }
+    s->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
+    s->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+
+    //for (i32 i = 0; i < frame_->vsmc.cascades.size() - 1; ++i) {
+    //    // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);
+    //    // s->setVec3("cascadeOffset[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeOffset[0]);
+    //    s->SetVec4("cascadePlanes[" + std::to_string(i) + "]", frame_->vsmc.cascades[i + 1].cascadePlane);
+    //}
 }
 
 void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, const usize maxShadowLights) {
@@ -2549,9 +3520,15 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     state_.shadowIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * gpuShadowCubeMaps.size(), (const void*)gpuShadowCubeMaps.data());
     state_.shadowCastingPointLights.CopyDataToBuffer(0, sizeof(GpuPointLight) * gpuShadowLights.size(), (const void*)gpuShadowLights.data());
 
-    state_.nonShadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.shadowIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    state_.shadowCastingPointLights.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
+    state_.nonShadowCastingPointLights.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_NON_SHADOW_CASTER_BINDING_POINT);
+    state_.shadowIndices.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_ATLAS_INDICES_BINDING_POINT);
+    state_.shadowCastingPointLights.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, POINT_LIGHT_SHADOW_CASTER_BINDING_POINT);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    s->SetInt("numPagesXY", frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
     s->SetFloat("ambientIntensity", 0.0001f);
     /*
@@ -2581,17 +3558,17 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     //glm::mat4 lightView = constructViewMatrix(_state.worldLight.getRotation(), glm::vec3(0.0f));
     // Camera lightCam(false);
     // lightCam.setAngle(_state.worldLight.getRotation());
-    const Camera & lightCam = *frame_->csc.worldLightCamera;
+    const Camera & lightCam = *frame_->vsmc.worldLightCamera;
     glm::mat4 lightWorld = lightCam.GetWorldTransform();
     // glm::mat4 lightView = lightCam.getViewTransform();
     glm::vec3 direction = lightCam.GetDirection(); //glm::vec3(-lightWorld[2].x, -lightWorld[2].y, -lightWorld[2].z);
     // STRATUS_LOG << "Light direction: " << direction << std::endl;
-    lightColor = frame_->csc.worldLight->GetLuminance();
+    lightColor = frame_->vsmc.worldLight->GetLuminance();
     s->SetVec3("infiniteLightColor", lightColor);
-    s->SetFloat("infiniteLightZnear", frame_->csc.znear);
-    s->SetFloat("infiniteLightZfar", frame_->csc.zfar);
-    s->SetFloat("infiniteLightDepthBias", frame_->csc.worldLight->GetDepthBias());
-    s->SetFloat("worldLightAmbientIntensity", frame_->csc.worldLight->GetAmbientIntensity());
+    s->SetFloat("infiniteLightZnear", frame_->vsmc.znear);
+    s->SetFloat("infiniteLightZfar", frame_->vsmc.zfar);
+    s->SetFloat("infiniteLightDepthBias", frame_->vsmc.worldLight->GetDepthBias());
+    s->SetFloat("worldLightAmbientIntensity", frame_->vsmc.worldLight->GetAmbientIntensity());
 
     InitCoreCSMData_(s);
 

@@ -1,6 +1,9 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
+
+#include "bindings.glsl"
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
@@ -10,27 +13,27 @@ STRATUS_GLSL_VERSION
 layout (local_size_x = 96, local_size_y = 1, local_size_z = 1) in;
 
 // Each one specifies a different culling mode which has its own commands + model matrices
-layout (std430, binding = 0) buffer ssbo1 {
+layout (std430, binding = CULL0_PREV_FRAME_MODEL_MATRICES_BINDING_POINT) buffer ssbo1 {
     mat4 cull0PrevFrameModelMatrices[];
 };
 
-layout (std430, binding = 1) readonly buffer ssbo2 {
+layout (std430, binding = CULL0_CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer ssbo2 {
     mat4 cull0ModelMatrices[];
 };
 
-layout (std430, binding = 2) buffer ssbo3 {
+layout (std430, binding = CULL1_PREV_FRAME_MODEL_MATRICES_BINDING_POINT) buffer ssbo3 {
     mat4 cull1PrevFrameModelMatrices[];
 };
 
-layout (std430, binding = 3) readonly buffer ssbo4 {
+layout (std430, binding = CULL1_CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer ssbo4 {
     mat4 cull1ModelMatrices[];
 };
 
-layout (std430, binding = 4) buffer ssbo5 {
+layout (std430, binding = CULL2_PREV_FRAME_MODEL_MATRICES_BINDING_POINT) buffer ssbo5 {
     mat4 cull2PrevFrameModelMatrices[];
 };
 
-layout (std430, binding = 5) readonly buffer ssbo6 {
+layout (std430, binding = CULL2_CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer ssbo6 {
     mat4 cull2ModelMatrices[];
 };
 

@@ -63,18 +63,20 @@ namespace stratus {
         glm::vec3 GetLuminance() const { return GetColor() * GetIntensity(); }
 
         const glm::vec3 & GetColor() const { return color_; }
-        void SetColor(const glm::vec3 & color) { color_ = glm::max(color, glm::vec3(0.0f)); }
+        void SetColor(const glm::vec3 & color) { MarkChanged(); color_ = glm::max(color, glm::vec3(0.0f)); }
 
         const glm::vec3 & GetPosition() const { return position_; }
         void SetPosition(const glm::vec3 & position) { position_ = position; }
 
         const Rotation & GetRotation() const { return rotation_; }
         void SetRotation(const Rotation & rotation) { 
+            MarkChanged();
             rotation_ = rotation;
             rotSine_ = stratus::sine(rotation_.x);
         }
 
         void OffsetRotation(const glm::vec3& offsets) {
+            MarkChanged();
             Rotation rot = rotation_;
             rot.x += Degrees(offsets.x);
             rot.y += Degrees(offsets.y);
@@ -148,6 +150,31 @@ namespace stratus {
         virtual InfiniteLightPtr Copy() const {
             return InfiniteLightPtr(new InfiniteLight(*this));
         }
+
+        void MarkChanged() {
+            if (INSTANCE(Engine)) {
+                lastFrameChanged_ = INSTANCE(Engine)->FrameCount();
+            }
+        }
+
+        bool ChangedLastFrame() const {
+            u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+            return diff == 1;
+        }
+
+        bool ChangedThisFrame() const {
+            u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+            return diff == 0;
+        }
+
+        bool ChangedWithinLastFrame() const {
+            u64 diff = INSTANCE(Engine)->FrameCount() - lastFrameChanged_;
+            return diff <= 1;
+        }
+
+    private:
+        // Last engine frame this component was modified
+        uint64_t lastFrameChanged_ = 0;
     };
 
     class Light {

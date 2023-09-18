@@ -65,7 +65,7 @@ namespace stratus {
         }
 
     private:
-        bool InsertMeshPending_(RenderComponent*, MeshPtr);
+        bool InsertMeshPending_(RenderComponent*, MeshletPtr);
 
     private:
         std::vector<GpuTypedBufferPtr<GpuDrawElementsIndirectCommand>> drawCommands_;
@@ -75,8 +75,8 @@ namespace stratus {
         GpuTypedBufferPtr<glm::mat4> modelTransforms_;
         GpuTypedBufferPtr<GpuAABB> aabbs_;
         GpuTypedBufferPtr<u32> materialIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_map<MeshPtr, u32>> drawCommandIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_set<MeshPtr>> pendingMeshUpdates_;
+        std::unordered_map<RenderComponent *, std::unordered_map<MeshletPtr, u32>> drawCommandIndices_;
+        std::unordered_map<RenderComponent *, std::unordered_set<MeshletPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
         bool performedUpdate_ = false;
@@ -87,7 +87,9 @@ namespace stratus {
     struct GpuCommandReceiveBuffer {
         // Looks at the given command buffer and makes sure we have enough space to receive
         // elements from it
-        void EnsureCapacity(const GpuCommandBufferPtr& buffer);
+        //
+        // copies = number consecutive buffers to generate in the same array
+        void EnsureCapacity(const GpuCommandBufferPtr& buffer, usize copies = 1);
 
         GpuBuffer GetCommandBuffer() const;
 
@@ -139,7 +141,7 @@ namespace stratus {
 
         GpuCommandReceiveManager();
 
-        void EnsureCapacity(const GpuCommandManagerPtr& manager);
+        void EnsureCapacity(const GpuCommandManagerPtr& manager, usize copies = 1);
 
         static inline GpuCommandReceiveManagerPtr Create() {
             return GpuCommandReceiveManagerPtr(new GpuCommandReceiveManager());

@@ -35,6 +35,7 @@ struct CameraController : public stratus::InputHandler {
 
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
         const float camSpeed = 100.0f;
+        const float smoothRotateSpeed = 50.0f;
 
         // Handle WASD movement
         for (auto e : input) {
@@ -138,31 +139,31 @@ struct CameraController : public stratus::InputHandler {
                             }
                             break;
                         case SDL_SCANCODE_HOME:
-                            pitchYawSpeed_.x = -5.0;
+                            pitchYawSpeed_.x = -smoothRotateSpeed;
                             if (released) {
                                 pitchYawSpeed_.x = 0.0f;
                             }
                             break;
                         case SDL_SCANCODE_PAGEUP:
-                            pitchYawSpeed_.x = -2.5;
+                            pitchYawSpeed_.x = -smoothRotateSpeed;
                             if (released) {
                                 pitchYawSpeed_.x = 0.0f;
                             }
                             break;
                         case SDL_SCANCODE_END:
-                            pitchYawSpeed_.x = 5.0;
+                            pitchYawSpeed_.x = smoothRotateSpeed;
                             if (released) {
                                 pitchYawSpeed_.x = 0.0f;
                             }
                             break;
                         case SDL_SCANCODE_DELETE:
-                            pitchYawSpeed_.y = 5.0;
+                            pitchYawSpeed_.y = smoothRotateSpeed;
                             if (released) {
                                 pitchYawSpeed_.y = 0.0f;
                             }
                             break;
                         case SDL_SCANCODE_PAGEDOWN:
-                            pitchYawSpeed_.y = -5.0;
+                            pitchYawSpeed_.y = -smoothRotateSpeed;
                             if (released) {
                                 pitchYawSpeed_.y = 0.0f;
                             } 

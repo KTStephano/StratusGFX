@@ -31,6 +31,7 @@
 #include <set>
 #include "StratusGpuCommandBuffer.h"
 #include "StratusTypes.h"
+#include "StratusRendererData.h"
 
 namespace stratus {
     class Pipeline;
@@ -44,284 +45,6 @@ namespace stratus {
     extern bool IsRenderable(const EntityPtr&);
     extern bool IsLightInteracting(const EntityPtr&);
     extern usize GetMeshCount(const EntityPtr&);
-
-    enum class RendererCascadeResolution : i32 {
-        CASCADE_RESOLUTION_1024 = 1024,
-        CASCADE_RESOLUTION_2048 = 2048,
-        CASCADE_RESOLUTION_4096 = 4096,
-        CASCADE_RESOLUTION_8192 = 8192
-    };
-
-    struct RenderMeshContainer {
-        RenderComponent * render = nullptr;
-        MeshWorldTransforms * transform = nullptr;
-        usize meshIndex = 0;
-    };
-
-    typedef std::shared_ptr<RenderMeshContainer> RenderMeshContainerPtr;
-
-    // struct RendererEntityData {
-    //     std::vector<glm::mat4> modelMatrices;
-    //     std::vector<glm::vec3> diffuseColors;
-    //     std::vector<glm::vec3> baseReflectivity;
-    //     std::vector<f32> roughness;
-    //     std::vector<f32> metallic;
-    //     GpuArrayBuffer buffers;
-    //     usize size = 0;    
-    //     // if true, regenerate buffers
-    //     bool dirty;
-    // };
-
-    struct RendererMouseState {
-        i32 x;
-        i32 y;
-        u32 mask;
-    };
-
-    typedef std::unordered_map<EntityPtr, std::vector<RenderMeshContainerPtr>> EntityMeshData;
-
-    struct RendererCascadeData {
-        GpuCommandReceiveManagerPtr drawCommands;
-        // Use during shadow map rendering
-        glm::mat4 projectionViewRender;
-        // Use during shadow map sampling
-        glm::mat4 projectionViewSample;
-        // Transforms from a cascade 0 sampling coordinate to the current cascade
-        glm::mat4 sampleCascade0ToCurrent;
-        glm::vec4 cascadePlane;
-        glm::vec3 cascadePositionLightSpace;
-        glm::vec3 cascadePositionCameraSpace;
-        f32 cascadeRadius;
-        f32 cascadeBegins;
-        f32 cascadeEnds;
-    };
-
-    struct RendererCascadeContainer {
-        FrameBuffer fbo;
-        std::vector<RendererCascadeData> cascades;
-        glm::vec4 cascadeShadowOffsets[2];
-        u32 cascadeResolutionXY;
-        InfiniteLightPtr worldLight;
-        CameraPtr worldLightCamera;
-        glm::vec3 worldLightDirectionCameraSpace;
-        f32 znear;
-        f32 zfar;
-        bool regenerateFbo;    
-    };
-
-    struct LightUpdateQueue {
-        template<typename LightPtrContainer>
-        void PushBackAll(const LightPtrContainer& container) {
-            for (const LightPtr& ptr : container) {
-                PushBack(ptr);
-            }
-        }
-
-        void PushFront(const LightPtr& ptr) {
-            auto existing = existing_.find(ptr);
-            // Allow lights further in the queue to be bumped higher up
-            // with this function
-            if (existing != existing_.end()) {
-                queue_.erase(existing->second);
-                existing_.erase(ptr);
-            }
-
-            queue_.push_front(ptr);
-            auto it = queue_.begin();
-            existing_.insert(std::make_pair(ptr, it));
-        }
-
-        void PushBack(const LightPtr& ptr) {
-            // If a light is already in the queue, don't reorder since it would
-            // result in the light losing its better place in line
-            if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
-
-            queue_.push_back(ptr);
-            auto it = queue_.end();
-            --it;
-            existing_.insert(std::make_pair(ptr, it));
-        }
-
-        LightPtr PopFront() {
-            if (Size() == 0) return nullptr;
-            auto front = Front();
-            existing_.erase(front);
-            queue_.pop_front();
-            return front;
-        }
-
-        LightPtr Front() const {
-            if (Size() == 0) return nullptr;
-            return queue_.front();
-        }
-
-        // In case a light needs to be removed without being updated
-        void Erase(const LightPtr& ptr) {
-            if (existing_.find(ptr) == existing_.end()) return;
-            existing_.erase(ptr);
-            for (auto it = queue_.begin(); it != queue_.end(); ++it) {
-                const LightPtr& light = *it;
-                if (ptr == light) {
-                    queue_.erase(it);
-                    return;
-                }
-            }
-        }
-
-        // In case all lights need to be removed without being updated
-        void Clear() {
-            queue_.clear();
-            existing_.clear();
-        }
-
-        usize Size() const {
-            return queue_.size();
-        }
-
-    private:
-        std::list<LightPtr> queue_;
-        std::unordered_map<LightPtr, std::list<LightPtr>::iterator> existing_;
-    };
-
-    // Settings which can be changed at runtime by the application
-    struct RendererSettings {
-        // These are values we don't need to range check
-        TextureHandle skybox = TextureHandle::Null();
-        bool vsyncEnabled = false;
-        bool globalIlluminationEnabled = true;
-        bool fxaaEnabled = true;
-        bool taaEnabled = true;
-        bool bloomEnabled = true;
-        bool usePerceptualRoughness = true;
-        RendererCascadeResolution cascadeResolution = RendererCascadeResolution::CASCADE_RESOLUTION_1024;
-        // Records how much temporary memory the renderer is allowed to use
-        // per frame
-        usize perFrameMaxScratchMemoryBytes = 134217728; // 128 mb
-
-        f32 GetEmissionStrength() const {
-            return emissionStrength_;
-        }
-
-        void SetEmissionStrength(const f32 strength) {
-            emissionStrength_ = std::max<f32>(strength, 0.0f);
-        }
-
-        f32 GetEmissiveTextureMultiplier() const {
-            return emissiveTextureMultiplier_;
-        }
-
-        void SetEmissiveTextureMultiplier(const f32 multiplier) {
-            emissiveTextureMultiplier_ = std::max<f32>(multiplier, 0.0f);
-        }
-
-        glm::vec3 GetFogColor() const {
-            return fogColor_;
-        }
-
-        f32 GetFogDensity() const {
-            return fogDensity_;
-        }
-
-        void SetFogColor(const glm::vec3& color) {
-            fogColor_ = glm::vec3(
-                std::max<f32>(color[0], 0.0f),
-                std::max<f32>(color[1], 0.0f),
-                std::max<f32>(color[2], 0.0f)
-            );
-        }
-
-        void SetFogDensity(const f32 density) {
-            fogDensity_ = std::max<f32>(density, 0.0f);
-        }
-
-        glm::vec3 GetSkyboxColorMask() const {
-            return skyboxColorMask_;
-        }
-
-        f32 GetSkyboxIntensity() const {
-            return skyboxIntensity_;
-        }
-
-        void SetSkyboxColorMask(const glm::vec3& mask) {
-            skyboxColorMask_ = glm::vec3(
-                std::max<f32>(mask[0], 0.0f),
-                std::max<f32>(mask[1], 0.0f),
-                std::max<f32>(mask[2], 0.0f)
-            );
-        }
-
-        void SetSkyboxIntensity(const f32 intensity) {
-            skyboxIntensity_ = std::max<f32>(intensity, 0.0f);
-        }
-
-        f32 GetMinRoughness() const {
-            return minRoughness_;
-        }
-
-        void SetMinRoughness(const f32 roughness) {
-            minRoughness_ = std::max<f32>(roughness, 0.0f);
-        }
-
-        void SetAlphaDepthTestThreshold(const f32 threshold) {
-            alphaDepthTestThreshold_ = std::clamp<f32>(threshold, 0.0f, 1.0f);
-        }
-
-        f32 GetAlphaDepthTestThreshold() const {
-            return alphaDepthTestThreshold_;
-        }
-
-        // Values of 1.0 mean that GI occlusion will result in harsh shadow cutoffs
-        // Values < 1.0 effectively brighten the scene
-        void SetMinGiOcclusionFactor(const f32 value) {
-            minGiOcclusionFactor_ = std::clamp<f32>(value, 0.0f, 1.0f);
-        }
-
-        f32 GetMinGiOcclusionFactor() const {
-            return minGiOcclusionFactor_;
-        }
-
-    private:
-        // These are all values we need to range check when they are set
-        glm::vec3 fogColor_ = glm::vec3(0.5f);
-        f32 fogDensity_ = 0.0f;
-        f32 emissionStrength_ = 0.0f;
-        glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
-        f32 skyboxIntensity_ = 3.0f;
-        f32 minRoughness_ = 0.08f;
-        f32 alphaDepthTestThreshold_ = 0.5f;
-        // This works as a multiplicative effect on top of emission strength
-        f32 emissiveTextureMultiplier_ = 1.0f;
-        f32 minGiOcclusionFactor_ = 0.95f;
-    };
-
-    // Represents data for current active frame
-    struct RendererFrame {
-        u32 viewportWidth;
-        u32 viewportHeight;
-        Radians fovy;
-        CameraPtr camera;
-        std::vector<glm::vec4, StackBasedPoolAllocator<glm::vec4>> viewFrustumPlanes;
-        GpuMaterialBufferPtr materialInfo;
-        RendererCascadeContainer csc;
-        GpuCommandManagerPtr drawCommands;
-        std::unordered_set<LightPtr> lights;
-        std::unordered_set<LightPtr> virtualPointLights; // data is in lights
-        LightUpdateQueue lightsToUpdate; // shadow map data is invalid
-        std::unordered_set<LightPtr> lightsToRemove;
-        f32 znear;
-        f32 zfar;
-        glm::mat4 projection;
-        glm::mat4 view;
-        glm::mat4 projectionView;
-        glm::mat4 jitterProjectionView;
-        glm::mat4 invProjectionView;
-        glm::mat4 prevProjectionView = glm::mat4(1.0f);
-        glm::mat4 prevInvProjectionView = glm::mat4(1.0f);
-        glm::vec4 clearColor;
-        RendererSettings settings;
-        UnsafePtr<StackAllocator> perFrameScratchMemory;
-        bool viewportDirty;
-    };
 
     class RendererBackend {
         // Geometry buffer
@@ -474,6 +197,8 @@ namespace stratus {
             std::unique_ptr<Pipeline> taa;
             // Performs full screen pass through
             std::unique_ptr<Pipeline> fullscreen;
+            std::unique_ptr<Pipeline> fullscreenPages;
+            std::unique_ptr<Pipeline> fullscreenPageGroups;
             std::vector<Pipeline *> shaders;
             // Generic unit cube to render as skybox
             EntityPtr skyboxCube;
@@ -485,6 +210,13 @@ namespace stratus {
             std::vector<GpuCommandReceiveManagerPtr> dynamicPerPointLightDrawCalls;
             std::vector<GpuCommandReceiveManagerPtr> staticPerPointLightDrawCalls;
             std::unique_ptr<Pipeline> viscullPointLights;
+            // Used for virtual shadow maps
+            std::unique_ptr<Pipeline> vsmAnalyzeDepth;
+            std::unique_ptr<Pipeline> vsmMarkPages;
+            std::unique_ptr<Pipeline> vsmMarkScreen;
+            std::unique_ptr<Pipeline> vsmFreePages;
+            std::unique_ptr<Pipeline> vsmCull;
+            std::unique_ptr<Pipeline> vsmClear;
         };
 
         struct TextureCache {
@@ -648,13 +380,14 @@ namespace stratus {
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
+        void ProcessCSMVirtualTexture_();
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);
         void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
-        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&);
-        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
-        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
+        void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, usize offset);
+        void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, usize offset, bool isLightInteracting, bool removeViewTranslation = false);
+        void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, usize offset, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const VplDistVector_& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, usize offset, const bool reverseCullFace);
         void UpdatePointLights_(
             VplDistMultiSet_&, 
             VplDistVector_&,
@@ -689,6 +422,12 @@ namespace stratus {
         ShadowMapCache& GetSmapCacheForLight_(LightPtr);
         void RecalculateCascadeData_();
         void ValidateAllShaders_();
+        void PerformVSMCulling(
+            Pipeline& pipeline,
+            const std::function<GpuCommandBufferPtr(const RenderFaceCulling&)>& selectInput,
+            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectOutput,
+            std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
+        );
     };
 }
 

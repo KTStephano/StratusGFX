@@ -14,23 +14,49 @@ namespace stratus {
         PoolAllocator<Mesh> allocator;
     };
 
-    static MeshAllocator& GetAllocator() {
+    struct MeshletAllocator {
+        std::mutex m;
+        PoolAllocator<Meshlet> allocator;
+    };
+
+    static MeshletAllocator& GetMeshletAllocator() {
+        static MeshletAllocator allocator;
+        return allocator;
+    }
+
+    static MeshAllocator& GetMeshAllocator() {
         static MeshAllocator allocator;
         return allocator;
     }
 
-    MeshPtr Mesh::PlacementNew_(uint8_t * memory) {
+    Meshlet * Meshlet::PlacementNew_(u8 * memory) {
+        return new (memory) Meshlet();
+    }
+
+    MeshletPtr Meshlet::Create() {
+        auto& allocator = GetMeshletAllocator();
+        auto ul = std::unique_lock<std::mutex>(allocator.m);
+        return allocator.allocator.AllocateCustomConstruct(PlacementNew_);
+    }
+
+    void Meshlet::Destroy(MeshletPtr ptr) {
+        auto& allocator = GetMeshletAllocator();
+        auto ul = std::unique_lock<std::mutex>(allocator.m);
+        allocator.allocator.DestroyDeallocate(ptr);
+    }
+
+    Mesh * Mesh::PlacementNew_(u8 * memory) {
         return new (memory) Mesh();
     }
 
     MeshPtr Mesh::Create() {
-        auto& allocator = GetAllocator();
+        auto& allocator = GetMeshAllocator();
         auto ul = std::unique_lock<std::mutex>(allocator.m);
         return allocator.allocator.AllocateCustomConstruct(PlacementNew_);
     }
 
     void Mesh::Destroy(MeshPtr ptr) {
-        auto& allocator = GetAllocator();
+        auto& allocator = GetMeshAllocator();
         auto ul = std::unique_lock<std::mutex>(allocator.m);
         allocator.allocator.DestroyDeallocate(ptr);
     }
@@ -48,11 +74,11 @@ namespace stratus {
         ptr->Components().AttachComponent<StaticObjectComponent>();
     }
 
-    Mesh::Mesh() {
+    Meshlet::Meshlet() {
         cpuData_ = new MeshCpuData_();
     }
 
-    Mesh::~Mesh() {
+    Meshlet::~Meshlet() {
         delete cpuData_;
         cpuData_ = nullptr;
 
@@ -75,60 +101,76 @@ namespace stratus {
         }
     }
 
-    bool Mesh::IsFinalized() const {
+    bool Meshlet::IsFinalized() const {
         return cpuData_ == nullptr;
     }
 
-    void Mesh::EnsureFinalized_() const {
+    void Meshlet::EnsureFinalized_() const {
         if (!IsFinalized()) {
             throw std::runtime_error("Attempt to read GPU Mesh data before finalized");
         }
     }
 
-    void Mesh::EnsureNotFinalized_() const {
+    void Meshlet::EnsureNotFinalized_() const {
         if (IsFinalized()) {
             throw std::runtime_error("Attempt to write GPU Mesh data after finalized");
         }
     }
 
-    void Mesh::AddVertex(const glm::vec3& v) {
+    void Meshlet::AddVertex(const glm::vec3& v) {
         EnsureNotFinalized_();
         cpuData_->vertices.push_back(v);
         cpuData_->needsRepacking = true;
         numVertices_ = cpuData_->vertices.size();
     }
 
-    void Mesh::AddUV(const glm::vec2& uv) {
+    void Meshlet::AddUV(const glm::vec2& uv) {
         EnsureNotFinalized_();
         cpuData_->uvs.push_back(uv);
         cpuData_->needsRepacking = true;
     }
 
-    void Mesh::AddNormal(const glm::vec3& n) {
+    void Meshlet::AddNormal(const glm::vec3& n) {
         EnsureNotFinalized_();
         cpuData_->normals.push_back(n);
         cpuData_->needsRepacking = true;
     }
 
-    void Mesh::AddTangent(const glm::vec3& t) {
+    void Meshlet::AddTangent(const glm::vec3& t) {
         EnsureNotFinalized_();
         cpuData_->tangents.push_back(t);
         cpuData_->needsRepacking = true;
     }
 
-    void Mesh::AddBitangent(const glm::vec3& bt) {
+    void Meshlet::AddBitangent(const glm::vec3& bt) {
         EnsureNotFinalized_();
         cpuData_->bitangents.push_back(bt);
         cpuData_->needsRepacking = true;
     }
 
-    void Mesh::AddIndex(u32 i) {
+    void Meshlet::AddIndex(u32 i) {
         EnsureNotFinalized_();
         cpuData_->indices.push_back(i);
         numIndices_ = cpuData_->indices.size();
     }
 
-    void Mesh::CalculateTangentsBitangents_() {
+    void Meshlet::ReserveVertices(usize count) {
+        if (count == 0) return;
+
+        cpuData_->vertices.reserve(count);
+        cpuData_->normals.reserve(count);
+        cpuData_->uvs.reserve(count);
+        cpuData_->tangents.reserve(count);
+        cpuData_->bitangents.reserve(count);
+    }
+
+    void Meshlet::ReserveIndices(usize count) {
+        if (count == 0) return;
+
+        cpuData_->indices.reserve(count);
+    }
+
+    void Meshlet::CalculateTangentsBitangents_() {
         EnsureNotFinalized_();
         cpuData_->needsRepacking = true;
         cpuData_->tangents.clear();
@@ -176,7 +218,7 @@ namespace stratus {
         }
     }
 
-    void Mesh::PackCpuData() {
+    void Meshlet::PackCpuData() {
         EnsureNotFinalized_();
 
         if (cpuData_->tangents.size() == 0 || cpuData_->bitangents.size() == 0) CalculateTangentsBitangents_();
@@ -225,7 +267,7 @@ namespace stratus {
     }
 
     // This comes from the Visibility and Occlusion chapter in "Foundations of Game Engine Development, Volume 2: Rendering"
-    void Mesh::CalculateAabbs(const glm::mat4& transform) {
+    void Meshlet::CalculateAabbs(const glm::mat4& transform) {
         assert(cpuData_->vertices.size() > 0);
         EnsureNotFinalized_();
 
@@ -252,7 +294,7 @@ namespace stratus {
         //aabb.size = (vmax - vmin) * 0.5f;
     }
 
-    void Mesh::GenerateLODs() {
+    void Meshlet::GenerateLODs() {
         assert(cpuData_->vertices.size() > 0);
         EnsureNotFinalized_();
 
@@ -282,22 +324,23 @@ namespace stratus {
         };
 
         for (i32 i = 0; i < errors.size(); ++i) {
-            auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
-            const usize targetIndices = usize(prevIndices.size() * 0.5);
-            std::vector<u32> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
-            //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
-            // If we didn't see at least a 10% reduction, try the more aggressive algorithm
-            //if ((prevIndices.size() * 0.9) < double(size)) {
-            //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, 0.01f);
-            //   error *= 2.0f;
-            //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, error);
-            //}
-            simplified.resize(size);
-            meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
-            cpuData_->indicesPerLod.push_back(std::move(simplified));
-            numIndicesPerLod_.push_back(size);
-            if (size < 1024) break;
+           auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
+           //STRATUS_LOG << i << " " << prevIndices.size() << std::endl;
+           const usize targetIndices = usize(prevIndices.size() * 0.5);
+           std::vector<u32> simplified(prevIndices.size());
+           auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
+           //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
+           // If we didn't see at least a 10% reduction, try the more aggressive algorithm
+           //if ((prevIndices.size() * 0.9) < double(size)) {
+           //   //size = meshopt_simplifySloppy(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, 0.01f);
+           //   error *= 2.0f;
+           //   size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, prevIndices.size() / 2, error);
+           //}
+           simplified.resize(size);
+           meshopt_optimizeVertexCache(simplified.data(), simplified.data(), size, numVertices_);
+           cpuData_->indicesPerLod.push_back(std::move(simplified));
+           numIndicesPerLod_.push_back(size);
+           if (size < 1024) break;
         }
 
         // One last lod computed more aggressively than the previous ones
@@ -314,31 +357,31 @@ namespace stratus {
         cpuData_->indicesPerLod[0] = cpuData_->indices;
     }
 
-    usize Mesh::GetGpuSizeBytes() const {
+    usize Meshlet::GetGpuSizeBytes() const {
         EnsureFinalized_();
         return dataSizeBytes_;
     }
 
-    const GpuAABB& Mesh::GetAABB() const {
+    const GpuAABB& Meshlet::GetAABB() const {
         EnsureFinalized_();
         return aabb_;
     }
 
-    u32 Mesh::GetVertexOffset() const {
+    u32 Meshlet::GetVertexOffset() const {
         return vertexOffset_;
     }
 
-    u32 Mesh::GetIndexOffset(usize lod) const {
+    u32 Meshlet::GetIndexOffset(usize lod) const {
         lod = lod >= indexOffsetPerLod_.size() ? indexOffsetPerLod_.size() - 1 : lod;
         return indexOffsetPerLod_[lod];
     }
 
-    u32 Mesh::GetNumIndices(usize lod) const {
+    u32 Meshlet::GetNumIndices(usize lod) const {
         lod = lod >= numIndicesPerLod_.size() ? numIndicesPerLod_.size() - 1 : lod;
         return numIndicesPerLod_[lod];
     }
 
-    void Mesh::GenerateGpuData_() {
+    void Meshlet::GenerateGpuData_() {
         EnsureNotFinalized_();
 
         if (cpuData_->indicesPerLod.size() == 0) {
@@ -393,7 +436,7 @@ namespace stratus {
         cpuData_ = nullptr;
     }
 
-    void Mesh::FinalizeData() {
+    void Meshlet::FinalizeData() {
         EnsureNotFinalized_();
 
         PackCpuData();
@@ -408,7 +451,7 @@ namespace stratus {
         }
     }
 
-    void Mesh::Render(usize numInstances, const GpuArrayBuffer& additionalBuffers) const {
+    void Meshlet::Render(usize numInstances, const GpuArrayBuffer& additionalBuffers) const {
         if (!IsFinalized()) return;
 
         //if (_primitiveMapped != nullptr || _cpuData->indicesMapped != nullptr) {
@@ -424,6 +467,43 @@ namespace stratus {
 
         additionalBuffers.Unbind();
         //GpuMeshAllocator::UnbindElementArrayBuffer();
+    }
+
+    Mesh::Mesh() {
+
+    }
+
+    Mesh::~Mesh() {
+        for (auto& ptr : meshlets_) {
+            Meshlet::Destroy(ptr);
+        }
+        meshlets_.clear();
+    }
+
+    MeshletPtr Mesh::NewMeshlet() {
+        auto meshlet = Meshlet::Create();
+        meshlets_.push_back(meshlet);
+        return meshlet;
+    }
+
+    const MeshletPtr Mesh::GetMeshlet(const usize index) const {
+        if (index >= meshlets_.size()) {
+            throw std::runtime_error("Meshlet index out of bounds");
+        }
+
+        return meshlets_[index];
+    }
+
+    MeshletPtr Mesh::GetMeshlet(const usize index) {
+        if (index >= meshlets_.size()) {
+            throw std::runtime_error("Meshlet index out of bounds");
+        }
+
+        return meshlets_[index];
+    }
+
+    usize Mesh::NumMeshlets() const {
+        return meshlets_.size();
     }
 
     void Mesh::SetFaceCulling(const RenderFaceCulling& cullMode) {

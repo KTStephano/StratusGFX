@@ -13,12 +13,72 @@ namespace stratus {
         return data[offset].data;
     }
 
+    TextureType type;
+    TextureComponentFormat format;
+    TextureComponentSize storage;
+    TextureComponentType dataType;
+    u32 width;
+    u32 height;
+    u32 depth;
+    bool generateMipMaps;
+
+    static std::string ConvertTextureConfigToString(const TextureConfig& config) {
+        std::string result = "TextureConfig{";
+        
+        switch (config.type) {
+        case TextureType::TEXTURE_2D: result += "TEXTURE_2D, "; break;
+        case TextureType::TEXTURE_2D_ARRAY: result += "TEXTURE_2D_ARRAY, "; break;
+        case TextureType::TEXTURE_CUBE_MAP: result += "TEXTURE_CUBE_MAP, "; break;
+        case TextureType::TEXTURE_RECTANGLE: result += "TEXTURE_RECTANGLE, "; break;
+        case TextureType::TEXTURE_CUBE_MAP_ARRAY: result += "TEXTURE_CUBE_MAP_ARRAY, "; break;
+        case TextureType::TEXTURE_3D: result += "TEXTURE_3D, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.format) {
+        case TextureComponentFormat::RED: result += "RED, "; break;
+        case TextureComponentFormat::RGB: result += "RGB, "; break;
+        case TextureComponentFormat::RG: result += "RG, "; break;
+        case TextureComponentFormat::SRGB: result += "SRGB, "; break;
+        case TextureComponentFormat::RGBA: result += "RGBA, "; break;
+        case TextureComponentFormat::SRGB_ALPHA: result += "SRGB_ALPHA, "; break;
+        case TextureComponentFormat::DEPTH: result += "DEPTH, "; break;
+        case TextureComponentFormat::DEPTH_STENCIL: result += "DEPTH_STENCIL, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.storage) {
+        case TextureComponentSize::BITS_DEFAULT: result += "BITS_DEFAULT, "; break;
+        case TextureComponentSize::BITS_8: result += "BITS_8, "; break;
+        case TextureComponentSize::BITS_16: result += "BITS_16, "; break;
+        case TextureComponentSize::BITS_32: result += "BITS_32, "; break;
+        case TextureComponentSize::BITS_11_11_10: result += "BITS_11_11_10, "; break;
+        default: throw std::exception();
+        }
+
+        switch (config.dataType) {
+        case TextureComponentType::INT_NORM: result += "INT_NORM, "; break;
+        case TextureComponentType::UINT_NORM: result += "UINT_NORM, "; break;
+        case TextureComponentType::INT: result += "INT, "; break;
+        case TextureComponentType::UINT: result += "UINT, "; break;
+        case TextureComponentType::FLOAT: result += "FLOAT, "; break;
+        default: throw std::exception();
+        }
+
+        result = result + std::to_string(config.width) + ", " + 
+                          std::to_string(config.height) + ", " + 
+                          std::to_string(config.depth) + ", " + 
+                          std::to_string(config.generateMipMaps) + ", " +
+                          std::to_string(config.virtualTexture) + "}";
+
+        return result;
+    }
+
     class TextureImpl {
         friend struct TextureMemResidencyGuard;
 
         GLuint texture_;
         TextureConfig config_;
-        mutable i32 activeTexture_ = -1;
         TextureHandle handle_;
         i32 memRefcount_ = 0;
 
@@ -28,90 +88,125 @@ namespace stratus {
                 handle_ = TextureHandle::NextHandle();
             }
 
-            glGenTextures(1, &texture_);
+            //glGenTextures(1, &texture_);
+            glCreateTextures(_convertTexture(config.type), 1, &texture_);
 
             config_ = config;
 
-            bind();
-            // Use tightly packed data
-            // See https://stackoverflow.com/questions/19023397/use-glteximage2d-draw-6363-image
-            // See https://registry.khronos.org/OpenGL-Refpages/es1.1/xhtml/glPixelStorei.xml
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            if (config.type == TextureType::TEXTURE_2D || config.type == TextureType::TEXTURE_RECTANGLE) {
-                glTexImage2D(_convertTexture(config.type), // target
-                    0, // level 
-                    _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
-                    config.width, 
-                    config.height,
-                    0,
-                    _convertFormat(config.format), // format (e.g. RGBA)
-                    _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    CastTexDataToPtr(data, 0)
-                );
-
-                // Set anisotropic filtering
-                auto maxAnisotropy = GraphicsDriver::GetConfig().maxAnisotropy;
-                //maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
-                glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
-            }
-            else if (config.type == TextureType::TEXTURE_2D_ARRAY || config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
-                if (config.width != config.height || config.depth < 1) {
-                    throw std::runtime_error("Unable to create array texture");
-                }
-
-                // Cube map array depth is in terms of faces, so it should be desired depth * 6
-                // if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY && (config.depth % 6) != 0) {
-                //     throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
-                // }
-
-                u32 depth = config.depth;
-                // Cube map array depth is in terms of faces, so it should be desired depth * 6
-                if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
-                    depth *= 6;
-                }
-
-                STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
-
-                // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
-                // for an example of glTexImage3D
-                glTexImage3D(_convertTexture(config.type), // target
-                    0, // level 
-                    _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
-                    config.width, 
-                    config.height,  
-                    depth,
-                    0,
-                    _convertFormat(config.format), // format (e.g. RGBA)
-                    _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
-                    CastTexDataToPtr(data, 0)
-                );
-            }
-            else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
-                if (config.width != config.height) {
-                    throw std::runtime_error("Unable to create cube map texture");
-                }
-
-                for (i32 face = 0; face < 6; ++face) {
-                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
-                        0, 
-                        _convertInternalFormat(config.format, config.storage, config.dataType),
-                        config.width, 
-                        config.height,
-                        0, 
-                        _convertFormat(config.format),
-                        _convertType(config.dataType, config.storage), 
-                        CastTexDataToPtr(data, (const size_t)face)
+            if (config_.virtualTexture) {
+                glTextureParameteri(texture_, GL_TEXTURE_SPARSE_ARB, GL_TRUE);
+                if (config.type == TextureType::TEXTURE_2D || config.type == TextureType::TEXTURE_RECTANGLE) {
+                    glTextureStorage2D(
+                        texture_,
+                        1,
+                        _convertInternalFormatPrecise(config.format, config.storage, config.dataType),
+                        config.width,
+                        config.height
                     );
+                }
+                else if (config.type == TextureType::TEXTURE_2D_ARRAY) {
+                    glTextureStorage3D(
+                        texture_,
+                        1,
+                        _convertInternalFormatPrecise(config.format, config.storage, config.dataType),
+                        config.width,
+                        config.height,
+                        config.depth
+                    );
+                }
+                else {
+                    throw std::runtime_error("Unsupported virtual (sparse) texture type");
                 }
             }
             else {
-                throw std::runtime_error("Unknown texture type specified");
-            }
+                bind(0);
+                // Use tightly packed data
+                // See https://stackoverflow.com/questions/19023397/use-glteximage2d-draw-6363-image
+                // See https://registry.khronos.org/OpenGL-Refpages/es1.1/xhtml/glPixelStorei.xml
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                if (config.type == TextureType::TEXTURE_2D || config.type == TextureType::TEXTURE_RECTANGLE) {
+                    glTexImage2D(_convertTexture(config.type), // target
+                        0, // level 
+                        _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
+                        config.width, 
+                        config.height,
+                        0,
+                        _convertFormat(config.format, config.dataType), // format (e.g. RGBA)
+                        _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
+                        CastTexDataToPtr(data, 0)
+                    );
 
-            unbind();
+                    // Set anisotropic filtering
+                    auto maxAnisotropy = GraphicsDriver::GetConfig().maxAnisotropy;
+                    //maxAnisotropy = maxAnisotropy > 2.0f ? 2.0f : maxAnisotropy;
+                    glTexParameterf(_convertTexture(config.type), GL_TEXTURE_MAX_ANISOTROPY, maxAnisotropy);
+                }
+                else if (config.type == TextureType::TEXTURE_2D_ARRAY || 
+                        config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY ||
+                        config.type == TextureType::TEXTURE_3D) {
+
+                    if ((config.type != TextureType::TEXTURE_3D && config.width != config.height) || config.depth < 1) {
+                        throw std::runtime_error("Unable to create array texture");
+                    }
+
+                    // Cube map array depth is in terms of faces, so it should be desired depth * 6
+                    // if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY && (config.depth % 6) != 0) {
+                    //     throw std::runtime_error("Depth must be divisible by 6 for cube map arrays");
+                    // }
+
+                    u32 depth = config.depth;
+                    // Cube map array depth is in terms of faces, so it should be desired depth * 6
+                    if (config.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
+                        depth *= 6;
+                    }
+
+                    //STRATUS_LOG << (_convertTexture(config.type) == GL_TEXTURE_CUBE_MAP_ARRAY) << ", " << config.width << ", " << config.height << ", " << config.depth << std::endl;
+
+                    // See: https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+                    // for an example of glTexImage3D
+                    glTexImage3D(
+                        _convertTexture(config.type), // target
+                        0, // level 
+                        _convertInternalFormat(config.format, config.storage, config.dataType), // internal format (e.g. RGBA16F)
+                        config.width, 
+                        config.height,  
+                        depth,
+                        0,
+                        _convertFormat(config.format, config.dataType), // format (e.g. RGBA)
+                        _convertType(config.dataType, config.storage), // type (e.g. FLOAT)
+                        CastTexDataToPtr(data, 0)
+                    );
+                    //STRATUS_LOG << (_convertInternalFormat(config.format, config.storage, config.dataType) == GL_R16I) << std::endl;
+                }
+                else if (config.type == TextureType::TEXTURE_CUBE_MAP) {
+                    if (config.width != config.height) {
+                        throw std::runtime_error("Unable to create cube map texture");
+                    }
+
+                    for (i32 face = 0; face < 6; ++face) {
+                        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 
+                            0, 
+                            _convertInternalFormat(config.format, config.storage, config.dataType),
+                            config.width, 
+                            config.height,
+                            0, 
+                            _convertFormat(config.format, config.dataType),
+                            _convertType(config.dataType, config.storage), 
+                            CastTexDataToPtr(data, (const size_t)face)
+                        );
+                    }
+                }
+                else {
+                    throw std::runtime_error("Unknown texture type specified");
+                }
+
+                unbind(0);
+            }
 
             // Mipmaps aren't generated for rectangle textures
             if (config.generateMipMaps && config.type != TextureType::TEXTURE_RECTANGLE) glGenerateTextureMipmap(texture_);
+
+            STRATUS_LOG << ConvertTextureConfigToString(config) << std::endl;
         }
 
         ~TextureImpl() {
@@ -136,26 +231,32 @@ namespace stratus {
                 throw std::runtime_error("Invalid Texture_Rectangle coordinate wrapping");
             }
 
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_S, _convertTextureCoordinateWrapping(wrap));
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_WRAP_T, _convertTextureCoordinateWrapping(wrap));
             // Support third dimension for cube maps
-            if (config_.type == TextureType::TEXTURE_CUBE_MAP || config_.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
-            unbind();
+            if (config_.type == TextureType::TEXTURE_3D || 
+                config_.type == TextureType::TEXTURE_CUBE_MAP || 
+                config_.type == TextureType::TEXTURE_CUBE_MAP_ARRAY) {
+                    
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, _convertTextureCoordinateWrapping(wrap));
+            }
+
+            unbind(0);
         }
 
         void setMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) {
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MIN_FILTER, _convertTextureMinFilter(min));
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_MAG_FILTER, _convertTextureMagFilter(mag));
-            unbind();
+            unbind(0);
         }
 
         void setTextureCompare(TextureCompareMode mode, TextureCompareFunc func) {
-            bind();
+            bind(0);
             glTexParameteri(_convertTexture(config_.type), GL_TEXTURE_COMPARE_MODE, _convertTextureCompareMode(mode));
             glTexParameterf(_convertTexture(config_.type), GL_TEXTURE_COMPARE_FUNC, _convertTextureCompareFunc(func));
-            unbind();
+            unbind(0);
         }
 
         void setHandle(const TextureHandle handle) {
@@ -166,7 +267,7 @@ namespace stratus {
             glClearTexImage(
                 texture_, 
                 mipLevel,
-                _convertFormat(config_.format), // format (e.g. RGBA)
+                _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
                 _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                 clearValue
             ); 
@@ -182,7 +283,7 @@ namespace stratus {
             }
             else {
                 // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
-                const i32 multiplier = type() == TextureType::TEXTURE_2D_ARRAY ? 1 : 6;
+                const i32 multiplier = type() == TextureType::TEXTURE_CUBE_MAP_ARRAY ? 6 : 1;
                 const i32 xoffset = 0, yoffset = 0;
                 const i32 zoffset = layer * multiplier;
                 const i32 depth = multiplier; // number of layers to clear which for a cubemap is 6
@@ -195,11 +296,39 @@ namespace stratus {
                     width(), 
                     height(), 
                     depth,
-                    _convertFormat(config_.format), // format (e.g. RGBA)
+                    _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
                     _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
                     clearValue
                 );
             }
+        }
+
+        void ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const {
+
+            // For cube maps layers are interpreted as layer-faces, meaning divisible by 6
+            const i32 multiplier = type() == TextureType::TEXTURE_CUBE_MAP_ARRAY ? 6 : 1;
+            const i32 zoffset = layer * multiplier;
+            const i32 depth = multiplier; // number of layers to clear which for a cubemap is 6
+            glClearTexSubImage(
+                texture_, 
+                mipLevel, 
+                xoffset, 
+                yoffset, 
+                zoffset, 
+                width,
+                height, 
+                depth,
+                _convertFormat(config_.format, config_.dataType), // format (e.g. RGBA)
+                _convertType(config_.dataType, config_.storage), // type (e.g. FLOAT))
+                clearValue
+            );
         }
 
         TextureType type() const               { return config_.type; }
@@ -231,30 +360,46 @@ namespace stratus {
         u32 depth() const                 { return config_.depth; }
         void * Underlying() const              { return (void *)&texture_; }
 
+        void CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const {
+            glTexturePageCommitmentEXT(
+                texture_,
+                0,
+                xoffset * DEFAULT_VIRTUAL_PAGE_SIZE_XYZ,
+                yoffset * DEFAULT_VIRTUAL_PAGE_SIZE_XYZ,
+                zoffset,
+                numPagesX * DEFAULT_VIRTUAL_PAGE_SIZE_XYZ,
+                numPagesY * DEFAULT_VIRTUAL_PAGE_SIZE_XYZ,
+                1,
+                commit ? GL_TRUE : GL_FALSE
+            );
+        }
+
     public:
-        void bind(i32 activeTexture = 0) const {
-            unbind();
+        void bind(i32 activeTexture) const {
+            //unbind(activeTexture);
             glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(config_.type), texture_);
-            activeTexture_ = activeTexture;
         }
 
         void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
-            GLenum accessMode = _convertImageAccessMode(access);
-            glBindImageTexture(unit, 
-                               texture_, 
-                               0, 
-                               layered ? GL_TRUE : GL_FALSE,
-                               layer,
-                               accessMode,
-                               _convertInternalFormat(config_.format, config_.storage, config_.dataType));
+            bindAsImageTexture(unit, layered, layer, access, TextureAccess{config_.format, config_.storage, config_.dataType});
         }
 
-        void unbind() const {
-            if (activeTexture_ == -1) return;
-            glActiveTexture(GL_TEXTURE0 + activeTexture_);
+        void bindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const {
+            GLenum accessMode = _convertImageAccessMode(access);
+            glBindImageTexture(unit,
+                texture_,
+                0,
+                layered ? GL_TRUE : GL_FALSE,
+                layer,
+                accessMode,
+                _convertInternalFormatPrecise(config.format, config.storage, config.dataType));
+        }
+
+        void unbind(i32 activeTexture) const {
+            if (activeTexture == -1) return;
+            glActiveTexture(GL_TEXTURE0 + activeTexture);
             glBindTexture(_convertTexture(config_.type), 0);
-            activeTexture_ = -1;
         }
 
         std::shared_ptr<TextureImpl> copy(const TextureImpl & other) {
@@ -282,12 +427,15 @@ namespace stratus {
             case TextureType::TEXTURE_CUBE_MAP: return GL_TEXTURE_CUBE_MAP;
             case TextureType::TEXTURE_RECTANGLE: return GL_TEXTURE_RECTANGLE;
             case TextureType::TEXTURE_CUBE_MAP_ARRAY: return GL_TEXTURE_CUBE_MAP_ARRAY;
+            case TextureType::TEXTURE_3D: return GL_TEXTURE_3D;
             default: throw std::runtime_error("Unknown texture type");
             }
         }
 
-        static GLenum _convertFormat(TextureComponentFormat format) {
-            switch (format) {
+        // For more information about pixel formats, see https://www.khronos.org/opengl/wiki/Pixel_Transfer#Pixel_format
+        static GLenum _convertFormat(TextureComponentFormat format, TextureComponentType type) {
+            if (type != TextureComponentType::INT && type != TextureComponentType::UINT) {
+                switch (format) {
                 case TextureComponentFormat::RED: return GL_RED;
                 case TextureComponentFormat::RG: return GL_RG;
                 case TextureComponentFormat::RGB: return GL_RGB;
@@ -297,13 +445,25 @@ namespace stratus {
                 case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT;
                 case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH_STENCIL;
                 default: throw std::runtime_error("Unknown format");
+                }
+            }
+            else {
+                switch (format) {
+                case TextureComponentFormat::RED: return GL_RED_INTEGER;
+                case TextureComponentFormat::RG: return GL_RG_INTEGER;
+                case TextureComponentFormat::RGB: return GL_RGB_INTEGER;
+                case TextureComponentFormat::RGBA: return GL_RGBA_INTEGER;
+                default: throw std::runtime_error("Unknown format");
+                }
             }
         }
 
         // See https://gamedev.stackexchange.com/questions/168241/is-gl-depth-component32-deprecated-in-opengl-4-5 for more info on depth component
         static GLint _convertInternalFormat(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
             // If the bits are default we just mirror the format for the internal format option
-            if (format == TextureComponentFormat::DEPTH_STENCIL || size == TextureComponentSize::BITS_DEFAULT) {
+            if (format == TextureComponentFormat::DEPTH_STENCIL || 
+                size == TextureComponentSize::BITS_DEFAULT) {
+                    
                 switch (format) {
                     case TextureComponentFormat::RED: return GL_RED;
                     case TextureComponentFormat::RG: return GL_RG;
@@ -431,10 +591,142 @@ namespace stratus {
             throw std::runtime_error("Unknown error occurred");
         }
 
+        static GLint _convertInternalFormatPrecise(TextureComponentFormat format, TextureComponentSize size, TextureComponentType type) {
+            // If the bits are default we just mirror the format for the internal format option
+            if (format == TextureComponentFormat::DEPTH_STENCIL || 
+                size == TextureComponentSize::BITS_DEFAULT) {
+                    
+                switch (format) {
+                    case TextureComponentFormat::RED: return GL_R8;
+                    case TextureComponentFormat::RG: return GL_RG8;
+                    case TextureComponentFormat::RGB: return GL_RGB8;
+                    case TextureComponentFormat::SRGB: return GL_SRGB8; // Here we specify SRGB since it's internal format
+                    case TextureComponentFormat::RGBA: return GL_RGBA8;
+                    case TextureComponentFormat::SRGB_ALPHA: return GL_SRGB8_ALPHA8; // GL_SRGB_ALPHA since it's internal format
+                    case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT24; //GL_DEPTH_COMPONENT;
+                    case TextureComponentFormat::DEPTH_STENCIL: return GL_DEPTH24_STENCIL8;
+                    default: throw std::runtime_error("Unknown format");
+                }
+            }
+
+            // We don't support specifying bits type other than BITS_DEFAULT for SRGB and SRGB_ALPHA
+            if (format == TextureComponentFormat::SRGB || format == TextureComponentFormat::SRGB_ALPHA) {
+                throw std::runtime_error("SRGB | SRGB_ALPHA cannot be used without BITS_DEFAULT");
+            }
+
+            if (size == TextureComponentSize::BITS_8) {
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8I;
+                        case TextureComponentFormat::RG: return GL_RG8I;
+                        case TextureComponentFormat::RGB: return GL_RGB8I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8UI;
+                        case TextureComponentFormat::RG: return GL_RG8UI;
+                        case TextureComponentFormat::RGB: return GL_RGB8UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R8;
+                        case TextureComponentFormat::RG: return GL_RG8;
+                        case TextureComponentFormat::RGB: return GL_RGB8;
+                        case TextureComponentFormat::RGBA: return GL_RGBA8;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_16) {
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16I;
+                        case TextureComponentFormat::RG: return GL_RG16I;
+                        case TextureComponentFormat::RGB: return GL_RGB16I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16UI;
+                        case TextureComponentFormat::RG: return GL_RG16UI;
+                        case TextureComponentFormat::RGB: return GL_RGB16UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R16F;
+                        case TextureComponentFormat::RG: return GL_RG16F;
+                        case TextureComponentFormat::RGB: return GL_RGB16F;
+                        case TextureComponentFormat::RGBA: return GL_RGBA16F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT16;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_32) {
+                if (type == TextureComponentType::INT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32I;
+                        case TextureComponentFormat::RG: return GL_RG32I;
+                        case TextureComponentFormat::RGB: return GL_RGB32I;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32I;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::UINT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32UI;
+                        case TextureComponentFormat::RG: return GL_RG32UI;
+                        case TextureComponentFormat::RGB: return GL_RGB32UI;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32UI;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+                if (type == TextureComponentType::FLOAT) {
+                    switch (format) {
+                        case TextureComponentFormat::RED: return GL_R32F;
+                        case TextureComponentFormat::RG: return GL_RG32F;
+                        case TextureComponentFormat::RGB: return GL_RGB32F;
+                        case TextureComponentFormat::RGBA: return GL_RGBA32F;
+                        case TextureComponentFormat::DEPTH: return GL_DEPTH_COMPONENT32F;
+                        default: throw std::runtime_error("Unknown combination");
+                    }
+                }
+            }
+
+            if (size == TextureComponentSize::BITS_11_11_10) {
+                if (type == TextureComponentType::FLOAT) {
+                    if (format == TextureComponentFormat::RGB) {
+                        return GL_R11F_G11F_B10F;
+                    }
+                    else {
+                        throw std::runtime_error("Invalid 11_11_10 combination");
+                    }
+                }
+                else {
+                    throw std::runtime_error("Unable to use types other than float for 11_11_10");
+                }
+            }
+
+            throw std::runtime_error("Unknown error occurred");
+        }
+
         static GLenum _convertType(TextureComponentType type, TextureComponentSize size) {
             if (size == TextureComponentSize::BITS_DEFAULT || size == TextureComponentSize::BITS_8) {
-                if (type == TextureComponentType::INT) return GL_BYTE;
-                if (type == TextureComponentType::UINT) return GL_UNSIGNED_BYTE;
+                if (type == TextureComponentType::INT || type == TextureComponentType::INT_NORM) return GL_BYTE;
+                if (type == TextureComponentType::UINT || type == TextureComponentType::UINT_NORM) return GL_UNSIGNED_BYTE;
                 if (type == TextureComponentType::FLOAT) return GL_FLOAT;
             }
 
@@ -445,8 +737,8 @@ namespace stratus {
             }
 
             if (size == TextureComponentSize::BITS_32) {
-                if (type == TextureComponentType::INT) return GL_SHORT;
-                if (type == TextureComponentType::UINT) return GL_UNSIGNED_SHORT;
+                if (type == TextureComponentType::INT) return GL_INT;
+                if (type == TextureComponentType::UINT) return GL_UNSIGNED_INT;
                 if (type == TextureComponentType::FLOAT) return GL_FLOAT;
             }
 
@@ -520,34 +812,59 @@ namespace stratus {
 
     Texture::~Texture() {}
 
-    void Texture::SetCoordinateWrapping(TextureCoordinateWrapping wrap) { impl_->setCoordinateWrapping(wrap); }
-    void Texture::SetMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { impl_->setMinMagFilter(min, mag); }
-    void Texture::SetTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { impl_->setTextureCompare(mode, func); }
+    void Texture::SetCoordinateWrapping(TextureCoordinateWrapping wrap) { EnsureValid_(); impl_->setCoordinateWrapping(wrap); }
+    void Texture::SetMinMagFilter(TextureMinificationFilter min, TextureMagnificationFilter mag) { EnsureValid_(); impl_->setMinMagFilter(min, mag); }
+    void Texture::SetTextureCompare(TextureCompareMode mode, TextureCompareFunc func) { EnsureValid_(); impl_->setTextureCompare(mode, func); }
 
-    TextureType Texture::Type() const { return impl_->type(); }
-    TextureComponentFormat Texture::Format() const { return impl_->format(); }
-    TextureHandle Texture::Handle() const { return impl_->handle(); }
+    TextureType Texture::Type() const { EnsureValid_(); return impl_->type(); }
+    TextureComponentFormat Texture::Format() const { EnsureValid_(); return impl_->format(); }
+    TextureHandle Texture::Handle() const { EnsureValid_(); return impl_->handle(); }
 
-    GpuTextureHandle Texture::GpuHandle() const { return impl_->GpuHandle(); }
+    GpuTextureHandle Texture::GpuHandle() const { EnsureValid_(); return impl_->GpuHandle(); }
 
     void Texture::MakeResident_(const Texture& texture) { TextureImpl::MakeResident(texture); }
     void Texture::MakeNonResident_(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
 
-    u32 Texture::Width() const { return impl_->width(); }
-    u32 Texture::Height() const { return impl_->height(); }
-    u32 Texture::Depth() const { return impl_->depth(); }
+    u32 Texture::Width() const { EnsureValid_(); return impl_->width(); }
+    u32 Texture::Height() const { EnsureValid_(); return impl_->height(); }
+    u32 Texture::Depth() const { EnsureValid_(); return impl_->depth(); }
 
-    void Texture::Bind(i32 activeTexture) const { impl_->bind(activeTexture); }
+    void Texture::Bind(i32 activeTexture) const { EnsureValid_(); impl_->bind(activeTexture); }
     void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const {
-        impl_->bindAsImageTexture(unit, layered, layer, access);
+        EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access);
     }
-    void Texture::Unbind() const { impl_->unbind(); }
+    void Texture::BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const {
+        EnsureValid_(); impl_->bindAsImageTexture(unit, layered, layer, access, config);
+    }
+
+    void Texture::Unbind(i32 activeTexture) const { EnsureValid_(); impl_->unbind(activeTexture); }
     bool Texture::Valid() const { return impl_ != nullptr; }
 
-    void Texture::Clear(const i32 mipLevel, const void * clearValue) const { impl_->Clear(mipLevel, clearValue); }
-    void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::Clear(const i32 mipLevel, const void * clearValue) const { EnsureValid_(); impl_->Clear(mipLevel, clearValue); }
+    void Texture::ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const { EnsureValid_(); impl_->clearLayer(mipLevel, layer, clearValue); }
+    void Texture::ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const {
 
-    const void * Texture::Underlying() const { return impl_->Underlying(); }
+        EnsureValid_();
+        impl_->ClearLayerRegion(mipLevel, layer, xoffset, yoffset, width, height, clearValue);
+    }
+
+    const void * Texture::Underlying() const { EnsureValid_(); return impl_->Underlying(); }
+
+    u32 Texture::VirtualPageSizeXY() {
+        return DEFAULT_VIRTUAL_PAGE_SIZE_XYZ;
+    }
+
+    void Texture::CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const {
+        EnsureValid_();
+        impl_->CommitOrUncommitVirtualPage(xoffset, yoffset, zoffset, numPagesX, numPagesY, commit);
+    }
 
     size_t Texture::HashCode() const {
         return std::hash<void *>{}((void *)impl_.get());
@@ -563,12 +880,21 @@ namespace stratus {
     }
 
     const TextureConfig & Texture::GetConfig() const {
-        return impl_->getConfig();
+        EnsureValid_(); return impl_->getConfig();
     }
 
     void Texture::SetHandle_(const TextureHandle handle) {
-        impl_->setHandle(handle);
+        EnsureValid_(); impl_->setHandle(handle);
     }
+
+    void Texture::EnsureValid_() const {
+        if (impl_ == nullptr) {
+            throw std::runtime_error("Attempt to use null texture");
+        }
+    }
+
+    TextureMemResidencyGuard::TextureMemResidencyGuard()
+        : TextureMemResidencyGuard(Texture()) {}
 
     TextureMemResidencyGuard::TextureMemResidencyGuard(const Texture& texture)
         : texture_(texture) {

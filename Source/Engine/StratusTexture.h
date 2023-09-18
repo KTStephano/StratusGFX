@@ -7,6 +7,8 @@
 #include "StratusTypes.h"
 
 namespace stratus {    
+#define DEFAULT_VIRTUAL_PAGE_SIZE_XYZ 128
+
     class Texture;
     typedef Handle<Texture> TextureHandle;
 
@@ -16,6 +18,7 @@ namespace stratus {
         // Corresponds to GL_TEXTURE_CUBE_MAP
         TEXTURE_CUBE_MAP,
         TEXTURE_CUBE_MAP_ARRAY,
+        TEXTURE_3D,
         // Indexed in pixel coordinates instead of texture coordinates
         TEXTURE_RECTANGLE
     };
@@ -40,6 +43,9 @@ namespace stratus {
     };
 
     enum class TextureComponentType : i32 {
+        // NORM types should only be used with BITS_DEFAULT or BITS_8
+        INT_NORM,
+        UINT_NORM,
         INT,
         UINT,
         FLOAT
@@ -94,6 +100,7 @@ namespace stratus {
         IMAGE_READ_WRITE
     };
 
+    // Used with bind texture as image
     struct TextureConfig {
         TextureType type;
         TextureComponentFormat format;
@@ -103,6 +110,13 @@ namespace stratus {
         u32 height;
         u32 depth;
         bool generateMipMaps;
+        bool virtualTexture = false;
+    };
+
+    struct TextureAccess {
+        TextureComponentFormat format;
+        TextureComponentSize storage;
+        TextureComponentType dataType;
     };
 
     struct TextureData {
@@ -148,16 +162,28 @@ namespace stratus {
         u32 Height() const;
         u32 Depth() const;
 
-        void Bind(i32 activeTexture = 0) const;
-        void Unbind() const;
+        void Bind(i32 activeTexture) const;
+        void Unbind(i32 activeTexture) const;
+
+        static u32 VirtualPageSizeXY();
+        void CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const;
 
         void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const;
 
         bool Valid() const;
 
         // clearValue is between one and four components worth of data (or nullptr - in which case the texture is filled with 0s)
         void Clear(const i32 mipLevel, const void * clearValue) const;
         void ClearLayer(const i32 mipLevel, const i32 layer, const void * clearValue) const;
+        void ClearLayerRegion(
+            const i32 mipLevel, 
+            const i32 layer, 
+            const i32 xoffset,
+            const i32 yoffset,
+            const i32 width,
+            const i32 height,
+            const void * clearValue) const;
 
         // Gets a pointer to the underlying data (implementation-dependent)
         const void * Underlying() const;
@@ -177,9 +203,11 @@ namespace stratus {
 
     private:
         void SetHandle_(const TextureHandle);
+        void EnsureValid_() const;
     };
 
     struct TextureMemResidencyGuard {
+        TextureMemResidencyGuard();
         TextureMemResidencyGuard(const Texture&);
 
         TextureMemResidencyGuard(TextureMemResidencyGuard&&) noexcept;

@@ -62,7 +62,7 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
@@ -83,6 +83,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;
@@ -160,17 +161,17 @@ public:
             sanMiguel = nullptr;
             int spawned = 0;
 
-            for (int x = 40; x < 240; x += 10) {
-                for (int y = 0; y < 150; y += 20) {
-                    for (int z = -30; z < 120; z += 20) {
-                            ++spawned;
-                            LightCreator::CreateVirtualPointLight(
-                                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                                false
-                            );
-                    }
-                }
-            }
+            //for (int x = 40; x < 240; x += 10) {
+            //    for (int y = 0; y < 150; y += 20) {
+            //        for (int z = -30; z < 120; z += 20) {
+            //                ++spawned;
+            //                LightCreator::CreateVirtualPointLight(
+            //                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+            //                    false
+            //                );
+            //        }
+            //    }
+            //}
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
         }

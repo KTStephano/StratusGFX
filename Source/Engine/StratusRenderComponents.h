@@ -24,25 +24,24 @@ namespace stratus {
     };
 
     struct Mesh;
+    struct Meshlet;
 
     typedef Mesh * MeshPtr;
+    typedef Meshlet * MeshletPtr;
 
     extern EntityPtr CreateRenderEntity();
     extern void InitializeRenderEntity(const EntityPtr&);
 
-    struct Mesh final {
+    struct Meshlet final {
     private:
-        Mesh();
-
-    private:
-        static Mesh * PlacementNew_(u8 *);
+        static Meshlet * PlacementNew_(u8*);
 
     public:
-        static MeshPtr Create();
-        static void Destroy(MeshPtr);
+        static MeshletPtr Create();
+        static void Destroy(MeshletPtr);
 
-    public:
-        ~Mesh();
+        Meshlet();
+        ~Meshlet();
 
         void AddVertex(const glm::vec3&);
         void AddUV(const glm::vec2&);
@@ -51,13 +50,13 @@ namespace stratus {
         void AddBitangent(const glm::vec3&);
         void AddIndex(u32);
 
+        void ReserveVertices(usize);
+        void ReserveIndices(usize);
+
         bool IsFinalized() const;
         void FinalizeData();
 
         usize GetGpuSizeBytes() const;
-
-        void SetFaceCulling(const RenderFaceCulling&);
-        RenderFaceCulling GetFaceCulling() const;
 
         // Before data has been moved to the GPU the Mesh will need to pack
         // all the data into a single buffer. This function is exposed so the
@@ -97,7 +96,7 @@ namespace stratus {
         };
 
     private:
-        MeshCpuData_ * cpuData_;
+        MeshCpuData_* cpuData_;
         GpuAABB aabb_;
         usize dataSizeBytes_;
         u32 numVertices_;
@@ -106,7 +105,36 @@ namespace stratus {
         std::vector<u32> numIndicesPerLod_;
         std::vector<u32> indexOffsetPerLod_; // Into global GpuBuffer
         u32 numIndicesApproximateLod_;
+    };
 
+    struct Mesh final {
+    private:
+        Mesh();
+
+    private:
+        static Mesh * PlacementNew_(u8 *);
+
+    public:
+        static MeshPtr Create();
+        static void Destroy(MeshPtr);
+
+        //bool IsFinalized() const;
+
+        MeshletPtr NewMeshlet();
+
+        const MeshletPtr GetMeshlet(const usize) const;
+        MeshletPtr GetMeshlet(const usize);
+
+        usize NumMeshlets() const;
+
+        void SetFaceCulling(const RenderFaceCulling&);
+        RenderFaceCulling GetFaceCulling() const;
+
+    public:
+        ~Mesh();
+
+    private:
+        std::vector<MeshletPtr> meshlets_;
         RenderFaceCulling cullMode_ = RenderFaceCulling::CULLING_CCW;
     };
 

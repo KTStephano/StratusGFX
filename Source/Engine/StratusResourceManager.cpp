@@ -16,6 +16,7 @@
 #include <algorithm>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "meshoptimizer.h"
 
 namespace stratus {
     ResourceManager::ResourceManager() {}
@@ -98,12 +99,12 @@ namespace stratus {
         static constexpr usize maxModelBytesPerFrame = 1024 * 1024 * 2;
         // First generate GPU data for some of the meshes
         usize totalBytes = 0;
-        std::vector<MeshPtr> removeFromGpuDataQueue;
-        for (auto mesh : generateMeshGpuDataQueue_) {
-            mesh->FinalizeData();
-            totalBytes += mesh->GetGpuSizeBytes();
-            removeFromGpuDataQueue.push_back(mesh);
-            if (removeFromGpuDataQueue.size() > 5 || totalBytes >= maxModelBytesPerFrame) break;
+        std::vector<MeshletPtr> removeFromGpuDataQueue;
+        for (auto meshlet : generateMeshGpuDataQueue_) {
+            meshlet->FinalizeData();
+            totalBytes += meshlet->GetGpuSizeBytes();
+            removeFromGpuDataQueue.push_back(meshlet);
+            if (removeFromGpuDataQueue.size() > 30 || totalBytes >= maxModelBytesPerFrame) break;
             //if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
@@ -132,10 +133,10 @@ namespace stratus {
         if (meshFinalizeQueue_.size() == 0) return;
 
         //usize totalBytes = 0;
-        std::vector<MeshPtr> meshesToDelete(meshFinalizeQueue_.size());
+        std::vector<MeshletPtr> meshesToDelete(meshFinalizeQueue_.size());
         usize idx = 0;
-        for (auto& mesh : meshFinalizeQueue_) {
-            meshesToDelete[idx] = mesh;
+        for (auto& meshlet : meshFinalizeQueue_) {
+            meshesToDelete[idx] = meshlet;
             ++idx;
         }
 
@@ -156,7 +157,7 @@ namespace stratus {
             const auto process = [this, threadIndex, numThreads, meshesToDelete]() {
                 STRATUS_LOG << "Processing " << meshesToDelete.size() << " as a task group" << std::endl;
                 for (usize i = threadIndex; i < meshesToDelete.size(); i += numThreads) {
-                    MeshPtr mesh = meshesToDelete[i];
+                    MeshletPtr mesh = meshesToDelete[i];
                     mesh->PackCpuData();
                     mesh->CalculateAabbs(glm::mat4(1.0f));
                     mesh->GenerateLODs();
@@ -201,7 +202,10 @@ namespace stratus {
         if (rnode == nullptr) return;
 
         for (i32 i = 0; i < rnode->meshes->meshes.size(); ++i) {
-            meshFinalizeQueue_.insert(rnode->meshes->meshes[i]);
+            auto mesh = rnode->meshes->meshes[i];
+            for (i32 j = 0; j < mesh->NumMeshlets(); ++j) {
+                meshFinalizeQueue_.insert(mesh->GetMeshlet(j));
+            }
         }
     }
 
@@ -226,7 +230,11 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTexture(const std::string& name, const ColorSpace& cspace) {
-        return LoadTextureImpl_({name}, cspace);
+        return LoadTextureImpl_({ name }, {}, cspace);
+    }
+
+    TextureHandle ResourceManager::LoadTexture(const std::string& name, BinaryDataWrapper data, const ColorSpace& cspace) {
+        return LoadTextureImpl_({ name }, { data }, cspace);
     }
 
     TextureHandle ResourceManager::LoadCubeMap(const std::string& prefix, const ColorSpace& cspace, const std::string& fileExt) {
@@ -236,6 +244,7 @@ namespace stratus {
                                  prefix + "bottom." + fileExt,
                                  prefix + "front." + fileExt,
                                  prefix + "back." + fileExt}, 
+                                {},
                                 cspace,
                                 TextureType::TEXTURE_CUBE_MAP,
                                 TextureCoordinateWrapping::CLAMP_TO_EDGE,
@@ -244,6 +253,7 @@ namespace stratus {
     }
 
     TextureHandle ResourceManager::LoadTextureImpl_(const std::vector<std::string>& files, 
+                                                    const std::vector<BinaryDataWrapper>& data,
                                                     const ColorSpace& cspace,
                                                     const TextureType type,
                                                     const TextureCoordinateWrapping wrap,
@@ -268,8 +278,8 @@ namespace stratus {
         auto handle = TextureHandle::NextHandle();
         TaskSystem * tasks = TaskSystem::Instance();
         // We have to use the main thread since Texture calls glGenTextures :(
-        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, handle, cspace, type, wrap, min, mag]() {
-            auto result = LoadTexture_(files, handle, cspace, type, wrap, min, mag);
+        Async<RawTextureData> as = tasks->ScheduleTask<RawTextureData>([this, files, data, handle, cspace, type, wrap, min, mag]() {
+            auto result = LoadTexture_(files, data, handle, cspace, type, wrap, min, mag);
             //auto ul = this->LockWrite_();
             //this->texturesStillLoading_.erase(handle);
             return result;
@@ -300,13 +310,38 @@ namespace stratus {
         return loadedTextures_.find(handle)->second.Get();
     }
 
-    static TextureHandle LoadMaterialTexture(aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
+    static TextureHandle LoadMaterialTexture(const aiScene * scene, aiMaterial * mat, const aiTextureType& type, const std::string& directory, const ColorSpace& cspace) {
         TextureHandle texture;
         if (mat->GetTextureCount(type) > 0) {
             aiString str; 
             mat->GetTexture(type, 0, &str);
             std::string file = str.C_Str();
-            texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, cspace);
+
+            const auto last = file.find_last_of('*');
+            if (last != file.npos) {
+                const auto embeddedIndex = std::stoi(file.substr(last + 1));
+                const auto embeddedTexture = scene->mTextures[embeddedIndex];
+
+                if (embeddedTexture->mHeight != 0) {
+                    STRATUS_ERROR << "Non-compressed embedded texture found - skipping" << std::endl;
+                    return TextureHandle::Null();
+                }
+
+                const usize sizeBytes = embeddedTexture->mWidth;
+                u8 * writeData = new u8[sizeBytes];
+                const u8 * readData = reinterpret_cast<const u8 *>(embeddedTexture->pcData);
+
+                std::memcpy(writeData, readData, sizeBytes);
+
+                BinaryDataWrapper binaryData;
+                binaryData.data = writeData;
+                binaryData.sizeBytes = 4 * sizeBytes;
+
+                texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, binaryData, cspace);
+            }
+            else {
+                texture = ResourceManager::Instance()->LoadTexture(directory + "/" + file, cspace);
+            }
         }
 
         return texture;
@@ -379,30 +414,130 @@ namespace stratus {
         //MeshPtr rmesh = Mesh::Create();
         aiMesh * mesh = processMesh.aim;
         MeshPtr rmesh = processMesh.mesh;
+        //auto meshlet = rmesh->NewMeshlet();
+
+        // Split mesh into meshlets
+        const size_t maxVertices = 64;
+        const size_t maxTriangles = 124;
+        const float coneWeight = 1.0f;
+
+        std::vector<u32> indices(mesh->mNumFaces * 3);
+        for (u32 i = 0; i < mesh->mNumFaces; i++) {
+            for (u32 index = 0; index < 3; ++index) {
+                indices[3 * i + index] = mesh->mFaces[i].mIndices[index];
+            }
+            //aiFace face = mesh->mFaces[i];
+            //for (u32 j = 0; j < face.mNumIndices; j++) {
+            //    indices.push_back(face.mIndices[j]);
+            //}
+        }
+
+        //std::vector<float> vertexData(3 * mesh->mNumVertices);
+        //for (usize i = 0; i < mesh->mNumVertices; ++i) {
+        //    vertexData[3 * i] = mesh->mVertices[i].x;
+        //    vertexData[3 * i + 1] = mesh->mVertices[i].y;
+        //    vertexData[3 * i + 2] = mesh->mVertices[i].z;
+        //}
+
+        // const size_t maxMeshlets = meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles);
+        // std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
+        // std::vector<u32> meshletVertices(maxMeshlets * maxVertices);
+        // std::vector<u8> meshletTriangles(maxMeshlets * maxTriangles * 3);
+
+        // size_t meshletCount = meshopt_buildMeshlets(
+        //     meshlets.data(), 
+        //     meshletVertices.data(), 
+        //     meshletTriangles.data(), 
+        //     indices.data(),
+        //     indices.size(),
+        //     reinterpret_cast<float *>(mesh->mVertices),
+        //     mesh->mNumVertices,
+        //     3,
+        //     maxVertices, 
+        //     maxTriangles, 
+        //     coneWeight
+        // );
+
+        // Trim data
+        //const meshopt_Meshlet& last = meshlets[meshletCount - 1];
+
+        //meshletVertices.resize(last.vertex_offset + last.vertex_count);
+        //meshletTriangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+        //meshlets.resize(meshletCount);
+
+        //STRATUS_LOG << "MESHLETS: " << meshletCount << std::endl;
+
+        for (usize i = 0; i < 1; ++i) {
+        auto meshlet = rmesh->NewMeshlet();
+
+        meshlet->ReserveVertices(mesh->mNumVertices);
+        meshlet->ReserveIndices(indices.size());
 
         // Process core primitive data
-        for (u32 i = 0; i < mesh->mNumVertices; i++) {
-            rmesh->AddVertex(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
-            rmesh->AddNormal(glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z));
+        // TODO: Remove duplicate data from meshlets!
+        for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
+            const auto index = mi; //meshletVertices[meshoptMeshlet.vertex_offset + mi];
+            meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+            meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
 
             if (mesh->mNumUVComponents[0] != 0) {
-                rmesh->AddUV(glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y));
+                meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
             }
             else {
-                rmesh->AddUV(glm::vec2(1.0f, 1.0f));
+                meshlet->AddUV(glm::vec2(1.0f, 1.0f));
             }
 
-            if (mesh->mTangents != nullptr)   rmesh->AddTangent(glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z));
-            if (mesh->mBitangents != nullptr) rmesh->AddBitangent(glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z));
+            if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+            if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
         }
 
         // Process indices
-        for(u32 i = 0; i < mesh->mNumFaces; i++) {
-            aiFace face = mesh->mFaces[i];
-            for(u32 j = 0; j < face.mNumIndices; j++) {
-                rmesh->AddIndex(face.mIndices[j]);
-            }
+        for (u32 i = 0; i < mesh->mNumFaces; i++) {
+           aiFace face = mesh->mFaces[i];
+           for (u32 j = 0; j < face.mNumIndices; j++) {
+               meshlet->AddIndex(face.mIndices[j]);
+           }
         }
+        }
+
+        //for (usize meshIndex = 0; meshIndex < meshletCount; ++meshIndex) {
+        //    const meshopt_Meshlet& meshoptMeshlet = meshlets[meshIndex];
+        //    if (meshoptMeshlet.vertex_count == 0) {
+        //        continue;
+        //    }
+
+        //    auto meshlet = rmesh->NewMeshlet();
+
+        //    meshlet->ReserveVertices(meshoptMeshlet.vertex_count);
+        //    meshlet->ReserveIndices(meshoptMeshlet.vertex_count);
+        //    //meshlet->ReserveVertices(mesh->mNumVertices);
+        //    //meshlet->ReserveIndices(indices.size());
+
+        //    // Process core primitive data
+        //    // TODO: Remove duplicate data from meshlets!
+        //    for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
+        //    //for (u32 mi = 0; mi < mesh->mNumVertices; mi++) {
+        //        const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
+        //        meshlet->AddVertex(glm::vec3(mesh->mVertices[index].x, mesh->mVertices[index].y, mesh->mVertices[index].z));
+        //        meshlet->AddNormal(glm::vec3(mesh->mNormals[index].x, mesh->mNormals[index].y, mesh->mNormals[index].z));
+        //        meshlet->AddIndex(mi);
+
+        //        if (mesh->mNumUVComponents[0] != 0) {
+        //            meshlet->AddUV(glm::vec2(mesh->mTextureCoords[0][index].x, mesh->mTextureCoords[0][index].y));
+        //        }
+        //        else {
+        //            meshlet->AddUV(glm::vec2(1.0f, 1.0f));
+        //        }
+
+        //        if (mesh->mTangents != nullptr)   meshlet->AddTangent(glm::vec3(mesh->mTangents[index].x, mesh->mTangents[index].y, mesh->mTangents[index].z));
+        //        if (mesh->mBitangents != nullptr) meshlet->AddBitangent(glm::vec3(mesh->mBitangents[index].x, mesh->mBitangents[index].y, mesh->mBitangents[index].z));
+        //    }
+
+        //     //for (u32 mi = 0; mi < meshoptMeshlet.vertex_count; mi++) {
+        //     //    const auto index = meshletVertices[meshoptMeshlet.vertex_offset + mi];
+        //     //    meshlet->AddIndex(index);
+        //     //}
+        //}
 
         // Process material
         //MaterialPtr m = rootMat->CreateSubMaterial();
@@ -520,9 +655,9 @@ namespace stratus {
             //     STRATUS_LOG << "Transparency: " << transparency.r << ", " << transparency.g << ", " << transparency.b << ", " << transparency.a << std::endl;
             // }
 
-            material->SetDiffuseMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE, directory, cspace));
+            material->SetDiffuseMap(LoadMaterialTexture(scene, aimat, aiTextureType_DIFFUSE, directory, cspace));
             // Important: Unless the normal/depth maps were generated as sRGB textures, srgb must be set to false!
-            auto normalMap = LoadMaterialTexture(aimat, aiTextureType_NORMALS, directory, ColorSpace::NONE);
+            auto normalMap = LoadMaterialTexture(scene, aimat, aiTextureType_NORMALS, directory, ColorSpace::NONE);
             if (normalMap != TextureHandle::Null()) {
                 material->SetNormalMap(normalMap);
             }
@@ -530,13 +665,13 @@ namespace stratus {
                 //m->SetNormalMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
             //}
             //m->SetDepthMap(LoadMaterialTexture(aimat, aiTextureType_HEIGHT, directory, ColorSpace::LINEAR));
-            material->SetRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::NONE));
-            material->SetEmissiveMap(LoadMaterialTexture(aimat, aiTextureType_EMISSIVE, directory, ColorSpace::NONE));
-            material->SetMetallicMap(LoadMaterialTexture(aimat, aiTextureType_METALNESS, directory, ColorSpace::NONE));
+            material->SetRoughnessMap(LoadMaterialTexture(scene, aimat, aiTextureType_DIFFUSE_ROUGHNESS, directory, ColorSpace::NONE));
+            material->SetEmissiveMap(LoadMaterialTexture(scene, aimat, aiTextureType_EMISSIVE, directory, ColorSpace::NONE));
+            material->SetMetallicMap(LoadMaterialTexture(scene, aimat, aiTextureType_METALNESS, directory, ColorSpace::NONE));
             // GLTF 2.0 have the metallic-roughness map specified as aiTextureType_UNKNOWN at the time of writing
             // TODO: See if other file types encode metallic-roughness in the same way
             if (extension == "gltf" || extension == "GLTF") {
-                material->SetMetallicRoughnessMap(LoadMaterialTexture(aimat, aiTextureType_UNKNOWN, directory, ColorSpace::NONE));
+                material->SetMetallicRoughnessMap(LoadMaterialTexture(scene, aimat, aiTextureType_UNKNOWN, directory, ColorSpace::NONE));
             }
 
             // STRATUS_LOG << "m " 
@@ -648,30 +783,32 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4096);
+        importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 2048);
+
+        //u32 pflags = aiProcess_JoinIdenticalVertices | aiProcess_FindInvalidData;
 
         u32 pflags = aiProcess_Triangulate |
-            aiProcess_JoinIdenticalVertices |
-            aiProcess_SortByPType |
-            aiProcess_GenNormals |
-            //aiProcess_ValidateDataStructure |
-            aiProcess_RemoveRedundantMaterials |
-            aiProcess_SortByPType |
-            //aiProcess_GenSmoothNormals | 
-            aiProcess_FlipUVs |
-            aiProcess_GenUVCoords |
-            aiProcess_CalcTangentSpace |
-            aiProcess_SplitLargeMeshes |
-            aiProcess_ImproveCacheLocality |
-            aiProcess_OptimizeMeshes |
-            //aiProcess_OptimizeGraph |
-            //aiProcess_FixInfacingNormals |
-            aiProcess_FindDegenerates |
-            aiProcess_FindInvalidData |
-            aiProcess_FindInstances;
+           aiProcess_JoinIdenticalVertices |
+           aiProcess_SortByPType |
+           aiProcess_GenNormals |
+           //aiProcess_ValidateDataStructure |
+           aiProcess_RemoveRedundantMaterials |
+           aiProcess_SortByPType |
+           //aiProcess_GenSmoothNormals | 
+           aiProcess_FlipUVs |
+           aiProcess_GenUVCoords |
+           aiProcess_CalcTangentSpace |
+           aiProcess_SplitLargeMeshes |
+           aiProcess_ImproveCacheLocality |
+           aiProcess_OptimizeMeshes |
+           //aiProcess_OptimizeGraph |
+           //aiProcess_FixInfacingNormals |
+           aiProcess_FindDegenerates |
+           aiProcess_FindInvalidData |
+           aiProcess_FindInstances;
 
         if (optimizeGraph) {
-            pflags |= aiProcess_OptimizeGraph;
+           pflags |= aiProcess_OptimizeGraph;
         }
 
         //const aiScene *scene = importer.ReadFile(filename, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenNormals | aiProcess_GenUVCoords);
@@ -682,6 +819,8 @@ namespace stratus {
             STRATUS_ERROR << "Error loading model: " << name << std::endl << importer.GetErrorString() << std::endl;
             return nullptr;
         }
+
+        STRATUS_LOG << "IMPORTED: " << scene->mNumMeshes << std::endl;
 
         // Create all scene materials
         for (u32 i = 0; i < scene->mNumMaterials; ++i) {
@@ -740,12 +879,19 @@ namespace stratus {
     }
 
     std::shared_ptr<ResourceManager::RawTextureData> ResourceManager::LoadTexture_(const std::vector<std::string>& files, 
+                                                                                   const std::vector<BinaryDataWrapper>& binaryData,
                                                                                    const TextureHandle handle, 
                                                                                    const ColorSpace& cspace,
                                                                                    const TextureType type,
                                                                                    const TextureCoordinateWrapping wrap,
                                                                                    const TextureMinificationFilter min,
                                                                                    const TextureMagnificationFilter mag) {
+
+        if (binaryData.size() > 0 && files.size() != binaryData.size()) {
+            STRATUS_ERROR << "Invalid file/data length combination" << std::endl;
+            return nullptr;
+        }
+
         std::shared_ptr<RawTextureData> texdata = std::make_shared<RawTextureData>();
         texdata->wrap = wrap;
         texdata->min = min;
@@ -753,14 +899,24 @@ namespace stratus {
 
         #define FREE_ALL_STBI_IMAGE_DATA for (uint8_t * ptr : texdata->data) stbi_image_free((void *)ptr);
 
-        for (const std::string& fileOrig : files) {
+        for (usize index = 0; index < files.size(); ++index) {
+            const auto& fileOrig = files[index];
             std::string file = fileOrig;
             std::replace(file.begin(), file.end(), '\\', '/');
             STRATUS_LOG << "Attempting to load texture from file: " << file << " (handle = " << handle << ")" << std::endl;
 
             i32 width, height, numChannels;
             // @see http://www.redbancosdealimentos.org/homes-flooring-design-sources
-            uint8_t * data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+            u8 * data = nullptr;
+
+            if (binaryData.size() > 0) {
+                data = stbi_load_from_memory(binaryData[index].data, (i32)binaryData[index].sizeBytes, &width, &height, &numChannels, 0);
+                delete[] binaryData[index].data;
+            }
+            else {
+                data = stbi_load(file.c_str(), &width, &height, &numChannels, 0);
+            }
+
             if (data) {
                 // Make sure the width/height match what is already there
                 if (texdata->data.size() > 0 &&
@@ -774,7 +930,7 @@ namespace stratus {
                 config.type = type;
                 config.storage = TextureComponentSize::BITS_DEFAULT;
                 config.generateMipMaps = true;
-                config.dataType = TextureComponentType::UINT;
+                config.dataType = TextureComponentType::UINT_NORM;
                 config.width = (u32)width;
                 config.height = (u32)height;
                 config.depth = 0;
@@ -920,6 +1076,7 @@ namespace stratus {
         cube_ = CreateRenderEntity();
         RenderComponent * rc = cube_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
+        auto meshlet = mesh->NewMeshlet();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
@@ -929,14 +1086,14 @@ namespace stratus {
         const usize cubeNumVertices = cubeData.size() / cubeStride;
 
         for (usize i = 0, f = 0; i < cubeNumVertices; ++i, f += cubeStride) {
-            mesh->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
-            mesh->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
-            mesh->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
+            meshlet->AddVertex(glm::vec3(cubeData[f], cubeData[f + 1], cubeData[f + 2]));
+            meshlet->AddNormal(glm::vec3(cubeData[f + 3], cubeData[f + 4], cubeData[f + 5]));
+            meshlet->AddUV(glm::vec2(cubeData[f + 6], cubeData[f + 7]));
             // rmesh->AddTangent(glm::vec3(cubeData[f + 8], cubeData[f + 9], cubeData[f + 10]));
             // rmesh->AddBitangent(glm::vec3(cubeData[f + 11], cubeData[f + 12], cubeData[f + 13]));
         }
 
-        mesh->CalculateAabbs(glm::mat4(1.0f));
+        meshlet->CalculateAabbs(glm::mat4(1.0f));
         pendingFinalize_.insert(std::make_pair("DefaultCube", Async<Entity>(cube_)));
 
         // rmesh->GenerateCpuData();
@@ -950,6 +1107,7 @@ namespace stratus {
         quad_ = CreateRenderEntity();
         RenderComponent * rc = quad_->Components().GetComponent<RenderComponent>().component;
         MeshPtr mesh = Mesh::Create();
+        auto meshlet = mesh->NewMeshlet();
         rc->meshes->meshes.push_back(mesh);
         rc->meshes->transforms.push_back(glm::mat4(1.0f));
         MaterialPtr mat = MaterialManager::Instance()->CreateDefault();
@@ -959,15 +1117,15 @@ namespace stratus {
         const usize quadNumVertices = quadData.size() / quadStride;
 
         for (usize i = 0, f = 0; i < quadNumVertices; ++i, f += quadStride) {
-            mesh->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
-            mesh->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
-            mesh->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
+            meshlet->AddVertex(glm::vec3(quadData[f], quadData[f + 1], quadData[f + 2]));
+            meshlet->AddNormal(glm::vec3(quadData[f + 3], quadData[f + 4], quadData[f + 5]));
+            meshlet->AddUV(glm::vec2(quadData[f + 6], quadData[f + 7]));
             // rmesh->AddTangent(glm::vec3(quadData[f + 8], quadData[f + 9], quadData[f + 10]));
             // rmesh->AddBitangent(glm::vec3(quadData[f + 11], quadData[f + 12], quadData[f + 13]));
         }
 
         mesh->SetFaceCulling(RenderFaceCulling::CULLING_NONE);
-        mesh->CalculateAabbs(glm::mat4(1.0f));
+        meshlet->CalculateAabbs(glm::mat4(1.0f));
         pendingFinalize_.insert(std::make_pair("DefaultQuad", Async<Entity>(quad_)));
 
         // rmesh->GenerateCpuData();

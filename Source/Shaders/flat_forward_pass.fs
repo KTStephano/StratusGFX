@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 //layout (early_fragment_tests) in;
 
@@ -15,7 +16,7 @@ flat in int fsDrawID;
 
 //uniform float gamma = 2.2;
 
-layout (location = 0) out vec3 color;
+layout (location = 0) out vec4 color;
 layout (location = 1) out vec2 velocity;
 
 // Unjittered
@@ -24,7 +25,7 @@ in vec4 fsPrevClipPos;
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
-    vec4 diffuse = FLOAT4_TO_VEC4(material.diffuseColor);
+    vec4 diffuse = decodeMaterialData(material.diffuseColor);
     if (bitwiseAndBool(material.flags, GPU_DIFFUSE_MAPPED)) {
         diffuse = texture(material.diffuseMap, fsTexCoords);
     }
@@ -33,7 +34,7 @@ void main() {
 
     // Apply gamma correction
     //texColor = pow(texColor, vec3(1.0 / gamma));
-    color = diffuse.rgb;
+    color = vec4(diffuse.rgb, 0.0);
     velocity = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
 
     // Small offset to help prevent z fighting in certain cases

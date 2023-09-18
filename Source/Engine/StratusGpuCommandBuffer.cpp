@@ -53,44 +53,49 @@ namespace stratus {
         if (it == drawCommandIndices_.end()) {
             it = drawCommandIndices_.insert(std::make_pair(
                 component,
-                std::unordered_map<MeshPtr, u32>()
+                std::unordered_map<MeshletPtr, u32>()
             )).first;
         }
-        // Command already exists for render component/mesh pair
-        else if (it->second.find(mesh) != it->second.end()) {
-            return;
-        }
 
-        // Record the metadata 
-        auto index = prevFrameModelTransforms_->Add(transforms->transforms[meshIndex]);
-        modelTransforms_->Add(transforms->transforms[meshIndex]);
-        auto aabb = mesh->IsFinalized() ? mesh->GetAABB() : GpuAABB();
-        aabbs_->Add(aabb);
-        materialIndices_->Add(materialIndex);
+        for (usize i = 0; i < mesh->NumMeshlets(); ++i) {
+            auto meshlet = mesh->GetMeshlet(i);
 
-        // Record the lod commands
-        visibleCommands_->Add(GpuDrawElementsIndirectCommand());
-        selectedLodCommands_->Add(GpuDrawElementsIndirectCommand());
-
-        for (usize lod = 0; lod < NumLods(); ++lod) {
-            GpuDrawElementsIndirectCommand command;
-
-            if (mesh->IsFinalized()) {
-                command.baseInstance = 0;
-                command.baseVertex = 0;
-                command.firstIndex = mesh->GetIndexOffset(lod);
-                command.instanceCount = 1;
-                command.vertexCount = mesh->GetNumIndices(lod);
+            // Command already exists for render component/mesh pair
+            if (it->second.find(meshlet) != it->second.end()) {
+                continue;
             }
 
-            drawCommands_[lod]->Add(command);
+            // Record the metadata 
+            auto index = prevFrameModelTransforms_->Add(transforms->transforms[meshIndex]);
+            modelTransforms_->Add(transforms->transforms[meshIndex]);
+            auto aabb = meshlet->IsFinalized() ? meshlet->GetAABB() : GpuAABB();
+            aabbs_->Add(aabb);
+            materialIndices_->Add(materialIndex);
+
+            // Record the lod commands
+            visibleCommands_->Add(GpuDrawElementsIndirectCommand());
+            selectedLodCommands_->Add(GpuDrawElementsIndirectCommand());
+
+            for (usize lod = 0; lod < NumLods(); ++lod) {
+                GpuDrawElementsIndirectCommand command;
+
+                if (meshlet->IsFinalized()) {
+                    command.baseInstance = 0;
+                    command.baseVertex = 0;
+                    command.firstIndex = meshlet->GetIndexOffset(lod);
+                    command.instanceCount = 1;
+                    command.vertexCount = meshlet->GetNumIndices(lod);
+                }
+
+                drawCommands_[lod]->Add(command);
+            }
+
+            it->second.insert(std::make_pair(meshlet, index));
+
+            InsertMeshPending_(component, meshlet);
+
+            performedUpdate_ = true;
         }
-
-        it->second.insert(std::make_pair(mesh, index));
-
-        InsertMeshPending_(component, mesh);
-
-        performedUpdate_ = true;
     }
 
     void GpuCommandBuffer::RemoveAllCommands(RenderComponent* component)
@@ -133,14 +138,18 @@ namespace stratus {
 
         for (usize i = 0; i < component->GetMeshCount(); ++i) {
             const MeshPtr mesh = component->GetMesh(i);
-            auto index = it->second.find(mesh);
-            // Mesh does not match this command buffer
-            if (index == it->second.end()) {
-                continue;
-            }
 
-            modelTransforms_->Set(transforms->transforms[i], index->second);
-            performedUpdate_ = true;
+            for (usize j = 0; j < mesh->NumMeshlets(); ++j) {
+                auto meshlet = mesh->GetMeshlet(j);
+                auto index = it->second.find(meshlet);
+                // Mesh does not match this command buffer
+                if (index == it->second.end()) {
+                    continue;
+                }
+
+                modelTransforms_->Set(transforms->transforms[i], index->second);
+                performedUpdate_ = true;
+            }
         }
     }
 
@@ -153,15 +162,19 @@ namespace stratus {
 
         for (usize i = 0; i < component->GetMeshCount(); ++i) {
             const MeshPtr mesh = component->GetMesh(i);
-            auto index = it->second.find(mesh);
-            // Mesh does not match this command buffer
-            if (index == it->second.end()) {
-                continue;
-            }
 
-            auto material = component->GetMaterialAt(i);
-            materialIndices_->Set(materials->GetMaterialIndex(material), index->second);
-            performedUpdate_ = true;
+            for (usize j = 0; j < mesh->NumMeshlets(); ++j) {
+                auto meshlet = mesh->GetMeshlet(j);
+                auto index = it->second.find(meshlet);
+                // Mesh does not match this command buffer
+                if (index == it->second.end()) {
+                    continue;
+                }
+
+                auto material = component->GetMaterialAt(i);
+                materialIndices_->Set(materials->GetMaterialIndex(material), index->second);
+                performedUpdate_ = true;
+            }
         }
     }
 
@@ -280,18 +293,18 @@ namespace stratus {
         return selectedLodCommands_->GetBuffer();
     }
 
-    bool GpuCommandBuffer::InsertMeshPending_(RenderComponent* component, MeshPtr mesh)
+    bool GpuCommandBuffer::InsertMeshPending_(RenderComponent* component, MeshletPtr meshlet)
     {
-        if (!mesh->IsFinalized()) {
+        if (!meshlet->IsFinalized()) {
             auto pending = pendingMeshUpdates_.find(component);
             if (pending == pendingMeshUpdates_.end()) {
                 pending = pendingMeshUpdates_.insert(std::make_pair(
                     component,
-                    std::unordered_set<MeshPtr>()
+                    std::unordered_set<MeshletPtr>()
                 )).first;
             }
 
-            pending->second.insert(mesh);
+            pending->second.insert(meshlet);
 
             return true;
         }
@@ -299,12 +312,14 @@ namespace stratus {
         return false;
     }
 
-    void GpuCommandReceiveBuffer::EnsureCapacity(const GpuCommandBufferPtr& buffer) {
+    void GpuCommandReceiveBuffer::EnsureCapacity(const GpuCommandBufferPtr& buffer, usize copies) {
+        if (copies == 0) return;
+
         const usize capacity = capacityBytes_ / sizeof(GpuDrawElementsIndirectCommand);
-        const bool resize = capacity < buffer->CommandCapacity();
+        const bool resize = capacity < (copies * buffer->CommandCapacity());
 
         if (resize) {
-            capacityBytes_ = buffer->CommandCapacity() * sizeof(GpuDrawElementsIndirectCommand);
+            capacityBytes_ = copies * buffer->CommandCapacity() * sizeof(GpuDrawElementsIndirectCommand);
             const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
             receivedCommands_ = GpuBuffer(nullptr, capacityBytes_, flags);
         }
@@ -575,10 +590,10 @@ namespace stratus {
         }
     }
 
-    void GpuCommandReceiveManager::EnsureCapacity(const GpuCommandManagerPtr& manager) {
-    #define ENSURE_CAPACITY(readonly, writeonly)                  \
-        for (const auto& [cull, buffer] : readonly) {             \
-            writeonly.find(cull)->second->EnsureCapacity(buffer); \
+    void GpuCommandReceiveManager::EnsureCapacity(const GpuCommandManagerPtr& manager, usize copies) {
+    #define ENSURE_CAPACITY(readonly, writeonly)                          \
+        for (const auto& [cull, buffer] : readonly) {                     \
+            writeonly.find(cull)->second->EnsureCapacity(buffer, copies); \
         }
 
         ENSURE_CAPACITY(manager->flatMeshes, flatMeshes);

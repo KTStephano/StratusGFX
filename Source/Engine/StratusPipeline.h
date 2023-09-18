@@ -50,6 +50,7 @@ class Pipeline {
 
     // List of bound textures since the last call to bind()
     std::unordered_map<std::string, Texture> boundTextures_;
+    std::unordered_map<std::string, i32> activeTextureIndices_;
 
     // Lets us keep track of the next texture index to use
     i32 activeTextureIndex_ = 0;
@@ -58,6 +59,11 @@ class Pipeline {
      * Program handle returned from OpenGL
      */
     GLuint program_;
+
+    /**
+     * When a shader compiler error occurs it is placed here 
+     */
+    std::string error_;
 
     /**
      * Used to determine whether or not this Pipeline
@@ -80,7 +86,9 @@ public:
     /**
      * @return true if the Pipeline was successfully compiled
      */
-    bool IsValid() { return isValid_; }
+    bool IsValid() const { return isValid_; }
+
+    std::string GetError() const { return error_; }
 
     /**
      * Tells the Pipeline to recompile its source files.
@@ -115,8 +123,9 @@ public:
      */
     // Here x/y/zGroups specify work group units, so if they are defined by (local_size_x = 32)
     // then passing 2 for xGroups would result in 2 * 32 = 64 invokations
-    void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups);
-    void SynchronizeCompute();
+    void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) const;
+    void SynchronizeCompute() const;
+    void SynchronizeMemory() const;
 
     /**
      * Various setters to make it easy to set various uniforms
@@ -129,6 +138,9 @@ public:
      void SetUVec2(const std::string & uniform, const u32 * vec, i32 num = 1) const;
      void SetUVec3(const std::string & uniform, const u32 * vec, i32 num = 1) const;
      void SetUVec4(const std::string & uniform, const u32 * vec, i32 num = 1) const;
+     void SetIVec2(const std::string& uniform, const i32* vec, i32 num = 1) const;
+     void SetIVec3(const std::string& uniform, const i32* vec, i32 num = 1) const;
+     void SetIVec4(const std::string& uniform, const i32* vec, i32 num = 1) const;
      void SetVec2(const std::string & uniform, const f32 * vec, i32 num = 1) const;
      void SetVec3(const std::string & uniform, const f32 * vec, i32 num = 1) const;
      void SetVec4(const std::string & uniform, const f32 * vec, i32 num = 1) const;
@@ -139,6 +151,9 @@ public:
      void SetUVec2(const std::string & uniform, const glm::uvec2&) const;
      void SetUVec3(const std::string & uniform, const glm::uvec3&) const;
      void SetUVec4(const std::string & uniform, const glm::uvec4&) const;
+     void SetIVec2(const std::string& uniform, const glm::ivec2&) const;
+     void SetIVec3(const std::string& uniform, const glm::ivec3&) const;
+     void SetIVec4(const std::string& uniform, const glm::ivec4&) const;
      void SetVec2(const std::string & uniform, const glm::vec2&) const;
      void SetVec3(const std::string & uniform, const glm::vec3&) const;
      void SetVec4(const std::string & uniform, const glm::vec4&) const;
@@ -148,11 +163,29 @@ public:
 
      // Texture management
      void BindTexture(const std::string & uniform, const Texture & tex);
+     // If layered = true you can just put whatever for layer
+     void BindTextureAsImage(const std::string & uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access);
+     void BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config);
      void UnbindAllTextures();
 
 private:
     void Compile_();
+    i32 NextTextureIndex_(const std::string& uniform, const Texture & tex);
 };
+
+bool ValidatePipeline(const Pipeline* p);
+bool ValidatePipeline(const Pipeline& p);
+
+template<typename PipelineContainer>
+bool ValidateAllPipelines(const PipelineContainer& pipelines) {
+    for (const auto& p : pipelines) {
+        if (!ValidatePipeline(p)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 }
 
 #endif //STRATUSGFX_Pipeline_H

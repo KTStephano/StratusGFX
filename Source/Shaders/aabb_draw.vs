@@ -5,11 +5,11 @@ STRATUS_GLSL_VERSION
 #include "aabb.glsl"
 #include "mesh_data.glsl"
 
-layout (std430, binding = 13) readonly buffer SSBO3 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer SSBO3 {
     mat4 modelMatrices[];
 };
 
-layout (std430, binding = 14) readonly buffer inputBlock3 {
+layout (std430, binding = AABB_BINDING_POINT) readonly buffer inputBlock3 {
     AABB aabbs[];
 };
 

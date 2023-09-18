@@ -1,5 +1,8 @@
 STRATUS_GLSL_VERSION
 
+#include "bindings.glsl"
+#include "material.glsl"
+
 #define PI 3.14159265359
 #define PREVENT_DIV_BY_ZERO 0.00001
 // See https://stackoverflow.com/questions/16069959/glsl-how-to-ensure-largest-possible-float-value-without-overflow
@@ -10,47 +13,10 @@ STRATUS_GLSL_VERSION
 #define DOUBLE_MIN 2.2250738585072014e-308
 #define BITMASK_POW2(offset) (1 << offset)
 
-// Matches the definitions in StratusGpuCommon.h
-#define GPU_DIFFUSE_MAPPED            (BITMASK_POW2(1))
-#define GPU_EMISSIVE_MAPPED           (BITMASK_POW2(2))
-#define GPU_NORMAL_MAPPED             (BITMASK_POW2(3))
-#define GPU_DEPTH_MAPPED              (BITMASK_POW2(4))
-#define GPU_ROUGHNESS_MAPPED          (BITMASK_POW2(5))
-#define GPU_METALLIC_MAPPED           (BITMASK_POW2(6))
-// It's possible to have metallic + roughness combined into a single map
-#define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
-
 #define FLOAT2_TO_VEC2(f2) vec2(f2[0], f2[1])
 #define FLOAT3_TO_VEC3(f3) vec3(f3[0], f3[1], f3[2])
 #define FLOAT3_TO_VEC4(f3) vec4(FLOAT3_TO_VEC3(f3), 1.0)
 #define FLOAT4_TO_VEC4(f4) vec4(f4[0], f4[1], f4[2], f4[3])
-
-// Matches the definition in StratusGpuCommon.h
-struct Material {
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D diffuseMap;
-    sampler2D emissiveMap;
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D normalMap;
-    //sampler2D depthMap;
-    // total bytes next 2 entries = vec4 (for std430)
-    sampler2D roughnessMap;
-    sampler2D metallicMap;
-    // total bytes next 3 entries = vec4 (for std430)
-    sampler2D metallicRoughnessMap;
-    float diffuseColor[4];
-    float emissiveColor[3];
-    // Base and max are interpolated between based on metallic
-    // metallic of 0 = base reflectivity
-    // metallic of 1 = max reflectivity
-    float reflectance;
-    //float baseReflectivity[3];
-    //float maxReflectivity[3];
-    // First two values = metallic, roughness
-    float metallicRoughness[2];
-    uint flags;
-    uint placeholder1_;
-};
 
 struct DrawElementsIndirectCommand {
     uint vertexCount;
@@ -64,14 +30,6 @@ struct DrawElementsIndirectCommand {
 struct HaltonEntry {
     float base2;
     float base3;
-};
-
-layout (std430, binding = 30) readonly buffer SSBO_Global1 {
-    Material materials[];
-};
-
-layout (std430, binding = 31) readonly buffer SSBO_Global2 {
-    uint materialIndices[];
 };
 
 // Checks if flag & mask is greater than 0
@@ -115,6 +73,12 @@ vec2 computeTexelSize(sampler2D tex, int miplevel) {
 }
 
 vec2 computeTexelSize(sampler2DArrayShadow tex, int miplevel) {
+    // This will give us the size of a single texel in (x, y) directions
+    // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
+    return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);
+}
+
+vec2 computeTexelSize(sampler2DArray tex, int miplevel) {
     // This will give us the size of a single texel in (x, y) directions
     // (miplevel is telling it to give us the size at mipmap *miplevel*, where 0 would mean full size image)
     return (1.0 / textureSize(tex, miplevel).xy);// * vec2(2.0, 1.0);

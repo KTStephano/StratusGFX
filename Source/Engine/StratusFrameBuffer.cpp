@@ -108,7 +108,7 @@ namespace stratus {
             );
         }
 
-        void setAttachments(const std::vector<Texture> & attachments) {
+        void setAttachments(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
             if (colorAttachments_.size() > 0 || depthStencilAttachment_.Valid()) throw std::runtime_error("setAttachments called twice");
             valid_ = true;
 
@@ -121,7 +121,7 @@ namespace stratus {
             std::vector<u32> drawBuffers;
 
             for (Texture tex : attachments) {
-                tex.Bind();
+                tex.Bind(0);
                 GLuint Underlying = *(GLuint *)tex.Underlying();
                 if (tex.Format() == TextureComponentFormat::DEPTH) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth attachment present");
@@ -163,7 +163,7 @@ namespace stratus {
                     glFramebufferTexture(GL_FRAMEBUFFER, color, Underlying, 0);
                     colorAttachments_.push_back(tex);
                 }
-                tex.Unbind();
+                tex.Unbind(0);
             }
 
             if (drawBuffers.size() == 0) {
@@ -173,6 +173,12 @@ namespace stratus {
             }
             else {
                 glDrawBuffers(drawBuffers.size(), &drawBuffers[0]);
+            }
+
+            // Required to be set for empty framebuffer
+            if (drawBuffers.size() == 0 && numDepthStencilAttachments == 0) {
+                glNamedFramebufferParameteri(fbo_, GL_FRAMEBUFFER_DEFAULT_WIDTH, (i32)defaultWidth);
+                glNamedFramebufferParameteri(fbo_, GL_FRAMEBUFFER_DEFAULT_HEIGHT, (i32)defaultHeight);
             }
 
             // Validity check
@@ -219,9 +225,9 @@ namespace stratus {
     };
 
     FrameBuffer::FrameBuffer() {}
-    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments) {
+    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
         fbo_ = std::make_shared<FrameBufferImpl>();
-        fbo_->setAttachments(attachments);
+        fbo_->setAttachments(attachments, defaultWidth, defaultHeight);
     }
     FrameBuffer::~FrameBuffer() {}
 

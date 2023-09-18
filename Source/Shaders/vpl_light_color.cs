@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
@@ -11,6 +12,7 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 #include "pbr.glsl"
 #include "vpl_common.glsl"
+#include "bindings.glsl"
 
 uniform vec3 infiniteLightColor;
 
@@ -23,18 +25,18 @@ uniform vec3 infiniteLightColor;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) buffer inoutBlock1 {
+layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock1 {
     int numVisible[];
 };
 
 uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
-layout (std430, binding = 4) readonly buffer inputBlock3 {
+layout (std430, binding = VPL_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
 

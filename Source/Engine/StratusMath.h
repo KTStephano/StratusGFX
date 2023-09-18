@@ -18,8 +18,19 @@
 #include <random>
 #include "StratusGpuCommon.h"
 #include "StratusTypes.h"
+#include <functional>
+#include <sstream>
 
 #define STRATUS_PI 3.14159265358979323846
+
+namespace std {
+    template<>
+    struct modulus<float> {
+        float operator()(const float& lhs, const float& rhs) const {
+            return std::fmod(lhs, rhs);
+        }
+    };
+}
 
 namespace stratus {
 	class Degrees;
@@ -419,6 +430,160 @@ namespace stratus {
         f32 dz = std::max<f32>(aabb.vmin.v[2] - point.z, std::max<f32>(0.0f, point.z - aabb.vmax.v[2]));
 
         return std::sqrt(dx * dx + dy * dy + dz + dz);
+    }
+
+    inline i32 FloatBitsToInt(const f32 value) {
+        union {
+            f32 v;
+            i32 i;
+        } conversion;
+
+        conversion.v = value;
+        return conversion.i;
+    }
+
+    inline u32 FloatBitsToUint(const f32 value) {
+        union {
+            f32 v;
+            u32 u;
+        } conversion;
+
+        conversion.v = value;
+        return conversion.u;
+    }
+
+    //inline std::string UintBitsToString(const u32 value) {
+    //    std::stringstream result;
+
+    //}
+
+    inline glm::vec4 UnpackNormalized4ChannelFloatData(const u32 data) {
+        constexpr float invMax = 1.0f / 255.0f;
+
+        glm::vec4 result = glm::vec4(0.0);
+
+        result.r = float((data & 0xFF000000) >> 24) * invMax;
+        result.g = float((data & 0x00FF0000) >> 16) * invMax;
+        result.b = float((data & 0x0000FF00) >>  8) * invMax;
+        result.a = float((data & 0x000000FF)      ) * invMax;
+
+        return result;
+    }
+
+    inline void PackNormalized4ChannelFloatData(u32& out, const glm::vec4& data) {
+        const u8 r = static_cast<u8>(data.r * 255.0f);
+        const u8 g = static_cast<u8>(data.g * 255.0f);
+        const u8 b = static_cast<u8>(data.b * 255.0f);
+        const u8 a = static_cast<u8>(data.a * 255.0f);
+
+        out = (u32(r) << 24) | (u32(g) << 16) | (u32(b) << 8) | u32(a);
+
+        // std::cout << "1: " << data.r << " " << data.g << " " << data.b << " " << data.a << std::endl;
+        // std::cout << "2: " << u32(r) << " " << u32(g) << " " << u32(b) << " " << u32(a) << std::endl;
+
+        // auto result = UnpackNormalized4ChannelFloatData(out);
+
+        // std::cout << "3: " << result.r << " " << result.g << " " << result.b << " " << result.a << std::endl;
+    }
+
+    inline glm::vec4 VsmCalculateClipValueFromWorldPos(const glm::mat4& viewProj, const glm::vec3& worldPos, i32 clipMapIndex) {
+        using namespace glm;
+
+        vec4 result = viewProj * vec4(worldPos, 1.0);
+
+        // Accounts for the fact that each clip map covers double the range of the
+        // previous
+        result.x = result.x * (1.0 / float(BITMASK_POW2(clipMapIndex)));
+        result.y = result.y * (1.0 / float(BITMASK_POW2(clipMapIndex)));
+
+        return result;
+    }
+
+    // Returns 3 values on the range [-1, 1]
+    inline glm::vec4 VsmCalculateOriginClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
+        using namespace glm;
+
+        mat4 viewProj = vsmProjectionView;
+        viewProj[3] = vec4(0.0, 0.0, 0.0, 1.0);
+
+        return VsmCalculateClipValueFromWorldPos(viewProj, worldPos, clipMapIndex);
+    }
+
+    // The difference between this and Origin function is that this will return a value
+    // relative to current clip pos, whereas Origin assumes clip pos = vec3(0.0)
+    inline glm::vec4 VsmCalculateRelativeClipValueFromWorldPos(const glm::mat4& vsmProjectionView, const glm::vec3& worldPos, i32 clipMapIndex) {
+        return VsmCalculateClipValueFromWorldPos(vsmProjectionView, worldPos, clipMapIndex);
+    }
+
+    inline float Fract(const float f) {
+        return f - std::floorf(f);
+    }
+
+    inline glm::vec2 Fract(const glm::vec2& v) {
+        return glm::vec2(
+            Fract(v.x),
+            Fract(v.y)
+        );
+    }
+
+    template<typename T>
+    T Mod(const T& value, const T& maxValue) {
+        return std::modulus<T>()(value, maxValue);
+    }
+
+    template<typename T>
+    T Mod2(const T& value, const T& maxValue) {
+        return T(
+            Mod(value[0], maxValue[0]),
+            Mod(value[1], maxValue[1])
+        );
+    }
+
+    template<typename T>
+    T Mod3(const T& value, const T& maxValue) {
+        return T(
+            Mod(value[0], maxValue[0]),
+            Mod(value[1], maxValue[1]),
+            Mod(value[2], maxValue[3])
+        );
+    }
+
+    template<typename T>
+    T WrapIndex2(const T& value, const T& maxValue) {
+        return T(Mod2(Mod2(value, maxValue) + maxValue, maxValue));
+    }
+
+    // See https://stackoverflow.com/questions/3417183/modulo-of-negative-numbers
+    inline glm::ivec2 WrapIndex(const glm::ivec2& value, const glm::ivec2& maxValue) {
+        return WrapIndex2<glm::ivec2>(value, maxValue);
+    }
+
+    inline glm::vec2 WrapIndex(const glm::vec2& value, const glm::vec2& maxValue) {
+        return WrapIndex2<glm::vec2>(value, maxValue);
+    }
+
+    inline glm::vec2 ConvertVirtualCoordsToPhysicalCoords(
+        const glm::vec2& virtualPixelCoords, 
+        const glm::vec2& maxVirtualIndex, 
+        const glm::mat4& vsmProjectionView
+    ) {
+        
+        using namespace glm;
+
+        vec2 ndc = (2.0f * virtualPixelCoords) / (maxVirtualIndex + vec2(1.0f)) - vec2(1.0f);
+
+        vec2 ndcOrigin = vec2(ndc) - vec2(vsmProjectionView[3]);
+
+        vec2 physicalTexCoords = ndcOrigin * 0.5f + vec2(0.5f);
+
+        return WrapIndex(physicalTexCoords * (maxVirtualIndex + vec2(1.0f)), maxVirtualIndex + vec2(1.0f));
+
+        //return WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex), vec2(maxVirtualIndex + ivec2(1)));
+        //return vec2(physicalTexCoords) * vec2(maxVirtualIndex);
+
+        //vec2 wrapped = WrapIndex(vec2(physicalTexCoords) * vec2(maxVirtualIndex + ivec2(1)), vec2(maxVirtualIndex + ivec2(1)));
+
+        //return (wrapped / vec2(maxVirtualIndex + ivec2(1))) * vec2(maxVirtualIndex);
     }
 
     // These are the first 512 values of the Halton sequence. For more information see:

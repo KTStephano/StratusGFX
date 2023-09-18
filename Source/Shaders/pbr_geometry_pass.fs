@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 //layout (early_fragment_tests) in;
 
@@ -49,13 +50,13 @@ flat in int fsEmissiveMapped;
 //layout (location = 0) out vec3 gPosition;
 layout (location = 0) out vec3 gNormal;
 layout (location = 1) out vec4 gAlbedo;
-layout (location = 2) out vec2 gReflectivityEmissive;
-layout (location = 3) out vec3 gRoughnessMetallicAmbient;
+layout (location = 2) out float gReflectivity;
+layout (location = 3) out vec2 gRoughnessMetallic;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
 layout (location = 4) out vec4 gStructureBuffer;
 layout (location = 5) out vec2 gVelocityBuffer;
-layout (location = 6) out float gId;
+layout (location = 6) out uint gId;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -102,15 +103,17 @@ void main() {
     //vec2 texCoords = bitwiseAndBool(flags, GPU_DEPTH_MAPPED) ? calculateDepthCoords(material, fsTexCoords, viewDir) : fsTexCoords;
     vec2 texCoords = fsTexCoords;
 
-    vec4 baseColor = bool(fsDiffuseMapped) ? texture(material.diffuseMap, texCoords) : FLOAT4_TO_VEC4(material.diffuseColor);
+    vec4 baseColor = bool(fsDiffuseMapped) ? texture(material.diffuseMap, texCoords) : decodeMaterialData(material.diffuseColor);
     runAlphaTest(baseColor.a);
 
     vec3 normal = bool(fsNormalMapped) ? calculateNormal(material, texCoords) : (fsNormal + 1.0) * 0.5; // [-1, 1] -> [0, 1]
 
-    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : material.metallicRoughness[1];
-    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : material.metallicRoughness[0];
-    //float roughness = material.metallicRoughness[1];
-    //float metallic = material.metallicRoughness[0];
+    vec4 reflectanceMetallicRoughness = decodeMaterialData(material.reflectanceMetallicRoughness);
+
+    // float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.b;
+    // float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.g;
+    float roughness = reflectanceMetallicRoughness.b;
+    float metallic = reflectanceMetallicRoughness.g;
     // float roughness = material.metallicRoughness[1];
     // float metallic = material.metallicRoughness[0];
     // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl
@@ -119,23 +122,28 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : decodeMaterialData(material.emissiveColor).rgb;
+    if (length(emissive) > 0.0) {
+        baseColor = vec4(emissive, 1.0);
+    }
+    else {
+        baseColor = vec4(baseColor.rgb, 0.0);
+    }
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
-    gAlbedo = vec4(baseColor.rgb, emissive.r);
-    float reflectance = material.reflectance;
+    gAlbedo = baseColor;
+    float reflectance = reflectanceMetallicRoughness.r;
     //vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
     reflectance = mix(reflectance, maxReflectivity, (1.0 - roughness) * 0.5);
-    gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);
+    gReflectivity = mix(reflectance, maxReflectivity, metallic);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
-    gRoughnessMetallicAmbient = vec3(roughness, metallic, emissive.b);
-    //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
+    gRoughnessMetallic = vec2(roughness, metallic);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
-    gId = float(fsDrawID);
+    gId = uint(fsDrawID);
 
     // Small offset to help prevent z fighting in certain cases
     //gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;

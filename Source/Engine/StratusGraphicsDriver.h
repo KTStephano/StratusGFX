@@ -5,6 +5,8 @@
 #include "StratusTypes.h"
 
 namespace stratus {
+#define NUM_SPARSE_INFO_LOOKUPS 5
+
     /**
      * This contains information about a lot of the
      * OpenGL configuration params after initialization
@@ -31,19 +33,19 @@ namespace stratus {
         i32 maxVertexUniformVectors;
         i32 maxVertexUniformComponents;
         i32 maxViewportDims[2];
-        bool supportsSparseTextures2D[3];
+        bool supportsSparseTextures2D[NUM_SPARSE_INFO_LOOKUPS];
         // OpenGL may allow multiple page sizes at the same time which the application can select from
         // first element: RGBA8, second element: RGBA16, third element: RGBA32
-        i32 numPageSizes2D[3];
+        i32 numPageSizes2D[NUM_SPARSE_INFO_LOOKUPS];
         // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
         // indicate that it is the most efficient page size for the implementation to work with
-        i32 preferredPageSizeX2D[3];
-        i32 preferredPageSizeY2D[3];
-        bool supportsSparseTextures3D[3];
-        i32 numPageSizes3D[3];
-        i32 preferredPageSizeX3D[3];
-        i32 preferredPageSizeY3D[3];
-        i32 preferredPageSizeZ3D[3];
+        i32 preferredPageSizeX2D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeY2D[NUM_SPARSE_INFO_LOOKUPS];
+        bool supportsSparseTextures3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 numPageSizes3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeX3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeY3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeZ3D[NUM_SPARSE_INFO_LOOKUPS];
         i32 maxComputeShaderStorageBlocks;
         i32 maxComputeUniformBlocks;
         i32 maxComputeTexImageUnits;

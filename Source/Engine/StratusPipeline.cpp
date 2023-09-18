@@ -4,8 +4,21 @@
 #include "StratusLog.h"
 #include <unordered_set>
 #include "StratusUtils.h"
+#include <sstream>
 
 namespace stratus {
+bool ValidatePipeline(const Pipeline * p) {
+    if (!p->IsValid()) {
+        STRATUS_ERROR << p->GetError() << std::endl;
+    }
+
+    return p->IsValid();
+}
+
+bool ValidatePipeline(const Pipeline& p) {
+    return ValidatePipeline(&p);
+}
+
 Pipeline::Pipeline(const std::filesystem::path& rootPath, 
                    const ShaderApiVersion& version, 
                    const std::vector<Shader> & shaders, 
@@ -19,18 +32,25 @@ Pipeline::~Pipeline() {
     glDeleteProgram(program_);
 }
 
-static void PrintSourceWithLineNums(const std::string& source) {
-    std::cout << "==Begin Shader Source==" << std::endl;
-    std::cout << "1. ";
+static std::string BuildSourceWithLineNums(const std::string& source) {
+    std::stringstream result;
+    result << "==Begin Shader Source==" << std::endl;
+    result << "1. ";
     usize lineNum = 2;
     for (usize i = 0; i < source.size(); ++i) {
-        std::cout << source[i];
+        result << source[i];
         if (source[i] == '\n') {
-            std::cout << lineNum << ". ";
+            result << lineNum << ". ";
             ++lineNum;
         }
     }
-    std::cout << std::endl << "==End Shader Source==" << std::endl;
+    result << std::endl << "==End Shader Source==";
+
+    return result.str();
+}
+
+static void PrintSourceWithLineNums(const std::string& source) {
+    std::cout << BuildSourceWithLineNums(source) << std::endl;
 }
 
 /**
@@ -41,13 +61,13 @@ static void PrintSourceWithLineNums(const std::string& source) {
  * @return true if no errors occurred and false if anything
  *      went wrong
  */
-static bool checkShaderError(GLuint shader, const std::string & filename, const std::string & source) {
+static bool checkShaderError(GLuint shader, const std::string & filename, const std::string & source, std::string& errorMessage) {
+    errorMessage = "";
     GLint result;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if (!result) {
-        PrintSourceWithLineNums(source);
-
-        STRATUS_ERROR << "[error] Unable to compile shader: " << filename << std::endl;
+        errorMessage += BuildSourceWithLineNums(source) + "\n";
+        errorMessage += "[error] Unable to compile shader: " + filename + "\n";
 
         // Now we're going to get the error log and print it out
         GLint logLength;
@@ -57,7 +77,7 @@ static bool checkShaderError(GLuint shader, const std::string & filename, const 
             errorLog.resize(static_cast<u32>(logLength));
 
             glGetShaderInfoLog(shader, logLength, nullptr, &errorLog[0]);
-            std::cout << errorLog << std::endl;
+            errorMessage += errorLog + "\n";
         }
         return false;
     }
@@ -70,13 +90,14 @@ static bool checkShaderError(GLuint shader, const std::string & filename, const 
  * @return true if nothing went wrong and false if anything
  *      bad happened
  */
-static bool checkProgramError(GLuint program, const std::vector<Shader> & shaders) {
+static bool checkProgramError(GLuint program, const std::vector<Shader> & shaders, std::string& errorMessage) {
+    errorMessage = "";
     GLint linkStatus;
     glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
     if (!linkStatus) {
         std::string files;
         for (auto& s : shaders) files += s.filename + " ";
-        STRATUS_ERROR << "[error] Program failed during linking ( files were: " << files << ")" << std::endl;
+        errorMessage = "[error] Program failed during linking ( files were: " + files + ")" + "\n";
 
         GLint logLength;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
@@ -85,7 +106,7 @@ static bool checkProgramError(GLuint program, const std::vector<Shader> & shader
             std::string errorLog;
             errorLog.resize(static_cast<u32>(logLength));
             glGetProgramInfoLog(program, logLength, nullptr, &errorLog[0]);
-            std::cout << errorLog << std::endl;
+            errorMessage += errorLog + "\n";
         }
         return false;
     }
@@ -257,7 +278,7 @@ void Pipeline::Compile_() {
         glShaderSource(bin, 1, &bufferPtr, nullptr);
         glCompileShader(bin);
 
-        if (!checkShaderError(bin, s.filename, buffer)) {
+        if (!checkShaderError(bin, s.filename, buffer, error_)) {
             isValid_ = false;
             return;
         }
@@ -278,7 +299,7 @@ void Pipeline::Compile_() {
     }
 
     // Make sure no errors during linking came up
-    if (!checkProgramError(program_, this->shaders_)) {
+    if (!checkProgramError(program_, this->shaders_, error_)) {
         isValid_ = false;
         return;
     }
@@ -289,6 +310,7 @@ void Pipeline::Recompile() {
 }
 
 void Pipeline::Bind() {
+    Unbind();
     glUseProgram(program_);
 }
 
@@ -319,6 +341,18 @@ void Pipeline::SetUVec2(const std::string & uniform, const u32 * vec, i32 num) c
 
 void Pipeline::SetUVec3(const std::string & uniform, const u32 * vec, i32 num) const {
     glUniform3uiv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec2(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform2iv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec3(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform3iv(GetUniformLocation(uniform), num, vec);
+}
+
+void Pipeline::SetIVec4(const std::string& uniform, const i32 * vec, i32 num) const {
+    glUniform4iv(GetUniformLocation(uniform), num, vec);
 }
 
 void Pipeline::SetUVec4(const std::string & uniform, const u32 * vec, i32 num) const {
@@ -359,6 +393,18 @@ void Pipeline::SetUVec3(const std::string & uniform, const glm::uvec3& v) const 
 
 void Pipeline::SetUVec4(const std::string & uniform, const glm::uvec4& v) const {
     SetUVec4(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec2(const std::string& uniform, const glm::ivec2& v) const {
+    SetIVec2(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec3(const std::string& uniform, const glm::ivec3& v) const {
+    SetIVec3(uniform, &v[0]);
+}
+
+void Pipeline::SetIVec4(const std::string& uniform, const glm::ivec4& v) const {
+    SetIVec4(uniform, &v[0]);
 }
 
 void Pipeline::SetVec2(const std::string & uniform, const glm::vec2& v) const {
@@ -409,40 +455,74 @@ void Pipeline::Print() const {
     log << std::endl;
 }
 
-void Pipeline::DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) {
+void Pipeline::DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) const {
     glDispatchCompute(xGroups, yGroups, zGroups);
 }
 
-void Pipeline::SynchronizeCompute() {
+void Pipeline::SynchronizeCompute() const {
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferStorage.xhtml regarding GL_MAP_COHERENT_BIT
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFenceSync.xhtml
+    SynchronizeMemory();
+    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 100000);
+}
+
+void Pipeline::SynchronizeMemory() const {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
-    glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
 void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {
-    if (!tex.Valid()) {
-        STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
-        return;
-    }
-    // See if the uniform is already bound to a texture
-    auto it = boundTextures_.find(uniform);
-    if (it != boundTextures_.end()) {
-        it->second.Unbind();
-    }
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
 
-    const i32 activeTexture = activeTextureIndex_++;
     tex.Bind(activeTexture);
     SetInt(uniform, activeTexture);
-    boundTextures_.insert(std::make_pair(uniform, tex));
+}
+
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access) {
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
+
+    tex.BindAsImageTexture(activeTexture, layered, layer, access);
+    SetInt(uniform, activeTexture);
+}
+
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) {
+    const i32 activeTexture = NextTextureIndex_(uniform, tex);
+    if (activeTexture < 0) return;
+
+    tex.BindAsImageTexture(activeTexture, layered, layer, access, config);
+    SetInt(uniform, activeTexture);
 }
 
 void Pipeline::UnbindAllTextures() {
-    for (auto & binding : boundTextures_) {
-        binding.second.Unbind();
-        SetInt(binding.first, 0);
-    }
+    //for (auto & binding : boundTextures_) {
+    //   binding.second.Unbind();
+    //   SetInt(binding.first, 0);
+    //}
     boundTextures_.clear();
+    activeTextureIndices_.clear();
     activeTextureIndex_ = 0;
+}
+
+i32 Pipeline::NextTextureIndex_(const std::string& uniform, const Texture & tex) {
+    if (!tex.Valid()) {
+        STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
+        return -1;
+    }
+
+    // See if the uniform is already bound to a texture
+    auto it = activeTextureIndices_.find(uniform);
+    if (it != activeTextureIndices_.end()) {
+        //it->second.Unbind();
+        //boundTextures_.find(uniform)->second.Unbind();
+        boundTextures_.insert(std::make_pair(uniform, tex));
+        return it->second;
+    }
+
+    auto next = activeTextureIndex_++;
+    boundTextures_.insert(std::make_pair(uniform, tex));
+    activeTextureIndices_.insert(std::make_pair(uniform, next));
+    return next;
 }
 }

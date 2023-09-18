@@ -20,6 +20,7 @@
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
 #include "StratusTypes.h"
+#include "StratusRendererData.h"
 
 namespace stratus {
     struct RendererParams {
@@ -93,7 +94,8 @@ namespace stratus {
             );
         void UpdateCascadeVisibility_(
             Pipeline& pipeline,
-            const std::function<GpuCommandReceiveBufferPtr (const RendererCascadeData&, const RenderFaceCulling&)>& select,
+            const std::function<GpuCommandReceiveBufferPtr (const RenderFaceCulling&)>& selectPrimary,
+            const std::function<GpuCommandReceiveBufferPtr(const RenderFaceCulling&)>& selectSecondary,
             std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands
         );
         void UpdatePrevFrameModelTransforms_();
@@ -135,6 +137,7 @@ namespace stratus {
         std::unique_ptr<Pipeline> viscull_;
         std::unique_ptr<Pipeline> viscullCsms_;
         std::unique_ptr<Pipeline> updateTransforms_;
+        std::vector<Pipeline *> pipelines_;
         // Used for temporal anti-aliasing
         usize currentHaltonIndex_ = 0;
         mutable std::shared_mutex mutex_;

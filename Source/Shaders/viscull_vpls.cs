@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
@@ -24,11 +25,11 @@ uniform int totalNumLights;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer inoutBlock1 {
+layout (std430, binding = VPL_LIGHT_DATA_UNEDITED_BINDING_POINT) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 4) buffer inoutBlock2 {
+layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
     VplData updatedLightData[];
 };
 
@@ -36,7 +37,7 @@ layout (std430, binding = 4) buffer inoutBlock2 {
 //     int numVisible;
 // };
 
-layout (std430, binding = 3) buffer outputBlock2 {
+layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) buffer outputBlock2 {
     int vplVisibleIndex[];
 };
 
@@ -65,7 +66,7 @@ void main() {
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[1], vec4(lightPos, 1.0)),
                                 dot(cascadePlanes[2], vec4(lightPos, 1.0)));
-        float shadowFactor = 1.0 - calculateInfiniteShadowValue(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection, false);
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue1SampleWithPageMark(vec4(lightPos, 1.0), cascadeBlends, infiniteLightDirection, false);
         if (shadowFactor < 1.0) {
             lightVisible[index] = true;
             // int next = atomicAdd(localNumVisible, 1);

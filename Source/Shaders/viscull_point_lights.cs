@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
@@ -11,41 +12,41 @@ uniform uint numDrawCalls;
 
 uniform mat4 viewProj[6];
 
-layout (std430, binding = 2) readonly buffer inputBlock4 {
+layout (std430, binding = CURR_FRAME_MODEL_MATRICES_BINDING_POINT) readonly buffer inputBlock4 {
     mat4 modelTransforms[];
 };
 
-layout (std430, binding = 3) readonly buffer inputBlock7 {
+layout (std430, binding = AABB_BINDING_POINT) readonly buffer inputBlock7 {
     AABB aabbs[];
 };
 
 // Draw calls for face culling modes 1-3
-layout (std430, binding = 1) readonly buffer inputBlock1 {
+layout (std430, binding = VISCULL_POINT_IN_DRAW_CALLS_BINDING_POINT) readonly buffer inputBlock1 {
     DrawElementsIndirectCommand inDrawCalls[];
 };
 
 // Outputs for first face culling
-layout (std430, binding = 4) buffer outputBlock1 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE0_BINDING_POINT) buffer outputBlock1 {
     DrawElementsIndirectCommand outDrawCalls0[];
 };
 
-layout (std430, binding = 5) buffer outputBlock2 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE1_BINDING_POINT) buffer outputBlock2 {
     DrawElementsIndirectCommand outDrawCalls1[];
 };
 
-layout (std430, binding = 6) buffer outputBlock3 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE2_BINDING_POINT) buffer outputBlock3 {
     DrawElementsIndirectCommand outDrawCalls2[];
 };
 
-layout (std430, binding = 7) buffer outputBlock4 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE3_BINDING_POINT) buffer outputBlock4 {
     DrawElementsIndirectCommand outDrawCalls3[];
 };
 
-layout (std430, binding = 8) buffer outputBlock5 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE4_BINDING_POINT) buffer outputBlock5 {
     DrawElementsIndirectCommand outDrawCalls4[];
 };
 
-layout (std430, binding = 9) buffer outputBlock6 {
+layout (std430, binding = VISCULL_POINT_OUT_DRAW_CALLS_FACE5_BINDING_POINT) buffer outputBlock6 {
     DrawElementsIndirectCommand outDrawCalls5[];
 };
 

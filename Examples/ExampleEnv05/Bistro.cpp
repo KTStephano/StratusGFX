@@ -458,7 +458,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        WorldLightController * wc = new WorldLightController(warmMorningColor, warmMorningColor, 10);
+        WorldLightController * wc = new WorldLightController(defaultSunColor, warmMorningColor, 10);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(29.9668f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
@@ -467,7 +467,7 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Alpha testing doesn't work so well for this scene 
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(false);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
 
@@ -476,19 +476,63 @@ public:
         //INSTANCE(InputManager)->AddInputHandler(controller);
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
+        // (-231.613, 37.1122, -698.775)
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/Bistro.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
-        e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+        //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e3 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e4 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        e.AddCallback([this](stratus::Async<stratus::Entity> e) {
             if (e.Failed()) return;
             bistro = e.GetPtr(); 
             auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(bistro);
             //transform->SetLocalPosition(glm::vec3(0.0f));
             transform->SetLocalScale(glm::vec3(10.0f));
+            //transform->SetLocalPosition(glm::vec3(500.0f, 0.0f, 0.0f));
             INSTANCE(EntityManager)->AddEntity(bistro);
         });
 
+        // e2.AddCallback([this](stratus::Async<stratus::Entity> e) { 
+        //     if (e.Failed()) return;
+        //     auto sponza = e.GetPtr(); 
+        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(sponza);
+        //     //transform->SetLocalPosition(glm::vec3(0.0f));
+        //     transform->SetLocalPosition(glm::vec3(611.401f, 0.0f, -29.8356f));
+        //     transform->SetLocalScale(glm::vec3(15.0f));
+        //     //transform->SetLocalPosition(glm::vec3(500.0f, 0.0f, 0.0f));
+        //     INSTANCE(EntityManager)->AddEntity(sponza);
+        // });
+
+        // e3.AddCallback([this](stratus::Async<stratus::Entity> e) {
+        //     if (e.Failed()) return;
+        //     //STRATUS_LOG << "Adding\n";
+        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
+        //     //transform->SetLocalPosition(glm::vec3(0.0f));
+        //     //transform->SetLocalScale(glm::vec3(15.0f));
+        //     transform->SetLocalScale(glm::vec3(15.0f));
+        //     //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+        //     transform->SetLocalPosition(glm::vec3(-231.613f, 0.0f, -698.775f));
+        //     INSTANCE(EntityManager)->AddEntity(e.GetPtr());
+        //     //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
+        // });
+
+        // e4.AddCallback([this](stratus::Async<stratus::Entity> e) {
+        //     if (e.Failed()) return;
+        //     //STRATUS_LOG << "Adding\n";
+        //     auto transform = stratus::GetComponent<stratus::LocalTransformComponent>(e.GetPtr());
+        //     //transform->SetLocalPosition(glm::vec3(0.0f));
+        //     //transform->SetLocalScale(glm::vec3(15.0f));
+        //     transform->SetLocalScale(glm::vec3(15.0f));
+        //     //transform->SetLocalRotation(stratus::Rotation(stratus::Degrees(0.0f), stratus::Degrees(90.0f), stratus::Degrees(0.0f)));
+        //     transform->SetLocalPosition(glm::vec3(-231.613f, 0.0f, -698.775f));
+        //     INSTANCE(EntityManager)->AddEntity(e.GetPtr());
+        //     //INSTANCE(RendererFrontend)->AddDynamicEntity(sponza);
+        // });
+
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
+        settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

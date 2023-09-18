@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 #include "pbr.glsl"
 #include "pbr2.glsl"
@@ -14,7 +15,7 @@ out vec3 color;
 out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 5 //10
 #define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -58,21 +59,21 @@ uniform int frameCount;
 
 uniform float minGiOcclusionFactor = 0.95;
 
-layout (std430, binding = 0) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) readonly buffer inputBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = 1) readonly buffer inputBlock2 {
+layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock2 {
     int numVisible[];
 };
 
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
-layout (std430, binding = 3) readonly buffer inputBlock4 {
+layout (std430, binding = VPL_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock4 {
     AtlasEntry shadowIndices[];
 };
 
-layout (std430, binding = 4) readonly buffer inputBlock5 {
+layout (std430, binding = VPL_HALTON_SEQUENCE_BINDING_POINT) readonly buffer inputBlock5 {
     HaltonEntry haltonSequence[];
 };
 

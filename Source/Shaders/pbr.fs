@@ -3,6 +3,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_sparse_texture2 : require
 
 #include "common.glsl"
 #include "atmospheric_postfx.glsl"
@@ -30,6 +31,7 @@ uniform sampler2D gAlbedo;
 uniform sampler2D gBaseReflectivity;
 uniform sampler2D gRoughnessMetallicAmbient;
 uniform sampler2DRect ssao;
+uniform sampler2D ids;
 
 uniform mat4 invProjectionView;
 
@@ -53,19 +55,21 @@ uniform float emissionStrength = 0.0;
 uniform int numLights = 0;
 uniform int numShadowLights = 0;
 
-layout (std430, binding = 0) readonly buffer input1 {
+layout (std430, binding = POINT_LIGHT_NON_SHADOW_CASTER_BINDING_POINT) readonly buffer input1 {
     PointLight nonShadowCasters[];
 };
 
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
-layout (std430, binding = 1) readonly buffer input2 {
+layout (std430, binding = POINT_LIGHT_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer input2 {
     AtlasEntry shadowIndices[];
 };
 
-layout (std430, binding = 2) readonly buffer input3 {
+layout (std430, binding = POINT_LIGHT_SHADOW_CASTER_BINDING_POINT) readonly buffer input3 {
     PointLight shadowCasters[];
 };
+
+uniform int numPagesXY;
 
 /**
  * Information about the directional infinite light (if there is one)
@@ -94,14 +98,14 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-    vec3 roughnessMetallicEmissive = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rgb;
-    float roughness = roughnessMetallicEmissive.r;
-    float metallic = roughnessMetallicEmissive.g;
+    vec2 roughnessMetallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rg;
+    float roughness = roughnessMetallic.r;
+    float metallic = roughnessMetallic.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambient = texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r; //textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
-    vec2 baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).rg;
-    vec3 emissive = vec3(albedo.a, baseReflectivity.g, roughnessMetallicEmissive.b);
+    float baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).r;
+    vec3 emissive = albedo.a > 0.0 ? albedo.rgb : vec3(0.0);
 
     vec3 color = vec3(0.0);
     for (int i = 0; i < numLights; ++i) {
@@ -138,8 +142,79 @@ void main() {
                               dot(cascadePlanes[2], vec4(fragPos, 1.0)));
     float shadowFactor = calculateInfiniteShadowValue(vec4(fragPos, 1.0), cascadeBlends, normal, true);
 
-    color = color + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
+    vec3 cacheColor = vec3(0.0);
+
+    // //shadowFactor = 1.0;
+    // int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(fragPos);
+
+    // vec2 pageCoords = vec2(0.0);
+    // vec3 cascadeTexCoords = vsmCalculateOriginClipValueFromWorldPos(fragPos, cascadeIndex);
+    // pageCoords = cascadeTexCoords.xy * 0.5 + vec2(0.5);
+    // pageCoords = wrapIndex(pageCoords, vec2(numPagesXY));
+
+    // ivec2 pageCoordsLower = ivec2(floor(pageCoords));
+    // ivec2 pageCoordsUpper = ivec2(ceil(pageCoords));
+
+    // uint pageId;
+    // uint dirtyBit;
+    // uint px;
+    // uint py;
+    // uint mem;
+    // uint unused;
+
+    // int pageFlatIndex = pageCoordsLower.x + pageCoordsLower.y  * int(numPagesXY) + cascadeIndex * int(numPagesXY * numPagesXY);
+    // unpackPageMarkerData(
+    //     currFramePageResidencyTable[pageFlatIndex].info, 
+    //     unused,
+    //     px,
+    //     py,
+    //     mem,
+    //     unused,
+    //     unused
+    // );
+
+    // // unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageFlatIndex].info, pageId, dirtyBit);
+    // //unpackPageIdAndDirtyBit(currFramePageResidencyTable[pageCoordsLower.x + pageCoordsUpper.y * int(numPagesXY)].info, pageId, dirtyBit);
+
+    // // vec3 color1 = vec3(0.0, 1.0, 0.0);
+    // // vec3 color2 = vec3(0.0, 0.0, 1.0);
+    // // vec3 color3 = vec3(1.0, 1.0, 0.0);
+    // // vec3 color4 = vec3(0.0, 1.0, 1.0);
+
+    // // vec3 colors[] = vec3[](
+    // //     color1,
+    // //     color2,
+    // //     color3,
+    // //     color4
+    // // );
+
+    // // float percentage = float(cascadeIndex) / float(vsmNumCascades - 1);
+
+    // // //vec3 colorMix = mix(color1, color2, percentage);
+    // // vec3 colorMix = colors[cascadeIndex];
+
+    // // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 15.0 / 255.0) / 64.0;
+    // // cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : colorMix / 16.0;
+    // // //cacheColor = dirtyBit > 0 ? vec3(1.0, 0.0, 0.0) : vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+
+    // // if (fract(pageCoords.x) <= 0.02 || fract(pageCoords.x) >= 0.98 ||
+    // //     fract(pageCoords.y) <= 0.02 || fract(pageCoords.y) >= 0.98) {
+
+    // //     //cacheColor = (vec3(1.0, 198.0 / 255.0, 0.0)) * 2.0;
+    // //     //cacheColor = vec3(1.0, 161.0 / 255.0, 0) * 2.0;
+    // //     //cacheColor = vec3(6.0 / 255.0, 86.0 / 255.0, 1.0);
+    // //     //cacheColor = vec3(0, 218.0 / 255.0, 23.0 / 255.0);
+    // //     cacheColor = colorMix;//vec3(0.0, 1.0, 0.0);
+    // // }
+
+    // float cascadeColorScale = (float(cascadeIndex) / float(vsmNumCascades));
+    // cacheColor = vec3(float(px) / 128.0, float(py) / 128.0, cascadeColorScale);
+
+    color = color + cacheColor + calculateDirectionalLighting(infiniteLightColor, lightDir, viewDir, normal, baseColor, viewDist, roughness, metallic, ambient, 1.0 - shadowFactor, vec3(baseReflectivity.r), 0.0);
 #endif
 
     fsColor = boundHDR(color + emissive * emissionStrength);
+
+    //float currId = texture(ids, fsTexCoords).r;
+    //fsColor = vec3(random(currId), random(currId + 1), random(currId + 2));
 }

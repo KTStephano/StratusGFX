@@ -90,6 +90,7 @@ namespace stratus {
 
         // Maps the GPU memory into system memory - make sure READ, WRITE, or PERSISTENT mapping is enabled
         void * MapMemory(const Bitfield access) const;
+        void * MapMemory(const Bitfield access, isize offset, usize length) const;
         void UnmapMemory() const;
         bool IsMemoryMapped() const;
 
