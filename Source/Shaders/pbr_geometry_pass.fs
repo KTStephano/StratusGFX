@@ -110,10 +110,10 @@ void main() {
 
     vec4 reflectanceMetallicRoughness = decodeMaterialData(material.reflectanceMetallicRoughness);
 
-    float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.b;
-    float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.g;
-    //float roughness = material.metallicRoughness[1];
-    //float metallic = material.metallicRoughness[0];
+    // float roughness = bool(fsRoughnessMapped) ? texture(material.roughnessMap, texCoords).r : reflectanceMetallicRoughness.b;
+    // float metallic = bool(fsMetallicMapped) ? texture(material.metallicMap, texCoords).r : reflectanceMetallicRoughness.g;
+    float roughness = reflectanceMetallicRoughness.b;
+    float metallic = reflectanceMetallicRoughness.g;
     // float roughness = material.metallicRoughness[1];
     // float metallic = material.metallicRoughness[0];
     // See https://github.com/KhronosGroup/glTF-Sample-Viewer/blob/main/source/Renderer/shaders/material_info.glsl

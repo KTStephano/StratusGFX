@@ -329,11 +329,11 @@ void RendererBackend::InitPointShadowMaps_() {
 
     STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
 
-    // // Create the virtual point light shadow map cache
-    // vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
-    // state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+    // Create the virtual point light shadow map cache
+    vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
+    state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
-    // STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
+    STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
 
 void RendererBackend::InitializeVplData_() {

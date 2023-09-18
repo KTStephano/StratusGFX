@@ -276,6 +276,35 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
 //     return light1 * (1.0 / samples); //* 0.25;
 // }
 
+// Used for low resolution effects
+float calculateInfiniteShadowValue1SampleWithPageMark(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
+	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
+    // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/
+	//float tanTheta = tan(acos(dot(normalize(infiniteLightDirection), normal)));
+    //float bias = 0.005 * tanTheta;
+    //bias = -clamp(bias, 0.0, 0.01);
+    //float bias = 2e-19;
+    float bias = infiniteLightDepthBias / (infiniteLightZfar - infiniteLightZnear);
+    if (!useDepthBias) {
+        bias = 0.0;
+    }
+
+    vec4 position = fragPos;
+    position.xyz += normal * ( 1.0f - saturate( dot( normal, infiniteLightDirection ) ) ) * 1.0;
+
+    vec2 wh = computeTexelSize(infiniteLightShadowMap, 0);
+                         
+    float light1 = 0.0;
+    float samples = 1.0;
+    // 16-sample filtering - see https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
+    float xbound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
+    float ybound = 1.0; // 1.5 = 16 sample; 1.0 = 4 sample
+    light1 += sampleShadowTextureSparse1SampleWithPageMark(infiniteLightShadowMap, infiniteLightShadowMapNonFiltered, position.xyz, vec2(0.0), bias);
+
+    // blend and return
+    return light1 * (1.0 / samples); //* 0.25;
+}
+
 float calculateInfiniteShadowValue(vec4 fragPos, vec3 cascadeBlends, vec3 normal, bool useDepthBias) {
 	// Since dot(l, n) = cos(theta) when both are normalized, below should compute tan theta
     // See: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/

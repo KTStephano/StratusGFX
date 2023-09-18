@@ -457,6 +457,19 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     return result;
 }
 
+// Used for low resolution effects that also want to mark the page as needed at the same time as sampling from it
+float sampleShadowTextureSparse1SampleWithPageMark(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
+    return sampleShadowTextureSparse1Sample(
+        shadow, 
+        shadowNoFilter, 
+        vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, 0), 
+        offset, 
+        bias + 0.0005,
+        int(vsmNumCascades) - 1,
+        true
+    );
+}
+
 float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 worldPos, vec2 offset, float bias) {
     int cascadeIndex = vsmCalculateCascadeIndexFromWorldPos(worldPos.xyz);
     if (cascadeIndex >= vsmNumCascades) return 1.0;
