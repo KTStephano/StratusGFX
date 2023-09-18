@@ -85,7 +85,7 @@ float UofT(float t, float m) {
 
 // See https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch11.html
 float sampleShadowTexture(vec4 coords, float cascadeSwitch, float bias) {
-    return sampleShadowTextureSparse(infiniteLightShadowMap, infiniteLightShadowMapNonFiltered, coords.xyz, vec2(0.0), bias, int(cascadeSwitch));
+    return sampleShadowTextureSparse(infiniteLightShadowMap, infiniteLightShadowMapNonFiltered, coords.xyz, vec2(0.0), bias, int(cascadeSwitch), true);
 }
 // float sampleShadowTexture(vec4 coords, float cascadeSwitch, float bias) {
 //     coords.xyz = coords.xyz / coords.w; // Perspective divide

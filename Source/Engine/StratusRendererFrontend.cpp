@@ -1459,7 +1459,8 @@ namespace stratus {
             }
 
             pipeline.DispatchCompute(1, 1, 1);
-            pipeline.SynchronizeCompute();
+            pipeline.SynchronizeMemory();
+            //pipeline.SynchronizeCompute();
         }
     }
 
@@ -1556,7 +1557,8 @@ namespace stratus {
             //pipeline.setMat4("view", _frame->camera->getViewTransform());
             //pipeline.setMat4("projection", _frame->projection);
             pipeline.DispatchCompute(1, 1, 1);
-            pipeline.SynchronizeCompute();
+            //pipeline.SynchronizeCompute();
+            pipeline.SynchronizeMemory();
         }
 
         pipeline.Unbind();
@@ -1624,7 +1626,8 @@ namespace stratus {
             updateTransforms_->SetInt("cull2NumMatrices", cnone->second->NumDrawCommands());
 
             updateTransforms_->DispatchCompute(100, 1, 1);
-            updateTransforms_->SynchronizeCompute();
+            //updateTransforms_->SynchronizeCompute();
+            updateTransforms_->SynchronizeMemory();
         }
 
         updateTransforms_->Unbind();

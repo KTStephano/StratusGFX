@@ -261,7 +261,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
 }
 
 // When approaching a page boundary, uv coords are contracted by 1 to support bilinear filtering without padding
-vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex, inout bool onPageBoundary) {
+vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in vec2 resolution, in uint vsmNumPagesXY, in int cascadeIndex, inout bool onPageBoundary, in bool markPageNeeded) {
     vec2 virtualPixelCoords = wrapIndex(uv, resolution);
 
     //vec2 offsetWithinPage = wrapIndex(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
@@ -286,19 +286,32 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
-    uint unused;
+    uint frameMarker;
     uint physicalOffsetX;
     uint physicalOffsetY;
     uint memPool;
+    uint residencyStatus;
+    uint dirtyBit;
     unpackPageMarkerData(
         currFramePageResidencyTable[physicalPageIndex].info,
-        unused,
+        frameMarker,
         physicalOffsetX,
         physicalOffsetY,
         memPool,
-        unused,
-        unused
+        residencyStatus,
+        dirtyBit
     );
+
+    if (markPageNeeded && frameMarker > 0) {
+        currFramePageResidencyTable[physicalPageIndex].info = packPageMarkerData(
+            1, 
+            physicalOffsetX,
+            physicalOffsetY,
+            memPool,
+            residencyStatus,
+            dirtyBit
+        );
+    }
 
     return vec3(
         (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
@@ -339,9 +352,9 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
 //     // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
 // }
 
-float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex) {
+float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex, in bool markPageNeeded) {
     int cascadeIndex = clipMapIndex;
-    if (cascadeIndex >= vsmNumCascades) return 0.0;
+    if (cascadeIndex >= vsmNumCascades) return 1.0;
 
     float recalculatedBias = bias;
     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
@@ -377,7 +390,8 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
         vec2(textureSize(shadow, 0).xy),
         vsmNumPagesXY,
         cascadeIndex,
-        onPageBoundary
+        onPageBoundary,
+        markPageNeeded
     );
 
     if (onPageBoundary) {
@@ -406,7 +420,8 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
         vsmCalculateOriginClipValueFromWorldPos(worldPos.xyz, 0), 
         offset, 
         bias,
-        cascadeIndex
+        cascadeIndex,
+        false
     );
 }
 

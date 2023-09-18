@@ -77,8 +77,8 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
 
     // Initialize the pipelines
     state_.depthPrepass = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"depth.vs", ShaderType::VERTEX}, 
-        Shader{"depth.fs", ShaderType::FRAGMENT}}));
+        Shader{"depth_prepass.vs", ShaderType::VERTEX}, 
+        Shader{"depth_prepass.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.depthPrepass.get());
 
     state_.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -1085,7 +1085,7 @@ void RendererBackend::Render_(
     if (buffer->NumDrawCommands() == 0) return;
 
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    //glDepthMask(GL_TRUE);
 
     const Camera& camera = *frame_->camera;
     const glm::mat4 & projection = frame_->projection;
@@ -1133,7 +1133,7 @@ void RendererBackend::Render_(
     RenderImmediate_(cull, buffer, select, offset);
 
     glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
+    //glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::Render_(
@@ -1342,8 +1342,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
             //STRATUS_LOG << x << " " << y << std::endl;
 
-            if (x > 0 && y > 0) {
-            //{
+            //if (x > 0 && y > 0) {
+            {
                 vsm->CommitOrUncommitVirtualPage(
                     std::abs(x) - 1, 
                     std::abs(y) - 1, 
@@ -3002,24 +3002,38 @@ void RendererBackend::RenderForwardPassPbr_() {
     // Make sure to bind our own frame buffer for rendering
     state_.currentFrame.fbo.Bind();
 
-    // Perform depth prepass
-    BindShader_(state_.depthPrepass.get());
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
+        return b->GetVisibleDrawCommandsBuffer();
+    };
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glDepthMask(GL_TRUE);
+    const auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+
+    // Perform depth prepass
+    // BindShader_(state_.depthPrepass.get());
+
+    // glEnable(GL_DEPTH_TEST);
+    // glDepthFunc(GL_LESS);
+    // glDepthMask(GL_TRUE);
+
+    // state_.depthPrepass->SetMat4("projectionView", jitter);
+
+    // RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, select, 0, false);
+    // RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, 0, false);
+
+    // UnbindShader_();
 
     // Begin geometry pass
     BindShader_(state_.geometry.get());
 
-    auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    // glDepthFunc(GL_EQUAL);
+    // glDepthMask(GL_FALSE);
+
     state_.geometry->SetMat4("jitterProjectionView", jitter);
 
     //glDepthFunc(GL_LEQUAL);
-
-    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
-        return b->GetVisibleDrawCommandsBuffer();
-    };
 
     Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, 0, true);
     Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, 0, true);
@@ -3028,7 +3042,8 @@ void RendererBackend::RenderForwardPassPbr_() {
 
     UnbindShader_();
 
-    //glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::RenderForwardPassFlat_() {
@@ -3047,6 +3062,9 @@ void RendererBackend::RenderForwardPassFlat_() {
     Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, 0, false);
 
     UnbindShader_();
+
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 }
 
 void RendererBackend::PerformPostFxProcessing_() {
@@ -3300,29 +3318,29 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glViewport(0, 0, 350, 350);
-    // BindShader_(state_.fullscreenPages.get());
-    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
-    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
-    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    // RenderQuad_();
-    // UnbindShader_();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, 350, 350);
+    BindShader_(state_.fullscreenPages.get());
+    state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    RenderQuad_();
+    UnbindShader_();
 
-    // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+    const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glViewport(frame_->viewportWidth - 350, 0, 350, 350);
-    // BindShader_(state_.fullscreenPageGroups.get());
-    // state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
-    // state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
-    // state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
-    // frame_->vsmc.pageGroupsToRender.BindBase(
-    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
-    // frame_->vsmc.pageResidencyTable.BindBase(
-    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    // RenderQuad_();
-    // UnbindShader_();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    BindShader_(state_.fullscreenPageGroups.get());
+    state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
+    state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
+    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
+    frame_->vsmc.pageGroupsToRender.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    RenderQuad_();
+    UnbindShader_();
 }
 
 void RendererBackend::End() {
