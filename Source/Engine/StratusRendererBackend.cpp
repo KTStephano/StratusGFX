@@ -3318,29 +3318,29 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, 350, 350);
-    BindShader_(state_.fullscreenPages.get());
-    state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
-    state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
-    state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    RenderQuad_();
-    UnbindShader_();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(0, 0, 350, 350);
+    // BindShader_(state_.fullscreenPages.get());
+    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    // RenderQuad_();
+    // UnbindShader_();
 
-    const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
+    // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(frame_->viewportWidth - 350, 0, 350, 350);
-    BindShader_(state_.fullscreenPageGroups.get());
-    state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
-    state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
-    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
-    frame_->vsmc.pageGroupsToRender.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
-    frame_->vsmc.pageResidencyTable.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    RenderQuad_();
-    UnbindShader_();
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    // BindShader_(state_.fullscreenPageGroups.get());
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
+    // state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
+    // state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
+    // frame_->vsmc.pageGroupsToRender.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    // frame_->vsmc.pageResidencyTable.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    // RenderQuad_();
+    // UnbindShader_();
 }
 
 void RendererBackend::End() {

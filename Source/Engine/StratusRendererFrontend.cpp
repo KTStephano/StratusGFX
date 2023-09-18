@@ -1261,18 +1261,30 @@ namespace stratus {
     }
 
     void RendererFrontend::MarkDynamicLightsDirty_() {
+        if (worldLight_ != nullptr) {
+            worldLight_->MarkChanged();
+        }
+
         for (auto& light : dynamicLights_) {
             frame_->lightsToUpdate.PushBack(light);
         }
     }
 
     void RendererFrontend::MarkStaticLightsDirty_() {
+        if (worldLight_ != nullptr) {
+            worldLight_->MarkChanged();
+        }
+
         for (auto& light : staticLights_) {
             frame_->lightsToUpdate.PushBack(light);
         }
     }
 
     void RendererFrontend::MarkAllLightsDirty_() {
+        if (worldLight_ != nullptr) {
+            worldLight_->MarkChanged();
+        }
+
         for (auto& light : lights_) {
             frame_->lightsToUpdate.PushBack(light);
         }
