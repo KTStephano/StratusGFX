@@ -28,8 +28,8 @@ struct PointLight {
 uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
-uniform sampler2D gBaseReflectivity;
-uniform sampler2D gRoughnessMetallicAmbient;
+//uniform sampler2D gBaseReflectivity;
+uniform sampler2D gRoughnessMetallicReflectivity;
 uniform sampler2DRect ssao;
 uniform sampler2D ids;
 
@@ -98,13 +98,13 @@ void main() {
     // an OpenGL texture they are transformed to [0, 1]. To convert
     // them back, we multiply by 2 and subtract 1.
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0)); // [0, 1] -> [-1, 1]
-    vec2 roughnessMetallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).rg;
-    float roughness = roughnessMetallic.r;
-    float metallic = roughnessMetallic.g;
+    vec3 roughnessMetallicReflectivity = textureLod(gRoughnessMetallicReflectivity, texCoords, 0).rgb;
+    float roughness = roughnessMetallicReflectivity.r;
+    float metallic = roughnessMetallicReflectivity.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambient = texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r; //textureLod(gRoughnessMetallicAmbient, texCoords, 0).b * texture(ssao, texCoords * vec2(windowWidth, windowHeight)).r;
-    float baseReflectivity = textureLod(gBaseReflectivity, texCoords, 0).r;
+    float baseReflectivity = roughnessMetallicReflectivity.b; //textureLod(gBaseReflectivity, texCoords, 0).r;
     vec3 emissive = albedo.a > 0.0 ? albedo.rgb : vec3(0.0);
 
     vec3 color = vec3(0.0);

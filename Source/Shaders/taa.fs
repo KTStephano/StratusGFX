@@ -29,7 +29,7 @@ void main() {
     //velocityVal = velocityVal * 2.0 - 1.0;
     // Adjust based on texture size
     //velocityVal /= vec2(textureSize(screen, 0).xy);
-    vec2 prevTexCoords = fsTexCoords - velocityVal;
+    vec2 prevTexCoords = fsTexCoords + velocityVal;
     // vec2 prevVelocityVal = texture(previousVelocity, prevTexCoords).xy;
 
     // float velocityDifference = length(prevVelocityVal - velocityVal);

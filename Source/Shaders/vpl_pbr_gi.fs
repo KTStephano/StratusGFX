@@ -14,8 +14,8 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 5 //10
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 8 //5
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 8 //10
 #define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -24,8 +24,8 @@ out vec4 reservoir;
 uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
-uniform sampler2D gBaseReflectivity;
-uniform sampler2D gRoughnessMetallicAmbient;
+// uniform sampler2D gBaseReflectivity;
+uniform sampler2D gRoughnessMetallicReflectivity;
 
 // Screen space ambient occlusion
 uniform sampler2DRect ssao;
@@ -105,14 +105,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     baseColor = vec3(max(baseColor.r, 0.01), max(baseColor.g, 0.01), max(baseColor.b, 0.01));
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
-    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
+    vec3 roughnessMetallicReflectivity = textureLod(gRoughnessMetallicReflectivity, texCoords, 0).rgb;
+    float roughness = roughnessMetallicReflectivity.r;
     roughness = max(0.5, roughness);
-    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
+    float metallic = roughnessMetallicReflectivity.g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
-    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
-    vec3 baseReflectivity = vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
+    //float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
+    const float ambient = 0.0;
+    vec3 baseReflectivity = vec3(roughnessMetallicReflectivity.b); //vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
 
     float roughnessWeight = 1.0 - roughness;
 

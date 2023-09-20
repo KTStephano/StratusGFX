@@ -127,7 +127,7 @@ vec2 calculateVelocity(in vec4 currentClipPos, in vec4 prevClipPos) {
     current = current * 0.5 + 0.5;
     prev = prev * 0.5 + 0.5;
 
-    return current - prev;
+    return prev - current;
 }
 
 // See https://sugulee.wordpress.com/2021/06/21/temporal-anti-aliasingtaa-tutorial/

@@ -50,13 +50,13 @@ flat in int fsEmissiveMapped;
 //layout (location = 0) out vec3 gPosition;
 layout (location = 0) out vec3 gNormal;
 layout (location = 1) out vec4 gAlbedo;
-layout (location = 2) out float gReflectivity;
-layout (location = 3) out vec2 gRoughnessMetallic;
+// layout (location = 2) out float gReflectivity;
+layout (location = 2) out vec3 gRoughnessMetallicReflectivity;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
-layout (location = 4) out vec4 gStructureBuffer;
-layout (location = 5) out vec2 gVelocityBuffer;
-layout (location = 6) out uint gId;
+layout (location = 3) out vec4 gStructureBuffer;
+layout (location = 4) out vec2 gVelocityBuffer;
+layout (location = 5) out uint gId;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -138,9 +138,9 @@ void main() {
     float reflectance = reflectanceMetallicRoughness.r;
     //vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
     reflectance = mix(reflectance, maxReflectivity, (1.0 - roughness) * 0.5);
-    gReflectivity = mix(reflectance, maxReflectivity, metallic);
+    //gReflectivity = mix(reflectance, maxReflectivity, metallic);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
-    gRoughnessMetallic = vec2(roughness, metallic);
+    gRoughnessMetallicReflectivity = vec3(roughness, metallic, mix(reflectance, maxReflectivity, metallic));
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
     gId = uint(fsDrawID);

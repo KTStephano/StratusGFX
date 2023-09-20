@@ -270,7 +270,7 @@ void main() {
     vec2 texelWidthHeight = 1.0 / widthHeight;
     vec3 screenColor = texture(screen, fsTexCoords).rgb;
     vec2 velocityVal = texture(velocity, fsTexCoords).xy;
-    vec2 prevTexCoords = fsTexCoords - velocityVal;
+    vec2 prevTexCoords = fsTexCoords + velocityVal;
     //vec3 variance = calculateVariance(fsTexCoords);
     float lumVariance = 1.0;//calculateLuminanceVariance(fsTexCoords, multiplier);
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;

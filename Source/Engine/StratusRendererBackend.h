@@ -53,8 +53,8 @@ namespace stratus {
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB16F
             Texture albedo;                   // RGB8F
-            Texture baseReflectivity;         // RGB8F
-            Texture roughnessMetallicAmbient; // RGB8F
+            // Texture baseReflectivity;         // RGB8F
+            Texture roughnessMetallicReflectivity; // RGB8F
             Texture structure;                // RGBA16F
             Texture velocity;
             Texture id;
