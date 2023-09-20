@@ -54,7 +54,8 @@ layout (location = 1) out vec4 gAlbedo;
 layout (location = 2) out vec3 gRoughnessMetallicReflectivity;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
-layout (location = 3) out vec4 gStructureBuffer;
+//layout (location = 3) out vec4 gStructureBuffer;
+layout (location = 3) out float gStructureBuffer;
 layout (location = 4) out vec2 gVelocityBuffer;
 layout (location = 5) out uint gId;
 
@@ -141,7 +142,8 @@ void main() {
     //gReflectivity = mix(reflectance, maxReflectivity, metallic);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
     gRoughnessMetallicReflectivity = vec3(roughness, metallic, mix(reflectance, maxReflectivity, metallic));
-    gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+    //gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+    gStructureBuffer = 1.0 / gl_FragCoord.w;
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
     gId = uint(fsDrawID);
 

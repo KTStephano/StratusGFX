@@ -110,8 +110,9 @@ float calculateFinalBrightness(vec2 pixelCoords, float z1, float z2, vec4 p1, ve
     // Combine zw into approximate depth from structure buffer
     // Note that we are multiplying pixel coords by 2.0 since we are assuming the atmosphere buffer is half the
     // resolution of the structure buffer in both the x and y dimensions
-    vec2 structure = texture(structureBuffer, pixelCoords * 2.0).zw;
-    float depth = structure.x + structure.y;
+    //vec2 structure = texture(structureBuffer, pixelCoords * 2.0).zw;
+    //float depth = structure.x + structure.y;
+    float depth = texture(structureBuffer, pixelCoords * 2.0).r;
 
     float inverseNoiseDim = 1.0 / textureSize(noiseTexture, 0).x;
     // Page 346, eq. 10.75
