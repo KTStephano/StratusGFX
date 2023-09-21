@@ -108,7 +108,7 @@ namespace stratus {
             );
         }
 
-        void setAttachments(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
+        void setAttachments(const std::vector<FrameBufferAttachment> & attachments, const usize defaultWidth, const usize defaultHeight) {
             if (colorAttachments_.size() > 0 || depthStencilAttachment_.Valid()) throw std::runtime_error("setAttachments called twice");
             valid_ = true;
 
@@ -120,7 +120,8 @@ namespace stratus {
             // In the case of multiple color attachments we need to let OpenGL know
             std::vector<u32> drawBuffers;
 
-            for (Texture tex : attachments) {
+            for (auto& attachment : attachments) {
+                auto tex = attachment.texture;
                 tex.Bind(0);
                 GLuint Underlying = *(GLuint *)tex.Underlying();
                 if (tex.Format() == TextureComponentFormat::DEPTH) {
@@ -132,7 +133,7 @@ namespace stratus {
                         underlying,
                         0);
                     */
-                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Underlying, 0);
+                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Underlying, attachment.mipLevel);
                     ++numDepthStencilAttachments;
                     depthStencilAttachment_ = tex;
                 }
@@ -145,7 +146,7 @@ namespace stratus {
                         underlying,
                         0);
                     */
-                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Underlying, 0);
+                    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, Underlying, attachment.mipLevel);
                     ++numDepthStencilAttachments;
                     depthStencilAttachment_ = tex;
                 }
@@ -160,7 +161,7 @@ namespace stratus {
                         underlying, 
                         0);
                     */
-                    glFramebufferTexture(GL_FRAMEBUFFER, color, Underlying, 0);
+                    glFramebufferTexture(GL_FRAMEBUFFER, color, Underlying, attachment.mipLevel);
                     colorAttachments_.push_back(tex);
                 }
                 tex.Unbind(0);
@@ -225,10 +226,27 @@ namespace stratus {
     };
 
     FrameBuffer::FrameBuffer() {}
-    FrameBuffer::FrameBuffer(const std::vector<Texture> & attachments, const usize defaultWidth, const usize defaultHeight) {
+
+    FrameBuffer::FrameBuffer(const std::vector<FrameBufferAttachment> & attachments, const usize defaultWidth, const usize defaultHeight) {
+        Create_(attachments, defaultWidth, defaultHeight);
+    }
+
+    FrameBuffer::FrameBuffer(const std::vector<Texture>& textures, const usize defaultWidth, const usize defaultHeight) {
+        std::vector<FrameBufferAttachment> attachments;
+        attachments.reserve(textures.size());
+
+        for (usize i = 0; i < textures.size(); ++i) {
+            attachments.push_back({ textures[i], 0 });
+        }
+
+        Create_(attachments, defaultWidth, defaultHeight);
+    }
+
+    void FrameBuffer::Create_(const std::vector<FrameBufferAttachment>& attachments, const usize defaultWidth, const usize defaultHeight) {
         fbo_ = std::make_shared<FrameBufferImpl>();
         fbo_->setAttachments(attachments, defaultWidth, defaultHeight);
     }
+
     FrameBuffer::~FrameBuffer() {}
 
     // Clears the color, depth and stencil buffers using rgba

@@ -281,10 +281,6 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"vsm_free_pages.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.vsmFreePages.get());
 
-    state_.depthPyramidCopy = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"hzb_copy_depth.cs", ShaderType::COMPUTE} }));
-    state_.shaders.push_back(state_.depthPyramidCopy.get());
-
     state_.depthPyramidConstruct = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"hzb_construct.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.depthPyramidConstruct.get());
@@ -494,9 +490,8 @@ void RendererBackend::InitGBuffer_() {
         &state_.previousFrame
     };
 
-    state_.depthPyramid = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, true }, NoTextureData);
-    state_.depthPyramid.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-    state_.depthPyramid.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+    // Reset depth pyramid texture
+    state_.depthPyramid = Texture();
 
     for (GBuffer* gbptr : buffers) {
         GBuffer& buffer = *gbptr;
@@ -546,7 +541,7 @@ void RendererBackend::InitGBuffer_() {
 
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-        buffer.depth.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        buffer.depth.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
         buffer.depth.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the frame buffer with all its texture attachments
@@ -556,6 +551,12 @@ void RendererBackend::InitGBuffer_() {
             isValid_ = false;
             return;
         }
+
+        buffer.fbo.Clear(glm::vec4(0.0f));
+
+        buffer.depthPyramid = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, true }, NoTextureData);
+        buffer.depthPyramid.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        buffer.depthPyramid.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
     }
 }
 
@@ -933,35 +934,26 @@ void RendererBackend::ClearRemovedLightData_() {
 // See https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
 // See https://vkguide.dev/docs/gpudriven/compute_culling/
 void RendererBackend::UpdateHiZBuffer_() {
-    const u32 w = state_.depthPyramid.Width();
-    const u32 h = state_.depthPyramid.Height();
+    state_.depthPyramid = state_.previousFrame.depthPyramid;
 
-    BindShader_(state_.depthPyramidCopy.get());
-
-    const auto numComputeGroupsX = u32(std::ceil(w / 8) + 1);
-    const auto numComputeGroupsY = u32(std::ceil(h / 8) + 1);
-
-    state_.depthPyramidCopy->BindTexture("depthInput", state_.previousFrame.depth);
-    state_.depthPyramidCopy->BindTextureAsImage(
-        "depthOutput", 
-        state_.depthPyramid, 
-        0,
-        true, 
-        0, 
-        ImageTextureAccessMode::IMAGE_WRITE_ONLY
-    );
-
-    state_.depthPyramidCopy->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
-    state_.depthPyramidCopy->SynchronizeMemory();
-
-    UnbindShader_();
+    u32 w = state_.depthPyramid.Width();
+    u32 h = state_.depthPyramid.Height();
 
     BindShader_(state_.depthPyramidConstruct.get());
 
     const u32 numMips = 1 + u32(std::floor(std::log2(std::max(w, h))));
 
     for (u32 currLevel = 1; currLevel < numMips; ++currLevel) {
-        u32 prevLevel = currLevel - 1;
+        w /= 2;
+        h /= 2;
+
+        if (w == 0) w = 1;
+        if (h == 0) h = 1;
+
+        const u32 numComputeGroupsX = u32(std::ceil(w / 8) + 1);
+        const u32 numComputeGroupsY = u32(std::ceil(h / 8) + 1);
+
+        const u32 prevLevel = currLevel - 1;
 
         state_.depthPyramidConstruct->BindTextureAsImage(
             "depthInput", 
@@ -986,6 +978,10 @@ void RendererBackend::UpdateHiZBuffer_() {
     }
 
     UnbindShader_();
+}
+
+Texture RendererBackend::GetHiZOcclusionBuffer() const {
+    return state_.depthPyramid;
 }
 
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
@@ -3388,7 +3384,19 @@ void RendererBackend::FinalizeFrame_() {
 
     // Now render the screen
     BindShader_(state_.fullscreen.get());
+
     state_.fullscreen->BindTexture("screen", state_.finalScreenBuffer.GetColorAttachments()[0]);
+    state_.fullscreen->BindTexture("inputDepth", state_.currentFrame.depth);
+
+    state_.fullscreen->BindTextureAsImage(
+        "outputDepth", 
+        state_.currentFrame.depthPyramid,
+        0,
+        true, 
+        0, 
+        ImageTextureAccessMode::IMAGE_WRITE_ONLY
+    );
+
     RenderQuad_();
     UnbindShader_();
 

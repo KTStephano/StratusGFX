@@ -25,6 +25,11 @@ namespace stratus {
         u32 endY;
     };
 
+    struct FrameBufferAttachment {
+        Texture texture;
+        i32 mipLevel;
+    };
+
     class FrameBufferImpl;
     class FrameBuffer {
         std::shared_ptr<FrameBufferImpl> fbo_;
@@ -32,8 +37,14 @@ namespace stratus {
     public:
         FrameBuffer();
         // This constructor sets the attachments
-        FrameBuffer(const std::vector<Texture> &, const usize defaultWidth = 1, const usize defaultHeight = 1);
+        FrameBuffer(const std::vector<FrameBufferAttachment> &, const usize defaultWidth = 1, const usize defaultHeight = 1);
+        FrameBuffer(const std::vector<Texture>&, const usize defaultWidth = 1, const usize defaultHeight = 1);
         ~FrameBuffer();
+
+    private:
+        void Create_(const std::vector<FrameBufferAttachment>&, const usize defaultWidth, const usize defaultHeight);
+
+    public:
 
         FrameBuffer(const FrameBuffer &) = default;
         FrameBuffer(FrameBuffer &&) = default;

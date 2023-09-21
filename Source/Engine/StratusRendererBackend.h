@@ -59,6 +59,7 @@ namespace stratus {
             Texture velocity;
             Texture id;
             Texture depth;                    // Default bit depth
+            Texture depthPyramid;
         };
 
         struct PostFXBuffer {
@@ -107,7 +108,7 @@ namespace stratus {
             GBuffer previousFrame;
             // Used for culling - based on depth in previous frame's GBuffer
             Texture depthPyramid;
-            std::unique_ptr<Pipeline> depthPyramidCopy;
+            //std::unique_ptr<Pipeline> depthPyramidCopy;
             std::unique_ptr<Pipeline> depthPyramidConstruct;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
@@ -328,6 +329,14 @@ namespace stratus {
          * Finalizes the current scene and displays it.
          */
         void End();
+
+        /**
+         * Gets the hierarchical z buffer which can be used for occlusion culling.
+         * 
+         * Make sure to check the result for null (Texture()) in the event that hiz data is
+         * not available.
+         */
+        Texture GetHiZOcclusionBuffer() const;
 
         // Returns window events since the last time this was called
         // std::vector<SDL_Event> PollInputEvents();

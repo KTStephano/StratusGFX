@@ -586,6 +586,10 @@ namespace stratus {
         //return (wrapped / vec2(maxVirtualIndex + ivec2(1))) * vec2(maxVirtualIndex);
     }
 
+    inline u32 CalculateNumMipLevels(const u32 width, const u32 height) {
+        return 1 + u32(std::floor(std::log2(std::max<f32>(f32(width), f32(height)))));
+    }
+
     // These are the first 512 values of the Halton sequence. For more information see:
     //     https://en.wikipedia.org/wiki/Halton_sequence
     //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler
