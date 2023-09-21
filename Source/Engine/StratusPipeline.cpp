@@ -479,19 +479,19 @@ void Pipeline::BindTexture(const std::string & uniform, const Texture & tex) {
     SetInt(uniform, activeTexture);
 }
 
-void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access) {
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access) {
     const i32 activeTexture = NextTextureIndex_(uniform, tex);
     if (activeTexture < 0) return;
 
-    tex.BindAsImageTexture(activeTexture, layered, layer, access);
+    tex.BindAsImageTexture(activeTexture, mipLevel, layered, layer, access);
     SetInt(uniform, activeTexture);
 }
 
-void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) {
+void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) {
     const i32 activeTexture = NextTextureIndex_(uniform, tex);
     if (activeTexture < 0) return;
 
-    tex.BindAsImageTexture(activeTexture, layered, layer, access, config);
+    tex.BindAsImageTexture(activeTexture, mipLevel, layered, layer, access, config);
     SetInt(uniform, activeTexture);
 }
 

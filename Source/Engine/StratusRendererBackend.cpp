@@ -281,6 +281,14 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"vsm_free_pages.cs", ShaderType::COMPUTE} }));
     state_.shaders.push_back(state_.vsmFreePages.get());
 
+    state_.depthPyramidCopy = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"hzb_copy_depth.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.depthPyramidCopy.get());
+
+    state_.depthPyramidConstruct = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"hzb_construct.cs", ShaderType::COMPUTE} }));
+    state_.shaders.push_back(state_.depthPyramidConstruct.get());
+
     // Create skybox cube
     state_.skyboxCube = ResourceManager::Instance()->CreateCube();
 
@@ -485,6 +493,10 @@ void RendererBackend::InitGBuffer_() {
         &state_.currentFrame,
         &state_.previousFrame
     };
+
+    state_.depthPyramid = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, true }, NoTextureData);
+    state_.depthPyramid.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    state_.depthPyramid.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     for (GBuffer* gbptr : buffers) {
         GBuffer& buffer = *gbptr;
@@ -918,6 +930,64 @@ void RendererBackend::ClearRemovedLightData_() {
     if (lightsCleared > 0) STRATUS_LOG << "Cleared " << lightsCleared << " lights this frame" << std::endl;
 }
 
+// See https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
+// See https://vkguide.dev/docs/gpudriven/compute_culling/
+void RendererBackend::UpdateHiZBuffer_() {
+    const u32 w = state_.depthPyramid.Width();
+    const u32 h = state_.depthPyramid.Height();
+
+    BindShader_(state_.depthPyramidCopy.get());
+
+    const auto numComputeGroupsX = u32(std::ceil(w / 8) + 1);
+    const auto numComputeGroupsY = u32(std::ceil(h / 8) + 1);
+
+    state_.depthPyramidCopy->BindTexture("depthInput", state_.previousFrame.depth);
+    state_.depthPyramidCopy->BindTextureAsImage(
+        "depthOutput", 
+        state_.depthPyramid, 
+        0,
+        true, 
+        0, 
+        ImageTextureAccessMode::IMAGE_WRITE_ONLY
+    );
+
+    state_.depthPyramidCopy->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
+    state_.depthPyramidCopy->SynchronizeMemory();
+
+    UnbindShader_();
+
+    BindShader_(state_.depthPyramidConstruct.get());
+
+    const u32 numMips = 1 + u32(std::floor(std::log2(std::max(w, h))));
+
+    for (u32 currLevel = 1; currLevel < numMips; ++currLevel) {
+        u32 prevLevel = currLevel - 1;
+
+        state_.depthPyramidConstruct->BindTextureAsImage(
+            "depthInput", 
+            state_.depthPyramid, 
+            prevLevel,
+            true, 
+            0, 
+            ImageTextureAccessMode::IMAGE_READ_ONLY
+        );
+
+        state_.depthPyramidConstruct->BindTextureAsImage(
+            "depthOutput", 
+            state_.depthPyramid, 
+            currLevel,
+            true, 
+            0, 
+            ImageTextureAccessMode::IMAGE_WRITE_ONLY
+        );
+
+        state_.depthPyramidConstruct->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
+        state_.depthPyramidConstruct->SynchronizeMemory();
+    }
+
+    UnbindShader_();
+}
+
 void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool clearScreen) {
     CHECK_IS_APPLICATION_THREAD();
 
@@ -949,6 +1019,9 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // Includes screen data
     ClearFramebufferData_(clearScreen);
+
+    // Update hierarchical depth buffer
+    UpdateHiZBuffer_();
 
     // Generate the GPU data for all instanced entities
     //_InitAllInstancedData();
@@ -1374,7 +1447,7 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmMarkScreen->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
     state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
     state_.vsmMarkScreen->BindTextureAsImage(
-        "vsm", frame_->vsmc.vsm, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+        "vsm", frame_->vsmc.vsm, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
     frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
@@ -1954,7 +2027,7 @@ void RendererBackend::RenderCSMDepth_() {
             state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
             state_.vsmClear->SetInt("vsmClipMapIndex", cascade);
             state_.vsmClear->BindTextureAsImage(
-                "vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+                "vsm", *depth, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
             frame_->vsmc.pageResidencyTable.BindBase(
                 GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
@@ -1997,7 +2070,7 @@ void RendererBackend::RenderCSMDepth_() {
             shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
             shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
             shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
-            shader->BindTextureAsImage("vsm", *depth, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+            shader->BindTextureAsImage("vsm", *depth, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
             shader->SetInt("vsmClipMapIndex", cascade);
 
             CommandBufferSelectionFunction selectDynamic = [this, cascade](GpuCommandBufferPtr& b) {

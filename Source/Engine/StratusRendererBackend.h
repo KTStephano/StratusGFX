@@ -105,6 +105,10 @@ namespace stratus {
             // Buffer where all color data is written
             GBuffer currentFrame;
             GBuffer previousFrame;
+            // Used for culling - based on depth in previous frame's GBuffer
+            Texture depthPyramid;
+            std::unique_ptr<Pipeline> depthPyramidCopy;
+            std::unique_ptr<Pipeline> depthPyramidConstruct;
             // Buffer for lighting pass
             FrameBuffer lightingFbo;
             Texture lightingColorBuffer;
@@ -367,6 +371,7 @@ namespace stratus {
         void InitLights_(Pipeline * s, const VplDistVector_& lights, const usize maxShadowLights);
         void InitSSAO_();
         void InitAtmosphericShadowing_();
+        void UpdateHiZBuffer_();
         // void _InitEntityMeshData(RendererEntityData &);
         // void _ClearEntityMeshData();
         void ClearRemovedLightData_();

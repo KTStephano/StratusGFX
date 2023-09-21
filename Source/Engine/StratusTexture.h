@@ -168,8 +168,8 @@ namespace stratus {
         static u32 VirtualPageSizeXY();
         void CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const;
 
-        void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access) const;
-        void BindAsImageTexture(u32 unit, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const;
+        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const;
 
         bool Valid() const;
 
