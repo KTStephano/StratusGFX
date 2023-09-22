@@ -1404,7 +1404,6 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
 
     state_.vsmMarkScreen->DispatchCompute(frame_->vsmc.numPageGroupsX / 8, frame_->vsmc.numPageGroupsY / 8, 1);
     state_.vsmMarkScreen->SynchronizeMemory();
-    //state_.vsmMarkScreen->SynchronizeCompute();
 
     state_.vsmCull->Bind();
 
@@ -1984,7 +1983,6 @@ void RendererBackend::RenderCSMDepth_() {
 
             state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
             state_.vsmClear->SynchronizeMemory();
-            //state_.vsmClear->SynchronizeCompute();
 
             Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
                 state_.csmDepthRunAlphaTest[cascade].get() :
@@ -2253,7 +2251,6 @@ static inline void PerformPointLightGeometryCulling(
             GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VISCULL_POINT_OUT_DRAW_CALLS_FACE5_BINDING_POINT);
 
         pipeline.DispatchCompute(1, 1, 1);
-        //pipeline.SynchronizeCompute();
         pipeline.SynchronizeMemory();
     }
 }
@@ -2542,54 +2539,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     state_.vplCulling->SynchronizeCompute();
 
     state_.vplCulling->Unbind();
-
-    // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
-    // state_.vpls.vplNumVisible.UnmapMemory();
-
-    // if (totalVisible > 0) {
-    //     // These should still be sorted since the GPU compute shader doesn't reorder them
-    //     i32* indices = (i32*)state_.vpls.vplVisibleIndices.MapMemory();
-    //     visibleVplIndices.resize(totalVisible);
-
-    //     for (i32 i = 0; i < totalVisible; ++i) {
-    //         visibleVplIndices[i] = indices[i];
-    //     }
-
-    //     state_.vpls.vplVisibleIndices.UnmapMemory();
-    // }
-    // else {
-    //     perVPLDistToViewer.clear();
-    //     visibleVplIndices.clear();
-    // }
-
-    //STRATUS_LOG << totalVisible << std::endl;
-
-    //if (totalVisible > MAX_TOTAL_VPLS_PER_FRAME) {
-    //    visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
-    //    totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
-    //    // visibleVplIndices.clear();
-
-    //    // // We want at least 64 lights close to the viewer
-    //    // for (i32 i = 0; i < 64; ++i) {
-    //    //     visibleVplIndices.push_back(indices[i]);
-    //    // }
-
-    //    // const i32 rest = totalVisible - 64;
-    //    // const i32 step = std::max<i32>(rest / (MAX_TOTAL_VPLS_PER_FRAME - 64), 1);
-    //    // for (i32 i = 64; i < totalVisible; i += step) {
-    //    //     visibleVplIndices.push_back(indices[i]);
-    //    // }
-
-    //    // totalVisible = i32(visibleVplIndices.size());
-    //    // // Make sure we didn't go over because of step size
-    //    // if (visibleVplIndices.size() > MAX_TOTAL_VPLS_PER_FRAME) {
-    //    //     visibleVplIndices.resize(MAX_TOTAL_VPLS_PER_FRAME);
-    //    //     totalVisible = MAX_TOTAL_VPLS_PER_FRAME;
-    //    // }
-
-    //    state_.vpls.vplNumVisible.CopyDataToBuffer(0, sizeof(i32), (const void *)&totalVisible);
-    //    state_.vpls.vplVisibleIndices.CopyDataToBuffer(0, sizeof(i32) * totalVisible, (const void *)visibleVplIndices.data());
-    //}
 }
 
 // void RendererBackend::PerformVirtualPointLightCullingStage2_(
@@ -2664,88 +2613,6 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplColoring->SynchronizeCompute();
 
     state_.vplColoring->Unbind();
-
-    // Now perform culling per tile since we now know which lights are active
-    // state_.vplTileDeferredCullingStage1->Bind();
-
-    // // Bind inputs
-    // //_state.vplTileDeferredCullingStage1->bindTexture("gPosition", _state.buffer.position);
-    // state_.vplTileDeferredCullingStage1->SetMat4("invProjectionView", frame_->invProjectionView);
-    // state_.vplTileDeferredCullingStage1->BindTexture("gDepth", state_.currentFrame.depth);
-    // state_.vplTileDeferredCullingStage1->BindTexture("gNormal", state_.currentFrame.normals);
-    // // _state.vplTileDeferredCulling->setInt("viewportWidth", _frame->viewportWidth);
-    // // _state.vplTileDeferredCulling->setInt("viewportHeight", _frame->viewportHeight);
-
-    // state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    // state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
-
-    // // Bind outputs
-    // state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-
-    // // Dispatch and synchronize
-    // state_.vplTileDeferredCullingStage1->DispatchCompute(
-    //     (u32)frame_->viewportWidth  / state_.vpls.tileXDivisor,
-    //     (u32)frame_->viewportHeight / state_.vpls.tileYDivisor,
-    //     1
-    // );
-    // state_.vplTileDeferredCullingStage1->SynchronizeCompute();
-
-    // state_.vplTileDeferredCullingStage1->Unbind();
-
-    // // Perform stage 2 of the tiled deferred culling
-    // state_.vplTileDeferredCullingStage2->Bind();
-
-    // // Bind inputs
-    // state_.vplTileDeferredCullingStage2->SetVec3("viewPosition", frame_->camera->GetPosition());
-
-    // state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    // state_.vpls.vplStage1Results.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
-    // state_.vpls.vplNumVisible.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
-    // state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    // state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 11);
-
-    // // Bind outputs
-    // state_.vpls.vplVisiblePerTile.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-    
-    // // Dispatch and synchronize
-    // state_.vplTileDeferredCullingStage2->DispatchCompute(
-    //     (u32)frame_->viewportWidth  / (state_.vpls.tileXDivisor * 32),
-    //     (u32)frame_->viewportHeight / (state_.vpls.tileYDivisor * 2),
-    //     1
-    // );
-    // state_.vplTileDeferredCullingStage2->SynchronizeCompute();
-
-    // state_.vplTileDeferredCullingStage2->Unbind();
-
-    // i32 * tv = (i32 *)_state.vpls.vplNumVisible.MapMemory();
-    // GpuVplStage2PerTileOutputs * tiles = (GpuVplStage2PerTileOutputs *)_state.vpls.vplVisiblePerTile.MapMemory();
-    // GpuVplData * vpld = (GpuVplData *)_state.vpls.vplData.MapMemory();
-    // i32 m = 0;
-    // i32 mi = std::numeric_limits<i32>::max();
-    // std::cout << "Total Visible: " << *tv << std::endl;
-
-    // for (i32 i = 0; i < *tv; ++i) {
-    //     auto& position = vpld[i].position;
-    //     auto& color = vpld[i].color;
-    //     std::cout << position.v[0] << ", " << position.v[1] << ", " << position.v[2] << std::endl;
-    //     std::cout << color.v[0] << ", " << color.v[1] << ", " << color.v[2] << std::endl;
-    //     std::cout << vpld[i].farPlane << std::endl;
-    //     std::cout << vpld[i].intensity << std::endl;
-    //     std::cout << vpld[i].radius << std::endl;
-    // }
-
-    // i32 numNonZero = 0;
-    // for (i32 i = 0; i < 1920 * 1080; ++i) {
-    //     m = std::max(m, tiles[i].numVisible);
-    //     mi = std::min(mi, tiles[i].numVisible);
-    //     if (tiles[i].numVisible > 0) ++numNonZero;
-    // }
-    // std::cout << "MAX VPL: " << m << std::endl;
-    // std::cout << "MIN VPL: " << mi << std::endl;
-    // std::cout << "NNZ: " << numNonZero << std::endl;
-    // _state.vpls.vplData.UnmapMemory();
-    // _state.vpls.vplVisiblePerTile.UnmapMemory();
-    // _state.vpls.vplNumVisible.UnmapMemory();
 }
 
 void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const f64 deltaSeconds) {
