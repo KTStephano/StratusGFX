@@ -1390,6 +1390,7 @@ namespace stratus {
                 *viscullLodSelect_.get(),
                 frame_->projection,
                 frame_->camera->GetViewTransform(),
+                frame_->prevProjectionView,
                 *buffer,
                 true
             );
@@ -1480,6 +1481,7 @@ namespace stratus {
         Pipeline& pipeline,
         const glm::mat4& projection, 
         const glm::mat4& view, 
+        const glm::mat4& prevProjectionView,
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& inOutDrawCommands,
         const bool selectLods) {
 
@@ -1488,6 +1490,9 @@ namespace stratus {
             RenderFaceCulling::CULLING_CW,
             RenderFaceCulling::CULLING_NONE  
         };
+
+        const auto depthPyramid = renderer_->GetHiZOcclusionBuffer();
+        const i32 performHiZCulling = depthPyramid == Texture() ? 0 : 1;
 
         const glm::mat4 vp = projection * view;
         const glm::mat4 vpt = glm::transpose(vp);
@@ -1566,6 +1571,11 @@ namespace stratus {
 
             pipeline.SetUint("numDrawCalls", (u32)(it->second->NumDrawCommands()));
             pipeline.SetMat4("view", view);
+            pipeline.SetMat4("prevViewProjection", prevProjectionView);
+
+            if (performHiZCulling > 0) pipeline.BindTexture("depthPyramid", depthPyramid);
+            pipeline.SetInt("performHiZCulling", performHiZCulling);
+
             //pipeline.setMat4("view", _frame->camera->getViewTransform());
             //pipeline.setMat4("projection", _frame->projection);
             pipeline.DispatchCompute(1, 1, 1);

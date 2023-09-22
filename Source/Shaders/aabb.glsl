@@ -97,6 +97,10 @@ AABB transformAabb(in AABB aabb, in mat4 transform) {
     return result;
 }
 
+// float preventPerspectiveDivideZero(in float w) {
+//     return w < 0 ? 
+// }
+
 // Range of [-1, 1]
 AABB transformAabbAsNDCCoords(in AABB aabb, in mat4 transform) {
     vec4 corners[8] = computeCornersWithTransform(aabb, transform);

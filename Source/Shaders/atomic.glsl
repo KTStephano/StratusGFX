@@ -44,5 +44,5 @@ STRATUS_GLSL_VERSION
 // }
 
 #define IMAGE_ATOMIC_MIN_FLOAT_SPARSE(image, coords, data, resident) {          \
-    imageAtomicMin(image, coords, floatBitsToUint(data));                                        \
+    imageAtomicMin(image, coords, floatBitsToUint(data));                       \
 }

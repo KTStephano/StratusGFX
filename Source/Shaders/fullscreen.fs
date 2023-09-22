@@ -14,10 +14,10 @@ layout (r32f) writeonly uniform image2D outputDepth;
 out vec4 color;
 
 void main() {
-    float depth = textureLod(inputDepth, fsTexCoords, 0).r;
-    ivec2 pixelCoords = ivec2(fsTexCoords * vec2(textureSize(inputDepth, 0).xy));
+    // float depth = textureLod(inputDepth, fsTexCoords, 0).r;
+    // ivec2 pixelCoords = ivec2(fsTexCoords * vec2(textureSize(inputDepth, 0).xy));
 
-    imageStore(outputDepth, pixelCoords, vec4(depth));
+    // imageStore(outputDepth, pixelCoords, vec4(depth));
 
     color = vec4(texture(screen, fsTexCoords).rgb, 1.0);
 }

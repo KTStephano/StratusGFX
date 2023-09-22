@@ -876,6 +876,10 @@ namespace stratus {
         return impl_ == other.impl_;
     }
 
+    bool Texture::operator!=(const Texture & other) const {
+        return !(this->operator==(other));
+    }
+
     // Creates a new texture and copies this texture into it
     Texture Texture::Copy(u32 newWidth, u32 newHeight) const {
         throw std::runtime_error("Must implement");

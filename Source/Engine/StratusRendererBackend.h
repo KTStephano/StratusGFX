@@ -394,7 +394,8 @@ namespace stratus {
         void PerformGammaTonemapPostFx_();
         void FinalizeFrame_();
         void InitializePostFxBuffers_();
-        void ProcessCSMVirtualTexture_();
+        void ProcessShadowMemoryRequests_();
+        void ProcessShadowVirtualTexture_();
         void RenderBoundingBoxes_(GpuCommandBufferPtr&);
         void RenderBoundingBoxes_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&);
         void RenderImmediate_(const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, usize offset);

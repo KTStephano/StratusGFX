@@ -7,6 +7,15 @@
 namespace stratus {
 #define NUM_SPARSE_INFO_LOOKUPS 5
 
+    // Object which can be inserted into the context's GPU command stream
+    // and later used to synchronize with the host
+    struct GpuHostFence {
+        void * handle = nullptr;
+    };
+
+    GpuHostFence HostInsertFence();
+    void HostFenceSync(GpuHostFence);
+
     /**
      * This contains information about a lot of the
      * OpenGL configuration params after initialization

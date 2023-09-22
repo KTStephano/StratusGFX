@@ -16,6 +16,17 @@ namespace stratus {
         return context;
     }
 
+    GpuHostFence HostInsertFence() {
+        GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        return GpuHostFence{ static_cast<void *>(fence) };
+    }
+
+    void HostFenceSync(GpuHostFence fenceHandle) {
+        if (fenceHandle.handle == nullptr) return;
+        GLsync fence = static_cast<GLsync>(fenceHandle.handle);
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
+    }
+
     static void PrintGLInfo() {
         const GraphicsConfig& config = GetContext().config;
         auto & log = STRATUS_LOG << std::endl;

@@ -192,7 +192,8 @@ void main() {
                     else {
                         newPageResidencyStatus = 1;
                     }
-                    dirtyBit = VSM_PAGE_DIRTY_BIT;
+                    // Mark as not dirty since memory allocation will lag 1 frame behind
+                    dirtyBit = 0;
                     // current.info = setDirtyBit(current.info, dirtyBit);
                 }
                 else if (pageResident == 1) {

@@ -931,55 +931,6 @@ void RendererBackend::ClearRemovedLightData_() {
     if (lightsCleared > 0) STRATUS_LOG << "Cleared " << lightsCleared << " lights this frame" << std::endl;
 }
 
-// See https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
-// See https://vkguide.dev/docs/gpudriven/compute_culling/
-void RendererBackend::UpdateHiZBuffer_() {
-    state_.depthPyramid = state_.previousFrame.depthPyramid;
-
-    u32 w = state_.depthPyramid.Width();
-    u32 h = state_.depthPyramid.Height();
-
-    BindShader_(state_.depthPyramidConstruct.get());
-
-    const u32 numMips = 1 + u32(std::floor(std::log2(std::max(w, h))));
-
-    for (u32 currLevel = 1; currLevel < numMips; ++currLevel) {
-        w /= 2;
-        h /= 2;
-
-        if (w == 0) w = 1;
-        if (h == 0) h = 1;
-
-        const u32 numComputeGroupsX = u32(std::ceil(w / 8) + 1);
-        const u32 numComputeGroupsY = u32(std::ceil(h / 8) + 1);
-
-        const u32 prevLevel = currLevel - 1;
-
-        state_.depthPyramidConstruct->BindTextureAsImage(
-            "depthInput", 
-            state_.depthPyramid, 
-            prevLevel,
-            true, 
-            0, 
-            ImageTextureAccessMode::IMAGE_READ_ONLY
-        );
-
-        state_.depthPyramidConstruct->BindTextureAsImage(
-            "depthOutput", 
-            state_.depthPyramid, 
-            currLevel,
-            true, 
-            0, 
-            ImageTextureAccessMode::IMAGE_WRITE_ONLY
-        );
-
-        state_.depthPyramidConstruct->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
-        state_.depthPyramidConstruct->SynchronizeMemory();
-    }
-
-    UnbindShader_();
-}
-
 Texture RendererBackend::GetHiZOcclusionBuffer() const {
     return state_.depthPyramid;
 }
@@ -1015,9 +966,6 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 
     // Includes screen data
     ClearFramebufferData_(clearScreen);
-
-    // Update hierarchical depth buffer
-    UpdateHiZBuffer_();
 
     // Generate the GPU data for all instanced entities
     //_InitAllInstancedData();
@@ -1310,7 +1258,44 @@ void RendererBackend::PerformVSMCulling(
     }
 }
 
-void RendererBackend::ProcessCSMVirtualTexture_() {
+void RendererBackend::ProcessShadowMemoryRequests_() {
+    HostFenceSync(frame_->vsmc.prevFrameFence);
+
+    const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
+    frame_->vsmc.numPagesToCommit.UnmapMemory();
+
+    if (numPagesToUpdate > 0) {
+        //STRATUS_LOG << "Processing: " << numPagesToUpdate << std::endl;
+
+        const i32* pageIndices = (const i32 *)frame_->vsmc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
+
+        for (i32 i = 0; i < numPagesToUpdate; ++i) {
+            //STRATUS_LOG << i << std::endl;
+
+            const i32 cascade = pageIndices[3 * i];
+            const i32 x = pageIndices[3 * i + 1];
+            const i32 y = pageIndices[3 * i + 2];
+
+            //STRATUS_LOG << x << " " << y << std::endl;
+
+            //if (x > 0 && y > 0) {
+            {
+                frame_->vsmc.vsm.CommitOrUncommitVirtualPage(
+                    std::abs(x) - 1,
+                    std::abs(y) - 1,
+                    cascade,
+                    1,
+                    1,
+                    (x < 0 || y < 0) ? false : true
+                );
+            }
+        }
+
+        frame_->vsmc.pagesToCommitList.UnmapMemory();
+    }
+}
+
+void RendererBackend::ProcessShadowVirtualTexture_() {
     // int value = 0;
     // frame_->vsmc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
@@ -1318,6 +1303,9 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     frame_->vsmc.pageGroupsToRender.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
     frame_->vsmc.numPagesFree.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_FREE_BINDING_POINT);
     frame_->vsmc.pagesFreeList.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGES_FREE_LIST_BINDING_POINT);
+    
+    // Clear last frame's requests
+    ProcessShadowMemoryRequests_();
 
     u32 frameCount = u32(INSTANCE(Engine)->FrameCount());
     const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
@@ -1357,8 +1345,6 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
 
     state_.vsmAnalyzeDepth->Unbind();
 
-    auto vsm = &frame_->vsmc.vsm; //frame_->vsmc.fbo.GetDepthStencilAttachment();
-
     i32 value = 0;
     frame_->vsmc.numPagesToCommit.CopyDataToBuffer(0, sizeof(int), (const void *)&value);
 
@@ -1391,42 +1377,11 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
     state_.vsmFreePages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
 
     state_.vsmFreePages->DispatchCompute(1, 1, 1);
-    state_.vsmFreePages->SynchronizeCompute();
+    state_.vsmFreePages->SynchronizeMemory();
+
+    frame_->vsmc.prevFrameFence = HostInsertFence();
 
     state_.vsmFreePages->Unbind();
-
-    const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
-    frame_->vsmc.numPagesToCommit.UnmapMemory();
-
-    if (numPagesToUpdate > 0) {
-        //STRATUS_LOG << "Freeing: " << numPagesToFree << std::endl;
-
-        const i32 * pageIndices = (const i32 *)frame_->vsmc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
-
-        for (i32 i = 0; i < numPagesToUpdate; ++i) {
-            //STRATUS_LOG << i << std::endl;
-
-            const i32 cascade = pageIndices[3 * i];
-            const i32 x = pageIndices[3 * i + 1];
-            const i32 y = pageIndices[3 * i + 2];
-
-            //STRATUS_LOG << x << " " << y << std::endl;
-
-            //if (x > 0 && y > 0) {
-            {
-                vsm->CommitOrUncommitVirtualPage(
-                    std::abs(x) - 1, 
-                    std::abs(y) - 1, 
-                    cascade,
-                    1, 
-                    1, 
-                    (x < 0 || y < 0) ? false : true
-                );
-            }
-        }
-
-        frame_->vsmc.pagesToCommitList.UnmapMemory();
-    }
 
     TextureAccess depthBindConfig{
         TextureComponentFormat::RED,
@@ -1448,8 +1403,8 @@ void RendererBackend::ProcessCSMVirtualTexture_() {
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
     state_.vsmMarkScreen->DispatchCompute(frame_->vsmc.numPageGroupsX / 8, frame_->vsmc.numPageGroupsY / 8, 1);
-    //state_.vsmMarkScreen->SynchronizeMemory();
-    state_.vsmMarkScreen->SynchronizeCompute();
+    state_.vsmMarkScreen->SynchronizeMemory();
+    //state_.vsmMarkScreen->SynchronizeCompute();
 
     state_.vsmCull->Bind();
 
@@ -1497,7 +1452,7 @@ void RendererBackend::RenderCSMDepth_() {
     //    throw std::runtime_error("Max cascades exceeded (> 6)");
     //}
 
-    ProcessCSMVirtualTexture_();
+    ProcessShadowVirtualTexture_();
 
     // const auto n = *(const i32*)frame_->vsmc.numPagesFree.MapMemory(GPU_MAP_READ);
     // frame_->vsmc.numPagesFree.UnmapMemory();
@@ -3064,6 +3019,9 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     // Perform final drawing to screen + gamma correction
     FinalizeFrame_();
 
+    // Update hierarchical depth buffer
+    //UpdateHiZBuffer_();
+
     // Unbind element array buffer
     GpuMeshAllocator::UnbindElementArrayBuffer();
 }
@@ -3423,6 +3381,55 @@ void RendererBackend::FinalizeFrame_() {
     //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     // RenderQuad_();
     // UnbindShader_();
+}
+
+// See https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/
+// See https://vkguide.dev/docs/gpudriven/compute_culling/
+void RendererBackend::UpdateHiZBuffer_() {
+    state_.depthPyramid = state_.currentFrame.depthPyramid;
+
+    u32 w = state_.depthPyramid.Width();
+    u32 h = state_.depthPyramid.Height();
+
+    BindShader_(state_.depthPyramidConstruct.get());
+
+    const u32 numMips = 1 + u32(std::floor(std::log2(std::max(w, h))));
+
+    for (u32 currLevel = 1; currLevel < numMips; ++currLevel) {
+        w /= 2;
+        h /= 2;
+
+        if (w == 0) w = 1;
+        if (h == 0) h = 1;
+
+        const u32 numComputeGroupsX = u32(std::ceil(w / 8) + 1);
+        const u32 numComputeGroupsY = u32(std::ceil(h / 8) + 1);
+
+        const u32 prevLevel = currLevel - 1;
+
+        state_.depthPyramidConstruct->BindTextureAsImage(
+            "depthInput", 
+            state_.depthPyramid, 
+            prevLevel,
+            true, 
+            0, 
+            ImageTextureAccessMode::IMAGE_READ_ONLY
+        );
+
+        state_.depthPyramidConstruct->BindTextureAsImage(
+            "depthOutput", 
+            state_.depthPyramid, 
+            currLevel,
+            true, 
+            0, 
+            ImageTextureAccessMode::IMAGE_WRITE_ONLY
+        );
+
+        state_.depthPyramidConstruct->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
+        state_.depthPyramidConstruct->SynchronizeMemory();
+    }
+
+    UnbindShader_();
 }
 
 void RendererBackend::End() {

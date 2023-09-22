@@ -190,6 +190,7 @@ namespace stratus {
 
         size_t HashCode() const;
         bool operator==(const Texture & other) const;
+        bool operator!=(const Texture & other) const;
 
         // Creates a new texture and copies this texture into it
         Texture Copy(u32 newWidth, u32 newHeight) const;

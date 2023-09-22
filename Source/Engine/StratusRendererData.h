@@ -29,6 +29,7 @@
 #include <set>
 #include "StratusGpuCommandBuffer.h"
 #include "StratusTypes.h"
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
     enum class RendererCascadeResolution : i32 {
@@ -215,6 +216,7 @@ namespace stratus {
         f32 baseCascadeDiameter;
         FrameBuffer fbo;
         Texture vsm;
+        GpuHostFence prevFrameFence;
         // GpuBuffer prevFramePageResidencyTable;
         GpuBuffer pageResidencyTable;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;

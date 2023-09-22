@@ -36,7 +36,7 @@ void main() {
         float depth3 = imageLoad(depthInput, coord3).r;
         float depth4 = imageLoad(depthInput, coord4).r;
 
-        float depth = min(min(depth1, depth2), min(depth3, depth4));
+        float depth = max(max(depth1, depth2), max(depth3, depth4));
 
         imageStore(depthOutput, pixelXY, vec4(depth));
     }

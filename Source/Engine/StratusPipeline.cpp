@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include "StratusUtils.h"
 #include <sstream>
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
 bool ValidatePipeline(const Pipeline * p) {
@@ -463,8 +464,8 @@ void Pipeline::SynchronizeCompute() const {
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferStorage.xhtml regarding GL_MAP_COHERENT_BIT
     // See https://registry.khronos.org/OpenGL-Refpages/gl4/html/glFenceSync.xhtml
     SynchronizeMemory();
-    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 100000);
+    auto fence = HostInsertFence();
+    HostFenceSync(fence);
 }
 
 void Pipeline::SynchronizeMemory() const {

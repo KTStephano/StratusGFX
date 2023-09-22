@@ -61,6 +61,10 @@ layout (std430, binding = VISCULL_LOD_IN_DRAW_CALLS_LOD7_BINDING_POINT) readonly
 uniform uint numDrawCalls;
 uniform vec3 viewPosition;
 uniform mat4 view;
+uniform mat4 prevViewProjection;
+
+uniform sampler2D depthPyramid;
+uniform int performHiZCulling;
 
 // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
 float distanceFromPointToAABB(in AABB aabb, vec3 point) {
@@ -123,12 +127,49 @@ void main() {
         lod = draw;
     #endif
 
+        int instanceCount = 1;
+
         if (!isAabbVisible(frustumPlanes, aabb)) {
-            draw.instanceCount = 0;
+            instanceCount = 0;
         }
-        else {
-            draw.instanceCount = 1;
-        }
+        // See https://vkguide.dev/docs/gpudriven/compute_culling/
+        // else if (performHiZCulling > 0) {
+        //     //DrawElementsIndirectCommand prevDraw = outDrawCalls[i];
+        //     //if (prevDraw.instanceCount > 0) {
+        //         aabb = transformAabbAsNDCCoords(aabbs[i], prevViewProjection * modelTransforms[i]);
+        //         vec3 vmin = clamp(aabb.vmin.xyz * 0.5 + vec3(0.5), vec3(0.0), vec3(1.0));
+        //         vec3 vmax = clamp(aabb.vmax.xyz * 0.5 + vec3(0.5), vec3(0.0), vec3(1.0));
+
+        //         vec2 coord1 = vec2(vmin.x, vmin.y);
+        //         vec2 coord2 = vec2(vmin.x, vmax.y);
+        //         vec2 coord3 = vec2(vmax.x, vmin.y);
+        //         vec2 coord4 = vec2(vmax.x, vmax.y);
+
+        //         // Calculate screenspace width/height using the uv difference between vmin and vmax
+        //         float width  = (vmax.x - vmin.x) * float(textureSize(depthPyramid, 0).x);
+        //         float height = (vmax.y - vmin.y) * float(textureSize(depthPyramid, 0).y);
+
+        //         // Compute mip level where AABB is close to the size of 1 pixel
+        //         float level = floor(log2(max(width, height)));
+
+        //         float depth1 = textureLod(depthPyramid, coord1, level).x;
+        //         float depth2 = textureLod(depthPyramid, coord2, level).x;
+        //         float depth3 = textureLod(depthPyramid, coord3, level).x;
+        //         float depth4 = textureLod(depthPyramid, coord4, level).x;
+
+        //         float depth = max(max(depth1, depth2), max(depth3, depth4));
+
+        //         // vec4 minDepth = viewProjection * vec4(0, 0, dist, 1);
+        //         // minDepth.xyz /= minDepth.w;
+        //         // minDepth.xyz = minDepth.xyz * 0.5 + vec3(0.5);
+
+        //         bool invalid = (vmin.z <= depth == false) && (vmin.z > depth == false);
+
+        //         instanceCount = 1;//int(vmin.z <= depth || vmin.z >= depth);
+        //     //}
+        // }
+
+        draw.instanceCount = instanceCount;
 
         outDrawCalls[i] = draw;
 
