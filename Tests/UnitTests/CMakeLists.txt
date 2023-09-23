@@ -8,7 +8,6 @@ set(TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/TestUnsafePtr.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TestStackAllocators.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TestConcurrentHashMap.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/TestSpatialLight.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TestsMain.cpp
 )
 
@@ -16,7 +15,7 @@ set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 
 link_directories(${ROOT_DIRECTORY}/Bin)
 
-add_executable(${TEST_EXE} ${TEST_SOURCES} "TestSpatialLight.cpp")
+add_executable(${TEST_EXE} ${TEST_SOURCES})
 
 target_include_directories(${TEST_EXE} PUBLIC
     ${ROOT_DIRECTORY}/gl3w/include

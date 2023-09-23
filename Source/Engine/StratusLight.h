@@ -430,7 +430,7 @@ namespace stratus {
 
         // Returns the nearest neighbors in the range of [-tileOffset, tileOffset]
         template<typename Allocator>
-        std::vector<SpatialLightTileView, Allocator> GetNearestTiles(const glm::vec3& origin, const Allocator& alloc, const u32 tileOffset = 1) {
+        std::vector<SpatialLightTileView, Allocator> GetNearestTiles(const glm::vec3& origin, const Allocator& alloc, const u32 tileOffset) {
             const i32 numTilesRadius = i32(tileOffset);
             std::vector<SpatialLightTileView, Allocator> result(alloc);
             result.reserve(2 * numTilesRadius);
@@ -453,12 +453,12 @@ namespace stratus {
         }
 
         // Returns the nearest neighbors in the range of [-tileOffset, tileOffset]
-        std::vector<SpatialLightTileView> GetNearestTiles(const glm::vec3& origin, const u32 tileOffset = 1) {
+        std::vector<SpatialLightTileView> GetNearestTiles(const glm::vec3& origin, const u32 tileOffset) {
             return GetNearestTiles(origin, std::allocator<SpatialLightTileView>(), tileOffset);
         }
 
         bool Contains(const LightHandle& handle) const {
-            return lights_.find(handle) != lights_.end();
+            return lightPositions_.find(handle) != lightPositions_.end();
         }
 
         bool Contains(const LightPtr& light) const {
@@ -471,22 +471,18 @@ namespace stratus {
 
         // Inserts light if not present. If it is present, it updates its position.
         void Insert(const LightPtr& light) {
+            Erase(light);
+
             const auto handle = light->Handle();
-            auto it = lightPositions_.find(handle);
-            if (it != lightPositions_.end(handle)) {
-                const auto index = ConvertWorldPosToTileIndex(it->second);
-                lights_.find(index)->second.lights->erase(light);
-            }
 
             lightPositions_.insert(std::make_pair(handle, light->GetPosition()));
             const auto index = ConvertWorldPosToTileIndex(light->GetPosition());
 
-            auto lit = lights_.find(index);
-            if (lit == lights_.end()) {
-                lights_.insert(std::make_pair(index, SpatialLightTile()));
-                lit = lights_.find(index);
+            auto it = lights_.find(index);
+            if (it == lights_.end()) {
+                it = lights_.insert(std::make_pair(index, SpatialLightTile())).first;
             }
-            lit->second.lights->insert(light);
+            it->second.lights->insert(light);
         }
 
         void Erase(const LightPtr& light) {
