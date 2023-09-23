@@ -7,8 +7,8 @@
 #include "StratusTypes.h"
 
 namespace stratus {
-    inline u64 NextHandle_() {
-        static std::atomic<u64> next(1);
+    inline u32 NextHandle_() {
+        static std::atomic<u32> next(1);
         return next.fetch_add(1);
     }
 
@@ -19,7 +19,7 @@ namespace stratus {
     template<typename E>
     class Handle {
         // Private: only accessible by NextHandle()
-        Handle(const u64 handle) : handle_(handle) {}
+        Handle(const u32 handle) : handle_(handle) {}
 
     public:
         // Default constructor creates the Null Handle
@@ -39,9 +39,9 @@ namespace stratus {
         
         static Handle<E> Null() { return Handle<E>(); }
 
-        size_t HashCode() const { return std::hash<u64>{}(handle_); }
+        size_t HashCode() const { return std::hash<u32>{}(handle_); }
         // Unsigned 64-bit integer representation
-        u64 Integer() const { return handle_; }
+        u32 Integer() const { return handle_; }
 
         // Comparison operators
 
@@ -58,8 +58,8 @@ namespace stratus {
         }
 
     private:
-        // Local 64-bit unsigned handle - 0 == Null Handle
-        u64 handle_ = 0;
+        // Local 32-bit unsigned handle - 0 == Null Handle
+        u32 handle_ = 0;
     };
 }
 
