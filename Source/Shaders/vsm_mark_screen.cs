@@ -77,7 +77,7 @@ void main() {
             ivec2 localPixelCoords = ivec2(corners[i].x, corners[i].y);
 
             vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
-            // Project current ndc coords to previous frame
+            // Apply motion vector to local ndc
             vec2 ndcChange = ndc - cascadeNdcClipOriginChange;
 
             vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
