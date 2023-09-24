@@ -436,7 +436,7 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->vsmc.vsm.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
         // Create the frame buffer
-        //frame_->vsmc.fbo = FrameBuffer({ tex }, frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
+        //frame_->vsmc.fbo = FrameBuffer({ tex }, frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY); 
         frame_->vsmc.fbo = FrameBuffer(std::vector<Texture>(), frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
 
         const u32 numPages = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
