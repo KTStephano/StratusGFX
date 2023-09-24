@@ -77,6 +77,7 @@ void main() {
             ivec2 localPixelCoords = ivec2(corners[i].x, corners[i].y);
 
             vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
+            // Project current ndc coords to previous frame
             vec2 ndcChange = ndc - cascadeNdcClipOriginChange;
 
             vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
@@ -102,8 +103,8 @@ void main() {
             if (frameMarker > 0) {
                 performBoundsUpdate = true;
 
-                // If moving this pixel to previous NDC goes out of the [-1, 1] range, we migrated
-                // to a different page and need to be regenerated
+                // If moving this pixel to previous NDC goes out of the [-1, 1] range, it was not visible last
+                // frame before the origin shift and will be wrapped around to the other side
                 if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
                     pageDirty = true;
                 }
