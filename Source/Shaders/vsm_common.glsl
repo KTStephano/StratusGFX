@@ -303,7 +303,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
         dirtyBit
     );
 
-    if (markPageNeeded && frameMarker > 0) {
+    if (markPageNeeded && frameMarker > 0 && frameMarker != 1) {
         currFramePageResidencyTable[physicalPageIndex].info = packPageMarkerData(
             1, 
             physicalOffsetX,
