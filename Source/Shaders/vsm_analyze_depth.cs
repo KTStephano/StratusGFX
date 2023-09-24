@@ -57,7 +57,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = 1;//computePageId(coords);
 
-    uint unused;
+    uint frameMarker;
     uint physicalPageX;
     uint physicalPageY;
     uint memPool;
@@ -65,7 +65,7 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
     uint prevDirtyBit;
     unpackPageMarkerData(
         currFramePageResidencyTable[tileIndex].info, 
-        unused, 
+        frameMarker, 
         physicalPageX,
         physicalPageY,
         memPool,
@@ -75,14 +75,16 @@ void updateResidencyStatus(in ivec2 coords, in int cascade) {
 
     uint newResidencyStatus = prevResidencyStatus;
     uint newDirtyBit = prevResidencyStatus < 2 ? 1 : prevDirtyBit; 
-    currFramePageResidencyTable[tileIndex].info = packPageMarkerData(
-        1, 
-        physicalPageX,
-        physicalPageY,
-        memPool,
-        newResidencyStatus,
-        newDirtyBit
-    );
+    if (frameMarker != 1) {
+        currFramePageResidencyTable[tileIndex].info = packPageMarkerData(
+            1, 
+            physicalPageX,
+            physicalPageY,
+            memPool,
+            newResidencyStatus,
+            newDirtyBit
+        );
+    }
 }
 
 void main() {
