@@ -33,8 +33,13 @@ layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer 
     int numVisible[];
 };
 
-uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
-uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
+layout (std430, binding = VPL_DIFFUSE_MAP_BINDING_POINT) readonly buffer inputBlock4 {
+    samplerCubeArray diffuseCubeMaps[];
+};
+
+layout (std430, binding = VPL_SHADOW_MAP_BINDING_POINT) readonly buffer inputBlock5 {
+    samplerCubeArray shadowCubeMaps[];
+};
 
 layout (std430, binding = VPL_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];

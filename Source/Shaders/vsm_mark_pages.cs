@@ -86,7 +86,7 @@ shared int cascadeStepSize;
 // }
 
 bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint physicalPageY, out uint memPool) {
-    int maxPage = int(vsmNumCascades * numPagesXY * numPagesXY);
+    int maxPage = int(vsmNumMemoryPools * numPagesXY * numPagesXY);
     int nextPage = atomicAdd(numPagesFree, 1);
     if (nextPage >= maxPage) {
         physicalPageX = 0;

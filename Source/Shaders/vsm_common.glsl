@@ -72,6 +72,7 @@ layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buff
 // For first clip map - rest are derived from this
 uniform mat4 vsmClipMap0ProjectionView;
 uniform uint vsmNumCascades;
+uniform uint vsmNumMemoryPools;
 
 #define VSM_CONVERT_CLIP0_TO_CLIP_N(type)                                \
     type vsmConvertClip0ToClipN(in type original, in int clipIndex) {    \
@@ -302,7 +303,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
         dirtyBit
     );
 
-    if (markPageNeeded && frameMarker > 0) {
+    if (markPageNeeded && frameMarker > 0 && frameMarker != 1) {
         currFramePageResidencyTable[physicalPageIndex].info = packPageMarkerData(
             1, 
             physicalOffsetX,

@@ -6,6 +6,7 @@ set(TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/EntityTest.cpp
     ${CMAKE_CURRENT_LIST_DIR}/IntegrationMain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/GpuMeshAllocatorTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/TestSpatialLight.cpp
 )
 
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)

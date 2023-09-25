@@ -30,6 +30,7 @@
 #include "StratusGpuCommandBuffer.h"
 #include "StratusTypes.h"
 #include "StratusGraphicsDriver.h"
+#include <queue>
 
 namespace stratus {
     enum class RendererCascadeResolution : i32 {
@@ -166,6 +167,11 @@ namespace stratus {
         std::unordered_map<u32, std::list<std::pair<std::pair<u32, u32>, u32>>::iterator> existing_;
         u32 maxX_;
         u32 maxY_;
+    };
+
+    // Manages the data for the GI probes
+    class RendererProbeManager {
+
     };
 
     //struct RendererCascadeContainer {

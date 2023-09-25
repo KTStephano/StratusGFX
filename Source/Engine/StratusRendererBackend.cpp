@@ -337,6 +337,29 @@ void RendererBackend::InitPointShadowMaps_() {
     vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
     state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
+    std::vector<GpuTextureHandle> diffuseHandles;
+    std::vector<GpuTextureHandle> shadowHandles;
+    diffuseHandles.reserve(vplSmapCache_.buffers.size());
+    shadowHandles.reserve(vplSmapCache_.buffers.size());
+
+    state_.vpls.vplDiffuseHandles.clear();
+    state_.vpls.vplShadowHandles.clear();
+
+    // Make resident
+    for (auto& fbo : vplSmapCache_.buffers) {
+        state_.vpls.vplDiffuseHandles.push_back(TextureMemResidencyGuard(fbo.GetColorAttachments()[0]));
+        state_.vpls.vplShadowHandles.push_back(TextureMemResidencyGuard(*fbo.GetDepthStencilAttachment()));
+
+        diffuseHandles.push_back(fbo.GetColorAttachments()[0].GpuHandle());
+        shadowHandles.push_back(fbo.GetDepthStencilAttachment()->GpuHandle());
+    }
+
+    state_.vpls.vplDiffuseMaps = GpuBuffer((const void *)diffuseHandles.data(), sizeof(GpuTextureHandle) * diffuseHandles.size(), flags);
+    state_.vpls.vplShadowMaps = GpuBuffer((const void *)shadowHandles.data(), sizeof(GpuTextureHandle) * shadowHandles.size(), flags);
+
+    state_.vpls.vplDiffuseMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_DIFFUSE_MAP_BINDING_POINT);
+    state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_MAP_BINDING_POINT);
+
     STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
 
@@ -383,6 +406,8 @@ void RendererBackend::RecalculateCascadeData_() {
     if (frame_->vsmc.regenerateFbo || !frame_->vsmc.fbo.Valid()) {
         STRATUS_LOG << "Regenerating Cascade Data" << std::endl;
 
+        const auto numVsmMemoryPools = 2;
+
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
         frame_->vsmc.vsm = Texture(
@@ -393,13 +418,17 @@ void RendererBackend::RecalculateCascadeData_() {
                 TextureComponentType::FLOAT, 
                 frame_->vsmc.cascadeResolutionXY, 
                 frame_->vsmc.cascadeResolutionXY, 
-                numCascades, 
+                numVsmMemoryPools, 
                 false, 
-                true 
+                false // true for hardware sparse 
             }, 
                 
             NoTextureData
         );
+
+        if (frame_->vsmc.vsm.Depth() != numVsmMemoryPools) {
+            throw std::runtime_error("Error: Requested number of VSM memory pools not matched");
+        }
 
         frame_->vsmc.vsm.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         frame_->vsmc.vsm.SetCoordinateWrapping(TextureCoordinateWrapping::REPEAT);
@@ -407,7 +436,7 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->vsmc.vsm.SetTextureCompare(TextureCompareMode::COMPARE_REF_TO_TEXTURE, TextureCompareFunc::LEQUAL);
 
         // Create the frame buffer
-        //frame_->vsmc.fbo = FrameBuffer({ tex }, frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
+        //frame_->vsmc.fbo = FrameBuffer({ tex }, frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY); 
         frame_->vsmc.fbo = FrameBuffer(std::vector<Texture>(), frame_->vsmc.cascadeResolutionXY, frame_->vsmc.cascadeResolutionXY);
 
         const u32 numPages = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
@@ -441,9 +470,9 @@ void RendererBackend::RecalculateCascadeData_() {
         std::vector<u32, StackBasedPoolAllocator<u32>> pageFreeList(
             StackBasedPoolAllocator<u32>(frame_->perFrameScratchMemory)
         );
-        pageFreeList.reserve(frame_->vsmc.cascades.size() * 3 * numPages * numPages);
+        pageFreeList.reserve(numVsmMemoryPools * 3 * numPages * numPages);
 
-        for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+        for (u32 cascade = 0; cascade < numVsmMemoryPools; ++cascade) {
             for (u32 y = 0; y < numPages; ++y) {
                 for (u32 x = 0; x < numPages; ++x) {
                     pageFreeList.push_back(cascade);
@@ -1259,39 +1288,43 @@ void RendererBackend::PerformVSMCulling(
 }
 
 void RendererBackend::ProcessShadowMemoryRequests_() {
-    HostFenceSync(frame_->vsmc.prevFrameFence);
+    // If not using hardware virtual texturing it means the backing memory is already
+    // allocated and the GPU can handle everything
+    if (frame_->vsmc.vsm.GetConfig().virtualTexture == true) {
+        HostFenceSync(frame_->vsmc.prevFrameFence);
 
-    const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
-    frame_->vsmc.numPagesToCommit.UnmapMemory();
+        const i32 numPagesToUpdate = *(const i32 *)frame_->vsmc.numPagesToCommit.MapMemory(GPU_MAP_READ);
+        frame_->vsmc.numPagesToCommit.UnmapMemory();
 
-    if (numPagesToUpdate > 0) {
-        //STRATUS_LOG << "Processing: " << numPagesToUpdate << std::endl;
+        if (numPagesToUpdate > 0) {
+            //STRATUS_LOG << "Processing: " << numPagesToUpdate << std::endl;
 
-        const i32* pageIndices = (const i32 *)frame_->vsmc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
+            const i32* pageIndices = (const i32 *)frame_->vsmc.pagesToCommitList.MapMemory(GPU_MAP_READ, 0, 2 * numPagesToUpdate * sizeof(int));
 
-        for (i32 i = 0; i < numPagesToUpdate; ++i) {
-            //STRATUS_LOG << i << std::endl;
+            for (i32 i = 0; i < numPagesToUpdate; ++i) {
+                //STRATUS_LOG << i << std::endl;
 
-            const i32 cascade = pageIndices[3 * i];
-            const i32 x = pageIndices[3 * i + 1];
-            const i32 y = pageIndices[3 * i + 2];
+                const i32 cascade = pageIndices[3 * i];
+                const i32 x = pageIndices[3 * i + 1];
+                const i32 y = pageIndices[3 * i + 2];
 
-            //STRATUS_LOG << x << " " << y << std::endl;
+                //STRATUS_LOG << x << " " << y << std::endl;
 
-            //if (x > 0 && y > 0) {
-            {
-                frame_->vsmc.vsm.CommitOrUncommitVirtualPage(
-                    std::abs(x) - 1,
-                    std::abs(y) - 1,
-                    cascade,
-                    1,
-                    1,
-                    (x < 0 || y < 0) ? false : true
-                );
+                //if (x > 0 && y > 0) {
+                {
+                    frame_->vsmc.vsm.CommitOrUncommitVirtualPage(
+                        std::abs(x) - 1,
+                        std::abs(y) - 1,
+                        cascade,
+                        1,
+                        1,
+                        (x < 0 || y < 0) ? false : true
+                    );
+                }
             }
-        }
 
-        frame_->vsmc.pagesToCommitList.UnmapMemory();
+            frame_->vsmc.pagesToCommitList.UnmapMemory();
+        }
     }
 }
 
@@ -1321,6 +1354,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmAnalyzeDepth->SetMat4("invProjectionView", frame_->invProjectionView);
     state_.vsmAnalyzeDepth->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmAnalyzeDepth->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmAnalyzeDepth->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
 
     //state_.vsmAnalyzeDepth->BindTextureAsImage("prevFramePageResidencyTable", frame_->vsmc.prevFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     //state_.vsmAnalyzeDepth->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
@@ -1356,6 +1390,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmMarkPages->SetUint("sunChanged", frame_->vsmc.worldLight->ChangedWithinLastFrame() ? (u32)1 : (u32)0);
     state_.vsmMarkPages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmMarkPages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmMarkPages->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
 
     frame_->vsmc.numPagesToCommit.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT);
@@ -1375,6 +1410,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmFreePages->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmFreePages->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmFreePages->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmFreePages->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
 
     state_.vsmFreePages->DispatchCompute(1, 1, 1);
     state_.vsmFreePages->SynchronizeMemory();
@@ -1396,6 +1432,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmMarkScreen->SetUint("numPagesXY", frame_->vsmc.numPageGroupsX);
     state_.vsmMarkScreen->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmMarkScreen->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmMarkScreen->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
     state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
     state_.vsmMarkScreen->BindTextureAsImage(
         "vsm", frame_->vsmc.vsm, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
@@ -1412,6 +1449,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     // state_.vsmCull->SetMat4("vsmProjectionView", frame_->vsmc.projectionViewSample);
     state_.vsmCull->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     state_.vsmCull->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    state_.vsmCull->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
     state_.vsmCull->SetUint("frameCount", frameCount);
     state_.vsmCull->SetUint("numPageGroupsX", (u32)frame_->vsmc.numPageGroupsX);
     state_.vsmCull->SetUint("numPageGroupsY", (u32)frame_->vsmc.numPageGroupsY);
@@ -1975,6 +2013,7 @@ void RendererBackend::RenderCSMDepth_() {
             state_.vsmClear->SetUint("numPagesXY", numPagesXY);
             state_.vsmClear->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
             state_.vsmClear->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            state_.vsmClear->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
             state_.vsmClear->SetInt("vsmClipMapIndex", cascade);
             state_.vsmClear->BindTextureAsImage(
                 "vsm", *depth, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
@@ -2019,6 +2058,7 @@ void RendererBackend::RenderCSMDepth_() {
             shader->SetUint("virtualShadowMapSizeXY", (u32)depth->Width());
             shader->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
             shader->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+            shader->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
             shader->BindTextureAsImage("vsm", *depth, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
             shader->SetInt("vsmClipMapIndex", cascade);
 
@@ -2591,10 +2631,10 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
     state_.vplColoring->SetVec3("infiniteLightColor", frame_->vsmc.worldLight->GetLuminance());
-    for (usize i = 0; i < cache.buffers.size(); ++i) {
-        state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
-        state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
-    }
+    // for (usize i = 0; i < cache.buffers.size(); ++i) {
+    //     state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
+    //     state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
+    // }
 
     state_.vpls.vplVisibleIndices.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
@@ -2651,9 +2691,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
-    for (usize i = 0; i < cache.buffers.size(); ++i) {
-        state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
-    }
+    // for (usize i = 0; i < cache.buffers.size(); ++i) {
+    //     state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
+    // }
 
     state_.vplGlobalIllumination->SetFloat("minRoughness", frame_->settings.GetMinRoughness());
     state_.vplGlobalIllumination->SetBool("usePerceptualRoughness", frame_->settings.usePerceptualRoughness);
@@ -3387,6 +3427,7 @@ void RendererBackend::InitCoreCSMData_(Pipeline * s) {
 
     s->SetMat4("vsmClipMap0ProjectionView", frame_->vsmc.cascades[0].projectionViewRender);
     s->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
+    s->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
 
     //for (i32 i = 0; i < frame_->vsmc.cascades.size() - 1; ++i) {
     //    // s->setVec3("cascadeScale[" + std::to_string(i) + "]", &_state.csms[i + 1].cascadeScale[0]);

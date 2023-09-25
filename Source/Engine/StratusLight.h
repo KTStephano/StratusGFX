@@ -10,6 +10,9 @@
 #include "StratusLog.h"
 #include "StratusEngine.h"
 #include "StratusTypes.h"
+#include "StratusHandle.h"
+#include <limits>
+#include <unordered_set>
 
 namespace stratus {
     class InfiniteLight;
@@ -17,6 +20,7 @@ namespace stratus {
 
     typedef std::shared_ptr<InfiniteLight> InfiniteLightPtr;
     typedef std::shared_ptr<Light> LightPtr;
+    typedef Handle<Light> LightHandle;
 
     enum class LightType {
         POINTLIGHT,
@@ -186,6 +190,7 @@ namespace stratus {
         u64 lastFrameRadiusChanged_ = 0;
         f32 intensity_ = 200.0f;
         f32 radius_ = 1.0f;
+        LightHandle handle_;
         bool castsShadows_ = true;
         // If virtual we intend to use it less as a natural light and more
         // as a way of simulating bounce lighting
@@ -195,11 +200,17 @@ namespace stratus {
         bool staticLight_ = false;
 
         Light(const bool virtualLight, const bool staticLight)
-            : virtualLight_(virtualLight), staticLight_(staticLight) {}
+            : virtualLight_(virtualLight), staticLight_(staticLight) {
+            handle_ = LightHandle::NextHandle();
+        }
 
     public:
         Light(const bool staticLight) : Light(false, staticLight) {}
         virtual ~Light() = default;
+
+        LightHandle Handle() const {
+            return handle_;
+        }
 
         const glm::vec3& GetPosition() const {
             return position_;
@@ -385,6 +396,133 @@ namespace stratus {
 
     private:
         u32 numShadowSamples_ = 3;
+    };
+
+    // Maintains a spatial light data structure with configurable world tile size
+    struct SpatialLightMap {
+        typedef std::unordered_set<LightPtr> LightContainer;
+
+        struct SpatialLightTile {
+            UnsafePtr<LightContainer> lights;
+
+            SpatialLightTile() : lights(MakeUnsafe<LightContainer>()) {}
+        };
+
+        struct SpatialLightTileView {
+            SpatialLightTileView() {}
+
+            SpatialLightTileView(const UnsafePtr<LightContainer>& lights)
+                : lights_(lights) {}
+
+            SpatialLightTileView(const SpatialLightTile& tile)
+                : SpatialLightTileView(tile.lights) {}
+
+            const LightContainer& Lights() const {
+                return *lights_;
+            }
+
+        private:
+            UnsafePtr<LightContainer> lights_;
+        };
+
+        SpatialLightMap(const u32 worldTileSizeXY = 256) 
+            : worldTileSizeXY_(i32(worldTileSizeXY)) {}
+
+        // Returns the nearest neighbors in the range of [-tileOffset, tileOffset]
+        template<typename Allocator>
+        std::vector<SpatialLightTileView, Allocator> GetNearestTiles(const glm::vec3& origin, const Allocator& alloc, const u32 tileOffset) {
+            const i32 numTilesRadius = i32(tileOffset);
+            std::vector<SpatialLightTileView, Allocator> result(alloc);
+            result.reserve(2 * numTilesRadius);
+
+            // Snap x/y to the nearest world tile
+            const i32 startX = i32(glm::round(origin.x / f32(worldTileSizeXY_)));
+            const i32 startY = i32(glm::round(origin.z / f32(worldTileSizeXY_)));
+
+            for (i32 x = (startX - numTilesRadius); x <= (startX + numTilesRadius); ++x) {
+                for (i32 y = (startY - numTilesRadius); y <= (startY + numTilesRadius); ++y) {
+                    const u32 tileIndex = CalculateTileIndex(x, y);
+                    auto tile = GetTile_(tileIndex);
+                    if (tile->size() > 0) {
+                        result.push_back(SpatialLightTileView(tile));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // Returns the nearest neighbors in the range of [-tileOffset, tileOffset]
+        std::vector<SpatialLightTileView> GetNearestTiles(const glm::vec3& origin, const u32 tileOffset) {
+            return GetNearestTiles(origin, std::allocator<SpatialLightTileView>(), tileOffset);
+        }
+
+        bool Contains(const LightHandle& handle) const {
+            return lightPositions_.find(handle) != lightPositions_.end();
+        }
+
+        bool Contains(const LightPtr& light) const {
+            return Contains(light->Handle());
+        }
+
+        i32 GetWorldTileSize() const {
+            return worldTileSizeXY_;
+        }
+
+        // Inserts light if not present. If it is present, it updates its position.
+        void Insert(const LightPtr& light) {
+            Erase(light);
+
+            const auto handle = light->Handle();
+
+            lightPositions_.insert(std::make_pair(handle, light->GetPosition()));
+            const auto index = ConvertWorldPosToTileIndex(light->GetPosition());
+
+            auto it = lights_.find(index);
+            if (it == lights_.end()) {
+                it = lights_.insert(std::make_pair(index, SpatialLightTile())).first;
+            }
+            it->second.lights->insert(light);
+        }
+
+        void Erase(const LightPtr& light) {
+            auto it = lightPositions_.find(light->Handle());
+            if (it != lightPositions_.end()) {
+                const auto index = ConvertWorldPosToTileIndex(it->second);
+                lights_.find(index)->second.lights->erase(light);
+            }
+            lightPositions_.erase(light->Handle());
+        }
+
+        usize Size() const {
+            return lightPositions_.size();
+        }
+
+        static u32 CalculateTileIndex(const i32 tileX, const i32 tileY) {
+            static constexpr i32 tilesPerRow = 32768;
+            return u32(tileX + tilesPerRow) + u32(tileY + tilesPerRow) * u32(tilesPerRow);
+        }
+
+        u32 ConvertWorldPosToTileIndex(const glm::vec3& position) const {
+            const i32 x = i32(glm::floor(position.x / f32(worldTileSizeXY_)));
+            const i32 y = i32(glm::floor(position.z / f32(worldTileSizeXY_)));
+            return CalculateTileIndex(x, y);
+        }
+
+    private:
+        UnsafePtr<LightContainer> GetTile_(const u32 index) const {
+            auto it = lights_.find(index);
+            return it == lights_.end() ? empty_ : it->second.lights;
+        }
+
+    private:
+        const UnsafePtr<LightContainer> empty_ = MakeUnsafe<LightContainer>();
+
+        // Stores last known position
+        std::unordered_map<LightHandle, glm::vec3> lightPositions_;
+        // Sparse representation of the world
+        std::unordered_map<u32, SpatialLightTile> lights_;
+        i32 worldTileSizeXY_;
     };
 }
 

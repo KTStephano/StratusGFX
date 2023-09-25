@@ -80,6 +80,10 @@ namespace stratus {
             GpuBuffer vplData;
             GpuBuffer vplUpdatedData;
             GpuBuffer vplVisibleIndices;
+            std::vector<TextureMemResidencyGuard> vplDiffuseHandles;
+            std::vector<TextureMemResidencyGuard> vplShadowHandles;
+            GpuBuffer vplDiffuseMaps;
+            GpuBuffer vplShadowMaps;
             //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;

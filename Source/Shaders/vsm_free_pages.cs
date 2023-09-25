@@ -36,7 +36,7 @@ void main() {
     uint stepSize = gl_WorkGroupSize.x;
 
     if (gl_LocalInvocationID == 0) {
-        int maxNumPages = int(vsmNumCascades * numPagesXY * numPagesXY);
+        int maxNumPages = int(vsmNumMemoryPools * numPagesXY * numPagesXY);
         if (numPagesFree > maxNumPages) {
             numPagesFree = maxNumPages;
         }
