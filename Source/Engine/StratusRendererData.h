@@ -450,8 +450,9 @@ namespace stratus {
         //RendererCascadeContainer csc;
         RendererVsmContainer vsmc;
         GpuCommandManagerPtr drawCommands;
-        std::unordered_set<LightPtr> lights;
-        std::unordered_set<LightPtr> virtualPointLights; // data is in lights
+        SpatialLightMap lights = SpatialLightMap(256);
+        //std::unordered_set<LightPtr> lights;
+        //std::unordered_set<LightPtr> virtualPointLights; // data is in lights
         LightUpdateQueue lightsToUpdate; // shadow map data is invalid
         std::unordered_set<LightPtr> lightsToRemove;
         f32 znear;

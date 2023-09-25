@@ -264,7 +264,8 @@ namespace stratus {
         if (lights_.find(light) != lights_.end()) return;
 
         lights_.insert(light);
-        frame_->lights.insert(light);
+        //frame_->lights.insert(light);
+        frame_->lights.Insert(light);
 
         if ( light->IsVirtualLight() ) virtualPointLights_.insert(light);
 
@@ -1294,8 +1295,8 @@ namespace stratus {
         frame_->lightsToRemove.clear();
         // First get rid of all lights that are pending deletion
         for (auto& light : lightsToRemove_) {
-            frame_->lights.erase(light);
-            frame_->virtualPointLights.erase(light);
+            frame_->lights.Erase(light);
+            //frame_->virtualPointLights.erase(light);
             frame_->lightsToRemove.insert(light);
         }
         lightsToRemove_.clear();
@@ -1310,6 +1311,10 @@ namespace stratus {
             // See if the light moved or its radius changed
             if (light->PositionChangedWithinLastFrame() || light->RadiusChangedWithinLastFrame()) {
                 frame_->lightsToUpdate.PushBack(light);
+                // Re-Insert is an O(1) operation which allows the spatial
+                // light map to update the light's position and potentially its
+                // world hash container
+                frame_->lights.Insert(light);
             }
         }
     }
