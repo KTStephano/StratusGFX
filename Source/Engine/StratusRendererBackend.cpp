@@ -2326,7 +2326,11 @@ void RendererBackend::UpdatePointLights_(
         perVPLDistToViewerVec.reserve(MAX_TOTAL_VPLS_BEFORE_CULLING);
     }
 
-    const auto lights = frame_->lights.GetNearestTiles(c.GetPosition(), 1);
+    const auto lights = frame_->lights.GetNearestTiles(
+        c.GetPosition(), 
+        StackBasedPoolAllocator<SpatialLightMap::SpatialLightTileView>(frame_->perFrameScratchMemory),
+        1
+    );
 
     // Init per light instance data
     for (auto& container : lights) {

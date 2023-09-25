@@ -433,14 +433,16 @@ namespace stratus {
         std::vector<SpatialLightTileView, Allocator> GetNearestTiles(const glm::vec3& origin, const Allocator& alloc, const u32 tileOffset) {
             const i32 numTilesRadius = i32(tileOffset);
             std::vector<SpatialLightTileView, Allocator> result(alloc);
-            result.reserve(2 * numTilesRadius);
+            result.reserve((2 * numTilesRadius + 1) * (2 * numTilesRadius + 1));
 
             // Snap x/y to the nearest world tile
-            const i32 startX = i32(glm::round(origin.x / f32(worldTileSizeXY_)));
-            const i32 startY = i32(glm::round(origin.z / f32(worldTileSizeXY_)));
+            const i32 startX = i32(glm::round(origin.x / f32(worldTileSizeXY_))) - numTilesRadius;
+            const i32 startY = i32(glm::round(origin.z / f32(worldTileSizeXY_))) - numTilesRadius;
+            const i32 endX = startX + numTilesRadius;
+            const i32 endY = startY + numTilesRadius;
 
-            for (i32 x = (startX - numTilesRadius); x <= (startX + numTilesRadius); ++x) {
-                for (i32 y = (startY - numTilesRadius); y <= (startY + numTilesRadius); ++y) {
+            for (i32 x = startX; x <= endX; ++x) {
+                for (i32 y = startY; y <= endY; ++y) {
                     const u32 tileIndex = CalculateTileIndex(x, y);
                     auto tile = GetTile_(tileIndex);
                     if (tile->size() > 0) {
