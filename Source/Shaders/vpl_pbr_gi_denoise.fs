@@ -28,7 +28,7 @@ out vec4 reservoirValue;
 out float newHistoryDepth;
 
 layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBuffer1 {
-    int numVisible[];
+    int numVisible;
 };
 
 // in/out frame texture
@@ -196,7 +196,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
     float depthCutoff = 0.1 * centerDepth;
     float runningSum = 0.0;
-    float probabilisticWeight = 1.0 / float(numVisible[0]);
+    float probabilisticWeight = 1.0 / float(numVisible);
 
 #define ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)                                                            \
         const int dxSign = dx_ < 0 ? -1 : 1;                                                                \

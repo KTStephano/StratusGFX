@@ -460,7 +460,7 @@ namespace stratus {
         }
 
         bool Contains(const LightHandle& handle) const {
-            return lightPositions_.find(handle) != lightPositions_.end();
+            return cachedLightData_.find(handle) != cachedLightData_.end();
         }
 
         bool Contains(const LightPtr& light) const {
@@ -477,7 +477,7 @@ namespace stratus {
 
             const auto handle = light->Handle();
 
-            lightPositions_.insert(std::make_pair(handle, light->GetPosition()));
+            cachedLightData_.insert(std::make_pair(handle, LightData_{ light->GetPosition(), light }));
             const auto index = ConvertWorldPosToTileIndex(light->GetPosition());
 
             auto it = lights_.find(index);
@@ -488,16 +488,21 @@ namespace stratus {
         }
 
         void Erase(const LightPtr& light) {
-            auto it = lightPositions_.find(light->Handle());
-            if (it != lightPositions_.end()) {
-                const auto index = ConvertWorldPosToTileIndex(it->second);
+            auto it = cachedLightData_.find(light->Handle());
+            if (it != cachedLightData_.end()) {
+                const auto index = ConvertWorldPosToTileIndex(it->second.cachedPosition);
                 lights_.find(index)->second.lights->erase(light);
             }
-            lightPositions_.erase(light->Handle());
+            cachedLightData_.erase(light->Handle());
+        }
+
+        LightPtr Get(const LightHandle& handle) const {
+            auto it = cachedLightData_.find(handle);
+            return it == cachedLightData_.end() ? LightPtr() : it->second.light;
         }
 
         usize Size() const {
-            return lightPositions_.size();
+            return cachedLightData_.size();
         }
 
         static u32 CalculateTileIndex(const i32 tileX, const i32 tileY) {
@@ -518,10 +523,16 @@ namespace stratus {
         }
 
     private:
+        struct LightData_ {
+            glm::vec3 cachedPosition;
+            LightPtr light;
+        };
+
+    private:
         const UnsafePtr<LightContainer> empty_ = MakeUnsafe<LightContainer>();
 
         // Stores last known position
-        std::unordered_map<LightHandle, glm::vec3> lightPositions_;
+        std::unordered_map<LightHandle, LightData_> cachedLightData_;
         // Sparse representation of the world
         std::unordered_map<u32, SpatialLightTile> lights_;
         i32 worldTileSizeXY_;

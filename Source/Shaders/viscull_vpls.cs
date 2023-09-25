@@ -38,6 +38,10 @@ layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
 // };
 
 layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) buffer outputBlock2 {
+    int vplNumVisible;
+};
+
+layout (std430, binding = VPL_LIGHTS_VISIBLE_INDICES_BINDING_POINT) buffer outputBlock3 {
     int vplVisibleIndex[];
 };
 
@@ -92,8 +96,7 @@ void main() {
                     break;
                 }
                 updatedLightData[localIndex] = lightData[index];
-                // + 1 since we store the count in the first slot
-                vplVisibleIndex[localIndex + 1] = index;
+                vplVisibleIndex[localIndex] = index;
             }
         }
     }
@@ -103,7 +106,7 @@ void main() {
     if (gl_LocalInvocationIndex == 0) {
         //numVisible = lightVisibleIndex;
         lightVisibleIndex = lightVisibleIndex > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : lightVisibleIndex;
-        vplVisibleIndex[0] = lightVisibleIndex;
+        vplNumVisible = lightVisibleIndex;
     }
 
     // if (gl_LocalInvocationIndex == 0) {

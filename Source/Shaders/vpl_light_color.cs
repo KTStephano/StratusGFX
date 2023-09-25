@@ -30,7 +30,7 @@ layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock1 {
 };
 
 layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock1 {
-    int numVisible[];
+    int numVisible;
 };
 
 layout (std430, binding = VPL_DIFFUSE_MAP_BINDING_POINT) readonly buffer inputBlock4 {
@@ -50,7 +50,7 @@ void main() {
 
     float colorMultiplier = 50000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
 
-    int visibleVpls = numVisible[0];
+    int visibleVpls = numVisible;
 
     for (int i = int(gl_GlobalInvocationID.x); i < visibleVpls; i += stepSize) {
         int index = i;

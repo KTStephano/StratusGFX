@@ -64,7 +64,7 @@ layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) readonly buffer inputBlo
 };
 
 layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock2 {
-    int numVisible[];
+    int numVisible;
 };
 
 layout (std430, binding = VPL_SHADOW_MAP_BINDING_POINT) readonly buffer inputBlock6 {
@@ -145,7 +145,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
 
-    int maxRandomIndex = numVisible[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
+    int maxRandomIndex = numVisible - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
     
     for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
