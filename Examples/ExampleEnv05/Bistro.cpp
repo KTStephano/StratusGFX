@@ -530,7 +530,7 @@ public:
         // });
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
         settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
         settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
