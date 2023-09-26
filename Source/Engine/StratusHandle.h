@@ -38,6 +38,7 @@ namespace stratus {
         }
         
         static Handle<E> Null() { return Handle<E>(); }
+        static Handle<E> AsHandle(const u32 h) { return Handle<E>(h); }
 
         size_t HashCode() const { return std::hash<u32>{}(handle_); }
         // Unsigned 64-bit integer representation

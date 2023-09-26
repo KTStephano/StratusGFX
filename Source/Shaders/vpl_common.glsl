@@ -26,5 +26,5 @@ struct VplData {
     float radius;
     float farPlane;
     float intensity;
-    float _1;
+    uint handle;
 };

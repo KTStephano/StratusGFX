@@ -220,7 +220,7 @@ namespace stratus {
         f32 radius;
         f32 farPlane;
         f32 intensity;
-        f32 placeholder2_;
+        u32 handle;
 
         GpuVplData() :
             position(0.0f),

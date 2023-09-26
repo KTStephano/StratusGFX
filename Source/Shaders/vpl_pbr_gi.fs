@@ -59,11 +59,11 @@ uniform int frameCount;
 
 uniform float minGiOcclusionFactor = 0.95;
 
-layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_PREV_LIGHT_DATA_BINDING_POINT) readonly buffer inputBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock2 {
+layout (std430, binding = VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock2 {
     int numVisible;
 };
 
@@ -71,7 +71,7 @@ layout (std430, binding = VPL_SHADOW_MAP_BINDING_POINT) readonly buffer inputBlo
     samplerCubeArray shadowCubeMaps[];
 };
 
-layout (std430, binding = VPL_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock4 {
+layout (std430, binding = VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock4 {
     AtlasEntry shadowIndices[];
 };
 

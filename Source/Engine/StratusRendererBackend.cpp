@@ -336,29 +336,30 @@ void RendererBackend::InitPointShadowMaps_() {
     // Create the virtual point light shadow map cache
     vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
     state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
+    state_.vplsPrevFrame.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
     std::vector<GpuTextureHandle> diffuseHandles;
     std::vector<GpuTextureHandle> shadowHandles;
     diffuseHandles.reserve(vplSmapCache_.buffers.size());
     shadowHandles.reserve(vplSmapCache_.buffers.size());
 
-    state_.vpls.vplDiffuseHandles.clear();
-    state_.vpls.vplShadowHandles.clear();
+    state_.vplDiffuseHandles.clear();
+    state_.vplShadowHandles.clear();
 
     // Make resident
     for (auto& fbo : vplSmapCache_.buffers) {
-        state_.vpls.vplDiffuseHandles.push_back(TextureMemResidencyGuard(fbo.GetColorAttachments()[0]));
-        state_.vpls.vplShadowHandles.push_back(TextureMemResidencyGuard(*fbo.GetDepthStencilAttachment()));
+        state_.vplDiffuseHandles.push_back(TextureMemResidencyGuard(fbo.GetColorAttachments()[0]));
+        state_.vplShadowHandles.push_back(TextureMemResidencyGuard(*fbo.GetDepthStencilAttachment()));
 
         diffuseHandles.push_back(fbo.GetColorAttachments()[0].GpuHandle());
         shadowHandles.push_back(fbo.GetDepthStencilAttachment()->GpuHandle());
     }
 
-    state_.vpls.vplDiffuseMaps = GpuBuffer((const void *)diffuseHandles.data(), sizeof(GpuTextureHandle) * diffuseHandles.size(), flags);
-    state_.vpls.vplShadowMaps = GpuBuffer((const void *)shadowHandles.data(), sizeof(GpuTextureHandle) * shadowHandles.size(), flags);
+    state_.vplDiffuseMaps = GpuBuffer((const void *)diffuseHandles.data(), sizeof(GpuTextureHandle) * diffuseHandles.size(), flags);
+    state_.vplShadowMaps = GpuBuffer((const void *)shadowHandles.data(), sizeof(GpuTextureHandle) * shadowHandles.size(), flags);
 
-    state_.vpls.vplDiffuseMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_DIFFUSE_MAP_BINDING_POINT);
-    state_.vpls.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_MAP_BINDING_POINT);
+    state_.vplDiffuseMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_DIFFUSE_MAP_BINDING_POINT);
+    state_.vplShadowMaps.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_MAP_BINDING_POINT);
 
     STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
@@ -366,15 +367,23 @@ void RendererBackend::InitPointShadowMaps_() {
 void RendererBackend::InitializeVplData_() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     // +1 since we store the total size of the visibility array at the first index
-    std::vector<i32> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
+    //std::vector<i32> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
     std::vector<u32> visibleHandlesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
-    state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(i32) * visibleIndicesData.size(), flags);
-    state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
-    state_.vpls.vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
-    state_.vpls.vplVisibleHandles = GpuBuffer((const void *)visibleHandlesData.data(), sizeof(u32) * visibleHandlesData.size(), flags);
-    i32 numVisible = 0;
-    state_.vpls.vplNumVisible = GpuBuffer((const void *)&numVisible, sizeof(i32), flags);
-    //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(i32), flags);
+
+    std::vector<VirtualPointLightData*> vplList{
+        &state_.vpls,
+        &state_.vplsPrevFrame
+    };
+
+    for (auto* vpls : vplList) {
+        //state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(i32) * visibleIndicesData.size(), flags);
+        vpls->vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
+        vpls->vplUpdatedData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_PER_FRAME, flags);
+        vpls->vplVisibleHandles = GpuBuffer((const void*)visibleHandlesData.data(), sizeof(u32) * visibleHandlesData.size(), flags);
+        i32 numVisible = 0;
+        vpls->vplNumVisible = GpuBuffer((const void*)&numVisible, sizeof(i32), flags);
+        //vpls->vplNumVisible = GpuBuffer(nullptr, sizeof(i32), flags);
+    }
 }
 
 void RendererBackend::ValidateAllShaders_() {
@@ -676,52 +685,8 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture2.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIFbo = FrameBuffer({texture, texture2});
-    if (!state_.vpls.vplGIFbo.Valid()) {
-        isValid_ = false;
-        return;
-    }
-
-    texture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    texture2 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    Texture texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    Texture texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    state_.vpls.vplGIDenoisedFbo1 = FrameBuffer({ texture, texture2, texture3, texture4 });
-    if (!state_.vpls.vplGIDenoisedFbo1.Valid()) {
-        isValid_ = false;
-        return;
-    }
-
-    texture = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    texture2 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
-    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
-    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
-
-    state_.vpls.vplGIDenoisedFbo2 = FrameBuffer({ texture, texture2, texture3, texture4 });
-    if (!state_.vpls.vplGIDenoisedFbo2.Valid()) {
+    state_.vplGIFbo = FrameBuffer({ texture, texture2 });
+    if (!state_.vplGIFbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -734,7 +699,29 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    texture3 = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false}, NoTextureData);
+    Texture texture3 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    Texture texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vplGIDenoisedFbo1 = FrameBuffer({ texture, texture2, texture3, texture4 });
+    if (!state_.vplGIDenoisedFbo1.Valid()) {
+        isValid_ = false;
+        return;
+    }
+
+    texture = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture2 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture3 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
     texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -742,8 +729,30 @@ void RendererBackend::UpdateWindowDimensions_() {
     texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
     texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
-    state_.vpls.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2, texture3, texture4 });
-    if (!state_.vpls.vplGIDenoisedPrevFrameFbo.Valid()) {
+    state_.vplGIDenoisedFbo2 = FrameBuffer({ texture, texture2, texture3, texture4 });
+    if (!state_.vplGIDenoisedFbo2.Valid()) {
+        isValid_ = false;
+        return;
+    }
+
+    texture = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture2 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture2.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture2.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture3 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture3.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture3.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    texture4 = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, frame_->viewportWidth, frame_->viewportHeight, 0, false }, NoTextureData);
+    texture4.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+    texture4.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+
+    state_.vplGIDenoisedPrevFrameFbo = FrameBuffer({ texture, texture2, texture3, texture4 });
+    if (!state_.vplGIDenoisedPrevFrameFbo.Valid()) {
         isValid_ = false;
         return;
     }
@@ -893,9 +902,9 @@ void RendererBackend::ClearFramebufferData_(const bool clearScreen) {
         state_.ssaoOcclusionBlurredBuffer.Clear(color);
         state_.atmosphericFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         state_.lightingFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.vpls.vplGIFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.vpls.vplGIDenoisedFbo1.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        state_.vpls.vplGIDenoisedFbo2.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vplGIFbo.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vplGIDenoisedFbo1.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        state_.vplGIDenoisedFbo2.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         // Depending on when this happens we may not have generated cascadeFbo yet
         // if (frame_->vsmc.fbo.Valid()) {
@@ -984,6 +993,10 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
     auto tmpFbo = state_.flatPassFboCurrentFrame;
     state_.flatPassFboCurrentFrame = state_.flatPassFboPreviousFrame;
     state_.flatPassFboPreviousFrame = tmpFbo;
+
+    auto tmpVpls = state_.vpls;
+    state_.vpls = state_.vplsPrevFrame;
+    state_.vplsPrevFrame = tmpVpls;
 
     // Clear out instanced data from previous frame
     //_ClearInstancedData();
@@ -2255,6 +2268,7 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
         data.farPlane = point->GetFarPlane();
         data.radius = point->GetRadius();
         data.intensity = point->GetIntensity();
+        data.handle = point->Handle().Integer();
     }
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
@@ -2562,7 +2576,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     VplDistVector_& perVPLDistToViewer,
     std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices) {
 
-    if (perVPLDistToViewer.size() == 0) return;
+    if (!frame_->settings.globalIlluminationEnabled || perVPLDistToViewer.size() == 0) return;
 
     state_.vplCulling->Bind();
 
@@ -2580,17 +2594,18 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     // Bind light data and visibility indices
     state_.vpls.vplNumVisible.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
-    state_.vpls.vplVisibleIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHTS_VISIBLE_INDICES_BINDING_POINT);
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_CURR_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    state_.vpls.vplVisibleHandles.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_CURR_LIGHTS_VISIBLE_HANDLES_BINDING_POINT);
     state_.vpls.vplData.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_UNEDITED_BINDING_POINT);
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_CURR_LIGHT_DATA_UNEDITED_BINDING_POINT);
     state_.vpls.vplUpdatedData.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_CURR_LIGHT_DATA_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
-    state_.vplCulling->SynchronizeCompute();
+    state_.vplCulling->SynchronizeMemory();
+    state_.vpls.fence = HostInsertFence();
 
     state_.vplCulling->Unbind();
 }
@@ -2598,20 +2613,24 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 // void RendererBackend::PerformVirtualPointLightCullingStage2_(
 //     const std::vector<std::pair<LightPtr, f64>>& perVPLDistToViewer,
 //     const std::vector<i32>& visibleVplIndices) {
-void RendererBackend::PerformVirtualPointLightCullingStage2_(
-    const VplDistVector_& perVPLDistToViewer) {
+void RendererBackend::PerformVirtualPointLightCullingStage2_() {
+    //const VplDistVector_& perVPLDistToViewer) {
+    if (!frame_->settings.globalIlluminationEnabled) return;
+
+    // Make sure the previous frame has finished
+    HostFenceSync(state_.vplsPrevFrame.fence);
 
     // i32 totalVisible = *(i32 *)state_.vpls.vplNumVisible.MapMemory();
     // state_.vpls.vplNumVisible.UnmapMemory();
 
     //if (perVPLDistToViewer.size() == 0 || visibleVplIndices.size() == 0) return;
-    if (perVPLDistToViewer.size() == 0) return;
+    //if (perVPLDistToViewer.size() == 0) return;
 
-    const i32 numVisibleVpls = *(const i32 *)state_.vpls.vplNumVisible.MapMemory(GPU_MAP_READ);
-    state_.vpls.vplNumVisible.UnmapMemory();
+    const i32 numVisibleVpls = *(const i32 *)state_.vplsPrevFrame.vplNumVisible.MapMemory(GPU_MAP_READ);
+    state_.vplsPrevFrame.vplNumVisible.UnmapMemory();
     if (numVisibleVpls == 0) return;
 
-    i32 * visibleVplIndices = (i32*)state_.vpls.vplVisibleIndices.MapMemory(GPU_MAP_READ, 0, sizeof(i32) * numVisibleVpls);
+    const u32 * visibleVplHandles = (const u32 *)state_.vplsPrevFrame.vplVisibleHandles.MapMemory(GPU_MAP_READ, 0, sizeof(u32) * numVisibleVpls);
     // First index is reserved for the size of the array
     const i32 totalVisible = numVisibleVpls;
 
@@ -2621,14 +2640,16 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
     for (usize i = 0; i < totalVisible; ++i) {
-        const i32 index = visibleVplIndices[i];
-        const VirtualPointLight * point = (const VirtualPointLight *)perVPLDistToViewer[index].key.get();
-        auto smap = GetOrAllocateShadowMapForLight_(perVPLDistToViewer[index].key);
+        const LightHandle handle = LightHandle::AsHandle(visibleVplHandles[i]);
+        const LightPtr light = frame_->lights.Get(handle);
+        if (light == LightPtr()) continue;
+        const VirtualPointLight* point = (const VirtualPointLight *)light.get();
+        auto smap = GetOrAllocateShadowMapForLight_(light);
         shadowDiffuseIndices.push_back(smap);
     }
 
-    state_.vpls.vplVisibleIndices.UnmapMemory();
-    visibleVplIndices = nullptr;
+    state_.vplsPrevFrame.vplVisibleHandles.UnmapMemory();
+    visibleVplHandles = nullptr;
 
     // Move data to GPU memory
     state_.vpls.shadowDiffuseIndices.CopyDataToBuffer(0, sizeof(GpuAtlasEntry) * shadowDiffuseIndices.size(), (const void *)shadowDiffuseIndices.data());
@@ -2648,29 +2669,30 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     //     state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
     // }
 
-    state_.vpls.vplNumVisible.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
-    state_.vpls.vplVisibleIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHTS_VISIBLE_INDICES_BINDING_POINT);
+    state_.vplsPrevFrame.vplNumVisible.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    state_.vplsPrevFrame.vplVisibleHandles.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHTS_VISIBLE_HANDLES_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.shadowDiffuseIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT);
 
     InitCoreCSMData_(state_.vplColoring.get());
 
     // Bind outputs
-    state_.vpls.vplUpdatedData.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
+    state_.vplsPrevFrame.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHT_DATA_BINDING_POINT);
 
     // Dispatch and synchronize
     state_.vplColoring->DispatchCompute(1, 1, 1);
-    state_.vplColoring->SynchronizeCompute();
+    state_.vplColoring->SynchronizeMemory();
 
     state_.vplColoring->Unbind();
 }
 
-void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const f64 deltaSeconds) {
-    if (perVPLDistToViewer.size() == 0) return;
+void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const f64 deltaSeconds) {
+    if (!frame_->settings.globalIlluminationEnabled) return;
+    //if (perVPLDistToViewer.size() == 0) return;
 
     // auto space = LogSpace<f32>(1, 512, 30);
     // for (const auto& s : space) std::cout << s << " ";
@@ -2681,8 +2703,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     glDisable(GL_DEPTH_TEST);
     BindShader_(state_.vplGlobalIllumination.get());
-    state_.vpls.vplGIFbo.Bind();
-    glViewport(0, 0, state_.vpls.vplGIFbo.GetColorAttachments()[0].Width(), state_.vpls.vplGIFbo.GetColorAttachments()[0].Height());
+    state_.vplGIFbo.Bind();
+    glViewport(0, 0, state_.vplGIFbo.GetColorAttachments()[0].Width(), state_.vplGIFbo.GetColorAttachments()[0].Height());
 
     // Set up infinite light color
     auto& cache = vplSmapCache_;
@@ -2693,15 +2715,15 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    state_.vpls.vplUpdatedData.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHT_DATA_BINDING_POINT);
-    state_.vpls.vplNumVisible.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT);
-    state_.vpls.vplVisibleIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_LIGHTS_VISIBLE_INDICES_BINDING_POINT);
+    state_.vplsPrevFrame.vplUpdatedData.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHT_DATA_BINDING_POINT);
+    state_.vplsPrevFrame.vplNumVisible.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    state_.vplsPrevFrame.vplVisibleHandles.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHTS_VISIBLE_HANDLES_BINDING_POINT);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_SHADOW_ATLAS_INDICES_BINDING_POINT);
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT);
     haltonSequence_.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_HALTON_SEQUENCE_BINDING_POINT);
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
@@ -2720,7 +2742,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     //state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
     state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicReflectivity", state_.currentFrame.roughnessMetallicReflectivity);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
-    state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
+    state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
     state_.vplGlobalIllumination->SetInt("frameCount", i32(INSTANCE(Engine)->FrameCount()));
     state_.vplGlobalIllumination->SetFloat("minGiOcclusionFactor", frame_->settings.GetMinGiOcclusionFactor());
@@ -2736,18 +2758,18 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     RenderQuad_();
     
     UnbindShader_();
-    state_.vpls.vplGIFbo.Unbind();
+    state_.vplGIFbo.Unbind();
 
     std::vector<FrameBuffer*, StackBasedPoolAllocator<FrameBuffer*>> buffers({
-        &state_.vpls.vplGIDenoisedFbo1,
-        &state_.vpls.vplGIDenoisedFbo2
+        &state_.vplGIDenoisedFbo1,
+        &state_.vplGIDenoisedFbo2
         },
 
         StackBasedPoolAllocator<FrameBuffer*>(frame_->perFrameScratchMemory)
     );
 
-    Texture indirectIllum = state_.vpls.vplGIFbo.GetColorAttachments()[0];
-    Texture indirectShadows = state_.vpls.vplGIFbo.GetColorAttachments()[1];
+    Texture indirectIllum = state_.vplGIFbo.GetColorAttachments()[0];
+    Texture indirectShadows = state_.vplGIFbo.GetColorAttachments()[1];
 
     BindShader_(state_.vplGlobalIlluminationDenoising.get());
     glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
@@ -2762,9 +2784,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
+    state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
     state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
-    state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
+    state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[3]);
     state_.vplGlobalIlluminationDenoising->SetBool("final", false);
     state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
     state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", f32(1.0 / deltaSeconds));
@@ -2809,8 +2831,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
 
     // Swap current and previous frame
     auto tmp = *last;
-    *last = state_.vpls.vplGIDenoisedPrevFrameFbo;
-    state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
+    *last = state_.vplGIDenoisedPrevFrameFbo;
+    state_.vplGIDenoisedPrevFrameFbo = tmp;
 }
 
 void RendererBackend::RenderScene(const f64 deltaSeconds) {
@@ -2907,8 +2929,8 @@ void RendererBackend::RenderScene(const f64 deltaSeconds) {
     // If world light is enabled perform VPL Global Illumination pass
     if (frame_->vsmc.worldLight->GetEnabled() && frame_->settings.globalIlluminationEnabled) {
         // Handle VPLs for global illumination (can't do this earlier due to needing position data from GBuffer)
-        PerformVirtualPointLightCullingStage2_(perVPLDistToViewerVec);
-        ComputeVirtualPointLightGlobalIllumination_(perVPLDistToViewerVec, deltaSeconds);
+        PerformVirtualPointLightCullingStage2_();
+        ComputeVirtualPointLightGlobalIllumination_(deltaSeconds);
     }
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)

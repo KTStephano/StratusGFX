@@ -68,8 +68,8 @@ namespace stratus {
 
         struct VirtualPointLightData {
             // For splitting viewport into tiles
-            const i32 tileXDivisor = 5;
-            const i32 tileYDivisor = 5;
+            i32 tileXDivisor = 5;
+            i32 tileYDivisor = 5;
             // This needs to match what is in the vpl tiled deferred shader compute header!
             i32 vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
             //GpuBuffer vplDiffuseMaps;
@@ -79,18 +79,11 @@ namespace stratus {
             GpuBuffer vplVisiblePerTile;
             GpuBuffer vplData;
             GpuBuffer vplUpdatedData;
-            GpuBuffer vplVisibleIndices;
+            //GpuBuffer vplVisibleIndices;
             GpuBuffer vplVisibleHandles;
             GpuBuffer vplNumVisible;
-            std::vector<TextureMemResidencyGuard> vplDiffuseHandles;
-            std::vector<TextureMemResidencyGuard> vplShadowHandles;
-            GpuBuffer vplDiffuseMaps;
-            GpuBuffer vplShadowMaps;
+            GpuHostFence fence;
             //GpuBuffer vplNumVisible;
-            FrameBuffer vplGIFbo;
-            FrameBuffer vplGIDenoisedPrevFrameFbo;
-            FrameBuffer vplGIDenoisedFbo1;
-            FrameBuffer vplGIDenoisedFbo2;
         };
 
         struct RenderState {
@@ -103,6 +96,15 @@ namespace stratus {
             GpuBuffer shadowIndices;
             GpuBuffer shadowCastingPointLights;
             VirtualPointLightData vpls;
+            VirtualPointLightData vplsPrevFrame;
+            std::vector<TextureMemResidencyGuard> vplDiffuseHandles;
+            std::vector<TextureMemResidencyGuard> vplShadowHandles;
+            GpuBuffer vplDiffuseMaps;
+            GpuBuffer vplShadowMaps;
+            FrameBuffer vplGIFbo;
+            FrameBuffer vplGIDenoisedPrevFrameFbo;
+            FrameBuffer vplGIDenoisedFbo1;
+            FrameBuffer vplGIDenoisedFbo2;
             // How many shadow maps can be rebuilt each frame
             // Lights are inserted into a queue to prevent any light from being
             // over updated or neglected
@@ -420,8 +422,8 @@ namespace stratus {
         );
         void PerformVirtualPointLightCullingStage1_(VplDistVector_&, std::vector<i32, StackBasedPoolAllocator<i32>>& visibleVplIndices);
         //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, f64>>&, const std::vector<i32>& visibleVplIndices);
-        void PerformVirtualPointLightCullingStage2_(const VplDistVector_&);
-        void ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_&, const f64);
+        void PerformVirtualPointLightCullingStage2_();
+        void ComputeVirtualPointLightGlobalIllumination_(const f64);
         void RenderCSMDepth_();
         void RenderQuad_();
         void RenderSkybox_(Pipeline *, const glm::mat4&);

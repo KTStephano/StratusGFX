@@ -25,11 +25,11 @@ uniform vec3 infiniteLightColor;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock1 {
+layout (std430, binding = VPL_PREV_LIGHT_DATA_BINDING_POINT) buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock1 {
     int numVisible;
 };
 
@@ -41,7 +41,7 @@ layout (std430, binding = VPL_SHADOW_MAP_BINDING_POINT) readonly buffer inputBlo
     samplerCubeArray shadowCubeMaps[];
 };
 
-layout (std430, binding = VPL_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock3 {
+layout (std430, binding = VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
 

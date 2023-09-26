@@ -27,7 +27,7 @@ out vec3 giColor;
 out vec4 reservoirValue;
 out float newHistoryDepth;
 
-layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBuffer1 {
+layout (std430, binding = VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBuffer1 {
     int numVisible;
 };
 

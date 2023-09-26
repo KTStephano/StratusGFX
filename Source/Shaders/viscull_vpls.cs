@@ -25,11 +25,11 @@ uniform int totalNumLights;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = VPL_LIGHT_DATA_UNEDITED_BINDING_POINT) readonly buffer inoutBlock1 {
+layout (std430, binding = VPL_CURR_LIGHT_DATA_UNEDITED_BINDING_POINT) readonly buffer inoutBlock1 {
     VplData lightData[];
 };
 
-layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
+layout (std430, binding = VPL_CURR_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
     VplData updatedLightData[];
 };
 
@@ -37,12 +37,12 @@ layout (std430, binding = VPL_LIGHT_DATA_BINDING_POINT) buffer inoutBlock2 {
 //     int numVisible;
 // };
 
-layout (std430, binding = VPL_NUM_LIGHTS_VISIBLE_BINDING_POINT) buffer outputBlock2 {
+layout (std430, binding = VPL_CURR_NUM_LIGHTS_VISIBLE_BINDING_POINT) buffer outputBlock2 {
     int vplNumVisible;
 };
 
-layout (std430, binding = VPL_LIGHTS_VISIBLE_INDICES_BINDING_POINT) buffer outputBlock3 {
-    int vplVisibleIndex[];
+layout (std430, binding = VPL_CURR_LIGHTS_VISIBLE_HANDLES_BINDING_POINT) buffer outputBlock3 {
+    uint vplVisibleHandles[];
 };
 
 shared bool lightVisible[MAX_TOTAL_VPLS_BEFORE_CULLING];
@@ -74,7 +74,7 @@ void main() {
         if (shadowFactor < 1.0) {
             lightVisible[index] = true;
             // int next = atomicAdd(localNumVisible, 1);
-            // vplVisibleIndex[next] = index;
+            // vplVisibleHandles[next] = index;
             //lightData[index].color = vec4(vec3(1.0) * 500, 1.0);
         }
     }
@@ -95,8 +95,9 @@ void main() {
                 if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
                     break;
                 }
-                updatedLightData[localIndex] = lightData[index];
-                vplVisibleIndex[localIndex] = index;
+                VplData data = lightData[index];
+                updatedLightData[localIndex] = data;
+                vplVisibleHandles[localIndex] = data.handle;
             }
         }
     }
@@ -114,7 +115,7 @@ void main() {
     //     for (int i = 0; i < totalNumLights && localNumVisible < MAX_TOTAL_VPLS_PER_FRAME; ++i) {
     //         if (lightVisible[i]) {
     //             updatedLightData[localNumVisible] = lightData[i];
-    //             vplVisibleIndex[localNumVisible] = i;
+    //             vplVisibleHandles[localNumVisible] = i;
     //             ++localNumVisible;
     //         }
     //     }
