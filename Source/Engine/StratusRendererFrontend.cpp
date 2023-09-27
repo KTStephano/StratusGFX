@@ -561,9 +561,18 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdateCascadeData_() {
+        if (worldLight_ == nullptr) return;
+
         auto requestedCascadeResolutionXY = static_cast<u32>(frame_->settings.cascadeResolution);
 
-        frame_->vsmc.regenerateFbo = frame_->vsmc.cascadeResolutionXY != requestedCascadeResolutionXY;
+        frame_->vsmc.regenerateFbo = 
+            frame_->vsmc.cascadeResolutionXY != requestedCascadeResolutionXY ||
+            frame_->vsmc.cascades.size() != worldLight_->GetNumCascades() ||
+            frame_->vsmc.baseCascadeDiameter != worldLight_->GetMinCascadeDiameter();
+
+        if (frame_->vsmc.regenerateFbo) {
+            frame_->vsmc.cascades.resize(worldLight_->GetNumCascades());
+        }
 
         frame_->vsmc.cascadeResolutionXY = requestedCascadeResolutionXY;
 
@@ -638,7 +647,7 @@ namespace stratus {
         const f32 clipRange = zfar - znear;
         const f32 ratio = zfar / znear;
 
-        const f32 dk = 1024.0f;
+        const f32 dk = worldLight_->GetMinCascadeDiameter();
 
         const f32 ak = znear;
         const f32 bk = zfar;

@@ -176,9 +176,27 @@ namespace stratus {
             return diff <= 1;
         }
 
+        void SetNumCascades(const u32 num) {
+            numCascades_ = std::max<u32>(num, 1);
+        }
+
+        void SetMinCascadeDiameter(const f32 diameter) {
+            minCascadeDiameter_ = std::max<f32>(diameter, 32.0f);
+        }
+
+        u32 GetNumCascades() const {
+            return numCascades_;
+        }
+
+        f32 GetMinCascadeDiameter() const {
+            return minCascadeDiameter_;
+        }
+
     private:
         // Last engine frame this component was modified
         uint64_t lastFrameChanged_ = 0;
+        u32 numCascades_ = 4;
+        f32 minCascadeDiameter_ = 1024.0f;
     };
 
     class Light {
