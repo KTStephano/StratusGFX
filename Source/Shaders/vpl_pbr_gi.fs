@@ -14,8 +14,8 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 12 //5
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 12 //10
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 8 //5
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 8 //10
 #define MAX_RESAMPLES_PER_PIXEL 0 //STANDARD_MAX_SAMPLES_PER_PIXEL
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -65,6 +65,10 @@ layout (std430, binding = VPL_PREV_LIGHT_DATA_BINDING_POINT) readonly buffer inp
 
 layout (std430, binding = VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT) readonly buffer inputBlock2 {
     int numVisible;
+};
+
+layout (std430, binding = VPL_DIFFUSE_MAP_BINDING_POINT) readonly buffer inputBlock7 {
+    samplerCubeArray diffuseCubeMaps[];
 };
 
 layout (std430, binding = VPL_SHADOW_MAP_BINDING_POINT) readonly buffer inputBlock6 {
@@ -152,20 +156,22 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float rand = random(seed);                                                                                                          
         seed.z += seedZOffset;                                                                                                              
         int lightIndex = int(maxRandomIndex * rand);                                                                                        
-        AtlasEntry entry = shadowIndices[lightIndex];                                                                                       
+        AtlasEntry entry = shadowIndices[lightIndex];              
+        VplData vpl = lightData[lightIndex];                                                                         
                                                                                                                                                                                                                                                                                 \
-        vec3 lightPosition = lightData[lightIndex].position.xyz;                                                                            
-        vec3 specularLightPosition = lightData[lightIndex].specularPosition.xyz;                                                            
+        vec3 lightPosition = vpl.position.xyz;                                                                            
+        vec3 specularLightPosition = vpl.specularPosition.xyz;                                                            
                                                                                                                                             
         /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
         /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
         /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
         vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
-        float lightRadius = lightData[lightIndex].radius;                                                                                   
-        float distance = length(lightMinusFrag);                                                                                            
+        float lightRadius = vpl.radius;                                                                                   
+        float distance = length(lightMinusFrag);   
+        lightMinusFrag = normalize(lightMinusFrag);                                                                                         
                                                                                                                                             
         if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
-            float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
+            float sideCheck = dot(normal, lightMinusFrag);                                                                       
             if (sideCheck < 0.0 || distance > lightRadius) {                                                                                
                 ++resamples;                                                                                                                
                 --i;                                                                                                                        
@@ -176,17 +182,27 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         float distanceRatio = clamp((2.0 * distance) / lightRadius, 0.0, 1.0);                                                              
         float distAttenuation = distanceRatio;                                                                                              
                                                                                                                                             
-        vec3 lightColor = lightData[lightIndex].color.xyz;                                                                                  
+        //vec3 lightColor = vpl.color.xyz;         
+        vec3 lightColor = textureLod(
+            diffuseCubeMaps[entry.index], 
+            vec4(lightMinusFrag, float(entry.layer)), 
+            0
+        ).rgb;       
+        lightColor = lightColor * vpl.intensity * infiniteLightColor * 70000.0;          
+
+        float shadowDepthValue;                                            
                                                                                                                                             
         float shadowFactor =                                                                                                                
         distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
                                                          entry.layer,                                                                       
-                                                         lightData[lightIndex].farPlane,                                                    
+                                                         vpl.farPlane,                                                    
                                                          fragPos,                                                                           
                                                          lightPosition,                                                                     
-                                                         dot(lightPosition - fragPos, normal), 0.05)                                        
+                                                         dot(lightPosition - fragPos, normal), 0.05, shadowDepthValue)                                        
                            : 0.0;                                                                                                           
-        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                    
+        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));    
+
+        specularLightPosition = lightPosition - 1.1 * lightRadius * shadowDepthValue * lightMinusFrag;                           
                                                                                                                                             
         float reweightingFactor = 1.0;                                                                                                      
                                                                                                                                             

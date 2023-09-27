@@ -2347,7 +2347,7 @@ void RendererBackend::UpdatePointLights_(
     const auto lights = frame_->lights.GetNearestTiles(
         c.GetPosition(), 
         StackBasedPoolAllocator<SpatialLightMap::SpatialLightTileView>(frame_->perFrameScratchMemory),
-        2
+        4
     );
 
     // Init per light instance data
@@ -2658,36 +2658,36 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_() {
     // glm::mat4 lightView = lightCam.getViewTransform();
     const glm::vec3 direction = lightCam.GetDirection();
 
-    state_.vplColoring->Bind();
+    // state_.vplColoring->Bind();
 
-    // Bind inputs
-    auto& cache = vplSmapCache_;
-    state_.vplColoring->SetVec3("infiniteLightDirection", direction);
-    state_.vplColoring->SetVec3("infiniteLightColor", frame_->vsmc.worldLight->GetLuminance());
-    // for (usize i = 0; i < cache.buffers.size(); ++i) {
-    //     state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
-    //     state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
-    // }
+    // // Bind inputs
+    // auto& cache = vplSmapCache_;
+    // state_.vplColoring->SetVec3("infiniteLightDirection", direction);
+    // state_.vplColoring->SetVec3("infiniteLightColor", frame_->vsmc.worldLight->GetLuminance());
+    // // for (usize i = 0; i < cache.buffers.size(); ++i) {
+    // //     state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);
+    // //     state_.vplColoring->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
+    // // }
 
-    state_.vplsPrevFrame.vplNumVisible.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT);
-    state_.vplsPrevFrame.vplVisibleHandles.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHTS_VISIBLE_HANDLES_BINDING_POINT);
-    //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.shadowDiffuseIndices.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT);
+    // state_.vplsPrevFrame.vplNumVisible.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_NUM_LIGHTS_VISIBLE_BINDING_POINT);
+    // state_.vplsPrevFrame.vplVisibleHandles.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHTS_VISIBLE_HANDLES_BINDING_POINT);
+    // //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
+    // state_.vpls.shadowDiffuseIndices.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT);
 
-    InitCoreCSMData_(state_.vplColoring.get());
+    // InitCoreCSMData_(state_.vplColoring.get());
 
-    // Bind outputs
-    state_.vplsPrevFrame.vplUpdatedData.BindBase(
-        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHT_DATA_BINDING_POINT);
+    // // Bind outputs
+    // state_.vplsPrevFrame.vplUpdatedData.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PREV_LIGHT_DATA_BINDING_POINT);
 
-    // Dispatch and synchronize
-    state_.vplColoring->DispatchCompute(1, 1, 1);
-    state_.vplColoring->SynchronizeMemory();
+    // // Dispatch and synchronize
+    // state_.vplColoring->DispatchCompute(1, 1, 1);
+    // state_.vplColoring->SynchronizeMemory();
 
-    state_.vplColoring->Unbind();
+    // state_.vplColoring->Unbind();
 }
 
 void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const f64 deltaSeconds) {
@@ -2728,6 +2728,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const f64 delt
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_HALTON_SEQUENCE_BINDING_POINT);
     state_.vplGlobalIllumination->SetInt("haltonSize", i32(haltonSequence.size()));
 
+    state_.vplGlobalIllumination->SetVec3("infiniteLightDirection", frame_->vsmc.worldLightCamera->GetDirection());
     state_.vplGlobalIllumination->SetMat4("invProjectionView", frame_->invProjectionView);
     // for (usize i = 0; i < cache.buffers.size(); ++i) {
     //     state_.vplGlobalIllumination->BindTexture("shadowCubeMaps[" + std::to_string(i) + "]", *cache.buffers[i].GetDepthStencilAttachment());
@@ -2795,7 +2796,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const f64 delt
 
     usize bufferIndex = 0;
     const i32 maxReservoirMergingPasses = 1;
-    const i32 maxIterations = 2;
+    const i32 maxIterations = 3;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
 
         // The first iteration(s) is used for reservoir merging so we don't

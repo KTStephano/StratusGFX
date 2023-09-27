@@ -368,7 +368,7 @@ namespace stratus {
         // Convert from [0, 1] to [-0.5, 0.5]
         jitter = jitter - 0.5f;
         // Scale to appropriate subpixel size by using viewport width/height
-        jitter = jitter / glm::vec2(width, height);
+        jitter = (jitter / glm::vec2(width, height)) * 2.0f;
 
         return jitter;
     }
@@ -1313,7 +1313,7 @@ namespace stratus {
                 frame_->lightsToUpdate.PushBack(light);
                 // Re-Insert is an O(1) operation which allows the spatial
                 // light map to update the light's position and potentially its
-                // world hash container
+                // world hash bucket
                 frame_->lights.Insert(light);
             }
         }

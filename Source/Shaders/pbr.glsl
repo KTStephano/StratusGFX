@@ -115,8 +115,7 @@ float calculateShadowValue8Samples(samplerCubeArray shadowMaps, int shadowIndex,
     return shadow / 8.0;
 }
 
-// Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
-float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, float minBias) {
+float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, float minBias, out float depthValue) {
     // Not required for fragDir to be normalized
     vec3 fragDir = fragPos - lightPos;
     float currentDepth = length(fragDir);
@@ -126,7 +125,7 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
     //float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), minBias));
     float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.03);
     float shadow = 0.0;
-    float depth = texture(shadowMaps, vec4(fragDir, float(shadowIndex))).r;
+    float depth = texture(shadowMaps, vec4(normalize(fragDir), float(shadowIndex))).r;
     // It's very important to multiply by lightFarPlane. The recorded depth
     // is on the range [0, 1] so we need to convert it back to what it was originally
     // or else our depth comparison will fail.
@@ -136,6 +135,12 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
     }
 
     return shadow;
+}
+
+// Main idea came from https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
+float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, float lightFarPlane, vec3 fragPos, vec3 lightPos, float lightNormalDotProduct, float minBias) {
+    float unused;
+    return calculateShadowValue1Sample(shadowMaps, shadowIndex, lightFarPlane,fragPos, lightPos, lightNormalDotProduct, minBias, unused);
 }
 
 // For more information, see:

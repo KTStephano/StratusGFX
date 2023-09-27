@@ -85,7 +85,7 @@ public:
         e2.AddCallback(callback);
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
@@ -180,7 +180,7 @@ public:
                           ++spawned;
                           LightCreator::CreateVirtualPointLight(
                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                              true
+                              false
                           );
                   }
               }
