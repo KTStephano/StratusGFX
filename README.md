@@ -6,16 +6,6 @@ Engine Version: **0.10**
 
 Realtime 3D rendering engine. Expect bugs and instability as it is still under development. The engine is free and open source (licensed under MPL-2.0). Please feel free to contact me about any questions or issues you have!
 
-# Roadmap for Engine Version 0.11 (in development)
-
-* Virtual shadow maps
-* New Vulkan + DirectX 12 graphics backend (dropping OpenGL support)
-* Two-pass occlusion culling
-* Texture streaming
-* Improved GI quality and performance
-* New engine module system for easier extensibility
-* Refactored renderer to make adding custom passes easier
-
 ![sponza1](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
 
 ![sponza2](https://ktstephano.github.io/assets/v0.10/SponzaGI.png)
@@ -45,6 +35,16 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 -> [High Level Architecture Overview](https://ktstephano.github.io/rendering/stratusgfx/architecture)
 
 -> [How A Frame Is Rendered](https://ktstephano.github.io/rendering/stratusgfx/frame_analysis_v0_10)
+
+# Roadmap for Engine Version 0.11 (in development)
+
+* Virtual shadow maps
+* New Vulkan + DirectX 12 graphics backend (dropping OpenGL support)
+* Two-pass occlusion culling
+* Texture streaming
+* Improved GI quality and performance
+* New engine module system for easier extensibility
+* Refactored renderer to make adding custom passes easier
 
 # Purpose
 
