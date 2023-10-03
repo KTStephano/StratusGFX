@@ -38,7 +38,7 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 
 # Roadmap for Engine Version 0.11 (in development)
 
-* Virtual shadow maps
+* [Virtual shadow maps](https://ktstephano.github.io/rendering/stratusgfx/svsm)
 * New Vulkan + DirectX 12 graphics backend (dropping OpenGL support)
 * Two-pass occlusion culling
 * Texture streaming
