@@ -62,7 +62,7 @@ uniform vec3 viewPosition;
 uniform mat4 view;
 
 // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
-float distanceFromPointToAABB(in AABB aabb, vec3 point) {
+float distanceFromPointToAABB(in AABB aabb, in vec3 point) {
     float dx = max(aabb.vmin.x - point.x, max(0.0, point.x - aabb.vmax.x));
     float dy = max(aabb.vmin.y - point.y, max(0.0, point.y - aabb.vmax.y));
     float dz = max(aabb.vmin.z - point.z, max(0.0, point.z - aabb.vmax.z));
