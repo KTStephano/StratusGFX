@@ -296,7 +296,7 @@ void main() {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
-        int minmaxNearest = dminmax;
+        const int minmaxNearest = dminmax;
         for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
             for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
                 //if (dx != 0 || dy != 0) continue;
