@@ -1565,7 +1565,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 8;// / 2;// / 8;// / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 4;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -3304,14 +3304,14 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glViewport(0, 0, 350, 350);
-    // BindShader_(state_.fullscreenPages.get());
-    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
-    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
-    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    // RenderQuad_();
-    // UnbindShader_();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, 500, 500);
+    BindShader_(state_.fullscreenPages.get());
+    state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    RenderQuad_();
+    UnbindShader_();
 
     // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
