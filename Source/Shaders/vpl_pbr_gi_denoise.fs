@@ -104,14 +104,17 @@ float calculateLuminanceVariance(in vec2 texCoords, in int varMultiplier) {
     float samples = 0.0;
     float data[dminmaxVariance * dminmaxVariance + 1];
     int dataIndex = 0;
+    vec2 uvBaseOffset = 1.0 / textureSize(indirectShadows, 0).xy;
     // filter for average
     for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
         for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
             samples += 1.0;
-            ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier;
 
-            vec3 result = textureOffset(indirectShadows, texCoords, offset).rgb;
-            //result *= textureOffset(indirectIllumination, texCoords, offset).rgb;
+            vec2 offset = uvBaseOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier);
+            vec3 result = texture(indirectShadows, texCoords + offset).rgb;
+
+            //ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier;
+            //vec3 result = textureOffset(indirectShadows, texCoords, offset).rgb;
 
             data[dataIndex] = linearColorToLuminance(tonemap(result));
             //data[dataIndex] = length(result);
@@ -156,7 +159,9 @@ float filterInput(
     vec2 pixelCoords = texCoords * widthHeight;
     vec2 newTexCoords = texCoords + texelStep;
 
-    float currDepth = textureOffset(depth, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).r;
+    vec2 baseUvDepthOffset = 1.0 / textureSize(depth, 0).xy;
+
+    float currDepth = texture(depth, texCoords + baseUvDepthOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * multiplier)).r;
     //vec2 currGradient = textureOffset(structureBuffer, texCoords * widthHeight, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).xy;
     //vec2 currGradient = 1.0 - texture(structureBuffer, texCoords * widthHeight).xy;
     //currGradient = vec2(0.05);
@@ -197,6 +202,9 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     float runningSum = 0.0;
     float probabilisticWeight = 1.0 / float(numVisible[0]);
 
+    vec2 baseUvDepthOffset  = 1.0 / textureSize(depth, 0).xy;
+    vec2 baseUvShadowOffset = 1.0 / textureSize(indirectShadows, 0).xy;
+
 #define ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)                                                            \
         const int dxSign = dx_ < 0 ? -1 : 1;                                                                \
         const int dySign = dy_ < 0 ? -1 : 1;                                                                \
@@ -211,13 +219,13 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
         if (dot(centerNormal, currNormal) < 0.906) {                                                        \
             continue;                                                                                       \
         }                                                                                                   \
-        float currDepth = textureOffset(depth, fsTexCoords, ivec2(dx_, dy_)).r;                             \
+        float currDepth = texture(depth, fsTexCoords + baseUvDepthOffset * vec2(dx_, dy_)).r;               \
         /* If the difference between current and center depth exceeds 10% of center's value, reject */      \
         if (abs(currDepth - centerDepth) > depthCutoff) {                                                   \
             continue;                                                                                       \
         }                                                                                                   \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
-        vec4 currReservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx_, dy_)).rgba;             \
+        vec4 currReservoir = texture(indirectShadows, fsTexCoords + baseUvShadowOffset * vec2(dx_, dy_)).rgba; \
         float randUpdate = random(seed);                                                                    \
         seed.z += 10000.0;                                                                                  \
         float probability_ = currReservoir.a * probabilisticWeight;                                         \
@@ -296,6 +304,7 @@ void main() {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
+        vec2 baseUvShadowOffset = 1.0 / textureSize(indirectShadows, 0).xy;
         const int minmaxNearest = dminmax;
         for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
             for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
@@ -306,7 +315,7 @@ void main() {
                 vec4 reservoir = vec4(0.0);
                 vec3 currShadow = vec3(0.0);
 
-                reservoir = textureOffset(indirectShadows, fsTexCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgba;
+                reservoir = texture(indirectShadows, fsTexCoords + baseUvShadowOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * multiplier)).rgba;
 
                 currShadow = reservoir.rgb;
                 float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
