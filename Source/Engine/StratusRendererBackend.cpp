@@ -498,8 +498,9 @@ void RendererBackend::RecalculateCascadeData_() {
         frame_->vsmc.pagesFreeList = GpuBuffer((const void* )pageFreeList.data(), sizeof(u32) * pageFreeList.size(), flags);
 
         const auto numPageGroups = numCascades * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
-        std::vector<u32> pagesGroupsToRender(numPageGroups, 0);
-        frame_->vsmc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * numPageGroups, flags);
+        // 2 * numPageGroups gives more than enough data to store a page mip chain for each cascade
+        std::vector<u32> pagesGroupsToRender(4 * numPageGroups, 0);
+        frame_->vsmc.pageGroupsToRender = GpuBuffer((const void *)pagesGroupsToRender.data(), sizeof(u32) * pagesGroupsToRender.size(), flags);
 
         //frame_->vsmc.pageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
         //frame_->vsmc.backPageGroupUpdateQueue = MakeUnsafe<VirtualIndex2DUpdateQueue>(frame_->vsmc.numPageGroupsX, frame_->vsmc.numPageGroupsY);
@@ -1563,7 +1564,8 @@ void RendererBackend::RenderCSMDepth_() {
     const auto pageGroupWindowWidth = depth->Width() / frame_->vsmc.numPageGroupsX;
     const auto pageGroupWindowHeight = depth->Height() / frame_->vsmc.numPageGroupsY;
 
-    const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
+    const auto pageGroupSizeBytes = sizeof(u32) * frame_->vsmc.cascades.size() * numPageGroups;
+    const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ, 0, pageGroupSizeBytes);
 
     const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 4;// / 2;// / 8;// / 2;// / 8;
 

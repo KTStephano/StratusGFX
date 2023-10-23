@@ -66,6 +66,8 @@ uniform mat4 prevViewProjection;
 uniform sampler2D depthPyramid;
 uniform int performHiZCulling;
 
+#undef SELECT_LOD
+
 // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
 float distanceFromPointToAABB(in AABB aabb, vec3 point) {
     float dx = max(aabb.vmin.x - point.x, max(0.0, point.x - aabb.vmax.x));
