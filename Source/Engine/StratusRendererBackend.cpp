@@ -1799,10 +1799,10 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            minPageGroupX = 0;
-            minPageGroupY = 0;
-            maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
             if (minPageGroupX > 0) {
