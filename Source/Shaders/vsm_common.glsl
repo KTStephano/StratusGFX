@@ -372,7 +372,7 @@ float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArr
     ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
     uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    if (pageGroupsToRender[physicalPageIndex] > 0) {
+    if (pageGroupsToRender[physicalPageIndex] > 1) {
         recalculatedBias = bias + 0.0005;
         cascadeIndex = int(vsmNumCascades) - 1;
         coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
@@ -421,7 +421,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
     uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    if (pageGroupsToRender[physicalPageIndex] > 0) {
+    if (pageGroupsToRender[physicalPageIndex] > 1) {
         recalculatedBias = bias + 0.0005;
         cascadeIndex = int(vsmNumCascades) - 1;
         coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);

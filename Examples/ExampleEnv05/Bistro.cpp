@@ -24,75 +24,75 @@
 
 static void setupDayTime() {
     int spawned = 0;
-    for (int x = -150; x < 200; x += 50) {
-        for (int y = 0; y < 150; y += 20) {
-            for (int z = -400; z < -50; z += 50) {
-                    ++spawned;
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
-                    );
-            } 
-        }
-    }
+    // for (int x = -150; x < 200; x += 50) {
+    //     for (int y = 0; y < 150; y += 20) {
+    //         for (int z = -400; z < -50; z += 50) {
+    //                 ++spawned;
+    //                 LightCreator::CreateVirtualPointLight(
+    //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                     false
+    //                 );
+    //         } 
+    //     }
+    // }
 
-    for (int x = -200; x < 95; x += 30) {
-        for (int y = 0; y < 150; y += 15) {
-            for (int z = -50; z < 200; z += 30) {
-                    ++spawned;
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                        false
-                    );
-            }
-        }
-    }
+    // for (int x = -200; x < 95; x += 30) {
+    //     for (int y = 0; y < 150; y += 15) {
+    //         for (int z = -50; z < 200; z += 30) {
+    //                 ++spawned;
+    //                 LightCreator::CreateVirtualPointLight(
+    //                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                     false
+    //                 );
+    //         }
+    //     }
+    // }
 
-    for (int x = 300; x < 555; x += 30) {
-        for (int y = 0; y < 50; y += 10) {
-            for (int z = 150; z < 400; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 300; x < 555; x += 30) {
+    //     for (int y = 0; y < 50; y += 10) {
+    //         for (int z = 150; z < 400; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = 180; x < 310; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            for (int z = 100; z < 265; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 180; x < 310; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         for (int z = 100; z < 265; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = 240; x < 340; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            for (int z = 130; z < 180; z += 30) {
-                ++spawned;
-                LightCreator::CreateVirtualPointLight(
-                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    false
-                );
-            }
-        }
-    }
+    // for (int x = 240; x < 340; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         for (int z = 130; z < 180; z += 30) {
+    //             ++spawned;
+    //             LightCreator::CreateVirtualPointLight(
+    //                 LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+    //                 false
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (int x = -270; x < -160; x += 30) {
-        for (int y = 0; y < 160; y += 10) {
-            ++spawned;
-            LightCreator::CreateVirtualPointLight(
-                LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
-                false
-            );
-        }
-    }
+    // for (int x = -270; x < -160; x += 30) {
+    //     for (int y = 0; y < 160; y += 10) {
+    //         ++spawned;
+    //         LightCreator::CreateVirtualPointLight(
+    //             LightParams(glm::vec3(float(x), float(y), -250.0f), glm::vec3(1.0f), 1.0f),
+    //             false
+    //         );
+    //     }
+    // }
 
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
@@ -470,6 +470,7 @@ public:
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(512.0f);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -531,7 +532,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;// 16384;
         settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 

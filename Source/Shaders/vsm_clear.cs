@@ -62,14 +62,15 @@ void main() {
     //uint updatedDirtyBit = VSM_PAGE_CLEARED_BIT;
 
     if (gl_LocalInvocationID == 0) {
+        uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
         // If this physical page is within the virtual bounds that the CPU wants to render
         // this frame, mark it as rendered instead of cleared
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x < endXY.x &&
-            virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y) {
+            virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y &&
+            pageGroupsToRender[virtualPageIndex] > 0) {
 
-            uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
-            clearPage = true;//pageGroupsToRender[virtualPageIndex] > 0;
-            pageGroupsToRender[virtualPageIndex] = 0;
+            clearPage = pageGroupsToRender[virtualPageIndex] > 1;
+            --pageGroupsToRender[virtualPageIndex];
         }
     }
 

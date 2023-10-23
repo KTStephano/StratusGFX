@@ -1565,7 +1565,7 @@ void RendererBackend::RenderCSMDepth_() {
 
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / 4;// / 2;// / 8;// / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 4;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1797,10 +1797,10 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            // minPageGroupX = 0;
-            // minPageGroupY = 0;
-            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
             if (minPageGroupX > 0) {
@@ -3315,18 +3315,18 @@ void RendererBackend::FinalizeFrame_() {
 
     // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glViewport(frame_->viewportWidth - 350, 0, 350, 350);
-    // BindShader_(state_.fullscreenPageGroups.get());
-    // state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
-    // state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
-    // state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)numPagesAvailable);
-    // frame_->vsmc.pageGroupsToRender.BindBase(
-    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
-    // frame_->vsmc.pageResidencyTable.BindBase(
-    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    // RenderQuad_();
-    // UnbindShader_();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(frame_->viewportWidth - 350, 0, 350, 350);
+    BindShader_(state_.fullscreenPageGroups.get());
+    state_.fullscreenPageGroups->SetUint("numPageGroupsX", frame_->vsmc.numPageGroupsX);
+    state_.fullscreenPageGroups->SetUint("numPageGroupsY", frame_->vsmc.numPageGroupsY);
+    state_.fullscreenPageGroups->SetUint("numPagesXY", (u32)frame_->vsmc.numPageGroupsX);
+    frame_->vsmc.pageGroupsToRender.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    frame_->vsmc.pageResidencyTable.BindBase(
+        GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
+    RenderQuad_();
+    UnbindShader_();
 }
 
 // See https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/

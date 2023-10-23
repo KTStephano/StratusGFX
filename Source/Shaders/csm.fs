@@ -33,6 +33,14 @@ smooth in vec2 vsmTexCoords;
 uniform float nearClipPlane;
 
 void writeDepth(in vec2 uv, in float depth) {
+	// TODO: This won't work with fractional screen bounds
+	// uvec2 virtualPageCoords = uvec2(gl_FragCoord.xy - 0.5) / uvec2(numPagesXY);
+	// uint virtualPageCoordFlat = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + uint(fsClipMapIndex) * numPagesXY * numPagesXY);
+
+	// if (pageGroupsToRender[virtualPageCoordFlat] == 0) {
+	// 	discard;
+	// }
+
 	//vec2 physicalPixelCoords = wrapIndex(virtualPixelCoords, vec2(virtualShadowMapSizeXY));
 	vec3 physicalPixelCoords = vec3(vsmConvertVirtualUVToPhysicalPixelCoords(
 		uv,
