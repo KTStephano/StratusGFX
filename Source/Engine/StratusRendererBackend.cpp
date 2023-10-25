@@ -201,6 +201,10 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"vsm_clear.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vsmClear.get());
 
+    state_.vsmBuildHpb = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"vsm_build_hpb.cs", ShaderType::COMPUTE}}));
+    state_.shaders.push_back(state_.vsmBuildHpb.get());
+
     state_.vplColoring = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplColoring.get());
@@ -457,6 +461,25 @@ void RendererBackend::RecalculateCascadeData_() {
 
         frame_->vsmc.numPageGroupsX = numPages;
         frame_->vsmc.numPageGroupsY = numPages;
+
+        frame_->vsmc.hpb = Texture(
+            TextureConfig{
+                TextureType::TEXTURE_2D_ARRAY,
+                TextureComponentFormat::RED,
+                TextureComponentSize::BITS_8,
+                TextureComponentType::UINT,
+                frame_->vsmc.numPageGroupsX,
+                frame_->vsmc.numPageGroupsY,
+                numCascades,
+                true,
+                false // not virtual (hardware sparse)
+            },
+
+            NoTextureData
+        );
+
+        frame_->vsmc.hpb.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        frame_->vsmc.hpb.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         std::vector<GpuPageResidencyEntry, StackBasedPoolAllocator<GpuPageResidencyEntry>> pageResidencyData(
             numPagesSquared, GpuPageResidencyEntry(), StackBasedPoolAllocator<GpuPageResidencyEntry>(frame_->perFrameScratchMemory)
@@ -1443,6 +1466,12 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
         TextureComponentType::UINT
     };
 
+    TextureAccess hpbBindConfig{
+        TextureComponentFormat::RED,
+        TextureComponentSize::BITS_8,
+        TextureComponentType::UINT
+    };
+
     state_.vsmMarkScreen->Bind();
 
     // state_.vsmMarkScreen->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
@@ -1454,11 +1483,34 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
     state_.vsmMarkScreen->BindTextureAsImage(
         "vsm", frame_->vsmc.vsm, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
+    state_.vsmMarkScreen->BindTextureAsImage(
+        "hpb", frame_->vsmc.hpb, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, hpbBindConfig);
     frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
     state_.vsmMarkScreen->DispatchCompute(frame_->vsmc.numPageGroupsX / 8, frame_->vsmc.numPageGroupsY / 8, 1);
     state_.vsmMarkScreen->SynchronizeMemory();
+
+    state_.vsmBuildHpb->Bind();
+
+    state_.vsmBuildHpb->BindTextureAsImage(
+        "hpb0", frame_->vsmc.hpb, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY, hpbBindConfig);
+
+    const u32 numMipLevels = CalculateNumMipLevels(numPagesAvailable, numPagesAvailable);
+    for (u32 i = 1; i < numMipLevels; ++i) {
+        state_.vsmBuildHpb->BindTextureAsImage(
+            "hpb" + std::to_string(i), 
+            frame_->vsmc.hpb, 
+            i,       // mip level
+            true, 0, // layer info
+            ImageTextureAccessMode::IMAGE_READ_WRITE, 
+            hpbBindConfig
+        );
+    }
+
+    state_.vsmBuildHpb->SetInt("numMipLevels", i32(numMipLevels));
+    state_.vsmBuildHpb->DispatchCompute(u32(frame_->vsmc.cascades.size()), 1, 1);
+    state_.vsmBuildHpb->SynchronizeMemory();
 
     state_.vsmCull->Bind();
 

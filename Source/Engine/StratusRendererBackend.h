@@ -230,6 +230,7 @@ namespace stratus {
             std::unique_ptr<Pipeline> vsmFreePages;
             std::unique_ptr<Pipeline> vsmCull;
             std::unique_ptr<Pipeline> vsmClear;
+            std::unique_ptr<Pipeline> vsmBuildHpb;
         };
 
         struct TextureCache {

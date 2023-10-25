@@ -4,7 +4,14 @@ set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 set(THIRD_PARTY_ROOT_DIRECTORY ${ROOT_DIRECTORY}/ThirdParty/)
 set(OUTPUT_NAME StratusEngine)
 
-include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/Engine/ . ${OPENGL_INCLUDE_DIRS})
+include_directories(
+    ${ROOT_DIRECTORY}/gl3w/include 
+    ${ROOT_DIRECTORY} 
+    ${ROOT_DIRECTORY}/Source 
+    ${ROOT_DIRECTORY}/Source/Engine/ 
+    . 
+    ${OPENGL_INCLUDE_DIRS}
+    )
 
 set(SOURCES
     ${ROOT_DIRECTORY}/gl3w/src/gl3w.c

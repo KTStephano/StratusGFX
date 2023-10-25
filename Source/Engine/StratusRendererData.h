@@ -222,6 +222,8 @@ namespace stratus {
         f32 baseCascadeDiameter;
         FrameBuffer fbo;
         Texture vsm;
+        // Hierarchical page buffer (for culling)
+        Texture hpb;
         GpuHostFence prevFrameFence;
         // GpuBuffer prevFramePageResidencyTable;
         GpuBuffer pageResidencyTable;
