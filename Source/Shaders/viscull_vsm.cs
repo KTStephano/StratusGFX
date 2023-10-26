@@ -15,9 +15,8 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 #include "aabb.glsl"
 #include "vsm_common.glsl"
 
-// uniform mat4 cascadeProjectionView;
-// uniform mat4 invCascadeProjectionView;
-// uniform mat4 vsmProjectionView;
+// Hierarchical page buffer
+uniform sampler2DArray hpb;
 
 uniform uint frameCount;
 uniform uint numDrawCalls;
@@ -56,6 +55,11 @@ layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer i
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
+layout (std430, binding = 80) buffer test {
+    int count;
+};
+
+shared int calls;
 shared ivec2 pageGroupCorners[4];
 shared vec2 pageGroupCornersTexCoords[4];
 // shared uint pageGroupIsValid;
@@ -78,6 +82,12 @@ IS_OVERLAPPING(vec2)
 IS_OVERLAPPING(ivec2)
 
 void main() {
+    if (gl_LocalInvocationID == 0) {
+        calls = 0;
+    }
+
+    barrier();
+
     ivec2 basePageGroup = ivec2(gl_WorkGroupID.xy);
     uint basePageGroupIndex = basePageGroup.x + basePageGroup.y * numPageGroupsX;
 
@@ -131,25 +141,69 @@ void main() {
 
             //AABB aabb = transformAabbAsNDCCoords(aabbs[drawIndex], cascadeProjectionView * modelTransforms[drawIndex]);
             AABB aabb = vsmTransformAabbAsNDCCoords(aabbs[drawIndex], vsmClipMap0ProjectionView * modelTransforms[drawIndex], corners, cascade);
-            computeCornersAsTexCoords(aabb, corners);
 
             vec2 pageMin = vec2(pageGroupCorners[0]);
             vec2 pageMax = vec2(pageGroupCorners[3]);
 
-            vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
-            vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
+            //vec2 aabbMin = corners[0].xy * vec2(maxResidencyTableIndex);
+            //vec2 aabbMax = corners[7].xy * vec2(maxResidencyTableIndex);
+            vec2 aabbMin = (aabb.vmin.xy * 0.5 + 0.5) * vec2(maxResidencyTableIndex);
+            vec2 aabbMax = (aabb.vmax.xy * 0.5 + 0.5) * vec2(maxResidencyTableIndex);
 
             // Even if our page group is inactive we still need to record commands just in case
             // our inactivity is due to being fully cached (the CPU may clear some/all of our region
             // due to its conservative algorithm)
             if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
-                draw.instanceCount = 1;
+                // if (cascade == 0) {
+                //     atomicAdd(calls, 1);
+                // }
+                // draw.instanceCount = 1;
+
+                aabbMin /= vec2(maxResidencyTableIndex);
+                aabbMax /= vec2(maxResidencyTableIndex);
+                aabbMin  = clamp(aabbMin, vec2(0.0), vec2(1.0));
+                aabbMax  = clamp(aabbMax, vec2(0.0), vec2(1.0));
+
+                float width  = (aabbMax.x - aabbMin.x) * float(maxResidencyTableIndex);
+                float height = (aabbMax.y - aabbMin.y) * float(maxResidencyTableIndex);
+                int level    = int(ceil(log2(max(1, max(width, height)))));
+
+                float pow2Val    = float(BITMASK_POW2(level));
+                float resolution = float(maxResidencyTableIndex) / pow2Val;
+
+                ivec3 coord1 = ivec3(ivec2(vec2(aabbMin.x, aabbMin.y) * resolution), cascade);
+                ivec3 coord2 = ivec3(ivec2(vec2(aabbMin.x, aabbMax.y) * resolution), cascade);
+                ivec3 coord3 = ivec3(ivec2(vec2(aabbMax.x, aabbMin.y) * resolution), cascade);
+                ivec3 coord4 = ivec3(ivec2(vec2(aabbMax.x, aabbMax.y) * resolution), cascade);
+
+                float pageStatus1 = texelFetch(hpb, coord1, level).r;
+                float pageStatus2 = texelFetch(hpb, coord2, level).r;
+                float pageStatus3 = texelFetch(hpb, coord3, level).r;
+                float pageStatus4 = texelFetch(hpb, coord4, level).r;
+
+                float pageStatusMerged = max(max(pageStatus1, pageStatus2), max(pageStatus3, pageStatus4));
+
+                if (pageStatusMerged > 0) {
+                    if (cascade == 0) {
+                        atomicAdd(calls, 1);
+                    }
+                    draw.instanceCount = 1;
+                }
+                else {
+                    draw.instanceCount = 0;
+                }
             }
             else {
                 draw.instanceCount = 0;
             }
 
             outDrawCalls[drawIndex + cascade * maxDrawCommands] = draw;
+        }
+
+        barrier();
+
+        if (gl_LocalInvocationID == 0 && cascade == 0) {
+            count = calls;
         }
 
         barrier();

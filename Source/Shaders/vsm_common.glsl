@@ -4,9 +4,6 @@ STRATUS_GLSL_VERSION
 #include "common.glsl"
 #include "aabb.glsl"
 
-// #define VSM_LOWER_MASK 0x00000003
-// #define VSM_UPPER_MASK 0xFFFFFFFC
-
 #define VSM_PAGE_DIRTY_BIT 1
 #define VSM_PAGE_CLEARED_BIT 2
 #define VSM_PAGE_RENDERED_BIT 3
@@ -28,26 +25,6 @@ STRATUS_GLSL_VERSION
 #define VSM_MAX_NUM_PHYSICAL_PAGES_XY 128
 
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
-//#define VSM_DOUBLE_NUM_TEXELS_PER_PAGE_XY 256
-
-// 128 * 128
-//#define VSM_MAX_NUM_TEXELS_PER_PAGE 16384
-// #define VSM_HALF_NUM_TEXELS_PER_PAGE 8192
-// #define VSM_FOURTH_NUM_TEXELS_PER_PAGE 4096
-
-// #define ATOMIC_REDUCE_TEXEL_COUNT(info) {                         \
-//     uint pageId;                                                  \
-//     uint count;                                                   \
-//     unpackPageIdAndDirtyBit(info, pageId, count);                 \
-//     uint original = packPageIdWithDirtyBit(pageId, count);        \
-//     while (count > 0) {                                           \
-//         --count;                                                  \
-//         uint updated = packPageIdWithDirtyBit(pageId, count);     \
-//         uint prev = atomicCompSwap(info, original, updated);      \
-//         if (prev == original) break;                              \
-//         unpackPageIdAndDirtyBit(prev, pageId, count);             \
-//     }                                                             \
-// }
 
 struct PageResidencyEntry {
     // uint frameMarker;
@@ -70,6 +47,7 @@ layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) coherent buff
 };
 
 // For first clip map - rest are derived from this
+// Result for closest clip map to the player
 uniform mat4 vsmClipMap0ProjectionView;
 uniform uint vsmNumCascades;
 uniform uint vsmNumMemoryPools;
@@ -272,16 +250,6 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
     onPageBoundary = offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 1) || offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 1);
     onPageBoundary = onPageBoundary || offsetWithinPage.x <= 1 || offsetWithinPage.y <= 1;
 
-    // offsetWithinPage = vec2(
-    //     offsetWithinPage.x >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) ? VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 3 : offsetWithinPage.x,
-    //     offsetWithinPage.y >= (VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 2) ? VSM_MAX_NUM_TEXELS_PER_PAGE_XY - 3 : offsetWithinPage.y
-    // );
-
-    // offsetWithinPage = vec2(
-    //     offsetWithinPage.x <= 1 ? 2 : offsetWithinPage.x,
-    //     offsetWithinPage.y <= 1 ? 2 : offsetWithinPage.y
-    // );
-
     //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
     //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
     ivec2 physicalPageCoords = ivec2(wrapIndex(uv, vec2(vsmNumPagesXY)));
@@ -320,39 +288,6 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
         float(memPool)
     );
 }
-
-// float sampleShadowTextureSparse(sampler2DArray shadow, in vec4 coords, in vec4 coordsLowestMip, float depth, vec2 offset, float bias) {
-//     float offsetDepth = depth - bias;
-
-//     vec4 modified = coords;
-//     modified.w = depth - bias;
-//     modified.xy += offset;
-//     //coords.xy = wrapIndex(coords.xy, vec2(1.0 + PREVENT_DIV_BY_ZERO));
-
-//     uint vsmNumPagesXY = uint(textureSize(shadow, 0).x / VSM_MAX_NUM_TEXELS_PER_PAGE_XY);
-//     vec3 physicalCoords = vsmConvertVirtualUVToPhysicalPixelCoords(
-//         modified.xy, 
-//         vec2(textureSize(shadow, 0).xy),
-//         vsmNumPagesXY,
-//         int(coords.z)
-//     );
-
-//     vec3 physicalUvs = vec3(
-//         physicalCoords.xy / vec2(textureSize(shadow, 0).xy),
-//         physicalCoords.z
-//     );
-
-//     vec4 texel;
-//     int status = sparseTexelFetchARB(shadow, ivec3(floor(physicalCoords)), 0, texel);
-
-//     if (sparseTexelsResidentARB(status) == false) return 0.0;
-
-//     return offsetDepth < texel.r ? 1.0 : 0.0;
-
-//     // float result;
-//     // int status = sparseTextureARB(shadow, vec4(physicalUvs, modified.w), result);
-//     // return (sparseTexelsResidentARB(status) == false) ? 0.0 : result;
-// }
 
 float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex, in bool markPageNeeded) {
     int cascadeIndex = clipMapIndex;
@@ -514,14 +449,6 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     );
 }
 
-vec2 roundIndex(in vec2 index) {
-    return index;
-    //return index - vec2(1.0);
-    //return ceil(index) - vec2(1.0);
-    //return round(index) - vec2(1.0);
-    //return floor(index);
-}
-
 vec2 convertLocalCoordsToVirtualUvCoords(
     in vec2 localCoords,
     in vec2 size,
@@ -562,7 +489,7 @@ vec2 convertVirtualCoordsToPhysicalCoords(
         cascadeIndex
     );
 
-    return roundIndex(wrapped);
+    return (wrapped);
 }
 
 vec2 convertPhysicalCoordsToVirtualCoordsNoRound(
@@ -604,7 +531,7 @@ vec2 convertPhysicalCoordsToVirtualCoords(
         cascadeIndex
     );
 
-    return roundIndex(wrapped);
+    return (wrapped);
 }
 
 void vsmComputeCornersWithTransform(in AABB aabb, in mat4 transform, inout vec4 corners[8]) {

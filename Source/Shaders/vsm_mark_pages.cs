@@ -26,14 +26,6 @@ layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) coherent buffer block2
     int pageIndices[];
 };
 
-// layout (std430, binding = 2) buffer block4 {
-//     int renderPageIndices[];
-// };
-
-// layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) coherent buffer block3 {
-//     PageResidencyEntry prevFramePageResidencyTable[];
-// };
-
 layout (std430, binding = VSM_NUM_PAGES_FREE_BINDING_POINT) coherent buffer block8 {
     int numPagesFree;
 };
@@ -43,47 +35,6 @@ layout (std430, binding = VSM_PAGES_FREE_LIST_BINDING_POINT) readonly buffer blo
 };
 
 shared int cascadeStepSize;
-
-// bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint physicalPageY, in uint memPool) {
-//     // int maxPage = int(numPagesXY * numPagesXY);
-//     // int nextPage = atomicAdd(numPagesFree, 1);
-//     // if (nextPage >= maxPage) {
-//     //     physicalPageX = 0;
-//     //     physicalPageY = 0;
-//     //     return false;
-//     // }
-
-//     // uint px = pagesFreeList[2 * nextPage];
-//     // uint py = pagesFreeList[2 * nextPage + 1];
-//     uint px = uint(physicalPage.x);
-//     uint py = uint(physicalPage.y);
-//     physicalPageX = px;
-//     physicalPageY = py;
-
-//     int original = atomicAdd(numPagesToUpdate, 1);
-//     pageIndices[3 * original] = int(memPool);
-//     pageIndices[3 * original + 1] = int(px) + 1;
-//     pageIndices[3 * original + 2] = int(py) + 1;
-
-//     return true;
-// }
-
-// void requestPageDealloc(in ivec2 pageCoords, in uint memPool) {
-//     // int maxPage = int(numPagesXY * numPagesXY);
-//     // int nextPage = atomicAdd(numPagesFree, -1);
-//     // while (nextPage > maxPage) {
-//     //     nextPage = atomicAdd(numPagesFree, -1);
-//     // }
-
-//     // nextPage = nextPage - 1;
-//     // pagesFreeList[2 * nextPage] = uint(pageCoords.x);
-//     // pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
-
-//     int original = atomicAdd(numPagesToUpdate, 1);
-//     pageIndices[3 * original] = int(memPool);
-//     pageIndices[3 * original + 1] = -(pageCoords.x + 1);
-//     pageIndices[3 * original + 2] = -(pageCoords.y + 1);
-// }
 
 bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint physicalPageY, out uint memPool) {
     int maxPage = int(vsmNumMemoryPools * numPagesXY * numPagesXY);
@@ -111,15 +62,6 @@ bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint ph
 }
 
 void requestPageDealloc(in ivec2 pageCoords, in uint memPool) {
-    // int maxPage = int(numPagesXY * numPagesXY);
-    // int nextPage = atomicAdd(numPagesFree, -1);
-    // while (nextPage > maxPage) {
-    //     nextPage = atomicAdd(numPagesFree, -1);
-    // }
-
-    // nextPage = nextPage - 1;
-    // pagesFreeList[2 * nextPage] = uint(pageCoords.x);
-    // pagesFreeList[2 * nextPage + 1] = uint(pageCoords.y);
 
     int original = atomicAdd(numPagesToUpdate, 1);
     pageIndices[3 * original] = int(memPool);

@@ -18,7 +18,7 @@ precision highp sampler2DArrayShadow;
 #include "vsm_common.glsl"
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
-layout (r8ui) uniform uimage2DArray hpb;
+layout (r32ui) uniform uimage2DArray hpb;
 
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer block6 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
@@ -103,6 +103,7 @@ void main() {
 
             if (frameMarker > 0) {
                 performBoundsUpdate = true;
+                pageDirty = true;
 
                 // If moving this pixel to previous NDC goes out of the [-1, 1] range, it was not visible last
                 // frame before the origin shift and will be wrapped around to the other side
@@ -116,7 +117,7 @@ void main() {
         uint updated = (performBoundsUpdate == false) ? 0 : (pageDirty ? 2 : pageGroupsToRender[screenTileIndex]);
         pageGroupsToRender[screenTileIndex] = updated;
 
-        imageStore(hpb, ivec3(localPageCoords.xy, cascade), uvec4(updated > 0 ? 1 : 0));
+        imageStore(hpb, ivec3(localPageCoords.xy, cascade), uvec4(floatBitsToUint(updated > 0 ? 1024.0 : 0.0)));
 
         if (performBoundsUpdate) {
             atomicMin(clipMapBoundingBoxes[cascade].minPageX, localPageCoords.x - 1);

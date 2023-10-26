@@ -123,10 +123,6 @@ void main() {
     if (cascadeIndex >= vsmNumCascades) return;
 
     // Convert world position to a coordinate from the light's perspective
-    // vec4 coords = cascadeProjectionView * vec4(worldPosition, 1.0);
-    // vec2 cascadeTexCoords = coords.xy / coords.w; // Perspective divide
-    // // Convert from range [-1, 1] to [0, 1]
-    // cascadeTexCoords.xy = cascadeTexCoords.xy * 0.5 + vec2(0.5);
 
     vec3 clipCoords = vsmCalculateOriginClipValueFromWorldPos(worldPosition, cascadeIndex);
     vec3 clipCoordsLowest = vsmCalculateOriginClipValueFromWorldPos(worldPosition, int(vsmNumCascades) - 1);
@@ -147,77 +143,6 @@ void main() {
     // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
+    // Coarsest clip map
     updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
-    // updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
-
-    // ivec2 coords1 = pixelCoordsLower;
-    // ivec2 coords2 = ivec2(pixelCoordsLower.x, pixelCoordsUpper.y);
-    // ivec2 coords3 = ivec2(pixelCoordsUpper.x, pixelCoordsLower.y);
-    // ivec2 coords4 = pixelCoordsUpper;
-
-    // if (fx <= 0.02 || fx >= 0.98 || fy <= 0.02 || fy >= 0.98) {
-    //     int offset = 1;
-    //     for (int x = -offset; x <= offset; ++x) {
-    //         for (int y = -offset; y <= offset; ++y) {
-    //             updateResidencyStatus(pixelCoordsLower + ivec2(x, y), cascadeIndex);
-    //         }
-    //     }
-    // }
-    // else {
-    //     updateResidencyStatus(pixelCoordsLower, cascadeIndex);
-    // }
-
-    // if (coords2 != coords1) {
-    //     updateResidencyStatus(coords2, cascadeIndex);
-    // }
-    // if (coords3 != coords2) {
-    //     updateResidencyStatus(coords3, cascadeIndex);
-    // }
-    // if (coords4 != coords3) {
-    //     updateResidencyStatus(coords4, cascadeIndex);
-    // }
-
-    // Check for approaching page boundaries
-    // if (fx <= 0.01) {
-    //     updateResidencyStatus(pixelCoordsLower + ivec2(-1, 0), cascadeIndex);
-    //     // updateResidencyStatus(pixelCoordsLower + ivec2(-2, 0), cascadeIndex);
-
-    //     if (fy <= 0.01) {
-    //         updateResidencyStatus(pixelCoordsLower + ivec2(-1, -1), cascadeIndex);
-    //     }
-    //     else if (fy >= 0.98) {
-    //         updateResidencyStatus(pixelCoordsLower + ivec2(-1, 1), cascadeIndex);
-    //     }
-    // }
-    // else if (fx >= 0.98) {
-    //     updateResidencyStatus(pixelCoordsLower + ivec2(1, 0), cascadeIndex);
-    //     // updateResidencyStatus(pixelCoordsLower + ivec2(2, 0), cascadeIndex);
-    //     if (fy <= 0.01) {
-    //         updateResidencyStatus(pixelCoordsLower + ivec2(1, -1), cascadeIndex);
-    //     }
-    //     else if (fy >= 0.98) {
-    //         updateResidencyStatus(pixelCoordsLower + ivec2(1, 1), cascadeIndex);
-    //     }
-    // }
-
-    // if (fy <= 0.01) {
-    //     updateResidencyStatus(pixelCoordsLower + ivec2(0, -1), cascadeIndex);
-    //     // updateResidencyStatus(pixelCoordsLower + ivec2(0, -2), cascadeIndex);
-    // }
-    // else if (fy >= 0.98) {
-    //     updateResidencyStatus(pixelCoordsLower + ivec2(0, 1), cascadeIndex);
-    //     // updateResidencyStatus(pixelCoordsLower + ivec2(0, 2), cascadeIndex);
-    // }
-
-    // int offset = 1;
-    // for (int x = -offset; x <= offset; ++x) {
-    //     for (int y = -offset; y <= offset; ++y) {
-    //         updateResidencyStatus(pixelCoordsLower + ivec2(x, y), cascadeIndex);
-    //     }
-    // }
-
-    //updateResidencyStatus(pixelCoordsLower, cascadeIndex);
-    // if (pixelCoordsLower != pixelCoordsUpper) {
-    //     updateResidencyStatus(pixelCoordsUpper, cascadeIndex);
-    // }
 }
