@@ -1,3 +1,5 @@
+// Clears physical pages to default depth value
+
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require

@@ -143,7 +143,8 @@ RendererBackend::RendererBackend(const u32 width, const u32 height, const std::s
         Shader{"bloom.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.bloom.get());
 
-    for (i32 i = 0; i < 6; ++i) {
+    // TODO: Make this configurable
+    for (i32 i = 0; i < 30; ++i) {
         state_.csmDepth.push_back(std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
             Shader{"csm.vs", ShaderType::VERTEX},
             //Shader{"csm.gs", ShaderType::GEOMETRY},
@@ -423,7 +424,13 @@ void RendererBackend::RecalculateCascadeData_() {
     if (frame_->vsmc.regenerateFbo || !frame_->vsmc.fbo.Valid()) {
         STRATUS_LOG << "Regenerating Cascade Data" << std::endl;
 
-        const auto numVsmMemoryPools = 2;
+        u32 numVsmMemoryPools = 1;
+
+        if ((8192 / cascadeResolutionXY) > 0) {
+            numVsmMemoryPools = 8192 / cascadeResolutionXY;
+        }
+
+        STRATUS_LOG << "Initializing VSM with " << numVsmMemoryPools << " memory pools" << std::endl;
 
         // Create the depth buffer
         // @see https://stackoverflow.com/questions/22419682/glsl-sampler2dshadow-and-shadow2d-clarificationssss
@@ -466,7 +473,7 @@ void RendererBackend::RecalculateCascadeData_() {
             TextureConfig{
                 TextureType::TEXTURE_2D_ARRAY,
                 TextureComponentFormat::RED,
-                TextureComponentSize::BITS_32,
+                TextureComponentSize::BITS_8,
                 TextureComponentType::FLOAT,
                 frame_->vsmc.numPageGroupsX,
                 frame_->vsmc.numPageGroupsY,
@@ -1468,9 +1475,19 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
 
     TextureAccess hpbBindConfig{
         TextureComponentFormat::RED,
-        TextureComponentSize::BITS_32,
+        TextureComponentSize::BITS_8,
         TextureComponentType::UINT
     };
+
+    const u32 vsmResolutionPerFrame = frame_->vsmc.cascadeResolutionXY / frame_->vsmc.updateDivisor;
+    const glm::ivec2 vsmPixelStart(
+        vsmResolutionPerFrame * frame_->vsmc.currUpdateX,
+        vsmResolutionPerFrame * frame_->vsmc.currUpdateY
+    );
+    const glm::ivec2 vsmPixelEnd(
+        vsmResolutionPerFrame * (frame_->vsmc.currUpdateX + 1),
+        vsmResolutionPerFrame * (frame_->vsmc.currUpdateY + 1)
+    );
 
     state_.vsmMarkScreen->Bind();
 
@@ -1481,6 +1498,10 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmMarkScreen->SetUint("vsmNumCascades", (u32)frame_->vsmc.cascades.size());
     state_.vsmMarkScreen->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
     state_.vsmMarkScreen->SetVec2("ndcClipOriginChange", frame_->vsmc.ndcClipOriginDifference);
+    state_.vsmMarkScreen->SetIVec2("virtualPixelStart", vsmPixelStart);
+    state_.vsmMarkScreen->SetIVec2("virtualPixelEnd", vsmPixelEnd);
+    // TODO: Make this configurable
+    state_.vsmMarkScreen->SetInt("virtualCoarseClipmapStart", (i32)(frame_->vsmc.cascades.size() - 1));
     state_.vsmMarkScreen->BindTextureAsImage(
         "vsm", frame_->vsmc.vsm, 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE, depthBindConfig);
     state_.vsmMarkScreen->BindTextureAsImage(
@@ -1512,10 +1533,6 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmBuildHpb->DispatchCompute(u32(frame_->vsmc.cascades.size()), 1, 1);
     state_.vsmBuildHpb->SynchronizeMemory();
 
-    int count = 0;
-    const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
-    GpuBuffer temp = GpuBuffer((const void *)&count, sizeof(int), flags);
-
     state_.vsmCull->Bind();
 
     // state_.vsmCull->SetMat4("cascadeProjectionView", frame_->vsmc.projectionViewRender);
@@ -1530,7 +1547,6 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     //state_.vsmCull->BindTextureAsImage("currFramePageResidencyTable", frame_->vsmc.currFramePageResidencyTable, true, 0, ImageTextureAccessMode::IMAGE_READ_ONLY);
     frame_->vsmc.pageResidencyTable.BindBase(
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
-    temp.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 80);
     state_.vsmCull->SetUint("numPagesXY", numPagesAvailable);
     state_.vsmCull->SetUint("numPixelsXY", (u32)frame_->vsmc.cascadeResolutionXY);
     state_.vsmCull->BindTexture("hpb", frame_->vsmc.hpb);
@@ -1558,17 +1574,23 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     );
 
     state_.vsmCull->Unbind();
-
-    int newCount = *(int *)temp.MapMemory(GPU_MAP_READ);
-    temp.UnmapMemory();
-
-    STRATUS_LOG << "Objects: " << newCount << std::endl;
 }
 
 void RendererBackend::RenderCSMDepth_() {
     //if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
     //    throw std::runtime_error("Max cascades exceeded (> 6)");
     //}
+
+    // Increment update counters
+    ++frame_->vsmc.currUpdateX;
+    if (frame_->vsmc.currUpdateX >= frame_->vsmc.updateDivisor) {
+        frame_->vsmc.currUpdateX = 0;
+        ++frame_->vsmc.currUpdateY;
+
+        if (frame_->vsmc.currUpdateY >= frame_->vsmc.updateDivisor) {
+            frame_->vsmc.currUpdateY = 0;
+        }
+    }
 
     ProcessShadowVirtualTexture_();
 
@@ -1630,7 +1652,7 @@ void RendererBackend::RenderCSMDepth_() {
     const auto pageGroupSizeBytes = sizeof(u32) * frame_->vsmc.cascades.size() * numPageGroups;
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ, 0, pageGroupSizeBytes);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 4;// / 2;// / 8;// / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 2;// / 4;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1862,10 +1884,10 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            // minPageGroupX = 0;
-            // minPageGroupY = 0;
-            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
             if (minPageGroupX > 0) {
@@ -2087,6 +2109,27 @@ void RendererBackend::RenderCSMDepth_() {
             };
 
             state_.vsmClear->Bind();
+
+            // TODO: Make this configurable
+            if (cascade < (frame_->vsmc.cascades.size() - 1)) {
+                const u32 vsmResolutionPerFrame = frame_->vsmc.numPageGroupsX / frame_->vsmc.updateDivisor;
+                const glm::ivec2 vsmPixelStart(
+                    vsmResolutionPerFrame * frame_->vsmc.currUpdateX,
+                    vsmResolutionPerFrame * frame_->vsmc.currUpdateY
+                );
+                const glm::ivec2 vsmPixelEnd(
+                    vsmResolutionPerFrame * (frame_->vsmc.currUpdateX + 1),
+                    vsmResolutionPerFrame * (frame_->vsmc.currUpdateY + 1)
+                );
+
+                startX = (u32)vsmPixelStart.x;
+                startY = (u32)vsmPixelStart.y;
+
+                endX = (u32)vsmPixelEnd.x;
+                endY = (u32)vsmPixelEnd.y;
+            }
+
+            STRATUS_LOG << startX << ", " << startY << ", " << endX << ", " << endY << std::endl;
 
             // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
             // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);

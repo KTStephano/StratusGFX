@@ -1,4 +1,5 @@
 // Loops over each cascade and builds a hierarchical page buffer (hpb)
+// which is used for culling
 
 STRATUS_GLSL_VERSION
 
@@ -14,14 +15,14 @@ precision highp sampler2D;
 precision highp sampler2DArrayShadow;
 
 // All the different levels of the hierarchical page buffer
-layout (r32ui) readonly uniform uimage2DArray hpb0;
-layout (r32ui) coherent uniform uimage2DArray hpb1;
-layout (r32ui) coherent uniform uimage2DArray hpb2;
-layout (r32ui) coherent uniform uimage2DArray hpb3;
-layout (r32ui) coherent uniform uimage2DArray hpb4;
-layout (r32ui) coherent uniform uimage2DArray hpb5;
-layout (r32ui) coherent uniform uimage2DArray hpb6;
-layout (r32ui) coherent uniform uimage2DArray hpb7;
+layout (r8ui) readonly uniform uimage2DArray hpb0;
+layout (r8ui) coherent uniform uimage2DArray hpb1;
+layout (r8ui) coherent uniform uimage2DArray hpb2;
+layout (r8ui) coherent uniform uimage2DArray hpb3;
+layout (r8ui) coherent uniform uimage2DArray hpb4;
+layout (r8ui) coherent uniform uimage2DArray hpb5;
+layout (r8ui) coherent uniform uimage2DArray hpb6;
+layout (r8ui) coherent uniform uimage2DArray hpb7;
 
 // Max 8 (128x128 page table)
 uniform int numMipLevels;

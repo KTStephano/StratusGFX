@@ -1,3 +1,8 @@
+// Performs basic culling using combination of virtual screen bounds and hierarchical
+// page buffer to quickly determine if an object overlaps any valid, uncached pages
+//
+// Results are written to a draw indirect buffer
+
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
@@ -43,23 +48,10 @@ layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) buffer outpu
     DrawElementsIndirectCommand outDrawCalls[];
 };
 
-// layout (std430, binding = 5) buffer outputBlock2 {
-//     int outputDrawCalls;
-// };
-
-// layout (std430, binding = VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT) buffer outputBlock3 {
-//     uint pageGroupsToRender[];
-// };
-
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer inputBlock5 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
 
-layout (std430, binding = 80) buffer test {
-    int count;
-};
-
-shared int calls;
 shared ivec2 pageGroupCorners[4];
 shared vec2 pageGroupCornersTexCoords[4];
 // shared uint pageGroupIsValid;
@@ -82,11 +74,6 @@ IS_OVERLAPPING(vec2)
 IS_OVERLAPPING(ivec2)
 
 void main() {
-    if (gl_LocalInvocationID == 0) {
-        calls = 0;
-    }
-
-    barrier();
 
     ivec2 basePageGroup = ivec2(gl_WorkGroupID.xy);
     uint basePageGroupIndex = basePageGroup.x + basePageGroup.y * numPageGroupsX;
@@ -154,9 +141,6 @@ void main() {
             // our inactivity is due to being fully cached (the CPU may clear some/all of our region
             // due to its conservative algorithm)
             if (isOverlapping(pageMin, pageMax, aabbMin, aabbMax)) {
-                // if (cascade == 0) {
-                //     atomicAdd(calls, 1);
-                // }
                 // draw.instanceCount = 1;
 
                 aabbMin /= vec2(maxResidencyTableIndex);
@@ -184,9 +168,6 @@ void main() {
                 float pageStatusMerged = max(max(pageStatus1, pageStatus2), max(pageStatus3, pageStatus4));
 
                 if (pageStatusMerged > 0) {
-                    if (cascade == 0) {
-                        atomicAdd(calls, 1);
-                    }
                     draw.instanceCount = 1;
                 }
                 else {
@@ -199,13 +180,7 @@ void main() {
 
             outDrawCalls[drawIndex + cascade * maxDrawCommands] = draw;
         }
-
-        barrier();
-
-        if (gl_LocalInvocationID == 0 && cascade == 0) {
-            count = calls;
-        }
-
+        
         barrier();
     }
 }

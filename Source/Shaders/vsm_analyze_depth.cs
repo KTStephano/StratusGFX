@@ -1,3 +1,5 @@
+// Analyzes the depth buffer and determines which pages are needed
+
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
@@ -22,18 +24,6 @@ uniform sampler2D depthTexture;
 uniform uint frameCount;
 uniform uint numPagesXY;
 
-// layout (std430, binding = VSM_NUM_PAGES_TO_UPDATE_BINDING_POINT) buffer block1 {
-//     int numPagesToMakeResident;
-// };
-
-// layout (std430, binding = VSM_PAGE_INDICES_BINDING_POINT) buffer block2 {
-//     int pageIndices[];
-// };
-
-// layout (std430, binding = VSM_PREV_FRAME_RESIDENCY_TABLE_BINDING) readonly buffer block3 {
-//     PageResidencyEntry prevFramePageResidencyTable[];
-// };
-
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) coherent buffer block5 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
 };
@@ -41,12 +31,6 @@ layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) coherent buffer b
 shared vec2 depthTextureSize;
 shared ivec2 residencyTableSize;
 
-// const int pixelOffsets[] = int[](
-//     -2, -1, 0, 1, 2
-// );
-// const int pixelOffsets[] = int[](
-//     -1, 0, 1
-// );
 const int pixelOffsets[] = int[](
     0
 );

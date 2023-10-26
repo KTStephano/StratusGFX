@@ -219,6 +219,10 @@ namespace stratus {
         glm::mat4 viewTransform;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
+        // Should be a power of 2
+        u32 updateDivisor = 2; // 1 = update everything every frame
+        u32 currUpdateX = 0;
+        u32 currUpdateY = 0;
         f32 baseCascadeDiameter;
         FrameBuffer fbo;
         Texture vsm;

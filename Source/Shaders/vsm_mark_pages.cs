@@ -1,3 +1,6 @@
+// Iterates over pages to determine which ones should be allocated, deallocated
+// and which ones are dirty/cached
+
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require

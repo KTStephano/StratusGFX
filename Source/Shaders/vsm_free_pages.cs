@@ -1,3 +1,5 @@
+// Iterates over pages added to list by vsm_mark_pages and frees them
+
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
