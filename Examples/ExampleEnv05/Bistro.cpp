@@ -470,8 +470,8 @@ public:
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(64.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(8);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(256.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(5);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));

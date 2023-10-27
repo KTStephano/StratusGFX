@@ -120,7 +120,11 @@ void main() {
         }
 
         uint screenTileIndex = uint(localPageCoords.x + localPageCoords.y * numPagesXY + cascade * cascadeStepSize);
-        uint updated = (performBoundsUpdate == false) ? 0 : (pageDirty ? VSM_VIRTUAL_SCREEN_UPDATE_MARKER : pageGroupsToRender[screenTileIndex]);
+        uint existing = pageGroupsToRender[screenTileIndex];
+        // if (length(cascadeNdcClipOriginChange) > 0 && existing > 0) {
+        //     existing = HALF_VSM_VIRTUAL_SCREEN_UPDATE_MARKER;
+        // }
+        uint updated = (performBoundsUpdate == false) ? 0 : (pageDirty ? VSM_VIRTUAL_SCREEN_UPDATE_MARKER : existing);
         pageGroupsToRender[screenTileIndex] = updated;
 
         uint hpbValue = 0;

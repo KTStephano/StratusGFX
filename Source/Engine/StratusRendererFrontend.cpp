@@ -564,6 +564,7 @@ namespace stratus {
         if (worldLight_ == nullptr) return;
 
         auto requestedCascadeResolutionXY = static_cast<u32>(frame_->settings.cascadeResolution);
+        auto numPagesPerCascade = requestedCascadeResolutionXY / 128;
 
         frame_->vsmc.regenerateFbo = 
             frame_->vsmc.cascadeResolutionXY != requestedCascadeResolutionXY ||
@@ -745,7 +746,7 @@ namespace stratus {
         //const f32 T = dk / requestedCascadeResolutionXY;
         frame_->vsmc.baseCascadeDiameter = dk;
 
-        const f32 moveSize = (T * BITMASK_POW2(0)) * 128.0f;
+        const f32 moveSize = T * 128.0f;
         //const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis

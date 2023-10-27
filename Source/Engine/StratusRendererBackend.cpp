@@ -1786,7 +1786,17 @@ void RendererBackend::RenderCSMDepth_() {
 
     //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
 
+    usize totalVsmWorkDone = 0;
+    const usize maxVsmWorkPerFrame = 1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+
+        // We always update the last cascade fully
+        if (cascade != (frame_->vsmc.cascades.size() - 1)) {
+            if (totalVsmWorkDone >= maxVsmWorkPerFrame) {
+                continue;
+            }
+        }
 
         //const GpuPageResidencyEntry * currTable = pageTable + cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
 
@@ -1841,17 +1851,17 @@ void RendererBackend::RenderCSMDepth_() {
             const auto y = xy.first.second;
             const auto count = xy.second;
 
-            const u32 minRegionX = x / pageUpdateDivisor;
-            const u32 minRegionY = y / pageUpdateDivisor;
+            // const u32 minRegionX = x / pageUpdateDivisor;
+            // const u32 minRegionY = y / pageUpdateDivisor;
 
-            const auto newX = pageUpdateDivisor * minRegionX;
-            const auto newY = pageUpdateDivisor * minRegionY;
+            // const auto newX = pageUpdateDivisor * minRegionX;
+            // const auto newY = pageUpdateDivisor * minRegionY;
 
-            auto newMinPageGroupX = std::min<u32>(minPageGroupX, newX);
-            auto newMinPageGroupY = std::min<u32>(minPageGroupY, newY);
+            auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
+            auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
 
-            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, newX + pageUpdateDivisor);
-            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, newY + pageUpdateDivisor);
+            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
+            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
 
             const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
@@ -1896,6 +1906,10 @@ void RendererBackend::RenderCSMDepth_() {
             // maxPageGroupX = frame_->vsmc.numPageGroupsX;
             // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
+            const u32 sizeX = maxPageGroupX - minPageGroupX;
+            const u32 sizeY = maxPageGroupY - minPageGroupY;
+            totalVsmWorkDone += (usize)(sizeX * sizeY);
+
             // Add a 2 page group border around the whole update region
             // if (minPageGroupX > 0) {
             //     --minPageGroupX;
@@ -1911,8 +1925,8 @@ void RendererBackend::RenderCSMDepth_() {
             //     ++maxPageGroupY;
             // }
 
-            u32 sizeX = maxPageGroupX - minPageGroupX;
-            u32 sizeY = maxPageGroupY - minPageGroupY;
+            // u32 sizeX = maxPageGroupX - minPageGroupX;
+            // u32 sizeY = maxPageGroupY - minPageGroupY;
             const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
             //STRATUS_LOG << sizeX << ", " << sizeY << std::endl;

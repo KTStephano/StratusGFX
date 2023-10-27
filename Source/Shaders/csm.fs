@@ -75,6 +75,5 @@ void main() {
 #endif
 
 	depth = clamp(depth, 0.0, 1.0);
-
 	writeDepth(vsmTexCoords, depth);
 }
