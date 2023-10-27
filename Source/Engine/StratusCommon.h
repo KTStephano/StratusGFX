@@ -12,8 +12,8 @@
 #include <functional>
 #include "StratusPointer.h"
 
-#define BITMASK64_POW2(offset) (1ull << offset)
-#define BITMASK_POW2(offset)   (1 << offset)
+#define BITMASK64_POW2(offset) (1ull << (offset))
+#define BITMASK_POW2(offset)   (1 << (offset))
 #define INSTANCE(type) stratus::type::Instance()
 
 #endif //STRATUSGFX_COMMON_H

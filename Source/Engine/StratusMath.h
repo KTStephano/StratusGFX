@@ -590,6 +590,19 @@ namespace stratus {
         return 1 + u32(std::floor(std::log2(std::max<f32>(f32(width), f32(height)))));
     }
 
+    // @see https://stackoverflow.com/questions/466204/rounding-up-to-next-power-of-2
+    template<typename T>
+    inline T RoundToNextPowerOf2(T val) {
+        auto bits = sizeof(T) * 8;
+        auto halfBits = bits / 2;
+        --val;
+        for (auto shift = 1; shift <= halfBits; shift <<= 1) {
+            val |= val >> shift;
+        }
+        val++;
+        return val;
+    }
+
     // These are the first 512 values of the Halton sequence. For more information see:
     //     https://en.wikipedia.org/wiki/Halton_sequence
     //     https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/The_Halton_Sampler

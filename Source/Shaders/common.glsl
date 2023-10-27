@@ -11,7 +11,7 @@ STRATUS_GLSL_VERSION
 #define FLOAT_MIN 1.175494351e-38
 #define DOUBLE_MAX 1.7976931348623158e+308
 #define DOUBLE_MIN 2.2250738585072014e-308
-#define BITMASK_POW2(offset) (1 << offset)
+#define BITMASK_POW2(offset) (1 << (offset))
 
 #define FLOAT2_TO_VEC2(f2) vec2(f2[0], f2[1])
 #define FLOAT3_TO_VEC3(f3) vec3(f3[0], f3[1], f3[2])

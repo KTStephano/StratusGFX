@@ -1479,14 +1479,14 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
         TextureComponentType::UINT
     };
 
-    const u32 vsmResolutionPerFrame = frame_->vsmc.cascadeResolutionXY / frame_->vsmc.updateDivisor;
+    const u32 vsmResolutionPerFrame = frame_->vsmc.cascadeResolutionXY / 1;//frame_->vsmc.updateDivisor;
     const glm::ivec2 vsmPixelStart(
-        vsmResolutionPerFrame * frame_->vsmc.currUpdateX,
-        vsmResolutionPerFrame * frame_->vsmc.currUpdateY
+        vsmResolutionPerFrame * 0,//frame_->vsmc.currUpdateX,
+        vsmResolutionPerFrame * 0//frame_->vsmc.currUpdateY
     );
     const glm::ivec2 vsmPixelEnd(
-        vsmResolutionPerFrame * (frame_->vsmc.currUpdateX + 1),
-        vsmResolutionPerFrame * (frame_->vsmc.currUpdateY + 1)
+        vsmResolutionPerFrame * 1,//(frame_->vsmc.currUpdateX + 1),
+        vsmResolutionPerFrame * 1//(frame_->vsmc.currUpdateY + 1)
     );
 
     state_.vsmMarkScreen->Bind();
@@ -1652,7 +1652,7 @@ void RendererBackend::RenderCSMDepth_() {
     const auto pageGroupSizeBytes = sizeof(u32) * frame_->vsmc.cascades.size() * numPageGroups;
     const u32 * pageGroupsToRender = (const u32 *)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ, 0, pageGroupSizeBytes);
 
-    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX;// / 2;// / 4;// / 2;// / 8;// / 2;// / 8;
+    const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / frame_->vsmc.updateDivisor;// / 2;// / 4;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
 
@@ -1833,6 +1833,7 @@ void RendererBackend::RenderCSMDepth_() {
         u32 maxPageGroupX = 0;
         u32 maxPageGroupY = 0;
         usize numPageGroupsToRender = 0;
+        const u32 pageUpdateDivisor = frame_->vsmc.numPageGroupsX / frame_->vsmc.updateDivisor;
 
         while (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
             const auto xy = frame_->vsmc.pageGroupUpdateQueue[cascade]->PopFront();
@@ -1840,11 +1841,17 @@ void RendererBackend::RenderCSMDepth_() {
             const auto y = xy.first.second;
             const auto count = xy.second;
 
-            auto newMinPageGroupX = std::min<u32>(minPageGroupX, x);
-            auto newMinPageGroupY = std::min<u32>(minPageGroupY, y);
+            const u32 minRegionX = x / pageUpdateDivisor;
+            const u32 minRegionY = y / pageUpdateDivisor;
 
-            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, x + 1);
-            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, y + 1);
+            const auto newX = pageUpdateDivisor * minRegionX;
+            const auto newY = pageUpdateDivisor * minRegionY;
+
+            auto newMinPageGroupX = std::min<u32>(minPageGroupX, newX);
+            auto newMinPageGroupY = std::min<u32>(minPageGroupY, newY);
+
+            auto newMaxPageGroupX = std::max<u32>(maxPageGroupX, newX + pageUpdateDivisor);
+            auto newMaxPageGroupY = std::max<u32>(maxPageGroupY, newY + pageUpdateDivisor);
 
             const bool failedCheckX = (newMaxPageGroupX - newMinPageGroupX) > maxPageGroupsToUpdate;
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
@@ -1884,18 +1891,12 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            minPageGroupX = 0;
-            minPageGroupY = 0;
-            maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 2 page group border around the whole update region
-            if (minPageGroupX > 0) {
-                --minPageGroupX;
-            }
-            if (minPageGroupY > 0) {
-                --minPageGroupY;
-            }
             // if (minPageGroupX > 0) {
             //     --minPageGroupX;
             // }
@@ -1903,12 +1904,6 @@ void RendererBackend::RenderCSMDepth_() {
             //     --minPageGroupY;
             // }
 
-            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                ++maxPageGroupX;
-            }
-            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                ++maxPageGroupY;
-            }
             // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
             //     ++maxPageGroupX;
             // }
@@ -1916,101 +1911,11 @@ void RendererBackend::RenderCSMDepth_() {
             //     ++maxPageGroupY;
             // }
 
-            // if (minPageGroupX % 2 != 0 && minPageGroupX > 0) {
-            //     --minPageGroupX;
-            // }
-
-            // if (minPageGroupY % 2 != 0 && minPageGroupY > 0) {
-            //     --minPageGroupY;
-            // }
-
-            // if (maxPageGroupX % 2 != 0 && maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //     ++maxPageGroupX;
-            // }
-
-            // if (maxPageGroupY % 2 != 0 && maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //     ++maxPageGroupY;
-            // }
-
             u32 sizeX = maxPageGroupX - minPageGroupX;
             u32 sizeY = maxPageGroupY - minPageGroupY;
             const u32 frameCount = (u32)INSTANCE(Engine)->FrameCount();
 
-            // Constrain to be a perfect square
-            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsX) / sizeX, 2) != 0; ++i) {
-            //     if (i % 2 == 0 && minPageGroupX > 0) {
-            //         --minPageGroupX;
-            //     }
-            //     else if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //         ++maxPageGroupX;
-            //     }
-
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            // }
-
-            // for (int i = 0; std::fmod(f32(frame_->vsmc.numPageGroupsY) / sizeY, 2) != 0; ++i) {
-            //     if (i % 2 == 0 && minPageGroupY > 0) {
-            //         --minPageGroupY;
-            //     }
-            //     else if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //         ++maxPageGroupY;
-            //     }
-
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            // }
-
-            // if (sizeX < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeX;
-            //     maxPageGroupX = (maxPageGroupX + difference) < frame_->vsmc.numPageGroupsX ? maxPageGroupX + difference : frame_->vsmc.numPageGroupsX;
-
-            //     sizeX = maxPageGroupX - minPageGroupX;
-            //     if (sizeX < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeX;
-            //         minPageGroupX -= difference;
-
-            //         sizeX = maxPageGroupX - minPageGroupX;
-            //     }
-            // }
-
-            // if (sizeY < maxPageGroupsToUpdate) {
-            //     auto difference = maxPageGroupsToUpdate - sizeY;
-            //     maxPageGroupY = (maxPageGroupY + difference) < frame_->vsmc.numPageGroupsY ? maxPageGroupY + difference : frame_->vsmc.numPageGroupsY;
-
-            //     sizeY = maxPageGroupY - minPageGroupY;
-            //     if (sizeY < maxPageGroupsToUpdate) {
-            //         difference = maxPageGroupsToUpdate - sizeY;
-            //         minPageGroupY -= difference;
-
-            //         sizeY = maxPageGroupY - minPageGroupY;
-            //     }
-            // }
-
-            // Constrain the update window to be divisble by 2
-            if (sizeX % 2 != 0) {
-                if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                    ++maxPageGroupX;
-                }
-                else if (minPageGroupX > 0) {
-                    --minPageGroupX;
-                }
-
-                sizeX = maxPageGroupX - minPageGroupX;
-            }
-
-            if (sizeY % 2 != 0) {
-                if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                    ++maxPageGroupY;
-                }
-                else if (minPageGroupY > 0) {
-                    --minPageGroupY;
-                }
-
-                sizeY = maxPageGroupY - minPageGroupY;
-            }
-
-            //STRATUS_LOG << minPageGroupX << " " << minPageGroupY << " " << sizeX << " " << sizeY << std::endl;
-
-            //STRATUS_LOG << cascade << ": " << minPageGroupX << " " << minPageGroupY << ", " << maxPageGroupX << " " << maxPageGroupY << " " << sizeX << " " << sizeY << std::endl;
+            //STRATUS_LOG << sizeX << ", " << sizeY << std::endl;
 
             // Repartition pages into new set of groups
             // See https://stackoverflow.com/questions/28155749/opengl-matrix-setup-for-tiled-rendering
@@ -2034,15 +1939,6 @@ void RendererBackend::RenderCSMDepth_() {
             // const f32 newMaxPageGroupY = normMaxPageGroupY * newNumPageGroupsY;
 
             const glm::ivec2 maxVirtualIndex(frame_->vsmc.cascadeResolutionXY - 1);
-            //const glm::mat4 invProjectionView = frame_->vsmc.cascades[0].invProjectionViewRender;
-            //const glm::mat4 vsmProjectionView = frame_->vsmc.projectionViewSample;
-
-            // for (int i = 0; i < 128; ++i) {
-            // STRATUS_LOG << ConvertVirtualCoordsToPhysicalCoords(glm::ivec2(i, i), maxVirtualIndex, invProjectionView, vsmProjectionView) << std::endl;
-            // }
-
-            //const auto scaleX = f32(frame_->vsmc.numPageGroupsX - sizeX + 1.0f);
-            //const auto scaleY = f32(frame_->vsmc.numPageGroupsY - sizeY + 1.0f);
 
             // Perform scaling equal to the new number of page groups (prevents entire
             // scene from being written into subset of texture - only relevant part
@@ -2111,25 +2007,23 @@ void RendererBackend::RenderCSMDepth_() {
             state_.vsmClear->Bind();
 
             // TODO: Make this configurable
-            if (cascade < (frame_->vsmc.cascades.size() - 1)) {
-                const u32 vsmResolutionPerFrame = frame_->vsmc.numPageGroupsX / frame_->vsmc.updateDivisor;
-                const glm::ivec2 vsmPixelStart(
-                    vsmResolutionPerFrame * frame_->vsmc.currUpdateX,
-                    vsmResolutionPerFrame * frame_->vsmc.currUpdateY
-                );
-                const glm::ivec2 vsmPixelEnd(
-                    vsmResolutionPerFrame * (frame_->vsmc.currUpdateX + 1),
-                    vsmResolutionPerFrame * (frame_->vsmc.currUpdateY + 1)
-                );
+            // if (cascade < (frame_->vsmc.cascades.size() - 1)) {
+            //     const u32 vsmResolutionPerFrame = frame_->vsmc.numPageGroupsX / frame_->vsmc.updateDivisor;
+            //     const glm::ivec2 vsmPixelStart(
+            //         vsmResolutionPerFrame * frame_->vsmc.currUpdateX,
+            //         vsmResolutionPerFrame * frame_->vsmc.currUpdateY
+            //     );
+            //     const glm::ivec2 vsmPixelEnd(
+            //         vsmResolutionPerFrame * (frame_->vsmc.currUpdateX + 1),
+            //         vsmResolutionPerFrame * (frame_->vsmc.currUpdateY + 1)
+            //     );
 
-                startX = (u32)vsmPixelStart.x;
-                startY = (u32)vsmPixelStart.y;
+            //     startX = (u32)vsmPixelStart.x;
+            //     startY = (u32)vsmPixelStart.y;
 
-                endX = (u32)vsmPixelEnd.x;
-                endY = (u32)vsmPixelEnd.y;
-            }
-
-            STRATUS_LOG << startX << ", " << startY << ", " << endX << ", " << endY << std::endl;
+            //     endX = (u32)vsmPixelEnd.x;
+            //     endY = (u32)vsmPixelEnd.y;
+            // }
 
             // state_.vsmClear->SetMat4("invCascadeProjectionView", frame_->vsmc.cascades[cascade].invProjectionViewRender);
             // state_.vsmClear->SetMat4("vsmProjectionView", frame_->vsmc.cascades[cascade].projectionViewSample);

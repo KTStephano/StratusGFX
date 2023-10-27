@@ -26,6 +26,9 @@ STRATUS_GLSL_VERSION
 
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
 
+// Should be at least 2
+#define VSM_VIRTUAL_SCREEN_UPDATE_MARKER 5
+
 struct PageResidencyEntry {
     // uint frameMarker;
     uint info;
@@ -307,7 +310,7 @@ float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArr
     ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
     uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    if (pageGroupsToRender[physicalPageIndex] > 1) {
+    if (pageGroupsToRender[physicalPageIndex] >= (VSM_VIRTUAL_SCREEN_UPDATE_MARKER - 1)) {
         recalculatedBias = bias + 0.0005;
         cascadeIndex = int(vsmNumCascades) - 1;
         coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
@@ -356,7 +359,7 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
     uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    if (pageGroupsToRender[physicalPageIndex] > 1) {
+    if (pageGroupsToRender[physicalPageIndex] >= (VSM_VIRTUAL_SCREEN_UPDATE_MARKER - 1)) {
         recalculatedBias = bias + 0.0005;
         cascadeIndex = int(vsmNumCascades) - 1;
         coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);

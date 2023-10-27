@@ -55,6 +55,8 @@ void main() {
         bool pageDirty = false;
         ivec2 localPageCoords = ivec2(gl_GlobalInvocationID.xy);// + vec2(0.5);
 
+        barrier();
+
         if (gl_LocalInvocationID == 0) {
             cascadeNdcClipOriginChange = vsmConvertClip0ToClipN(ndcClipOriginChange, cascade);
         }
@@ -82,6 +84,8 @@ void main() {
 
             vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
             // Apply motion vector to local ndc
+            // cascadeNdcClipOriginChange goes from current frame -> prev,
+            // so subtracting makes it go from prev frame -> current
             vec2 ndcChange = ndc - cascadeNdcClipOriginChange;
 
             vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
@@ -116,7 +120,7 @@ void main() {
         }
 
         uint screenTileIndex = uint(localPageCoords.x + localPageCoords.y * numPagesXY + cascade * cascadeStepSize);
-        uint updated = (performBoundsUpdate == false) ? 0 : (pageDirty ? 2 : pageGroupsToRender[screenTileIndex]);
+        uint updated = (performBoundsUpdate == false) ? 0 : (pageDirty ? VSM_VIRTUAL_SCREEN_UPDATE_MARKER : pageGroupsToRender[screenTileIndex]);
         pageGroupsToRender[screenTileIndex] = updated;
 
         uint hpbValue = 0;
