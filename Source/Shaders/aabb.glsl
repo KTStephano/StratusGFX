@@ -157,3 +157,13 @@ bool isAabbVisible(in vec4 frustumPlanes[6], in AABB aabb) {
 
     return true;
 }
+
+#define IS_OVERLAPPING(type)                                                    \
+    bool isOverlapping(in type rectAMin, in type rectAMax,                      \
+                       in type rectBMin, in type rectBMax) {                    \
+        return min(rectAMax.x, rectBMax.x) > max(rectAMin.x, rectBMin.x) &&     \
+               min(rectAMax.y, rectBMax.y) > max(rectAMin.y, rectBMin.y);       \
+    }
+
+IS_OVERLAPPING(vec2)
+IS_OVERLAPPING(ivec2)

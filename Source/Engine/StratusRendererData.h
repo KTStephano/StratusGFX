@@ -219,6 +219,7 @@ namespace stratus {
         glm::mat4 viewTransform;
         glm::vec3 cascadePositionLightSpace;
         glm::vec3 cascadePositionCameraSpace;
+        glm::vec3 prevCamPosition = glm::vec3(0.0f);
         // Should be a power of 2
         u32 updateDivisor = 1; // 1 = update everything every frame
         u32 currUpdateX = 0;
@@ -231,6 +232,7 @@ namespace stratus {
         GpuHostFence prevFrameFence;
         // GpuBuffer prevFramePageResidencyTable;
         GpuBuffer pageResidencyTable;
+        bool clipOriginLocked = false;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> pageGroupUpdateQueue;
         std::vector<UnsafePtr<VirtualIndex2DUpdateQueue>> backPageGroupUpdateQueue;
         // Texture is split into pages which are combined
@@ -246,6 +248,7 @@ namespace stratus {
         GpuBuffer numPagesFree;
         GpuBuffer pagesFreeList;
         GpuBuffer pageGroupsToRender;
+        std::vector<u8> cpuPageGroupsToRender;
         GpuBuffer pageBoundingBox;
         glm::vec4 cascadeShadowOffsets[2];
         u32 cascadeResolutionXY;

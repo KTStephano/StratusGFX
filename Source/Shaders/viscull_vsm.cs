@@ -44,7 +44,7 @@ layout (std430, binding = VISCULL_VSM_IN_DRAW_CALLS_BINDING_POINT) readonly buff
     DrawElementsIndirectCommand inDrawCalls[];
 };
 
-layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) buffer outputBlock1 {
+layout (std430, binding = VISCULL_VSM_OUT_DRAW_CALLS_BINDING_POINT) coherent buffer outputBlock1 {
     DrawElementsIndirectCommand outDrawCalls[];
 };
 
@@ -62,16 +62,6 @@ shared vec2 pageGroupCornersTexCoords[4];
 //         return pageCorner.x >= texCornerMin.x && pageCorner.x <= texCornerMax.x &&                  \
 //             pageCorner.y >= texCornerMin.y && pageCorner.y <= texCornerMax.y;                       \
 //     }
-
-#define IS_OVERLAPPING(type)                                                    \
-    bool isOverlapping(in type rectAMin, in type rectAMax,                      \
-                       in type rectBMin, in type rectBMax) {                    \
-        return min(rectAMax.x, rectBMax.x) > max(rectAMin.x, rectBMin.x) &&     \
-               min(rectAMax.y, rectBMax.y) > max(rectAMin.y, rectBMin.y);       \
-    }
-
-IS_OVERLAPPING(vec2)
-IS_OVERLAPPING(ivec2)
 
 void main() {
 

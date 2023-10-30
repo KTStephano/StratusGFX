@@ -215,8 +215,7 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
     vec2 offsetWithinPage = mod(virtualPixelCoords, vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY));
 
     //vec2 physicalPageUv = 2.0 * wrappedUvs - vec2(1.0); //((2.0 * virtualPixelCoords) / resolution - 1.0) * 0.5 + 0.5;
-    //ivec2 physicalPageCoords = ivec2(floor(physicalPageUv * vec2(vsmNumPagesXY)));
-    ivec2 physicalPageCoords = ivec2(wrapIndex(uv, vec2(vsmNumPagesXY)));
+    ivec2 physicalPageCoords = ivec2(virtualPixelCoords / float(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)); //ivec2(wrapIndex(uv, vec2(vsmNumPagesXY)));
     // ivec2 physicalPageCoords = ivec2(floor(virtualPixelCoords / vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)));
     uint physicalPageIndex = uint(physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + uint(cascadeIndex) * vsmNumPagesXY * vsmNumPagesXY);
 
@@ -237,9 +236,9 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoords(in vec2 uv, in vec2 resolution, in
 
     return residencyStatus == 0 ? vec3(-1)
         : vec3(
-        (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
-        float(memPool)
-    );
+            (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
+            float(memPool)
+          );
 }
 
 // When approaching a page boundary, uv coords are contracted by 1 to support bilinear filtering without padding

@@ -39,18 +39,13 @@ void clearPixel(in ivec2 physicalPixelCoords, in uint memPool) {
 }
 
 void main() {
+    ivec2 virtualPageCoords = ivec2(gl_WorkGroupID.xy);// + vec2(0.5);
     if (gl_LocalInvocationID == 0) {
         vsmSize = imageSize(vsm).xy;
         vsmMaxIndex = vsmSize - ivec2(1.0);
         clearPage = false;
         cascadeStepSize = uint(vsmClipMapIndex * numPagesXY * numPagesXY);
-    }
 
-    barrier();
-
-    ivec2 virtualPageCoords = ivec2(gl_WorkGroupID.xy);// + vec2(0.5);
-
-    if (gl_LocalInvocationID == 0) {
         vsmPixelStart = ivec2(
             int(virtualPageCoords.x) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY,
             int(virtualPageCoords.y) * VSM_MAX_NUM_TEXELS_PER_PAGE_XY
@@ -65,13 +60,15 @@ void main() {
 
     if (gl_LocalInvocationID == 0) {
         uint virtualPageIndex = uint(virtualPageCoords.x + virtualPageCoords.y * numPagesXY + cascadeStepSize);
+        uint updateMarker = pageGroupsToRender[virtualPageIndex];
+        //clearPage = updateMarker == VSM_VIRTUAL_SCREEN_UPDATE_MARKER;
         // If this physical page is within the virtual bounds that the CPU wants to render
         // this frame, mark it as rendered instead of cleared
         if (virtualPageCoords.x >= startXY.x && virtualPageCoords.x < endXY.x &&
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y &&
-            pageGroupsToRender[virtualPageIndex] > 0) {
+            updateMarker > 0) {
 
-            clearPage = pageGroupsToRender[virtualPageIndex] > 1;
+            clearPage = true;//pageGroupsToRender[virtualPageIndex] > 0;
             --pageGroupsToRender[virtualPageIndex];
         }
     }

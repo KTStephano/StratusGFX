@@ -561,6 +561,7 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdateCascadeData_() {
+        //if (worldLight_ == nullptr || frame_->vsmc.clipOriginLocked) return;
         if (worldLight_ == nullptr) return;
 
         auto requestedCascadeResolutionXY = static_cast<u32>(frame_->settings.cascadeResolution);
@@ -746,8 +747,16 @@ namespace stratus {
         //const f32 T = dk / requestedCascadeResolutionXY;
         frame_->vsmc.baseCascadeDiameter = dk;
 
-        const f32 moveSize = T * 128.0f;
+        // If camera is not moving, snap to the smallest page size
+        f32 moveSize = T * 128.0f;
         //const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
+        const auto camDifference = glm::length(frame_->camera->GetPosition() - frame_->vsmc.prevCamPosition);
+        frame_->vsmc.prevCamPosition = frame_->camera->GetPosition();
+
+        // If the camera is moving, snap to the largest page size
+        if (camDifference > 0.0f) {
+            moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1)) * 128.0f;
+        }
 
         // T = world distance covered per texel and 128 = number of texels in a page along one axis
         //const f32 moveSize = T * 128.0f;

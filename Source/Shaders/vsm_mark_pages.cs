@@ -67,7 +67,7 @@ bool requestPageAlloc(in ivec2 physicalPage, out uint physicalPageX, out uint ph
 void requestPageDealloc(in ivec2 pageCoords, in uint memPool) {
 
     int original = atomicAdd(numPagesToUpdate, 1);
-    pageIndices[3 * original] = int(memPool);
+    pageIndices[3 * original]     = int(memPool);
     pageIndices[3 * original + 1] = -(pageCoords.x + 1);
     pageIndices[3 * original + 2] = -(pageCoords.y + 1);
 }
