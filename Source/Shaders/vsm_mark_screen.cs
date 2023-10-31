@@ -122,12 +122,12 @@ void main() {
 
             if (frameMarker > 0 && residencyStatus > 0) {
                 performBoundsUpdate = true;
-                pageDirty = true;
+                //pageDirty = true;
 
                 // If moving this pixel to previous NDC goes out of the [-1, 1] range, it was not visible last
                 // frame before the origin shift and will be wrapped around to the other side
-                if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
-                //if (dirtyBit > 0 || !visiblePrevFrame) {
+                //if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
+                if (dirtyBit > 0 || !visiblePrevFrame) {
                     pageDirty = true;
                 }
             }
