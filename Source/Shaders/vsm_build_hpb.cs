@@ -15,14 +15,14 @@ precision highp sampler2D;
 precision highp sampler2DArrayShadow;
 
 // All the different levels of the hierarchical page buffer
-layout (r8ui) readonly uniform uimage2DArray hpb0;
-layout (r8ui) coherent uniform uimage2DArray hpb1;
-layout (r8ui) coherent uniform uimage2DArray hpb2;
-layout (r8ui) coherent uniform uimage2DArray hpb3;
-layout (r8ui) coherent uniform uimage2DArray hpb4;
-layout (r8ui) coherent uniform uimage2DArray hpb5;
-layout (r8ui) coherent uniform uimage2DArray hpb6;
-layout (r8ui) coherent uniform uimage2DArray hpb7;
+layout (r32ui) readonly uniform uimage2DArray hpb0;
+layout (r32ui) coherent uniform uimage2DArray hpb1;
+layout (r32ui) coherent uniform uimage2DArray hpb2;
+layout (r32ui) coherent uniform uimage2DArray hpb3;
+layout (r32ui) coherent uniform uimage2DArray hpb4;
+layout (r32ui) coherent uniform uimage2DArray hpb5;
+layout (r32ui) coherent uniform uimage2DArray hpb6;
+layout (r32ui) coherent uniform uimage2DArray hpb7;
 
 // Max 8 (128x128 page table)
 uniform int numMipLevels;
@@ -83,7 +83,18 @@ void main() {
     for (int mipLevel = 0; mipLevel < (numMipLevels - 1); ++mipLevel) {
         for (int x = startX; x < widthHeight.x; x += stride) {
             for (int y = startY; y < widthHeight.y; y += stride) {
-                // Load 4 neighboring pixels and merge them (max)
+                // Load neighboring pixels and merge them (max)
+
+                // uint merged = loadHpbValue(mipLevel, ivec2(x, y));
+                // for (int vx = -1; vx <= 1; ++vx) {
+                //     for (int vy = -1; vy <= 1; ++vy) {
+
+                //         if (vx == 0 && vy == 0) continue;
+                //         uint v = loadHpbValue(mipLevel, ivec2(x + vx, y + vy));
+                //         merged = max(merged, v);
+                //     }
+                // }
+
                 uint v0 = loadHpbValue(mipLevel, ivec2(x     , y    ));
                 uint v1 = loadHpbValue(mipLevel, ivec2(x + 1 , y    ));
                 uint v2 = loadHpbValue(mipLevel, ivec2(x     , y + 1));

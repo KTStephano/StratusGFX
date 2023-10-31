@@ -473,7 +473,7 @@ void RendererBackend::RecalculateCascadeData_() {
             TextureConfig{
                 TextureType::TEXTURE_2D_ARRAY,
                 TextureComponentFormat::RED,
-                TextureComponentSize::BITS_8,
+                TextureComponentSize::BITS_32,
                 TextureComponentType::FLOAT,
                 frame_->vsmc.numPageGroupsX,
                 frame_->vsmc.numPageGroupsY,
@@ -1494,7 +1494,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
 
     TextureAccess hpbBindConfig{
         TextureComponentFormat::RED,
-        TextureComponentSize::BITS_8,
+        TextureComponentSize::BITS_32,
         TextureComponentType::UINT
     };
 
@@ -1596,13 +1596,25 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
 
     frame_->vsmc.prevFrameFence = HostInsertFence();
     // TODO: Switch back to being 1 frame in flight for VSM
-    //HostFenceSync(frame_->vsmc.prevFrameFence);
+    HostFenceSync(frame_->vsmc.prevFrameFence);
 }
 
 void RendererBackend::RenderCSMDepth_() {
     //if (frame_->vsmc.cascades.size() > state_.csmDepth.size()) {
     //    throw std::runtime_error("Max cascades exceeded (> 6)");
     //}
+
+    // Check and see if there is still pending work
+    bool workPending = false;
+    for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
+        if (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
+            workPending = true;
+            break;
+        }
+    }
+
+    // If no work pending, free to shift the clipmap origin
+    frame_->vsmc.clipOriginLocked = workPending;
 
     // Increment update counters
     ++frame_->vsmc.currUpdateX;
@@ -1699,20 +1711,8 @@ void RendererBackend::RenderCSMDepth_() {
 
     const auto pageGroupStride = frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
 
-    // Check and see if there is still pending work
-    bool workPending = false;
-    for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
-        if (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
-            workPending = true;
-            break;
-        }
-    }
-
-    // If no work pending, free to shift the clipmap origin
-    frame_->vsmc.clipOriginLocked = workPending;
-
     // If no work pending, free to check for new work from the GPU
-    if (true) {
+    if (!workPending) {
         for (u32 cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
             for (u32 y = 0; y < frame_->vsmc.numPageGroupsY; ++y) {
                 for (u32 x = 0; x < frame_->vsmc.numPageGroupsX; ++x) {
@@ -1826,17 +1826,17 @@ void RendererBackend::RenderCSMDepth_() {
     //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
 
     usize totalVsmWorkDone = 0;
-    const usize maxVsmWorkPerFrame = (1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY) / 1;
+    const usize maxVsmWorkPerFrame = (1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY) / 16;
 
     if (true) {
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
 
         // We always update the last cascade fully
-        if (cascade != (frame_->vsmc.cascades.size() - 1)) {
-           if (totalVsmWorkDone >= maxVsmWorkPerFrame) {
-               continue;
-           }
-        }
+        // if (cascade != (frame_->vsmc.cascades.size() - 1)) {
+        //    if (totalVsmWorkDone >= maxVsmWorkPerFrame) {
+        //        continue;
+        //    }
+        // }
 
         //const GpuPageResidencyEntry * currTable = pageTable + cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
 
@@ -1941,10 +1941,10 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            // minPageGroupX = 0;
-            // minPageGroupY = 0;
-            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             const u32 sizeX = maxPageGroupX - minPageGroupX;
             const u32 sizeY = maxPageGroupY - minPageGroupY;
@@ -3361,14 +3361,14 @@ void RendererBackend::FinalizeFrame_() {
     RenderQuad_();
     UnbindShader_();
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // glViewport(0, 0, 500, 500);
-    // BindShader_(state_.fullscreenPages.get());
-    // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
-    // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
-    // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
-    // RenderQuad_();
-    // UnbindShader_();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, 500, 500);
+    BindShader_(state_.fullscreenPages.get());
+    state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
+    state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
+    state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());
+    RenderQuad_();
+    UnbindShader_();
 
     // // const auto numPagesAvailable = frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY();
 

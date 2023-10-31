@@ -68,7 +68,7 @@ void main() {
             virtualPageCoords.y >= startXY.y && virtualPageCoords.y < endXY.y &&
             updateMarker > 0) {
 
-            //clearPage = true;//pageGroupsToRender[virtualPageIndex] > 0;
+            clearPage = true;//pageGroupsToRender[virtualPageIndex] > 1;
             --pageGroupsToRender[virtualPageIndex];
         }
     }

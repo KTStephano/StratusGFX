@@ -27,7 +27,7 @@ STRATUS_GLSL_VERSION
 #define VSM_MAX_NUM_TEXELS_PER_PAGE_XY 128
 
 // Should be at least 2
-#define VSM_VIRTUAL_SCREEN_UPDATE_MARKER 2
+#define VSM_VIRTUAL_SCREEN_UPDATE_MARKER 1
 
 struct PageResidencyEntry {
     // uint frameMarker;
@@ -285,10 +285,11 @@ vec3 vsmConvertVirtualUVToPhysicalPixelCoordsWithUvContraction(in vec2 uv, in ve
         );
     }
 
-    return vec3(
-        (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
-        float(memPool)
-    );
+    return residencyStatus == 0 ? vec3(-1)
+        : vec3(
+            (vec2(physicalOffsetX, physicalOffsetY) * vec2(VSM_MAX_NUM_TEXELS_PER_PAGE_XY)) + offsetWithinPage,
+            float(memPool)
+         );
 }
 
 float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArray shadowNoFilter, in vec3 ndc, in vec2 offset, in float bias, in int clipMapIndex, in bool markPageNeeded) {
@@ -334,6 +335,10 @@ float sampleShadowTextureSparse1Sample(sampler2DArrayShadow shadow, sampler2DArr
         markPageNeeded,
         unused
     );
+
+    if (physicalCoords.z < 0) {
+        return 0.0;
+    }
 
     vec4 texel;
     sparseTexelFetchARB(shadowNoFilter, ivec3(floor(physicalCoords)), 0, texel);
@@ -383,6 +388,10 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
         markPageNeeded,
         offsetWithinPage
     );
+
+    if (physicalCoords.z < 0) {
+        return 0.0;
+    }
 
     if (onPageBoundary) {
         ivec3 sampleCoords = ivec3(floor(physicalCoords));

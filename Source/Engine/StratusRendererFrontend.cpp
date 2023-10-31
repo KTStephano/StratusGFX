@@ -748,8 +748,8 @@ namespace stratus {
         frame_->vsmc.baseCascadeDiameter = dk;
 
         // If camera is not moving, snap to the smallest page size
-        f32 moveSize = T * 128.0f;
-        //const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1));// * 128.0f;
+        const f32 moveSize = T * 128.0f;
+        //const f32 moveSize = T * float(BITMASK_POW2(frame_->vsmc.cascades.size() - 1)) * 128.0f;
         const auto camDifference = glm::length(frame_->camera->GetPosition() - frame_->vsmc.prevCamPosition);
         frame_->vsmc.prevCamPosition = frame_->camera->GetPosition();
 
@@ -775,6 +775,10 @@ namespace stratus {
         // sk = glm::vec3(0.0f);
         // sk = glm::vec3(345.771, 56.2733, 208.989);
         glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
+        if (frame_->vsmc.clipOriginLocked) {
+            sk = frame_->vsmc.lightSpacePrevPosition;
+            STRATUS_LOG << "Locked\n";
+        }
 
         const auto difference = -glm::vec2(sk - frame_->vsmc.lightSpacePrevPosition);
         // STRATUS_LOG << "Curr, Prev, Diff: " << sk << ", " << frame_->vsmc.lightSpacePrevPosition << ", " << difference << std::endl;

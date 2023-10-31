@@ -18,7 +18,7 @@ precision highp sampler2DArrayShadow;
 #include "vsm_common.glsl"
 
 layout (r32ui) coherent uniform uimage2DArray vsm;
-layout (r8ui) uniform uimage2DArray hpb;
+layout (r32ui) uniform uimage2DArray hpb;
 
 layout (std430, binding = VSM_PAGE_BOUNDING_BOX_BINDING_POINT) readonly buffer block6 {
     ClipMapBoundingBox clipMapBoundingBoxes[];
@@ -97,11 +97,11 @@ void main() {
                 localPixelCoords.y >= prevLocalPixelCoordsMin.y &&
                 localPixelCoords.y <  prevLocalPixelCoordsMax.y;
 
-            //vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
+            vec2 ndc = vec2(2 * localPixelCoords) / vec2(vsmSize) - 1.0;
             // Apply motion vector to local ndc
             // cascadeNdcClipOriginChange goes from current frame -> prev,
             // so subtracting makes it go from prev frame -> current
-            //vec2 ndcChange = ndc + cascadeNdcClipOriginChange;
+            vec2 ndcChange = ndc - cascadeNdcClipOriginChange;
 
             vec2 virtualUvCoords = convertLocalCoordsToVirtualUvCoords(
                 vec2(localPixelCoords),
@@ -122,11 +122,12 @@ void main() {
 
             if (frameMarker > 0 && residencyStatus > 0) {
                 performBoundsUpdate = true;
+                pageDirty = true;
 
                 // If moving this pixel to previous NDC goes out of the [-1, 1] range, it was not visible last
                 // frame before the origin shift and will be wrapped around to the other side
-                //if (dirtyBit > 0 || ndcChange.x < -1 || ndcChange.x > 1 || ndcChange.y < -1 || ndcChange.y > 1) {
-                if (dirtyBit > 0 || !visiblePrevFrame) {
+                if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
+                //if (dirtyBit > 0 || !visiblePrevFrame) {
                     pageDirty = true;
                 }
             }
@@ -148,10 +149,16 @@ void main() {
             hpbValue = floatBitsToUint(updated > 0 ? 1.0 : 0.0);
         }
         imageStore(hpb, ivec3(localPageCoords.xy, cascade), uvec4(hpbValue));
+        
+        // if (hpbValue > 0) {
+        //     imageStore(hpb, ivec3(localPageCoords.xy + ivec2(1, 0), cascade), hpbValue);
+        //     imageStore(hpb, ivec3(localPageCoords.xy + ivec2(0, 1), cascade), hpbValue);
+        //     imageStore(hpb, ivec3(localPageCoords.xy + ivec2(1, 1), cascade), hpbValue);
+        // }
 
         if (performBoundsUpdate) {
-            atomicMin(clipMapBoundingBoxes[cascade].minPageX, localPageCoords.x);
-            atomicMin(clipMapBoundingBoxes[cascade].minPageY, localPageCoords.y);
+            atomicMin(clipMapBoundingBoxes[cascade].minPageX, localPageCoords.x - 1);
+            atomicMin(clipMapBoundingBoxes[cascade].minPageY, localPageCoords.y - 1);
 
             atomicMax(clipMapBoundingBoxes[cascade].maxPageX, localPageCoords.x + 1);
             atomicMax(clipMapBoundingBoxes[cascade].maxPageY, localPageCoords.y + 1);
