@@ -764,8 +764,8 @@ namespace stratus {
         // Camera position is defined in world space but we need it to be in light-space
         const auto position = glm::vec3(lightViewTransform * glm::vec4(directionOffset + frame_->camera->GetPosition(), 1.0f));
         //const auto position = glm::vec3(moveSize);
-        f32 cameraX = floorf(position.x / moveSize) * moveSize;
-        f32 cameraY = floorf(position.y / moveSize) * moveSize;
+        f32 cameraX = floorf(position.x / (1.0f * moveSize)) * moveSize;
+        f32 cameraY = floorf(position.y / (1.0f * moveSize)) * moveSize;
         f32 cameraZ = 0.0f;//floorf(position.z / moveSize) * moveSize;
 
         // glm::vec3 sk(floorf((maxX + minX) / (2.0f * moveSize)) * moveSize, 

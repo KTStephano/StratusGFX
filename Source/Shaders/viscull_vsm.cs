@@ -136,8 +136,8 @@ void main() {
                 // We overlap active region - now narrow it down more by using HPB culling
                 //
                 // First add 2 page border
-                aabbMin = aabbMin - vec2(1);
-                aabbMax = aabbMax + vec2(1);
+                aabbMin = aabbMin - vec2(2);
+                aabbMax = aabbMax + vec2(2);
                 aabbMin /= vec2(maxResidencyTableIndex);
                 aabbMax /= vec2(maxResidencyTableIndex);
                 aabbMin  = clamp(aabbMin, vec2(0.0), vec2(1.0));

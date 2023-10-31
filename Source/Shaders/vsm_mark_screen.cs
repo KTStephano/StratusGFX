@@ -60,15 +60,18 @@ void main() {
         barrier();
 
         if (gl_LocalInvocationID == 0) {
-            cascadeNdcClipOriginChange = vsmConvertClip0ToClipN(ndcClipOriginChange, cascade);
+            // For now don't perform a conversion so that the offset is relatively
+            // larger as the cascades increase
+            cascadeNdcClipOriginChange = ndcClipOriginChange * BITMASK_POW2(cascade);
+            //cascadeNdcClipOriginChange = vsmConvertClip0ToClipN(ndcClipOriginChange, cascade);
 
             // Apply motion vector to local ndc
             // cascadeNdcClipOriginChange goes from current frame -> prev,
             // so subtracting makes it go from prev frame -> current
             vec2 prevNdcMin = vec2(-1.0) + cascadeNdcClipOriginChange;
             vec2 prevNdcMax = vec2( 1.0) + cascadeNdcClipOriginChange;
-            prevLocalPixelCoordsMin = ivec2((prevNdcMin * 0.5 + 0.5) * vsmSize);
-            prevLocalPixelCoordsMax = ivec2((prevNdcMax * 0.5 + 0.5) * vsmSize);
+            prevLocalPixelCoordsMin = ivec2((prevNdcMin * 0.5 + 0.5) * vsmSize);// + ivec2(1);
+            prevLocalPixelCoordsMax = ivec2((prevNdcMax * 0.5 + 0.5) * vsmSize);// - ivec2(1);
         }
 
         barrier();
@@ -126,7 +129,7 @@ void main() {
 
                 // If moving this pixel to previous NDC goes out of the [-1, 1] range, it was not visible last
                 // frame before the origin shift and will be wrapped around to the other side
-                //if (dirtyBit > 0 || ndcChange.x <= -1 || ndcChange.x >= 1 || ndcChange.y <= -1 || ndcChange.y >= 1) {
+                //if (dirtyBit > 0 || ndcChange.x < -1 || ndcChange.x > 1 || ndcChange.y < -1 || ndcChange.y > 1) {
                 if (dirtyBit > 0 || !visiblePrevFrame) {
                     pageDirty = true;
                 }
