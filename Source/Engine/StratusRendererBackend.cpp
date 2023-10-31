@@ -1941,29 +1941,29 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            minPageGroupX = 0;
-            minPageGroupY = 0;
-            maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            maxPageGroupY = frame_->vsmc.numPageGroupsY;
+            // minPageGroupX = 0;
+            // minPageGroupY = 0;
+            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+
+            // Add a 1 page border around the whole update region
+            if (minPageGroupX > 0) {
+                --minPageGroupX;
+            }
+            if (minPageGroupY > 0) {
+                --minPageGroupY;
+            }
+
+            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+                ++maxPageGroupX;
+            }
+            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+                ++maxPageGroupY;
+            }
 
             const u32 sizeX = maxPageGroupX - minPageGroupX;
             const u32 sizeY = maxPageGroupY - minPageGroupY;
             totalVsmWorkDone += (usize)(sizeX * sizeY);
-
-            // Add a 2 page group border around the whole update region
-            // if (minPageGroupX > 0) {
-            //     --minPageGroupX;
-            // }
-            // if (minPageGroupY > 0) {
-            //     --minPageGroupY;
-            // }
-
-            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-            //     ++maxPageGroupX;
-            // }
-            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-            //     ++maxPageGroupY;
-            // }
 
             // u32 sizeX = maxPageGroupX - minPageGroupX;
             // u32 sizeY = maxPageGroupY - minPageGroupY;

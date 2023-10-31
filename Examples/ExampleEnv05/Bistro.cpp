@@ -470,8 +470,8 @@ public:
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(128.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(5);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(256.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(4);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -533,7 +533,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;// 16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;// 16384;
         settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
