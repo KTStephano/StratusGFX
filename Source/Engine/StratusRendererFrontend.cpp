@@ -777,7 +777,7 @@ namespace stratus {
         glm::vec3 sk = glm::vec3(cameraX, cameraY, cameraZ);
         if (frame_->vsmc.clipOriginLocked) {
             sk = frame_->vsmc.lightSpacePrevPosition;
-            STRATUS_LOG << "Locked\n";
+            //STRATUS_LOG << "Locked\n";
         }
 
         const auto difference = -glm::vec2(sk - frame_->vsmc.lightSpacePrevPosition);
