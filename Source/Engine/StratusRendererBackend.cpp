@@ -1826,17 +1826,17 @@ void RendererBackend::RenderCSMDepth_() {
     //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
 
     usize totalVsmWorkDone = 0;
-    const usize maxVsmWorkPerFrame = 1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
+    const usize maxVsmWorkPerFrame = (1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY) / 1;
 
     if (true) {
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
 
         // We always update the last cascade fully
-        //if (cascade != (frame_->vsmc.cascades.size() - 1)) {
-        //    if (totalVsmWorkDone >= maxVsmWorkPerFrame) {
-        //        continue;
-        //    }
-        //}
+        if (cascade != (frame_->vsmc.cascades.size() - 1)) {
+           if (totalVsmWorkDone >= maxVsmWorkPerFrame) {
+               continue;
+           }
+        }
 
         //const GpuPageResidencyEntry * currTable = pageTable + cascade * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY;
 
@@ -1883,7 +1883,7 @@ void RendererBackend::RenderCSMDepth_() {
         u32 maxPageGroupX = 0;
         u32 maxPageGroupY = 0;
         usize numPageGroupsToRender = 0;
-        const u32 pageUpdateDivisor = frame_->vsmc.numPageGroupsX / 4;//frame_->vsmc.updateDivisor;
+        const u32 pageUpdateDivisor = frame_->vsmc.numPageGroupsX / 1;//frame_->vsmc.updateDivisor;
 
         while (frame_->vsmc.pageGroupUpdateQueue[cascade]->Size() > 0) {
             const auto xy = frame_->vsmc.pageGroupUpdateQueue[cascade]->PopFront();
