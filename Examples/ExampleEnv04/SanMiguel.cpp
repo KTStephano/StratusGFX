@@ -64,8 +64,8 @@ public:
         // Alpha testing doesn't work so well for this scene
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(256.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(5);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(64.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(6);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         //controller = stratus::InputHandlerPtr(new WorldLightController(warmMorningColor));
@@ -85,7 +85,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

@@ -57,7 +57,7 @@ public:
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(256.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(5);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(4);
 
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
@@ -93,7 +93,7 @@ public:
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;// 16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;// 16384;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
