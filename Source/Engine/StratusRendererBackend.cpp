@@ -426,8 +426,8 @@ void RendererBackend::RecalculateCascadeData_() {
 
         u32 numVsmMemoryPools = 1;
 
-        if ((8192 / cascadeResolutionXY) > 0) {
-            numVsmMemoryPools = 8192 / cascadeResolutionXY;
+        if ((16384 / cascadeResolutionXY) > 0) {
+            numVsmMemoryPools = 16384 / cascadeResolutionXY;
         }
 
         STRATUS_LOG << "Initializing VSM with " << numVsmMemoryPools << " memory pools" << std::endl;
@@ -444,7 +444,7 @@ void RendererBackend::RecalculateCascadeData_() {
                 frame_->vsmc.cascadeResolutionXY, 
                 numVsmMemoryPools, 
                 false, 
-                false // true for hardware sparse 
+                true // true for hardware sparse 
             }, 
                 
             NoTextureData
@@ -1329,7 +1329,7 @@ void RendererBackend::PerformVSMCulling(
 
         //pipeline.DispatchCompute(numPageGroupsX, numPageGroupsY, 1);
         pipeline.DispatchCompute(1, 1, 1);
-        pipeline.SynchronizeMemory();
+        pipeline.SynchronizeCompute();
 
         // const i32 * result = (const i32 *)frame_->vsmc.numDrawCalls.MapMemory(GPU_MAP_READ);
         // STRATUS_LOG << "Before, After: " << buffer->NumDrawCommands() << ", " << *result << std::endl;
@@ -1442,7 +1442,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     u32 sizeY = frame_->viewportHeight / 9;
 
     state_.vsmAnalyzeDepth->DispatchCompute(sizeX, sizeY, 1);
-    state_.vsmAnalyzeDepth->SynchronizeMemory();
+    state_.vsmAnalyzeDepth->SynchronizeCompute();
 
     state_.vsmAnalyzeDepth->Unbind();
 
@@ -1468,7 +1468,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     sizeY = numPagesAvailable / 8;
 
     state_.vsmMarkPages->DispatchCompute(sizeX, sizeY, 1);
-    state_.vsmMarkPages->SynchronizeMemory();
+    state_.vsmMarkPages->SynchronizeCompute();
 
     state_.vsmMarkPages->Unbind();
 
@@ -1480,7 +1480,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
     state_.vsmFreePages->SetUint("vsmNumMemoryPools", (u32)frame_->vsmc.vsm.Depth());
 
     state_.vsmFreePages->DispatchCompute(1, 1, 1);
-    state_.vsmFreePages->SynchronizeMemory();
+    state_.vsmFreePages->SynchronizeCompute();
 
     //frame_->vsmc.prevFrameFence = HostInsertFence();
 
@@ -1529,7 +1529,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
         GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
     state_.vsmMarkScreen->DispatchCompute(frame_->vsmc.numPageGroupsX / 8, frame_->vsmc.numPageGroupsY / 8, 1);
-    state_.vsmMarkScreen->SynchronizeMemory();
+    state_.vsmMarkScreen->SynchronizeCompute();
 
     state_.vsmBuildHpb->Bind();
 
@@ -1550,7 +1550,7 @@ void RendererBackend::ProcessShadowVirtualTexture_() {
 
     state_.vsmBuildHpb->SetInt("numMipLevels", i32(numMipLevels));
     state_.vsmBuildHpb->DispatchCompute(u32(frame_->vsmc.cascades.size()), 1, 1);
-    state_.vsmBuildHpb->SynchronizeMemory();
+    state_.vsmBuildHpb->SynchronizeCompute();
 
     state_.vsmCull->Bind();
 
@@ -1688,7 +1688,8 @@ void RendererBackend::RenderCSMDepth_() {
     const u32* pageGroupsToRender = (const u32*)frame_->vsmc.pageGroupsToRender.MapMemory(GPU_MAP_READ, 0, pageGroupSizeBytes);
     //const u8 * pageGroupsToRender = frame_->vsmc.cpuPageGroupsToRender.data();
 
-    const u32 fractionalUpdateDivisor = std::max<u32>(2, static_cast<u32>(frame_->settings.cascadeResolution) / 1024);
+    //const u32 fractionalUpdateDivisor = std::max<u32>(2, static_cast<u32>(frame_->settings.cascadeResolution) / 1024);
+    const u32 fractionalUpdateDivisor = 1;
     const u32 maxPageGroupsToUpdate = frame_->vsmc.numPageGroupsX / fractionalUpdateDivisor;// frame_->vsmc.updateDivisor;// / 2;// / 4;// / 2;// / 8;// / 2;// / 8;
 
     // STRATUS_LOG << frame_->vsmc.numPageGroupsX << " " << maxPageGroupsToUpdate << std::endl;
@@ -1827,7 +1828,7 @@ void RendererBackend::RenderCSMDepth_() {
     //const GpuPageResidencyEntry * pageTable = (const GpuPageResidencyEntry *)frame_->vsmc.pageResidencyTable.MapMemory(GPU_MAP_READ);
 
     usize totalVsmWorkDone = 0;
-    const usize maxVsmWorkPerFrame = (1 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY) / 16;
+    const usize maxVsmWorkPerFrame = (12 * frame_->vsmc.numPageGroupsX * frame_->vsmc.numPageGroupsY);// / 16;
 
     if (true) {
     for (usize cascade = 0; cascade < frame_->vsmc.cascades.size(); ++cascade) {
@@ -1908,10 +1909,10 @@ void RendererBackend::RenderCSMDepth_() {
             const bool failedCheckY = (newMaxPageGroupY - newMinPageGroupY) > maxPageGroupsToUpdate;
 
             // We want to always fully render the final cascade since it will be minimum mip level
-            if ((failedCheckX || failedCheckY) && cascade != (frame_->vsmc.cascades.size() - 1)) {
-                frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count);
-                continue;
-            }
+            // if ((failedCheckX || failedCheckY) && cascade != (frame_->vsmc.cascades.size() - 1)) {
+            //     frame_->vsmc.backPageGroupUpdateQueue[cascade]->PushBack(x, y, count);
+            //     continue;
+            // }
 
             ++numPageGroupsToRender;
 
@@ -1942,25 +1943,26 @@ void RendererBackend::RenderCSMDepth_() {
         // }
 
         if (numPageGroupsToRender > 0) {
-            // minPageGroupX = 0;
-            // minPageGroupY = 0;
-            // maxPageGroupX = frame_->vsmc.numPageGroupsX;
-            // maxPageGroupY = frame_->vsmc.numPageGroupsY;
+        //if (true) {
+            minPageGroupX = 0;
+            minPageGroupY = 0;
+            maxPageGroupX = frame_->vsmc.numPageGroupsX;
+            maxPageGroupY = frame_->vsmc.numPageGroupsY;
 
             // Add a 1 page border around the whole update region
-            if (minPageGroupX > 0) {
-                --minPageGroupX;
-            }
-            if (minPageGroupY > 0) {
-                --minPageGroupY;
-            }
+            // if (minPageGroupX > 0) {
+            //     --minPageGroupX;
+            // }
+            // if (minPageGroupY > 0) {
+            //     --minPageGroupY;
+            // }
 
-            if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
-                ++maxPageGroupX;
-            }
-            if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
-                ++maxPageGroupY;
-            }
+            // if (maxPageGroupX < frame_->vsmc.numPageGroupsX) {
+            //     ++maxPageGroupX;
+            // }
+            // if (maxPageGroupY < frame_->vsmc.numPageGroupsY) {
+            //     ++maxPageGroupY;
+            // }
 
             const u32 sizeX = maxPageGroupX - minPageGroupX;
             const u32 sizeY = maxPageGroupY - minPageGroupY;
@@ -2039,8 +2041,9 @@ void RendererBackend::RenderCSMDepth_() {
             //     1.0f
             // );
             //STRATUS_LOG << cascadeOrthoProjectionModified[3] << std::endl;
-            //cascadeOrthoProjectionModified = csm.projection * cascadeOrthoProjectionModified;
-            const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+
+            //const glm::mat4 projectionView = scale * translate * cascadeOrthoProjection;
+            const glm::mat4 projectionView = cascadeOrthoProjection;
             // STRATUS_LOG << "2: " << projectionView << std::endl;
             const i32 numPagesXY = i32(frame_->vsmc.cascadeResolutionXY / Texture::VirtualPageSizeXY());
 
@@ -2095,7 +2098,7 @@ void RendererBackend::RenderCSMDepth_() {
                 GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
 
             state_.vsmClear->DispatchCompute(numComputeGroupsX, numComputeGroupsY, 1);
-            state_.vsmClear->SynchronizeMemory();
+            state_.vsmClear->SynchronizeCompute();
 
             Pipeline * shader = frame_->vsmc.worldLight->GetAlphaTest() && cascade < 2 ?
                 state_.csmDepthRunAlphaTest[cascade].get() :
@@ -3365,6 +3368,10 @@ void RendererBackend::FinalizeFrame_() {
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // glViewport(0, 0, 500, 500);
     // BindShader_(state_.fullscreenPages.get());
+    // frame_->vsmc.pageGroupsToRender.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_PAGE_GROUPS_TO_RENDER_BINDING_POINT);
+    // frame_->vsmc.pageResidencyTable.BindBase(
+    //     GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VSM_CURR_FRAME_RESIDENCY_TABLE_BINDING);
     // state_.fullscreenPages->SetFloat("znear", frame_->vsmc.znear);
     // state_.fullscreenPages->SetFloat("zfar", frame_->vsmc.zfar);
     // state_.fullscreenPages->BindTexture("depth", frame_->vsmc.vsm); //*frame_->vsmc.fbo.GetDepthStencilAttachment());

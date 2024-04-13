@@ -363,13 +363,14 @@ float sampleShadowTextureSparse(sampler2DArrayShadow shadow, sampler2DArray shad
     ivec2 physicalPageCoords = ivec2(wrapIndex(relativeCoords.xy, vec2(vsmNumPagesXY)));
     uint physicalPageIndex = physicalPageCoords.x + physicalPageCoords.y * vsmNumPagesXY + cascadeIndex * vsmNumPagesXY * vsmNumPagesXY;
 
-    if (pageGroupsToRender[physicalPageIndex] > 0) {
-        recalculatedBias = bias + 0.0005;
-        cascadeIndex = int(vsmNumCascades) - 1;
-        coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
-        coords = coords * 0.5 + vec3(0.5);
-        coords.xy += offset;
-    }
+    // TODO: Re-add something like this back for page fault situations
+    // if (pageGroupsToRender[physicalPageIndex] > 0) {
+    //     recalculatedBias = bias + 0.0005;
+    //     cascadeIndex = int(vsmNumCascades) - 1;
+    //     coords = vsmConvertClip0ToClipN(ndc, cascadeIndex);
+    //     coords = coords * 0.5 + vec3(0.5);
+    //     coords.xy += offset;
+    // }
 
     float offsetDepth = coords.z - recalculatedBias;
 

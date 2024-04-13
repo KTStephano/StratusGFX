@@ -470,7 +470,7 @@ public:
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         //INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(-0.001f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(512.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(128.0f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(6);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
@@ -480,7 +480,7 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         // (-231.613, 37.1122, -698.775)
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro2/Bistro2.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/BistroBin.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         //stratus::Async<stratus::Entity> e2 = stratus::ResourceManager::Instance()->LoadModel("../Resources/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         //stratus::Async<stratus::Entity> e3 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/scene.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         //stratus::Async<stratus::Entity> e4 = stratus::ResourceManager::Instance()->LoadModel("../Resources/Sponza2022/NewSponza_Curtains_glTF.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
@@ -533,7 +533,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;// 16384;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;// 16384;
         settings.SetAlphaDepthTestThreshold(0.75f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 

@@ -58,6 +58,8 @@ namespace stratus {
 
         void RecompileShaders();
 
+        void InvalidateVsms();
+
     private: 
         // SystemModule inteface
         virtual bool Initialize();

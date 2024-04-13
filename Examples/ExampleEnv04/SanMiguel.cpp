@@ -64,7 +64,7 @@ public:
         // Alpha testing doesn't work so well for this scene
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(64.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(128.0f);
         INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(6);
 
         //const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
@@ -72,7 +72,7 @@ public:
         //INSTANCE(InputManager)->AddInputHandler(controller);
          
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             sanMiguel = e.GetPtr(); 
@@ -85,7 +85,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
-        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_4096;
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

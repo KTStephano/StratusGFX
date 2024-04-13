@@ -537,6 +537,11 @@ namespace stratus {
         recompileShaders_ = true;
     }
 
+    void RendererFrontend::InvalidateVsms() {
+         auto ul = LockWrite_();
+         frame_->vsmc.regenerateFbo = true;
+    }
+
     void RendererFrontend::UpdateViewport_() {
         viewportDirty_ = viewportDirty_ || Window::Instance()->WindowResizedWithinLastFrame();
         frame_->viewportDirty = viewportDirty_;
@@ -568,6 +573,7 @@ namespace stratus {
         auto numPagesPerCascade = requestedCascadeResolutionXY / 128;
 
         frame_->vsmc.regenerateFbo = 
+            frame_->vsmc.regenerateFbo || // could have been set from InvalidateVsms()
             frame_->vsmc.cascadeResolutionXY != requestedCascadeResolutionXY ||
             frame_->vsmc.cascades.size() != worldLight_->GetNumCascades() ||
             frame_->vsmc.baseCascadeDiameter != worldLight_->GetMinCascadeDiameter();

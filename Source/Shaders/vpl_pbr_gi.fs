@@ -185,10 +185,11 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         //vec3 lightColor = vpl.color.xyz;         
         vec3 lightColor = textureLod(
             diffuseCubeMaps[entry.index], 
-            vec4(lightMinusFrag, float(entry.layer)), 
+            //vec4(lightMinusFrag, float(entry.layer)), 
+            vec4(-infiniteLightDirection, float(entry.layer)),
             0
         ).rgb;       
-        lightColor = lightColor * vpl.intensity * infiniteLightColor * 70000.0;          
+        lightColor = lightColor * vpl.intensity * infiniteLightColor * 120000.0;          
 
         float shadowDepthValue;                                            
                                                                                                                                             
@@ -200,14 +201,16 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                                                          lightPosition,                                                                     
                                                          dot(lightPosition - fragPos, normal), 0.05, shadowDepthValue)                                        
                            : 0.0;                                                                                                           
-        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));    
+        //shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));    
+        shadowFactor = min(shadowFactor, mix(0.7, 1.0, distanceRatio));  
 
         specularLightPosition = lightPosition - 1.1 * lightRadius * shadowDepthValue * lightMinusFrag;                           
                                                                                                                                             
         float reweightingFactor = 1.0;                                                                                                      
                                                                                                                                             
         if (shadowFactor > 0.0) {                                                                                                           
-            reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
+            //reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;        
+            reweightingFactor = (1.0 - distAttenuation) * 0.7 + distAttenuation;                                      
         }                                                                                                                                   
                                                                                                                                             
         validSamples += reweightingFactor;                                                                                                  

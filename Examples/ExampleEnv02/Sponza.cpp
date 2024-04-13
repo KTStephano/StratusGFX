@@ -56,8 +56,8 @@ public:
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetDepthBias(0.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(256.0f);
-        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(4);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetMinCascadeDiameter(128.0f);
+        INSTANCE(RendererFrontend)->GetWorldLight()->SetNumCascades(6);
 
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));

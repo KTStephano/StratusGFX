@@ -168,6 +168,12 @@ struct CameraController : public stratus::InputHandler {
                                 pitchYawSpeed_.y = 0.0f;
                             } 
                             break;
+                        case SDL_SCANCODE_0:
+                            if (released) {
+                                STRATUS_LOG << "HELLO\n";
+                                INSTANCE(RendererFrontend)->InvalidateVsms();
+                            }
+                            break;
                     }
                 }
             }

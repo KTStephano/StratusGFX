@@ -48,7 +48,7 @@ layout (std430, binding = VPL_PREV_SHADOW_ATLAS_INDICES_BINDING_POINT) readonly 
 void main() {
     int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
 
-    float colorMultiplier = 50000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
+    float colorMultiplier = 1;//50000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
 
     int visibleVpls = numVisible;
 

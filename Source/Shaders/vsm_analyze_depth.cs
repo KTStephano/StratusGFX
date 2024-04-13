@@ -36,7 +36,11 @@ const int pixelOffsets[] = int[](
 );
 
 void updateResidencyStatus(in ivec2 coords, in int cascade) {
-    ivec2 pixelCoords = coords;//wrapIndex(coords, residencyTableSize);
+    //ivec2 pixelCoords = coords;//wrapIndex(coords, residencyTableSize);
+    ivec2 pixelCoords = ivec2(
+        mod(coords.x, residencyTableSize.x),
+        mod(coords.y, residencyTableSize.y)
+    );
 
     uint tileIndex = uint(pixelCoords.x + pixelCoords.y * int(numPagesXY) + cascade * int(numPagesXY * numPagesXY));
     uint pageId = 1;//computePageId(coords);
@@ -126,7 +130,14 @@ void main() {
     ivec2 pixelCoordsLowest = ivec2(floor(basePixelCoordsLowest));
     // ivec2 pixelCoordsUpper = ivec2(ceil(basePixelCoords));
 
-    updateResidencyStatus(pixelCoordsLower, cascadeIndex);
+    // This is a major hack to get around a strange issue where for 1 frame it seems the page table
+    // memory isn't available even with GPU-driven memory management. Extending the analyze radius
+    // a bit mostly gets around it, but this shouldn't be required.
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
+            updateResidencyStatus(pixelCoordsLower+ivec2(x,y), cascadeIndex);
+        }
+    }
     // Coarsest clip map
     updateResidencyStatus(pixelCoordsLowest, int(vsmNumCascades) - 1);
 }
