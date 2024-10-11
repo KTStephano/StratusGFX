@@ -199,7 +199,7 @@ If this does not help then feel free to send me an email (jtstephano@gmail.com) 
 
 Credits for the 3D assets used in the examples/demos are as follows:
 
-[Crytek Sponza](https://sketchfab.com/3d-models/abandoned-warehouse-1e40d433ed6f48fb880a0d2172aff7ca)
+[Crytek Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza)
 
 [Intel Sponza](https://www.intel.com/content/www/us/en/developer/topic-technology/graphics-research/samples.html)
 
