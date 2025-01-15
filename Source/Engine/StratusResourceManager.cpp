@@ -807,12 +807,12 @@ namespace stratus {
            aiProcess_CalcTangentSpace |
            aiProcess_SplitLargeMeshes |
            aiProcess_ImproveCacheLocality |
-           aiProcess_OptimizeMeshes //|
+           aiProcess_OptimizeMeshes |
            //aiProcess_OptimizeGraph |
            //aiProcess_FixInfacingNormals |
-        //    aiProcess_FindDegenerates |
-        //    aiProcess_FindInvalidData |
-        //    aiProcess_FindInstances
+           aiProcess_FindDegenerates |
+           aiProcess_FindInvalidData |
+           aiProcess_FindInstances
            );
 
         if (optimizeGraph) {
