@@ -2,8 +2,20 @@
 
 #include <string>
 #include <cstdint>
+#include "StratusTypes.h"
 
 namespace stratus {
+#define NUM_SPARSE_INFO_LOOKUPS 5
+
+    // Object which can be inserted into the context's GPU command stream
+    // and later used to synchronize with the host
+    struct GpuHostFence {
+        void* handle = nullptr;
+    };
+
+    GpuHostFence HostInsertFence();
+    void HostFenceSync(GpuHostFence);
+
     /**
      * This contains information about a lot of the
      * OpenGL configuration params after initialization
@@ -12,46 +24,46 @@ namespace stratus {
     struct GraphicsConfig {
         std::string renderer;
         std::string version;
-        int32_t minorVersion;
-        int32_t majorVersion;
-        float maxAnisotropy;
-        int32_t maxDrawBuffers;
-        int32_t maxCombinedTextures;
-        int32_t maxCubeMapTextureSize;
-        int32_t maxFragmentUniformVectors;
-        int32_t maxFragmentUniformComponents;
-        int32_t maxVaryingFloats;
-        int32_t maxRenderbufferSize;
-        int32_t maxTextureImageUnits;
-        int32_t maxTextureSize1D2D;
-        int32_t maxTextureSize3D;
-        int32_t maxTextureSizeCubeMap;
-        int32_t maxVertexAttribs;
-        int32_t maxVertexUniformVectors;
-        int32_t maxVertexUniformComponents;
-        int32_t maxViewportDims[2];
-        bool supportsSparseTextures2D[3];
+        i32 minorVersion;
+        i32 majorVersion;
+        f32 maxAnisotropy;
+        i32 maxDrawBuffers;
+        i32 maxCombinedTextures;
+        i32 maxCubeMapTextureSize;
+        i32 maxFragmentUniformVectors;
+        i32 maxFragmentUniformComponents;
+        i32 maxVaryingFloats;
+        i32 maxRenderbufferSize;
+        i32 maxTextureImageUnits;
+        i32 maxTextureSize1D2D;
+        i32 maxTextureSize3D;
+        i32 maxTextureSizeCubeMap;
+        i32 maxVertexAttribs;
+        i32 maxVertexUniformVectors;
+        i32 maxVertexUniformComponents;
+        i32 maxViewportDims[2];
+        bool supportsSparseTextures2D[NUM_SPARSE_INFO_LOOKUPS];
         // OpenGL may allow multiple page sizes at the same time which the application can select from
         // first element: RGBA8, second element: RGBA16, third element: RGBA32
-        int32_t numPageSizes2D[3];
+        i32 numPageSizes2D[NUM_SPARSE_INFO_LOOKUPS];
         // "Preferred" as in it was the first on the list of OpenGL's returned page sizes, which could
         // indicate that it is the most efficient page size for the implementation to work with
-        int32_t preferredPageSizeX2D[3];
-        int32_t preferredPageSizeY2D[3];
-        bool supportsSparseTextures3D[3];
-        int32_t numPageSizes3D[3];
-        int32_t preferredPageSizeX3D[3];
-        int32_t preferredPageSizeY3D[3];
-        int32_t preferredPageSizeZ3D[3];
-        int32_t maxComputeShaderStorageBlocks;
-        int32_t maxComputeUniformBlocks;
-        int32_t maxComputeTexImageUnits;
-        int32_t maxComputeUniformComponents;
-        int32_t maxComputeAtomicCounters;
-        int32_t maxComputeAtomicCounterBuffers;
-        int32_t maxComputeWorkGroupInvocations;
-        int32_t maxComputeWorkGroupCount[3];
-        int32_t maxComputeWorkGroupSize[3];
+        i32 preferredPageSizeX2D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeY2D[NUM_SPARSE_INFO_LOOKUPS];
+        bool supportsSparseTextures3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 numPageSizes3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeX3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeY3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 preferredPageSizeZ3D[NUM_SPARSE_INFO_LOOKUPS];
+        i32 maxComputeShaderStorageBlocks;
+        i32 maxComputeUniformBlocks;
+        i32 maxComputeTexImageUnits;
+        i32 maxComputeUniformComponents;
+        i32 maxComputeAtomicCounters;
+        i32 maxComputeAtomicCounterBuffers;
+        i32 maxComputeWorkGroupInvocations;
+        i32 maxComputeWorkGroupCount[3];
+        i32 maxComputeWorkGroupSize[3];
     };
 
     // Initializes both the underlying graphics context as well as any

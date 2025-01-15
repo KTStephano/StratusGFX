@@ -121,7 +121,7 @@ namespace stratus {
             std::vector<uint32_t> drawBuffers;
 
             for (Texture tex : attachments) {
-                tex.Bind();
+                tex.Bind(0);
                 GLuint Underlying = *(GLuint *)tex.Underlying();
                 if (tex.Format() == TextureComponentFormat::DEPTH) {
                     if (numDepthStencilAttachments > 0) throw std::runtime_error("More than one depth attachment present");
@@ -163,7 +163,7 @@ namespace stratus {
                     glFramebufferTexture(GL_FRAMEBUFFER, color, Underlying, 0);
                     colorAttachments_.push_back(tex);
                 }
-                tex.Unbind();
+                tex.Unbind(0);
             }
 
             if (drawBuffers.size() == 0) {

@@ -10,11 +10,12 @@
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusTransformComponent.h"
 #include "StratusPointer.h"
+#include "StratusTypes.h"
 
 namespace stratus {
     struct GpuCommandBuffer;
     struct GpuCommandManager;
-    
+
     struct GpuCommandReceiveBuffer;
     struct GpuCommandReceiveManager;
 
@@ -26,7 +27,7 @@ namespace stratus {
 
     // Stores material indices, model transforms and indirect draw commands
     struct GpuCommandBuffer final {
-        GpuCommandBuffer(const RenderFaceCulling&, size_t numLods, size_t commandBlockSize);
+        GpuCommandBuffer(const RenderFaceCulling&, usize numLods, usize commandBlockSize);
 
         GpuCommandBuffer(GpuCommandBuffer&&) = default;
         GpuCommandBuffer(const GpuCommandBuffer&) = delete;
@@ -34,12 +35,12 @@ namespace stratus {
         GpuCommandBuffer& operator=(GpuCommandBuffer&&) = delete;
         GpuCommandBuffer& operator=(const GpuCommandBuffer&) = delete;
 
-        size_t NumDrawCommands() const;
-        size_t NumLods() const;
-        size_t CommandCapacity() const;
+        usize NumDrawCommands() const;
+        usize NumLods() const;
+        usize CommandCapacity() const;
         const RenderFaceCulling& GetFaceCulling() const;
 
-        void RecordCommand(RenderComponent*, MeshWorldTransforms*, const size_t, const size_t);
+        void RecordCommand(RenderComponent*, MeshWorldTransforms*, const usize, const usize);
         void RemoveAllCommands(RenderComponent*);
 
         void UpdateTransforms(RenderComponent*, MeshWorldTransforms*);
@@ -47,24 +48,24 @@ namespace stratus {
 
         bool UploadDataToGpu();
 
-        void BindMaterialIndicesBuffer(uint32_t index) const;
-        void BindPrevFrameModelTransformBuffer(uint32_t index) const;
-        void BindModelTransformBuffer(uint32_t index) const;
-        void BindAabbBuffer(uint32_t index) const;
+        void BindMaterialIndicesBuffer(u32 index) const;
+        void BindPrevFrameModelTransformBuffer(u32 index) const;
+        void BindModelTransformBuffer(u32 index) const;
+        void BindAabbBuffer(u32 index) const;
 
-        void BindIndirectDrawCommands(const size_t lod) const;
-        void UnbindIndirectDrawCommands(const size_t lod) const;
+        void BindIndirectDrawCommands(const usize lod) const;
+        void UnbindIndirectDrawCommands(const usize lod) const;
 
-        GpuBuffer GetIndirectDrawCommandsBuffer(const size_t lod) const;
+        GpuBuffer GetIndirectDrawCommandsBuffer(const usize lod) const;
         GpuBuffer GetVisibleDrawCommandsBuffer() const;
         GpuBuffer GetSelectedLodDrawCommandsBuffer() const;
 
-        static inline GpuCommandBufferPtr Create(const RenderFaceCulling& cull, const size_t numLods, const size_t commandBlockSize) {
+        static inline GpuCommandBufferPtr Create(const RenderFaceCulling& cull, const usize numLods, const usize commandBlockSize) {
             return GpuCommandBufferPtr(new GpuCommandBuffer(cull, numLods, commandBlockSize));
         }
 
     private:
-        bool InsertMeshPending_(RenderComponent*, MeshPtr);
+        bool InsertMeshPending_(RenderComponent*, MeshletPtr);
 
     private:
         std::vector<GpuTypedBufferPtr<GpuDrawElementsIndirectCommand>> drawCommands_;
@@ -73,9 +74,9 @@ namespace stratus {
         GpuTypedBufferPtr<glm::mat4> prevFrameModelTransforms_;
         GpuTypedBufferPtr<glm::mat4> modelTransforms_;
         GpuTypedBufferPtr<GpuAABB> aabbs_;
-        GpuTypedBufferPtr<uint32_t> materialIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_map<MeshPtr, uint32_t>> drawCommandIndices_;
-        std::unordered_map<RenderComponent *, std::unordered_set<MeshPtr>> pendingMeshUpdates_;
+        GpuTypedBufferPtr<u32> materialIndices_;
+        std::unordered_map<RenderComponent*, std::unordered_map<MeshletPtr, u32>> drawCommandIndices_;
+        std::unordered_map<RenderComponent*, std::unordered_set<MeshletPtr>> pendingMeshUpdates_;
 
         RenderFaceCulling culling_;
         bool performedUpdate_ = false;
@@ -86,7 +87,9 @@ namespace stratus {
     struct GpuCommandReceiveBuffer {
         // Looks at the given command buffer and makes sure we have enough space to receive
         // elements from it
-        void EnsureCapacity(const GpuCommandBufferPtr& buffer);
+        //
+        // copies = number consecutive buffers to generate in the same array
+        void EnsureCapacity(const GpuCommandBufferPtr& buffer, usize copies = 1);
 
         GpuBuffer GetCommandBuffer() const;
 
@@ -96,7 +99,7 @@ namespace stratus {
 
     private:
         GpuBuffer receivedCommands_;
-        size_t capacityBytes_ = 0;
+        usize capacityBytes_ = 0;
     };
 
     // Manages a set of command buffers
@@ -105,9 +108,9 @@ namespace stratus {
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> dynamicPbrMeshes;
         std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr> staticPbrMeshes;
 
-        GpuCommandManager(size_t numLods);
+        GpuCommandManager(usize numLods);
 
-        size_t NumLods() const;
+        usize NumLods() const;
 
         void RecordCommands(const EntityPtr&, const GpuMaterialBufferPtr&);
         void RemoveAllCommands(const EntityPtr&);
@@ -121,13 +124,13 @@ namespace stratus {
         bool UploadStaticDataToGpu();
         bool UploadDataToGpu();
 
-        static inline GpuCommandManagerPtr Create(const size_t numLods) {
+        static inline GpuCommandManagerPtr Create(const usize numLods) {
             return GpuCommandManagerPtr(new GpuCommandManager(numLods));
         }
 
     private:
         std::unordered_set<EntityPtr> entities_;
-        size_t numLods_;
+        usize numLods_;
     };
 
     // Manages a set of command receivers
@@ -138,7 +141,7 @@ namespace stratus {
 
         GpuCommandReceiveManager();
 
-        void EnsureCapacity(const GpuCommandManagerPtr& manager);
+        void EnsureCapacity(const GpuCommandManagerPtr& manager, usize copies = 1);
 
         static inline GpuCommandReceiveManagerPtr Create() {
             return GpuCommandReceiveManagerPtr(new GpuCommandReceiveManager());

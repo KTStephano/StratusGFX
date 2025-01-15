@@ -34,9 +34,9 @@ set(SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/StratusMaterial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/StratusUtils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/StratusPipeline.cpp
-)
+ "StratusTypes.h")
 
-add_library(${OUTPUT_NAME} STATIC ${SOURCES})
+add_library(${OUTPUT_NAME} STATIC ${SOURCES} "StratusTypes.h")
 
 # set(OUTPUT_DIRECTORY ${ROOT_DIRECTORY}/Bin)
 # set_target_properties(${OUTPUT_NAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIRECTORY})

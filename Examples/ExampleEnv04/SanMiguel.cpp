@@ -48,7 +48,7 @@ public:
 
         LightCreator::Initialize();
 
-        stratus::InputHandlerPtr controller(new CameraController());
+        stratus::InputHandlerPtr controller(new CameraController(glm::vec3(95.0f, 14.0f, 94.0f)));
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
@@ -70,7 +70,7 @@ public:
         //INSTANCE(InputManager)->AddInputHandler(controller);
          
         // Disable culling for this model since there are some weird parts that seem to be reversed
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/San_Miguel/san-miguel-low-poly.obj", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/SanMiguel.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_NONE);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             sanMiguel = e.GetPtr(); 

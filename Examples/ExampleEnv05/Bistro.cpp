@@ -458,7 +458,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
-        WorldLightController * wc = new WorldLightController(warmMorningColor, warmMorningColor, 10);
+        WorldLightController * wc = new WorldLightController(warmMorningColor, warmMorningColor, 15);
         //wc->SetRotation(stratus::Rotation(stratus::Degrees(29.9668f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         wc->SetRotation(stratus::Rotation(stratus::Degrees(60.0f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
@@ -478,7 +478,7 @@ public:
 
         // Disable culling for this model since there are some weird parts that seem to be reversed
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
-        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroGltf/Bistro.gltf", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             bistro = e.GetPtr(); 

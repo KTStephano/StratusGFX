@@ -16,70 +16,81 @@ namespace stratus {
         return context;
     }
 
+    GpuHostFence HostInsertFence() {
+        GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        return GpuHostFence{ static_cast<void*>(fence) };
+    }
+
+    void HostFenceSync(GpuHostFence fenceHandle) {
+        if (fenceHandle.handle == nullptr) return;
+        GLsync fence = static_cast<GLsync>(fenceHandle.handle);
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
+    }
+
     static void PrintGLInfo() {
         const GraphicsConfig& config = GetContext().config;
-        auto & log = STRATUS_LOG << std::endl;
+        auto& log = STRATUS_LOG << std::endl;
         log << "==================== OpenGL Information ====================" << std::endl;
-        log << "\tRenderer: "                               << config.renderer << std::endl;
-        log << "\tVersion: "                                << config.version << std::endl;
-        log << "\tMajor, minor Version: "                   << config.majorVersion << ", " << config.minorVersion << std::endl;
-        log << "\tMax anisotropy: "                         << config.maxAnisotropy << std::endl;
-        log << "\tMax draw buffers: "                       << config.maxDrawBuffers << std::endl;
-        log << "\tMax combined textures: "                  << config.maxCombinedTextures << std::endl;
-        log << "\tMax cube map texture size: "              << config.maxCubeMapTextureSize << std::endl;
-        log << "\tMax fragment uniform vectors: "           << config.maxFragmentUniformVectors << std::endl;
-        log << "\tMax fragment uniform components: "        << config.maxFragmentUniformComponents << std::endl;
-        log << "\tMax varying floats: "                     << config.maxVaryingFloats << std::endl;
-        log << "\tMax render buffer size: "                 << config.maxRenderbufferSize << std::endl;
-        log << "\tMax texture image units: "                << config.maxTextureImageUnits << std::endl;
-        log << "\tMax texture size 1D: "                    << config.maxTextureSize1D2D << std::endl;
-        log << "\tMax texture size 2D: "                    << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
-        log << "\tMax texture size 3D: "                    << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
-        log << "\tMax texture size cube map: "              << config.maxTextureSizeCubeMap << "x" << config.maxTextureSizeCubeMap << std::endl;
-        log << "\tMax vertex attribs: "                     << config.maxVertexAttribs << std::endl;
-        log << "\tMax vertex uniform vectors: "             << config.maxVertexUniformVectors << std::endl;
-        log << "\tMax vertex uniform components: "          << config.maxVertexUniformComponents << std::endl;
-        log << "\tMax viewport dims: "                      << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
+        log << "\tRenderer: " << config.renderer << std::endl;
+        log << "\tVersion: " << config.version << std::endl;
+        log << "\tMajor, minor Version: " << config.majorVersion << ", " << config.minorVersion << std::endl;
+        log << "\tMax anisotropy: " << config.maxAnisotropy << std::endl;
+        log << "\tMax draw buffers: " << config.maxDrawBuffers << std::endl;
+        log << "\tMax combined textures: " << config.maxCombinedTextures << std::endl;
+        log << "\tMax cube map texture size: " << config.maxCubeMapTextureSize << std::endl;
+        log << "\tMax fragment uniform vectors: " << config.maxFragmentUniformVectors << std::endl;
+        log << "\tMax fragment uniform components: " << config.maxFragmentUniformComponents << std::endl;
+        log << "\tMax varying floats: " << config.maxVaryingFloats << std::endl;
+        log << "\tMax render buffer size: " << config.maxRenderbufferSize << std::endl;
+        log << "\tMax texture image units: " << config.maxTextureImageUnits << std::endl;
+        log << "\tMax texture size 1D: " << config.maxTextureSize1D2D << std::endl;
+        log << "\tMax texture size 2D: " << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
+        log << "\tMax texture size 3D: " << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
+        log << "\tMax texture size cube map: " << config.maxTextureSizeCubeMap << "x" << config.maxTextureSizeCubeMap << std::endl;
+        log << "\tMax vertex attribs: " << config.maxVertexAttribs << std::endl;
+        log << "\tMax vertex uniform vectors: " << config.maxVertexUniformVectors << std::endl;
+        log << "\tMax vertex uniform components: " << config.maxVertexUniformComponents << std::endl;
+        log << "\tMax viewport dims: " << "(" << config.maxViewportDims[0] << ", " << config.maxViewportDims[1] << ")" << std::endl;
 
         log << std::endl << "\t==> Compute Information" << std::endl;
-        log << "\tMax compute shader storage blocks: "      << config.maxComputeShaderStorageBlocks << std::endl;
-        log << "\tMax compute uniform blocks: "             << config.maxComputeUniformBlocks << std::endl;
-        log << "\tMax compute uniform texture image units: "<< config.maxComputeTexImageUnits << std::endl;
-        log << "\tMax compute uniform components: "         << config.maxComputeUniformComponents << std::endl;
-        log << "\tMax compute atomic counters: "            << config.maxComputeAtomicCounters << std::endl;
-        log << "\tMax compute atomic counter buffers: "     << config.maxComputeAtomicCounterBuffers << std::endl;
-        log << "\tMax compute work group invocations: "     << config.maxComputeWorkGroupInvocations << std::endl;
-        log << "\tMax compute work group count: "           << config.maxComputeWorkGroupCount[0] << "x" 
-                                                            << config.maxComputeWorkGroupCount[1] << "x" 
-                                                            << config.maxComputeWorkGroupCount[2] << std::endl;
-        log << "\tMax compute work group size: "            << config.maxComputeWorkGroupSize[0] << "x" 
-                                                            << config.maxComputeWorkGroupSize[1] << "x" 
-                                                            << config.maxComputeWorkGroupSize[2] << std::endl;
+        log << "\tMax compute shader storage blocks: " << config.maxComputeShaderStorageBlocks << std::endl;
+        log << "\tMax compute uniform blocks: " << config.maxComputeUniformBlocks << std::endl;
+        log << "\tMax compute uniform texture image units: " << config.maxComputeTexImageUnits << std::endl;
+        log << "\tMax compute uniform components: " << config.maxComputeUniformComponents << std::endl;
+        log << "\tMax compute atomic counters: " << config.maxComputeAtomicCounters << std::endl;
+        log << "\tMax compute atomic counter buffers: " << config.maxComputeAtomicCounterBuffers << std::endl;
+        log << "\tMax compute work group invocations: " << config.maxComputeWorkGroupInvocations << std::endl;
+        log << "\tMax compute work group count: " << config.maxComputeWorkGroupCount[0] << "x"
+            << config.maxComputeWorkGroupCount[1] << "x"
+            << config.maxComputeWorkGroupCount[2] << std::endl;
+        log << "\tMax compute work group size: " << config.maxComputeWorkGroupSize[0] << "x"
+            << config.maxComputeWorkGroupSize[1] << "x"
+            << config.maxComputeWorkGroupSize[2] << std::endl;
 
         log << std::boolalpha;
         log << std::endl << "\t==> Virtual/Sparse Texture Information" << std::endl;
-        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-        const std::vector<std::string> strInternalFormats = std::vector<std::string>{"GL_RGBA8", "GL_RGBA16", "GL_RGBA32F"};
-        for (int i = 0; i < internalFormats.size(); ++i) {
+        const std::vector<GLenum> internalFormats = std::vector<GLenum>{ GL_RGBA8, GL_RGBA16, GL_RGBA32F, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL };
+        const std::vector<std::string> strInternalFormats = std::vector<std::string>{ "GL_RGBA8", "GL_RGBA16", "GL_RGBA32F", "GL_DEPTH_COMPONENT", "GL_DEPTH_STENCIL" };
+        for (i32 i = 0; i < internalFormats.size(); ++i) {
             log << "\t" << strInternalFormats[i] << std::endl;
-            log << "\t\tSupports sparse (virtual) textures 2D: "  << config.supportsSparseTextures2D[i] << std::endl;
+            log << "\t\tSupports sparse (virtual) textures 2D: " << config.supportsSparseTextures2D[i] << std::endl;
             if (config.supportsSparseTextures2D[i]) {
                 log << "\t\tNum sparse (virtual) page sizes 2D: " << config.numPageSizes2D[i] << std::endl;
-                log << "\t\tPreferred page size X 2D: "           << config.preferredPageSizeX2D[i] << std::endl;
-                log << "\t\tPreferred page size Y 2D: "           << config.preferredPageSizeY2D[i] << std::endl;
+                log << "\t\tPreferred page size X 2D: " << config.preferredPageSizeX2D[i] << std::endl;
+                log << "\t\tPreferred page size Y 2D: " << config.preferredPageSizeY2D[i] << std::endl;
             }
-            log << "\t\tSupports sparse (virtual) textures 3D: "  << config.supportsSparseTextures3D[i] << std::endl;
+            log << "\t\tSupports sparse (virtual) textures 3D: " << config.supportsSparseTextures3D[i] << std::endl;
             if (config.supportsSparseTextures3D[i]) {
                 log << "\t\tNum sparse (virtual) page sizes 3D: " << config.numPageSizes3D[i] << std::endl;
-                log << "\t\tPreferred page size X 3D: "           << config.preferredPageSizeX3D[i] << std::endl;
-                log << "\t\tPreferred page size Y 3D: "           << config.preferredPageSizeY3D[i] << std::endl;
-                log << "\t\tPreferred page size Z 3D: "           << config.preferredPageSizeZ3D[i] << std::endl;
+                log << "\t\tPreferred page size X 3D: " << config.preferredPageSizeX3D[i] << std::endl;
+                log << "\t\tPreferred page size Y 3D: " << config.preferredPageSizeY3D[i] << std::endl;
+                log << "\t\tPreferred page size Z 3D: " << config.preferredPageSizeZ3D[i] << std::endl;
             }
         }
     }
 
     bool GraphicsDriver::Initialize() {
-        SDL_Window * window = (SDL_Window *)Window::Instance()->GetWindowObject();
+        SDL_Window* window = (SDL_Window*)Window::Instance()->GetWindowObject();
 
         // Set the profile to core as opposed to compatibility mode
         SDL_GL_SetAttribute(SDL_GLattr::SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -112,8 +123,8 @@ namespace stratus {
         //}
 
         // Query OpenGL about various different hardware capabilities
-        context.config.renderer = (const char *)glGetString(GL_RENDERER);
-        context.config.version = (const char *)glGetString(GL_VERSION);
+        context.config.renderer = (const char*)glGetString(GL_RENDERER);
+        context.config.version = (const char*)glGetString(GL_VERSION);
         glGetIntegerv(GL_MINOR_VERSION, &context.config.minorVersion);
         glGetIntegerv(GL_MAJOR_VERSION, &context.config.majorVersion);
         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &context.config.maxAnisotropy);
@@ -140,7 +151,7 @@ namespace stratus {
         glGetIntegerv(GL_MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS, &context.config.maxComputeAtomicCounterBuffers);
         glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &context.config.maxComputeWorkGroupInvocations);
         // 0, 1, 2 count for x, y and z dims
-        for (int i = 0; i < 3; ++i) {
+        for (i32 i = 0; i < 3; ++i) {
             glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &context.config.maxComputeWorkGroupCount[i]);
             glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &context.config.maxComputeWorkGroupSize[i]);
         }
@@ -150,8 +161,8 @@ namespace stratus {
             return false;
         }
 
-        const std::vector<GLenum> internalFormats = std::vector<GLenum>{GL_RGBA8, GL_RGBA16, GL_RGBA32F};
-        for (int i = 0; i < internalFormats.size(); ++i) {
+        const std::vector<GLenum> internalFormats = std::vector<GLenum>{ GL_RGBA8, GL_RGBA16, GL_RGBA32F, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL };
+        for (i32 i = 0; i < internalFormats.size(); ++i) {
             const GLenum internalFormat = internalFormats[i];
             // Query OpenGL about sparse textures (2D)
             glGetInternalformativ(GL_TEXTURE_2D, internalFormat, GL_NUM_VIRTUAL_PAGE_SIZES_ARB, sizeof(uint32_t), &context.config.numPageSizes2D[i]);
@@ -206,7 +217,7 @@ namespace stratus {
         }
 
         // Swap front and back buffer
-        SDL_Window* window = (SDL_Window *)Window::Instance()->GetWindowObject();
+        SDL_Window* window = (SDL_Window*)Window::Instance()->GetWindowObject();
         SDL_GL_SwapWindow(window);
     }
 

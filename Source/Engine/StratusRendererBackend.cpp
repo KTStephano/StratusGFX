@@ -1059,7 +1059,7 @@ void RendererBackend::RenderSkybox_(Pipeline * s, const glm::mat4& projectionVie
         s->SetFloat("intensity", frame_->settings.GetSkyboxIntensity());
         s->BindTexture("skybox", sky);
 
-        GetMesh(state_.skyboxCube, 0)->Render(1, GpuArrayBuffer());
+        GetMesh(state_.skyboxCube, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
         //_state.skyboxCube->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
     }
 
@@ -2385,7 +2385,7 @@ void RendererBackend::End() {
 }
 
 void RendererBackend::RenderQuad_() {
-    GetMesh(state_.screenQuad, 0)->Render(1, GpuArrayBuffer());
+    GetMesh(state_.screenQuad, 0)->GetMeshlet(0)->Render(1, GpuArrayBuffer());
     //_state.screenQuad->GetMeshContainer(0)->mesh->Render(1, GpuArrayBuffer());
 }
 

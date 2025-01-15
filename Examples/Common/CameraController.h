@@ -9,8 +9,11 @@
 #include "StratusLight.h"
 
 struct CameraController : public stratus::InputHandler {
-    CameraController() {
+    CameraController() : CameraController(glm::vec3(0.0f)) {}
+
+    CameraController(const glm::vec3& position) {
         camera_ = stratus::CameraPtr(new stratus::Camera(true, true));
+        camera_->SetPosition(position);
         stratus::RendererFrontend::Instance()->SetCamera(camera_);
 
         cameraLight_ = stratus::LightPtr(new stratus::PointLight(/* staticLight = */ false));
