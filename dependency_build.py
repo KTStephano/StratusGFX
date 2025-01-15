@@ -17,7 +17,7 @@ def build_dependencies(build_assimp):
 
     print("Building assimp:", build_assimp)
 
-    configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF -DASSIMP_USE_STB_IMAGE_STATIC=1 -DASSIMP_BUILD_ASSIMP_TOOLS=ON"
+    configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF -DASSIMP_USE_STB_IMAGE_STATIC=1 -DASSIMP_BUILD_ASSIMP_TOOLS=OFF"
     build = "cmake --build build/ -j 8 {}".format(windows)
     install = "cmake --install build/ --prefix ../ThirdParty {}".format(windows)
     configure_build_install = configure + " && " + build + " && " + install
