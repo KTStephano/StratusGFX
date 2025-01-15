@@ -118,7 +118,7 @@ Because of the MPL license, any community changes made to the rendering code wil
 
 # Downloading Sample 3D Model Data
 
-1) A zip file containing Sponza, Interrogation Room, San Miguel, Bistro, Bathroom, etc. can be found here: [https://drive.google.com/file/d/1nVkEuhDaSK61XmTSoNOUUEU5a-U-mtKO/view?usp=share_link](https://drive.google.com/file/d/1nVkEuhDaSK61XmTSoNOUUEU5a-U-mtKO/view?usp=share_link)
+1) A zip file containing Sponza, Interrogation Room, San Miguel, Bistro, Bathroom, etc. can be found here: [https://drive.google.com/file/d/1EZ1a75twgZr6FIsi9rQPMquxK9RkCTfV/view?usp=sharing](https://drive.google.com/file/d/1EZ1a75twgZr6FIsi9rQPMquxK9RkCTfV/view?usp=sharing)
 
 2) Extract the Resources.zip folder into the root of StratusGFX. It will then be at the same level as Bin/, Examples/, Source/, Tests/. Make sure that the folder structure looks like StratusGFX/Resources/* where * will be folders such as Sponza, Bistro, etc.
 
