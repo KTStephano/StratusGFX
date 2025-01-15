@@ -54,7 +54,7 @@ public:
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
-        auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 10);
+        auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 50);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(21.0479f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
@@ -163,9 +163,9 @@ public:
             bathroom = nullptr;
             int spawned = 0;
 
-            for (int x = -14; x < 0; x += 3) {
-                for (int y = 3; y < 10; y += 3) {
-                    for (int z = -20; z < 10; z += 3) {
+            for (int x = -14; x < 7; x += 3) {
+                for (int y = 0; y < 10; y += 3) {
+                    for (int z = -20; z < 20; z += 3) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
                             LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.01f),

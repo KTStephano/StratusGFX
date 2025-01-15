@@ -13,9 +13,9 @@ in vec2 fsTexCoords;
 out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 5
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 2
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
-#define MAX_RESAMPLES_PER_PIXEL STANDARD_MAX_SAMPLES_PER_PIXEL
+#define MAX_RESAMPLES_PER_PIXEL 5
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -79,7 +79,9 @@ layout (std430, binding = 4) readonly buffer inputBlock5 {
 uniform int haltonSize;
 
 void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoords) {
-    //if (length(screenColor) > 0.0) return screenColor;
+    // if (length(screenColor) > 1.0) {
+    //     return;
+    // }
 
     // ivec2 numTiles = ivec2(numTilesX, numTilesY);
     // // For example: 16, 9
@@ -136,7 +138,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
     int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
     //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
-    int samplesMax = history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
 
@@ -174,14 +176,14 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
         vec3 lightColor = lightData[lightIndex].color.xyz;                                                                                  
                                                                                                                                             
         float shadowFactor =                                                                                                                
-        distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+        distToCamera < 500 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
                                                          entry.layer,                                                                       
                                                          lightData[lightIndex].farPlane,                                                    
                                                          fragPos,                                                                           
                                                          lightPosition,                                                                     
-                                                         dot(lightPosition - fragPos, normal), 0.05)                                        
+                                                         dot(lightPosition - fragPos, normal), 0.1)                                        
                            : 0.0;                                                                                                           
-        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                    
+        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                  
                                                                                                                                             
         float reweightingFactor = 1.0;                                                                                                      
                                                                                                                                             
@@ -200,8 +202,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     validSamples = max(validSamples, 1.0);
 
     color = baseColor + PREVENT_DIV_BY_ZERO;//baseColor;
-    //reservoir = vec4(boundHDR(vplColor / (baseColor * validSamples)), 1.0);
     reservoir = vec4(boundHDR(vplColor), validSamples);
+    //reservoir = vec4(max(boundHDR(vplColor), screenColor), validSamples);
 }
 
 void main() {
