@@ -1,6 +1,6 @@
 find_package(OpenGL REQUIRED)
 
-set(OUTPUT_NAME Ex09_Test)
+set(OUTPUT_NAME Ex09_JunkShop)
 
 set(SOURCES ${CMAKE_CURRENT_LIST_DIR}/JunkShop.cpp)
 
