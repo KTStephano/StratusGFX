@@ -73,6 +73,10 @@ namespace stratus {
         u32 GetVertexOffset() const;
         u32 GetIndexOffset(usize lod) const;
         u32 GetNumIndices(usize lod) const;
+        // Returns all vertices from all LODs
+        u32 GetTotalNumVertices() const;
+        // Returns all indices from all LODs
+        u32 GetTotalNumIndices() const;
 
         const GpuAABB& GetAABB() const;
 

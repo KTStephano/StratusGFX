@@ -100,23 +100,50 @@ namespace stratus {
 
     void ResourceManager::ClearAsyncModelData_() {
         static constexpr usize maxModelBytesPerFrame = 1024 * 1024 * 128;
+        static constexpr usize maxUploadGpuDataQueue = 32;
+
         // First generate GPU data for some of the meshes
+        MeshletPtr uploadGpuDataQueue[maxUploadGpuDataQueue];
+        usize numUploadGpuData = 0;
         usize totalBytes = 0;
-        std::vector<MeshletPtr> removeFromGpuDataQueue;
-        for (auto meshlet : generateMeshGpuDataQueue_) {
-            meshlet->FinalizeData();
+        u32 totalVertices = 0;
+        u32 totalIndices = 0;
+
+        // This part of the process happens after the CPU has generated all CPU-relevant
+        // data (including all LODs)
+        for (auto& meshlet : generateMeshGpuDataQueue_) {
+            //meshlet->FinalizeData();
             totalBytes += meshlet->GetGpuSizeBytes();
-            removeFromGpuDataQueue.push_back(meshlet);
-            if (removeFromGpuDataQueue.size() > 30 || totalBytes >= maxModelBytesPerFrame) break;
+            totalVertices += meshlet->GetTotalNumVertices();
+            totalIndices += meshlet->GetTotalNumIndices();
+
+            uploadGpuDataQueue[numUploadGpuData] = meshlet;
+            ++numUploadGpuData;
+
+            if (numUploadGpuData >= maxUploadGpuDataQueue || totalBytes >= maxModelBytesPerFrame) {
+                break;
+            }
             //if (totalBytes >= maxModelBytesPerFrame) break;
         }
 
-        for (auto mesh : removeFromGpuDataQueue) generateMeshGpuDataQueue_.erase(mesh);
+        if (totalBytes > 0) {
+            // Perform a bulk GPU reserve for the meshlets we are about to process
+            GpuMeshAllocator::EnsureVertexSpace(totalVertices);
+            GpuMeshAllocator::EnsureIndexSpace(totalIndices);
+            STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << numUploadGpuData << " meshes" << std::endl;
+        }
 
-        if (totalBytes > 0) STRATUS_LOG << "Processed " << totalBytes << " bytes of mesh data: " << removeFromGpuDataQueue.size() << " meshes" << std::endl;
+        //for (auto meshlet : removeFromGpuDataQueue) {
+        for (usize i = 0; i < numUploadGpuData; i++) {
+            auto& meshlet = uploadGpuDataQueue[i];
+            meshlet->FinalizeData();
+            generateMeshGpuDataQueue_.erase(meshlet);
+        }
 
         // If none other left to finalize, end early
-        if (pendingFinalize_.size() == 0) return;
+        if (pendingFinalize_.size() == 0) {
+            return;
+        }
 
         //constexpr usize maxBytes = 1024 * 1024 * 10; // 10 mb per frame
         std::vector<std::string> toDelete;

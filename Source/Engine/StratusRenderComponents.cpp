@@ -308,10 +308,6 @@ namespace stratus {
 
         //meshopt_optimizeVertexCache(cpuData_->indices.data(), cpuData_->indices.data(), cpuData_->indices.size(), cpuData_->vertices.size());
 
-        cpuData_->indicesPerLod.clear();
-        cpuData_->indicesPerLod.push_back(cpuData_->indices);
-        numIndicesPerLod_.clear();
-        numIndicesPerLod_.push_back(cpuData_->indices.size());
         // std::vector<f32> errors = {
         //     0.002f, 0.0025f, 0.003f, 0.0035f, 0.004f, 0.0045f, 0.005f
         // };
@@ -322,6 +318,14 @@ namespace stratus {
         const std::vector<f32> targetPercentages = {
             0.05f, 0.05f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f
         };
+
+        cpuData_->indicesPerLod.clear();
+        cpuData_->indicesPerLod.reserve(1 + errors.size());
+        cpuData_->indicesPerLod.push_back(cpuData_->indices);
+
+        numIndicesPerLod_.clear();
+        numIndicesPerLod_.reserve(1 + errors.size());
+        numIndicesPerLod_.push_back(cpuData_->indices.size());
 
         for (i32 i = 0; i < errors.size(); ++i) {
             auto& prevIndices = cpuData_->indicesPerLod[cpuData_->indicesPerLod.size() - 1];
@@ -358,7 +362,10 @@ namespace stratus {
     }
 
     usize Meshlet::GetGpuSizeBytes() const {
-        EnsureFinalized_();
+        //EnsureFinalized_();
+        if (cpuData_ != nullptr && cpuData_->needsRepacking) {
+            throw std::runtime_error("Meshlet either needs to have PackCpuData() called or it needs to already be finalized");
+        }
         return dataSizeBytes_;
     }
 
@@ -381,6 +388,22 @@ namespace stratus {
         return numIndicesPerLod_[lod];
     }
 
+    // Returns all vertices from all LODs
+    u32 Meshlet::GetTotalNumVertices() const {
+        EnsureNotFinalized_();
+        return numVertices_;
+    }
+
+    // Returns all indices from all LODs
+    u32 Meshlet::GetTotalNumIndices() const {
+        EnsureNotFinalized_();
+        u32 total = 0;
+        for (const auto& indices : cpuData_->indicesPerLod) {
+            total += indices.size();
+        }
+        return total;
+    }
+
     void Meshlet::GenerateGpuData_() {
         EnsureNotFinalized_();
 
@@ -391,6 +414,7 @@ namespace stratus {
         vertexOffset_ = GpuMeshAllocator::AllocateVertexData(numVertices_);
 
         indexOffsetPerLod_.clear();
+        indexOffsetPerLod_.reserve(cpuData_->indicesPerLod.size());
         for (auto& indices : cpuData_->indicesPerLod) {
             indexOffsetPerLod_.push_back(GpuMeshAllocator::AllocateIndexData(indices.size()));
             // Account for the fact that all vertices are stored in a global GpuBuffer and so

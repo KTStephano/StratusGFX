@@ -372,7 +372,7 @@ namespace stratus {
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeVertices_;
     std::vector<GpuMeshAllocator::_MeshData> GpuMeshAllocator::freeIndices_;
     bool GpuMeshAllocator::initialized_ = false;
-    static constexpr size_t startVertices = 1024 * 1024 * 10;
+    static constexpr size_t startVertices = 1024;
     static constexpr size_t minVerticesPerAlloc = startVertices; //1024 * 1024;
     static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
     static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
@@ -390,17 +390,18 @@ namespace stratus {
         return nullptr;
     }
 
-    uint32_t GpuMeshAllocator::AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
-                                             GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
+    GpuMeshAllocator::ReserveReturnData_ GpuMeshAllocator::ReserveSpace_(
+        const uint32_t size, const size_t byteMultiplier, const size_t maxBytes,
+        GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
         assert(size > 0);
 
-        _MeshData * dataPtr = &data;
+        _MeshData* dataPtr = &data;
         const size_t totalSizeBytes = size_t(size) * byteMultiplier;
         const size_t remainingBytes = RemainingBytes_(data);
 
         if (totalSizeBytes > remainingBytes) {
             // See if one of the slots has data we can use
-            _MeshData * freeSlot = FindFreeSlot_(freeList, totalSizeBytes);
+            _MeshData* freeSlot = FindFreeSlot_(freeList, totalSizeBytes);
             if (freeSlot) {
                 dataPtr = freeSlot;
             }
@@ -413,6 +414,18 @@ namespace stratus {
                 Resize_(buffer, data, newSizeBytes);
             }
         }
+
+        ReserveReturnData_ result{};
+        result.data = dataPtr;
+        result.totalSizeBytes = totalSizeBytes;
+        return result;
+    }
+
+    uint32_t GpuMeshAllocator::AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
+                                             GpuBuffer& buffer, _MeshData& data, std::vector<GpuMeshAllocator::_MeshData>& freeList) {
+        auto currsize = ReserveSpace_(size, byteMultiplier, maxBytes, buffer, data, freeList);
+        auto dataPtr = currsize.data;
+        const auto totalSizeBytes = currsize.totalSizeBytes;
 
         const uint32_t offset = dataPtr->nextByte / byteMultiplier;
         dataPtr->nextByte += totalSizeBytes;
@@ -434,6 +447,14 @@ namespace stratus {
 
     uint32_t GpuMeshAllocator::AllocateIndexData(const uint32_t numIndices) {
         return AllocateData_(numIndices, sizeof(uint32_t), maxIndexBytes, indices_, lastIndex_, freeIndices_);
+    }
+
+    void GpuMeshAllocator::EnsureVertexSpace(const uint32_t numVertices) {
+        ReserveSpace_(numVertices, sizeof(GpuMeshData), maxVertexBytes, vertices_, lastVertex_, freeVertices_);
+    }
+
+    void GpuMeshAllocator::EnsureIndexSpace(const uint32_t numIndices) {
+        ReserveSpace_(numIndices, sizeof(uint32_t), maxIndexBytes, indices_, lastIndex_, freeIndices_);
     }
 
     void GpuMeshAllocator::DeallocateData_(_MeshData& last, std::vector<GpuMeshAllocator::_MeshData>& freeList, const size_t offsetBytes, const size_t lastByte) {
@@ -555,7 +576,7 @@ namespace stratus {
     }
 
     void GpuMeshAllocator::Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes) {
-        STRATUS_LOG << "Resizing: " << newSizeBytes << std::endl;
+        STRATUS_LOG << "Performing global GPU buffer resize: " << newSizeBytes << " bytes" << std::endl;
         GpuBuffer resized = GpuBuffer(nullptr, newSizeBytes, GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE);
         // Null check
         if (buffer != GpuBuffer()) {

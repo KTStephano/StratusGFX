@@ -381,6 +381,11 @@ namespace stratus {
         // @return offset into global GPU index data array where data begins
         static uint32_t AllocateIndexData(const uint32_t numIndices);
 
+        // Ensures enough space is present for at least N vertices/indices
+        // This is effectively a "reserve" style of operation
+        static void EnsureVertexSpace(const uint32_t numVertices);
+        static void EnsureIndexSpace(const uint32_t numIndices);
+
         // Deallocation
         static void DeallocateVertexData(const uint32_t offset, const uint32_t numVertices);
         static void DeallocateIndexData(const uint32_t offset, const uint32_t numIndices);
@@ -398,10 +403,17 @@ namespace stratus {
         static uint32_t FreeIndices();
 
     private:
-        static _MeshData * FindFreeSlot_(std::vector<_MeshData>&, const size_t bytes);
+        struct ReserveReturnData_ {
+            _MeshData* data;
+            size_t totalSizeBytes;
+        };
+
+        static _MeshData* FindFreeSlot_(std::vector<_MeshData>&, const size_t bytes);
         static uint32_t AllocateData_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes, 
                                       GpuBuffer&, _MeshData&, std::vector<GpuMeshAllocator::_MeshData>&);
         static void DeallocateData_(_MeshData&, std::vector<GpuMeshAllocator::_MeshData>&, const size_t offsetBytes, const size_t lastByte);
+        static ReserveReturnData_ ReserveSpace_(const uint32_t size, const size_t byteMultiplier, const size_t maxBytes,
+                                        GpuBuffer&, _MeshData&, std::vector<GpuMeshAllocator::_MeshData>&);
         static void Initialize_();
         static void Shutdown_();
         static void Resize_(GpuBuffer& buffer, _MeshData& data, const size_t newSizeBytes);
