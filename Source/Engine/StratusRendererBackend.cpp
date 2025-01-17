@@ -290,13 +290,13 @@ void RendererBackend::InitPointShadowMaps_() {
     state_.shadowIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * state_.maxShadowCastingLightsPerFrame, flags);
     state_.shadowCastingPointLights = GpuBuffer(nullptr, sizeof(GpuPointLight) * state_.maxShadowCastingLightsPerFrame, flags);
 
-    STRATUS_LOG << "Size: " << smapCache_.buffers.size() << std::endl;
+    STRATUS_LOG << "Point Buffer Size: " << smapCache_.buffers.size() << std::endl;
 
     // Create the virtual point light shadow map cache
     vplSmapCache_ = CreateShadowMap3DCache_(state_.vpls.vplShadowCubeMapX, state_.vpls.vplShadowCubeMapY, MAX_TOTAL_VPL_SHADOW_MAPS, true, TextureComponentSize::BITS_16);
     state_.vpls.shadowDiffuseIndices = GpuBuffer(nullptr, sizeof(GpuAtlasEntry) * MAX_TOTAL_VPL_SHADOW_MAPS, flags);
 
-    STRATUS_LOG << "Size: " << vplSmapCache_.buffers.size() << std::endl;
+    STRATUS_LOG << "VPL Buffer Size: " << vplSmapCache_.buffers.size() << std::endl;
 }
 
 void RendererBackend::InitializeVplData_() {
@@ -1320,7 +1320,7 @@ static inline void PerformPointLightGeometryCulling(
         select(receivers[5], cull).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 9);
 
         pipeline.DispatchCompute(1, 1, 1);
-        pipeline.SynchronizeCompute();
+        //pipeline.SynchronizeCompute();
     }
 }
 
@@ -1602,7 +1602,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
 
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
-    state_.vplCulling->SynchronizeCompute();
+    //state_.vplCulling->SynchronizeCompute();
 
     state_.vplCulling->Unbind();
 
@@ -1721,7 +1721,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     // Dispatch and synchronize
     state_.vplColoring->DispatchCompute(1, 1, 1);
-    state_.vplColoring->SynchronizeCompute();
+    //state_.vplColoring->SynchronizeCompute();
 
     state_.vplColoring->Unbind();
 
