@@ -6,7 +6,7 @@ Engine Version: **0.10**
 
 Realtime 3D rendering engine. Expect bugs and instability as it is still under development. The engine is free and open source (licensed under MPL-2.0). Please feel free to contact me about any questions or issues you have!
 
-All of the following scenes were rendered in realtime on a GTX 1060 @30-60 fps to demonstrate Stratus features. Links to the 3D assets can be found further down this readme.
+All of the following scenes were rendered in realtime on a GTX 1060 to demonstrate Stratus features. Links to the 3D assets can be found further down this readme.
 
 ![sponza1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaUp2.png)
 
