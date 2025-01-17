@@ -56,6 +56,7 @@ public:
         const glm::vec3 defaultSunColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
         auto wc = new WorldLightController(defaultSunColor, defaultSunColor, 50);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(21.0479f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        wc->SetAtmosphericScatterControl(0.75f);
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
 

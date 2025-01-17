@@ -32,9 +32,9 @@ All of the following scenes were rendered in realtime on a GTX 1060 to demonstra
 
 (3D Model: San Miguel)
 
-![bathroom1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom1.png)
+![bathroom1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom5.png)
 
-![bathroom2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom4.png)
+![bathroom2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom9.png)
 
 (3D Model: The Bathroom)
 

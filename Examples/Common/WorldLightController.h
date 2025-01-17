@@ -31,6 +31,14 @@ struct WorldLightController : public stratus::InputHandler {
         worldLight_->SetRotation(r);
     }
 
+    void SetAtmosphericParticleDensity(const float val) {
+        worldLight_->SetAtmosphericLightingConstants(val, worldLight_->GetAtmosphericScatterControl());
+    }
+
+    void SetAtmosphericScatterControl(const float val) {
+        worldLight_->SetAtmosphericLightingConstants(worldLight_->GetAtmosphericParticleDensity(), val);
+    }
+
     void HandleInput(const stratus::MouseState& mouse, const std::vector<SDL_Event>& input, const double deltaSeconds) {
         const double lightRotationSpeed = rotationSpeeds_[rotationIndex_];
         const double lightIncreaseSpeed = 5.0;
