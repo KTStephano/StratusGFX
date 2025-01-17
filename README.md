@@ -8,7 +8,7 @@ Realtime 3D rendering engine. Expect bugs and instability as it is still under d
 
 ![sponza1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaUp2.png)
 
-![sponza2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaCurtains.pngss)
+![sponza2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaCurtains.png)
 
 ![sponza3](https://ktstephano.github.io/assets/v0.10/SponzaGI.png)
 
