@@ -6,29 +6,41 @@ Engine Version: **0.10**
 
 Realtime 3D rendering engine. Expect bugs and instability as it is still under development. The engine is free and open source (licensed under MPL-2.0). Please feel free to contact me about any questions or issues you have!
 
-![sponza1](https://ktstephano.github.io/assets/v0.10/SponzaGI_Front.png)
+![sponza1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaUp2.png)
 
-![sponza2](https://ktstephano.github.io/assets/v0.10/SponzaGI.png)
+![sponza2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SponzaCurtains.pngss)
+
+![sponza3](https://ktstephano.github.io/assets/v0.10/SponzaGI.png)
 
 (3D Model: Intel Sponza)
 
-![bistro1](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
+![bistro1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bistro_VSM_GI.png)
 
-![bistro2](https://github.com/KTStephano/ktstephano.github.io/blob/main/assets/v0.10/Bistro2.png)
+![bistro2](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
+
+![bistro3](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/bistro_pbr-1-2048x1142.png)
 
 (3D Model: Bistro)
 
-![sanmiguel1](https://ktstephano.github.io/assets/v0.10/FinalAfterPostProcessing.png)
+![sanmiguel1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SanMiguel_VSM_GI.png)
 
-![sanmiguel2](https://ktstephano.github.io/assets/v0.10/SanMiguel_Balcony2.png)
+![sanmiguel2](https://github.com/KTStephano/ktstephano.github.io/blob/main/assets/v0.10/SanMiguel_GI2.0.png)
 
-![sanmiguel3](https://github.com/KTStephano/ktstephano.github.io/blob/main/assets/v0.10/SanMiguel_GI2.0.png)
+![sanmiguel3](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/SanMiguel_VSM_GI2.png)
 
 (3D Model: San Miguel)
 
-![cornell_front](https://ktstephano.github.io/assets/v0.10/Cornell_Front.png)
+![bathroom1](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom1.png)
 
-![cornell_back](https://ktstephano.github.io/assets/v0.10/Cornell_Back.png)
+![bathroom2](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/Bathroom4.png)
+
+(3D Model: The Bathroom)
+
+![JunkShop](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/JunkShop.png)
+
+(3D Model: Junk Shop)
+
+![cornell_front](https://ktstephano.github.io/assets/v0.10/Cornell_Front.png)
 
 (3D Model: Cornell Box)
 
