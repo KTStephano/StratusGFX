@@ -20,7 +20,9 @@ All of the following scenes were rendered in realtime on a GTX 1060 to demonstra
 
 ![bistro2](https://ktstephano.github.io/assets/v0.10/Bistro1.png)
 
-![bistro3](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/bistro_pbr-1-2048x1142.png)
+![bistro3](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/BistroNight.png)
+
+![bistro4](https://ktstephano.github.io/portfolio/wp-content/uploads/2024/12/BistroNight2.png)
 
 (3D Model: Bistro)
 
