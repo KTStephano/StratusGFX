@@ -1603,6 +1603,11 @@ void RendererBackend::PerformVirtualPointLightCullingStage1_(
     InitCoreCSMData_(state_.vplCulling.get());
     state_.vplCulling->DispatchCompute(1, 1, 1);
     //state_.vplCulling->SynchronizeCompute();
+    // 
+    // TODO: Change to at least 2 frames in flight to reduce blocking
+    // Waits for culled light list to be ready so CPU can perform a readback
+    auto fence = HostInsertFence();
+    HostFenceSync(fence);
 
     state_.vplCulling->Unbind();
 
