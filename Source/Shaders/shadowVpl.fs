@@ -13,6 +13,7 @@ uniform vec3 lightPos;
 uniform float farPlane;
 
 out vec3 color;
+out vec3 worldPos;
 
 void main() {
     Material material = materials[materialIndices[fsDrawID]];
@@ -25,11 +26,13 @@ void main() {
     // get distance between fragment and light source
     float lightDistance = length(fsPosition.xyz - lightPos);
     
-    // map to [0;1] range by dividing by far_plane
-    lightDistance = saturate(lightDistance / farPlane);
+    // map to [0;1] range by dividing by far_plane - assume probe radius is 500
+    //lightDistance = saturate(lightDistance / farPlane);
+    lightDistance = saturate(lightDistance / 500.0);
     
     // write this as modified depth
     gl_FragDepth = lightDistance;
 
     color = baseColor.rgb;
+    worldPos = fsPosition.xyz;
 }  

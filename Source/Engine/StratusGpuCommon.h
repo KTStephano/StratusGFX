@@ -12,7 +12,7 @@
 #endif
 
 // Synchronized with definitions in pbr.glsl
-#define MAX_TOTAL_SHADOW_ATLASES (14)
+#define MAX_TOTAL_SHADOW_ATLASES (16)
 #define MAX_TOTAL_SHADOWS_PER_ATLAS (320)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
@@ -31,8 +31,8 @@
 #define GPU_METALLIC_ROUGHNESS_MAPPED (BITMASK_POW2(7))
 
 // Matches the definitions in vpl_common.glsl
-#define MAX_TOTAL_VPLS_BEFORE_CULLING (10000)
-#define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (MAX_TOTAL_SHADOW_MAPS)
+#define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_VPLS_BEFORE_CULLING)
 #define MAX_VPLS_PER_TILE (12)
 
 #define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
@@ -216,19 +216,9 @@ namespace stratus {
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
-        GpuVec color;
-        GpuVec specularPosition;
-        float radius;
-        float farPlane;
-        float intensity;
-        float placeholder2_;
 
         GpuVplData() :
-            position(0.0f),
-            color(0.0f),
-            radius(1.0f),
-            farPlane(1.0f),
-            intensity(1.0f) {}
+            position(0.0f) {}
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -299,7 +289,7 @@ namespace stratus {
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
-    static_assert(sizeof(GpuVplData) == 64);
+    static_assert(sizeof(GpuVplData) == 16);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);

@@ -376,9 +376,13 @@ namespace stratus {
 
     public:
         void bind(i32 activeTexture) const {
+            bindAliased(config_.type, activeTexture);
+        }
+
+        void bindAliased(TextureType type, i32 activeTexture) const {
             //unbind(activeTexture);
             glActiveTexture(GL_TEXTURE0 + activeTexture);
-            glBindTexture(_convertTexture(config_.type), texture_);
+            glBindTexture(_convertTexture(type), texture_);
         }
 
         void bindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access) const {
@@ -832,6 +836,7 @@ namespace stratus {
     u32 Texture::Depth() const { EnsureValid_(); return impl_->depth(); }
 
     void Texture::Bind(i32 activeTexture) const { EnsureValid_(); impl_->bind(activeTexture); }
+    void Texture::BindAliased(TextureType type, i32 activeTexture) const { EnsureValid_(); impl_->bindAliased(type, activeTexture); }
     void Texture::BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access) const {
         EnsureValid_(); impl_->bindAsImageTexture(unit, mipLevel, layered, layer, access);
     }

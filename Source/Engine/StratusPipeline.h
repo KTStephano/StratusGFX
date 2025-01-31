@@ -49,11 +49,8 @@ namespace stratus {
         std::vector<std::pair<std::string, std::string>> defines_;
 
         // List of bound textures since the last call to bind()
-        std::unordered_map<std::string, Texture> boundTextures_;
         std::unordered_map<std::string, i32> activeTextureIndices_;
-
-        // Lets us keep track of the next texture index to use
-        i32 activeTextureIndex_ = 0;
+        std::unordered_map<std::string, i32> activeImageIndices_;
 
         /**
          * Program handle returned from OpenGL
@@ -125,7 +122,7 @@ namespace stratus {
          // then passing 2 for xGroups would result in 2 * 32 = 64 invokations
         void DispatchCompute(u32 xGroups, u32 yGroups, u32 zGroups) const;
         void SynchronizeCompute() const;
-        void SynchronizeMemory() const;
+        void SynchronizeMemory(GLbitfield barriers = GL_ALL_BARRIER_BITS) const;
 
         /**
          * Various setters to make it easy to set various uniforms
@@ -163,6 +160,8 @@ namespace stratus {
 
         // Texture management
         void BindTexture(const std::string& uniform, const Texture& tex);
+        void BindTextureAliased(TextureType, const std::string& uniform, const Texture& tex);
+
         // If layered = true you can just put whatever for layer
         void BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access);
         void BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config);
@@ -171,6 +170,9 @@ namespace stratus {
     private:
         void Compile_();
         i32 NextTextureIndex_(const std::string& uniform, const Texture& tex);
+        i32 NextImageIndex_(const std::string& uniform, const Texture& tex);
+
+        static i32 NextIndex_(std::unordered_map<std::string, i32>&, const std::string& uniform, const Texture&);
     };
 
     bool ValidatePipeline(const Pipeline* p);

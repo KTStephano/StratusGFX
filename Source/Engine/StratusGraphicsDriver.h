@@ -35,6 +35,8 @@ namespace stratus {
         i32 maxVaryingFloats;
         i32 maxRenderbufferSize;
         i32 maxTextureImageUnits;
+        // This is completely separate from texture image units
+        i32 maxImageUnits;
         i32 maxTextureSize1D2D;
         i32 maxTextureSize3D;
         i32 maxTextureSizeCubeMap;

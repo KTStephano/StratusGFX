@@ -468,8 +468,8 @@ namespace stratus {
         HostFenceSync(fence);
     }
 
-    void Pipeline::SynchronizeMemory() const {
-        glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    void Pipeline::SynchronizeMemory(GLbitfield barriers) const {
+        glMemoryBarrier(barriers);
     }
 
     void Pipeline::BindTexture(const std::string& uniform, const Texture& tex) {
@@ -480,8 +480,16 @@ namespace stratus {
         SetInt(uniform, activeTexture);
     }
 
-    void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access) {
+    void Pipeline::BindTextureAliased(TextureType type, const std::string& uniform, const Texture& tex) {
         const i32 activeTexture = NextTextureIndex_(uniform, tex);
+        if (activeTexture < 0) return;
+
+        tex.BindAliased(type, activeTexture);
+        SetInt(uniform, activeTexture);
+    }
+
+    void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access) {
+        const i32 activeTexture = NextImageIndex_(uniform, tex);
         if (activeTexture < 0) return;
 
         tex.BindAsImageTexture(activeTexture, mipLevel, layered, layer, access);
@@ -489,7 +497,7 @@ namespace stratus {
     }
 
     void Pipeline::BindTextureAsImage(const std::string& uniform, const Texture& tex, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) {
-        const i32 activeTexture = NextTextureIndex_(uniform, tex);
+        const i32 activeTexture = NextImageIndex_(uniform, tex);
         if (activeTexture < 0) return;
 
         tex.BindAsImageTexture(activeTexture, mipLevel, layered, layer, access, config);
@@ -501,29 +509,39 @@ namespace stratus {
         //   binding.second.Unbind();
         //   SetInt(binding.first, 0);
         //}
-        boundTextures_.clear();
+        //boundTextures_.clear();
         activeTextureIndices_.clear();
-        activeTextureIndex_ = 0;
+        activeImageIndices_.clear();
     }
 
     i32 Pipeline::NextTextureIndex_(const std::string& uniform, const Texture& tex) {
+        return Pipeline::NextIndex_(activeTextureIndices_, uniform, tex);
+    }
+
+    i32 Pipeline::NextImageIndex_(const std::string& uniform, const Texture& tex) {
+        const auto index = Pipeline::NextIndex_(activeImageIndices_, uniform, tex);
+        if (index >= GraphicsDriver::GetConfig().maxImageUnits) {
+            STRATUS_ERROR << "Max number of texture image units exceeded" << std::endl;
+            return -1;
+        }
+
+        return index;
+    }
+
+    i32 Pipeline::NextIndex_(std::unordered_map<std::string, i32>& activeIndices, const std::string& uniform, const Texture& tex) {
         if (!tex.Valid()) {
-            STRATUS_ERROR << "[Error] Invalid texture passed to shader" << std::endl;
+            STRATUS_ERROR << "Invalid texture passed to shader" << std::endl;
             return -1;
         }
 
         // See if the uniform is already bound to a texture
-        auto it = activeTextureIndices_.find(uniform);
-        if (it != activeTextureIndices_.end()) {
-            //it->second.Unbind();
-            //boundTextures_.find(uniform)->second.Unbind();
-            boundTextures_.insert(std::make_pair(uniform, tex));
+        auto it = activeIndices.find(uniform);
+        if (it != activeIndices.end()) {
             return it->second;
         }
 
-        auto next = activeTextureIndex_++;
-        boundTextures_.insert(std::make_pair(uniform, tex));
-        activeTextureIndices_.insert(std::make_pair(uniform, next));
+        auto next = i32(activeIndices.size());
+        activeIndices.insert(std::make_pair(uniform, next));
         return next;
     }
 }

@@ -818,7 +818,7 @@ namespace stratus {
 
         Assimp::Importer importer;
         //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_VERTEX_LIMIT, 16000);
-        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 4096);
+        //importer.SetPropertyInteger(AI_CONFIG_PP_SLM_TRIANGLE_LIMIT, 65536);
 
         //u32 pflags = aiProcess_OptimizeMeshes | aiProcess_ImproveCacheLocality | aiProcess_SortByPType | aiProcess_FlipUVs;
 

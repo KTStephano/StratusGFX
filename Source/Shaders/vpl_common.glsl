@@ -4,7 +4,7 @@ STRATUS_GLSL_VERSION
 
 // These needs to match what is in the renderer backend!
 // TODO: Find a better way to sync these values with renderer
-#define MAX_TOTAL_VPLS_BEFORE_CULLING (10000)
+#define MAX_TOTAL_VPLS_BEFORE_CULLING (MAX_TOTAL_SHADOW_MAPS) //(10000)
 #define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_SHADOW_MAPS)
 #define MAX_VPLS_PER_TILE (12)
 
@@ -47,10 +47,4 @@ struct VplStage2PerTileOutputs {
 
 struct VplData {
     vec4 position;
-    vec4 color;
-    vec4 specularPosition;
-    float radius;
-    float farPlane;
-    float intensity;
-    float _1;
 };

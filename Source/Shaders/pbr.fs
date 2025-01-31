@@ -79,6 +79,10 @@ smooth in vec2 fsTexCoords;
 
 layout (location = 0) out vec3 fsColor;
 
+bool between(float x, float minV, float maxV) {
+    return abs(x) >= minV && abs(x) <= maxV;
+}
+
 void main() {
     vec2 texCoords = fsTexCoords;
     float depth = textureLod(gDepth, texCoords, 0).r;

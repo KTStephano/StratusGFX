@@ -1,18 +1,23 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_gpu_shader_int64 : enable
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
+//
+// 8, 8, 6 corresponds to: 8*8*6, the size of a single light probe
+// These need to match up with the dimensions of a light probe defined in the C++ code
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 6) in;
 
 #include "pbr.glsl"
 #include "vpl_common.glsl"
 
 uniform vec3 infiniteLightColor;
+uniform int visibleVpls;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -23,54 +28,120 @@ uniform vec3 infiniteLightColor;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) buffer inoutBlock1 {
-    VplData lightData[];
-};
+// layout (std430, binding = 1) readonly buffer inputBlock1 {
+//     int numVisible[];
+// };
 
-layout (std430, binding = 1) readonly buffer inputBlock1 {
-    int numVisible[];
-};
+#define MAX_IMAGES_PER_BATCH (2)
 
-uniform samplerCubeArray diffuseCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
-uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
+// Only 8 images bound total are allowed by OpenGL
+layout (rgba8) readonly uniform imageCubeArray diffuseCubeMaps[MAX_IMAGES_PER_BATCH];
+layout (rgba32f) readonly uniform imageCubeArray positionCubeMaps[MAX_IMAGES_PER_BATCH];
+layout(rgba16f) coherent uniform imageCubeArray lightingCubeMaps[MAX_IMAGES_PER_BATCH];
+uniform int lightingCubeIndexOffset;
 
 layout (std430, binding = 4) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
 
+layout (std430, binding = 5) writeonly buffer inputBlock4 {
+    int probeFlags[];
+};
+
+// We pass them in as uint64_t and then cast them to the appropriate image type to get around
+// the limitation of only allowing 8 bound images
+// layout (std430, binding = 5) readonly buffer inputBlock4 {
+//     uint64_t lightingCubeHandles[];
+// };
+
+// See https://stackoverflow.com/questions/13892732/texelfetch-from-cubemap
+// See https://stackoverflow.com/questions/6980530/selecting-the-face-of-a-cubemap-in-glsl
+vec3 generateCubemapCoords(in vec2 txc, in int face) {
+  vec3 v;
+  switch(face) {
+    case 0: v = vec3( 1.0, -txc.x, txc.y); break; // +X
+    case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
+    case 2: v = vec3( txc.x,  1.0, txc.y); break; // +Y
+    case 3: v = vec3(-txc.x, -1.0, txc.y); break; // -Y
+    case 4: v = vec3(txc.x, -txc.y,  1.0); break; // +Z
+    case 5: v = vec3(txc.x,  txc.y, -1.0); break; // -Z
+  }
+//   switch(face) {
+//     case 0: v = vec3( 1.0,  txc.x, txc.y); break; // +X
+//     case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
+//     case 2: v = vec3(txc.x,  1.0,  txc.y); break; // +Y
+//     case 3: v = vec3(txc.x, -1.0,  txc.y); break; // -Y
+//     case 4: v = vec3(txc.x, txc.y,  1.0); break;  // +Z
+//     case 5: v = vec3(txc.x, txc.y, -1.0); break;  // -Z
+//   }
+  return normalize(v);
+}
+
+shared int currentProbeIsVisible;
+
 void main() {
-    int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+    // Pulls from the value set by glDispatchCompute
+    int stepSize = int(gl_NumWorkGroups.x);
+    //int visibleVpls = numVisible[0];
 
-    float colorMultiplier = 50000.0;//clamp(float(numVisible) / float(MAX_TOTAL_VPLS_PER_FRAME), 0.1, 1.0) * 500.0;
+    if (gl_LocalInvocationIndex == 0) {
+        // Set flag
+        currentProbeIsVisible = 0;
+    }
 
-    int visibleVpls = numVisible[0];
+    barrier();
 
-    for (int i = int(gl_GlobalInvocationID.x); i < visibleVpls; i += stepSize) {
-        int index = i;
-        VplData data = lightData[index];
+    // Each work group processes all 6 faces of the light probe
+    for (int index = int(gl_WorkGroupID.x); index < visibleVpls; index += stepSize) {
         AtlasEntry entry = diffuseIndices[index];
+        // Lighting layer is used specifically to index into lightingCubeMaps
+        int lightingIndex = int(entry.index)-lightingCubeIndexOffset;
+        if (lightingIndex < 0 || lightingIndex >= MAX_IMAGES_PER_BATCH) {
+            continue;
+        }
 
-        // First two samples from the exact direction vector for a total of 10 samples after loop
-        vec3 color = textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).rgb * infiniteLightColor;
-        float magnitude = data.radius * textureLod(shadowCubeMaps[entry.index], vec4(-infiniteLightDirection, float(entry.layer)), 0).r;
-        float offset = 0.5;
-        float offsets[2] = float[](-offset, offset);
-        float totalColors = 1.0;
-        // This should result in 2*2*2 = 8 samples, + 2 from above = 10
-        // for (int x = 0; x < 2; ++x) {
-        //     for (int y = 0; y < 2; ++y) {
-        //         for (int z = 0; z < 2; ++z) {
-        //             vec3 dirOffset = vec3(offsets[x], offsets[y], offsets[z]);
-        //             color += textureLod(diffuseCubeMaps[entry.index], vec4(-infiniteLightDirection + dirOffset, float(entry.layer)), 0).rgb * infiniteLightColor;
-        //             totalColors += 1.0;
-        //         }
-        //     }
-        // }
+        layout (rgba8) imageCubeArray diffuse = diffuseCubeMaps[lightingIndex];
+        layout (rgba32f) imageCubeArray position = positionCubeMaps[lightingIndex];
+        // See https://stackoverflow.com/questions/32349423/create-an-image2d-from-a-uint64-t-image-handle
+        //layout (rgba8) imageCubeArray lighting = layout(rgba8) imageCubeArray(lightingCubeHandles[entry.index]);
+        layout (rgba16f) imageCubeArray lighting = lightingCubeMaps[lightingIndex];
 
-        //vec4 specularPos = data.position;
-        vec4 specularPos = vec4(data.position.xyz - 1.1 * magnitude * infiniteLightDirection, 1.0);
+        // See https://github.com/KhronosGroup/SPIRV-Cross/issues/578
+        // cubeArrays need to be thought of as a 2D array, so they only take a 3d index instead of 4d
+        ivec3 texelIndex = ivec3(ivec2(gl_LocalInvocationID.xy), int(gl_LocalInvocationID.z)+6*int(entry.layer));
 
-        lightData[index].color = vec4(color / totalColors * data.intensity * colorMultiplier, 1.0);
-        lightData[index].specularPosition = specularPos;
+        vec3 diffuseVal = imageLoad(diffuse, texelIndex).rgb * infiniteLightColor.rgb;
+        vec3 positionVal = imageLoad(position, texelIndex).xyz;
+
+        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(positionVal, 1.0)),
+                        dot(cascadePlanes[1], vec4(positionVal, 1.0)),
+                        dot(cascadePlanes[2], vec4(positionVal, 1.0)));
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue2Samples(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
+        vec3 lightColor = vec3(0.0);
+        if (shadowFactor < 1.0) {
+            // Signals to other workers in this group that the light was visible in some way
+            atomicAdd(currentProbeIsVisible, 1);
+            lightColor = diffuseVal;
+        }
+
+        barrier();
+
+        if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
+            lightColor = diffuseVal*0.10;
+        }
+
+        imageStore(lighting, texelIndex, vec4(lightColor, 0.0));
+
+        barrier();
+
+        if (gl_LocalInvocationIndex == 0) {
+            // Write flag to memory buffer so next compute dispatch can determine which
+            // probes are relevant
+            probeFlags[index] = currentProbeIsVisible;
+            // Reset flag
+            currentProbeIsVisible = 0;
+        }
+
+        barrier();
     }
 }

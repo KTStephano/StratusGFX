@@ -345,15 +345,16 @@ namespace stratus {
             // For splitting viewport into tiles
             const int tileXDivisor = 5;
             const int tileYDivisor = 5;
-            // This needs to match what is in the vpl tiled deferred shader compute header!
-            int vplShadowCubeMapX = 32, vplShadowCubeMapY = 32;
+            // These need to match up with the work group dims in the probe relighting compute shader
+            // (ex: 8, 8, 6)
+            int vplShadowCubeMapX = 8, vplShadowCubeMapY = 8;
             //GpuBuffer vplDiffuseMaps;
             //GpuBuffer vplShadowMaps;
             GpuBuffer shadowDiffuseIndices;
             GpuBuffer vplStage1Results;
             GpuBuffer vplVisiblePerTile;
             GpuBuffer vplData;
-            GpuBuffer vplUpdatedData;
+            GpuBuffer vplContributionFlags;
             GpuBuffer vplVisibleIndices;
             //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
@@ -429,6 +430,7 @@ namespace stratus {
             // Skybox
             std::unique_ptr<Pipeline> skybox;
             std::unique_ptr<Pipeline> skyboxLayered;
+            std::unique_ptr<Pipeline> skyboxLayeredVpl;
             // Postprocessing shader which allows for application
             // of hdr and gamma correction
             std::unique_ptr<Pipeline> gammaTonemap;
@@ -458,8 +460,6 @@ namespace stratus {
             // Handles virtual point light culling
             std::unique_ptr<Pipeline> vplCulling;
             std::unique_ptr<Pipeline> vplColoring;
-            std::unique_ptr<Pipeline> vplTileDeferredCullingStage1;
-            std::unique_ptr<Pipeline> vplTileDeferredCullingStage2;
             // Draws axis-aligned bounding boxes
             std::unique_ptr<Pipeline> aabbDraw;
             // Handles cascading shadow map depth buffer rendering
@@ -501,6 +501,10 @@ namespace stratus {
         struct ShadowMapCache {
             // Framebuffer which wraps around all available cube maps
             std::vector<FrameBuffer> buffers;
+
+            // Vector of all light buffers which may be empty
+            // If not empty, it will equal the size of buffers
+            std::vector<Texture> lightBuffers;
 
             // Lights -> Handles map
             std::unordered_map<LightPtr, GpuAtlasEntry> lightsToShadowMap;
@@ -663,7 +667,7 @@ namespace stratus {
             VplDistVector_&,
             std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices
         );
-        void PerformVirtualPointLightCullingStage1_(VplDistVector_&, std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices);
+        void PerformVirtualPointLightCullingStage1_(VplDistVector_&);
         //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
         void PerformVirtualPointLightCullingStage2_(const VplDistVector_&);
         void ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_&, const double);

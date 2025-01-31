@@ -163,6 +163,7 @@ namespace stratus {
         u32 Depth() const;
 
         void Bind(i32 activeTexture) const;
+        void BindAliased(TextureType, i32 activeTexture) const;
         void Unbind(i32 activeTexture) const;
 
         static u32 VirtualPageSizeXY();

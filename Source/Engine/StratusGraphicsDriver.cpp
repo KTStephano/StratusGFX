@@ -43,6 +43,7 @@ namespace stratus {
         log << "\tMax varying floats: " << config.maxVaryingFloats << std::endl;
         log << "\tMax render buffer size: " << config.maxRenderbufferSize << std::endl;
         log << "\tMax texture image units: " << config.maxTextureImageUnits << std::endl;
+        log << "\tMax image units: " << config.maxImageUnits << std::endl;
         log << "\tMax texture size 1D: " << config.maxTextureSize1D2D << std::endl;
         log << "\tMax texture size 2D: " << config.maxTextureSize1D2D << "x" << config.maxTextureSize1D2D << std::endl;
         log << "\tMax texture size 3D: " << config.maxTextureSize3D << "x" << config.maxTextureSize3D << "x" << config.maxTextureSize3D << std::endl;
@@ -133,6 +134,7 @@ namespace stratus {
         glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &context.config.maxFragmentUniformVectors);
         glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &context.config.maxRenderbufferSize);
         glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &context.config.maxTextureImageUnits);
+        glGetIntegerv(GL_MAX_IMAGE_UNITS, &context.config.maxImageUnits);
         glGetIntegerv(GL_MAX_TEXTURE_SIZE, &context.config.maxTextureSize1D2D);
         glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &context.config.maxTextureSize3D);
         glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &context.config.maxTextureSizeCubeMap);
