@@ -323,14 +323,20 @@ float quadraticAttenuation(vec3 lightDir) {
 
 float vplDiffuseAttenuation(vec3 lightDir, float lightRadius) {
     float lightDist = length(lightDir);
+    // if (lightDist < 20) {
+    //     return 1.0 / lightDist;
+    // }
+
     float ratio = min(lightDist / lightRadius, 1.0);
     //float minDist = mix(10, 1, exp(-3.0 * ratio)) * lightRadius;
-    float minDist = mix(8, 1, exp(-3.0 * ratio)) * 0.25 * lightRadius;
-    //float minDist = 150.0;
+    float minDist = mix(6, 1, exp(-3.0 * ratio)) * 0.125 * lightRadius;
+    //float minDist = 10.0;
     //float minDist = 1.0 * lightRadius;
-    float maxDist = lightRadius;
+    //float maxDist = lightRadius;
     //float maxDist = 0.75 * lightRadius;
-    return 1.0 / (minDist + 1.0 * lightDist * lightDist);
+
+    return 1.0 / (minDist + 0.5 * lightDist * lightDist);
+    //return 1.0 / (minDist + 1.0 * lightDist);
 }
 
 float vplSpecularAttenuation(vec3 lightDir, float lightRadius) {

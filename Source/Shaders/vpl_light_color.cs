@@ -159,8 +159,8 @@ void main() {
         if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
             float weight = 1.0 - (float(minDistance) / float(probeRadius));
             vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ)) / float(currentProbeIsVisible);
-            vec3 newDiffuseVal = ((diffuseValBase + modifier) / 2.0) * infiniteLightColor.rgb;
-            lightColor = newDiffuseVal * weight * weight;
+            vec3 newDiffuseVal = ((diffuseValBase * modifier)) * infiniteLightColor.rgb;
+            lightColor = newDiffuseVal * weight;
         }
 
         imageStore(lighting, texelIndex, vec4(lightColor, 0.0));

@@ -46,7 +46,7 @@ public:
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         const glm::vec3 moonlightColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
-        auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 8.0f);
+        auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 15.0f);
         //auto wc = new WorldLightController(moonlightColor, moonlightColor, 0.5f);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(10.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
@@ -145,10 +145,14 @@ public:
                             break;
                         case SDL_SCANCODE_1: {
                             if (released) {
-                                LightCreator::CreateStationaryLight(
-                                    //LightParams(INSTANCE(RendererFrontend)->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), warmMorningColor, 600.0f),
-                                    false
+                                //LightCreator::CreateStationaryLight(
+                                //    //LightParams(INSTANCE(RendererFrontend)->GetCamera()->getPosition(), glm::vec3(1.0f, 1.0f, 0.5f), 1200.0f)
+                                //    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), warmMorningColor, 600.0f),
+                                //    false
+                                //);
+                                LightCreator::CreateVirtualPointLight(
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f), 1.0f),
+                                    true
                                 );
                             }
                             break;
@@ -174,12 +178,12 @@ public:
            received.clear();
            int spawned = 0;
            for (int x = 80; x >= -80; x -= 20) {
-              for (int y = 0; y <= 210; y += 20) {
+              for (int y = 5; y <= 210; y += 20) {
                   for (int z = -160; z <= 230; z += 20) {
                           ++spawned;
                           LightCreator::CreateVirtualPointLight(
                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                              true
+                              false
                           );
                   }
               }

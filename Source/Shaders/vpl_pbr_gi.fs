@@ -190,7 +190,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
             float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
             float distAttenuation = distanceRatio;                                                                                              
                                                                                                                                                 
-            vec3 lightColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb * 50000.0 * probe.intensityScale;                                                                                 
+            vec3 lightColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb * 100000.0 * probe.intensityScale;                                                                                 
                                                                                                                                                 
             //float shadowFactor =                                                                                                                
             //distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
@@ -210,9 +210,9 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                                                                                                                                                 
             float reweightingFactor = 1.0;                                                                                                      
                                                                                                                                                 
-            if (shadowFactor > 0.0) {                                                                                                           
-                reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
-            }                                                                                                                                   
+            //if (shadowFactor > 0.0) {                                                                                                           
+            //    reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
+            //}                                                                                                                                   
                                                                                                                                                 
             validSamples += reweightingFactor;                                                                                                  
                                                                                                                                                 
