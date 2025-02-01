@@ -3,6 +3,8 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 #extension GL_ARB_gpu_shader_int64 : enable
 
+#include "bindings.glsl"
+
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
 //
@@ -40,11 +42,15 @@ layout (rgba32f) readonly uniform imageCubeArray positionCubeMaps[MAX_IMAGES_PER
 layout(rgba16f) coherent uniform imageCubeArray lightingCubeMaps[MAX_IMAGES_PER_BATCH];
 uniform int lightingCubeIndexOffset;
 
+layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
+    VplData probes[];
+};
+
 layout (std430, binding = 4) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
 
-layout (std430, binding = 5) writeonly buffer inputBlock4 {
+layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) writeonly buffer inputBlock4 {
     int probeFlags[];
 };
 
@@ -78,15 +84,27 @@ vec3 generateCubemapCoords(in vec2 txc, in int face) {
 }
 
 shared int currentProbeIsVisible;
+shared int minDistance;
+shared uint diffuseX, diffuseY, diffuseZ;
 
 void main() {
+    // Smaller than normal since we want to reduce simulated 2nd bounce strength
+    const int probeRadius = 250;    
+
+    // From all faces
+    const int totalTexelSamples = 8*8*6;
+
     // Pulls from the value set by glDispatchCompute
     int stepSize = int(gl_NumWorkGroups.x);
     //int visibleVpls = numVisible[0];
 
     if (gl_LocalInvocationIndex == 0) {
-        // Set flag
+        // Set state
         currentProbeIsVisible = 0;
+        minDistance = probeRadius;
+        diffuseX = 0;
+        diffuseY = 0;
+        diffuseZ = 0;
     }
 
     barrier();
@@ -100,6 +118,8 @@ void main() {
             continue;
         }
 
+        VplData probe = probes[index];
+
         layout (rgba8) imageCubeArray diffuse = diffuseCubeMaps[lightingIndex];
         layout (rgba32f) imageCubeArray position = positionCubeMaps[lightingIndex];
         // See https://stackoverflow.com/questions/32349423/create-an-image2d-from-a-uint64-t-image-handle
@@ -110,7 +130,8 @@ void main() {
         // cubeArrays need to be thought of as a 2D array, so they only take a 3d index instead of 4d
         ivec3 texelIndex = ivec3(ivec2(gl_LocalInvocationID.xy), int(gl_LocalInvocationID.z)+6*int(entry.layer));
 
-        vec3 diffuseVal = imageLoad(diffuse, texelIndex).rgb * infiniteLightColor.rgb;
+        vec3 diffuseValBase = imageLoad(diffuse, texelIndex).rgb;
+        //vec3 diffuseVal = diffuseValBase * infiniteLightColor.rgb;
         vec3 positionVal = imageLoad(position, texelIndex).xyz;
 
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(positionVal, 1.0)),
@@ -119,15 +140,27 @@ void main() {
         float shadowFactor = 1.0 - calculateInfiniteShadowValue2Samples(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
         vec3 lightColor = vec3(0.0);
         if (shadowFactor < 1.0) {
+            int distance = max(int(ceil(length(probe.position.xyz - positionVal))), 1);
+
             // Signals to other workers in this group that the light was visible in some way
             atomicAdd(currentProbeIsVisible, 1);
-            lightColor = diffuseVal;
+            atomicMin(minDistance, distance);
+
+            uint unused;
+            ATOMIC_ADD_FLOAT(diffuseX, diffuseValBase.x, unused)
+            ATOMIC_ADD_FLOAT(diffuseY, diffuseValBase.y, unused)
+            ATOMIC_ADD_FLOAT(diffuseZ, diffuseValBase.z, unused)
+
+            lightColor = diffuseValBase * infiniteLightColor.rgb;
         }
 
         barrier();
 
         if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
-            lightColor = diffuseVal*0.10;
+            float weight = 1.0 - (float(minDistance) / float(probeRadius));
+            vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ)) / float(currentProbeIsVisible);
+            vec3 newDiffuseVal = ((diffuseValBase + modifier) / 2.0) * infiniteLightColor.rgb;
+            lightColor = newDiffuseVal * weight * weight;
         }
 
         imageStore(lighting, texelIndex, vec4(lightColor, 0.0));
@@ -138,8 +171,13 @@ void main() {
             // Write flag to memory buffer so next compute dispatch can determine which
             // probes are relevant
             probeFlags[index] = currentProbeIsVisible;
-            // Reset flag
+
+            // Reset state
             currentProbeIsVisible = 0;
+            minDistance = probeRadius;
+            diffuseX = 0;
+            diffuseY = 0;
+            diffuseZ = 0;
         }
 
         barrier();

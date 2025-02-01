@@ -19,7 +19,8 @@ uniform float intensity = 3.0;
 void main() {
     fsColor = intensity * vec4(colorMask, 1.0) * texture(skybox, fsTexCoords);
     #ifdef VPL_PIPELINE
-    fsPosition = vec4(vplLocation, 1.0);
+    // TODO: replace addition with world up vector * scale
+    fsPosition = vec4(vplLocation + vec3(0.0, 250.0, 0.0), 1.0);
     #else
     fsVelocity = vec2(0.0);
     #endif

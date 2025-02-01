@@ -85,7 +85,7 @@ public:
         e2.AddCallback(callback);
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
-        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
+        settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
@@ -173,17 +173,29 @@ public:
         if (requested.size() == received.size()) {
            received.clear();
            int spawned = 0;
-           for (int x = 60; x > -30; x -= 10) {
-              for (int y = 0; y < 240; y += 20) {
-                  for (int z = -140; z < 180; z += 20) {
+           for (int x = 80; x >= -80; x -= 20) {
+              for (int y = 0; y <= 210; y += 20) {
+                  for (int z = -160; z <= 230; z += 20) {
                           ++spawned;
                           LightCreator::CreateVirtualPointLight(
                               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                              false
+                              true
                           );
                   }
               }
            }
+
+           //for (int x = 10; x < 40; x += 5) {
+           //    for (int y = 0; y < 10; y += 5) {
+           //        for (int z = 125; z < 160; z += 10) {
+           //            ++spawned;
+           //            LightCreator::CreateVirtualPointLight(
+           //                LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+           //                true
+           //            );
+           //        }
+           //    }
+           //}
 
         //    for (int x = -160; x < 150; x += 20) {
         //        for (int y = 15; y < 150; y += 20) {

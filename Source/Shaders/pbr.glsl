@@ -325,8 +325,9 @@ float vplDiffuseAttenuation(vec3 lightDir, float lightRadius) {
     float lightDist = length(lightDir);
     float ratio = min(lightDist / lightRadius, 1.0);
     //float minDist = mix(10, 1, exp(-3.0 * ratio)) * lightRadius;
-    //float minDist = 0.0;
-    float minDist = 1.0;//2 * lightRadius;
+    float minDist = mix(8, 1, exp(-3.0 * ratio)) * 0.25 * lightRadius;
+    //float minDist = 150.0;
+    //float minDist = 1.0 * lightRadius;
     float maxDist = lightRadius;
     //float maxDist = 0.75 * lightRadius;
     return 1.0 / (minDist + 1.0 * lightDist * lightDist);

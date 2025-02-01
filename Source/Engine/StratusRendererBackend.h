@@ -356,6 +356,7 @@ namespace stratus {
             GpuBuffer vplData;
             GpuBuffer vplContributionFlags;
             GpuBuffer vplVisibleIndices;
+            GpuBuffer vplVisibleIndexCounters;
             //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;
@@ -657,7 +658,7 @@ namespace stratus {
         void Render_(Pipeline&, const RenderFaceCulling, GpuCommandBufferPtr&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void Render_(Pipeline&, std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, bool isLightInteracting, bool removeViewTranslation = false);
         void InitVplFrameData_(const VplDistVector_& perVPLDistToViewer);
-        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace);
+        void RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>&, const CommandBufferSelectionFunction&, const bool reverseCullFace, const bool disableCulling);
         void UpdatePointLights_(
             VplDistMultiSet_&, 
             VplDistVector_&,

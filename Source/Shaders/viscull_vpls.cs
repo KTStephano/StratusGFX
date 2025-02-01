@@ -3,6 +3,7 @@ STRATUS_GLSL_VERSION
 #extension GL_ARB_bindless_texture : require
 
 #include "vpl_common.glsl"
+#include "bindings.glsl"
 
 uniform int totalNumLights;
 
@@ -11,7 +12,7 @@ uniform int totalNumLights;
 //
 // Also see https://medium.com/@daniel.coady/compute-shaders-in-opengl-4-3-d1c741998c03
 // Also see https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction
-layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
 // for vec3, vec4 with std140 it always begins on a 4*4=16 byte boundary
@@ -22,7 +23,11 @@ layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 //
 // This changes with std430 where it enforces equivalency between OpenGL and C/C++ float arrays
 // by tightly packing them.
-layout (std430, binding = 0) readonly buffer inoutBlock1 {
+layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
+    VplData probes[];
+};
+
+layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) readonly buffer inoutBlock2 {
     int vplContributionFlags[];
 };
 
@@ -30,37 +35,62 @@ layout (std430, binding = 0) readonly buffer inoutBlock1 {
 //     int numVisible;
 // };
 
-layout (std430, binding = 1) writeonly buffer outputBlock1 {
+layout (std430, binding = VPL_PROBE_INDICES_BINDING) coherent buffer outputBlock1 {
     int vplVisibleIndex[];
 };
 
-shared int indexMarker;
+layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) coherent buffer outputBlock2 {
+    int vplVisibleIndexCounters[];
+};
+
+shared int numPresent;
 
 void main() {
-    int stepSize = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
-
-    if (gl_LocalInvocationID == 0) {
-        indexMarker = 0;
+    // One dispatch per bucket
+    int baseBucketIndex = int(gl_WorkGroupID.x);
+    int offsetBucketIndex = computeOffsetBucketIndex(baseBucketIndex);
+    
+    // Clear counter
+    if (gl_LocalInvocationIndex == 0) {
+        numPresent = 0;
     }
 
     barrier();
 
+    int stepSize = int(gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z);
+
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         if (vplContributionFlags[index] > 0) {
-            int localIndex = atomicAdd(indexMarker, 1);
-            if (localIndex > MAX_TOTAL_VPLS_PER_FRAME) {
+            VplData probe = probes[index];
+            ivec3 bucketCoords = computeBaseBucketCoords(probe.position.xyz);
+            if (!baseBucketCoordsWithinRange(bucketCoords)) {
+                continue;
+            }
+
+            if (computeBaseBucketIndex(bucketCoords) != baseBucketIndex) {
+                // Skip since it doesn't match our bucket
+                continue;
+            }
+
+            int localIndex = atomicAdd(numPresent, 1);
+            if (localIndex >= MAX_VPLS_PER_BUCKET) {
+                // Ran out of slots for probes
                 break;
             }
 
-            // + 1 since we store the count in the first slot
-            vplVisibleIndex[localIndex + 1] = index;
+            vplVisibleIndex[offsetBucketIndex + localIndex] = index;
         }
     }
 
     barrier();
 
-    if (gl_LocalInvocationIndex == 0) {
-        indexMarker = indexMarker > MAX_TOTAL_VPLS_PER_FRAME ? MAX_TOTAL_VPLS_PER_FRAME : indexMarker;
-        vplVisibleIndex[0] = indexMarker;
+    if (gl_LocalInvocationID == 0) {
+        if (numPresent > MAX_VPLS_PER_BUCKET) {
+            numPresent = MAX_VPLS_PER_BUCKET;
+        }
+
+        vplVisibleIndexCounters[baseBucketIndex] = numPresent;
     }
+
+    memoryBarrierBuffer();
 }

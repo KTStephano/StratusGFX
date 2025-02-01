@@ -5,6 +5,7 @@ STRATUS_GLSL_VERSION
 #include "pbr.glsl"
 #include "pbr2.glsl"
 #include "vpl_common.glsl"
+#include "bindings.glsl"
 
 // Input from vertex shader
 in vec2 fsTexCoords;
@@ -58,12 +59,16 @@ uniform int frameCount;
 
 uniform float minGiOcclusionFactor = 0.95;
 
-layout (std430, binding = 0) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
     VplData probes[];
 };
 
-layout (std430, binding = 1) readonly buffer inputBlock2 {
+layout (std430, binding = VPL_PROBE_INDICES_BINDING) readonly buffer inputBlock2 {
     int visibleIndices[];
+};
+
+layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) readonly buffer inputBlock3 {
+    int visibleIndexCounters[];
 };
 
 uniform samplerCubeArray positionCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
@@ -103,6 +108,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //vec3 fragPos = texture(gPosition, texCoords).rgb;
     vec3 viewDir = normalize(viewPosition - fragPos);
     float distToCamera = length(viewPosition - fragPos);
+
+    ivec3 bucketCoords = clampBaseBucketCoords(computeBaseBucketCoords(fragPos));
+    int baseBucketIndex = computeBaseBucketIndex(bucketCoords);
+    int offsetBucketIndex = computeOffsetBucketIndex(baseBucketIndex);
 
     vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
     baseColor = vec3(max(baseColor.r, 0.01), max(baseColor.g, 0.01), max(baseColor.b, 0.01));
@@ -144,64 +153,74 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
 
-    int maxRandomIndex = visibleIndices[0] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
+    //int maxRandomIndex = visibleIndices[bucketIndex] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
+    int maxRandomIndex = visibleIndexCounters[baseBucketIndex] - 1;
     
-    for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
-        float rand = random(seed);                                                                                                          
-        seed.z += seedZOffset;                                                                                                              
-        int probeIndex = visibleIndices[int(maxRandomIndex * rand) + 1];                                                                                        
-        AtlasEntry entry = shadowIndices[probeIndex];                                                                                       
-                                                                                                                                                                                                                                                                                \
-        vec3 probePosition = probes[probeIndex].position.xyz;                                                                            
-        vec3 rayFromSurfaceToProbe = normalize(probePosition - fragPos);
+    if (maxRandomIndex >= 0) {
+        for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
+            float rand = random(seed);                                                                                                          
+            seed.z += seedZOffset;                                                                                                              
+            int probeIndex = visibleIndices[offsetBucketIndex + int(maxRandomIndex * rand)];                                                                                        
+            AtlasEntry entry = shadowIndices[probeIndex];                    
+            VplData probe = probes[probeIndex];                                                                   
+                                                                                                                                                                                                                                                                                    \
+            vec3 probePosition = probe.position.xyz;                                                                            
+            vec3 rayFromSurfaceToProbe = normalize(probePosition - fragPos);
 
-        vec3 lightPosition = textureLod(positionCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).xyz;
-        vec3 specularLightPosition = lightPosition;
-                                                                                                                                            
-        /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
-        /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
-        /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
-        vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
-        float probeRadius = 500.0;                                                                                  
-        float distance = length(lightMinusFrag);                                                                                            
-                                                                                                                                            
-        if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
-            float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
-            if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
-                ++resamples;                                                                                                                
-                --i;                                                                                                                        
-                continue;                                                                                                                   
-            }                                                                                                                               
-        }                                                                                                                                   
-                                                                                                                                            
-        float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
-        float distAttenuation = distanceRatio;                                                                                              
-                                                                                                                                            
-        vec3 lightColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb * 50000.0;                                                                                 
-                                                                                                                                            
-        float shadowFactor =                                                                                                                
-        distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
-                                                         entry.layer,                                                                       
-                                                         probeRadius,                                                    
-                                                         fragPos,                                                                           
-                                                         probePosition,                                                                     
-                                                         dot(probePosition - fragPos, normal), 0.0)                                        
-                           : 0.0;                                                                                                           
-        shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                  
-                                                                                                                                            
-        float reweightingFactor = 1.0;                                                                                                      
-                                                                                                                                            
-        //if (shadowFactor > 0.0) {                                                                                                           
-        //    reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
-        //}                                                                                                                                   
-                                                                                                                                            
-        validSamples += reweightingFactor;                                                                                                  
-                                                                                                                                            
-        vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, specularLightPosition,       
-            lightPosition, lightColor, distToCamera, probeRadius, roughness, metallic, ambient, 0.0, baseReflectivity                       
-        );                                                                                                                                  
-        vplColor = vplColor + (1.0 - shadowFactor) * tmpColor;
+            vec3 lightPosition = textureLod(positionCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).xyz;
+            vec3 specularLightPosition = lightPosition;
+                                                                                                                                                
+            /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
+            /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
+            /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
+            vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
+            float probeRadius = 500.0;                                                                                  
+            float distance = length(lightMinusFrag);                                                                                            
+                                                                                                                                                
+            if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
+                float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
+                if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
+                    ++resamples;                                                                                                                
+                    --i;                                                                                                                        
+                    continue;                                                                                                                   
+                }                                                                                                                               
+            }                                                                                                                                   
+                                                                                                                                                
+            float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
+            float distAttenuation = distanceRatio;                                                                                              
+                                                                                                                                                
+            vec3 lightColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb * 50000.0 * probe.intensityScale;                                                                                 
+                                                                                                                                                
+            //float shadowFactor =                                                                                                                
+            //distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+            //                                                 entry.layer,                                                                       
+            //                                                 probeRadius,                                                    
+            //                                                 fragPos,                                                                           
+            //                                                 probePosition,                                                                     
+            //                                                 dot(probePosition - fragPos, normal), 0.0)                                        
+            //                   : 0.0;      
+            float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+                                                            entry.layer,                                                                       
+                                                            probeRadius,                                                    
+                                                            fragPos,                                                                           
+                                                            probePosition,                                                                     
+                                                            dot(probePosition - fragPos, normal), 0.01);                                                                                                        
+            shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                  
+                                                                                                                                                
+            float reweightingFactor = 1.0;                                                                                                      
+                                                                                                                                                
+            if (shadowFactor > 0.0) {                                                                                                           
+                reweightingFactor = (1.0 - distAttenuation) * minGiOcclusionFactor + distAttenuation;                                           
+            }                                                                                                                                   
+                                                                                                                                                
+            validSamples += reweightingFactor;                                                                                                  
+                                                                                                                                                
+            vec3 tmpColor = ambientOcclusion * calculateVirtualPointLighting2(fragPos, baseColor, normal, viewDir, specularLightPosition,       
+                lightPosition, lightColor, distToCamera, probeRadius, roughness, metallic, ambient, 0.0, baseReflectivity                       
+            );                                                                                                                                  
+            vplColor = vplColor + (1.0 - shadowFactor) * tmpColor;
+        }
     }
 
     validSamples = max(validSamples, 1.0);

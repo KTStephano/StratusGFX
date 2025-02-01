@@ -17,6 +17,7 @@ STRATUS_GLSL_VERSION
 #include "pbr2.glsl"
 #include "vpl_common.glsl"
 #include "aa_common.glsl"
+#include "bindings.glsl"
 
 // Input from vertex shader
 in vec2 fsTexCoords;
@@ -26,8 +27,8 @@ out vec3 giColor;
 out vec4 reservoirValue;
 out float newHistoryDepth;
 
-layout (std430, binding = 1) readonly buffer inputBuffer1 {
-    int numVisible[];
+layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) readonly buffer inputBuffer1 {
+    int numVisiblePerBucket[];
 };
 
 // in/out frame texture
@@ -200,7 +201,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
     float depthCutoff = 0.1 * centerDepth;
     float runningSum = 0.0;
-    float probabilisticWeight = 1.0 / float(numVisible[0]);
+    float probabilisticWeight = 1.0 / float(numVisiblePerBucket[0]);//float(MAX_VPLS_PER_BUCKET); //float(numVisible[0]); <- TODO: use this again?
 
     vec2 baseUvDepthOffset  = 1.0 / textureSize(depth, 0).xy;
     vec2 baseUvShadowOffset = 1.0 / textureSize(indirectShadows, 0).xy;

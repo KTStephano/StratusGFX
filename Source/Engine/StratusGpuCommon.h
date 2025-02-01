@@ -35,6 +35,15 @@
 #define MAX_TOTAL_VPLS_PER_FRAME (MAX_TOTAL_VPLS_BEFORE_CULLING)
 #define MAX_VPLS_PER_TILE (12)
 
+// Max probes per bucket
+#define MAX_VPLS_PER_BUCKET (MAX_TOTAL_VPLS_PER_FRAME)
+// Total buckets
+#define MAX_VPL_BUCKETS_PER_DIM (1)
+#define MAX_VPL_BUCKETS (MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM)
+#define MAX_VPL_BUCKET_INDEX (MAX_VPL_BUCKETS)
+// Each bucket occupies this value cubed in world space
+#define WORLD_SPACE_PER_VPL_BUCKET (1024)
+
 #define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
 #define FLOAT3_TO_VEC3(f3) glm::vec3(f3[0], f3[1], f3[2])
 #define FLOAT4_TO_VEC4(f4) glm::vec4(f4[0], f4[1], f4[2], f4[3])
@@ -216,9 +225,11 @@ namespace stratus {
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
+        float intensityScale;
+        float padding_[3];
 
         GpuVplData() :
-            position(0.0f) {}
+            position(0.0f), intensityScale(1.0f) {}
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -289,10 +300,15 @@ namespace stratus {
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
-    static_assert(sizeof(GpuVplData) == 16);
+    static_assert(sizeof(GpuVplData) == 32);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);
     static_assert(sizeof(GpuHaltonEntry) == 8);
     static_assert(MAX_TOTAL_VPLS_PER_FRAME > 64);
+
+    #define VPL_PROBE_DATA_BINDING (15)
+    #define VPL_PROBE_CONTRIB_BINDING (16)
+    #define VPL_PROBE_INDICES_BINDING (17)
+    #define VPL_PROBE_INDEX_COUNTERS_BINDING (18)
 }

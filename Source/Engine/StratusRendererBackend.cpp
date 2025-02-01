@@ -303,8 +303,12 @@ void RendererBackend::InitPointShadowMaps_() {
 void RendererBackend::InitializeVplData_() {
     const Bitfield flags = GPU_DYNAMIC_DATA | GPU_MAP_READ | GPU_MAP_WRITE;
     // +1 since we store the total size of the visibility array at the first index
-    std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
-    state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
+    //std::vector<int> visibleIndicesData(MAX_TOTAL_VPLS_BEFORE_CULLING + 1, 0);
+    std::vector<int> visibleIndicesData(MAX_VPL_BUCKETS*MAX_VPLS_PER_BUCKET, 0);
+    std::vector<int> visibleIndexCountersData(MAX_VPL_BUCKETS, 0);
+    //state_.vpls.vplVisibleIndices = GpuBuffer((const void *)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
+    state_.vpls.vplVisibleIndices = GpuBuffer((const void*)visibleIndicesData.data(), sizeof(int) * visibleIndicesData.size(), flags);
+    state_.vpls.vplVisibleIndexCounters = GpuBuffer((const void*)visibleIndexCountersData.data(), sizeof(int) * visibleIndexCountersData.size(), flags);
     state_.vpls.vplData = GpuBuffer(nullptr, sizeof(GpuVplData) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     state_.vpls.vplContributionFlags = GpuBuffer(nullptr, sizeof(int) * MAX_TOTAL_VPLS_BEFORE_CULLING, flags);
     //state_.vpls.vplNumVisible = GpuBuffer(nullptr, sizeof(int), flags);
@@ -1031,10 +1035,12 @@ void RendererBackend::Render_(Pipeline& s, std::unordered_map<RenderFaceCulling,
     }
 }
 
-void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace) {
+void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& map, const CommandBufferSelectionFunction& select, const bool reverseCullFace, const bool disableCulling) {
     for (auto& entry : map) {
         auto cull = entry.first;
-        if (reverseCullFace) {
+        if (disableCulling) {
+            cull = RenderFaceCulling::CULLING_NONE;
+        } else if (reverseCullFace) {
             if (cull == RenderFaceCulling::CULLING_CCW) {
                 cull = RenderFaceCulling::CULLING_CW;
             }
@@ -1042,6 +1048,7 @@ void RendererBackend::RenderImmediate_(std::unordered_map<RenderFaceCulling, Gpu
                 cull = RenderFaceCulling::CULLING_CCW;
             }
         }
+        
         RenderImmediate_(cull, entry.second, select);
     }
 }
@@ -1147,8 +1154,8 @@ void RendererBackend::RenderCSMDepth_() {
             return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
         };
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true, false);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true, false);
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
         // RenderImmediate_(csm.visibleStaticPbrMeshes);
@@ -1289,6 +1296,7 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
         const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
+        data.intensityScale = point->GetIntensity();
         //data.farPlane = point->GetFarPlane();
         //data.radius = point->GetRadius();
         //data.intensity = point->GetIntensity();
@@ -1493,7 +1501,7 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
-            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            0, //light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
@@ -1537,7 +1545,8 @@ void RendererBackend::UpdatePointLights_(
                     const auto cull = b->GetFaceCulling();
                     return state_.staticPerPointLightDrawCalls[i]->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
                 };
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false);
+
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, select, false, true);
                 //RenderImmediate_(frame_->instancedDynamicPbrMeshes[frame_->instancedDynamicPbrMeshes.size() - 1]);
 
                 const glm::mat4 projectionViewNoTranslate = lightPerspective * glm::mat4(glm::mat3(transforms[i]));
@@ -1574,8 +1583,8 @@ void RendererBackend::UpdatePointLights_(
                     //return b->GetIndirectDrawCommandsBuffer(0);
                 };
 
-                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, false);
-                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, false);
+                RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, false, false);
+                if ( !point->IsStaticLight() ) RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, false, false);
             }
 
             UnbindShader_();
@@ -1588,32 +1597,6 @@ void RendererBackend::UpdatePointLights_(
 
 void RendererBackend::PerformVirtualPointLightCullingStage1_(
     VplDistVector_& perVPLDistToViewer) {
-
-    if (perVPLDistToViewer.size() == 0) return;
-
-    state_.vplCulling->Bind();
-
-    const Camera & lightCam = *frame_->csc.worldLightCamera;
-    // glm::mat4 lightView = lightCam.getViewTransform();
-    const glm::vec3 direction = lightCam.GetDirection();
-
-    state_.vplCulling->SetVec3("infiniteLightDirection", direction);
-    state_.vplCulling->SetInt("totalNumLights", perVPLDistToViewer.size());
-
-    // Bind light data and visibility indices
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-
-    InitCoreCSMData_(state_.vplCulling.get());
-    state_.vplCulling->DispatchCompute(1, 1, 1);
-    state_.vplCulling->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
-    //state_.vplCulling->SynchronizeCompute();
-    //
-    //auto fence = HostInsertFence();
-    //HostFenceSync(fence);
-
-    state_.vplCulling->Unbind();
 }
 
 // void RendererBackend::PerformVirtualPointLightCullingStage2_(
@@ -1668,11 +1651,12 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
 
     InitCoreCSMData_(state_.vplColoring.get());
 
     // Bind outputs
-    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 5);
+    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
 
     // Dispatch and synchronize
     const int maxImagesPerBatch = 2;
@@ -1705,13 +1689,29 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplCulling->Bind();
 
     state_.vplCulling->SetInt("totalNumLights", totalVisible);
-    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
+    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);
+    state_.vpls.vplVisibleIndexCounters.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDEX_COUNTERS_BINDING);
 
-    state_.vplCulling->DispatchCompute(1, 1, 1);
+    // One dispatch per bucket
+    state_.vplCulling->DispatchCompute(MAX_VPL_BUCKETS, 1, 1);
     state_.vplCulling->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
 
     state_.vplCulling->Unbind();
+
+    //auto fence = HostInsertFence();
+    //HostFenceSync(fence);
+
+    //auto mem = (int *)state_.vpls.vplVisibleIndexCounters.MapMemory(GPU_MAP_READ);
+
+    //for (int i = 0; i < MAX_VPL_BUCKETS; i++) {
+    //    if (mem[i] > 0)
+    //        std::cout << mem[i] << " ";
+    //}
+    //std::cout << std::endl;
+
+    //state_.vpls.vplVisibleIndexCounters.UnmapMemory();
 }
 
 void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const double deltaSeconds) {
@@ -1738,8 +1738,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
 
     // All relevant rendering data is moved to the GPU during the light cull phase
-    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 0);
-    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+    state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
+    state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);
+    state_.vpls.vplVisibleIndexCounters.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDEX_COUNTERS_BINDING);
     //state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 2);
     state_.vpls.shadowDiffuseIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 3);
     haltonSequence_.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
