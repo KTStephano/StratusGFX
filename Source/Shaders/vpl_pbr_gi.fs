@@ -11,11 +11,11 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 
 // Outputs
-out vec3 color;
+//out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 8
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 10
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 8
 #define MAX_RESAMPLES_PER_PIXEL 5
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -225,8 +225,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     validSamples = max(validSamples, 1.0);
 
-    color = baseColor + PREVENT_DIV_BY_ZERO;//baseColor;
-    reservoir = vec4(boundHDR(vplColor), validSamples);
+    //color = baseColor + PREVENT_DIV_BY_ZERO;//baseColor;
+    //reservoir = vec4(boundHDR(vplColor), validSamples);
     reservoir = vec4(max(boundHDR(vplColor), screenColor), validSamples);
 }
 

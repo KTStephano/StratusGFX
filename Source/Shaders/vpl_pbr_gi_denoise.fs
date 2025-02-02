@@ -23,7 +23,6 @@ STRATUS_GLSL_VERSION
 in vec2 fsTexCoords;
 
 out vec3 combinedColor;
-out vec3 giColor;
 out vec4 reservoirValue;
 out float newHistoryDepth;
 
@@ -44,11 +43,9 @@ uniform sampler2D prevNormal;
 uniform sampler2D prevIds;
 uniform sampler2D prevDepth;
 
-uniform sampler2D indirectIllumination;
-uniform sampler2D indirectShadows;
+//uniform sampler2D indirectIllumination;
+uniform sampler2D indirectIllumination2;
 uniform sampler2D prevIndirectIllumination;
-
-uniform sampler2D originalNoisyIndirectIllumination;
 
 uniform sampler2D historyDepth;
 
@@ -105,17 +102,17 @@ float calculateLuminanceVariance(in vec2 texCoords, in int varMultiplier) {
     float samples = 0.0;
     float data[dminmaxVariance * dminmaxVariance + 1];
     int dataIndex = 0;
-    vec2 uvBaseOffset = 1.0 / textureSize(indirectShadows, 0).xy;
+    vec2 uvBaseOffset = 1.0 / textureSize(indirectIllumination2, 0).xy;
     // filter for average
     for (int dx = -dminmaxVariance; dx <= dminmaxVariance; ++dx) {
         for (int dy = -dminmaxVariance; dy <= dminmaxVariance; ++dy) {
             samples += 1.0;
 
             vec2 offset = uvBaseOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier);
-            vec3 result = texture(indirectShadows, texCoords + offset).rgb;
+            vec3 result = texture(indirectIllumination2, texCoords + offset).rgb;
 
             //ivec2 offset = ivec2(dx, dy) + ivec2(dx, dy) * varMultiplier;
-            //vec3 result = textureOffset(indirectShadows, texCoords, offset).rgb;
+            //vec3 result = textureOffset(indirectIllumination2, texCoords, offset).rgb;
 
             data[dataIndex] = linearColorToLuminance(tonemap(result));
             //data[dataIndex] = length(result);
@@ -173,7 +170,7 @@ float filterInput(
     float wn = max(0.0, dot(centerNormal, currNormal));
     wn = pow(wn, sigmaN);
 
-    // float currLum = linearColorToLuminance(tonemap(textureOffset(indirectShadows, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb));
+    // float currLum = linearColorToLuminance(tonemap(textureOffset(indirectIllumination2, texCoords, ivec2(dx, dy) + ivec2(dx, dy) * multiplier).rgb));
     // float lumDiff = abs(centerLum - currLum);
     // float wl = exp(-lumDiff / (sigmaL * sqrt(variance) + PREVENT_DIV_BY_ZERO));
 
@@ -192,7 +189,7 @@ float filterInput(
     
 vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     vec3 seed = vec3(gl_FragCoord.xy, time);
-    //vec4 centerReservoir = texture(indirectShadows, fsTexCoords).rgba;
+    //vec4 centerReservoir = texture(indirectIllumination2, fsTexCoords).rgba;
     vec4 centerReservoir = vec4(0.0);
 
     int neighborhood = 20; // neighborhood X neighborhood in dimensions
@@ -201,10 +198,10 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
     float depthCutoff = 0.1 * centerDepth;
     float runningSum = 0.0;
-    float probabilisticWeight = 1.0 / float(numVisiblePerBucket[0]);//float(MAX_VPLS_PER_BUCKET); //float(numVisible[0]); <- TODO: use this again?
+    float probabilisticWeight = 1.0 / max(float(numVisiblePerBucket[0]), 1.0);//float(MAX_VPLS_PER_BUCKET); //float(numVisible[0]); <- TODO: use this again?
 
     vec2 baseUvDepthOffset  = 1.0 / textureSize(depth, 0).xy;
-    vec2 baseUvShadowOffset = 1.0 / textureSize(indirectShadows, 0).xy;
+    vec2 baseUvShadowOffset = 1.0 / textureSize(indirectIllumination2, 0).xy;
 
 #define ACCEPT_OR_REJECT_RESERVOIR(minmaxOffset)                                                            \
         const int dxSign = dx_ < 0 ? -1 : 1;                                                                \
@@ -226,7 +223,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
             continue;                                                                                       \
         }                                                                                                   \
         /* Neighbor seems good - merge its reservoir into this center reservoir */                          \
-        vec4 currReservoir = texture(indirectShadows, fsTexCoords + baseUvShadowOffset * vec2(dx_, dy_)).rgba; \
+        vec4 currReservoir = texture(indirectIllumination2, fsTexCoords + baseUvShadowOffset * vec2(dx_, dy_)).rgba; \
         float randUpdate = random(seed);                                                                    \
         seed.z += 10000.0;                                                                                  \
         float probability_ = currReservoir.a * probabilisticWeight;                                         \
@@ -257,7 +254,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 0;
+    int minmaxNearest = 1;
     for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
         for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
             ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
@@ -283,9 +280,8 @@ void main() {
     float lumVariance = 1.0;//calculateLuminanceVariance(fsTexCoords, multiplier);
     //vec3 baseColor = texture(albedo, fsTexCoords).rgb;
 
-    vec3 centerIllum = texture(indirectIllumination, fsTexCoords).rgb;
     float centerLum = 1.0;//linearColorToLuminance(centerIllum); 
-    vec3 centerShadow = texture(indirectShadows, fsTexCoords).rgb;
+    //vec3 centerShadow = texture(indirectIllumination2, fsTexCoords).rgb;
 
     vec3 centerNormal = sampleNormal(normal, fsTexCoords);
     float centerDepth = texture(depth, fsTexCoords).r;
@@ -305,7 +301,8 @@ void main() {
         reservoirFiltered = computeMergedReservoir(centerNormal, centerDepth);
     }
     else {
-        vec2 baseUvShadowOffset = 1.0 / textureSize(indirectShadows, 0).xy;
+        vec3 centerIllum2 = texture(indirectIllumination2, fsTexCoords).rgb;
+        vec2 baseUvShadowOffset = 1.0 / textureSize(indirectIllumination2, 0).xy;
         const int minmaxNearest = dminmax;
         for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
             for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
@@ -316,25 +313,28 @@ void main() {
                 vec4 reservoir = vec4(0.0);
                 vec3 currShadow = vec3(0.0);
 
-                reservoir = texture(indirectShadows, fsTexCoords + baseUvShadowOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * multiplier)).rgba;
+                reservoir = texture(indirectIllumination2, fsTexCoords + baseUvShadowOffset * vec2(ivec2(dx, dy) + ivec2(dx, dy) * multiplier)).rgba;
 
                 currShadow = reservoir.rgb;
-                float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerShadow, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
+                float filtered = filterInput(widthHeight, texelWidthHeight, centerNormal, centerIllum2, currShadow, centerDepth, centerLum, lumVariance, dx, dy, count, fsTexCoords);
                 //filtered = filtered * filtered;
                 //numShadowSamples += filtered;
                 reservoirFiltered += filtered * reservoir;
             }
         }
     }
+    
     //vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, numShadowSamples + reservoirFiltered.a);
     vec3 shadowFactor = reservoirFiltered.rgb / max(PREVENT_DIV_BY_ZERO, reservoirFiltered.a);
 
-    vec3 gi = centerIllum;
+    //vec3 gi = centerIllum;
 
     //vec3 illumAvg = gi * shadowFactor;
-    vec3 illumAvg = gi;
+    //vec3 illumAvg = gi;
 
+    vec3 baseColor = vec3(1.0);
     if (final) {
+        baseColor = texture(albedo, fsTexCoords).rgb;
         float accumMultiplier = 1.0;
         //vec2 currGradient = texture(structureBuffer, fsTexCoords * widthHeight).xy;
         bool complete = false;
@@ -423,14 +423,19 @@ void main() {
         historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
-        illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
+        vec3 illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
         //illumAvg = currGi;
         //illumAvg = vec3(abs(centerDepth - prevCenterDepth));
         //illumAvg = vec3(length(currWorldPos - prevWorldPos));
+
+        combinedColor = screenColor + baseColor * illumAvg;
+        reservoirValue = vec4(illumAvg, 1.0);
+    } else {
+        combinedColor = vec3(0.0);
+        reservoirValue = vec4(shadowFactor, 1.0);
     }
 
-    combinedColor = screenColor + gi * illumAvg;
-    giColor = illumAvg;
-    reservoirValue = vec4(shadowFactor, 1.0);
+    //giColor = illumAvg;
+    //reservoirValue = vec4(shadowFactor, 1.0);
     newHistoryDepth = historyAccum;
 }

@@ -164,9 +164,9 @@ public:
             bathroom = nullptr;
             int spawned = 0;
 
-            for (int x = -14; x < 7; x += 3) {
-                for (int y = 0; y < 10; y += 3) {
-                    for (int z = -20; z < 20; z += 3) {
+            for (int x = -20; x <= 7; x += 5) {
+                for (int y = 5; y <= 25; y += 5) {
+                    for (int z = -20; z <= 20; z += 5) {
                         ++spawned;
                         LightCreator::CreateVirtualPointLight(
                             LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 0.01f),

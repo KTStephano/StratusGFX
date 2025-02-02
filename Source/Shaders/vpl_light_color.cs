@@ -157,7 +157,7 @@ void main() {
         barrier();
 
         if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
-            float weight = 1.0 - (float(minDistance) / float(probeRadius));
+            float weight = 1.0 - (float(2*minDistance) / float(probeRadius));
             vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ)) / float(currentProbeIsVisible);
             vec3 newDiffuseVal = ((diffuseValBase * modifier)) * infiniteLightColor.rgb;
             lightColor = newDiffuseVal * weight;

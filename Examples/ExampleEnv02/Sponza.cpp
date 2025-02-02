@@ -48,7 +48,7 @@ public:
         const glm::vec3 moonlightColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
         auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 15.0f);
         //auto wc = new WorldLightController(moonlightColor, moonlightColor, 0.5f);
-        wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(10.0f), stratus::Degrees(0)));
+        wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(0.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
         INSTANCE(InputManager)->AddInputHandler(controller);
 

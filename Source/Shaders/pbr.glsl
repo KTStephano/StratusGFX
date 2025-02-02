@@ -71,6 +71,9 @@ uniform float ambientIntensity = 0.00025;
 #define MAX_TOTAL_SHADOWS_PER_ATLAS (320)
 #define MAX_TOTAL_SHADOW_MAPS (MAX_TOTAL_SHADOW_ATLASES * MAX_TOTAL_SHADOWS_PER_ATLAS)
 
+// Some number to stop div by zero for use specifically with the denoising process
+#define DENOISER_PREVENT_DIV_BY_ZERO (PREVENT_DIV_BY_ZERO)
+
 // Synchronized with definition found in StratusGpuCommon.h
 struct AtlasEntry {
     int index;
@@ -329,8 +332,8 @@ float vplDiffuseAttenuation(vec3 lightDir, float lightRadius) {
 
     float ratio = min(lightDist / lightRadius, 1.0);
     //float minDist = mix(10, 1, exp(-3.0 * ratio)) * lightRadius;
-    float minDist = mix(6, 1, exp(-3.0 * ratio)) * 0.125 * lightRadius;
-    //float minDist = 10.0;
+    //float minDist = mix(6, 1, exp(-3.0 * ratio)) * 0.25 * lightRadius;
+    float minDist = 50.0;
     //float minDist = 1.0 * lightRadius;
     //float maxDist = lightRadius;
     //float maxDist = 0.75 * lightRadius;

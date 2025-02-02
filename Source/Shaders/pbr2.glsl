@@ -163,8 +163,9 @@ void BRDF_Base(
     diffuseColor = diffuseColor / (diffuseDivisor + PREVENT_DIV_BY_ZERO);
 
     // Compute reflectance - for purely metallic materials this is used as the diffuse color
-    f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
-    f0 = f0 * specularMultiplier;
+    //f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic;
+    //f0 = f0 * specularMultiplier;
+    f0 = 0.16 * baseReflectance * baseReflectance * (1.0 - metallic) + baseColor * metallic * specularMultiplier;
 }
 
 void BRDF_DotProducts(
@@ -650,7 +651,7 @@ vec3 calculateVirtualPointLighting2(
         vplDiffuseAttenuation(diffuseLightDir, lightRadius), 
         0.0, 
         baseColor, 
-        1.0 / (baseColor + PREVENT_DIV_BY_ZERO)
+        1.0 / (baseColor + vec3(DENOISER_PREVENT_DIV_BY_ZERO))
     );
     
     //return calculateLighting_Lambert(lightColor, lightDir, viewDir, normal, baseColor, viewDist, 0.0, roughness, metallic, ambientOcclusion, adjustedShadowFactor, baseReflectance, vplAttenuation(lightDir, lightRadius), 0.0, vec3(1.0), vec3(1.0));
