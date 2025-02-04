@@ -76,11 +76,15 @@ namespace stratus {
 
     class TextureImpl {
         friend struct TextureMemResidencyGuard;
+        friend struct ImageMemResidencyGuard;
 
         GLuint texture_;
         TextureConfig config_;
         TextureHandle handle_;
         i32 memRefcount_ = 0;
+        // The underlying image can have its own set of image handles. This will likely be multiple in the case
+        // where there are more than one separate layer/mip level being bound.
+        std::vector<std::pair<GpuResourceHandle, i32>> imageMemRefCounts_;
 
     public:
         TextureImpl(const TextureConfig& config, const TextureArrayData& data, bool initHandle) {
@@ -336,23 +340,47 @@ namespace stratus {
         TextureHandle handle() const { return handle_; }
 
         // These cause RenderDoc to disable frame capture... super unfortunate
-        GpuTextureHandle GpuHandle() const {
+        GpuResourceHandle GpuTextureHandle() const {
             auto gpuHandle = glGetTextureHandleARB(texture_);
             if (gpuHandle == 0) {
                 throw std::runtime_error("GPU texture handle is null");
             }
             //STRATUS_LOG << "GPU HANDLE: " << gpuHandle << std::endl;
-            return (GpuTextureHandle)gpuHandle;
+            return (GpuResourceHandle)gpuHandle;
         }
 
-        static void MakeResident(const Texture& texture) {
-            if (texture.impl_ == nullptr) return;
-            glMakeTextureHandleResidentARB((GLuint64)texture.GpuHandle());
+        GpuResourceHandle GpuImageHandle(int mipLevel, bool layered, int layer) const {
+            auto gpuHandle = glGetImageHandleARB(
+                texture_,
+                mipLevel,
+                layered ? GL_TRUE : GL_FALSE,
+                layer,
+                _convertInternalFormatPrecise(config_.format, config_.storage, config_.dataType));
+
+            if (gpuHandle == 0) {
+                throw std::runtime_error("GPU texture handle is null");
+            }
+
+            return (GpuResourceHandle)gpuHandle;
         }
 
-        static void MakeNonResident(const Texture& texture) {
+        static void MakeTextureResident(const Texture& texture) {
             if (texture.impl_ == nullptr) return;
-            glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuHandle());
+            glMakeTextureHandleResidentARB((GLuint64)texture.GpuTextureHandle());
+        }
+
+        static void MakeTextureNonResident(const Texture& texture) {
+            if (texture.impl_ == nullptr) return;
+            glMakeTextureHandleNonResidentARB((GLuint64)texture.GpuTextureHandle());
+        }
+
+        static void MakeImageResident(GpuResourceHandle handle, ImageTextureAccessMode access) {
+            GLenum accessMode = _convertImageAccessMode(access);
+            glMakeImageHandleResidentARB((GLuint64)handle, accessMode);
+        }
+
+        static void MakeImageNonResident(GpuResourceHandle handle) {
+            glMakeImageHandleNonResidentARB((GLuint64)handle);
         }
 
         u32 width() const { return config_.width; }
@@ -826,10 +854,14 @@ namespace stratus {
     TextureComponentFormat Texture::Format() const { EnsureValid_(); return impl_->format(); }
     TextureHandle Texture::Handle() const { EnsureValid_(); return impl_->handle(); }
 
-    GpuTextureHandle Texture::GpuHandle() const { EnsureValid_(); return impl_->GpuHandle(); }
+    GpuResourceHandle Texture::GpuTextureHandle() const { EnsureValid_(); return impl_->GpuTextureHandle(); }
+    GpuResourceHandle Texture::GpuImageHandle(int mipLevel, bool layered, int layer) const { EnsureValid_(); return impl_->GpuImageHandle(mipLevel, layered, layer); }
 
-    void Texture::MakeResident_(const Texture& texture) { TextureImpl::MakeResident(texture); }
-    void Texture::MakeNonResident_(const Texture& texture) { TextureImpl::MakeNonResident(texture); }
+    void Texture::MakeTextureResident_(const Texture& texture) { TextureImpl::MakeTextureResident(texture); }
+    void Texture::MakeTextureNonResident_(const Texture& texture) { TextureImpl::MakeTextureNonResident(texture); }
+
+    void Texture::MakeImageResident(GpuResourceHandle handle, ImageTextureAccessMode mode) { TextureImpl::MakeImageResident(handle, mode); }
+    void Texture::MakeImageNonResident(GpuResourceHandle handle) { TextureImpl::MakeImageNonResident(handle); }
 
     u32 Texture::Width() const { EnsureValid_(); return impl_->width(); }
     u32 Texture::Height() const { EnsureValid_(); return impl_->height(); }
@@ -837,10 +869,10 @@ namespace stratus {
 
     void Texture::Bind(i32 activeTexture) const { EnsureValid_(); impl_->bind(activeTexture); }
     void Texture::BindAliased(TextureType type, i32 activeTexture) const { EnsureValid_(); impl_->bindAliased(type, activeTexture); }
-    void Texture::BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access) const {
+    void Texture::BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access) const {
         EnsureValid_(); impl_->bindAsImageTexture(unit, mipLevel, layered, layer, access);
     }
-    void Texture::BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const {
+    void Texture::BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) const {
         EnsureValid_(); impl_->bindAsImageTexture(unit, mipLevel, layered, layer, access, config);
     }
 
@@ -944,7 +976,7 @@ namespace stratus {
 
         texture_.impl_->memRefcount_ += 1;
         if (texture_.impl_->memRefcount_ == 1) {
-            Texture::MakeResident_(texture_);
+            Texture::MakeTextureResident_(texture_);
         }
     }
 
@@ -953,11 +985,118 @@ namespace stratus {
 
         texture_.impl_->memRefcount_ -= 1;
         if (texture_.impl_->memRefcount_ == 0) {
-            Texture::MakeNonResident_(texture_);
+            Texture::MakeTextureNonResident_(texture_);
         }
     }
 
     TextureMemResidencyGuard::~TextureMemResidencyGuard() {
+        DecrementRefcount_();
+    }
+
+    //struct ImageMemResidencyGuard {
+    //    ImageMemResidencyGuard();
+    //    // If layered == true, it will return a handle to all image layers and the `layer` param
+    //    // is ignored. Otherwise, layer must specify the exact layer to return a handle for.
+    //    ImageMemResidencyGuard(const Texture&, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access);
+
+    //    ImageMemResidencyGuard(ImageMemResidencyGuard&&) noexcept;
+    //    ImageMemResidencyGuard(const ImageMemResidencyGuard&) noexcept;
+
+    //    ImageMemResidencyGuard& operator=(ImageMemResidencyGuard&&) noexcept;
+    //    ImageMemResidencyGuard& operator=(const ImageMemResidencyGuard&) noexcept;
+
+    //    ~ImageMemResidencyGuard();
+
+    //    GpuResourceHandle GetHandle() const { return handle_; }
+
+    //private:
+    //    void Copy_(const ImageMemResidencyGuard&);
+    //    void IncrementRefcount_();
+    //    void DecrementRefcount_();
+
+    //private:
+    //    Texture texture_ = Texture();
+    //    GpuResourceHandle handle_;
+    //};
+
+    ImageMemResidencyGuard::ImageMemResidencyGuard() {}
+
+    ImageMemResidencyGuard::ImageMemResidencyGuard(const Texture& texture, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access)
+        : texture_(texture) {
+        if (texture == Texture()) return;
+
+        handle_ = texture_.GpuImageHandle(mipLevel, layered, layer);
+        const auto newRefCount = IncrementRefcount_();
+        if (newRefCount == 1) {
+            Texture::MakeImageResident(handle_, access);
+        }
+    }
+
+    ImageMemResidencyGuard::ImageMemResidencyGuard(ImageMemResidencyGuard&& other) noexcept {
+        this->operator=(other);
+    }
+
+    ImageMemResidencyGuard::ImageMemResidencyGuard(const ImageMemResidencyGuard& other) noexcept {
+        this->operator=(other);
+    }
+
+    ImageMemResidencyGuard& ImageMemResidencyGuard::operator=(ImageMemResidencyGuard&& other) noexcept {
+        Copy_(other);
+        return *this;
+    }
+
+    ImageMemResidencyGuard& ImageMemResidencyGuard::operator=(const ImageMemResidencyGuard& other) noexcept {
+        Copy_(other);
+        return *this;
+    }
+
+    void ImageMemResidencyGuard::Copy_(const ImageMemResidencyGuard& other) {
+        if (this->handle_ == other.handle_) return;
+
+        DecrementRefcount_();
+        this->texture_ = other.texture_;
+        this->handle_ = other.handle_;
+        IncrementRefcount_();
+    }
+
+    i32 ImageMemResidencyGuard::IncrementRefcount_() {
+        if (texture_ == Texture()) return 0;
+
+        auto& pair = FindImageHandlePair_();
+        pair.second++;
+        return pair.second;
+    }
+
+    void ImageMemResidencyGuard::DecrementRefcount_() {
+        if (texture_ == Texture()) return;
+
+        auto& pair = FindImageHandlePair_();
+        pair.second--;
+        if (pair.second == 0) {
+            STRATUS_LOG << "Making " << handle_ << " non resident" << std::endl;
+            Texture::MakeImageNonResident(handle_);
+        }
+    }
+
+    std::pair<GpuResourceHandle, i32>& ImageMemResidencyGuard::FindImageHandlePair_() const {
+        auto& refCounts = texture_.impl_->imageMemRefCounts_;
+        i32 index = -1;
+        for (i32 i = 0; i < (i32)refCounts.size(); i++) {
+            if (handle_ == refCounts[i].first) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0) {
+            index = (i32)refCounts.size();
+            refCounts.push_back(std::make_pair(handle_, 0));
+        }
+
+        return refCounts[index];
+    }
+
+    ImageMemResidencyGuard::~ImageMemResidencyGuard() {
         DecrementRefcount_();
     }
 }

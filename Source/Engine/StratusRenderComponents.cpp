@@ -315,10 +315,6 @@ namespace stratus {
             0.0005f, 0.0005f, 0.001f, 0.001f, 0.005f, 0.01f, 0.01f
         };
 
-        const std::vector<f32> targetPercentages = {
-            0.05f, 0.05f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f
-        };
-
         cpuData_->indicesPerLod.clear();
         cpuData_->indicesPerLod.reserve(1 + errors.size());
         cpuData_->indicesPerLod.push_back(cpuData_->indices);
@@ -332,7 +328,7 @@ namespace stratus {
             //STRATUS_LOG << i << " " << prevIndices.size() << std::endl;
             const usize targetIndices = usize(prevIndices.size() * 0.5);
             std::vector<u32> simplified(prevIndices.size());
-            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, 0.005f);
+            auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
             //auto size = meshopt_simplify(simplified.data(), prevIndices.data(), prevIndices.size(), &cpuData_->vertices[0][0], numVertices_, sizeof(f32) * 3, targetIndices, errors[i]);
             // If we didn't see at least a 10% reduction, try the more aggressive algorithm
             //if ((prevIndices.size() * 0.9) < double(size)) {

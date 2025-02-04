@@ -1017,7 +1017,9 @@ namespace stratus {
             buffer->BindModelTransformBuffer(2);
             buffer->BindAabbBuffer(3);
 
-            buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            //buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            //buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
+            buffer->GetIndirectDrawCommandsBuffer(3).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
             auto out0 = select(frame_->csc.cascades[0], cull);
@@ -1032,8 +1034,9 @@ namespace stratus {
 
             pipeline.DispatchCompute(1, 1, 1);
             //pipeline.SynchronizeCompute();
-            pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
+
+        pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
     }
 
     void RendererFrontend::UpdateVisibility_(
@@ -1122,9 +1125,9 @@ namespace stratus {
             //pipeline.setMat4("projection", _frame->projection);
             pipeline.DispatchCompute(1, 1, 1);
             //pipeline.SynchronizeCompute();
-            pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
 
+        pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         pipeline.Unbind();
 
         //for (size_t i = 0; i < drawCommands.size(); ++i) {
@@ -1191,9 +1194,9 @@ namespace stratus {
 
             updateTransforms_->DispatchCompute(100, 1, 1);
             //updateTransforms_->SynchronizeCompute();
-            updateTransforms_->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
 
+        updateTransforms_->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         updateTransforms_->Unbind();
     }
 }

@@ -54,7 +54,7 @@
 
 namespace stratus {
     // Used with bindless textures
-    typedef uint64_t GpuTextureHandle;
+    typedef uint64_t GpuResourceHandle;
 
     // Matches the definition in vpl_common.glsl
     // See https://fvcaputo.github.io/2019/02/06/memory-alignment.html for alignment info
@@ -128,17 +128,17 @@ namespace stratus {
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuMaterial {
         // total bytes next 2 entries = GpuVec
-        GpuTextureHandle diffuseMap;
-        GpuTextureHandle emissiveMap;
+        GpuResourceHandle diffuseMap;
+        GpuResourceHandle emissiveMap;
         // total bytes next 2 entries = GpuVec
-        GpuTextureHandle normalMap;
-        //GpuTextureHandle depthMap;
+        GpuResourceHandle normalMap;
+        //GpuResourceHandle depthMap;
         // total bytes next 2 entries = GpuVec
         // TODO: Remove these and always favor metallicRoughnessMap
-        GpuTextureHandle roughnessMap;
-        GpuTextureHandle metallicMap;
+        GpuResourceHandle roughnessMap;
+        GpuResourceHandle metallicMap;
         // total bytes next 3 entries = GpuVec
-        GpuTextureHandle metallicRoughnessMap;
+        GpuResourceHandle metallicRoughnessMap;
         float diffuseColor[4];
         float emissiveColor[3];
         // Base and max are interpolated between based on metallic
@@ -311,4 +311,7 @@ namespace stratus {
     #define VPL_PROBE_CONTRIB_BINDING (16)
     #define VPL_PROBE_INDICES_BINDING (17)
     #define VPL_PROBE_INDEX_COUNTERS_BINDING (18)
+    #define VPL_DIFFUSE_CUBE_IMAGES (19)
+    #define VPL_POSITION_CUBE_IMAGES (20)
+    #define VPL_LIGHTING_CUBE_IMAGES (21)
 }

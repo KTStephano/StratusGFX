@@ -132,6 +132,8 @@ namespace stratus {
         friend class ResourceManager;
         friend class TextureImpl;
         friend struct TextureMemResidencyGuard;
+        friend struct ImageMemResidencyGuard;
+
         // Underlying implementation which may change from platform to platform
         std::shared_ptr<TextureImpl> impl_;
 
@@ -156,7 +158,13 @@ namespace stratus {
         TextureHandle Handle() const;
 
         // 64 bit handle representing the texture within the graphics driver
-        GpuTextureHandle GpuHandle() const;
+        GpuResourceHandle GpuTextureHandle() const;
+        // Similar to GpuTextureHandle(), but this returns a handle to one or more
+        // layers of the image only - no sampler
+        //
+        // If layered == true, it will return a handle to all image layers and the `layer` param
+        // is ignored. Otherwise, layer must specify the exact layer to return a handle for.
+        GpuResourceHandle GpuImageHandle(int mipLevel, bool layered, int layer) const;
 
         u32 Width() const;
         u32 Height() const;
@@ -169,8 +177,8 @@ namespace stratus {
         static u32 VirtualPageSizeXY();
         void CommitOrUncommitVirtualPage(u32 xoffset, u32 yoffset, u32 zoffset, u32 numPagesX, u32 numPagesY, bool commit) const;
 
-        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access) const;
-        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, int32_t layer, ImageTextureAccessMode access, const TextureAccess& config) const;
+        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access) const;
+        void BindAsImageTexture(u32 unit, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access, const TextureAccess& config) const;
 
         bool Valid() const;
 
@@ -199,9 +207,13 @@ namespace stratus {
 
     private:
         // Makes the texture resident in GPU memory for bindless use
-        static void MakeResident_(const Texture&);
+        static void MakeTextureResident_(const Texture&);
         // Removes residency
-        static void MakeNonResident_(const Texture&);
+        static void MakeTextureNonResident_(const Texture&);
+
+        // Makes the image resident (no sampler included) for bindless use with specific access
+        static void MakeImageResident(GpuResourceHandle, ImageTextureAccessMode);
+        static void MakeImageNonResident(GpuResourceHandle);
 
     private:
         void SetHandle_(const TextureHandle);
@@ -227,6 +239,33 @@ namespace stratus {
 
     private:
         Texture texture_ = Texture();
+    };
+
+    struct ImageMemResidencyGuard {
+        ImageMemResidencyGuard();
+        // If layered == true, it will return a handle to all image layers and the `layer` param
+        // is ignored. Otherwise, layer must specify the exact layer to return a handle for.
+        ImageMemResidencyGuard(const Texture&, i32 mipLevel, bool layered, i32 layer, ImageTextureAccessMode access);
+
+        ImageMemResidencyGuard(ImageMemResidencyGuard&&) noexcept;
+        ImageMemResidencyGuard(const ImageMemResidencyGuard&) noexcept;
+
+        ImageMemResidencyGuard& operator=(ImageMemResidencyGuard&&) noexcept;
+        ImageMemResidencyGuard& operator=(const ImageMemResidencyGuard&) noexcept;
+
+        ~ImageMemResidencyGuard();
+
+        GpuResourceHandle GetHandle() const { return handle_; }
+
+    private:
+        void Copy_(const ImageMemResidencyGuard&);
+        i32 IncrementRefcount_();
+        void DecrementRefcount_();
+        std::pair<GpuResourceHandle, i32>& FindImageHandlePair_() const;
+
+    private:
+        Texture texture_ = Texture();
+        GpuResourceHandle handle_ = 0;
     };
 }
 

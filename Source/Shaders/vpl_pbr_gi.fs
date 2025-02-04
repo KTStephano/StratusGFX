@@ -14,9 +14,9 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 8
-#define MAX_RESAMPLES_PER_PIXEL 5
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 1
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 1
+#define MAX_RESAMPLES_PER_PIXEL 10
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -155,7 +155,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     //int maxRandomIndex = visibleIndices[bucketIndex] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
-    int maxRandomIndex = -1;//visibleIndexCounters[baseBucketIndex] - 1;
+    int maxRandomIndex = visibleIndexCounters[baseBucketIndex] - 1;
     
     if (maxRandomIndex >= 0) {
         for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {

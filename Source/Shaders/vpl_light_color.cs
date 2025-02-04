@@ -37,10 +37,21 @@ uniform int visibleVpls;
 #define MAX_IMAGES_PER_BATCH (2)
 
 // Only 8 images bound total are allowed by OpenGL
-layout (rgba8) readonly uniform imageCubeArray diffuseCubeMaps[MAX_IMAGES_PER_BATCH];
-layout (rgba32f) readonly uniform imageCubeArray positionCubeMaps[MAX_IMAGES_PER_BATCH];
-layout(rgba16f) coherent uniform imageCubeArray lightingCubeMaps[MAX_IMAGES_PER_BATCH];
-uniform int lightingCubeIndexOffset;
+//layout (rgba8) readonly uniform imageCubeArray diffuseCubeMaps[MAX_IMAGES_PER_BATCH];
+//layout (rgba32f) readonly uniform imageCubeArray positionCubeMaps[MAX_IMAGES_PER_BATCH];
+//layout (rgba16f) coherent uniform imageCubeArray lightingCubeMaps[MAX_IMAGES_PER_BATCH];
+
+layout (std430, binding = VPL_DIFFUSE_CUBE_IMAGES) readonly buffer imageBlock1 {
+    uint64_t diffuseCubeMaps[];
+};
+
+layout (std430, binding = VPL_POSITION_CUBE_IMAGES) readonly buffer imageBlock2 {
+    uint64_t positionCubeMaps[];
+};
+
+layout (std430, binding = VPL_LIGHTING_CUBE_IMAGES) readonly buffer imageBlock3 {
+    uint64_t lightingCubeMaps[];
+};
 
 layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
     VplData probes[];
@@ -113,18 +124,15 @@ void main() {
     for (int index = int(gl_WorkGroupID.x); index < visibleVpls; index += stepSize) {
         AtlasEntry entry = diffuseIndices[index];
         // Lighting layer is used specifically to index into lightingCubeMaps
-        int lightingIndex = int(entry.index)-lightingCubeIndexOffset;
-        if (lightingIndex < 0 || lightingIndex >= MAX_IMAGES_PER_BATCH) {
-            continue;
-        }
+        int lightingIndex = int(entry.index);
 
         VplData probe = probes[index];
 
-        layout (rgba8) imageCubeArray diffuse = diffuseCubeMaps[lightingIndex];
-        layout (rgba32f) imageCubeArray position = positionCubeMaps[lightingIndex];
+        layout (rgba8) imageCubeArray diffuse = layout(rgba8) imageCubeArray(diffuseCubeMaps[lightingIndex]);
+        layout (rgba32f) imageCubeArray position = layout (rgba32f) imageCubeArray(positionCubeMaps[lightingIndex]);
         // See https://stackoverflow.com/questions/32349423/create-an-image2d-from-a-uint64-t-image-handle
         //layout (rgba8) imageCubeArray lighting = layout(rgba8) imageCubeArray(lightingCubeHandles[entry.index]);
-        layout (rgba16f) imageCubeArray lighting = lightingCubeMaps[lightingIndex];
+        layout (rgba16f) imageCubeArray lighting = layout (rgba16f) imageCubeArray(lightingCubeMaps[lightingIndex]);
 
         // See https://github.com/KhronosGroup/SPIRV-Cross/issues/578
         // cubeArrays need to be thought of as a 2D array, so they only take a 3d index instead of 4d
@@ -137,7 +145,7 @@ void main() {
         vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(positionVal, 1.0)),
                         dot(cascadePlanes[1], vec4(positionVal, 1.0)),
                         dot(cascadePlanes[2], vec4(positionVal, 1.0)));
-        float shadowFactor = 1.0 - calculateInfiniteShadowValue2Samples(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
+        float shadowFactor = 1.0 - calculateInfiniteShadowValue1Sample(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
         vec3 lightColor = vec3(0.0);
         if (shadowFactor < 1.0) {
             int distance = max(int(ceil(length(probe.position.xyz - positionVal))), 1);

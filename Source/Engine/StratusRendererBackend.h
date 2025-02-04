@@ -30,6 +30,7 @@
 #include "StratusStackAllocator.h"
 #include <set>
 #include "StratusGpuCommandBuffer.h"
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
     class Pipeline;
@@ -357,6 +358,11 @@ namespace stratus {
             GpuBuffer vplContributionFlags;
             GpuBuffer vplVisibleIndices;
             GpuBuffer vplVisibleIndexCounters;
+
+            GpuBuffer vplDiffuseCubeImages;
+            GpuBuffer vplPositionCubeImages;
+            GpuBuffer vplLightingCubeImages;
+
             //GpuBuffer vplNumVisible;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;
@@ -365,6 +371,8 @@ namespace stratus {
         };
 
         struct RenderState {
+            GpuHostFence prevFrameFence;
+
             int numRegularShadowMaps = 200;
             int shadowCubeMapX = 256, shadowCubeMapY = 256;
             int maxShadowCastingLightsPerFrame = 200; // per frame
@@ -515,6 +523,10 @@ namespace stratus {
 
             // Marks which lights are currently in the cache
             std::list<LightPtr> cachedLights;
+
+            // May be populated if bindless is used
+            std::list<TextureMemResidencyGuard> bindlessTextures;
+            std::list<ImageMemResidencyGuard> bindlessImages;
         };
 
         // Contains the cache for regular lights

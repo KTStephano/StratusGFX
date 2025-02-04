@@ -52,7 +52,7 @@ namespace stratus {
         auto& resident = residentTexturesPerMaterial_.find(material)->second;
 
         if (ValidateTexture(diffuse, diffuseStatus)) {
-            gpuMaterial->diffuseMap = diffuse.GpuHandle();
+            gpuMaterial->diffuseMap = diffuse.GpuTextureHandle();
             gpuMaterial->flags |= GPU_DIFFUSE_MAPPED;
             resident.push_back(TextureMemResidencyGuard(diffuse));
         }
@@ -62,7 +62,7 @@ namespace stratus {
         }
 
         if (ValidateTexture(emissive, emissiveStatus)) {
-            gpuMaterial->emissiveMap = emissive.GpuHandle();
+            gpuMaterial->emissiveMap = emissive.GpuTextureHandle();
             gpuMaterial->flags |= GPU_EMISSIVE_MAPPED;
             resident.push_back(TextureMemResidencyGuard(emissive));
         }
@@ -72,7 +72,7 @@ namespace stratus {
         }
 
         if (ValidateTexture(normal, normalStatus)) {
-            gpuMaterial->normalMap = normal.GpuHandle();
+            gpuMaterial->normalMap = normal.GpuTextureHandle();
             gpuMaterial->flags |= GPU_NORMAL_MAPPED;
             resident.push_back(TextureMemResidencyGuard(normal));
         }
@@ -82,7 +82,7 @@ namespace stratus {
         }
 
         if (ValidateTexture(roughness, roughnessStatus)) {
-            gpuMaterial->roughnessMap = roughness.GpuHandle();
+            gpuMaterial->roughnessMap = roughness.GpuTextureHandle();
             gpuMaterial->flags |= GPU_ROUGHNESS_MAPPED;
             resident.push_back(TextureMemResidencyGuard(roughness));
         }
@@ -92,7 +92,7 @@ namespace stratus {
         }
 
         if (ValidateTexture(metallic, metallicStatus)) {
-            gpuMaterial->metallicMap = metallic.GpuHandle();
+            gpuMaterial->metallicMap = metallic.GpuTextureHandle();
             gpuMaterial->flags |= GPU_METALLIC_MAPPED;
             resident.push_back(TextureMemResidencyGuard(metallic));
         }
@@ -102,7 +102,7 @@ namespace stratus {
         }
 
         if (ValidateTexture(metallicRoughness, metallicRoughnessStatus)) {
-            gpuMaterial->metallicRoughnessMap = metallicRoughness.GpuHandle();
+            gpuMaterial->metallicRoughnessMap = metallicRoughness.GpuTextureHandle();
             gpuMaterial->flags |= GPU_METALLIC_ROUGHNESS_MAPPED;
             resident.push_back(TextureMemResidencyGuard(metallicRoughness));
         }

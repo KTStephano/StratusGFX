@@ -90,7 +90,7 @@ void main() {
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
 
         // Cascades 2, 3
-        draw = cascade23DrawCalls[i];
+        //draw = cascade23DrawCalls[i];
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
     }
