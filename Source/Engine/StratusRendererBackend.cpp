@@ -1100,6 +1100,7 @@ void RendererBackend::RenderCSMDepth_() {
         Pipeline * shader = frame_->csc.worldLight->GetAlphaTest() && cascade < 2 ?
             state_.csmDepthRunAlphaTest[cascade].get() :
             state_.csmDepth[cascade].get();
+        //Pipeline * shader = state_.csmDepth[cascade].get();
 
         BindShader_(shader);
 
@@ -1133,8 +1134,8 @@ void RendererBackend::RenderCSMDepth_() {
             return frame_->csc.cascades[cascade].drawCommands->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
         };
 
-        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true, false);
-        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true, false);
+        RenderImmediate_(frame_->drawCommands->dynamicPbrMeshes, selectDynamic, true, true);
+        RenderImmediate_(frame_->drawCommands->staticPbrMeshes, selectStatic, true, true);
 
         // RenderImmediate_(csm.visibleDynamicPbrMeshes);
         // RenderImmediate_(csm.visibleStaticPbrMeshes);
@@ -1480,7 +1481,7 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
-            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            0, //light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
@@ -1774,70 +1775,70 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     //Texture indirectShadows = state_.vpls.vplGIFbo.GetColorAttachments()[1];
     Texture indirectLighting = state_.vpls.vplGIFbo.GetColorAttachments()[0];
 
-    BindShader_(state_.vplGlobalIlluminationDenoising.get());
-
-    glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
-
-    state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
-    state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
-    state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
-    state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
-    state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
-    state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
-    state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
-    //state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
-    state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[2]);
-    state_.vplGlobalIlluminationDenoising->SetBool("final", false);
-    state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
-    state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
-    state_.vplGlobalIlluminationDenoising->SetMat4("invProjectionView", frame_->invProjectionView);
-    state_.vplGlobalIlluminationDenoising->SetMat4("prevInvProjectionView", frame_->prevInvProjectionView);
-
-    size_t bufferIndex = 0;
-    const int maxReservoirMergingPasses = 1;
-    const int maxIterations = 4;
-    for (; bufferIndex < maxIterations; ++bufferIndex) {
-
-        // The first iteration(s) is used for reservoir merging so we don't
-        // start increasing the multiplier until after the reservoir merging passes
-        const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
-        const int multiplier = std::pow(2, i) - 1;
-        const bool finalIteration = bufferIndex + 1 == maxIterations;
-
-        FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
-
-        buffer->Bind();
-        //state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", indirectIllum);
-        //state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
-        state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination2", indirectLighting);
-        state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
-        state_.vplGlobalIlluminationDenoising->SetInt("passNumber", i);
-        state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex < maxReservoirMergingPasses);
-        state_.vplGlobalIlluminationDenoising->SetBool("final", finalIteration);
-
-        RenderQuad_();
-
-        buffer->Unbind();
-
-        //indirectIllum = buffer->GetColorAttachments()[1];
-        //indirectShadows = buffer->GetColorAttachments()[2];
-        indirectLighting = buffer->GetColorAttachments()[1];
-    }
-
-    UnbindShader_();
-    --bufferIndex;
-
-    FrameBuffer * last = buffers[bufferIndex % buffers.size()];
-    state_.lightingFbo.CopyFrom(*last, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
-
-    // Swap current and previous frame
-    auto tmp = *last;
-    *last = state_.vpls.vplGIDenoisedPrevFrameFbo;
-    state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
+    //BindShader_(state_.vplGlobalIlluminationDenoising.get());
+//
+    //glViewport(0, 0, frame_->viewportWidth, frame_->viewportHeight);
+//
+    //state_.vplGlobalIlluminationDenoising->BindTexture("screen", state_.lightingColorBuffer);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
+    ////state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[2]);
+    //state_.vplGlobalIlluminationDenoising->SetBool("final", false);
+    //state_.vplGlobalIlluminationDenoising->SetFloat("time", milliseconds);
+    //state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
+    //state_.vplGlobalIlluminationDenoising->SetMat4("invProjectionView", frame_->invProjectionView);
+    //state_.vplGlobalIlluminationDenoising->SetMat4("prevInvProjectionView", frame_->prevInvProjectionView);
+//
+    //size_t bufferIndex = 0;
+    //const int maxReservoirMergingPasses = 1;
+    //const int maxIterations = 4;
+    //for (; bufferIndex < maxIterations; ++bufferIndex) {
+//
+    //    // The first iteration(s) is used for reservoir merging so we don't
+    //    // start increasing the multiplier until after the reservoir merging passes
+    //    const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;
+    //    const int multiplier = std::pow(2, i) - 1;
+    //    const bool finalIteration = bufferIndex + 1 == maxIterations;
+//
+    //    FrameBuffer * buffer = buffers[bufferIndex % buffers.size()];
+//
+    //    buffer->Bind();
+    //    //state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination", indirectIllum);
+    //    //state_.vplGlobalIlluminationDenoising->BindTexture("indirectShadows", indirectShadows);
+    //    state_.vplGlobalIlluminationDenoising->BindTexture("indirectIllumination2", indirectLighting);
+    //    state_.vplGlobalIlluminationDenoising->SetInt("multiplier", multiplier);
+    //    state_.vplGlobalIlluminationDenoising->SetInt("passNumber", i);
+    //    state_.vplGlobalIlluminationDenoising->SetBool("mergeReservoirs", bufferIndex < maxReservoirMergingPasses);
+    //    state_.vplGlobalIlluminationDenoising->SetBool("final", finalIteration);
+//
+    //    RenderQuad_();
+//
+    //    buffer->Unbind();
+//
+    //    //indirectIllum = buffer->GetColorAttachments()[1];
+    //    //indirectShadows = buffer->GetColorAttachments()[2];
+    //    indirectLighting = buffer->GetColorAttachments()[1];
+    //}
+//
+    //UnbindShader_();
+    //--bufferIndex;
+//
+    //FrameBuffer * last = buffers[bufferIndex % buffers.size()];
+    //state_.lightingFbo.CopyFrom(*last, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::COLOR_BIT, BufferFilter::NEAREST);
+//
+    //// Swap current and previous frame
+    //auto tmp = *last;
+    //*last = state_.vpls.vplGIDenoisedPrevFrameFbo;
+    //state_.vpls.vplGIDenoisedPrevFrameFbo = tmp;
 }
 
 void RendererBackend::RenderScene(const double deltaSeconds) {

@@ -275,6 +275,7 @@ float calculateInfiniteShadowValue2Samples(vec4 fragPos, vec3 cascadeBlends, vec
     float depth2 = cascadeCoords[index2].z;
     // Clamp depths between [0, 1] for final cascade to prevent darkening beyond bounds
     depth2 = beyondCascade3 ? saturate(depth2) : depth2;
+    //depth2 = beyondCascade3 ? 0.0 : depth2;
 
     //vec3 blend = saturate(vec3(cascadeBlend[0], cascadeBlend[1], cascadeBlend[2]));
     float weight = beyondCascade2 ? saturate(cascadeBlends.y) - saturate(cascadeBlends.z) : 1.0 - saturate(cascadeBlends.x);
@@ -290,7 +291,7 @@ float calculateInfiniteShadowValue2Samples(vec4 fragPos, vec3 cascadeBlends, vec
     light2 += sampleShadowTexture(infiniteLightShadowMap, p2, depth2, vec2(0), bias);
 
     // blend and return
-    return mix(light2, light1, weight) * (0.5); //* 0.25;
+    return mix(light2, light1, weight) * (1.0); //* 0.25;
 }
 
 float normalDistribution(float NdotH, float roughness) {

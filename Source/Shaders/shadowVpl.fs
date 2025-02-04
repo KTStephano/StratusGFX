@@ -28,7 +28,7 @@ void main() {
     
     // map to [0;1] range by dividing by far_plane - assume probe radius is 500
     //lightDistance = saturate(lightDistance / farPlane);
-    lightDistance = saturate(lightDistance / 500.0);
+    lightDistance = saturate(lightDistance / 1000.0);
     
     // write this as modified depth
     gl_FragDepth = lightDistance;

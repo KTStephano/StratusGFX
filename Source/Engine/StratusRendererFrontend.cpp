@@ -1031,7 +1031,8 @@ namespace stratus {
             out3->GetCommandBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 8);
 
             pipeline.DispatchCompute(1, 1, 1);
-            pipeline.SynchronizeCompute();
+            //pipeline.SynchronizeCompute();
+            pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
     }
 
@@ -1120,7 +1121,8 @@ namespace stratus {
             //pipeline.setMat4("view", _frame->camera->getViewTransform());
             //pipeline.setMat4("projection", _frame->projection);
             pipeline.DispatchCompute(1, 1, 1);
-            pipeline.SynchronizeCompute();
+            //pipeline.SynchronizeCompute();
+            pipeline.SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
 
         pipeline.Unbind();
@@ -1188,7 +1190,8 @@ namespace stratus {
             updateTransforms_->SetInt("cull2NumMatrices", cnone->second->NumDrawCommands());
 
             updateTransforms_->DispatchCompute(100, 1, 1);
-            updateTransforms_->SynchronizeCompute();
+            //updateTransforms_->SynchronizeCompute();
+            updateTransforms_->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
         }
 
         updateTransforms_->Unbind();

@@ -155,7 +155,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     //int maxRandomIndex = visibleIndices[bucketIndex] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
-    int maxRandomIndex = visibleIndexCounters[baseBucketIndex] - 1;
+    int maxRandomIndex = -1;//visibleIndexCounters[baseBucketIndex] - 1;
     
     if (maxRandomIndex >= 0) {
         for (int i = 0, resamples = 0, count = 0; i < sampleCount; i += 1, count += 1) {
@@ -175,7 +175,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
             /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
             /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
             vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
-            float probeRadius = 500.0;                                                                                  
+            float probeRadius = 1000.0;                                                                                  
             float distance = length(lightMinusFrag);                                                                                            
                                                                                                                                                 
             if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
