@@ -13,7 +13,7 @@ STRATUS_GLSL_VERSION
 //
 // 8, 8, 6 corresponds to: 7*6*6, the size of a single light probe
 // These need to match up with the dimensions of a light probe defined in the C++ code
-layout (local_size_x = 7, local_size_y = 7, local_size_z = 6) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 6) in;
 
 #include "pbr.glsl"
 #include "vpl_common.glsl"

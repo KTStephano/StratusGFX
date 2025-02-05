@@ -420,10 +420,11 @@ void main() {
         // }
 
         //float wid = currId != prevId ? 0.0 : 1.0;
-        float wid = worldBucketsEqual(
-            computeWorldBucket(currWorldPos),
-            computeWorldBucket(prevWorldPos)
-        ) ? 1 : 0;
+        //float wid = worldBucketsEqual(
+        //    computeWorldBucket(currWorldPos),
+        //    computeWorldBucket(prevWorldPos)
+        //) ? 1 : 0;
+        float wid = 1.0;
 
         float similarity = wn * wz * wid;
         //float similarity = wid;
