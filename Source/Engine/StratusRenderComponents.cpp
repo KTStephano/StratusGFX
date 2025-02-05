@@ -312,7 +312,7 @@ namespace stratus {
         //     0.002f, 0.0025f, 0.003f, 0.0035f, 0.004f, 0.0045f, 0.005f
         // };
         const std::vector<f32> errors = {
-            0.0005f, 0.0005f, 0.001f, 0.001f, 0.005f, 0.01f, 0.01f
+            0.0005f, 0.0005f, 0.001f, 0.001f, 0.001f, 0.001f, 0.001f
         };
 
         cpuData_->indicesPerLod.clear();

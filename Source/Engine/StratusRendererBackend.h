@@ -348,7 +348,7 @@ namespace stratus {
             const int tileYDivisor = 5;
             // These need to match up with the work group dims in the probe relighting compute shader
             // (ex: 8, 8, 6)
-            int vplShadowCubeMapX = 8, vplShadowCubeMapY = 8;
+            int vplShadowCubeMapX = 7, vplShadowCubeMapY = 7;
             //GpuBuffer vplDiffuseMaps;
             //GpuBuffer vplShadowMaps;
             GpuBuffer shadowDiffuseIndices;

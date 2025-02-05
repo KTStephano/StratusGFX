@@ -20,12 +20,12 @@ layout (std430, binding = 3) readonly buffer inputBlock4 {
 
 // Cascades 0 and 1
 layout (std430, binding = 1) readonly buffer inputBlock1 {
-    DrawElementsIndirectCommand cascade01DrawCalls[];
+    DrawElementsIndirectCommand cascade0DrawCalls[];
 };
 
 // Cascades 2 and 3
 layout (std430, binding = 4) readonly buffer inputBlock2 {
-    DrawElementsIndirectCommand cascade23DrawCalls[];
+    DrawElementsIndirectCommand cascade123DrawCalls[];
 };
 
 // Outputs for all 4 cascades
@@ -84,13 +84,13 @@ void main() {
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
 
-        // Cascades 0, 1
-        DrawElementsIndirectCommand draw = cascade01DrawCalls[i];
+        // Cascade 0
+        DrawElementsIndirectCommand draw = cascade0DrawCalls[i];
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
 
-        // Cascades 2, 3
-        //draw = cascade23DrawCalls[i];
+        // Cascades 1, 2, 3
+        draw = cascade123DrawCalls[i];
+        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
         PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
     }

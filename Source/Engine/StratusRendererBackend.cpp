@@ -1386,7 +1386,8 @@ void RendererBackend::UpdatePointLights_(
         const double distance = glm::distance(c.GetPosition(), light->GetPosition());
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
-            if (giEnabled && IsSphereInFrustum(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            //if (giEnabled && SphereFrustumIntersection(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
+            if (giEnabled && distance <= light->GetRadius()) {
             //if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }

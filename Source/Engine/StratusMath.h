@@ -411,6 +411,26 @@ namespace stratus {
         return true;
     }
 
+    template<typename Array>
+    bool SphereFrustumIntersection(const glm::vec3& center, const float radius, const Array& frustumPlanes) {
+        if (IsPointInFrustum(center, frustumPlanes)) {
+            return true;
+        }
+
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec4& g = frustumPlanes[i];
+            // See https://www.cuemath.com/geometry/distance-between-point-and-plane/
+            const float length = glm::length(glm::vec3(g.x, g.y, g.z));
+            const float distance = glm::abs(glm::dot(g, glm::vec4(center, 1.0f))) / length;
+
+            if (distance <= radius) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // See https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
     inline float DistanceFromPointToAABB(const glm::vec3& point, const GpuAABB& aabb) {
         float dx = std::max<float>(aabb.vmin.v[0] - point.x, std::max<float>(0.0f, point.x - aabb.vmax.v[0]));

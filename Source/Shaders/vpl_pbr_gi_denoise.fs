@@ -420,7 +420,7 @@ void main() {
 
         prevGi = texture(prevIndirectIllumination, prevTexCoords).rgb;
 
-        historyAccum = min(1.0 + 10 * accumMultiplier, framesPerSecond);
+        historyAccum = min(1.0 + historyAccum * accumMultiplier, framesPerSecond);
 
         float maxAccumulationFactor = 1.0 / historyAccum;
         vec3 illumAvg = mix(prevGi, currGi, maxAccumulationFactor);
