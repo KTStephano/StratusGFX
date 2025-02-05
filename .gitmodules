@@ -17,3 +17,6 @@
 	path = SDL
 	url = https://github.com/libsdl-org/SDL.git
 	branch = SDL2
+[submodule "bullet3"]
+	path = bullet3
+	url = https://github.com/bulletphysics/bullet3.git

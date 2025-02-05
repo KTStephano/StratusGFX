@@ -2,17 +2,12 @@ STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
 
+layout (local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
+
 #include "pbr.glsl"
 #include "pbr2.glsl"
 #include "vpl_common.glsl"
 #include "bindings.glsl"
-
-// Input from vertex shader
-in vec2 fsTexCoords;
-
-// Outputs
-//out vec3 color;
-out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 3
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 3
@@ -24,8 +19,8 @@ out vec4 reservoir;
 uniform sampler2D gDepth;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedo;
-//uniform sampler2D gBaseReflectivity;
-uniform sampler2D gRoughnessMetallicReflectance;
+uniform sampler2D gBaseReflectivity;
+uniform sampler2D gRoughnessMetallicAmbient;
 
 // Screen space ambient occlusion
 uniform sampler2DRect ssao;
@@ -113,24 +108,18 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     int baseBucketIndex = computeBaseBucketIndex(bucketCoords);
     int offsetBucketIndex = computeOffsetBucketIndex(baseBucketIndex);
 
-    vec4 albedo = textureLod(gAlbedo, texCoords, 0).rgba;
-    // For emissives, albedo.a is set to 1 which cancels out diffuse
-    vec3 baseColor = albedo.rgb * (1 - albedo.a);
+    vec3 baseColor = textureLod(gAlbedo, texCoords, 0).rgb;
     baseColor = vec3(max(baseColor.r, 0.01), max(baseColor.g, 0.01), max(baseColor.b, 0.01));
-
     //vec3 normalizedBaseColor = baseColor / max(length(baseColor), PREVENT_DIV_BY_ZERO);
     vec3 normal = normalize(textureLod(gNormal, texCoords, 0).rgb * 2.0 - vec3(1.0));
-    vec3 roughnessMetallicBaseReflectivity = textureLod(gRoughnessMetallicReflectance, texCoords, 0).rgb;
-    float roughness = roughnessMetallicBaseReflectivity.r;
+    float roughness = textureLod(gRoughnessMetallicAmbient, texCoords, 0).r;
     roughness = max(0.5, roughness);
-    float metallic = roughnessMetallicBaseReflectivity.g;
-
+    float metallic = textureLod(gRoughnessMetallicAmbient, texCoords, 0).g;
     // Note that we take the AO that may have been packed into a texture and augment it by SSAO
     // Note that singe SSAO is sampler2DRect, we need to sample in pixel coordinates and not texel coordinates
     float ambientOcclusion = clamp(texture(ssao, pixelCoords).r, 0.35, 1.0);
-    //float ambient = roughnessMetallicBaseReflectivity.b;// * ambientOcclusion;
-    float ambient = 0.0;
-    vec3 baseReflectivity = vec3(roughnessMetallicBaseReflectivity.b);
+    float ambient = textureLod(gRoughnessMetallicAmbient, texCoords, 0).b;// * ambientOcclusion;
+    vec3 baseReflectivity = vec3(textureLod(gBaseReflectivity, texCoords, 0).r);
 
     float roughnessWeight = 1.0 - roughness;
 
@@ -237,10 +226,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 }
 
 void main() {
-    //ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
-    //vec2 uv = (vec2(texCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
+    ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
+    vec2 uv = (vec2(texCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
 
-    performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
+    performLightingCalculations(textureLod(screen, uv, 0).rgb, gl_FragCoord.xy, uv);
     // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
     // vec3 point = vec3(gl_FragCoord.xy, time);
     // point = vec3(random(point));

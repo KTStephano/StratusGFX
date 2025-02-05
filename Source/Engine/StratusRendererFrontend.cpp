@@ -1019,7 +1019,7 @@ namespace stratus {
 
             //buffer->GetSelectedLodDrawCommandsBuffer().BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
             //buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
-            buffer->GetIndirectDrawCommandsBuffer(0).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
+            buffer->GetIndirectDrawCommandsBuffer(1).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 1);
             buffer->GetIndirectDrawCommandsBuffer(maxLod).BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, 4);
 
             auto out0 = select(frame_->csc.cascades[0], cull);

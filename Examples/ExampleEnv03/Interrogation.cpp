@@ -76,7 +76,8 @@ public:
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.SetFogColor(glm::vec3(167.0f / 255.0f, 166.0f / 255.0f, 157.0f / 255.0f));
         //settings.SetFogDensity(0.00125);
-        //settings.SetEmissionStrength(5.0f);
+        settings.SetEmissionStrength(0.0f);
+        settings.SetEmissiveScalingFactorNormalized(0.0f);
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

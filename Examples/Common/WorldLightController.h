@@ -151,12 +151,16 @@ struct WorldLightController : public stratus::InputHandler {
         worldLight_->SetAtmosphericLightingConstants(particleDensity, scatterControl);
 
         if (!worldLightPaused_) {
-            worldLight_->OffsetRotation(glm::vec3(worldLightMoveDirection_ * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
+            OffsetWorldLightRotation(glm::vec3(worldLightMoveDirection_ * lightRotationSpeed * deltaSeconds, 0.0f, 0.0f));
             //worldLight_->OffsetRotation(glm::vec3(0.0f, worldLightMoveDirection_ * lightRotationSpeed * deltaSeconds, 0.0f));
             //STRATUS_LOG << worldLight_->GetRotation() << std::endl;
         }
 
         worldLight_->SetPosition(INSTANCE(RendererFrontend)->GetCamera()->GetPosition());
+    }
+
+    void OffsetWorldLightRotation(const glm::vec3& offsets) {
+        worldLight_->OffsetRotation(offsets);
     }
 
 private:

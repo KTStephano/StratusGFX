@@ -112,7 +112,7 @@ static void setupNightTime() {
     settings.SetFogColor(glm::vec3(0.5, 0.5, 0.125));
     settings.SetSkyboxIntensity(0.025);
     settings.SetEmissionStrength(5.0f);
-    settings.SetEmissiveTextureMultiplier(5.0f);
+    settings.SetEmissiveScalingFactorNormalized(5.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
 
     LightCreator::CreateStationaryLight(

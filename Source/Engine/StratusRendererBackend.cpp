@@ -438,14 +438,14 @@ void RendererBackend::InitGBuffer_() {
         buffer.albedo.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Base reflectivity buffer
-        buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
-        buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        //buffer.baseReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RG, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
+        //buffer.baseReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        //buffer.baseReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Roughness-Metallic-Ambient buffer
-        buffer.roughnessMetallicAmbient = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
-        buffer.roughnessMetallicAmbient.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
-        buffer.roughnessMetallicAmbient.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        buffer.roughnessMetallicReflectivity = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
+        buffer.roughnessMetallicReflectivity.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
+        buffer.roughnessMetallicReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
         buffer.structure = Texture(TextureConfig{ TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
@@ -469,8 +469,9 @@ void RendererBackend::InitGBuffer_() {
         buffer.depth.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the frame buffer with all its texture attachments
-        //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.depth});
-        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicAmbient, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
+        //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.depth});
+        //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
         if (!buffer.fbo.Valid()) {
             isValid_ = false;
             return;
@@ -1022,7 +1023,7 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
         s.SetVec3("viewPosition", &camera.GetPosition()[0]);
     }
 
-    s.SetFloat("emissiveTextureMultiplier", frame_->settings.GetEmissiveTextureMultiplier());
+    s.SetFloat("emissiveMultiplier", frame_->settings.GetEmissiveScalingFactorNormalized());
 
     s.SetMat4("projection", projection);
     s.SetMat4("view", view);
@@ -1737,8 +1738,19 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     const glm::vec3 lightColor = frame_->csc.worldLight->GetLuminance();
     state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
 
-    state_.vplGlobalIllumination->SetInt("numTilesX", frame_->viewportWidth  / state_.vpls.tileXDivisor);
-    state_.vplGlobalIllumination->SetInt("numTilesY", frame_->viewportHeight / state_.vpls.tileYDivisor);
+    state_.vplGlobalIllumination->SetInt("pixelOffsetX", state_.vpls.lastFrameGISampleOffsetX);
+    state_.vplGlobalIllumination->SetInt("pixelOffsetY", state_.vpls.lastFrameGISampleOffsetY);
+
+    // Update indices for next frame
+    ++state_.vpls.lastFrameGISampleOffsetX;
+    if (state_.vpls.lastFrameGISampleOffsetX > 1) {
+        state_.vpls.lastFrameGISampleOffsetX = 0;
+
+        ++state_.vpls.lastFrameGISampleOffsetY;
+        if (state_.vpls.lastFrameGISampleOffsetY > 1) {
+            state_.vpls.lastFrameGISampleOffsetY = 0;
+        }
+    }
 
     // All relevant rendering data is moved to the GPU during the light cull phase
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
@@ -1763,8 +1775,8 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->BindTexture("gDepth", state_.currentFrame.depth);
     state_.vplGlobalIllumination->BindTexture("gNormal", state_.currentFrame.normals);
     state_.vplGlobalIllumination->BindTexture("gAlbedo", state_.currentFrame.albedo);
-    state_.vplGlobalIllumination->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
-    state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
+    //state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicReflectance", state_.currentFrame.baseReflectivity);
+    state_.vplGlobalIllumination->BindTexture("gRoughnessMetallicReflectance", state_.currentFrame.roughnessMetallicReflectivity);
     state_.vplGlobalIllumination->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     state_.vplGlobalIllumination->BindTexture("historyDepth", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[2]);
     state_.vplGlobalIllumination->SetFloat("time", milliseconds);
@@ -1936,8 +1948,8 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
     lighting->BindTexture("gDepth", state_.currentFrame.depth);
     lighting->BindTexture("gNormal", state_.currentFrame.normals);
     lighting->BindTexture("gAlbedo", state_.currentFrame.albedo);
-    lighting->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
-    lighting->BindTexture("gRoughnessMetallicAmbient", state_.currentFrame.roughnessMetallicAmbient);
+    //lighting->BindTexture("gBaseReflectivity", state_.currentFrame.baseReflectivity);
+    lighting->BindTexture("gRoughnessMetallicReflectivity", state_.currentFrame.roughnessMetallicReflectivity);
     lighting->BindTexture("ssao", state_.ssaoOcclusionBlurredTexture);
     lighting->SetFloat("windowWidth", frame_->viewportWidth);
     lighting->SetFloat("windowHeight", frame_->viewportHeight);

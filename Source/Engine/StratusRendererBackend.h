@@ -202,16 +202,18 @@ namespace stratus {
             return emissionStrength_;
         }
 
+        // Setting to a value > 0 will scale existing emissive values to be a higher intensity
         void SetEmissionStrength(const float strength) {
             emissionStrength_ = std::max<float>(strength, 0.0f);
         }
 
-        float GetEmissiveTextureMultiplier() const {
-            return emissiveTextureMultiplier_;
+        float GetEmissiveScalingFactorNormalized() const {
+            return emissiveScalingFactorNormalized_;
         }
 
-        void SetEmissiveTextureMultiplier(const float multiplier) {
-            emissiveTextureMultiplier_ = std::max<float>(multiplier, 0.0f);
+        // Setting to 0 will disable emissive textures and material colors
+        void SetEmissiveScalingFactorNormalized(const float multiplier) {
+            emissiveScalingFactorNormalized_ = std::clamp<float>(multiplier, 0.0f, 1.0f);
         }
 
         glm::vec3 GetFogColor() const {
@@ -285,12 +287,12 @@ namespace stratus {
         glm::vec3 fogColor_ = glm::vec3(0.5f);
         float fogDensity_ = 0.0f;
         float emissionStrength_ = 0.0f;
+        // This works as a multiplicative effect on top of emission strength
+        float emissiveScalingFactorNormalized_ = 1.0f;
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
         float skyboxIntensity_ = 3.0f;
         float minRoughness_ = 0.08f;
         float alphaDepthTestThreshold_ = 0.5f;
-        // This works as a multiplicative effect on top of emission strength
-        float emissiveTextureMultiplier_ = 1.0f;
         float minGiOcclusionFactor_ = 0.95f;
     };
 
@@ -330,8 +332,8 @@ namespace stratus {
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB16F
             Texture albedo;                   // RGB8F
-            Texture baseReflectivity;         // RGB8F
-            Texture roughnessMetallicAmbient; // RGB8F
+            //Texture baseReflectivity;         // RGB8F
+            Texture roughnessMetallicReflectivity; // RGB8F
             Texture structure;                // RGBA16F
             Texture velocity;
             Texture id;
@@ -364,6 +366,7 @@ namespace stratus {
             GpuBuffer vplLightingCubeImages;
 
             //GpuBuffer vplNumVisible;
+            int lastFrameGISampleOffsetX = 0, lastFrameGISampleOffsetY = 0;
             FrameBuffer vplGIFbo;
             FrameBuffer vplGIDenoisedPrevFrameFbo;
             FrameBuffer vplGIDenoisedFbo1;

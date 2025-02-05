@@ -412,7 +412,7 @@ void main() {
 
         float similarity = wn * wz * wid;
         
-        if (similarity < 0.99) {
+        if (similarity < 0.995) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;

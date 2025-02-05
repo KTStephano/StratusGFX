@@ -40,11 +40,14 @@ struct CameraController : public stratus::InputHandler {
         const float camSpeed = 100.0f;
 
         // Handle WASD movement
+        bool mouseMoved = false;
         for (auto e : input) {
             switch (e.type) {
                 case SDL_MOUSEMOTION: {
+                    mouseMoved = true;
                     const float pitch = cameraLookUpDownEnabled_ ? e.motion.yrel : 0.0f;
                     const float yaw = cameraRotateEnabled_ ? -e.motion.xrel : 0.0f;
+                    recentMouseXYChange_ = glm::vec2(e.motion.xrel, e.motion.yrel);
                     camera_->ModifyAngle(stratus::Degrees(pitch), stratus::Degrees(yaw), stratus::Degrees(0.0f));
                     //STRATUS_LOG << camera.getRotation() << std::endl;
                     break;
@@ -175,6 +178,11 @@ struct CameraController : public stratus::InputHandler {
             }
         }
 
+        // Unset mouse movement if no change this frame
+        if (!mouseMoved) {
+            recentMouseXYChange_ = glm::vec2(0.0f);
+        }
+
         // Check mouse state for move up/down
         uint32_t buttonState = mouse.mask;
         cameraSpeed_.z = 0.0f;
@@ -195,6 +203,10 @@ struct CameraController : public stratus::InputHandler {
         cameraLight_->SetPosition(camera_->GetPosition());
     }
 
+    glm::vec2 GetRecentMouseXYChange() const {
+        return recentMouseXYChange_;
+    }
+
 private:
     stratus::CameraPtr camera_;
     stratus::LightPtr cameraLight_;
@@ -204,5 +216,6 @@ private:
     bool cameraLookUpDownEnabled_ = false;
     glm::vec3 cameraSpeed_ = glm::vec3(0.0f);
     glm::vec2 pitchYawSpeed_ = glm::vec2(0.0f);
+    glm::vec2 recentMouseXYChange_ = glm::vec2(0.0f);
     float camSpeedDivide_ = 0.25f; // For slowing camera down
 };

@@ -16,7 +16,7 @@ uniform float heightScale = 0.1;
  */
 uniform vec3 viewPosition;
 
-uniform float emissiveTextureMultiplier = 1.0;
+uniform float emissiveMultiplier = 1.0;
 
 /**
  * Fragment information. All values should be
@@ -49,13 +49,13 @@ flat in int fsEmissiveMapped;
 //layout (location = 0) out vec3 gPosition;
 layout (location = 0) out vec3 gNormal;
 layout (location = 1) out vec4 gAlbedo;
-layout (location = 2) out vec2 gReflectivityEmissive;
-layout (location = 3) out vec3 gRoughnessMetallicAmbient;
+//layout (location = 2) out vec2 gReflectivityEmissive;
+layout (location = 2) out vec3 gRoughnessMetallicReflectance;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
-layout (location = 4) out vec4 gStructureBuffer;
-layout (location = 5) out vec2 gVelocityBuffer;
-layout (location = 6) out float gId;
+layout (location = 3) out vec4 gStructureBuffer;
+layout (location = 4) out vec2 gVelocityBuffer;
+layout (location = 5) out float gId;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -119,19 +119,21 @@ void main() {
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
 
-    vec3 emissive = bool(fsEmissiveMapped) ? emissiveTextureMultiplier * texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    vec3 emissive = bool(fsEmissiveMapped) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
+    emissive = emissiveMultiplier * emissive;
+    bool isEmissive = length(emissive) > 0;
 
     // Coordinate space is set to world
     //gPosition = fsPosition;
     // gNormal = (normal + 1.0) * 0.5; // Converts back to [-1, 1]
     gNormal = normal;
-    gAlbedo = vec4(baseColor.rgb, emissive.r);
+    gAlbedo = vec4(isEmissive ? emissive : baseColor.rgb, isEmissive ? 1 : 0);
     float reflectance = material.reflectance;
     //vec3 maxReflectivity = FLOAT3_TO_VEC3(material.maxReflectivity);
     reflectance = mix(reflectance, maxReflectivity, (1.0 - roughness) * 0.5);
-    gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);
+    //gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
-    gRoughnessMetallicAmbient = vec3(roughness, metallic, emissive.b);
+    gRoughnessMetallicReflectance = vec3(roughness, metallic, mix(reflectance, maxReflectivity, metallic));
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
