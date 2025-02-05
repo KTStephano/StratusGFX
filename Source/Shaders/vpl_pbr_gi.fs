@@ -14,9 +14,9 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
-#define MAX_RESAMPLES_PER_PIXEL 10
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 1
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 5
+#define MAX_RESAMPLES_PER_PIXEL 8
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -152,10 +152,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     vec3 colorNoShadow = vec3(0.0);
 
-    float distRatioToCamera = min(1.0 - distToCamera / 1000.0, 1.0);
+    float distRatioToCamera = max(1.0 - distToCamera / 500.0, 0.0);
     int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
-    //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
-    int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    //int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    int samplesMax = history < 10 ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     //samplesMax = max(1, samplesMax);
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));

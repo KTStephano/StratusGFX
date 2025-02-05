@@ -461,9 +461,9 @@ void RendererBackend::InitGBuffer_() {
         buffer.velocity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Holds mesh ids
-        buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
-        buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
-        buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
+        // buffer.id = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RED, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
+        // buffer.id.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+        // buffer.id.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the depth buffer
         buffer.depth = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
@@ -473,7 +473,8 @@ void RendererBackend::InitGBuffer_() {
         // Create the frame buffer with all its texture attachments
         //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.depth});
         //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
-        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
+        //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
+        buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.depth });
         if (!buffer.fbo.Valid()) {
             isValid_ = false;
             return;
@@ -1848,11 +1849,11 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->BindTexture("albedo", state_.currentFrame.albedo);
     state_.vplGlobalIlluminationDenoising->BindTexture("velocity", state_.currentFrame.velocity);
     state_.vplGlobalIlluminationDenoising->BindTexture("normal", state_.currentFrame.normals);
-    state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("ids", state_.currentFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("depth", state_.currentFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevNormal", state_.previousFrame.normals);
-    state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
+    //state_.vplGlobalIlluminationDenoising->BindTexture("prevIds", state_.previousFrame.id);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevDepth", state_.previousFrame.depth);
     state_.vplGlobalIlluminationDenoising->BindTexture("prevIndirectIllumination", state_.vpls.vplGIDenoisedPrevFrameFbo.GetColorAttachments()[1]);
     //state_.vplGlobalIlluminationDenoising->BindTexture("originalNoisyIndirectIllumination", indirectShadows);

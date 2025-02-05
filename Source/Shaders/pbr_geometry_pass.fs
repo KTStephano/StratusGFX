@@ -55,7 +55,7 @@ layout (location = 2) out vec3 gRoughnessMetallicReflectance;
 // and atmospheric shadowing.
 layout (location = 3) out vec4 gStructureBuffer;
 layout (location = 4) out vec2 gVelocityBuffer;
-layout (location = 5) out float gId;
+//layout (location = 5) out float gId;
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
 vec4 calculateStructureOutput(float z) {
@@ -137,7 +137,7 @@ void main() {
     //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
     gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
-    gId = float(fsDrawID);
+    //gId = float(fsDrawID);
 
     // Small offset to help prevent z fighting in certain cases
     //gl_FragDepth = baseColor.a < 1.0 ? gl_FragCoord.z - ALPHA_DEPTH_OFFSET : gl_FragCoord.z;

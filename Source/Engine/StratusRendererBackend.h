@@ -394,7 +394,7 @@ namespace stratus {
             Texture roughnessMetallicReflectivity; // RGB8F
             Texture structure;                // RGBA16F
             Texture velocity;
-            Texture id;
+            //Texture id;
             Texture depth;                    // Default bit depth
         };
 

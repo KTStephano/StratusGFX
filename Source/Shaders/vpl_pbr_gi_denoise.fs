@@ -35,12 +35,12 @@ uniform sampler2D screen;
 uniform sampler2D albedo;
 uniform sampler2D velocity;
 uniform sampler2D normal;
-uniform sampler2D ids;
+//uniform sampler2D ids;
 uniform sampler2D depth;
 uniform sampler2DRect structureBuffer;
 
 uniform sampler2D prevNormal;
-uniform sampler2D prevIds;
+//uniform sampler2D prevIds;
 uniform sampler2D prevDepth;
 
 //uniform sampler2D indirectIllumination;
@@ -270,6 +270,17 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     return centerReservoir;
 }
 
+ivec3 computeWorldBucket(in vec3 worldPos) {
+    const float worldSpacePerBucket = 1;
+    return ivec3(floor(worldPos / worldSpacePerBucket));
+}
+
+bool worldBucketsEqual(in ivec3 xs, in ivec3 ys) {
+    return xs.x == ys.x &&
+        xs.y == ys.y &&
+        xs.z == ys.z;
+}
+
 void main() {
     vec2 widthHeight = textureSize(screen, 0);
     vec2 texelWidthHeight = 1.0 / widthHeight;
@@ -351,14 +362,14 @@ void main() {
         // }
 
         float prevCenterDepth = texture(prevDepth, prevTexCoords).r;
-        //vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
-        //vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
+        vec3 currWorldPos = worldPositionFromDepth(fsTexCoords, centerDepth, invProjectionView);
+        vec3 prevWorldPos = worldPositionFromDepth(prevTexCoords, prevCenterDepth, prevInvProjectionView);
 
         prevCenterNormal = sampleNormalWithOffset(prevNormal, prevTexCoords, ivec2(0, 0));
         vec3 prevGi = textureOffset(prevIndirectIllumination, prevTexCoords, ivec2(0, 0)).rgb;
 
-        float currId = texture(ids, fsTexCoords).r;
-        float prevId = texture(prevIds, prevTexCoords).r;
+        //float currId = texture(ids, fsTexCoords).r;
+        //float prevId = texture(prevIds, prevTexCoords).r;
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
         /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
@@ -408,9 +419,14 @@ void main() {
         //     wrt = 0.0;
         // }
 
-        float wid = currId != prevId ? 0.0 : 1.0;
+        //float wid = currId != prevId ? 0.0 : 1.0;
+        float wid = worldBucketsEqual(
+            computeWorldBucket(currWorldPos),
+            computeWorldBucket(prevWorldPos)
+        ) ? 1 : 0;
 
         float similarity = wn * wz * wid;
+        //float similarity = wid;
         
         if (similarity < 0.995) {
             similarity = 0.0;
