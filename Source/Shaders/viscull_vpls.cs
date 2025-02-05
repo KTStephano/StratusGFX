@@ -27,9 +27,9 @@ layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
     VplData probes[];
 };
 
-layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) readonly buffer inoutBlock2 {
-    int vplContributionFlags[];
-};
+//layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) readonly buffer inoutBlock2 {
+//    int vplContributionFlags[];
+//};
 
 // layout (std430, binding = 1) buffer outputBlock1 {
 //     int numVisible;
@@ -60,8 +60,8 @@ void main() {
     int stepSize = int(gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z);
 
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
-        if (vplContributionFlags[index] > 0) {
-            VplData probe = probes[index];
+        VplData probe = probes[index];
+        if (probe.activeProbe > 0) {
             ivec3 bucketCoords = computeBaseBucketCoords(probe.position.xyz);
             if (!baseBucketCoordsWithinRange(bucketCoords)) {
                 continue;

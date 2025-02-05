@@ -14,8 +14,8 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 3
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 3
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 10
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -147,7 +147,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     const float seedZOffset = 10000.0;
 
     float seedZ = time;
-    vec3 seed = vec3(gl_FragCoord.xy, time);
+    vec3 seed = vec3(pixelCoords.xy, time);
     float validSamples = 0.0;
 
     vec3 colorNoShadow = vec3(0.0);
@@ -157,6 +157,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int maxSamplesPerPixel = STANDARD_MAX_SAMPLES_PER_PIXEL;
     int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
+    //samplesMax = max(1, samplesMax);
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
 
     //int maxRandomIndex = visibleIndices[bucketIndex] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
@@ -237,13 +238,9 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 }
 
 void main() {
-    //ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
-    //vec2 uv = (vec2(texCoords) + vec2(0.5)) / vec2(viewportWidth, viewportHeight);
+    ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
+    vec2 uv = (vec2(texCoords) + vec2(0.0)) / vec2(viewportWidth, viewportHeight);
 
-    performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
-    // See https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
-    // vec3 point = vec3(gl_FragCoord.xy, time);
-    // point = vec3(random(point));
-
-    // color = point * 1.0;
+    //performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
+    performLightingCalculations(textureLod(screen, uv, 0).rgb, texCoords, uv);
 }

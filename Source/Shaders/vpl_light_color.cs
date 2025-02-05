@@ -53,7 +53,7 @@ layout (std430, binding = VPL_LIGHTING_CUBE_IMAGES) readonly buffer imageBlock3 
     uint64_t lightingCubeMaps[];
 };
 
-layout (std430, binding = VPL_PROBE_DATA_BINDING) readonly buffer inputBlock1 {
+layout (std430, binding = VPL_PROBE_DATA_BINDING) buffer inputBlock1 {
     VplData probes[];
 };
 
@@ -61,9 +61,9 @@ layout (std430, binding = 4) readonly buffer inputBlock3 {
     AtlasEntry diffuseIndices[];
 };
 
-layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) writeonly buffer inputBlock4 {
-    int probeFlags[];
-};
+//layout (std430, binding = VPL_PROBE_CONTRIB_BINDING) writeonly buffer inputBlock4 {
+//    int probeFlags[];
+//};
 
 // We pass them in as uint64_t and then cast them to the appropriate image type to get around
 // the limitation of only allowing 8 bound images
@@ -122,11 +122,19 @@ void main() {
 
     // Each work group processes all 6 faces of the light probe
     for (int index = int(gl_WorkGroupID.x); index < visibleVpls; index += stepSize) {
+        VplData probe = probes[index];
+        if (probe.activeProbe < 1.0) {
+            if (gl_LocalInvocationIndex == 0 && probe.previouslyRelit > 0.0) {
+                probes[index].activeProbe = 1.0;
+            }
+
+            // All worker threads should see this as well
+            continue;
+        }
+
         AtlasEntry entry = diffuseIndices[index];
         // Lighting layer is used specifically to index into lightingCubeMaps
         int lightingIndex = int(entry.index);
-
-        VplData probe = probes[index];
 
         layout (rgba8) imageCubeArray diffuse = layout(rgba8) imageCubeArray(diffuseCubeMaps[lightingIndex]);
         layout (rgba32f) imageCubeArray position = layout (rgba32f) imageCubeArray(positionCubeMaps[lightingIndex]);
@@ -178,7 +186,8 @@ void main() {
         if (gl_LocalInvocationIndex == 0) {
             // Write flag to memory buffer so next compute dispatch can determine which
             // probes are relevant
-            probeFlags[index] = currentProbeIsVisible;
+            //probeFlags[index] = currentProbeIsVisible;
+            probes[index].activeProbe = float(currentProbeIsVisible);
 
             // Reset state
             currentProbeIsVisible = 0;

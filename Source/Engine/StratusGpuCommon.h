@@ -226,10 +226,12 @@ namespace stratus {
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
         GpuVec position;
         float intensityScale;
-        float padding_[3];
+        float activeProbe;
+        float previouslyRelit;
+        float padding_[1];
 
         GpuVplData() :
-            position(0.0f), intensityScale(1.0f) {}
+            position(0.0f), intensityScale(0.0f), activeProbe(0.0f), previouslyRelit(0.0) {}
     };
 #ifndef __GNUC__
     #pragma pack(pop)

@@ -254,7 +254,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 1;
+    int minmaxNearest = 2;
     for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
         for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
             ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)

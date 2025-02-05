@@ -201,9 +201,11 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"vpl_light_color.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplColoring.get());
 
-    state_.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
-        Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
-        Shader{"vpl_pbr_gi.fs", ShaderType::FRAGMENT}}));
+     state_.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+         Shader{"vpl_pbr_gi.vs", ShaderType::VERTEX},
+         Shader{"vpl_pbr_gi.fs", ShaderType::FRAGMENT}}));
+    //state_.vplGlobalIllumination = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    //    Shader{"vpl_pbr_gi.cs", ShaderType::COMPUTE}}));
     state_.shaders.push_back(state_.vplGlobalIllumination.get());
 
     state_.vplGlobalIlluminationDenoising = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
@@ -1305,16 +1307,40 @@ void RendererBackend::RenderAtmosphericShadowing_() {
 }
 
 void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer) {
-    std::vector<GpuVplData> vplData(perVPLDistToViewer.size());
+    std::vector<GpuVplData, StackBasedPoolAllocator<GpuVplData>> vplData(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
+    std::unordered_set<Light*, 
+        std::hash<Light*>,
+        std::equal_to<Light*>,
+        StackBasedPoolAllocator<Light*>> relighting(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
+
+    // Insert probes that we intend to relight this frame
+    while (relighting.size() < frame_->maxProbeRelightingPerFrame && frame_->probeRelightQueue.Size() > 0) {
+        auto light = frame_->probeRelightQueue.PopFront();
+        relighting.insert(light.get());
+        frame_->previouslyRelitProbes.insert(light.get());
+    }
+
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
         data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
         data.intensityScale = point->GetIntensity();
+        data.activeProbe = 0.0;
+        data.previouslyRelit = 0.0;
+
+        if (relighting.find(perVPLDistToViewer[i].key.get()) != relighting.end()) {
+            data.activeProbe = 1.0;
+        }
+
+        if (frame_->previouslyRelitProbes.find(perVPLDistToViewer[i].key.get()) != frame_->previouslyRelitProbes.end()) {
+            data.previouslyRelit = 1.0;
+        }
+
         //data.farPlane = point->GetFarPlane();
         //data.radius = point->GetRadius();
         //data.intensity = point->GetIntensity();
     }
+
     state_.vpls.vplData.CopyDataToBuffer(0, sizeof(GpuVplData) * vplData.size(), (const void *)vplData.data());
 }
 
@@ -1418,9 +1444,11 @@ void RendererBackend::UpdatePointLights_(
         for (auto& entry : perVPLDistToViewerSet) {
             visibleVplIndices.push_back(int(perVPLDistToViewerVec.size()));
             perVPLDistToViewerVec.push_back(entry);
+            frame_->probeRelightQueue.MarkActive(entry.key);
             if (perVPLDistToViewerVec.size() >= perVPLDistToViewerVec.capacity()) break;
         }
 
+        frame_->probeRelightQueue.SweepInactive();
         InitVplFrameData_(perVPLDistToViewerVec);
         //PerformVirtualPointLightCullingStage1_(perVPLDistToViewerVec);
     }
@@ -1671,7 +1699,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     InitCoreCSMData_(state_.vplColoring.get());
 
     // Bind outputs
-    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
+    //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
 
     // Dispatch and synchronize
     state_.vpls.vplDiffuseCubeImages.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_DIFFUSE_CUBE_IMAGES);
@@ -1692,7 +1720,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     state_.vplCulling->SetInt("totalNumLights", totalVisible);
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
-    state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
+    //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);
     state_.vpls.vplVisibleIndexCounters.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDEX_COUNTERS_BINDING);
 
@@ -1737,6 +1765,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     auto& cache = vplSmapCache_;
     const glm::vec3 lightColor = frame_->csc.worldLight->GetLuminance();
     state_.vplGlobalIllumination->SetVec3("infiniteLightColor", lightColor);
+    //state_.vplGlobalIllumination->BindTextureAsImage("reservoirs", state_.vpls.vplGIFbo.GetColorAttachments()[0], 0, true, 0, ImageTextureAccessMode::IMAGE_READ_WRITE);
 
     state_.vplGlobalIllumination->SetInt("pixelOffsetX", state_.vpls.lastFrameGISampleOffsetX);
     state_.vplGlobalIllumination->SetInt("pixelOffsetY", state_.vpls.lastFrameGISampleOffsetY);
@@ -1792,6 +1821,9 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIllumination->SetInt("viewportHeight", frame_->viewportHeight);
 
     RenderQuad_();
+
+    //state_.vplGlobalIllumination->DispatchCompute(frame_->viewportWidth * frame_->viewportHeight, 1, 1);
+    //state_.vplGlobalIllumination->SynchronizeMemory(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     
     UnbindShader_();
     state_.vpls.vplGIFbo.Unbind();

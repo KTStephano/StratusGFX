@@ -132,14 +132,7 @@ namespace stratus {
         }
 
         void PushBack(const LightPtr& ptr) {
-            // If a light is already in the queue, don't reorder since it would
-            // result in the light losing its better place in line
-            if (existing_.find(ptr) != existing_.end() || !ptr->CastsShadows()) return;
-
-            queue_.push_back(ptr);
-            auto it = queue_.end();
-            --it;
-            existing_.insert(std::make_pair(ptr, it));
+            PushBack_(ptr);
         }
 
         LightPtr PopFront() {
@@ -157,15 +150,21 @@ namespace stratus {
 
         // In case a light needs to be removed without being updated
         void Erase(const LightPtr& ptr) {
-            if (existing_.find(ptr) == existing_.end()) return;
+            // if (existing_.find(ptr) == existing_.end()) return;
+            // existing_.erase(ptr);
+            // for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+            //     const LightPtr& light = *it;
+            //     if (ptr == light) {
+            //         queue_.erase(it);
+            //         return;
+            //     }
+            // }
+
+            auto it = existing_.find(ptr);
+            if (it == existing_.end()) return;
+
+            queue_.erase(it->second);
             existing_.erase(ptr);
-            for (auto it = queue_.begin(); it != queue_.end(); ++it) {
-                const LightPtr& light = *it;
-                if (ptr == light) {
-                    queue_.erase(it);
-                    return;
-                }
-            }
         }
 
         // In case all lights need to be removed without being updated
@@ -178,9 +177,62 @@ namespace stratus {
             return queue_.size();
         }
 
+        bool Contains(const LightPtr& ptr) const {
+            return existing_.find(ptr) != existing_.end();
+        }
+
+        // Marks a light as being active/of interest, meaning it needs to be kept
+        // around (or inserted)
+        void MarkActive(const LightPtr& ptr) {
+            auto it = PushBack_(ptr);
+            if (it == queue_.end()) {
+                return;
+            }
+
+            active_.insert(std::make_pair(ptr, it));
+        }
+
+        void SweepInactive() {
+            for (const auto&[ptr, it] : existing_) {
+                if (active_.find(ptr) == active_.end()) {
+                    queue_.erase(it);
+                }
+            }
+
+            existing_.clear();
+    
+            auto tmp = std::move(existing_);
+            existing_ = std::move(active_);
+            active_ = std::move(tmp);
+        }
+
     private:
+        std::list<LightPtr>::iterator PushBack_(const LightPtr& ptr) {
+            // If a light is already in the queue, don't reorder since it would
+            // result in the light losing its better place in line
+            {
+                if (!ptr->CastsShadows()) {
+                    return queue_.end();
+                }
+
+                auto it = existing_.find(ptr);
+                if (it != existing_.end()) {
+                    return it->second;
+                }
+            }
+
+            queue_.push_back(ptr);
+            auto it = queue_.end();
+            --it;
+            existing_.insert(std::make_pair(ptr, it));
+            return it;
+        }
+
+    private:
+        // TODO: Remove dynamic allocation here
         std::list<LightPtr> queue_;
         std::unordered_map<LightPtr, std::list<LightPtr>::iterator> existing_;
+        std::unordered_map<LightPtr, std::list<LightPtr>::iterator> active_;
     };
 
     // Settings which can be changed at runtime by the application
@@ -323,6 +375,12 @@ namespace stratus {
         RendererSettings settings;
         UnsafePtr<StackAllocator> perFrameScratchMemory;
         bool viewportDirty;
+
+        // Allows us to batch up the relighting phase so that one frame
+        // doesn't get excessively slowed down
+        const int maxProbeRelightingPerFrame = 300;
+        LightUpdateQueue probeRelightQueue;
+        std::unordered_set<Light*> previouslyRelitProbes;
     };
 
     class RendererBackend {
