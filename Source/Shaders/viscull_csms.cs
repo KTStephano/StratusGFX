@@ -73,6 +73,8 @@ void main() {
 
     barrier();
 
+// There is a bug when using aabb culling with cascades - not sure what causes it,
+// but there are false negatives (culled but should have been kept)
 #define PERFORM_VISCULL_FOR_CASCADE(index, planes, aabb, draw, out) \
     if (!isAabbVisible(planes, aabb)) {                             \
         draw.instanceCount = 0;                                     \
@@ -80,18 +82,26 @@ void main() {
         draw.instanceCount = 1;                                     \
     }                                                               \
     out[index] = draw;
+
+#define UNCONDITIONAL_SET_VISIBLE(index, draw, out)                 \
+    draw.instanceCount = 1;                                         \
+    out[index] = draw;                                               
    
     for (uint i = gl_LocalInvocationIndex; i < numDrawCalls; i += localWorkGroupSize) {
         AABB aabb = transformAabb(aabbs[i], modelTransforms[i]);
 
         // Cascade 0
         DrawElementsIndirectCommand draw = cascade0DrawCalls[i];
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
+        //PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes0, aabb, draw, outDrawCallsCascade0);
+        UNCONDITIONAL_SET_VISIBLE(i, draw, outDrawCallsCascade0);
 
         // Cascades 1, 2, 3
         draw = cascade123DrawCalls[i];
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
-        PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
+        UNCONDITIONAL_SET_VISIBLE(i, draw, outDrawCallsCascade1);
+        UNCONDITIONAL_SET_VISIBLE(i, draw, outDrawCallsCascade2);
+        UNCONDITIONAL_SET_VISIBLE(i, draw, outDrawCallsCascade3);
+        //PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes1, aabb, draw, outDrawCallsCascade1);
+        //PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes2, aabb, draw, outDrawCallsCascade2);
+        //PERFORM_VISCULL_FOR_CASCADE(i, cascadeFrustumPlanes3, aabb, draw, outDrawCallsCascade3);
     }
 }

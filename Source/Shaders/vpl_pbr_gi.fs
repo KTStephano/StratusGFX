@@ -16,7 +16,7 @@ out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 2
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
-#define MAX_RESAMPLES_PER_PIXEL 8
+#define MAX_RESAMPLES_PER_PIXEL 4
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -238,8 +238,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 }
 
 void main() {
-    ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
-    vec2 uv = (vec2(texCoords) + vec2(0.0)) / vec2(viewportWidth, viewportHeight);
+    //ivec2 texCoords = ivec2(floor(vec2(viewportWidth, viewportHeight) * fsTexCoords)) + ivec2(pixelOffsetX, pixelOffsetY);
+    //vec2 uv = (vec2(texCoords) + vec2(0.0)) / vec2(viewportWidth, viewportHeight);
+    vec2 texCoords = gl_FragCoord.xy;
+    vec2 uv = fsTexCoords;
 
     //performLightingCalculations(textureLod(screen, fsTexCoords, 0).rgb, gl_FragCoord.xy, fsTexCoords);
     performLightingCalculations(textureLod(screen, uv, 0).rgb, texCoords, uv);

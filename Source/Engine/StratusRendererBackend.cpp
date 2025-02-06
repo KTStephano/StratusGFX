@@ -428,7 +428,7 @@ void RendererBackend::InitGBuffer_() {
         //buffer.position.setMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
 
         // Normal buffer
-        buffer.normals = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_8, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
+        buffer.normals = Texture(TextureConfig{ TextureType::TEXTURE_2D, TextureComponentFormat::RGB, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
         buffer.normals.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.normals.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -1601,16 +1601,16 @@ void RendererBackend::UpdatePointLights_(
                 state_.skyboxLayeredVpl->SetInt("layer", int(smap.layer * 6 + i));
                 state_.skyboxLayeredVpl->SetVec3("vplLocation", point->GetPosition());
 
-                auto tmp = frame_->settings.GetSkyboxIntensity();
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(1.0f);
-                }
+                //auto tmp = frame_->settings.GetSkyboxIntensity();
+                //if (tmp > 1.0f) {
+                //    frame_->settings.SetSkyboxIntensity(1.0f);
+                //}
                 
                 RenderSkybox_(state_.skyboxLayeredVpl.get(), projectionViewNoTranslate);
 
-                if (tmp > 1.0f) {
-                    frame_->settings.SetSkyboxIntensity(tmp);
-                }
+                //if (tmp > 1.0f) {
+                //    frame_->settings.SetSkyboxIntensity(tmp);
+                //}
 
                 glDepthFunc(GL_LESS);
             }
@@ -1685,7 +1685,8 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     // Bind inputs
     auto& cache = vplSmapCache_;
     state_.vplColoring->SetVec3("infiniteLightDirection", direction);
-    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetLuminance());
+    state_.vplColoring->SetVec3("infiniteLightColor", frame_->csc.worldLight->GetColor());
+    state_.vplColoring->SetFloat("infiniteLightIntensity", frame_->csc.worldLight->GetIntensity());
     state_.vplColoring->SetInt("visibleVpls", totalVisible);
     //for (size_t i = 0; i < cache.buffers.size(); ++i) {
     //    state_.vplColoring->BindTexture("diffuseCubeMaps[" + std::to_string(i) + "]", cache.buffers[i].GetColorAttachments()[0]);

@@ -12,7 +12,7 @@ flat in int fsDrawID;
 uniform vec3 lightPos;
 uniform float farPlane;
 
-out vec3 color;
+out vec4 color;
 out vec3 worldPos;
 
 void main() {
@@ -33,6 +33,6 @@ void main() {
     // write this as modified depth
     gl_FragDepth = lightDistance;
 
-    color = baseColor.rgb;
+    color = vec4(baseColor.rgb, 0.0);
     worldPos = fsPosition.xyz;
 }  

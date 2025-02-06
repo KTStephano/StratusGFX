@@ -304,8 +304,8 @@ namespace stratus {
             );
         }
 
-        void SetSkyboxIntensity(const float intensity) {
-            skyboxIntensity_ = std::max<float>(intensity, 0.0f);
+        void SetSkyboxIntensity(const Float8Bit intensity) {
+            skyboxIntensity_ = intensity.Float();
         }
 
         float GetMinRoughness() const {
@@ -342,7 +342,7 @@ namespace stratus {
         // This works as a multiplicative effect on top of emission strength
         float emissiveScalingFactorNormalized_ = 1.0f;
         glm::vec3 skyboxColorMask_ = glm::vec3(1.0f);
-        float skyboxIntensity_ = 3.0f;
+        float skyboxIntensity_ = Float8Bit(155).Float();
         float minRoughness_ = 0.08f;
         float alphaDepthTestThreshold_ = 0.5f;
         float minGiOcclusionFactor_ = 0.95f;

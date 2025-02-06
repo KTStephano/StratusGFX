@@ -14,13 +14,14 @@ layout (location = 1) out vec2 fsVelocity;
 
 uniform samplerCube skybox;
 uniform vec3 colorMask = vec3(1.0);
-uniform float intensity = 3.0;
+uniform float intensity = 0.0;
 
 void main() {
-    fsColor = intensity * vec4(colorMask, 1.0) * texture(skybox, fsTexCoords);
+    fsColor = vec4(5.0 * intensity * vec3(colorMask) * texture(skybox, fsTexCoords).rgb, 1.0);
+
     #ifdef VPL_PIPELINE
     // TODO: replace addition with world up vector * scale
-    fsPosition = vec4(vplLocation + vec3(0.0, 250.0, 0.0), 1.0);
+    fsPosition = vec4(vplLocation + vec3(0.0, 300.0, 0.0), 1.0);
     #else
     fsVelocity = vec2(0.0);
     #endif

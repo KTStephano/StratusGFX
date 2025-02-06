@@ -61,7 +61,7 @@ void main() {
 
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         VplData probe = probes[index];
-        if (probe.activeProbe > 0) {
+        //if (probe.activeProbe > 0) {
             ivec3 bucketCoords = computeBaseBucketCoords(probe.position.xyz);
             if (!baseBucketCoordsWithinRange(bucketCoords)) {
                 continue;
@@ -79,7 +79,7 @@ void main() {
             }
 
             vplVisibleIndex[offsetBucketIndex + localIndex] = index;
-        }
+        //}
     }
 
     barrier();

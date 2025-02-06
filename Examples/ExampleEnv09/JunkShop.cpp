@@ -83,7 +83,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::NONE, "jpg");
-        settings.SetSkyboxIntensity(0.25f);
+        settings.SetSkyboxIntensity(stratus::Float8Bit(14));
         settings.SetSkyboxColorMask(moonlightColor);
         settings.SetEmissionStrength(5.0f);
         INSTANCE(RendererFrontend)->SetSettings(settings);

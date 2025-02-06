@@ -148,6 +148,26 @@ namespace stratus {
         glm::mat3 asMat3() const;
 	};
 
+    // Float constrained to represent 256 values 
+    struct Float8Bit {
+        explicit Float8Bit(uint8_t value = 0) : value_(value) {}
+
+        uint8_t Bits() const {
+            return value_;
+        }
+
+        float Float() const {
+            return float(value_) / float(255.0);
+        }
+
+        operator float() const {
+            return Float();
+        }
+
+    private:
+        uint8_t value_ = 0;
+    };
+
 	inline Radians cosine(const Radians& r) { return Radians(cosf(r.value())); }
 	inline Radians cosine(const Degrees& d) { return Radians(cosf(Radians(d).value())); }
 	

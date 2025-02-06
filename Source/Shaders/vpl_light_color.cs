@@ -19,6 +19,7 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 6) in;
 #include "vpl_common.glsl"
 
 uniform vec3 infiniteLightColor;
+uniform float infiniteLightIntensity;
 uniform int visibleVpls;
 
 // for vec2 with std140 it always begins on a 2*4 = 8 byte boundary
@@ -95,6 +96,7 @@ vec3 generateCubemapCoords(in vec2 txc, in int face) {
 }
 
 shared int currentProbeIsVisible;
+shared int numNonDirectLightSamples;
 shared int minDistance;
 shared uint diffuseX, diffuseY, diffuseZ;
 
@@ -112,6 +114,7 @@ void main() {
     if (gl_LocalInvocationIndex == 0) {
         // Set state
         currentProbeIsVisible = 0;
+        numNonDirectLightSamples = 0;
         minDistance = probeRadius;
         diffuseX = 0;
         diffuseY = 0;
@@ -124,9 +127,9 @@ void main() {
     for (int index = int(gl_WorkGroupID.x); index < visibleVpls; index += stepSize) {
         VplData probe = probes[index];
         if (probe.activeProbe < 1.0) {
-            if (gl_LocalInvocationIndex == 0 && probe.previouslyRelit > 0.0) {
-                probes[index].activeProbe = 1.0;
-            }
+            //if (gl_LocalInvocationIndex == 0 && probe.previouslyRelit > 0.0) {
+            //    probes[index].activeProbe = 1.0;
+            //}
 
             // All worker threads should see this as well
             continue;
@@ -146,36 +149,65 @@ void main() {
         // cubeArrays need to be thought of as a 2D array, so they only take a 3d index instead of 4d
         ivec3 texelIndex = ivec3(ivec2(gl_LocalInvocationID.xy), int(gl_LocalInvocationID.z)+6*int(entry.layer));
 
-        vec3 diffuseValBase = imageLoad(diffuse, texelIndex).rgb;
+        vec4 diffuseValBase = imageLoad(diffuse, texelIndex).rgba;
         //vec3 diffuseVal = diffuseValBase * infiniteLightColor.rgb;
         vec3 positionVal = imageLoad(position, texelIndex).xyz;
 
-        vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(positionVal, 1.0)),
-                        dot(cascadePlanes[1], vec4(positionVal, 1.0)),
-                        dot(cascadePlanes[2], vec4(positionVal, 1.0)));
-        float shadowFactor = 1.0 - calculateInfiniteShadowValue1Sample(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
         vec3 lightColor = vec3(0.0);
-        if (shadowFactor < 1.0) {
-            int distance = max(int(ceil(length(probe.position.xyz - positionVal))), 1);
+        float shadowFactor = 1.0;
+        if (diffuseValBase.a > 0.0) {
+            shadowFactor = 0.0;
+            // Signals that we are a sample that doesn't necessarily have to depend on directional light hitting a surface
+            atomicAdd(numNonDirectLightSamples, 1);
+        } else {
+            vec3 cascadeBlends = vec3(dot(cascadePlanes[0], vec4(positionVal, 1.0)),
+                            dot(cascadePlanes[1], vec4(positionVal, 1.0)),
+                            dot(cascadePlanes[2], vec4(positionVal, 1.0)));
+            shadowFactor = 1.0 - calculateInfiniteShadowValue1Sample(vec4(positionVal, 1.0), cascadeBlends, infiniteLightDirection, false);
+            //lightColorModifier = infiniteLightIntensity * infiniteLightColor.rgb;
+        }
 
+        int distance = max(int(ceil(length(probe.position.xyz - positionVal))), 1);
+        if (shadowFactor < 1.0) {
             // Signals to other workers in this group that the light was visible in some way
             atomicAdd(currentProbeIsVisible, 1);
             atomicMin(minDistance, distance);
+        }
+
+        barrier();
+
+        // Perform atomic sum of individual direct or sky contributions so we can spread indirect light
+        // to neighboring pixels
+        //float sampleRatioDirect = 1.0 / (float(currentProbeIsVisible) - float(numNonDirectLightSamples));
+        //float sampleRatioSky = 1.0 - sampleRatioDirect;
+        float directLightSamples = float(currentProbeIsVisible) - float(numNonDirectLightSamples);
+        float sampleRatioDirect = directLightSamples == 0.0 ? 0.0 : 1.0 / float(directLightSamples);
+        float sampleRatioSky = numNonDirectLightSamples == 0 ? 0.0 : 1.0 / float(numNonDirectLightSamples);
+        if (shadowFactor < 1.0) {
+            vec3 lightColorModifier = vec3(1.0);
+            vec3 sampleModifier = vec3(1.0);
+            if (diffuseValBase.a > 0.0) {
+                sampleModifier = vec3(0.5 * (infiniteLightIntensity) * sampleRatioSky);
+                lightColorModifier = vec3(5 + infiniteLightIntensity);
+            } else {
+                lightColorModifier = infiniteLightIntensity * infiniteLightColor.rgb;
+                sampleModifier = lightColorModifier * sampleRatioDirect;
+            }
 
             uint unused;
-            ATOMIC_ADD_FLOAT(diffuseX, diffuseValBase.x, unused)
-            ATOMIC_ADD_FLOAT(diffuseY, diffuseValBase.y, unused)
-            ATOMIC_ADD_FLOAT(diffuseZ, diffuseValBase.z, unused)
+            ATOMIC_ADD_FLOAT(diffuseX, diffuseValBase.x * sampleModifier.x, unused)
+            ATOMIC_ADD_FLOAT(diffuseY, diffuseValBase.y * sampleModifier.y, unused)
+            ATOMIC_ADD_FLOAT(diffuseZ, diffuseValBase.z * sampleModifier.z, unused)
 
-            lightColor = diffuseValBase * infiniteLightColor.rgb;
+            lightColor = diffuseValBase.rgb * lightColorModifier;
         }
 
         barrier();
 
         if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
-            float weight = 1.0 - (float(2*minDistance) / float(probeRadius));
-            vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ)) / float(currentProbeIsVisible);
-            vec3 newDiffuseVal = ((diffuseValBase * modifier)) * infiniteLightColor.rgb;
+            float weight = 1.0 - (float(distance + minDistance) / float(probeRadius));
+            vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ));// / float(currentProbeIsVisible);
+            vec3 newDiffuseVal = ((diffuseValBase.rgb * modifier));// * infiniteLightIntensity * infiniteLightColor.rgb;
             lightColor = newDiffuseVal * weight;
         }
 
@@ -187,10 +219,11 @@ void main() {
             // Write flag to memory buffer so next compute dispatch can determine which
             // probes are relevant
             //probeFlags[index] = currentProbeIsVisible;
-            probes[index].activeProbe = float(currentProbeIsVisible);
+            //probes[index].activeProbe = 1;//float(currentProbeIsVisible - numNonDirectLightSamples);
 
             // Reset state
             currentProbeIsVisible = 0;
+            numNonDirectLightSamples = 0;
             minDistance = probeRadius;
             diffuseX = 0;
             diffuseY = 0;

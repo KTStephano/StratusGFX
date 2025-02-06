@@ -36,6 +36,18 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = 70; x <= 180; x += 20) {
+        for (int y = 5; y <= 50; y += 20) {
+            for (int z = 100; z <= 200; z += 30) {
+                    ++spawned;
+                    LightCreator::CreateVirtualPointLight(
+                        LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                        false
+                    );
+            } 
+        }
+    }
+
     for (int x = -200; x < 95; x += 30) {
         for (int y = 0; y < 150; y += 15) {
             for (int z = -50; z < 200; z += 30) {
@@ -97,7 +109,7 @@ static void setupDayTime() {
     auto settings = INSTANCE(RendererFrontend)->GetSettings();
     settings.SetFogDensity(0.0f);
     settings.SetFogColor(glm::vec3(0.5f));
-    settings.SetSkyboxIntensity(3.0f);
+    settings.SetSkyboxIntensity(stratus::Float8Bit(155));
     settings.SetEmissionStrength(0.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
     INSTANCE(RendererFrontend)->GetWorldLight()->SetAtmosphericLightingConstants(0.0045f, 0.0065f);
@@ -110,7 +122,7 @@ static void setupNightTime() {
     INSTANCE(RendererFrontend)->GetWorldLight()->SetEnabled(false);
     settings.SetFogDensity(0.00075);
     settings.SetFogColor(glm::vec3(0.5, 0.5, 0.125));
-    settings.SetSkyboxIntensity(0.025);
+    settings.SetSkyboxIntensity(stratus::Float8Bit(4));
     settings.SetEmissionStrength(5.0f);
     settings.SetEmissiveScalingFactorNormalized(5.0f);
     INSTANCE(RendererFrontend)->SetSettings(settings);
@@ -542,7 +554,8 @@ public:
                         case SDL_SCANCODE_1: {
                             if (released) {
                                 LightCreator::CreateVirtualPointLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), worldLightColor, 100.0f)
+                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f), 1.0f),
+                                    false
                                 );
                             }
                             break;
