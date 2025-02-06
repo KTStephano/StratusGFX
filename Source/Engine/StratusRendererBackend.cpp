@@ -1545,7 +1545,7 @@ void RendererBackend::UpdatePointLights_(
 
         PerformPointLightGeometryCulling(
             *state_.viscullPointLights.get(),
-            0, //light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
+            light->IsVirtualLight() ? frame_->drawCommands->NumLods() - 1 : 0, // lod
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
