@@ -96,6 +96,42 @@ static void setupDayTime() {
         }
     }
 
+    for (int x = -280; x < -120; x += 30) {
+        for (int y = 0; y < 160; y += 30) {
+            for (int z = -320; z < -180; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    true
+                );
+            }
+        }
+    }
+
+    for (int x = -60; x < 160; x += 30) {
+        for (int y = 5; y < 160; y += 30) {
+            for (int z = -280; z < -130; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    true
+                );
+            }
+        }
+    }
+
+    for (int x = -240; x < -120; x += 30) {
+        for (int y = 5; y < 160; y += 30) {
+            for (int z = -180; z < -80; z += 30) {
+                ++spawned;
+                LightCreator::CreateVirtualPointLight(
+                    LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
+                    true
+                );
+            }
+        }
+    }
+
     for (int x = -270; x < -160; x += 30) {
         for (int y = 0; y < 160; y += 10) {
             ++spawned;

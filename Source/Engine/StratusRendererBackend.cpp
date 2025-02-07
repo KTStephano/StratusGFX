@@ -1415,7 +1415,7 @@ void RendererBackend::UpdatePointLights_(
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
             //if (giEnabled && SphereFrustumIntersection(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
-            if (giEnabled && distance <= light->GetRadius()) {
+            if (giEnabled && distance <= (2*light->GetRadius())) {
             //if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
@@ -1725,7 +1725,7 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     for (size_t i = 0; i < frame_->viewFrustumPlanes.size(); ++i) {
         state_.vplCulling->SetVec4("frustumPlanes[" + std::to_string(i) + "]", frame_->viewFrustumPlanes[i]);
     }
-    
+
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
     //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);
