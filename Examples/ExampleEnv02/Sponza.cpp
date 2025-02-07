@@ -41,12 +41,14 @@ public:
         LightCreator::Initialize();
 
         stratus::InputHandlerPtr controller(new CameraController());
+        cc = (CameraController*)controller.get();
         INSTANCE(InputManager)->AddInputHandler(controller);
 
         const glm::vec3 warmMorningColor = glm::vec3(254.0f / 255.0f, 232.0f / 255.0f, 176.0f / 255.0f);
         const glm::vec3 defaultSunColor = glm::vec3(1.0f);
         const glm::vec3 moonlightColor = glm::vec3(79.0f / 255.0f, 105.0f / 255.0f, 136.0f / 255.0f);
         auto wc = new WorldLightController(defaultSunColor, warmMorningColor, 15.0f);
+        wlc = wc;
         //auto wc = new WorldLightController(moonlightColor, moonlightColor, 0.5f);
         wc->SetRotation(stratus::Rotation(stratus::Degrees(56.8385f), stratus::Degrees(0.0f), stratus::Degrees(0)));
         controller = stratus::InputHandlerPtr(wc);
@@ -54,6 +56,71 @@ public:
 
         controller = stratus::InputHandlerPtr(new FrameRateController());
         INSTANCE(InputManager)->AddInputHandler(controller);
+
+        {
+            auto cube = INSTANCE(ResourceManager)->CreateCube();
+            auto local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            auto rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5335, 237.164, -25.085));
+            local->SetLocalScale(glm::vec3(50.0f, 1.0f, 100.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("White"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, 100));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Red"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.75f, 0.1f, 0.1f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, 60));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Green"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.1f, 0.75f, 0.1f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, 20));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Blue"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.1f, 0.1f, 0.75f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, -20));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Purple"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.75f, 0.1f, 0.75f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, -60));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Yellow"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.75f, 0.75f, 0.1f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+
+            cube = INSTANCE(ResourceManager)->CreateCube();
+            local = cube->Components().GetComponent<stratus::LocalTransformComponent>().component;
+            rc = cube->Components().GetComponent<stratus::RenderComponent>().component;
+            local->SetLocalPosition(glm::vec3(2.5, 2.5, -100));
+            local->SetLocalScale(glm::vec3(30.0f, 1.0f, 20.0f));
+            rc->SetMaterialAt(INSTANCE(MaterialManager)->GetOrCreateMaterial("Orange"), 0);
+            rc->GetMaterialAt(0)->SetDiffuseColor(glm::vec4(0.75f, 0.5f, 0.1f, 1.0f));
+            //INSTANCE(EntityManager)->AddEntity(cube);
+        }
 
         // Moonlight
         //worldLight->setColor(glm::vec3(80.0f / 255.0f, 104.0f / 255.0f, 134.0f / 255.0f));
@@ -89,6 +156,7 @@ public:
         //settings.SetSkyboxIntensity(0.05f);
         //settings.SetSkyboxColorMask(moonlightColor);
         settings.SetAlphaDepthTestThreshold(0.75f);
+        settings.taaEnabled = true;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         INSTANCE(RendererFrontend)->GetWorldLight()->SetAlphaTest(true);
@@ -166,6 +234,11 @@ public:
                             }
                             break;
                         }
+                        case SDL_SCANCODE_LSHIFT:
+                            if (released) {
+                                sunMovementUnlocked_ = !sunMovementUnlocked_;
+                            }
+                            break;
                         default: break;
                     }
                     break;
@@ -216,6 +289,11 @@ public:
            STRATUS_LOG << "SPAWNED " << spawned << " VPLS\n";
         }
 
+        if (sunMovementUnlocked_) {
+            auto shift = cc->GetRecentMouseXYChange() * 5.0f * float(deltaSeconds);
+            wlc->OffsetWorldLightRotation(glm::vec3(shift.x, 0.0f, 0.0));
+        }
+
         // worldLight->setRotation(glm::vec3(75.0f, 0.0f, 0.0f));
         //worldLight->setRotation(stratus::Rotation(stratus::Degrees(30.0f), stratus::Degrees(0.0f), stratus::Degrees(0.0f)));
 
@@ -257,6 +335,10 @@ public:
 private:
     std::vector<stratus::Async<stratus::Entity>> requested;
     std::vector<stratus::EntityPtr> received;
+    bool sunMovementUnlocked_ = false;
+    // Unsafe
+    CameraController* cc;
+    WorldLightController* wlc;
 };
 
 STRATUS_ENTRY_POINT(Sponza)

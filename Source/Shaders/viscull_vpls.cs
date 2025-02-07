@@ -132,10 +132,10 @@ void main() {
     oldCutoffDistance = cutoffDistance;
     cutoffDistance += expandedCutoffOffset;
     if (numPresent < 128 && numWithinShortRange > 0) {
-        maxVplsAllowed = min(numPresent + numWithinShortRange, 128);
-        for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
-            PERFORM_PROBE_CULL
-        }
+       maxVplsAllowed = min(numPresent + numWithinShortRange, 128);
+       for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
+           PERFORM_PROBE_CULL
+       }
     }
 
     barrier();

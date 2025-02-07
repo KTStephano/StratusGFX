@@ -14,7 +14,7 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 2
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 4
 
@@ -222,7 +222,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                                                                 probeRadius,                                                    
                                                                 fragPos,                                                                           
                                                                 probePosition,                                                                     
-                                                                dot(probePosition - fragPos, normal), 0.01);                                                                                                        
+                                                                dot(probePosition - fragPos, normal), 0.01);    
+                //if (shadowFactor > 0) {
+                //    continue;
+                //}                                                                                                    
                 //shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                  
                                                                                                                                                     
                 float reweightingFactor = 1.0;                                                                                                      

@@ -388,7 +388,7 @@ namespace stratus {
         struct GBuffer {
             FrameBuffer fbo;
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
-            Texture normals;                  // RGB16F
+            Texture normals;                  // RGB8F
             Texture albedo;                   // RGB8F
             //Texture baseReflectivity;         // RGB8F
             Texture roughnessMetallicReflectivity; // RGB8F

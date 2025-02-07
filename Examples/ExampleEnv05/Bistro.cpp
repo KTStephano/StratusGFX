@@ -102,7 +102,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    true
+                    false
                 );
             }
         }
@@ -114,7 +114,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    true
+                    false
                 );
             }
         }
@@ -126,7 +126,7 @@ static void setupDayTime() {
                 ++spawned;
                 LightCreator::CreateVirtualPointLight(
                     LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 1.0f),
-                    true
+                    false
                 );
             }
         }

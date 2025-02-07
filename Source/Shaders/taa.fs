@@ -98,5 +98,6 @@ void main() {
     //color = vec4(currentColor, 1.0);
     //color = vec4(averageCurrentColor, 1.0);
     color = vec4(mix(currentColor, prevColor, 0.9), 0.0625);
+    //color = vec4(currentColor, 0.0625);
     //color = vec4(mix(mix(currentColor, prevColor, 0.9), averageCurrentColor, velocityDisocclusion), 1.0);
 }

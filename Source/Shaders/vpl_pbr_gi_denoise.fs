@@ -154,7 +154,7 @@ float filterInput(
     //if (final) return 1.0;
     if (dx == 0 && dy == 0) return 1.0;
 
-    vec2 texelStep = (vec2(float(dx), float(dy)) + vec2(float(dx), float(dy)) * float(multiplier)) * texelWidthHeight;
+    vec2 texelStep = (vec2(float(dx), float(dy)) + vec2(float(dx), float(dy)) * multiplier) * texelWidthHeight;
     vec2 pixelCoords = texCoords * widthHeight;
     vec2 newTexCoords = texCoords + texelStep;
 
@@ -257,7 +257,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 2;
+    int minmaxNearest = 3;
     for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
         for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
             ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
@@ -274,14 +274,20 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 }
 
 ivec3 computeWorldBucket(in vec3 worldPos) {
-    const float worldSpacePerBucket = 1;
+    const float worldSpacePerBucket = 1.0;
     return ivec3(floor(worldPos / worldSpacePerBucket));
 }
 
-bool worldBucketsEqual(in ivec3 xs, in ivec3 ys) {
-    return xs.x == ys.x &&
-        xs.y == ys.y &&
-        xs.z == ys.z;
+bool worldBucketsEqual(in vec3 wxs, in vec3 wys) {
+    ivec3 xs = computeWorldBucket(wxs);
+    ivec3 ys = computeWorldBucket(wys);
+    // TODO: There seems to be a bug where the y-component is wrong between frames (sometimes)
+    // It almost looks like z-fighting artifacts? They seem to be within 2 world tiles of each other
+    // when the answer should be strict ==.
+    return xs.xz == ys.xz && abs(xs.y-ys.y) < 2;
+    //return xs.x == ys.x &&
+    //    xs.y == ys.y &&
+    //    xs.z == ys.z;
 }
 
 void main() {
@@ -376,9 +382,9 @@ void main() {
 
         float wn = max(0.0, dot(centerNormal, prevCenterNormal));
         /* If it is less than 0.906 it means the angle exceeded 25 degrees (positive or negative angle) */
-        // if (wn < 0.95) {
-        //     wn = 0.0;
-        // }
+        if (wn < 0.95) {
+            wn = 0.0;
+        }
 
         //wn = pow(wn, 8.0);
         //float similarity = 1.0;
@@ -412,27 +418,28 @@ void main() {
         //wz = 0.0;
 
         //float wrt = length(prevGi - currGi);
-        //float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - currLum);
-        // float ozrt = 5.0;//4 * exp(-variance) + 0.0001;
-        // //ozrt = 1.0 - variance + 0.0001;
-        // wrt = exp(-wrt / ozrt);
-        // if (wrt < 0.97) wrt = 0.0;
-        // float wrt = 1.0;
-        // if (abs(linearColorToLuminance(tonemap(prevGi)) - currLum) > 0.1) {
-        //     wrt = 0.0;
-        // }
+        ////float wrt = abs(linearColorToLuminance(tonemap(prevGi)) - currLum);
+        //float ozrt = 5.0;//4 * exp(-variance) + 0.0001;
+        ////ozrt = 1.0 - variance + 0.0001;
+        //wrt = exp(-wrt / ozrt);
+        //if (wrt < 0.97) wrt = 0.0;
+        //float wrt = 1.0;
+        //if (abs(linearColorToLuminance(tonemap(prevGi)) - currLum) > 0.1) {
+        //    wrt = 0.0;
+        //}
 
         //float wid = currId != prevId ? 0.0 : 1.0;
-        //float wid = worldBucketsEqual(
-        //    computeWorldBucket(currWorldPos),
-        //    computeWorldBucket(prevWorldPos)
-        //) ? 1 : 0;
-        float wid = 1.0;
+        float wid = worldBucketsEqual(
+            currWorldPos,
+            prevWorldPos
+        ) ? 1.0 : 0.0;
+        //float wid = 1.0;
+        //wid = 1.0;
 
         float similarity = wn * wz * wid;
         //float similarity = wid;
         
-        if (similarity < 0.995) {
+        if (similarity < 0.99) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;

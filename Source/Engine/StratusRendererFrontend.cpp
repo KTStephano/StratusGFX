@@ -400,6 +400,10 @@ namespace stratus {
         UpdateDrawCommands_();
         UpdateVisibility_();
 
+        // Set previous projection view
+        frame_->prevProjectionView = frame_->projectionView;
+        frame_->prevInvProjectionView = frame_->invProjectionView;
+
         // Update view projection and its inverse
         frame_->projectionView = frame_->projection * frame_->view;
         frame_->invProjectionView = glm::inverse(frame_->projectionView);
@@ -444,8 +448,8 @@ namespace stratus {
         UpdatePrevFrameModelTransforms_();
 
         // Set previous projection view
-        frame_->prevProjectionView = frame_->projectionView;
-        frame_->prevInvProjectionView = frame_->invProjectionView;
+        //frame_->prevProjectionView = frame_->projectionView;
+        //frame_->prevInvProjectionView = frame_->invProjectionView;
 
         // Reset the per frame scratch memory
         frame_->perFrameScratchMemory->Deallocate();
