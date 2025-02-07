@@ -1721,29 +1721,31 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     state_.vplCulling->Bind();
 
     state_.vplCulling->SetInt("totalNumLights", totalVisible);
+    state_.vplCulling->SetVec3("viewPosition", frame_->camera->GetPosition());
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
     //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);
     state_.vpls.vplVisibleIndexCounters.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDEX_COUNTERS_BINDING);
 
     // One dispatch per bucket
-    state_.vplCulling->DispatchCompute(MAX_VPL_BUCKETS, 1, 1);
+    //state_.vplCulling->DispatchCompute(MAX_VPL_BUCKETS, 1, 1);
+    state_.vplCulling->DispatchCompute(MAX_VPL_BUCKETS_PER_DIM, MAX_VPL_BUCKETS_PER_DIM, MAX_VPL_BUCKETS_PER_DIM);
     state_.vplCulling->SynchronizeMemory(GL_SHADER_STORAGE_BARRIER_BIT);
 
     state_.vplCulling->Unbind();
 
-    //auto fence = HostInsertFence();
-    //HostFenceSync(fence);
+    // auto fence = HostInsertFence();
+    // HostFenceSync(fence);
 
-    //auto mem = (int *)state_.vpls.vplVisibleIndexCounters.MapMemory(GPU_MAP_READ);
+    // auto mem = (int *)state_.vpls.vplVisibleIndexCounters.MapMemory(GPU_MAP_READ);
 
-    //for (int i = 0; i < MAX_VPL_BUCKETS; i++) {
+    // for (int i = 0; i < MAX_VPL_BUCKETS; i++) {
     //    if (mem[i] > 0)
     //        std::cout << mem[i] << " ";
-    //}
-    //std::cout << std::endl;
+    // }
+    // std::cout << std::endl;
 
-    //state_.vpls.vplVisibleIndexCounters.UnmapMemory();
+    // state_.vpls.vplVisibleIndexCounters.UnmapMemory();
 }
 
 void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistVector_& perVPLDistToViewer, const double deltaSeconds) {
@@ -1864,12 +1866,12 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->SetFloat("framesPerSecond", float(1.0 / deltaSeconds));
     state_.vplGlobalIlluminationDenoising->SetMat4("invProjectionView", frame_->invProjectionView);
     state_.vplGlobalIlluminationDenoising->SetMat4("prevInvProjectionView", frame_->prevInvProjectionView);
+    state_.vplGlobalIlluminationDenoising->SetInt("totalNumProbesVisible", i32(perVPLDistToViewer.size()));
 
     size_t bufferIndex = 0;
     const int maxReservoirMergingPasses = 1;
     const int maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
-
         // The first iteration(s) is used for reservoir merging so we don't
         // start increasing the multiplier until after the reservoir merging passes
         const int i = bufferIndex; // bufferIndex < maxReservoirMergingPasses ? 0 : bufferIndex - maxReservoirMergingPasses + 1;

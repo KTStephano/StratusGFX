@@ -36,13 +36,14 @@
 #define MAX_VPLS_PER_TILE (12)
 
 // Max probes per bucket
-#define MAX_VPLS_PER_BUCKET (MAX_TOTAL_VPLS_PER_FRAME)
+#define MAX_VPLS_PER_BUCKET (1024)
 // Total buckets
-#define MAX_VPL_BUCKETS_PER_DIM (1)
+#define MAX_VPL_BUCKETS_PER_DIM (16)
+#define HALF_VPL_BUCKETS_PER_DIM (MAX_VPL_BUCKETS_PER_DIM * 0.5)
 #define MAX_VPL_BUCKETS (MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM)
 #define MAX_VPL_BUCKET_INDEX (MAX_VPL_BUCKETS)
 // Each bucket occupies this value cubed in world space
-#define WORLD_SPACE_PER_VPL_BUCKET (1024)
+#define WORLD_SPACE_PER_VPL_BUCKET (128)
 
 #define FLOAT2_TO_VEC2(f2) glm::vec2(f2[0], f2[1])
 #define FLOAT3_TO_VEC3(f3) glm::vec3(f3[0], f3[1], f3[2])

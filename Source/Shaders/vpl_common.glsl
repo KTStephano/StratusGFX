@@ -9,13 +9,14 @@ STRATUS_GLSL_VERSION
 #define MAX_VPLS_PER_TILE (12)
 
 // Max probes per bucket
-#define MAX_VPLS_PER_BUCKET (MAX_TOTAL_VPLS_PER_FRAME)
+#define MAX_VPLS_PER_BUCKET (1024)
 // Total buckets
-#define MAX_VPL_BUCKETS_PER_DIM (1)
+#define MAX_VPL_BUCKETS_PER_DIM (16)
+#define HALF_VPL_BUCKETS_PER_DIM (MAX_VPL_BUCKETS_PER_DIM * 0.5)
 #define MAX_VPL_BUCKETS (MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM*MAX_VPL_BUCKETS_PER_DIM)
 #define MAX_VPL_BUCKET_INDEX (MAX_VPL_BUCKETS)
 // Each bucket occupies this value cubed in world space
-#define WORLD_SPACE_PER_VPL_BUCKET (1024)
+#define WORLD_SPACE_PER_VPL_BUCKET (128)
 
 // Needs to use uint for its memory backing since GLSL atomics only work on int and uint
 // See for reference:
@@ -67,14 +68,45 @@ vec3 wrapUVSCoords(in vec3 uvs) {
     return vec3(fract(uvs.x), fract(uvs.y), fract(uvs.z));
 }
 
+// Input should be in world space and the output it a set of world-space bucket coords.
+// They will likely be out of the MAX_VPL_BUCKETS_PER_DIM range since no wrapping is performed.
+ivec3 computeWorldSpaceBucketCoords(in vec3 position) {
+    return ivec3(floor(position / float(WORLD_SPACE_PER_VPL_BUCKET)));
+}
+
+// Computes the center of the bucket given its relative dims which are calculated with 
+// computeBaseBucketCoords. They're relative to the camera position.
+vec3 computeWorldSpaceBucketCenter(in ivec3 relativeBucketCoords, in vec3 cameraPosition) {
+    // Add camera's bucket so that we can move from relative to world space bucket coordinates
+    ivec3 camBucket = computeWorldSpaceBucketCoords(cameraPosition);
+    ivec3 worldSpaceBucket = relativeBucketCoords + camBucket;
+    vec3 halfSpace = vec3(WORLD_SPACE_PER_VPL_BUCKET) * 0.5;
+    return vec3(worldSpaceBucket) * float(WORLD_SPACE_PER_VPL_BUCKET) + halfSpace;
+}
+
 // Inputs should be in world space
-ivec3 computeBaseBucketCoords(in vec3 position) {
-    // Converts a position first to bucket index, then to [-1, 1] range with out of bounds allowed
-    vec3 normalized = (position / float(WORLD_SPACE_PER_VPL_BUCKET)) / float(MAX_VPL_BUCKETS_PER_DIM);
-    // Converts normalized coords to [0, 1] range with coordinate wrapping
-    vec3 uvs = wrapUVSCoords(normalized * 0.5 + vec3(0.5));
-    return ivec3(floor(uvs*vec3(MAX_VPL_BUCKETS_PER_DIM)));
-    //return ivec3(0,0,0);
+//ivec3 computeBaseBucketCoords(in vec3 position) {
+//    // Converts a position first to bucket index, then to [-1, 1] range with out of bounds allowed
+//    vec3 normalized = (position / float(WORLD_SPACE_PER_VPL_BUCKET)) / float(MAX_VPL_BUCKETS_PER_DIM);
+//    // Converts normalized coords to [0, 1] range with coordinate wrapping
+//    vec3 uvs = wrapUVSCoords(normalized * 0.5 + vec3(0.5));
+//    return ivec3(floor(uvs*vec3(MAX_VPL_BUCKETS_PER_DIM)));
+//    //return ivec3(0,0,0);
+//}
+
+ivec3 computeBaseBucketCoords(in vec3 position, in vec3 cameraPosition) {
+    // Subtract camera's bucket from position's bucket to reorient around the camera
+    ivec3 posBucket = computeWorldSpaceBucketCoords(position);
+    ivec3 camBucket = computeWorldSpaceBucketCoords(cameraPosition);
+    ivec3 offsetBucket = posBucket - camBucket;
+    // First [-1, 1] range (with OOB) followed by [0, 1] range (also OOB)
+    //
+    // We use HALF_VPL_BUCKETS_PER_DIM since the [-1, 1] has a combined total
+    // of MAX_VPL_BUCKETS_PER_DIM, meaning the positive and negative sides each get
+    // half the range
+    vec3 normalized = offsetBucket / float(HALF_VPL_BUCKETS_PER_DIM);
+    vec3 uvs = normalized * 0.5 + vec3(0.5);
+    return ivec3(floor(uvs * vec3(MAX_VPL_BUCKETS_PER_DIM)));
 }
 
 bool baseBucketCoordsWithinRange(in ivec3 bucketCoords) {

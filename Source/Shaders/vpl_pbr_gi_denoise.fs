@@ -26,9 +26,9 @@ out vec3 combinedColor;
 out vec4 reservoirValue;
 out float newHistoryDepth;
 
-layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) readonly buffer inputBuffer1 {
-    int numVisiblePerBucket[];
-};
+//layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) readonly buffer inputBuffer1 {
+//    int numVisiblePerBucket[];
+//};
 
 // in/out frame texture
 uniform sampler2D screen;
@@ -56,6 +56,7 @@ uniform bool mergeReservoirs = false;
 uniform int numReservoirNeighbors = 10;
 uniform float time;
 uniform float framesPerSecond;
+uniform int totalNumProbesVisible;
 
 uniform mat4 invProjectionView;
 uniform mat4 prevInvProjectionView;
@@ -198,7 +199,9 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
 
     float depthCutoff = 0.1 * centerDepth;
     float runningSum = 0.0;
-    float probabilisticWeight = 1.0 / max(float(numVisiblePerBucket[0]), 1.0);//float(MAX_VPLS_PER_BUCKET); //float(numVisible[0]); <- TODO: use this again?
+    float probabilisticWeight = 1.0 / max(float(MAX_VPLS_PER_BUCKET), 1.0);
+    //float probabilisticWeight = 1.0 / max(float(totalNumProbesVisible), 1.0);
+    //float probabilisticWeight = 1.0 / max(float(numVisiblePerBucket[0]), 1.0);//float(MAX_VPLS_PER_BUCKET); //float(numVisible[0]); <- TODO: use this again?
 
     vec2 baseUvDepthOffset  = 1.0 / textureSize(depth, 0).xy;
     vec2 baseUvShadowOffset = 1.0 / textureSize(indirectIllumination2, 0).xy;
