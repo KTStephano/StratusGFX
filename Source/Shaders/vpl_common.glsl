@@ -9,7 +9,7 @@ STRATUS_GLSL_VERSION
 #define MAX_VPLS_PER_TILE (12)
 
 // Max probes per bucket
-#define MAX_VPLS_PER_BUCKET (1024)
+#define MAX_VPLS_PER_BUCKET (512)
 // Total buckets
 #define MAX_VPL_BUCKETS_PER_DIM (16)
 #define HALF_VPL_BUCKETS_PER_DIM (MAX_VPL_BUCKETS_PER_DIM * 0.5)
@@ -74,14 +74,19 @@ ivec3 computeWorldSpaceBucketCoords(in vec3 position) {
     return ivec3(floor(position / float(WORLD_SPACE_PER_VPL_BUCKET)));
 }
 
-// Computes the center of the bucket given its relative dims which are calculated with 
-// computeBaseBucketCoords. They're relative to the camera position.
-vec3 computeWorldSpaceBucketCenter(in ivec3 relativeBucketCoords, in vec3 cameraPosition) {
+// Converts relative buckets back to world space using the camera as the reference point
+vec3 convertRelativeCoordsToWorldPosition(in ivec3 relativeBucketCoords, in vec3 cameraPosition) {
     // Add camera's bucket so that we can move from relative to world space bucket coordinates
     ivec3 camBucket = computeWorldSpaceBucketCoords(cameraPosition);
     ivec3 worldSpaceBucket = relativeBucketCoords + camBucket;
+    return vec3(worldSpaceBucket) * float(WORLD_SPACE_PER_VPL_BUCKET);
+}
+
+// Computes the center of the bucket given its relative dims which are calculated with 
+// computeBaseBucketCoords. They're relative to the camera position.
+vec3 computeWorldSpaceBucketCenter(in ivec3 relativeBucketCoords, in vec3 cameraPosition) {
     vec3 halfSpace = vec3(WORLD_SPACE_PER_VPL_BUCKET) * 0.5;
-    return vec3(worldSpaceBucket) * float(WORLD_SPACE_PER_VPL_BUCKET) + halfSpace;
+    return convertRelativeCoordsToWorldPosition(relativeBucketCoords, cameraPosition) + halfSpace;
 }
 
 // Inputs should be in world space

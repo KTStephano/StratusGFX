@@ -36,7 +36,7 @@
 #define MAX_VPLS_PER_TILE (12)
 
 // Max probes per bucket
-#define MAX_VPLS_PER_BUCKET (1024)
+#define MAX_VPLS_PER_BUCKET (512)
 // Total buckets
 #define MAX_VPL_BUCKETS_PER_DIM (16)
 #define HALF_VPL_BUCKETS_PER_DIM (MAX_VPL_BUCKETS_PER_DIM * 0.5)

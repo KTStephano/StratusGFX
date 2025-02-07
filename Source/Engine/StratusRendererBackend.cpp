@@ -1722,6 +1722,10 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
 
     state_.vplCulling->SetInt("totalNumLights", totalVisible);
     state_.vplCulling->SetVec3("viewPosition", frame_->camera->GetPosition());
+    for (size_t i = 0; i < frame_->viewFrustumPlanes.size(); ++i) {
+        state_.vplCulling->SetVec4("frustumPlanes[" + std::to_string(i) + "]", frame_->viewFrustumPlanes[i]);
+    }
+    
     state_.vpls.vplData.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_DATA_BINDING);
     //state_.vpls.vplContributionFlags.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_CONTRIB_BINDING);
     state_.vpls.vplVisibleIndices.BindBase(GpuBaseBindingPoint::SHADER_STORAGE_BUFFER, VPL_PROBE_INDICES_BINDING);

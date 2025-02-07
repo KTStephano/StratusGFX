@@ -98,7 +98,8 @@ vec3 generateCubemapCoords(in vec2 txc, in int face) {
 shared int currentProbeIsVisible;
 shared int numNonDirectLightSamples;
 shared int minDistance;
-shared uint diffuseX, diffuseY, diffuseZ;
+shared uint diffuseXDirect, diffuseYDirect, diffuseZDirect;
+shared uint diffuseXSky, diffuseYSky, diffuseZSky;
 
 void main() {
     // Smaller than normal since we want to reduce simulated 2nd bounce strength
@@ -116,9 +117,8 @@ void main() {
         currentProbeIsVisible = 0;
         numNonDirectLightSamples = 0;
         minDistance = probeRadius;
-        diffuseX = 0;
-        diffuseY = 0;
-        diffuseZ = 0;
+        diffuseXDirect = 0, diffuseYDirect = 0, diffuseZDirect = 0;
+        diffuseXSky = 0, diffuseYSky = 0, diffuseZSky = 0;
     }
 
     barrier();
@@ -186,18 +186,22 @@ void main() {
         if (shadowFactor < 1.0) {
             vec3 lightColorModifier = vec3(1.0);
             vec3 sampleModifier = vec3(1.0);
+            uint unused;
             if (diffuseValBase.a > 0.0) {
-                sampleModifier = vec3(0.5 * (infiniteLightIntensity) * sampleRatioSky);
+                sampleModifier = vec3(0.0625 * (infiniteLightIntensity) * sampleRatioSky);
                 lightColorModifier = vec3(5 + infiniteLightIntensity);
+
+                ATOMIC_ADD_FLOAT(diffuseXSky, diffuseValBase.x * sampleModifier.x, unused)
+                ATOMIC_ADD_FLOAT(diffuseYSky, diffuseValBase.y * sampleModifier.y, unused)
+                ATOMIC_ADD_FLOAT(diffuseZSky, diffuseValBase.z * sampleModifier.z, unused)
             } else {
                 lightColorModifier = infiniteLightIntensity * infiniteLightColor.rgb;
                 sampleModifier = lightColorModifier * sampleRatioDirect;
-            }
 
-            uint unused;
-            ATOMIC_ADD_FLOAT(diffuseX, diffuseValBase.x * sampleModifier.x, unused)
-            ATOMIC_ADD_FLOAT(diffuseY, diffuseValBase.y * sampleModifier.y, unused)
-            ATOMIC_ADD_FLOAT(diffuseZ, diffuseValBase.z * sampleModifier.z, unused)
+                ATOMIC_ADD_FLOAT(diffuseXDirect, diffuseValBase.x * sampleModifier.x, unused)
+                ATOMIC_ADD_FLOAT(diffuseYDirect, diffuseValBase.y * sampleModifier.y, unused)
+                ATOMIC_ADD_FLOAT(diffuseZDirect, diffuseValBase.z * sampleModifier.z, unused)
+            }
 
             lightColor = diffuseValBase.rgb * lightColorModifier;
         }
@@ -206,8 +210,9 @@ void main() {
 
         if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
             float weight = 1.0 - (float(distance + minDistance) / float(probeRadius));
-            vec3 modifier = vec3(uintBitsToFloat(diffuseX), uintBitsToFloat(diffuseY), uintBitsToFloat(diffuseZ));// / float(currentProbeIsVisible);
-            vec3 newDiffuseVal = ((diffuseValBase.rgb * modifier));// * infiniteLightIntensity * infiniteLightColor.rgb;
+            vec3 direct = vec3(uintBitsToFloat(diffuseXDirect), uintBitsToFloat(diffuseYDirect), uintBitsToFloat(diffuseZDirect));// / float(currentProbeIsVisible);
+            vec3 sky = vec3(uintBitsToFloat(diffuseXSky), uintBitsToFloat(diffuseYSky), uintBitsToFloat(diffuseZSky));
+            vec3 newDiffuseVal = ((diffuseValBase.rgb * direct)) + sky;// * infiniteLightIntensity * infiniteLightColor.rgb;
             lightColor = newDiffuseVal * weight;
         }
 
@@ -225,9 +230,8 @@ void main() {
             currentProbeIsVisible = 0;
             numNonDirectLightSamples = 0;
             minDistance = probeRadius;
-            diffuseX = 0;
-            diffuseY = 0;
-            diffuseZ = 0;
+            diffuseXDirect = 0, diffuseYDirect = 0, diffuseZDirect = 0;
+            diffuseXSky = 0, diffuseYSky = 0, diffuseZSky = 0;
         }
 
         barrier();

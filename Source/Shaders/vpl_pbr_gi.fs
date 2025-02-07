@@ -16,7 +16,7 @@ out vec4 reservoir;
 
 #define STANDARD_MAX_SAMPLES_PER_PIXEL 2
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
-#define MAX_RESAMPLES_PER_PIXEL 8
+#define MAX_RESAMPLES_PER_PIXEL 4
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -155,8 +155,8 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
 
     float distRatioToCamera = max(1.0 - distToCamera / 500.0, 0.0);
     int maxSamplesPerPixel = int(mix(STANDARD_MAX_SAMPLES_PER_PIXEL, ABSOLUTE_MAX_SAMPLES_PER_PIXEL, roughnessWeight));
-    //int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
-    int samplesMax = history < 10 ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    int samplesMax = maxSamplesPerPixel; //history < ABSOLUTE_MAX_SAMPLES_PER_PIXEL ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
+    //int samplesMax = history < 10 ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     //samplesMax = max(1, samplesMax);
     int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
@@ -195,14 +195,14 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                 float probeRadius = 1000.0;                                                                                  
                 float distance = length(lightMinusFrag);                                                                                            
                                                                                                                                                     
-                //if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
-                //    float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
-                //    if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
-                //        ++resamples;                                                                                                                
-                //        --i;                                                                                                                        
-                //        continue;                                                                                                                   
-                //    }                                                                                                                               
-                //}                                                                                                                                   
+                if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
+                    float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
+                    if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
+                        ++resamples;                                                                                                                
+                        --i;                                                                                                                        
+                        continue;                                                                                                                   
+                    }                                                                                                                               
+                }                                                                                                                                   
                                                                                                                                                     
                 float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
                 float distAttenuation = distanceRatio;                                                                                              

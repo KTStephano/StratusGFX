@@ -4,9 +4,11 @@ STRATUS_GLSL_VERSION
 
 #include "vpl_common.glsl"
 #include "bindings.glsl"
+#include "aabb.glsl"
 
 uniform int totalNumLights;
 uniform vec3 viewPosition;
+uniform vec4 frustumPlanes[6];
 
 // This defines a 1D local work group of 1 (y and z default to 1)
 // See the Compute section of the OpenGL Superbible for more information
@@ -45,9 +47,11 @@ layout (std430, binding = VPL_PROBE_INDEX_COUNTERS_BINDING) coherent buffer outp
 };
 
 shared int numPresent;
+shared int numWithinShortRange;
 shared vec3 worldSpaceBucketCenter;
 shared int baseBucketIndex;
 shared int offsetBucketIndex;
+shared bool bucketIsVisible;
 
 void main() {
     if (gl_LocalInvocationIndex == 0) {
@@ -65,46 +69,86 @@ void main() {
         baseBucketIndex = computeBaseBucketIndex(baseBucketCoords);
         offsetBucketIndex = computeOffsetBucketIndex(baseBucketIndex);
     
-        // Clear counter
+        // Clear counter(s)
         numPresent = 0;
+        numWithinShortRange = 0;
+
+        //vplVisibleIndexCounters[baseBucketIndex] = 0;
+
+        vec3 worldSpaceMin = convertRelativeCoordsToWorldPosition(relativeBucketCoords, viewPosition);
+        vec3 worldSpaceMax = worldSpaceMin + vec3(float(WORLD_SPACE_PER_VPL_BUCKET));
+
+        AABB aabb;
+        aabb.vmin = vec4(worldSpaceMin, 1.0);
+        aabb.vmax = vec4(worldSpaceMax, 1.0);
+        bucketIsVisible = isAabbVisible(frustumPlanes, aabb);
+
+        if (!bucketIsVisible) {
+            // Clear flag since we will return early
+            vplVisibleIndexCounters[baseBucketIndex] = 0;
+        }
     }
 
     barrier();
 
+    if (!bucketIsVisible) {
+        return;
+    }
+
     int stepSize = int(gl_WorkGroupSize.x*gl_WorkGroupSize.y*gl_WorkGroupSize.z);
 
+    const float expandedCutoffOffset = float(WORLD_SPACE_PER_VPL_BUCKET);
+
     float oldCutoffDistance = 0.0;
-    float cutoffDistance = WORLD_SPACE_PER_VPL_BUCKET * 0.5 + 125;
+    float cutoffDistance = WORLD_SPACE_PER_VPL_BUCKET * 0.5 + expandedCutoffOffset;
     int maxVplsAllowed = MAX_VPLS_PER_BUCKET;
 
     #define PERFORM_PROBE_CULL                                                          \
         VplData probe = probes[index];                                                  \
         float dist = distance(probe.position.xyz, worldSpaceBucketCenter);              \
-        if (dist <= oldCutoffDistance || dist > cutoffDistance) {                       \
-            continue;                                                                   \
-        }                                                                               \
-        int localIndex = atomicAdd(numPresent, 1);                                      \
-        if (localIndex >= maxVplsAllowed) {                                             \
-            /* Ran out of slots for probes */                                           \
-            break;                                                                      \
-        }                                                                               \
-        vplVisibleIndex[offsetBucketIndex + localIndex] = index;    
+        bool added = dist > oldCutoffDistance && dist <= cutoffDistance;                \
+        if (added) {                                                                    \
+            int localIndex = atomicAdd(numPresent, 1);                                  \
+            if (localIndex >= maxVplsAllowed) {                                         \
+                /* Ran out of slots for probes */                                       \
+                break;                                                                  \
+            }                                                                           \
+            vplVisibleIndex[offsetBucketIndex + localIndex] = index;                    \
+        }
 
+    // Perform first pass that bins based on exact bucket
     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
         PERFORM_PROBE_CULL
+
+        // If we get here, it was out of range - check if it would be visible to an expanded search
+        if (!added && dist < (cutoffDistance + expandedCutoffOffset)) {
+            atomicAdd(numWithinShortRange, 1);
+        }
     }
 
     barrier();
 
     // Expand search radius and try again if needed
     oldCutoffDistance = cutoffDistance;
-    cutoffDistance += 300;
-    maxVplsAllowed = 100;
-    if (numPresent < maxVplsAllowed) {
+    cutoffDistance += expandedCutoffOffset;
+    if (numPresent < 128 && numWithinShortRange > 0) {
+        maxVplsAllowed = min(numPresent + numWithinShortRange, 128);
         for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
             PERFORM_PROBE_CULL
         }
     }
+
+    barrier();
+
+    // // Final expand but with reduced max
+    // oldCutoffDistance = cutoffDistance;
+    // cutoffDistance += WORLD_SPACE_PER_VPL_BUCKET;
+    // maxVplsAllowed = 128;
+    // if (numPresent < 128) {
+    //     for (int index = int(gl_LocalInvocationIndex); index < totalNumLights; index += stepSize) {
+    //         PERFORM_PROBE_CULL
+    //     }
+    // }
 
     barrier();
 
