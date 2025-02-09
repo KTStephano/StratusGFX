@@ -56,11 +56,9 @@ struct VplStage2PerTileOutputs {
 };
 
 struct VplData {
-    vec4 position;
+    float position[3];
     float intensityScale;
-    float activeProbe;
-    float previouslyRelit;
-    float padding_[1];
+    float pendingRelight;
 };
 
 // Takes uvs coords and wraps them to [0, 1] range

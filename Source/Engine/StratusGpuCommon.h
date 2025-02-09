@@ -225,14 +225,17 @@ namespace stratus {
     #pragma pack(push, 1)
 #endif
     struct PACKED_STRUCT_ATTRIBUTE GpuVplData {
-        GpuVec position;
+        float position[3];
         float intensityScale;
-        float activeProbe;
-        float previouslyRelit;
-        float padding_[1];
+        float pendingRelight;
 
         GpuVplData() :
-            position(0.0f), intensityScale(0.0f), activeProbe(0.0f), previouslyRelit(0.0) {}
+            intensityScale(0.0f), pendingRelight(0.0) {
+            constexpr size_t count = sizeof(position) / sizeof(float);
+            for (size_t i = 0; i < count; i++) {
+                position[i] = 0.0f;
+            }
+        }
     };
 #ifndef __GNUC__
     #pragma pack(pop)
@@ -303,7 +306,7 @@ namespace stratus {
     static_assert(sizeof(GpuMeshData) == 56);
     static_assert(sizeof(GpuVplStage1PerTileOutputs) == 32);
     static_assert(sizeof(GpuVplStage2PerTileOutputs) == 52);
-    static_assert(sizeof(GpuVplData) == 32);
+    static_assert(sizeof(GpuVplData) == 20);
     static_assert(sizeof(GpuAABB) == 32);
     static_assert(sizeof(GpuPointLight) == 48);
     static_assert(sizeof(GpuAtlasEntry) == 8);

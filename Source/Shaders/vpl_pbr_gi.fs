@@ -14,7 +14,7 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 2
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 4
 
@@ -182,27 +182,27 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                 AtlasEntry entry = shadowIndices[probeIndex];                    
                 VplData probe = probes[probeIndex];                                                                   
                                                                                                                                                                                                                                                                                         \
-                vec3 probePosition = probe.position.xyz;                                                                            
+                vec3 probePosition = FLOAT3_TO_VEC3(probe.position);                                                                            
                 vec3 rayFromSurfaceToProbe = normalize(probePosition - fragPos);
-
-                vec3 lightPosition = textureLod(positionCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).xyz;
-                vec3 specularLightPosition = lightPosition;
                                                                                                                                                     
                 /* Make sure the light is in the direction of the plane+normal. If n*(a-p) < 0, the point is on the other side of the plane. */     
                 /* If 0 the point is on the plane. If > 0 then the point is on the side of the plane visible along the normal's direction.   */     
                 /* See https://math.stackexchange.com/questions/1330210/how-to-check-if-a-point-is-in-the-direction-of-the-normal-of-a-plane */     
-                vec3 lightMinusFrag = lightPosition - fragPos;                                                                                      
+                vec3 probeMinusFrag = probePosition - fragPos;                                                                                      
                 float probeRadius = 1000.0;                                                                                  
-                float distance = length(lightMinusFrag);                                                                                            
+                float distance = length(probeMinusFrag);                                                                                            
                                                                                                                                                     
                 if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
-                    float sideCheck = dot(normal, normalize(lightMinusFrag));                                                                       
+                    float sideCheck = dot(normal, normalize(probeMinusFrag));                                                                       
                     if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
                         ++resamples;                                                                                                                
                         --i;                                                                                                                        
                         continue;                                                                                                                   
                     }                                                                                                                               
-                }                                                                                                                                   
+                }               
+
+                vec3 lightPosition = textureLod(positionCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).xyz;
+                vec3 specularLightPosition = lightPosition;                                                                                                                    
                                                                                                                                                     
                 float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
                 float distAttenuation = distanceRatio;                                                                                              

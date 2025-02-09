@@ -380,7 +380,6 @@ namespace stratus {
         // doesn't get excessively slowed down
         const int maxProbeRelightingPerFrame = 300;
         LightUpdateQueue probeRelightQueue;
-        std::unordered_set<Light*> previouslyRelitProbes;
     };
 
     class RendererBackend {

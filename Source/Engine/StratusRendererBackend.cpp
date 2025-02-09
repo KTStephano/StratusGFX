@@ -1318,23 +1318,17 @@ void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer
     while (relighting.size() < frame_->maxProbeRelightingPerFrame && frame_->probeRelightQueue.Size() > 0) {
         auto light = frame_->probeRelightQueue.PopFront();
         relighting.insert(light.get());
-        frame_->previouslyRelitProbes.insert(light.get());
     }
 
     for (size_t i = 0; i < perVPLDistToViewer.size(); ++i) {
         const VirtualPointLight* point = (const VirtualPointLight *)perVPLDistToViewer[i].key.get();
         GpuVplData& data = vplData[i];
-        data.position = GpuVec(glm::vec4(point->GetPosition(), 1.0f));
+        SET_FLOAT3(data.position, point->GetPosition());
         data.intensityScale = point->GetIntensity();
-        data.activeProbe = 0.0;
-        data.previouslyRelit = 0.0;
+        data.pendingRelight = 0.0f;
 
         if (relighting.find(perVPLDistToViewer[i].key.get()) != relighting.end()) {
-            data.activeProbe = 1.0;
-        }
-
-        if (frame_->previouslyRelitProbes.find(perVPLDistToViewer[i].key.get()) != frame_->previouslyRelitProbes.end()) {
-            data.previouslyRelit = 1.0;
+            data.pendingRelight = 1.0f;
         }
 
         //data.farPlane = point->GetFarPlane();
@@ -2389,8 +2383,8 @@ RendererBackend::ShadowMapCache RendererBackend::CreateShadowMap3DCache_(uint32_
 
             attachments.push_back(texture);
 
-            // Positions
-            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_32, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
+            // Positions - TODO: This precision too low for larger worlds - may need 32 bit :(
+            texture = Texture(TextureConfig{ TextureType::TEXTURE_CUBE_MAP_ARRAY, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, resolutionX, resolutionY, numLayers, false }, NoTextureData);
             texture.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
             texture.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 

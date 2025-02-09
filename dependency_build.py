@@ -52,11 +52,23 @@ def build_dependencies(build_assimp):
     gl3w = threading.Thread(target=lambda: os.system(cmd), args=())
     gl3w.start()
 
+    # Bullet3
+
+    configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DBULLET2_MULTITHREADING=ON -DINSTALL_LIBS=ON -DBUILD_UNIT_TESTS=OFF -DBUILD_OPENGL3_DEMOS=OFF -DBUILD_BULLET2_DEMOS=OFF"
+    build = "cmake --build build/ -j 8 {}".format(windows)
+    install = "cmake --install build/ --prefix ../ThirdParty {}".format(windows)
+    configure_build_install = configure + " && " + build + " && " + install
+
+    cmd = "cd bullet3 && " + configure_build_install
+    bullet3 = threading.Thread(target=lambda: os.system(cmd), args=())
+    bullet3.start()
+
     catch2.join()
     sdl.join()
     assimp.join()
     meshopt.join()
     gl3w.join()
+    bullet3.join()
 
     if build_assimp:
         copy_tree("./assimp/contrib", "./ThirdParty/contrib")

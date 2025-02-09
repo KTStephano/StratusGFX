@@ -126,11 +126,7 @@ void main() {
     // Each work group processes all 6 faces of the light probe
     for (int index = int(gl_WorkGroupID.x); index < visibleVpls; index += stepSize) {
         VplData probe = probes[index];
-        if (probe.activeProbe < 1.0) {
-            //if (gl_LocalInvocationIndex == 0 && probe.previouslyRelit > 0.0) {
-            //    probes[index].activeProbe = 1.0;
-            //}
-
+        if (probe.pendingRelight < 1.0) {
             // All worker threads should see this as well
             continue;
         }
@@ -140,7 +136,7 @@ void main() {
         int lightingIndex = int(entry.index);
 
         layout (rgba8) imageCubeArray diffuse = layout(rgba8) imageCubeArray(diffuseCubeMaps[lightingIndex]);
-        layout (rgba32f) imageCubeArray position = layout (rgba32f) imageCubeArray(positionCubeMaps[lightingIndex]);
+        layout (rgba16f) imageCubeArray position = layout (rgba16f) imageCubeArray(positionCubeMaps[lightingIndex]);
         // See https://stackoverflow.com/questions/32349423/create-an-image2d-from-a-uint64-t-image-handle
         //layout (rgba8) imageCubeArray lighting = layout(rgba8) imageCubeArray(lightingCubeHandles[entry.index]);
         layout (rgba16f) imageCubeArray lighting = layout (rgba16f) imageCubeArray(lightingCubeMaps[lightingIndex]);
@@ -167,7 +163,7 @@ void main() {
             //lightColorModifier = infiniteLightIntensity * infiniteLightColor.rgb;
         }
 
-        int distance = max(int(ceil(length(probe.position.xyz - positionVal))), 1);
+        int distance = max(int(ceil(length(FLOAT3_TO_VEC3(probe.position) - positionVal))), 1);
         if (shadowFactor < 1.0) {
             // Signals to other workers in this group that the light was visible in some way
             atomicAdd(currentProbeIsVisible, 1);
@@ -221,11 +217,6 @@ void main() {
         barrier();
 
         if (gl_LocalInvocationIndex == 0) {
-            // Write flag to memory buffer so next compute dispatch can determine which
-            // probes are relevant
-            //probeFlags[index] = currentProbeIsVisible;
-            //probes[index].activeProbe = 1;//float(currentProbeIsVisible - numNonDirectLightSamples);
-
             // Reset state
             currentProbeIsVisible = 0;
             numNonDirectLightSamples = 0;

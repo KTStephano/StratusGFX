@@ -291,7 +291,6 @@ namespace stratus {
         lightsToRemove_.insert(light);
         frame_->lightsToUpdate.Erase(light);
         frame_->probeRelightQueue.Erase(light);
-        frame_->previouslyRelitProbes.erase(light.get());
     }
 
     void RendererFrontend::ClearLights() {
@@ -305,7 +304,6 @@ namespace stratus {
         virtualPointLights_.clear();
         frame_->lightsToUpdate.Clear();
         frame_->probeRelightQueue.Clear();
-        frame_->previouslyRelitProbes.clear();
     }
 
     void RendererFrontend::SetWorldLight(const InfiniteLightPtr& light) {

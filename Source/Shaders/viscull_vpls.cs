@@ -105,7 +105,7 @@ void main() {
 
     #define PERFORM_PROBE_CULL                                                          \
         VplData probe = probes[index];                                                  \
-        float dist = distance(probe.position.xyz, worldSpaceBucketCenter);              \
+        float dist = distance(FLOAT3_TO_VEC3(probe.position), worldSpaceBucketCenter);  \
         bool added = dist > oldCutoffDistance && dist <= cutoffDistance;                \
         if (added) {                                                                    \
             int localIndex = atomicAdd(numPresent, 1);                                  \
