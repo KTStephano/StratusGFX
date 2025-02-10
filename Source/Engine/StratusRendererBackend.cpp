@@ -662,14 +662,23 @@ void RendererBackend::InitializePostFxBuffers_() {
         state_.postFxBuffers.push_back(buffer);
 
         // Create the Gaussian Blur buffers
-        PostFXBuffer dualBlurFbos[2];
+        //PostFXBuffer dualBlurFbos[2];
         for (int i = 0; i < 2; ++i) {
-            FrameBuffer& blurFbo = dualBlurFbos[i].fbo;
+            //FrameBuffer& blurFbo = dualBlurFbos[i].fbo;
+            PostFXBuffer buffer;
+            FrameBuffer& blurFbo = buffer.fbo;
             Texture tex = Texture(color.GetConfig(), NoTextureData);
             tex.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
             tex.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
             blurFbo = FrameBuffer({tex});
-            state_.gaussianBuffers.push_back(dualBlurFbos[i]);
+            if (!buffer.fbo.Valid()) {
+                isValid_ = false;
+                STRATUS_ERROR << "Unable to initialize bloom gaussian buffer" << std::endl;
+                return;
+            }
+
+            //state_.gaussianBuffers.push_back(dualBlurFbos[i]);
+            state_.gaussianBuffers.push_back(buffer);
         }
     }
 
@@ -2179,19 +2188,19 @@ void RendererBackend::PerformBloomPostFx_() {
         bloom->SetBool("downsamplingStage", false);
         bloom->SetBool("gaussianStage", true);
         BufferBounds bounds = BufferBounds{0, 0, width, height};
-        for (int i = 0; i < 2; ++i) {
-            FrameBuffer& blurFbo = state_.gaussianBuffers[gaussian + i].fbo;
+        for (int offset = 0; offset < 2; ++offset) {
+            FrameBuffer& blurFbo = state_.gaussianBuffers[gaussian + offset].fbo;
             FrameBuffer copyFromFbo;
-            if (i == 0) {
+            if (offset == 0) {
                 copyFromFbo = buffer.fbo;
-            }
-            else {
+            } else {
                 copyFromFbo = state_.gaussianBuffers[gaussian].fbo;
             }
 
             bloom->SetBool("horizontal", horizontal);
             bloom->BindTexture("mainTexture", copyFromFbo.GetColorAttachments()[0]);
             horizontal = !horizontal;
+
             blurFbo.Bind();
             RenderQuad_();
             blurFbo.Unbind();
@@ -2221,8 +2230,7 @@ void RendererBackend::PerformBloomPostFx_() {
         if (i == 0) {
             bloom->BindTexture("bloomTexture", lightingColorBuffer);
             bloom->SetBool("finalStage", true);
-        }
-        else {
+        } else {
             //bloom->bindTexture("bloomTexture", _state.postFxBuffers[i - 1].fbo.getColorAttachments()[0]);
             bloom->BindTexture("bloomTexture", finalizedPostFxFrames[i - 1].fbo.GetColorAttachments()[0]);
         }

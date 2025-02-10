@@ -74,6 +74,35 @@ vec3 downsampleBilinear13(sampler2D tex, vec2 uv) {
            weights.y * (outerTop + outerUpperRight + outerRight + innermost);                  // green circles in presentation
 }
 
+// Performs bilinear downsampling using 9 texel fetches
+vec3 downsampleBilinear9(sampler2D tex, vec2 uv) {
+    vec2 texelWidth = computeTexelSize(tex, 0);
+
+    // Innermost square including center coordinate
+    vec3 innermost       = texture(tex, screenTransformTexCoords(uv)).rgb;
+    vec3 innerUpperLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-0.5, 0.5))).rgb;
+    vec3 innerLowerLeft  = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-0.5, -0.5))).rgb;
+    vec3 innerUpperRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.5, 0.5))).rgb;
+    vec3 innerLowerRight = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.5, -0.5))).rgb;
+
+    // Outermost square - notice the number of outer variables + number of inner variables = 9, which comprise
+    // our 9 sampling points
+    vec3 outerLeft       = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(-1.0, 0.0))).rgb;
+    vec3 outerRight      = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(1.0, 0.0))).rgb;
+    vec3 outerTop        = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, 1.0))).rgb;
+    vec3 outerBottom     = texture(tex, screenTransformTexCoords(uv + texelWidth * vec2(0.0, -1.0))).rgb;
+
+    // Comes from the weights in the CoD presentation
+    vec2 weights = (1.0 / 4.0) * vec2(0.5, 0.25);
+
+    return weights.x * (innerUpperLeft + innerLowerLeft + innerUpperRight + innerLowerRight) + // red circles in presentation
+           weights.y * (outerTop + outerLeft + innermost) +                   // yellowish circles in presentation
+           weights.y * (outerLeft + outerBottom + innermost) +                // purple circles in presentation
+           weights.y * (outerBottom + outerRight + innermost) +              // blueish circles in presentation
+           weights.y * (outerTop + outerRight + innermost);                  // green circles in presentation
+}
+
+
 // The idea here is we have a 3x3 filter kernel and we then perform 9 texel fetches (center, 3 upper, 3 lower, 2 side) and
 // apply the kernel to the sampled texels
 //
@@ -168,8 +197,8 @@ vec3 applyGaussianBlur() {
 
 // As per the CoD presentation, we apply filtering after downsampling
 vec3 applyDownsampleStage() {
-    vec3 color = downsampleBilinear13(mainTexture, convertTexCoords(fsTexCoords));
-    //return boundHDR(color);
+    //vec3 color = downsampleBilinear13(mainTexture, convertTexCoords(fsTexCoords));
+    vec3 color = downsampleBilinear9(mainTexture, convertTexCoords(fsTexCoords));
     return boundHDR(filterBrightest(color, bloomThreshold));
 }
 
