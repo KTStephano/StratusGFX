@@ -80,15 +80,20 @@ RendererBackend::RendererBackend(const uint32_t width, const uint32_t height, co
         Shader{"depth.fs", ShaderType::FRAGMENT}}));
     state_.shaders.push_back(state_.depthPrepass.get());
 
-    state_.geometry = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    state_.forwardPbrPrepass = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+        Shader{"pbr_geometry_prepass.vs", ShaderType::VERTEX},
+        Shader{"pbr_geometry_prepass.fs", ShaderType::FRAGMENT} }));
+    state_.shaders.push_back(state_.forwardPbrPrepass.get());
+
+    state_.forwardPbr = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"pbr_geometry_pass.vs", ShaderType::VERTEX}, 
         Shader{"pbr_geometry_pass.fs", ShaderType::FRAGMENT}}));
-    state_.shaders.push_back(state_.geometry.get());
+    state_.shaders.push_back(state_.forwardPbr.get());
 
-    state_.forward = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
+    state_.forwardFlat = std::unique_ptr<Pipeline>(new Pipeline(shaderRoot, version, {
         Shader{"flat_forward_pass.vs", ShaderType::VERTEX}, 
         Shader{"flat_forward_pass.fs", ShaderType::FRAGMENT}}));
-    state_.shaders.push_back(state_.forward.get());
+    state_.shaders.push_back(state_.forwardFlat.get());
 
     using namespace std;
 
@@ -450,7 +455,9 @@ void RendererBackend::InitGBuffer_() {
         buffer.roughnessMetallicReflectivity.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
         // Create the Structure buffer which contains rgba where r=partial x-derivative of camera-space depth, g=partial y-derivative of camera-space depth, b=16 bits of depth, a=final 16 bits of depth (b+a=32 bits=depth)
+        // In this case camera-space depth is the w component after perspective transform
         buffer.structure = Texture(TextureConfig{ TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RGBA, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
+        //buffer.structure = Texture(TextureConfig{ TextureType::TEXTURE_RECTANGLE, TextureComponentFormat::RG, TextureComponentSize::BITS_16, TextureComponentType::FLOAT, fullResX, fullResY, 0, false }, NoTextureData);
         buffer.structure.SetMinMagFilter(TextureMinificationFilter::LINEAR, TextureMagnificationFilter::LINEAR);
         buffer.structure.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
@@ -474,8 +481,10 @@ void RendererBackend::InitGBuffer_() {
         //buffer.fbo = FrameBuffer({buffer.position, buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.depth});
         //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.baseReflectivity, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
         //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.id, buffer.depth });
+        //buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.depth });
         buffer.fbo = FrameBuffer({ buffer.normals, buffer.albedo, buffer.roughnessMetallicReflectivity, buffer.structure, buffer.velocity, buffer.depth });
-        if (!buffer.fbo.Valid()) {
+        buffer.prepassFbo = FrameBuffer({ buffer.depth });
+        if (!buffer.fbo.Valid() || !buffer.prepassFbo.Valid()) {
             isValid_ = false;
             return;
         }
@@ -1020,7 +1029,7 @@ void RendererBackend::Render_(Pipeline& s, const RenderFaceCulling cull, GpuComm
     //    s = state_.forward.get();
     //}
     //else {
-    //    s = state_.geometry.get();
+    //    s = state_.forwardPbr.get();
     //}
 
     //s->print();
@@ -1275,6 +1284,7 @@ void RendererBackend::RenderAtmosphericShadowing_() {
     state_.atmospheric->BindTexture("structureBuffer", state_.currentFrame.structure);
     state_.atmospheric->BindTexture("infiniteLightShadowMap", *frame_->csc.fbo.GetDepthStencilAttachment());
     state_.atmospheric->SetFloat("time", milliseconds);
+    state_.atmospheric->SetFloat("numSamples", frame_->csc.worldLight->GetAtmosphericNumSamplesPerPixel());
     
     // Set up cascade data
     for (int i = 0; i < 4; ++i) {
@@ -1869,7 +1879,7 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     state_.vplGlobalIlluminationDenoising->SetMat4("prevInvProjectionView", frame_->prevInvProjectionView);
     state_.vplGlobalIlluminationDenoising->SetInt("totalNumProbesVisible", i32(perVPLDistToViewer.size()));
 
-    size_t bufferIndex = 0;
+    size_t bufferIndex = 1;
     const int maxReservoirMergingPasses = 1;
     const int maxIterations = 4;
     for (; bufferIndex < maxIterations; ++bufferIndex) {
@@ -2041,44 +2051,57 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
 }
 
 void RendererBackend::RenderForwardPassPbr_() {
-    // Make sure to bind our own frame buffer for rendering
-    state_.currentFrame.fbo.Bind();
+    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
+        return b->GetVisibleDrawCommandsBuffer();
+    };
 
-    // Perform depth prepass
-    BindShader_(state_.depthPrepass.get());
+    const auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glDepthMask(GL_TRUE);
 
-    // Begin geometry pass
-    BindShader_(state_.geometry.get());
+    // Perform depth prepass
+    // state_.currentFrame.prepassFbo.Bind();
 
-    auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
-    state_.geometry->SetMat4("view", frame_->view);
-    state_.geometry->SetMat4("jitterProjectionView", jitter);
+    // BindShader_(state_.forwardPbrPrepass.get());
 
-    //glDepthFunc(GL_LEQUAL);
+    // state_.forwardPbrPrepass->SetMat4("jitterProjectionView", jitter);
 
-    const CommandBufferSelectionFunction select = [](GpuCommandBufferPtr& b) {
-        return b->GetVisibleDrawCommandsBuffer();
-    };
+    // Render_(*state_.forwardPbrPrepass.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
+    // Render_(*state_.forwardPbrPrepass.get(), frame_->drawCommands->staticPbrMeshes, select, true);
 
-    Render_(*state_.geometry.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
-    Render_(*state_.geometry.get(), frame_->drawCommands->staticPbrMeshes, select, true);
+    // UnbindShader_();
+
+    // state_.currentFrame.prepassFbo.Unbind();
+
+    // Begin forwardPbr pass
+    state_.currentFrame.fbo.Bind();
+
+    // glDepthFunc(GL_EQUAL);
+    // glDepthMask(GL_FALSE);
+
+    BindShader_(state_.forwardPbr.get());
+
+    state_.forwardPbr->SetMat4("view", frame_->view);
+    state_.forwardPbr->SetMat4("jitterProjectionView", jitter);
+
+    Render_(*state_.forwardPbr.get(), frame_->drawCommands->dynamicPbrMeshes, select, true);
+    Render_(*state_.forwardPbr.get(), frame_->drawCommands->staticPbrMeshes, select, true);
 
     state_.currentFrame.fbo.Unbind();
 
     UnbindShader_();
 
-    //glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
 }
 
 void RendererBackend::RenderForwardPassFlat_() {
-    BindShader_(state_.forward.get());
+    BindShader_(state_.forwardFlat.get());
 
     auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
-    state_.forward->SetMat4("jitterProjectionView", jitter);
+    state_.forwardFlat->SetMat4("jitterProjectionView", jitter);
 
     glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
@@ -2087,7 +2110,7 @@ void RendererBackend::RenderForwardPassFlat_() {
         return b->GetVisibleDrawCommandsBuffer();
     };
 
-    Render_(*state_.forward.get(), frame_->drawCommands->flatMeshes, select, false);
+    Render_(*state_.forwardFlat.get(), frame_->drawCommands->flatMeshes, select, false);
 
     UnbindShader_();
 }

@@ -40,7 +40,7 @@ namespace stratus {
         bool runAlphaTest_ = true;
         // This is the number of rays we march per pixel to determine the final
         // atmospheric value
-        int numAtmosphericSamples_ = 64;
+        int numAtmosphericSamples_ = 32;
         float particleDensity_ = 0.002f;
         // If > 1, then backscattered light will be greater than forwardscattered light
         float scatterControl_ = 0.004f; // 0.004 is roughly a G of 0.7

@@ -206,11 +206,9 @@ vec3 applyUpsampleStage() {
 void main() {
     if (downsamplingStage) {
         fsColor = applyDownsampleStage();
-    }
-    else if (gaussianStage) {
+    } else if (gaussianStage) {
         fsColor = applyGaussianBlur();
-    }
-    else {
+    } else {
         fsColor = applyUpsampleStage();
     }
 }

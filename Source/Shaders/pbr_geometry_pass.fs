@@ -23,7 +23,7 @@ uniform float emissiveMultiplier = 1.0;
  * in world space.
  */
 smooth in vec3 fsPosition;
-smooth in vec4 fsViewSpacePos;
+//smooth in vec4 fsViewSpacePos;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
@@ -54,20 +54,25 @@ layout (location = 2) out vec3 gRoughnessMetallicReflectance;
 // The structure buffer contains information related to depth in camera space. Useful for things such as ambient occlusion
 // and atmospheric shadowing.
 layout (location = 3) out vec4 gStructureBuffer;
+//layout (location = 3) out vec2 gStructureBuffer;
 layout (location = 4) out vec2 gVelocityBuffer;
 //layout (location = 5) out float gId;
 
+vec2 calculateStructureOutput2(float z) {
+    // See https://stackoverflow.com/questions/16365385/explanation-of-dfdx for an explanation of dFd(x|y)
+    // They are effectively calculating change in depth between nearest neighbors
+    return vec2(dFdx(z), dFdy(z));
+}
+
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
-vec4 calculateStructureOutput(float z) {
+vec4 calculateStructureOutput4(float z) {
     // 0xFFFFE000 allows us to extract the upper 10 bits of precision. z - h then
     // Removes the upper 10 bits of precision and leaves us with at least 11 bits of precision.
     //
     // When h and z - h are later recombined, the result will have at least 21 of the original
     // 23 floating point mantissa.
     float h = uintBitsToFloat(floatBitsToUint(z) & 0xFFFFE000U);
-    // See https://stackoverflow.com/questions/16365385/explanation-of-dfdx for an explanation of dFd(x|y)
-    // They are effectively calculating change in depth between nearest neighbors
-    return vec4(dFdx(z), dFdy(z), h, z - h);
+    return vec4(calculateStructureOutput2(z), h, z - h);
 }
 
 // See https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
@@ -134,10 +139,11 @@ void main() {
     //gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
     gRoughnessMetallicReflectance = vec3(roughness, metallic, mix(reflectance, maxReflectivity, metallic));
-    //gStructureBuffer = calculateStructureOutput(gl_Position.z);
-    //gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
-    //gStructureBuffer = calculateStructureOutput(gl_FragCoord.z / gl_FragCoord.w);
-    gStructureBuffer = calculateStructureOutput(fsCurrentClipPos.w);
+    //gStructureBuffer = calculateStructureOutput4(gl_Position.z);
+    //gStructureBuffer = calculateStructureOutput4(1.0 / gl_FragCoord.w);
+    //gStructureBuffer = calculateStructureOutput4(gl_FragCoord.z / gl_FragCoord.w);
+    gStructureBuffer = calculateStructureOutput4(fsCurrentClipPos.w);
+    //gStructureBuffer = calculateStructureOutput2(fsCurrentClipPos.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
     //gId = float(fsDrawID);
 

@@ -386,6 +386,7 @@ namespace stratus {
         // Geometry buffer
         struct GBuffer {
             FrameBuffer fbo;
+            FrameBuffer prepassFbo;
             //Texture position;                 // RGB16F (rgba instead of rgb due to possible alignment issues)
             Texture normals;                  // RGB8F
             Texture albedo;                   // RGB8F
@@ -506,10 +507,12 @@ namespace stratus {
             // Preprocessing shader which sets up the scene to allow for dynamic shadows
             std::unique_ptr<Pipeline> shadows;
             std::unique_ptr<Pipeline> vplShadows;
-            // Geometry pass - handles all combinations of material properties
-            std::unique_ptr<Pipeline> geometry;
+            // Geometry forward pass - handles all combinations of material properties
+            // The prepass version only handles outputting depth values
+            std::unique_ptr<Pipeline> forwardPbrPrepass;
+            std::unique_ptr<Pipeline> forwardPbr;
             // Forward rendering pass
-            std::unique_ptr<Pipeline> forward;
+            std::unique_ptr<Pipeline> forwardFlat;
             // Handles first SSAO pass (no blurring)
             std::unique_ptr<Pipeline> ssaoOcclude;
             // Handles second SSAO pass (blurring)

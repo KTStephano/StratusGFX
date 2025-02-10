@@ -27,7 +27,7 @@ uniform int viewHeight;
 uniform vec3 viewPosition;
 
 smooth out vec3 fsPosition;
-smooth out vec4 fsViewSpacePos;
+//smooth out vec4 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 
