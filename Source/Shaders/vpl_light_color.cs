@@ -184,7 +184,7 @@ void main() {
             vec3 sampleModifier = vec3(1.0);
             uint unused;
             if (diffuseValBase.a > 0.0) {
-                sampleModifier = vec3(0.0625 * (infiniteLightIntensity) * sampleRatioSky);
+                sampleModifier = vec3(0.125 * (infiniteLightIntensity) * sampleRatioSky);
                 lightColorModifier = vec3(5 + infiniteLightIntensity);
 
                 ATOMIC_ADD_FLOAT(diffuseXSky, diffuseValBase.x * sampleModifier.x, unused)

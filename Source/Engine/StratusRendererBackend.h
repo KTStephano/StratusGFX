@@ -456,7 +456,7 @@ namespace stratus {
             Texture lightingColorBuffer;
             // Used for effects like bloom
             //Texture lightingHighBrightnessBuffer;
-            Texture lightingDepthBuffer;
+            //Texture lightingDepthBuffer;
             FrameBuffer flatPassFboCurrentFrame;
             FrameBuffer flatPassFboPreviousFrame;
             // Used for Screen Space Ambient Occlusion (SSAO)

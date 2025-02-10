@@ -23,7 +23,7 @@ uniform float emissiveMultiplier = 1.0;
  * in world space.
  */
 smooth in vec3 fsPosition;
-//in vec3 fsViewSpacePos;
+smooth in vec4 fsViewSpacePos;
 in vec3 fsNormal;
 smooth in vec2 fsTexCoords;
 in mat4 fsModel;
@@ -134,8 +134,10 @@ void main() {
     //gReflectivityEmissive = vec2(mix(reflectance, maxReflectivity, metallic), emissive.g);
     //gBaseReflectivity = vec4(vec3(0.5), emissive.g);
     gRoughnessMetallicReflectance = vec3(roughness, metallic, mix(reflectance, maxReflectivity, metallic));
-    //gStructureBuffer = calculateStructureOutput(fsViewSpacePos.z);
-    gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+    //gStructureBuffer = calculateStructureOutput(gl_Position.z);
+    //gStructureBuffer = calculateStructureOutput(1.0 / gl_FragCoord.w);
+    //gStructureBuffer = calculateStructureOutput(gl_FragCoord.z / gl_FragCoord.w);
+    gStructureBuffer = calculateStructureOutput(fsCurrentClipPos.w);
     gVelocityBuffer = calculateVelocity(fsCurrentClipPos, fsPrevClipPos);
     //gId = float(fsDrawID);
 

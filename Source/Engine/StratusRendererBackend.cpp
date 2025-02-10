@@ -523,20 +523,23 @@ void RendererBackend::UpdateWindowDimensions_() {
     // state_.lightingHighBrightnessBuffer.SetCoordinateWrapping(TextureCoordinateWrapping::CLAMP_TO_EDGE);
 
     // Create the depth buffer
-    state_.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, fullResX, fullResY, 0, false}, NoTextureData);
-    state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
+    //state_.lightingDepthBuffer = Texture(TextureConfig{TextureType::TEXTURE_2D, TextureComponentFormat::DEPTH, TextureComponentSize::BITS_DEFAULT, TextureComponentType::FLOAT, fullResX, fullResY, 0, false}, NoTextureData);
+    //state_.lightingDepthBuffer.SetMinMagFilter(TextureMinificationFilter::NEAREST, TextureMagnificationFilter::NEAREST);
 
     // Attach the textures to the FBO
     //state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingHighBrightnessBuffer, state_.lightingDepthBuffer});
-    state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingDepthBuffer});
+    //state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer, state_.lightingDepthBuffer});
+    state_.lightingFbo = FrameBuffer({state_.lightingColorBuffer});
     if (!state_.lightingFbo.Valid()) {
         isValid_ = false;
         return;
     }
 
-    state_.flatPassFboCurrentFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
-    state_.flatPassFboPreviousFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
-        if (!state_.flatPassFboCurrentFrame.Valid() || !state_.flatPassFboPreviousFrame.Valid()) {
+    //state_.flatPassFboCurrentFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
+    //state_.flatPassFboPreviousFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.lightingDepthBuffer});
+    state_.flatPassFboCurrentFrame = FrameBuffer({state_.lightingColorBuffer, state_.currentFrame.velocity, state_.currentFrame.depth});
+    state_.flatPassFboPreviousFrame = FrameBuffer({state_.lightingColorBuffer, state_.previousFrame.velocity, state_.previousFrame.depth});
+    if (!state_.flatPassFboCurrentFrame.Valid() || !state_.flatPassFboPreviousFrame.Valid()) {
         isValid_ = false;
         return;
     }
@@ -2003,7 +2006,8 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
 
     // Forward pass for all objects that don't interact with light (may also be used for transparency later as well)
     // flatPassFbo is a framebuffer view of lightingFbo and Gbuffer.velocity
-    state_.flatPassFboCurrentFrame.CopyFrom(state_.currentFrame.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
+    //state_.flatPassFboCurrentFrame.CopyFrom(state_.currentFrame.fbo, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBounds{0, 0, frame_->viewportWidth, frame_->viewportHeight}, BufferBit::DEPTH_BIT, BufferFilter::NEAREST);
+    
     // Blit to default framebuffer - not that the framebuffer you are writing to has to match the internal format
     // of the framebuffer you are reading to!
     glEnable(GL_DEPTH_TEST);
@@ -2051,6 +2055,7 @@ void RendererBackend::RenderForwardPassPbr_() {
     BindShader_(state_.geometry.get());
 
     auto& jitter = frame_->settings.taaEnabled ? frame_->jitterProjectionView : frame_->projectionView;
+    state_.geometry->SetMat4("view", frame_->view);
     state_.geometry->SetMat4("jitterProjectionView", jitter);
 
     //glDepthFunc(GL_LEQUAL);

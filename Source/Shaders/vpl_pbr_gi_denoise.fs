@@ -436,7 +436,7 @@ void main() {
         //float wid = 1.0;
         //wid = 1.0;
 
-        float similarity = 0;//wn * wz * wid;
+        float similarity = wn * wz * wid;
         
         if (similarity < 0.99) {
             similarity = 0.0;

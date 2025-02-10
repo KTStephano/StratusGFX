@@ -14,9 +14,9 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 2
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
-#define MAX_RESAMPLES_PER_PIXEL 4
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 1
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 5
+#define MAX_RESAMPLES_PER_PIXEL 5
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
 
@@ -172,11 +172,11 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                 seed.z += seedZOffset;
 
                 int randIndex;
-                if (maxRandomIndex < 10) {
-                    randIndex = i + resamples;
-                } else {
+                //if (maxRandomIndex < 10) {
+                //    randIndex = i + resamples;
+                //} else {
                     randIndex = int(maxRandomIndex * rand);
-                }
+                //}
                                                                                                                 
                 int probeIndex = visibleIndices[offsetBucketIndex + randIndex];                                                                                        
                 AtlasEntry entry = shadowIndices[probeIndex];                    

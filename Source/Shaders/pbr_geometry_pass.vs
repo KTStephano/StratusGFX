@@ -13,6 +13,7 @@ layout (std430, binding = 14) readonly buffer SSBO4 {
     mat4 prevModelMatrices[];
 };
 
+uniform mat4 view;
 uniform mat4 projectionView;
 uniform mat4 jitterProjectionView;
 uniform mat4 prevProjectionView;
@@ -26,7 +27,7 @@ uniform int viewHeight;
 uniform vec3 viewPosition;
 
 smooth out vec3 fsPosition;
-//smooth out vec3 fsViewSpacePos;
+smooth out vec4 fsViewSpacePos;
 out vec3 fsNormal;
 smooth out vec2 fsTexCoords;
 
@@ -62,9 +63,8 @@ void main() {
     vec4 pos = modelMatrices[gl_DrawID] * vec4(getPosition(gl_VertexID), 1.0);
     //vec4 pos = vec4(getPosition(gl_VertexID), 1.0);
 
-    //vec4 viewSpacePos = view * pos;
     fsPosition = pos.xyz;
-    //fsViewSpacePos = viewSpacePos.xyz;
+    //fsViewSpacePos = view * pos;
     fsTexCoords = getTexCoord(gl_VertexID);
 
     fsModelNoTranslate = mat3(modelMatrices[gl_DrawID]);
