@@ -94,6 +94,7 @@ public:
         settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_8192;
         // Brighten the GI in the scene
         settings.SetMinGiOcclusionFactor(0.65f);
+        settings.taaEnabled = false;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         // INSTANCE(RendererFrontend)->SetFogDensity(0.00075);
@@ -110,6 +111,9 @@ public:
         if (INSTANCE(Engine)->FrameCount() % 100 == 0) {
             STRATUS_LOG << "FPS:" << (1.0 / deltaSeconds) << " (" << (deltaSeconds * 1000.0) << " ms)" << std::endl;
         }
+
+        const float vplIntensity = 0.01; //0.05f / 1.0f;
+        const bool showVpls = false;
 
         //STRATUS_LOG << "Camera " << camera.getYaw() << " " << camera.getPitch() << std::endl;
 
@@ -136,15 +140,15 @@ public:
                                 stratus::RendererFrontend::Instance()->RecompileShaders();
                             }
                             break;
-                        case SDL_SCANCODE_1: {
-                            if (released) {
-                                LightCreator::CreateStationaryLight(
-                                    LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(224.0f / 255.0f, 157.0f / 255.0f, 55.0f / 255.0f), 10.0f),
-                                    false
-                                );
+                            case SDL_SCANCODE_1: {
+                                if (released) {
+                                    LightCreator::CreateVirtualPointLight(
+                                        LightParams(INSTANCE(RendererFrontend)->GetCamera()->GetPosition(), glm::vec3(1.0f), vplIntensity),
+                                        showVpls
+                                    );
+                                }
+                                break;
                             }
-                            break;
-                        }
                         case SDL_SCANCODE_2: {
                             if (released) {
                                 LightCreator::CreateStationaryLight(
@@ -166,194 +170,18 @@ public:
             CornellBox = nullptr;
             int spawned = 0;
 
-            //for (int x = -16; x < 16; x += 5) {
-            //   for (int y = 1; y < 18; y += 5) {
-            //       for (int z = -15; z < 15; z += 5) {
-            //           ++spawned;
-            //           LightCreator::CreateVirtualPointLight(
-            //               LightParams(glm::vec3(float(x), float(y), float(z)), glm::vec3(1.0f), 100.0f),
-            //               false
-            //           );
-            //       }
-            //   }
-            //}
-            // const std::vector<float> ys = { -30.0f, 10.0f };
-            // const float offset = 60.0f;
-            const float vplIntensity = 0.01; //0.05f / 1.0f;
-            const bool showVpls = false;
-
-            // Floor
-            for (float x = -14.0f; x <= 14.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
+            for (float x = -14.0f; x <= 14.0f; x += 4.0f) {
+                for (float y = 1; y < 30; y += 5.0f) {
+                    for (float z = -16.0f; z <= 16.0f; z += 3.0f) {
                         ++spawned;
-                        const glm::vec3 location(x, 1.0f, z);
+                        const glm::vec3 location(x, y, z);
                         LightCreator::CreateVirtualPointLight(
                             LightParams(location, glm::vec3(1.0f), vplIntensity),
                             showVpls
                         );
-                    //}
+                    }
                 }
             }
-
-            // Ceiling
-            for (float x = -14.0f; x <= 14.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
-                        ++spawned;
-                        const glm::vec3 location(x, 29.5f, z);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Left wall
-            for (float y = 0.0f; y <= 28.0f; y += 2.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float z = -16.0f; z <= 16.0f; z += 2.0f) {
-                        ++spawned;
-                        const glm::vec3 location(14.5f, y, z);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Back wall
-            for (float x = -13.0f; x <= 13.0f; x += 2.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    for (float y = 0; y <= 28.0f; y += 1.0f) {
-                        ++spawned;
-                        const glm::vec3 location(x, y, 14.0f);
-                        LightCreator::CreateVirtualPointLight(
-                            LightParams(location, glm::vec3(1.0f), vplIntensity),
-                            showVpls
-                        );
-                    //}
-                }
-            }
-
-            // Tall box side
-            // for (float y = 2; y <= 17.0f; y += 1.0f) {
-            //     for (float z = -1; z <= 4.0f; z += 1.0f) {
-            //         ++spawned;
-            //         const glm::vec3 location(9, y, z);
-            //         LightCreator::CreateVirtualPointLight(
-            //             LightParams(location, glm::vec3(1.0f), vplIntensity),
-            //             showVpls
-            //         );
-            //         //}
-            //     }
-            // }
-
-            // Tall box front
-            for (float x = 0; x <= 6.0f; x += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                for (float y = 0; y <= 18.0f; y += 1.0f) {
-                    ++spawned;
-                    const glm::vec3 location(x, y, -2.0f);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
-                }
-            }
-
-            // Short box side
-            for (float y = 0; y <= 10.0f; y += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                for (float z = -10.0f; z <= -2.0f; z += 1.0f) {
-                    ++spawned;
-                    const glm::vec3 location(-10.0f, y, z);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
-                }
-            }
-
-            // Short box front
-            for (float x = -7.0f; x <= -1.0; x += 1.0f) {
-                for (float y = 2.0f; y <= 8.0f; y += 1.0f) {
-                //for (float y = 0; y < 25; y += 5.0f) {
-                    ++spawned;
-                    const glm::vec3 location(x, y, -11.0f);
-                    LightCreator::CreateVirtualPointLight(
-                        LightParams(location, glm::vec3(1.0f), vplIntensity),
-                        showVpls
-                    );
-                    //}
-                }
-            }
-
-            // for (float y : ys) {
-            //    for (float x = -10.0f; x < 60.0f; x += offset) {
-            //        for (float z = -60.0f; z < 60.0f; z += offset) {
-            //             const glm::vec3 location(x, y, z);
-            //             LightCreator::CreateStationaryLight(
-            //                 LightParams(location, glm::vec3(0.941176, 0.156863, 0.941176), 100, false),
-            //                 false
-            //             );
-
-            //             LightCreator::CreateStationaryLight(
-            //                 LightParams(location, glm::vec3(0.380392, 0.180392, 0.219608), 100, false),
-            //                 false
-            //             );
-
-            //             LightCreator::CreateStationaryLight(
-            //                 LightParams(location, glm::vec3(0.0470588, 0.356863, 0.054902), 100, false),
-            //                 false
-            //             );
-
-            //             //   LightCreator::CreateStationaryLight(
-            //             //       LightParams(location, glm::vec3(1.0), 100, false),
-            //             //       false
-            //             //   );
-            //        }
-            //    } 
-            // }
-
-            // for (float y = -40.0f; y < 60.0f; y += offset) {
-            //    for (float z = -60.0f; z < 60.0f; z += offset) {
-            //         const glm::vec3 location(-15.0f, y, z);
-            //         LightCreator::CreateStationaryLight(
-            //             LightParams(location, glm::vec3(0.941176, 0.156863, 0.941176), 100, false),
-            //             false
-            //         );
-
-            //         LightCreator::CreateStationaryLight(
-            //             LightParams(location, glm::vec3(0.380392, 0.180392, 0.219608), 100, false),
-            //             false
-            //         );
-
-            //         LightCreator::CreateStationaryLight(
-            //             LightParams(location, glm::vec3(0.0470588, 0.356863, 0.054902), 100, false),
-            //             false
-            //         );
-
-            //           // LightCreator::CreateStationaryLight(
-            //           //     LightParams(location, glm::vec3(1.0), 100, false),
-            //           //     false
-            //           // );
-            //    }
-            // }
-
-            // for (float y = -40.0f; y < 60.0f; y += 30.0f) {
-            //    for (float x = -60.0f; x < 60.0f; x += 30.0f) {
-            //        const glm::vec3 location(x, y, 15.0f);
-            //           LightCreator::CreateStationaryLight(
-            //               LightParams(location, glm::vec3(1.0), 300, false),
-            //               false
-            //           );
-            //    }
-            // }
 
             STRATUS_LOG << "SPAWNED " << spawned << " VPLS" << std::endl;
         }

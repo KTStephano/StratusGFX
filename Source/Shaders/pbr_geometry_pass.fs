@@ -58,14 +58,14 @@ layout (location = 3) out vec4 gStructureBuffer;
 layout (location = 4) out vec2 gVelocityBuffer;
 //layout (location = 5) out float gId;
 
-vec2 calculateStructureOutput2(float z) {
+vec2 calculateStructureOutput2(in float z) {
     // See https://stackoverflow.com/questions/16365385/explanation-of-dfdx for an explanation of dFd(x|y)
     // They are effectively calculating change in depth between nearest neighbors
     return vec2(dFdx(z), dFdy(z));
 }
 
 // See Foundations of Game Engine Development: Volume 2 (The Structure Buffer)
-vec4 calculateStructureOutput4(float z) {
+vec4 calculateStructureOutput4(in float z) {
     // 0xFFFFE000 allows us to extract the upper 10 bits of precision. z - h then
     // Removes the upper 10 bits of precision and leaves us with at least 11 bits of precision.
     //

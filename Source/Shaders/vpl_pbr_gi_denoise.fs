@@ -257,7 +257,7 @@ vec4 computeMergedReservoir(vec3 centerNormal, float centerDepth) {
     const int halfNearestNeighborhood = nearestNeighborhood / 2;
     const int halfNumReservoirNeighbors = numReservoirNeighbors / 2;
 
-    int minmaxNearest = 0;
+    int minmaxNearest = 1;
     for (int dx = -minmaxNearest; dx <= minmaxNearest; ++dx) {
         for (int dy = -minmaxNearest; dy <= minmaxNearest; ++dy) {
             ACCEPT_OR_REJECT_RESERVOIR_DETERMINISTIC(0)
@@ -284,10 +284,12 @@ bool worldBucketsEqual(in vec3 wxs, in vec3 wys) {
     // TODO: There seems to be a bug where the y-component is wrong between frames (sometimes)
     // It almost looks like z-fighting artifacts? They seem to be within 2 world tiles of each other
     // when the answer should be strict ==.
-    return xs.xz == ys.xz && abs(xs.y-ys.y) < 2;
-    //return xs.x == ys.x &&
-    //    xs.y == ys.y &&
-    //    xs.z == ys.z;
+    //
+    // TODO: The reason is the TAA jitter matrix needs to be used but isn't, so there is a slight mismatch
+    // between what's in the depth buffer and the values we're looking at. Change projection matrix.
+    //return xs.xz == ys.xz && abs(xs.y-ys.y) < 2;
+    //return abs(xs.x-ys.x) < 2 && abs(xs.y-ys.y) < 2 && abs(xs.z-ys.z) < 2;
+    return xs == ys;
 }
 
 void main() {
@@ -434,11 +436,11 @@ void main() {
             prevWorldPos
         ) ? 1.0 : 0.0;
         //float wid = 1.0;
-        //wid = 1.0;
+        wid = 1.0;
 
         float similarity = wn * wz * wid;
         
-        if (similarity < 0.99) {
+        if (similarity < 0.999) {
             similarity = 0.0;
             accumMultiplier = 0.0;
             //complete = true;

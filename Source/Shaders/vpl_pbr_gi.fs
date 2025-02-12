@@ -14,7 +14,7 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 1
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 2
 #define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 4
 
