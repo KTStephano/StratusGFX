@@ -94,7 +94,7 @@ namespace stratus {
 
     // Enables an entity component pointer to be inserted into hash set/map
     struct EntityComponentView {
-        EntityComponent * component = nullptr;
+        EntityComponent* component = nullptr;
 
         EntityComponentView(EntityComponent * c = nullptr)
             : component(c) {}
@@ -113,7 +113,7 @@ namespace stratus {
     };
 
     struct EntityComponentPointerManager {
-        EntityComponent * component = nullptr;
+        EntityComponent* component = nullptr;
 
         EntityComponentPointerManager(EntityComponent * c)
             : component(c) {}

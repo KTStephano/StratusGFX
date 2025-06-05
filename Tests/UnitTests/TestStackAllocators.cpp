@@ -5,16 +5,16 @@
 #include <vector>
 #include <unordered_map>
 
-#include "StratusStackAllocator.h"
+#include "StratusAllocators.h"
 
 TEST_CASE( "Stratus Stack Allocators Test", "[stratus_stack_allocators_test]" ) {
-	std::cout << "Beginning stratus::StackAllocator tests" << std::endl;
+	std::cout << "Beginning stratus::ArenaAllocator tests" << std::endl;
 
 	// Should work out to 4 mb
 	static constexpr size_t numInts = 1047552;
 	static constexpr size_t numBytes = sizeof(int) * numInts;
 
-	auto allocator = stratus::MakeUnsafe<stratus::StackAllocator>(numBytes);
+	auto allocator = stratus::MakeUnsafe<stratus::ArenaAllocator>(numBytes);
 
     REQUIRE(allocator->Capacity() == numBytes);
     REQUIRE(allocator->Capacity() == allocator->Remaining());
@@ -40,7 +40,7 @@ TEST_CASE( "Stratus Stack Allocators Test", "[stratus_stack_allocators_test]" ) 
 	allocator->Deallocate();
 	REQUIRE(allocator->Remaining() == numBytes);
 
-	auto poolAllocator = stratus::StackBasedPoolAllocator<int>(allocator);
+	auto poolAllocator = stratus::TypedArenaAllocator<int>(allocator);
 	REQUIRE(poolAllocator.Capacity() == numInts);
 	REQUIRE(poolAllocator.Remaining() == numInts);
 
@@ -57,7 +57,7 @@ TEST_CASE( "Stratus Stack Allocators Test", "[stratus_stack_allocators_test]" ) 
 	REQUIRE(allocator->Remaining() == numBytes);
 
 	{
-		std::vector<int, stratus::StackBasedPoolAllocator<int>> vec(poolAllocator);
+		std::vector<int, stratus::TypedArenaAllocator<int>> vec(poolAllocator);
 		REQUIRE(poolAllocator.Remaining() == (numInts - vec.capacity()));
 
 		auto vec2 = vec;
@@ -78,17 +78,17 @@ TEST_CASE( "Stratus Stack Allocators Test", "[stratus_stack_allocators_test]" ) 
 			double,
 			std::hash<double>,
 			std::equal_to<double>,
-			stratus::StackBasedPoolAllocator<std::pair<const double, double>>>(
+			stratus::TypedArenaAllocator<std::pair<const double, double>>>(
 				8,
-				stratus::StackBasedPoolAllocator<std::pair<const double, double>>(allocator)
+				stratus::TypedArenaAllocator<std::pair<const double, double>>(allocator)
 			);
 
-		poolAllocator = stratus::StackBasedPoolAllocator<int>(allocator);
-		auto vec = std::vector<int, stratus::StackBasedPoolAllocator<int>>(poolAllocator);
+		poolAllocator = stratus::TypedArenaAllocator<int>(allocator);
+		auto vec = std::vector<int, stratus::TypedArenaAllocator<int>>(poolAllocator);
 		vec.reserve(32);
 
-		auto vec2 = std::vector<LargeUnevenStruct, stratus::StackBasedPoolAllocator<LargeUnevenStruct>>(
-			stratus::StackBasedPoolAllocator<LargeUnevenStruct>(allocator)
+		auto vec2 = std::vector<LargeUnevenStruct, stratus::TypedArenaAllocator<LargeUnevenStruct>>(
+			stratus::TypedArenaAllocator<LargeUnevenStruct>(allocator)
 		);
 
 		REQUIRE((allocator->Remaining() > 0 && allocator->Remaining() < numBytes));

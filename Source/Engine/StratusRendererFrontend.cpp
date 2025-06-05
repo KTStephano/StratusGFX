@@ -15,10 +15,10 @@
 #include <algorithm>
 
 namespace stratus {
-    using Vec3Allocator = StackBasedPoolAllocator<glm::vec3>;
-    using Vec4Allocator = StackBasedPoolAllocator<glm::vec4>;
-    using Mat3Allocator = StackBasedPoolAllocator<glm::mat3>;
-    using Mat4Allocator = StackBasedPoolAllocator<glm::mat4>;
+    using Vec3Allocator = TypedArenaAllocator<glm::vec3>;
+    using Vec4Allocator = TypedArenaAllocator<glm::vec4>;
+    using Mat3Allocator = TypedArenaAllocator<glm::mat3>;
+    using Mat4Allocator = TypedArenaAllocator<glm::mat4>;
 
     struct RenderEntityProcess : public EntityProcess {
         virtual ~RenderEntityProcess() = default;
@@ -383,7 +383,7 @@ namespace stratus {
         if (frame_->settings.perFrameMaxScratchMemoryBytes > 0 &&
             frame_->perFrameScratchMemory->Capacity() < frame_->settings.perFrameMaxScratchMemoryBytes) {
             STRATUS_LOG << "Resizing per frame scratch memory for renderer to " << frame_->settings.perFrameMaxScratchMemoryBytes;
-            frame_->perFrameScratchMemory = MakeUnsafe<StackAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
+            frame_->perFrameScratchMemory = MakeUnsafe<ArenaAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
         }
 
         camera_->Update(deltaSeconds);
@@ -475,7 +475,7 @@ namespace stratus {
         frame_->materialInfo = GpuMaterialBuffer::Create(8192);
 
         // Initialize per frame scratch memory
-        frame_->perFrameScratchMemory = MakeUnsafe<StackAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
+        frame_->perFrameScratchMemory = MakeUnsafe<ArenaAllocator>(frame_->settings.perFrameMaxScratchMemoryBytes);
 
         //_frame->instancedFlatMeshes.resize(1);
         //_frame->instancedDynamicPbrMeshes.resize(1);
@@ -912,7 +912,7 @@ namespace stratus {
         if (dynamicLightsDirty) MarkDynamicLightsDirty_();
     }
 
-    std::vector<glm::vec4, Vec4Allocator> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<StackAllocator>& perFrameAllocator) {
+    std::vector<glm::vec4, Vec4Allocator> ComputeCornersWithTransform(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<ArenaAllocator>& perFrameAllocator) {
         glm::vec4 vmin = aabb.vmin.ToVec4();
         glm::vec4 vmax = aabb.vmax.ToVec4();
 
@@ -934,7 +934,7 @@ namespace stratus {
     }
 
     // This code was taken from "3D Graphics Rendering Cookbook" source code, shared/UtilsMath.h
-    GpuAABB TransformAabb(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<StackAllocator>& perFrameAllocator) {
+    GpuAABB TransformAabb(const GpuAABB& aabb, const glm::mat4& transform, const UnsafePtr<ArenaAllocator>& perFrameAllocator) {
         std::vector<glm::vec4, Vec4Allocator> corners = ComputeCornersWithTransform(aabb, transform, perFrameAllocator);
 
         glm::vec3 vmin3 = corners[0];
@@ -958,7 +958,7 @@ namespace stratus {
 
     // See the section on culling in "3D Graphics Rendering Cookbook"
     void RendererFrontend::UpdateVisibility_() {   
-        using CommandBufferAllocator = StackBasedPoolAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        using CommandBufferAllocator = TypedArenaAllocator< std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
         const std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> commands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,
@@ -1163,7 +1163,7 @@ namespace stratus {
     }
 
     void RendererFrontend::UpdatePrevFrameModelTransforms_() {
-        using CommandBufferAllocator = StackBasedPoolAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
+        using CommandBufferAllocator = TypedArenaAllocator<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*>;
         std::vector<std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>*, CommandBufferAllocator> drawCommands({
             &frame_->drawCommands->flatMeshes,
             &frame_->drawCommands->dynamicPbrMeshes,

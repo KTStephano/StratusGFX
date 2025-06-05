@@ -5,20 +5,20 @@
 #include <exception>
 #include "StratusPointer.h"
 
-// A stack allocator is meant to provide O(1) allocation by only ever moving
-// down the stack. This is best used for short duration allocations such as a
+// An arena allocator is meant to provide O(1) allocation by only ever incrementing the 
+// current active pointer. This is best used for short duration allocations such as a
 // game engine frame where things are allocated during the frame and then bulk freed
 // at the end.
 
 namespace stratus {
-	struct StackAllocator {
-		StackAllocator(const size_t maxBytes) {
+	struct ArenaAllocator {
+		ArenaAllocator(const size_t maxBytes) {
 			start_ = (uint8_t *)std::malloc(maxBytes);
 			end_ = start_ + maxBytes;
 			current_ = start_;
 		}
 
-		~StackAllocator() {
+		~ArenaAllocator() {
 			if (start_ != nullptr) {
 				std::free((void *)start_);
 				start_ = nullptr;
@@ -55,13 +55,13 @@ namespace stratus {
 		}
 
 	private:
-		uint8_t * start_ = nullptr;
-		uint8_t * end_ = nullptr;
-		uint8_t * current_ = nullptr;
+		uint8_t* start_ = nullptr;
+		uint8_t* end_ = nullptr;
+		uint8_t* current_ = nullptr;
 	};
 
-	inline static UnsafePtr<StackAllocator> GetDefaultStackAllocator_() {
-		thread_local static UnsafePtr<StackAllocator> allocator = MakeUnsafe<StackAllocator>(1024);
+	inline static UnsafePtr<ArenaAllocator> GetDefaultStackAllocator_() {
+		thread_local static UnsafePtr<ArenaAllocator> allocator = MakeUnsafe<ArenaAllocator>(1024);
 		return allocator;
 	}
 
@@ -70,11 +70,11 @@ namespace stratus {
 	//
 	// The way this is meant to be used is as follows:
 	//		1) Begin frame
-	//		2) Allocate many small objects onto the stack-based pool allocator
+	//		2) Allocate many small objects onto the typed arena (pool) allocator
 	//		3) Bulk free everything
 	//		4) End frame
 	template<typename T>
-	struct StackBasedPoolAllocator {
+	struct TypedArenaAllocator {
 		typedef T              value_type;
 		typedef T*             pointer;
 		typedef const T*       const_pointer;
@@ -83,17 +83,17 @@ namespace stratus {
 		typedef std::size_t    size_type;
 		typedef std::ptrdiff_t difference_type;
 
-		StackBasedPoolAllocator()
-			: StackBasedPoolAllocator(GetDefaultStackAllocator_()) {}
+		TypedArenaAllocator()
+			: TypedArenaAllocator(GetDefaultStackAllocator_()) {}
 
-		StackBasedPoolAllocator(const size_t maxObjects)
-			: StackBasedPoolAllocator(MakeUnsafe<StackAllocator>(sizeof(value_type) * maxObjects)) {}
+		TypedArenaAllocator(const size_t maxObjects)
+			: TypedArenaAllocator(MakeUnsafe<ArenaAllocator>(sizeof(value_type) * maxObjects)) {}
 
-		StackBasedPoolAllocator(const UnsafePtr<StackAllocator>& allocator)
+		TypedArenaAllocator(const UnsafePtr<ArenaAllocator>& allocator)
 			: allocator_(allocator) {}
 
 		template<typename U>
-		StackBasedPoolAllocator(const StackBasedPoolAllocator<U>& other)
+		TypedArenaAllocator(const TypedArenaAllocator<U>& other)
 			: allocator_(other.Allocator()) {}
 
 		// Capacity in terms of # objects
@@ -106,7 +106,7 @@ namespace stratus {
 			return allocator_->Remaining() / sizeof(value_type);
 		}
 
-		UnsafePtr<StackAllocator> Allocator() const noexcept {
+		UnsafePtr<ArenaAllocator> Allocator() const noexcept {
 			return allocator_;
 		}
 
@@ -142,15 +142,15 @@ namespace stratus {
 			p->~U();
 		}
 
-		bool operator==(const StackBasedPoolAllocator<T>& other) const noexcept {
+		bool operator==(const TypedArenaAllocator<T>& other) const noexcept {
 			return allocator_ == other.allocator_;
 		}
 
-		bool operator!=(const StackBasedPoolAllocator<T>& other) const noexcept {
+		bool operator!=(const TypedArenaAllocator<T>& other) const noexcept {
 			return !(operator==(other));
 		}
 
 	private:
-		UnsafePtr<StackAllocator> allocator_;
+		UnsafePtr<ArenaAllocator> allocator_;
 	};
 }

@@ -178,14 +178,15 @@ void main() {
         //float sampleRatioSky = 1.0 - sampleRatioDirect;
         float directLightSamples = float(currentProbeIsVisible) - float(numNonDirectLightSamples);
         float sampleRatioDirect = directLightSamples == 0.0 ? 0.0 : 1.0 / float(directLightSamples);
-        float sampleRatioSky = numNonDirectLightSamples == 0 ? 0.0 : 1.0 / float(numNonDirectLightSamples);
+        float sampleRatioSky = numNonDirectLightSamples == 0 ? 0.0 : 1.0 / float(currentProbeIsVisible);
         if (shadowFactor < 1.0) {
             vec3 lightColorModifier = vec3(1.0);
             vec3 sampleModifier = vec3(1.0);
             uint unused;
             if (diffuseValBase.a > 0.0) {
-                sampleModifier = vec3(0.125 * (infiniteLightIntensity) * sampleRatioSky);
-                lightColorModifier = vec3(5 + infiniteLightIntensity);
+                // Previously 0.125 * ...
+                sampleModifier = vec3(0.0 * (infiniteLightIntensity) * sampleRatioSky);
+                lightColorModifier = vec3(infiniteLightIntensity);
 
                 ATOMIC_ADD_FLOAT(diffuseXSky, diffuseValBase.x * sampleModifier.x, unused)
                 ATOMIC_ADD_FLOAT(diffuseYSky, diffuseValBase.y * sampleModifier.y, unused)

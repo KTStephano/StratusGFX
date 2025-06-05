@@ -916,8 +916,8 @@ void RendererBackend::Begin(const std::shared_ptr<RendererFrame>& frame, bool cl
 //        projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 //    };
 //}
-static std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>> GenerateLightViewTransforms(const glm::vec3 & lightPos, const UnsafePtr<StackAllocator>& allocator) {
-    return std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>>({
+static std::vector<glm::mat4, TypedArenaAllocator<glm::mat4>> GenerateLightViewTransforms(const glm::vec3 & lightPos, const UnsafePtr<ArenaAllocator>& allocator) {
+    return std::vector<glm::mat4, TypedArenaAllocator<glm::mat4>>({
         //          pos       pos + dir                                  up
         glm::lookAt(lightPos, lightPos + glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
         glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
@@ -927,7 +927,7 @@ static std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>> GenerateLightV
         glm::lookAt(lightPos, lightPos + glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
         },
 
-        StackBasedPoolAllocator<glm::mat4>(allocator)
+        TypedArenaAllocator<glm::mat4>(allocator)
     );
 }
 
@@ -1330,11 +1330,11 @@ void RendererBackend::RenderAtmosphericShadowing_() {
 }
 
 void RendererBackend::InitVplFrameData_(const VplDistVector_& perVPLDistToViewer) {
-    std::vector<GpuVplData, StackBasedPoolAllocator<GpuVplData>> vplData(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
+    std::vector<GpuVplData, TypedArenaAllocator<GpuVplData>> vplData(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
     std::unordered_set<Light*, 
         std::hash<Light*>,
         std::equal_to<Light*>,
-        StackBasedPoolAllocator<Light*>> relighting(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
+        TypedArenaAllocator<Light*>> relighting(perVPLDistToViewer.size(), frame_->perFrameScratchMemory);
 
     // Insert probes that we intend to relight this frame
     while (relighting.size() < frame_->maxProbeRelightingPerFrame && frame_->probeRelightQueue.Size() > 0) {
@@ -1367,7 +1367,7 @@ static inline void PerformPointLightGeometryCulling(
     const std::unordered_map<RenderFaceCulling, GpuCommandBufferPtr>& commands,
     const std::vector<GpuCommandReceiveManagerPtr>& receivers,
     const std::function<GpuBuffer (const GpuCommandReceiveManagerPtr&, const RenderFaceCulling& cull)>& select,
-    const std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>>& viewProj
+    const std::vector<glm::mat4, TypedArenaAllocator<glm::mat4>>& viewProj
 ) {
     for (size_t i = 0; i < viewProj.size(); ++i) {
         pipeline.SetMat4("viewProj[" + std::to_string(i) + "]", viewProj[i]);
@@ -1401,7 +1401,7 @@ void RendererBackend::UpdatePointLights_(
     VplDistVector_& perLightShadowCastingDistToViewerVec,
     VplDistMultiSet_& perVPLDistToViewerSet,
     VplDistVector_& perVPLDistToViewerVec,
-    std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices) {
+    std::vector<int, TypedArenaAllocator<int>>& visibleVplIndices) {
 
     const Camera& c = *frame_->camera;
 
@@ -1542,7 +1542,7 @@ void RendererBackend::UpdatePointLights_(
         Pipeline * shader = light->IsVirtualLight() ? state_.vplShadows.get() : state_.shadows.get();
         auto transforms = GenerateLightViewTransforms(point->GetPosition(), frame_->perFrameScratchMemory);
 
-        std::vector<glm::mat4, StackBasedPoolAllocator<glm::mat4>> lightViewProj(
+        std::vector<glm::mat4, TypedArenaAllocator<glm::mat4>> lightViewProj(
             {
                 lightPerspective * transforms[0],
                 lightPerspective * transforms[1],
@@ -1552,7 +1552,7 @@ void RendererBackend::UpdatePointLights_(
                 lightPerspective * transforms[5],
             },
 
-            StackBasedPoolAllocator<glm::mat4>(frame_->perFrameScratchMemory)
+            TypedArenaAllocator<glm::mat4>(frame_->perFrameScratchMemory)
         );
 
         // Perform visibility culling
@@ -1674,9 +1674,9 @@ void RendererBackend::PerformVirtualPointLightCullingStage2_(
     const int totalVisible = int(perVPLDistToViewer.size());
 
     // Pack data into system memory
-    std::vector<GpuResourceHandle, StackBasedPoolAllocator<GpuResourceHandle>> diffuseHandles(StackBasedPoolAllocator<GpuResourceHandle>(frame_->perFrameScratchMemory));
+    std::vector<GpuResourceHandle, TypedArenaAllocator<GpuResourceHandle>> diffuseHandles(TypedArenaAllocator<GpuResourceHandle>(frame_->perFrameScratchMemory));
     diffuseHandles.reserve(totalVisible);
-    std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>> shadowDiffuseIndices(StackBasedPoolAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
+    std::vector<GpuAtlasEntry, TypedArenaAllocator<GpuAtlasEntry>> shadowDiffuseIndices(TypedArenaAllocator<GpuAtlasEntry>(frame_->perFrameScratchMemory));
     shadowDiffuseIndices.reserve(totalVisible);
     for (size_t i = 0; i < totalVisible; ++i) {
         //const int index = visibleVplIndices[i];
@@ -1852,12 +1852,12 @@ void RendererBackend::ComputeVirtualPointLightGlobalIllumination_(const VplDistV
     UnbindShader_();
     state_.vpls.vplGIFbo.Unbind();
 
-    std::vector<FrameBuffer*, StackBasedPoolAllocator<FrameBuffer*>> buffers({
+    std::vector<FrameBuffer*, TypedArenaAllocator<FrameBuffer*>> buffers({
         &state_.vpls.vplGIDenoisedFbo1,
         &state_.vpls.vplGIDenoisedFbo2
         },
 
-        StackBasedPoolAllocator<FrameBuffer*>(frame_->perFrameScratchMemory)
+        TypedArenaAllocator<FrameBuffer*>(frame_->perFrameScratchMemory)
     );
 
     //Texture indirectIllum = state_.vpls.vplGIFbo.GetColorAttachments()[0];
@@ -1945,17 +1945,17 @@ void RendererBackend::RenderScene(const double deltaSeconds) {
         RenderCSMDepth_();
     }
 
-    VplDistMultiSet_ perLightDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
-    VplDistVector_ perLightDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistMultiSet_ perLightDistToViewerSet(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perLightDistToViewerVec(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
     // // This one is just for shadow-casting lights
-    VplDistMultiSet_ perLightShadowCastingDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
-    VplDistVector_ perLightShadowCastingDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistMultiSet_ perLightShadowCastingDistToViewerSet(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perLightShadowCastingDistToViewerVec(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
-    VplDistMultiSet_ perVPLDistToViewerSet(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
-    VplDistVector_ perVPLDistToViewerVec(StackBasedPoolAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistMultiSet_ perVPLDistToViewerSet(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
+    VplDistVector_ perVPLDistToViewerVec(TypedArenaAllocator<VplDistKey_>(frame_->perFrameScratchMemory));
 
-    std::vector<int, StackBasedPoolAllocator<int>> visibleVplIndices(StackBasedPoolAllocator<int>(frame_->perFrameScratchMemory));
+    std::vector<int, TypedArenaAllocator<int>> visibleVplIndices(TypedArenaAllocator<int>(frame_->perFrameScratchMemory));
 
     // Perform point light pass
     UpdatePointLights_(
@@ -2150,9 +2150,9 @@ void RendererBackend::PerformBloomPostFx_() {
     if (!frame_->settings.bloomEnabled) return;
 
     // We use this so that we can avoid a final copy between the downsample and blurring stages
-    std::vector<PostFXBuffer, StackBasedPoolAllocator<PostFXBuffer>> finalizedPostFxFrames(
+    std::vector<PostFXBuffer, TypedArenaAllocator<PostFXBuffer>> finalizedPostFxFrames(
         state_.numDownsampleIterations + state_.numUpsampleIterations,
-        StackBasedPoolAllocator<PostFXBuffer>(frame_->perFrameScratchMemory)
+        TypedArenaAllocator<PostFXBuffer>(frame_->perFrameScratchMemory)
     );
    
     Pipeline* bloom = state_.bloom.get();
@@ -2493,9 +2493,9 @@ void RendererBackend::InitLights_(Pipeline * s, const VplDistVector_& lights, co
     glm::vec3 lightColor;
 
     auto allocator = frame_->perFrameScratchMemory;
-    auto gpuLights = std::vector<GpuPointLight, StackBasedPoolAllocator<GpuPointLight>>(StackBasedPoolAllocator<GpuPointLight>(allocator));
-    auto gpuShadowCubeMaps = std::vector<GpuAtlasEntry, StackBasedPoolAllocator<GpuAtlasEntry>>(StackBasedPoolAllocator<GpuAtlasEntry>(allocator));
-    auto gpuShadowLights = std::vector<GpuPointLight, StackBasedPoolAllocator<GpuPointLight>>(StackBasedPoolAllocator<GpuPointLight>(allocator));
+    auto gpuLights = std::vector<GpuPointLight, TypedArenaAllocator<GpuPointLight>>(TypedArenaAllocator<GpuPointLight>(allocator));
+    auto gpuShadowCubeMaps = std::vector<GpuAtlasEntry, TypedArenaAllocator<GpuAtlasEntry>>(TypedArenaAllocator<GpuAtlasEntry>(allocator));
+    auto gpuShadowLights = std::vector<GpuPointLight, TypedArenaAllocator<GpuPointLight>>(TypedArenaAllocator<GpuPointLight>(allocator));
     gpuLights.reserve(lights.size());
     gpuShadowCubeMaps.reserve(maxShadowLights);
     gpuShadowLights.reserve(maxShadowLights);

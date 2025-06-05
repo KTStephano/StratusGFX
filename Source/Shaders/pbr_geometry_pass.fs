@@ -123,6 +123,8 @@ void main() {
     vec2 metallicRoughness = bool(fsMetallicRoughnessMapped) ? texture(material.metallicRoughnessMap, texCoords).bg : vec2(metallic, roughness);
     metallic = metallicRoughness.x;
     roughness = metallicRoughness.y;
+    //metallic = 1.0;
+    //roughness = 0.0;
 
     vec3 emissive = bool(fsEmissiveMapped) ? texture(material.emissiveMap, texCoords).rgb : FLOAT3_TO_VEC3(material.emissiveColor);
     emissive = emissiveMultiplier * emissive;

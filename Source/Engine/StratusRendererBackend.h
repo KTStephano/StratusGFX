@@ -27,7 +27,7 @@
 #include "StratusGpuMaterialBuffer.h"
 #include "StratusGpuCommandBuffer.h"
 #include <functional>
-#include "StratusStackAllocator.h"
+#include "StratusAllocators.h"
 #include <set>
 #include "StratusGpuCommandBuffer.h"
 #include "StratusGraphicsDriver.h"
@@ -354,7 +354,7 @@ namespace stratus {
         uint32_t viewportHeight;
         Radians fovy;
         CameraPtr camera;
-        std::vector<glm::vec4, StackBasedPoolAllocator<glm::vec4>> viewFrustumPlanes;
+        std::vector<glm::vec4, TypedArenaAllocator<glm::vec4>> viewFrustumPlanes;
         GpuMaterialBufferPtr materialInfo;
         RendererCascadeContainer csc;
         GpuCommandManagerPtr drawCommands;
@@ -373,7 +373,7 @@ namespace stratus {
         glm::mat4 prevInvProjectionView = glm::mat4(1.0f);
         glm::vec4 clearColor;
         RendererSettings settings;
-        UnsafePtr<StackAllocator> perFrameScratchMemory;
+        UnsafePtr<ArenaAllocator> perFrameScratchMemory;
         bool viewportDirty;
 
         // Allows us to batch up the relighting phase so that one frame
@@ -698,7 +698,7 @@ namespace stratus {
         };
 
         // Used for point light sorting and culling
-        using VplDistKeyAllocator_ = StackBasedPoolAllocator<VplDistKey_>;
+        using VplDistKeyAllocator_ = TypedArenaAllocator<VplDistKey_>;
         typedef std::multiset<VplDistKey_, VplDistKeyLess_, VplDistKeyAllocator_> VplDistMultiSet_;
         typedef std::vector<VplDistKey_, VplDistKeyAllocator_> VplDistVector_;
 
@@ -741,7 +741,7 @@ namespace stratus {
             VplDistVector_&,
             VplDistMultiSet_&,
             VplDistVector_&,
-            std::vector<int, StackBasedPoolAllocator<int>>& visibleVplIndices
+            std::vector<int, TypedArenaAllocator<int>>& visibleVplIndices
         );
         void PerformVirtualPointLightCullingStage1_(VplDistVector_&);
         //void PerformVirtualPointLightCullingStage2_(const std::vector<std::pair<LightPtr, double>>&, const std::vector<int>& visibleVplIndices);
