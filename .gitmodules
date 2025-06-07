@@ -10,9 +10,6 @@
 [submodule "stb"]
 	path = stb
 	url = https://github.com/nothings/stb.git
-[submodule "gl3w"]
-	path = gl3w
-	url = https://github.com/skaslev/gl3w.git
 [submodule "SDL"]
 	path = SDL
 	url = https://github.com/libsdl-org/SDL.git
