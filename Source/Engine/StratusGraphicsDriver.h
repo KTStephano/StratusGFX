@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include "StratusTypes.h"
+#include "SGL/SGL.h"
 
 namespace stratus {
 #define NUM_SPARSE_INFO_LOOKUPS 5
@@ -76,5 +77,7 @@ namespace stratus {
         static void MakeContextCurrent();
         static void SwapBuffers(const bool vsync);
         static const GraphicsConfig& GetConfig();
+        // Used for interop with Vulkan
+        static sgl::device_ref GetDevice();
     };
 }

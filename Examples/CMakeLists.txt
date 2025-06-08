@@ -7,7 +7,7 @@ set(COMMON_SOURCES
 set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../)
 
 include_directories(
-    ${ROOT_DIRECTORY}gl3w/include 
+    ${ROOT_DIRECTORY}glad/include 
     ${ROOT_DIRECTORY} 
     ${ROOT_DIRECTORY}Source/Engine/ 
     ${CMAKE_CURRENT_LIST_DIR} 
@@ -15,7 +15,10 @@ include_directories(
     ${OPENGL_INCLUDE_DIRS}
 )
 
-link_directories(${ROOT_DIRECTORY}Bin)
+link_directories(
+    ${ROOT_DIRECTORY}Bin
+    ${ROOT_DIRECTORY}ThirdParty/lib
+)
 
 set(LIBRARIES StratusEngine)
 

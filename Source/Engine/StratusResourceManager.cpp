@@ -877,7 +877,7 @@ namespace stratus {
         std::vector<Async<void>> waiting;
         // There are cases where the number of meshes to process is less than the total available threads,
         // so in that case just use meshes.size() as the upper limit
-        const usize numThreads = std::min(INSTANCE(TaskSystem)->Size(), meshes.size());
+        const usize numThreads = (std::min)(INSTANCE(TaskSystem)->Size(), meshes.size());
         std::atomic<usize> counter = 0;
         // Important we start at 1 since we are including this current task thread already
         for (usize i = 1; i < numThreads; ++i) {

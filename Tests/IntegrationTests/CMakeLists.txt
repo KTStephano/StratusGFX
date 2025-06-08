@@ -15,7 +15,7 @@ link_directories(${ROOT_DIRECTORY}/Bin)
 add_executable(${TEST_EXE} ${TEST_SOURCES})
 
 target_include_directories(${TEST_EXE} PUBLIC
-    ${ROOT_DIRECTORY}/gl3w/include
+    ${ROOT_DIRECTORY}/glad/include
     ${ROOT_DIRECTORY}
     ${ROOT_DIRECTORY}/Source/Engine/
     ${CMAKE_CURRENT_LIST_DIR}

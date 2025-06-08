@@ -67,11 +67,13 @@ namespace stratus {
         bool WindowResizedWithinLastFrame() const;
 
         // Only useful to internal engine code
-        void * GetWindowObject() const;
+        void* GetWindowObject() const;
+        void* GetVkWindowObject() const;
 
     private:
         mutable std::shared_mutex m_;
-        SDL_Window * window_;
+        SDL_Window* window_;
+        SDL_Window* vk_window_;
         MouseState mouse_;
         uint32_t width_ = 0;
         uint32_t height_ = 0;

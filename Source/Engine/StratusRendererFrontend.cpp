@@ -699,7 +699,7 @@ namespace stratus {
             const glm::vec3 frustumCenter = frustumSum / float(frustumCorners.size());
 
             // Calculate max diameter across frustum
-            float maxLength = std::numeric_limits<float>::min();
+            float maxLength = (std::numeric_limits<float>::max)();
             for (int i = 0; i < frustumCorners.size() - 1; ++i) {
                 for (int j = 1; j < frustumCorners.size(); ++j) {
                     maxLength = std::max<float>(maxLength, glm::length(frustumCorners[i] - frustumCorners[j]));
@@ -727,8 +727,8 @@ namespace stratus {
                     maxVec = frustumVec;
                 }
                 else {
-                    minVec = glm::min(minVec, frustumVec);
-                    maxVec = glm::max(maxVec, frustumVec);
+                    minVec = (glm::min)(minVec, frustumVec);
+                    maxVec = (glm::max)(maxVec, frustumVec);
                 }
             }
 
@@ -941,8 +941,8 @@ namespace stratus {
         glm::vec3 vmax3 = corners[0];
 
         for (int i = 1; i < 8; ++i) {
-            vmin3 = glm::min(vmin3, glm::vec3(corners[i]));
-            vmax3 = glm::max(vmax3, glm::vec3(corners[i]));
+            vmin3 = (glm::min)(vmin3, glm::vec3(corners[i]));
+            vmax3 = (glm::max)(vmax3, glm::vec3(corners[i]));
         }
 
         GpuAABB result;

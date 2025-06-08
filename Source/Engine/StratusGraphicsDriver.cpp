@@ -9,6 +9,7 @@ namespace stratus {
     struct GraphicsContext {
         GraphicsConfig config;
         SDL_GLContext context;
+        sgl::device_ref device;
     };
 
     static GraphicsContext& GetContext() {
@@ -88,6 +89,32 @@ namespace stratus {
                 log << "\t\tPreferred page size Z 3D: " << config.preferredPageSizeZ3D[i] << std::endl;
             }
         }
+
+        GraphicsDriver::GetDevice()->print_info();
+    }
+
+    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, // Bitflag for comparison
+        VkDebugUtilsMessageTypeFlagsEXT        messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT*
+        pCallbackData, // Contains message and objects involved
+        void* pUserData      // Custom data we passed in to this callback during its creation
+    ) {
+
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ||
+            messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+            STRATUS_LOG << "Vulkan: " << pCallbackData->pMessage << std::endl;
+        }
+        else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+            STRATUS_WARN << "Vulkan: " << pCallbackData->pMessage << std::endl;
+        }
+        else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+            STRATUS_ERROR << "Vulkan: " << pCallbackData->pMessage << std::endl;
+            throw std::runtime_error("Critical Error");
+        }
+
+        // Should triggering code be forced to quit?
+        return VK_FALSE;
     }
 
     bool GraphicsDriver::Initialize() {
@@ -112,8 +139,32 @@ namespace stratus {
         }
 
         // Init gl core profile using gl3w
-        if (gl3wInit()) {
-            STRATUS_ERROR << "Failed to initialize core OpenGL profile" << std::endl;
+        //if (gl3wInit()) {
+        //    STRATUS_ERROR << "Failed to initialize core OpenGL profile" << std::endl;
+        //    return false;
+        //}
+        // Init gl using GLAD
+        int version = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
+        STRATUS_LOG << "Found GLAD GL version " << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version) << std::endl;
+
+        auto appInst = sgl::vulkan::make(
+            SGL_MAKE_VERSION(1, 0, 0), // app version
+            "StratusEngine",
+            SGL_MAKE_VERSION(1, 0, 0), // engine version
+            "StratusEngine",
+            sgl::get_required_window_extensions((SDL_Window*)Window::Instance()->GetVkWindowObject()),
+            true,
+            DebugCallback
+        );
+
+        if (appInst == nullptr) {
+            STRATUS_ERROR << "Could not initialize Vulkan instance" << std::endl;
+            return false;
+        }
+
+        context.device = sgl::select_best_device_for(appInst, (SDL_Window*)Window::Instance()->GetVkWindowObject());
+        if (context.device == nullptr) {
+            STRATUS_ERROR << "Could not select valid device" << std::endl;
             return false;
         }
 
@@ -225,5 +276,9 @@ namespace stratus {
 
     const GraphicsConfig& GraphicsDriver::GetConfig() {
         return GetContext().config;
+    }
+
+    sgl::device_ref GraphicsDriver::GetDevice() {
+        return GetContext().device;
     }
 }

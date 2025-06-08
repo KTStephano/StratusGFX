@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GL/gl3w.h"
+#include "glad/gl.h"
 #include "glm/glm.hpp"
 #include <list>
 #include <memory>
@@ -11,7 +11,6 @@
 #include "StratusGpuCommon.h"
 #include <unordered_set>
 #include "StratusLog.h"
-#include <list>
 
 #define MINIMUM_GPU_BLOCK_SIZE 64
 // 2^30

@@ -4,10 +4,10 @@ set(ROOT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../)
 set(THIRD_PARTY_ROOT_DIRECTORY ${ROOT_DIRECTORY}/ThirdParty/)
 set(OUTPUT_NAME StratusEngine)
 
-include_directories(${ROOT_DIRECTORY}/gl3w/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/Engine/ . ${OPENGL_INCLUDE_DIRS})
+include_directories(${ROOT_DIRECTORY}/glad/include ${ROOT_DIRECTORY} ${ROOT_DIRECTORY}/Source/Engine/ . ${OPENGL_INCLUDE_DIRS})
 
 set(SOURCES
-    ${ROOT_DIRECTORY}/gl3w/src/gl3w.c
+    ${ROOT_DIRECTORY}/glad/src/gl.c
     ${CMAKE_CURRENT_LIST_DIR}/StratusCamera.cpp
     ${CMAKE_CURRENT_LIST_DIR}/StratusFilesystem.cpp
     ${CMAKE_CURRENT_LIST_DIR}/StratusWindow.cpp
@@ -72,6 +72,7 @@ if (NOT WIN32)
 endif()
 
 find_package(SDL2 REQUIRED)
+find_package(SGL REQUIRED)
 
 # See https://stackoverflow.com/questions/49082471/linking-assimp-library-with-find-package
 find_package(assimp REQUIRED)
@@ -87,11 +88,13 @@ list(APPEND LIBRARIES
     ${SDL2_LIBRARIES}
     ${ASSIMP_LIBRARIES}
     meshoptimizer::meshoptimizer
+    SGL::SGL
 )
 
 message(${LIBRARIES})
 
 target_link_libraries(${OUTPUT_NAME} PUBLIC ${LIBRARIES})
+target_link_directories(${OUTPUT_NAME} PUBLIC ${THIRD_PARTY_ROOT_DIRECTORY}/lib)
 
 install(TARGETS ${OUTPUT_NAME}
     ARCHIVE DESTINATION Bin

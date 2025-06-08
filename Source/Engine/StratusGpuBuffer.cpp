@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "StratusApplicationThread.h"
 #include "StratusLog.h"
+#include "StratusGraphicsDriver.h"
 
 namespace stratus {
     typedef std::function<void(void)> GpuBufferCommand;
@@ -41,6 +42,40 @@ namespace stratus {
         throw std::invalid_argument("Unknown buffer type");
     }
 
+    static sgl::buffer_usage_bitmask ConvertVkBufferUsage_(int type) {
+        GpuBindingPoint type_ = static_cast<GpuBindingPoint>(type);
+        // TODO: Make transfer src/dst conditional
+        sgl::buffer_usage_bitmask usage = sgl::buffer_usage::TRANSFER_SRC | sgl::buffer_usage::TRANSFER_DST;
+        switch (type_) {
+        case GpuBindingPoint::ARRAY_BUFFER: usage |= sgl::buffer_usage::VERTEX; break;
+        case GpuBindingPoint::ELEMENT_ARRAY_BUFFER: usage |= sgl::buffer_usage::INDEX; break;
+        case GpuBindingPoint::UNIFORM_BUFFER: usage |= sgl::buffer_usage::UNIFORM; break;
+        case GpuBindingPoint::SHADER_STORAGE_BUFFER: usage |= sgl::buffer_usage::STORAGE; break;
+        case GpuBindingPoint::DRAW_INDIRECT_BUFFER: usage |= sgl::buffer_usage::INDIRECT; break;
+        }
+
+        return usage;
+    }
+
+    static sgl::buffer_config ConvertVkBufferConfig_(Bitfield type) {
+        sgl::buffer_config config = {};
+        if (type & GPU_MAP_READ || type & GPU_MAP_PERSISTENT || type & GPU_MAP_COHERENT) {
+            config.mmap = sgl::buffer_mmap_type::MMAP_READ_WRITE;
+        }
+        else if (type & GPU_MAP_WRITE) {
+            config.mmap = sgl::buffer_mmap_type::MMAP_WRITEONLY;
+        }
+        else {
+            config.mmap = sgl::buffer_mmap_type::MMAP_NONE;
+        }
+
+        if (type & GPU_MAP_PERSISTENT) {
+            config.allow_persistent_mmap = true;
+        }
+
+        return config;
+    }
+
     static GLenum _ConvertStorageType(GpuStorageType type) {
         switch (type) {
         case GpuStorageType::BYTE: return GL_BYTE;
@@ -69,24 +104,101 @@ namespace stratus {
         throw std::invalid_argument("Unable to calculate size in bytes");
     }
 
-    static void _CreateBuffer(GLuint & buffer, const void * data, const uintptr_t sizeBytes, const Bitfield usage) {
+    struct MemoryObjectHeader_ {
+        sgl::mem_alloc_info info;
+        GLuint memoryObject;
+    };
+
+    static std::pair<std::mutex*, std::unordered_map<VkDeviceMemory, std::shared_ptr<MemoryObjectHeader_>>*> GetMemoryObjectData_() {
+        static std::mutex m;
+        static std::unordered_map<VkDeviceMemory, std::shared_ptr<MemoryObjectHeader_>> map;
+        static std::pair<std::mutex*, std::unordered_map<VkDeviceMemory, std::shared_ptr<MemoryObjectHeader_>>*> pair = std::make_pair(
+            &m, &map
+        );
+
+        return pair;
+    }
+
+    static void MemoryObjectDeleter_(MemoryObjectHeader_* mem) {
+        mem->info.close_mem_os_handle();
+        glDeleteMemoryObjectsEXT(1, &mem->memoryObject);
+        delete mem;
+    }
+
+    static std::shared_ptr<MemoryObjectHeader_> GetMemoryObject_(const sgl::mem_alloc_info& info) {
+        auto data = GetMemoryObjectData_();
+        auto lock = std::unique_lock<std::mutex>(*data.first);
+        
+        if (auto it = data.second->find(info.mem_block); it != data.second->end()) {
+            STRATUS_LOG << "Returning existing\n";
+            return it->second;
+        }
+
+        auto ptr = std::shared_ptr<MemoryObjectHeader_>(new MemoryObjectHeader_(), MemoryObjectDeleter_);
+        ptr->info = info;
+        glCreateMemoryObjectsEXT(1, &ptr->memoryObject);
+
+#ifdef WIN32
+        glImportMemoryWin32HandleEXT(ptr->memoryObject, info.mem_block_size_bytes, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, info.mem_os_handle);
+#else
+        glImportMemoryFdEXT(ptr->memoryObject, info.mem_block_size_bytes, GL_HANDLE_TYPE_OPAQUE_FD_EXT, info.mem_os_handle);
+#endif
+
+        data.second->insert(std::make_pair(info.mem_block, ptr));
+        return ptr;
+    }
+
+    static std::shared_ptr<MemoryObjectHeader_> _CreateBuffer(GLuint& buffer, const sgl::mem_alloc_info& info, const Bitfield usage) {
         glCreateBuffers(1, &buffer);
-        glNamedBufferStorage(buffer, sizeBytes, data, _ConvertUsageType(usage));
+        //glNamedBufferStorage(buffer, sizeBytes, data, _ConvertUsageType(usage));
+        
+        auto ptr = GetMemoryObject_(info);
+        glNamedBufferStorageMemEXT(buffer, info.mem_size_bytes, ptr->memoryObject, info.mem_offset_bytes);
+        return ptr;
     }
 
     struct GpuBufferImpl {
         GpuBufferImpl(const void * data, const uintptr_t sizeBytes, const Bitfield usage) 
             : _sizeBytes(sizeBytes) {
-            _CreateBuffer(_buffer, data, sizeBytes, usage);
+            memory_ = sgl::buffer::make(GraphicsDriver::GetDevice(), sizeBytes,
+                //sgl::buffer_usage::INDIRECT | sgl::buffer_usage::INDEX | sgl::buffer_usage::VERTEX | sgl::buffer_usage::UNIFORM |
+                //sgl::buffer_usage::STORAGE | sgl::buffer_usage::TRANSFER_SRC | sgl::buffer_usage::TRANSFER_DST,
+                sgl::buffer_usage::STORAGE | sgl::buffer_usage::TRANSFER_DST,
+                ConvertVkBufferConfig_(usage)
+                );
+
+            if (data != nullptr) {
+                auto cpu = sgl::buffer::make(GraphicsDriver::GetDevice(), sizeBytes, sgl::buffer_usage::TRANSFER_SRC, sgl::buffer_config{
+                    .mmap = sgl::buffer_mmap_type::MMAP_READ_WRITE
+                    });
+
+                cpu->mmap().write_bytes(
+                    (const void*)data,
+                    sizeBytes
+                );
+
+                auto copyRegion = sgl::buffer_copy{ 0, 0, sizeBytes };
+                cpu->transfer_to(memory_, std::span(&copyRegion, 1));
+            }
+
+            STRATUS_LOG << "Original: " << sizeBytes << std::endl;
+            _CreateBuffer(_buffer, memory_->get_alloc_info(), usage);
         }
 
         ~GpuBufferImpl() {
+            memory_ = nullptr;
+
             if (ApplicationThread::Instance()->CurrentIsApplicationThread()) {
+                memoryObject_ = nullptr;
                 glDeleteBuffers(1, &_buffer);
             }
             else {
-                auto buffer = _buffer;
-                ApplicationThread::Instance()->Queue([buffer]() { GLuint buf = buffer; glDeleteBuffers(1, &buf); });
+                const auto buffer = _buffer;
+                const auto memObj = memoryObject_;
+                ApplicationThread::Instance()->Queue([buffer, memObj]() {
+                    //glDeleteMemoryObjectsEXT(1, &memObj);
+                    glDeleteBuffers(1, &buffer); 
+                });
             }
         }
 
@@ -200,7 +312,10 @@ namespace stratus {
     }
 
     private:
+        sgl::buffer_ref memory_;
         GLuint _buffer;
+        // This is created through a GL extension so we can let Vulkan manage the underlying memory
+        std::shared_ptr<MemoryObjectHeader_> memoryObject_;
         uintptr_t _sizeBytes;
         mutable bool _isMemoryMapped = false;
 
@@ -374,8 +489,8 @@ namespace stratus {
     bool GpuMeshAllocator::initialized_ = false;
     static constexpr size_t startVertices = 1024;
     static constexpr size_t minVerticesPerAlloc = startVertices; //1024 * 1024;
-    static constexpr size_t maxVertexBytes = std::numeric_limits<uint32_t>::max() * sizeof(GpuMeshData);
-    static constexpr size_t maxIndexBytes = std::numeric_limits<uint32_t>::max() * sizeof(uint32_t);
+    static constexpr size_t maxVertexBytes = (std::numeric_limits<uint32_t>::max)() * sizeof(GpuMeshData);
+    static constexpr size_t maxIndexBytes = (std::numeric_limits<uint32_t>::max)() * sizeof(uint32_t);
     //static constexpr size_t maxVertexBytes = startVertices * sizeof(GpuMeshData);
     //static constexpr size_t maxIndexBytes = startVertices * sizeof(uint32_t);
 
@@ -407,7 +522,7 @@ namespace stratus {
             }
             // If not perform a resize
             else {
-                const size_t newSizeBytes = data.lastByte + std::max(size_t(size), minVerticesPerAlloc) * byteMultiplier;
+                const size_t newSizeBytes = data.lastByte + (std::max)(size_t(size), minVerticesPerAlloc) * byteMultiplier;
                 if (newSizeBytes > maxBytes) {
                     throw std::runtime_error("Maximum GpuMesh bytes exceeded");
                 }

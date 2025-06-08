@@ -1,5 +1,5 @@
 #include "StratusFrameBuffer.h"
-#include "GL/gl3w.h"
+#include "glad/gl.h"
 #include <iostream>
 #include "StratusLog.h"
 #include "StratusApplicationThread.h"

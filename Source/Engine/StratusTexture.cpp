@@ -1,6 +1,6 @@
 #include "StratusTexture.h"
 #include "StratusLog.h"
-#include <GL/gl3w.h>
+#include <glad/gl.h>
 #include <exception>
 #include <unordered_set>
 #include <iostream>

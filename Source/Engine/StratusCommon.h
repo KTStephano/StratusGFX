@@ -3,7 +3,7 @@
 #ifndef STRATUSGFX_COMMON_H
 #define STRATUSGFX_COMMON_H
 
-#include "GL/gl3w.h"
+#include "glad/gl.h"
 #include "SDL.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"

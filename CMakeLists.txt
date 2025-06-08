@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 #set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_LIST_DIR})
 project(StratusGFX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # if (WIN32)
 #     message($ENV{SYSROOT})
@@ -28,7 +28,8 @@ list(APPEND CMAKE_PREFIX_PATH
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/assimp
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/assimp-5.2
     ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/meshoptimizer
-    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/bullet)
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/bullet
+    ${CMAKE_CURRENT_LIST_DIR}/ThirdParty/lib64/cmake/SGL)
 
 option(DEPENDENCY_BUILD "Third party dependencies only" OFF)
 option(BUILD_TESTS "Build engine integration and unit tests" ON)

@@ -102,7 +102,7 @@ struct WorldLightController : public stratus::InputHandler {
                         case SDL_SCANCODE_MINUS:
                             if (released) {
                                 lightIntensity = lightIntensity - lightIncreaseSpeed * deltaSeconds;
-                                lightIntensity = std::max(minLightBrightness, std::min(maxLightBrightness, lightIntensity));
+                                lightIntensity = (std::max)(minLightBrightness, (std::min)(maxLightBrightness, lightIntensity));
                                 STRATUS_LOG << "Light Intensity: " << lightIntensity << std::endl;
                                 worldLight_->SetIntensity(lightIntensity);
                             }
@@ -110,35 +110,35 @@ struct WorldLightController : public stratus::InputHandler {
                         case SDL_SCANCODE_EQUALS:
                             if (released) {
                                 lightIntensity = lightIntensity + lightIncreaseSpeed * deltaSeconds;
-                                lightIntensity = std::max(minLightBrightness, std::min(maxLightBrightness, lightIntensity));
+                                lightIntensity = (std::max)(minLightBrightness, (std::min)(maxLightBrightness, lightIntensity));
                                 STRATUS_LOG << "Light Intensity: " << lightIntensity << std::endl;
                                 worldLight_->SetIntensity(lightIntensity);
                             }
                             break;
                         case SDL_SCANCODE_UP: {
                             if (released) {
-                                scatterControl = scatterControl + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                scatterControl = scatterControl + (std::min)(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_DOWN: {
                             if (released) {
-                                scatterControl = scatterControl - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                scatterControl = scatterControl - (std::min)(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Scatter Control: " << scatterControl << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_LEFT: {
                             if (released) {
-                                particleDensity = particleDensity - std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                particleDensity = particleDensity - (std::min)(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;
                         }
                         case SDL_SCANCODE_RIGHT: {
                             if (released) {
-                                particleDensity = particleDensity + std::min(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
+                                particleDensity = particleDensity + (std::min)(atmosphericIncreaseSpeed * deltaSeconds, maxAtomsphericIncreasePerFrame);
                                 STRATUS_LOG << "Fog Density: " << particleDensity << std::endl;
                             }
                             break;

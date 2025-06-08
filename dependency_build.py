@@ -11,13 +11,13 @@ def build_dependencies(build_assimp):
     windows = ""
     if os.name == "nt":
         print("Windows")
-        windows = "--config Release"
+        windows = "--config RelWithDebInfo"
     else:
         print("Linux")
 
     print("Building assimp:", build_assimp)
 
-    configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DASSIMP_BUILD_TESTS=OFF -DASSIMP_USE_STB_IMAGE_STATIC=1 -DASSIMP_BUILD_ASSIMP_TOOLS=OFF"
+    configure = "cmake -Bbuild -S. -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DASSIMP_BUILD_TESTS=OFF -DASSIMP_USE_STB_IMAGE_STATIC=1 -DASSIMP_BUILD_ASSIMP_TOOLS=OFF"
     build = "cmake --build build/ -j 8 {}".format(windows)
     install = "cmake --install build/ --prefix ../ThirdParty {}".format(windows)
     configure_build_install = configure + " && " + build + " && " + install
@@ -34,6 +34,11 @@ def build_dependencies(build_assimp):
     cmd = "cd SDL && " + configure_build_install
     sdl = threading.Thread(target=lambda: os.system(cmd), args=())
     sdl.start()
+
+    # SGL
+    cmd = "cd SGL && " + configure_build_install
+    sgl = threading.Thread(target=lambda: os.system(cmd), args=())
+    sgl.start()
 
     # Assimp
     assimp = threading.Thread(target=lambda: [], args=())

@@ -2,6 +2,7 @@
 #include "StratusLog.h"
 #include "StratusApplicationThread.h"
 #include "StratusApplication.h"
+#include "SGL/SGL.h"
 
 namespace stratus {
     InputManager::InputManager() {}
@@ -66,10 +67,14 @@ namespace stratus {
         // graphics backend to some extent
         CHECK_IS_APPLICATION_THREAD();
 
-        STRATUS_LOG << "Initializing SDL video" << std::endl;
-        if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-            STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
-            STRATUS_ERROR << SDL_GetError() << std::endl;
+        //STRATUS_LOG << "Initializing SDL video" << std::endl;
+        //if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        //    STRATUS_ERROR << "Unable to initialize sdl2" << std::endl;
+        //    STRATUS_ERROR << SDL_GetError() << std::endl;
+        //    return false;
+        //}
+        if (!sgl::init()) {
+            STRATUS_ERROR << "Could not initialize SGL" << std::endl;
             return false;
         }
 
@@ -77,8 +82,14 @@ namespace stratus {
         window_ = SDL_CreateWindow(Application::Instance()->GetAppName(),
                 100, 100, // location x/y on screen
                 width_, height_, // width/height of window
-                SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL );
-        if (window_ == nullptr) {
+                SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+
+        vk_window_ = SDL_CreateWindow(Application::Instance()->GetAppName(),
+            100, 100, // location x/y on screen
+            64, 64, // width/height of window
+            SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN);
+
+        if (window_ == nullptr || vk_window_ == nullptr) {
             STRATUS_ERROR << "Failed to create sdl window" << std::endl;
             STRATUS_ERROR << SDL_GetError() << std::endl;
             SDL_Quit();
@@ -138,8 +149,11 @@ namespace stratus {
 
         if (window_) {
             SDL_DestroyWindow(window_);
+            SDL_DestroyWindow(vk_window_);
             window_ = nullptr;
-            SDL_Quit();
+            vk_window_ = nullptr;
+            //SDL_Quit();
+            sgl::quit();
         }
     }
 
@@ -162,6 +176,11 @@ namespace stratus {
 
     void * Window::GetWindowObject() const {
         auto sl = std::shared_lock<std::shared_mutex>(m_);
-        return (void *)window_;
+        return (void*)window_;
+    }
+
+    void* Window::GetVkWindowObject() const {
+        auto sl = std::shared_lock<std::shared_mutex>(m_);
+        return (void*)vk_window_;
     }
 }

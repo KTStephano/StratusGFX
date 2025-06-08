@@ -3,7 +3,7 @@
 #define STRATUSGFX_Pipeline_H
 
 #include <string>
-#include "GL/gl3w.h"
+#include "glad/gl.h"
 #include <vector>
 #include "StratusTexture.h"
 #include <unordered_map>
