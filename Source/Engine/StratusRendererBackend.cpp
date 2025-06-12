@@ -1431,8 +1431,8 @@ void RendererBackend::UpdatePointLights_(
         if (light->IsVirtualLight()) {
             //if (giEnabled && distance <= MAX_VPL_DISTANCE_TO_VIEWER) {
             //if (giEnabled && SphereFrustumIntersection(light->GetPosition(), light->GetRadius(), frame_->viewFrustumPlanes)) {
-            if (giEnabled && distance <= (2*light->GetRadius())) {
-            //if (giEnabled) {
+            //if (giEnabled && distance <= (2*light->GetRadius())) {
+            if (giEnabled) {
                 perVPLDistToViewerSet.insert(VplDistKey_(light, distance));
             }
         }
@@ -1565,7 +1565,7 @@ void RendererBackend::UpdatePointLights_(
             frame_->drawCommands->staticPbrMeshes,
             state_.staticPerPointLightDrawCalls,
             [](const GpuCommandReceiveManagerPtr& manager, const RenderFaceCulling& cull) {
-                return manager->staticPbrMeshes.find(cull)->second->GetCommandBuffer();
+                return manager->staticPbrMeshes.find(RenderFaceCulling::CULLING_NONE)->second->GetCommandBuffer();
             },
             lightViewProj
         );

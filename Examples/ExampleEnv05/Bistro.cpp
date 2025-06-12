@@ -527,6 +527,7 @@ public:
         // Disable culling for this model since there are some weird parts that seem to be reversed
         //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro_v5_2/BistroExterior.fbx", stratus::ColorSpace::SRGB, stratus::RenderFaceCulling::CULLING_CCW);
         stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/Bistro.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
+        //stratus::Async<stratus::Entity> e = stratus::ResourceManager::Instance()->LoadModel("../Resources/BistroNV.glb", stratus::ColorSpace::SRGB, true, stratus::RenderFaceCulling::CULLING_CCW);
         e.AddCallback([this](stratus::Async<stratus::Entity> e) { 
             if (e.Failed()) return;
             bistro = e.GetPtr(); 
@@ -538,6 +539,7 @@ public:
 
         auto settings = INSTANCE(RendererFrontend)->GetSettings();
         settings.skybox = stratus::ResourceManager::Instance()->LoadCubeMap("../Resources/Skyboxes/learnopengl/sbox_", stratus::ColorSpace::SRGB, "jpg");
+        settings.cascadeResolution = stratus::RendererCascadeResolution::CASCADE_RESOLUTION_1024;
         INSTANCE(RendererFrontend)->SetSettings(settings);
 
         bool running = true;

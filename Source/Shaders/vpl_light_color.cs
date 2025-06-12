@@ -74,25 +74,32 @@ layout (std430, binding = 4) readonly buffer inputBlock3 {
 
 // See https://stackoverflow.com/questions/13892732/texelfetch-from-cubemap
 // See https://stackoverflow.com/questions/6980530/selecting-the-face-of-a-cubemap-in-glsl
-vec3 generateCubemapCoords(in vec2 txc, in int face) {
-  vec3 v;
-  switch(face) {
-    case 0: v = vec3( 1.0, -txc.x, txc.y); break; // +X
-    case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
-    case 2: v = vec3( txc.x,  1.0, txc.y); break; // +Y
-    case 3: v = vec3(-txc.x, -1.0, txc.y); break; // -Y
-    case 4: v = vec3(txc.x, -txc.y,  1.0); break; // +Z
-    case 5: v = vec3(txc.x,  txc.y, -1.0); break; // -Z
-  }
-//   switch(face) {
-//     case 0: v = vec3( 1.0,  txc.x, txc.y); break; // +X
-//     case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
-//     case 2: v = vec3(txc.x,  1.0,  txc.y); break; // +Y
-//     case 3: v = vec3(txc.x, -1.0,  txc.y); break; // -Y
-//     case 4: v = vec3(txc.x, txc.y,  1.0); break;  // +Z
-//     case 5: v = vec3(txc.x, txc.y, -1.0); break;  // -Z
-//   }
-  return normalize(v);
+//vec3 generateCubemapCoords(in vec2 txc, in int face) {
+void generateCubemapCoords(in vec3 direction, out vec2 coords, out int face) {
+    float dx = abs(direction.x);
+    float dy = abs(direction.y);
+    float dz = abs(direction.z);
+    if (dx > dy && dx > dz) {
+        coords = direction.yz;
+        face = direction.x >= 0 ? 0 : 1; // Select +X or -X
+    } else if (dy > dx && dy > dz) {
+        coords = direction.xz;
+        face = direction.y >= 0 ? 2 : 3; // Select +Y or -Y
+    } else {
+        coords = direction.xy;
+        face = direction.z >= 0 ? 4 : 5; // Select +Z or -Z
+    }
+
+    // vec3 v;
+    // switch(face) {
+    // case 0: v = vec3( 1.0, -txc.x, txc.y); break; // +X
+    // case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
+    // case 2: v = vec3( txc.x,  1.0, txc.y); break; // +Y
+    // case 3: v = vec3(-txc.x, -1.0, txc.y); break; // -Y
+    // case 4: v = vec3(txc.x, -txc.y,  1.0); break; // +Z
+    // case 5: v = vec3(txc.x,  txc.y, -1.0); break; // -Z
+    // }
+    // return normalize(v);
 }
 
 shared int currentProbeIsVisible;
@@ -186,18 +193,18 @@ void main() {
             if (diffuseValBase.a > 0.0) {
                 // Previously 0.125 * ...
                 sampleModifier = vec3(0.0625 * (infiniteLightIntensity) * sampleRatioSky);
-                lightColorModifier = vec3(infiniteLightIntensity);
+                lightColorModifier = 1 * vec3(infiniteLightIntensity);
 
-                ATOMIC_ADD_FLOAT(diffuseXSky, diffuseValBase.x * sampleModifier.x, unused)
-                ATOMIC_ADD_FLOAT(diffuseYSky, diffuseValBase.y * sampleModifier.y, unused)
-                ATOMIC_ADD_FLOAT(diffuseZSky, diffuseValBase.z * sampleModifier.z, unused)
+                // ATOMIC_ADD_FLOAT(diffuseXSky, diffuseValBase.x * sampleModifier.x, unused)
+                // ATOMIC_ADD_FLOAT(diffuseYSky, diffuseValBase.y * sampleModifier.y, unused)
+                // ATOMIC_ADD_FLOAT(diffuseZSky, diffuseValBase.z * sampleModifier.z, unused)
             } else {
                 lightColorModifier = infiniteLightIntensity * infiniteLightColor.rgb;
                 sampleModifier = lightColorModifier * sampleRatioDirect;
 
-                ATOMIC_ADD_FLOAT(diffuseXDirect, diffuseValBase.x * sampleModifier.x, unused)
-                ATOMIC_ADD_FLOAT(diffuseYDirect, diffuseValBase.y * sampleModifier.y, unused)
-                ATOMIC_ADD_FLOAT(diffuseZDirect, diffuseValBase.z * sampleModifier.z, unused)
+                ATOMIC_ADD_FLOAT(diffuseXDirect, 0.5 * diffuseValBase.x * sampleModifier.x, unused)
+                ATOMIC_ADD_FLOAT(diffuseYDirect, 0.5 * diffuseValBase.y * sampleModifier.y, unused)
+                ATOMIC_ADD_FLOAT(diffuseZDirect, 0.5 * diffuseValBase.z * sampleModifier.z, unused)
             }
 
             lightColor = diffuseValBase.rgb * lightColorModifier;
@@ -205,12 +212,14 @@ void main() {
 
         barrier();
 
-        if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
+        //if (currentProbeIsVisible > 0 && shadowFactor >= 1.0) {
+        if (shadowFactor >= 1.0) {
             float weight = 1.0 - (float(distance + minDistance) / float(probeRadius));
             vec3 direct = vec3(uintBitsToFloat(diffuseXDirect), uintBitsToFloat(diffuseYDirect), uintBitsToFloat(diffuseZDirect));// / float(currentProbeIsVisible);
             vec3 sky = vec3(uintBitsToFloat(diffuseXSky), uintBitsToFloat(diffuseYSky), uintBitsToFloat(diffuseZSky));
             vec3 newDiffuseVal = ((diffuseValBase.rgb * direct)) + sky;// * infiniteLightIntensity * infiniteLightColor.rgb;
-            lightColor = newDiffuseVal * weight;
+            //lightColor = newDiffuseVal * weight;
+            lightColor = 0.9 * imageLoad(lighting, texelIndex).rgb + 0.1 * newDiffuseVal * weight;
         }
 
         imageStore(lighting, texelIndex, vec4(lightColor, 0.0));

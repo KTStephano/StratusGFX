@@ -124,7 +124,7 @@ float calculateShadowValue1Sample(samplerCubeArray shadowMaps, int shadowIndex, 
     // Part of this came from GPU Gems
     // @see http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch12.html
     //float bias = (currentDepth * max(0.5 * (1.0 - max(lightNormalDotProduct, 0.0)), minBias));
-    float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.03);
+    float bias = currentDepth * max(minBias, ( saturate( lightNormalDotProduct ) ) * 0.005);
     float shadow = 0.0;
     float depth = texture(shadowMaps, vec4(fragDir, float(shadowIndex))).r;
     // It's very important to multiply by lightFarPlane. The recorded depth

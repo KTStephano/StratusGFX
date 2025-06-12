@@ -1,6 +1,7 @@
 STRATUS_GLSL_VERSION
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_gpu_shader_int64 : enable
 
 #include "pbr.glsl"
 #include "pbr2.glsl"
@@ -14,8 +15,8 @@ in vec2 fsTexCoords;
 //out vec3 color;
 out vec4 reservoir;
 
-#define STANDARD_MAX_SAMPLES_PER_PIXEL 8
-#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 8
+#define STANDARD_MAX_SAMPLES_PER_PIXEL 4
+#define ABSOLUTE_MAX_SAMPLES_PER_PIXEL 4
 #define MAX_RESAMPLES_PER_PIXEL 4
 
 //#define MAX_SHADOW_SAMPLES_PER_PIXEL 25
@@ -75,6 +76,10 @@ uniform samplerCubeArray positionCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 uniform samplerCubeArray lightingCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 uniform samplerCubeArray shadowCubeMaps[MAX_TOTAL_SHADOW_ATLASES];
 
+layout (std430, binding = VPL_LIGHTING_CUBE_IMAGES) readonly buffer imageBlock3 {
+    uint64_t lightingCaches[];
+};
+
 layout (std430, binding = 3) readonly buffer inputBlock4 {
     AtlasEntry shadowIndices[];
 };
@@ -82,6 +87,36 @@ layout (std430, binding = 3) readonly buffer inputBlock4 {
 layout (std430, binding = 4) readonly buffer inputBlock5 {
     HaltonEntry haltonSequence[];
 };
+
+// See https://stackoverflow.com/questions/13892732/texelfetch-from-cubemap
+// See https://stackoverflow.com/questions/6980530/selecting-the-face-of-a-cubemap-in-glsl
+//vec3 generateCubemapCoords(in vec2 txc, in int face) {
+void generateCubemapCoords(in vec3 direction, out vec2 coords, out int face) {
+    float dx = abs(direction.x);
+    float dy = abs(direction.y);
+    float dz = abs(direction.z);
+    if (dx > dy && dx > dz) {
+        coords = direction.yz;
+        face = direction.x >= 0 ? 0 : 1; // Select +X or -X
+    } else if (dy > dx && dy > dz) {
+        coords = direction.xz;
+        face = direction.y >= 0 ? 2 : 3; // Select +Y or -Y
+    } else {
+        coords = direction.xy;
+        face = direction.z >= 0 ? 4 : 5; // Select +Z or -Z
+    }
+
+    // vec3 v;
+    // switch(face) {
+    // case 0: v = vec3( 1.0, -txc.x, txc.y); break; // +X
+    // case 1: v = vec3(-1.0,  txc.x, txc.y); break; // -X
+    // case 2: v = vec3( txc.x,  1.0, txc.y); break; // +Y
+    // case 3: v = vec3(-txc.x, -1.0, txc.y); break; // -Y
+    // case 4: v = vec3(txc.x, -txc.y,  1.0); break; // +Z
+    // case 5: v = vec3(txc.x,  txc.y, -1.0); break; // -Z
+    // }
+    // return normalize(v);
+}
 
 uniform int haltonSize;
 
@@ -159,7 +194,7 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
     //int samplesMax = history < 10 ? ABSOLUTE_MAX_SAMPLES_PER_PIXEL : maxSamplesPerPixel;
     samplesMax = max(1, int(samplesMax * distRatioToCamera));
     //samplesMax = max(1, samplesMax);
-    int sampleCount = samplesMax;//max(1, int(samplesMax * 0.5));
+    int sampleCount = samplesMax;
 
     //int maxRandomIndex = visibleIndices[bucketIndex] - 1; //min(numVisible[0] - 1, int((numVisible[0] - 1) * (1.0 / 3.0)));
     //maxRandomIndex = int(maxRandomIndex * mix(1.0, 0.5, distRatioToCamera));
@@ -191,10 +226,11 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                 vec3 probeMinusFrag = probePosition - fragPos;                                                                                      
                 float probeRadius = 1000.0;                                                                                  
                 float distance = length(probeMinusFrag);                                                                                            
-                                                                                                                                                    
-                if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                          
-                    float sideCheck = dot(normal, normalize(probeMinusFrag));                                                                       
-                    if (sideCheck < 0.0 || distance > probeRadius) {                                                                                
+
+                float sideCheck = dot(normal, normalize(probeMinusFrag));
+                bool visible = !(sideCheck < 0.0 || distance > probeRadius);                                                                                                                               
+                if (resamples < MAX_RESAMPLES_PER_PIXEL) {                                                                                                                                                                     
+                    if (!visible) {                                                                                
                         ++resamples;                                                                                                                
                         --i;                                                                                                                        
                         continue;                                                                                                                   
@@ -206,8 +242,10 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                                                                                                                                                     
                 float distanceRatio = clamp((2.0 * distance) / probeRadius, 0.0, 1.0);                                                              
                 float distAttenuation = distanceRatio;                                                                                              
-                                                                                                                                                    
-                vec3 lightColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb * 100000.0 * probe.intensityScale;                                                                                 
+
+                layout (rgba16f) imageCubeArray lightingCache = layout (rgba16f) imageCubeArray(lightingCaches[entry.index]);   
+                vec3 cacheColor = textureLod(lightingCubeMaps[entry.index], vec4(rayFromSurfaceToProbe, float(entry.layer)), 0).rgb;                                                                                                                  
+                vec3 lightColor = cacheColor * 100000.0 * probe.intensityScale;                                           
                                                                                                                                                     
                 //float shadowFactor =                                                                                                                
                 //distToCamera < 700 ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
@@ -217,16 +255,32 @@ void performLightingCalculations(vec3 screenColor, vec2 pixelCoords, vec2 texCoo
                 //                                                 probePosition,                                                                     
                 //                                                 dot(probePosition - fragPos, normal), 0.0)                                        
                 //                   : 0.0;      
-                float shadowFactor = calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
+                float shadowFactor = visible ? calculateShadowValue1Sample(shadowCubeMaps[entry.index],                                                       
                                                                 entry.layer,                                                                       
                                                                 probeRadius,                                                    
                                                                 fragPos,                                                                           
                                                                 probePosition,                                                                     
-                                                                dot(probePosition - fragPos, normal), 0.01);    
+                                                                dot(probePosition - fragPos, normal), 0.00)
+                                              : 1;  
                 //if (shadowFactor > 0) {
                 //    continue;
                 //}                                                                                                    
-                //shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));                                                  
+                //shadowFactor = min(shadowFactor, mix(minGiOcclusionFactor, 1.0, distanceRatio));          
+
+                // Write updated cache color back (radiance caching feedback loop)           
+                // if (length(cacheColor) > 0.0 && shadowFactor < 1.0) {
+                //     vec2 cacheCoords;
+                //     int cacheFace;
+                //     generateCubemapCoords(-rayFromSurfaceToProbe, cacheCoords, cacheFace);
+
+                //     // See https://github.com/KhronosGroup/SPIRV-Cross/issues/578
+                //     // cubeArrays need to be thought of as a 2D array, so they only take a 3d index instead of 4d
+                //     vec2 cacheDims = vec2(imageSize(lightingCache).xy);
+                //     ivec3 cacheTexelIndex = ivec3(ivec2(cacheCoords * cacheDims), cacheFace+6*int(entry.layer));
+
+                //     vec3 originalValue = imageLoad(lightingCache, cacheTexelIndex).rgb;
+                //     imageStore(lightingCache, cacheTexelIndex, vec4(baseColor * cacheColor, 0.0));
+                // }                                               
                                                                                                                                                     
                 float reweightingFactor = 1.0;                                                                                                      
                                                                                                                                                     
